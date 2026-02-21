@@ -33,6 +33,7 @@ history:
 Complete the remaining 4 agent invokers (Qwen, OpenCode, Kilocode, Augment, Cursor) plus agent detection utilities.
 
 **Success Criteria**:
+
 - All 9 agent invokers implemented
 - Cursor invoker includes timeout wrapper
 - Agent registry maps agent_id → invoker class
@@ -41,6 +42,7 @@ Complete the remaining 4 agent invokers (Qwen, OpenCode, Kilocode, Augment, Curs
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Agent invocation patterns table
 - [spec.md](../spec.md) - FR-007 (Cursor timeout workaround)
 
@@ -55,6 +57,7 @@ Complete the remaining 4 agent invokers (Qwen, OpenCode, Kilocode, Augment, Curs
 | Cursor | `cursor agent` | arg | `-p` | `--output-format json` |
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP03 --base WP02
 ```
@@ -66,8 +69,10 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Invoker for Qwen Code CLI (`qwen`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/qwen.py`
 2. Implement QwenInvoker:
+
    ```python
    class QwenInvoker(BaseInvoker):
        agent_id = "qwen"
@@ -83,6 +88,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - Qwen is a fork of Gemini CLI, similar flags
 - Prompt via stdin
 
@@ -95,8 +101,10 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Invoker for OpenCode CLI (`opencode`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/opencode.py`
 2. Implement OpenCodeInvoker:
+
    ```python
    class OpenCodeInvoker(BaseInvoker):
        agent_id = "opencode"
@@ -110,6 +118,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - OpenCode uses `opencode run` subcommand
 - Prompt via stdin
 - Multi-provider support (can use various LLM backends)
@@ -123,8 +132,10 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Invoker for Kilocode CLI (`kilocode`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/kilocode.py`
 2. Implement KilocodeInvoker:
+
    ```python
    class KilocodeInvoker(BaseInvoker):
        agent_id = "kilocode"
@@ -141,6 +152,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - Kilocode takes prompt as argument, not stdin
 - `-a` enables autonomous agent mode
 - `-j` for JSON output
@@ -154,8 +166,10 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Invoker for Augment Code CLI (`auggie`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/augment.py`
 2. Implement AugmentInvoker:
+
    ```python
    class AugmentInvoker(BaseInvoker):
        agent_id = "augment"
@@ -184,6 +198,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - Auggie uses `--acp` for autonomous coding prompt
 - No JSON output - rely on exit code only
 - Prompt as argument
@@ -197,8 +212,10 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Invoker for Cursor CLI with timeout wrapper to handle hanging issue.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/cursor.py`
 2. Implement CursorInvoker with timeout:
+
    ```python
    class CursorInvoker(BaseInvoker):
        agent_id = "cursor"
@@ -217,6 +234,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - **CRITICAL**: Cursor CLI may hang indefinitely - always use timeout wrapper
 - Uses `timeout` command (available on macOS/Linux)
 - Exit code 124 from timeout means Cursor hung
@@ -231,7 +249,9 @@ spec-kitty implement WP03 --base WP02
 **Purpose**: Create registry mapping agent IDs to invoker classes and detection utility.
 
 **Steps**:
+
 1. Update `src/specify_cli/orchestrator/agents/__init__.py`:
+
    ```python
    from .base import AgentInvoker, BaseInvoker, InvocationResult
    from .claude import ClaudeInvoker
@@ -279,6 +299,7 @@ spec-kitty implement WP03 --base WP02
    ```
 
 **Notes**:
+
 - Registry enables dynamic invoker lookup
 - Detection utility used by default config generation
 - Priority order matches feature 019 research recommendations

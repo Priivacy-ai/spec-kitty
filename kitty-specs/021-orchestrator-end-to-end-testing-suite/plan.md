@@ -6,6 +6,7 @@
 ## Summary
 
 Build comprehensive end-to-end testing infrastructure for the orchestrator (feature 020) with:
+
 - Tiered agent coverage (5 core agents with full integration tests, 7 extended agents with smoke tests)
 - Modular test paths based on agent count (1-agent, 2-agent, 3+-agent)
 - Checkpoint-based fixtures for fast test execution
@@ -88,6 +89,7 @@ src/specify_cli/
 **Decision**: Git-tracked directory snapshots in `tests/fixtures/orchestrator/`
 
 **Structure per checkpoint**:
+
 ```
 checkpoint_<name>/
 ├── state.json           # Serialized OrchestrationRun
@@ -102,6 +104,7 @@ checkpoint_<name>/
 ```
 
 **Loader behavior**:
+
 1. Copy fixture to temp directory
 2. Initialize git repo in temp dir
 3. Create worktrees from `worktrees.json` metadata
@@ -113,6 +116,7 @@ checkpoint_<name>/
 **Decision**: Lightweight API probe per agent
 
 **Implementation**:
+
 ```python
 class AgentAvailability:
     agent_id: str
@@ -123,6 +127,7 @@ class AgentAvailability:
 ```
 
 **Probe behavior**:
+
 - Each agent invoker gets a `probe()` method
 - Makes minimal API call (e.g., list models, whoami)
 - Timeout: 10 seconds
@@ -133,6 +138,7 @@ class AgentAvailability:
 **Decision**: Parameterized by agent count, not identity
 
 **Paths**:
+
 | Path | Agents | Tests |
 |------|--------|-------|
 | 1-agent | Single agent | Same-agent implementation and review |
@@ -140,6 +146,7 @@ class AgentAvailability:
 | 3+-agent | Three+ agents | Fallback scenarios (third agent used on failure) |
 
 **Runtime selection**:
+
 ```python
 @pytest.fixture
 def available_agents() -> list[str]:
@@ -162,6 +169,7 @@ def test_path(available_agents) -> Literal["1-agent", "2-agent", "3+-agent"]:
 **Decision**: File touch - agent creates empty file at specified path
 
 **Implementation**:
+
 ```python
 SMOKE_TASK = """
 Create an empty file at: {target_path}
@@ -191,6 +199,7 @@ pytest.mark.extended_agent             # Skip if agent unavailable
 ## Agent Tiers
 
 **Core Tier** (must be available - tests fail if missing):
+
 - Claude Code (`claude`)
 - GitHub Codex (`codex`)
 - GitHub Copilot (`copilot`)
@@ -198,6 +207,7 @@ pytest.mark.extended_agent             # Skip if agent unavailable
 - OpenCode (`opencode`)
 
 **Extended Tier** (skip gracefully if missing):
+
 - Cursor (`cursor`)
 - Qwen Code (`qwen`)
 - Augment Code (`augment`)

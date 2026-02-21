@@ -26,6 +26,7 @@ Introduce jujutsu (jj) as a first-class VCS alternative to git in spec-kitty. Wh
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 No constitution file exists for this project. Proceeding with standard engineering practices:
+
 - Favor simplicity over abstraction
 - Maintain backward compatibility
 - Match existing codebase style (functions over classes where appropriate)
@@ -95,12 +96,14 @@ tests/
 **Choice**: Thin Protocol + standalone functions + stateless factory
 
 **Rationale**:
+
 - Protocol for operations that truly differ (workspace creation, sync, conflict detection)
 - Standalone functions for backend-specific features (jj ops log has no git equivalent)
 - Factory function (not class) for stateless detection/instantiation
 - Matches spec-kitty's existing functional style
 
 **Alternatives Rejected**:
+
 - Full Protocol-based: No home for shared behavior, runtime enforcement issues
 - Strategy/Factory pattern: Over-engineered for the use case, state management complexity
 
@@ -109,11 +112,13 @@ tests/
 **Choice**: New `src/specify_cli/core/vcs/` subpackage
 
 **Rationale**:
+
 - Clean separation of VCS concerns
 - Room to grow (additional backends, utilities)
 - Clear public API via `__init__.py`
 
 **Alternatives Rejected**:
+
 - Flat files alongside `git_ops.py`: Cramped, harder to navigate
 
 ### Decision 3: Testing Strategy
@@ -121,11 +126,13 @@ tests/
 **Choice**: Parametrized tests + `@pytest.mark.jj` marker
 
 **Rationale**:
+
 - Parametrized tests prove abstraction works identically for both backends
 - `@pytest.mark.jj` allows skipping jj tests when jj unavailable
 - No mocking - real VCS execution required (per spec)
 
 **Implementation**:
+
 ```python
 # conftest.py
 import shutil
@@ -152,11 +159,13 @@ def test_workspace_creation(backend, tmp_path):
 **Choice**: `SyncResult` includes `changes_integrated` with commit details
 
 **Rationale**:
+
 - Sailing towards full automation - agents need to understand what changed
 - Change IDs (jj) provide stable identity across rebases
 - Commit messages help agents make informed decisions
 
 **Data Structures** (see data-model.md for complete definitions):
+
 - `ConflictInfo`: File path, type, line ranges, sides, resolution status
 - `SyncResult`: Status, conflicts, files updated, changes integrated
 - `ChangeInfo`: Change ID (jj) or commit SHA (git), message, author, timestamp
@@ -166,11 +175,13 @@ def test_workspace_creation(backend, tmp_path):
 **Choice**: When both jj and git are installed, use colocated mode (both `.jj/` and `.git/`)
 
 **Rationale**:
+
 - Preserves git compatibility for CI/CD, GitHub, team members
 - jj automatically syncs with git on each command
 - Gradual adoption without breaking existing workflows
 
 **Implementation**:
+
 - `jj git init --colocate` for new features with jj
 - Detection in factory: check for both tools, configure accordingly
 
@@ -209,10 +220,12 @@ def test_workspace_creation(backend, tmp_path):
 ## Dependencies
 
 **External**:
+
 - jj (jujutsu) CLI tool - optional, enhances functionality when available
 - git CLI tool - required fallback
 
 **Internal** (files to modify):
+
 - `src/specify_cli/core/worktree.py` - workspace creation
 - `src/specify_cli/cli/commands/implement.py` - implement command
 - `src/specify_cli/cli/commands/merge.py` - merge command

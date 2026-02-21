@@ -190,6 +190,7 @@ ALLOWED_TRANSITIONS = {
 Current `merge/status_resolver.py` uses monotonic "most done wins" via `LANE_PRIORITY`. This is the bug the PRD identifies.
 
 **New algorithm for event log merge**:
+
 1. Concatenate event logs from both branches
 2. Deduplicate by `event_id`
 3. Sort by `(at, event_id)`
@@ -216,6 +217,7 @@ status:
 **Resolution order**: `meta.json.status_phase` > `config.yaml.status.phase` > built-in default (1)
 
 **Phase behaviors**:
+
 - **Phase 0**: Transition matrix enforced, force-audit required. No event log yet. Existing frontmatter is authority.
 - **Phase 1**: Dual-write. Every transition appends canonical event AND updates frontmatter. Read from frontmatter (existing behavior). `status validate` warns on drift.
 - **Phase 2**: Canonical read. Read from `status.json` only. Frontmatter regenerated as compatibility view. `status validate` fails on drift.
@@ -238,6 +240,7 @@ The `status.emit` path is the single orchestration point. `tasks.py:move_task()`
 ### AD-7: Legacy Bridge
 
 `legacy_bridge.py` handles:
+
 1. **Write**: After materialization, update WP frontmatter `lane` fields and tasks.md status sections from `status.json`
 2. **Read (Phase 1 only)**: Existing code reads from frontmatter — no changes needed during Phase 1
 3. **Read (Phase 2)**: `agent_utils/status.py` reads from `status.json` instead of frontmatter

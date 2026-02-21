@@ -28,6 +28,7 @@ subtasks:
 **Goal**: Update research mission templates to be production-ready with complete sections, research-specific prompts, and integrated CSV tracking guidance.
 
 **Success Criteria**:
+
 - Research templates guide users through research methodology (not software development)
 - All templates complete and self-consistent (no broken references)
 - Templates prompt for research question, methodology, data sources, findings synthesis
@@ -39,6 +40,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Current research mission has "cosmetic changes only":
+
 - Renamed labels ("research question" instead of "user story") but same structure
 - CSV templates exist but aren't integrated into workflow
 - Command prompts don't guide agents to populate CSVs
@@ -48,12 +50,14 @@ subtasks:
 > "I want the research mission to have complete, validated templates and bibliography/citation management hooks so I can conduct systematic literature reviews with the same rigor as software development workflows."
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 3, FR-008 through FR-012)
 - Research: `kitty-specs/005-refactor-mission-system/research.md` (R2: Citation validation approach)
 - Data Model: `kitty-specs/005-refactor-mission-system/data-model.md` (Evidence and Source schema)
 - Existing: `.kittify/missions/research/mission.yaml` (current configuration)
 
 **Research Workflow Phases** (from research mission.yaml):
+
 1. **question** - Define research question and scope
 2. **methodology** - Design research methodology
 3. **gather** - Collect data and sources
@@ -62,12 +66,14 @@ subtasks:
 6. **publish** - Prepare findings for publication
 
 **Required Artifacts** (from research mission.yaml):
+
 - spec.md (research question and scope)
 - plan.md (methodology plan)
 - tasks.md (research tasks)
 - findings.md (research findings)
 
 **CSV Schemas** (to integrate):
+
 - evidence-log.csv: timestamp, source_type, citation, key_finding, confidence, notes
 - source-register.csv: source_id, citation, url, accessed_date, relevance, status
 
@@ -78,8 +84,10 @@ subtasks:
 **Purpose**: Transform spec template from software user stories to research question format.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/templates/spec-template.md`
 2. Update header section:
+
    ```markdown
    # Research Specification: [RESEARCH QUESTION]
 
@@ -107,6 +115,7 @@ subtasks:
    ```
 
 3. Replace "User Scenarios & Testing" with "Research Methodology Outline":
+
    ```markdown
    ## Research Methodology Outline
 
@@ -122,6 +131,7 @@ subtasks:
    ```
 
 4. Replace "Functional Requirements" with "Research Requirements":
+
    ```markdown
    ## Research Requirements
 
@@ -142,6 +152,7 @@ subtasks:
    ```
 
 5. Add "Key Concepts & Terminology" section:
+
    ```markdown
    ## Key Concepts & Terminology
 
@@ -164,8 +175,10 @@ subtasks:
 **Purpose**: Transform plan template from technical architecture to research methodology.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/templates/plan-template.md`
 2. Update to research-focused structure:
+
    ```markdown
    # Research Plan: [RESEARCH QUESTION]
 
@@ -289,6 +302,7 @@ subtasks:
 
    ### Documentation (this research project)
    ```
+
    kitty-specs/[###-research]/
    ├── spec.md              # Research question and scope
    ├── plan.md              # This file - methodology
@@ -299,14 +313,17 @@ subtasks:
    │   ├── source-register.csv   # Master source list
    │   └── methodology.md        # Detailed methodology (optional)
    └── data/                # Raw data (if empirical)
+
    ```
 
    ### Deliverables
    ```
+
    findings/
    ├── report.md           # Main research report
    ├── bibliography.md     # Formatted bibliography
    └── presentation/       # Slides or summary (optional)
+
    ```
 
    ## Quality Gates
@@ -362,8 +379,10 @@ subtasks:
 **Purpose**: Transform tasks template from software tasks to research work packages.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/templates/tasks-template.md`
 2. Update work package examples for research:
+
    ```markdown
    # Work Packages: [RESEARCH QUESTION]
 
@@ -434,13 +453,16 @@ subtasks:
 **Purpose**: Ensure CSV template has correct structure and helpful examples.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/templates/research/evidence-log.csv`
 2. Verify column headers match schema (from data-model.md):
+
    ```csv
    timestamp,source_type,citation,key_finding,confidence,notes
    ```
 
 3. Add example rows demonstrating each source type:
+
    ```csv
    timestamp,source_type,citation,key_finding,confidence,notes
    2025-01-15T10:00:00,journal,"Smith, J. (2024). AI Code Assistants. Nature Comp Sci, 10(2), 123-145.",AI assistants improve productivity 30%,high,Meta-analysis of 50 studies
@@ -451,6 +473,7 @@ subtasks:
    ```
 
 4. Add inline documentation:
+
    ```csv
    # Evidence Log: Track all research findings with citations
    #
@@ -481,13 +504,16 @@ subtasks:
 **Purpose**: Ensure source registry has correct structure and examples.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/templates/research/source-register.csv`
 2. Verify column headers:
+
    ```csv
    source_id,citation,url,accessed_date,relevance,status
    ```
 
 3. Add example rows:
+
    ```csv
    source_id,citation,url,accessed_date,relevance,status
    smith2024,"Smith, J. (2024). AI Code Assistants. Nature Comp Sci, 10(2), 123-145.",https://doi.org/10.1038/example,2025-01-15,high,reviewed
@@ -498,6 +524,7 @@ subtasks:
    ```
 
 4. Add inline documentation:
+
    ```csv
    # Source Register: Master list of all research sources
    #
@@ -526,9 +553,11 @@ subtasks:
 **Purpose**: Ensure research mission configuration is complete and accurate.
 
 **Steps**:
+
 1. Locate file: `.kittify/missions/research/mission.yaml`
 2. Verify all required sections present (will be validated by WP02 Pydantic schema)
 3. Ensure validation rules are research-specific:
+
    ```yaml
    validation:
      checks:
@@ -540,6 +569,7 @@ subtasks:
    ```
 
 4. Verify artifacts list is complete:
+
    ```yaml
    artifacts:
      required:
@@ -557,6 +587,7 @@ subtasks:
    ```
 
 5. Verify path conventions:
+
    ```yaml
    paths:
      workspace: "research/"
@@ -566,6 +597,7 @@ subtasks:
    ```
 
 6. Update agent_context to emphasize research rigor:
+
    ```yaml
    agent_context: |
      You are a research agent conducting systematic literature reviews and empirical research.
@@ -607,6 +639,7 @@ subtasks:
    - Verify no software-dev terminology leaked through
 
 2. **Integration Test** (most important):
+
    ```bash
    # Create research project
    spec-kitty init test-research --mission research --ai claude
@@ -644,6 +677,7 @@ subtasks:
    - mission.yaml paths → must match directory structure in templates
 
 **Test Files Created**:
+
 - Will be tested in WP10 (Integration Testing)
 - Manual testing during this WP to verify completeness
 
@@ -652,18 +686,23 @@ subtasks:
 ## Risks & Mitigations
 
 **Risk 1**: Templates too academic, confuse non-researcher users
+
 - **Mitigation**: Include inline examples and guidance, test with diverse users
 
 **Risk 2**: CSV schema doesn't match actual research needs
+
 - **Mitigation**: Based on established evidence synthesis practices, but gather feedback
 
 **Risk 3**: Templates incomplete, missing key sections
+
 - **Mitigation**: Compare against academic research proposal standards
 
 **Risk 4**: Software terminology leaked into research templates
+
 - **Mitigation**: Thorough review, search for terms like "user story", "TDD", "contract"
 
 **Risk 5**: CSV files not integrated into workflow
+
 - **Mitigation**: Explicit guidance in command prompts (WP05 handles this)
 
 ---
@@ -687,6 +726,7 @@ subtasks:
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Research templates must guide actual research methodology
 2. CSV schemas must support real research workflows
 3. Templates must be complete (no broken references)
@@ -694,6 +734,7 @@ subtasks:
 5. Integration must work (templates → CSVs → validation)
 
 **What Reviewers Should Verify**:
+
 - Initialize research project: `spec-kitty init test --mission research`
 - Run `/spec-kitty.specify` → verify research question prompt
 - Run `/spec-kitty.plan` → verify methodology sections
@@ -702,6 +743,7 @@ subtasks:
 - Verify mission.yaml aligns with templates
 
 **Acceptance Criteria from Spec**:
+
 - User Story 3, Acceptance Scenarios 1-6 all must pass
 - FR-008 and FR-012 satisfied (templates complete and consistent)
 

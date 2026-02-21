@@ -89,6 +89,7 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
    - Missions are now per-feature during specify
 
 **Salvageable content**:
+
 - Supported AI Agents table (lines 234-249) - accurate
 - Installation commands (lines 82-132) - accurate
 - Dashboard section (lines 27-49) - accurate
@@ -110,6 +111,7 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
    - Accept/merge commands themselves are accurate
 
 **Salvageable content**:
+
 - Installation section (lines 24-46) - accurate
 - Key Principles (lines 196-204) - accurate
 
@@ -118,6 +120,7 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
 **Assessment**: Good quality, minor updates needed.
 
 **Minor issues**:
+
 - Line 103: References "Cross-Platform Python CLI (v0.10.0+)" but we're on 0.11.0
 - Line 107: References MIGRATION-v0.10.0.md which may not exist
 
@@ -128,6 +131,7 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
 **Assessment**: Excellent quality, comprehensive explanation of 0.11.0 model.
 
 **Content**:
+
 - Correct workflow comparison (old vs new)
 - Correct dependency syntax
 - Correct troubleshooting
@@ -140,6 +144,7 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
 **Assessment**: Comprehensive upgrade guide, well-structured.
 
 **Content**:
+
 - Pre-upgrade checklist (accurate)
 - Step-by-step migration (accurate)
 - Troubleshooting (accurate)

@@ -51,10 +51,12 @@ history:
 ## ⚠️ Dependency Rebase Guidance
 
 **This WP depends on**:
+
 - WP01 (Mission Infrastructure)
 - WP06 (Gap Analysis) - Uses coverage_percentage from gap analysis
 
 **Before starting work**:
+
 1. Ensure WP01 is complete (mission exists)
 2. Ensure WP06 is complete (gap analysis can generate coverage_percentage)
 
@@ -65,6 +67,7 @@ history:
 **Goal**: Extend feature metadata (meta.json) to persist documentation mission state between iterations, enabling gap-filling workflows and tracking which Divio types and generators were used.
 
 **Success Criteria**:
+
 - `meta.json` schema extended with `documentation_state` field
 - Iteration mode (initial, gap_filling, feature_specific) persisted
 - Selected Divio types persisted as list
@@ -77,23 +80,27 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Existing meta.json structure for features
 - JSON serialization/deserialization
 - Understanding of iteration modes from research
 
 **Reference Documents**:
+
 - [data-model.md](../data-model.md) - Iteration Mode entity (lines 409-459)
 - [spec.md](../spec.md) - State management requirements (FR-002, FR-003, lines 101-102)
 - [plan.md](../plan.md) - State management design (lines 232-236)
 - [research.md](../research.md) - Cross-cutting findings on state persistence
 
 **Constraints**:
+
 - Must not break existing meta.json structure
 - Must handle missing documentation_state field gracefully (backward compatibility)
 - Must be JSON-serializable (no complex objects)
 - State should be human-readable (for debugging)
 
 **Current meta.json Structure**:
+
 ```json
 {
   "feature_number": "012",
@@ -106,6 +113,7 @@ history:
 ```
 
 **Extended Structure** (with documentation_state):
+
 ```json
 {
   "feature_number": "012",
@@ -138,7 +146,9 @@ history:
 **Purpose**: Define the documentation_state schema and document its structure.
 
 **Steps**:
+
 1. Document the schema in a docstring or schema file:
+
    ```python
    """Documentation State Schema for meta.json
 
@@ -174,6 +184,7 @@ history:
    ```
 
 2. Create TypedDict for type checking (optional):
+
    ```python
    from typing import TypedDict, List, Literal, Optional
 
@@ -198,12 +209,14 @@ history:
 **Parallel?**: Yes (can define schema while implementing read/write)
 
 **Notes**:
+
 - Schema is a nested JSON object
 - All fields are optional (backward compatibility)
 - Dates are ISO 8601 strings (JSON-serializable)
 - Generators list can be empty (manual documentation only)
 
 **Quality Validation**:
+
 - Is schema well-documented?
 - Are all fields necessary and sufficient?
 - Is it JSON-serializable?
@@ -213,7 +226,9 @@ history:
 **Purpose**: Implement storage of iteration mode in meta.json.
 
 **Steps**:
+
 1. Create helper function to add/update iteration_mode:
+
    ```python
    def set_iteration_mode(
        meta_file: Path,
@@ -254,12 +269,14 @@ history:
 **Parallel?**: Yes (can implement alongside other state setters)
 
 **Notes**:
+
 - Validates iteration_mode value
 - Initializes documentation_state if missing (backward compat)
 - Preserves existing meta.json fields
 - Atomic write (read, modify, write)
 
 **Quality Validation**:
+
 - Does it validate iteration_mode values?
 - Does it handle missing documentation_state field?
 - Does it preserve other meta.json fields?
@@ -270,7 +287,9 @@ history:
 **Purpose**: Implement storage of selected Divio types in meta.json.
 
 **Steps**:
+
 1. Create helper function:
+
    ```python
    def set_divio_types_selected(
        meta_file: Path,
@@ -312,12 +331,14 @@ history:
 **Parallel?**: Yes (can implement alongside other state setters)
 
 **Notes**:
+
 - Validates Divio type values
 - Allows empty list (no Divio types selected)
 - Allows subset (not all 4 types required)
 - Stores as list for order preservation
 
 **Quality Validation**:
+
 - Does it validate Divio type values?
 - Does it allow empty list?
 - Does it allow subset of types?
@@ -327,7 +348,9 @@ history:
 **Purpose**: Implement storage of configured generators in meta.json.
 
 **Steps**:
+
 1. Create helper function:
+
    ```python
    def set_generators_configured(
        meta_file: Path,
@@ -379,12 +402,14 @@ history:
 **Parallel?**: Yes (can implement alongside other state setters)
 
 **Notes**:
+
 - Validates required fields (name, language, config_path)
 - Allows empty list (manual documentation only)
 - Allows multiple generators (polyglot projects)
 - Config paths are relative to project root
 
 **Quality Validation**:
+
 - Does it validate generator config structure?
 - Does it validate generator names?
 - Does it allow empty list?
@@ -395,7 +420,9 @@ history:
 **Purpose**: Implement storage of last_audit_date and coverage_percentage in meta.json.
 
 **Steps**:
+
 1. Create helper function for audit metadata:
+
    ```python
    def set_audit_metadata(
        meta_file: Path,
@@ -436,6 +463,7 @@ history:
    ```
 
 2. Integration with gap analysis:
+
    ```python
    def update_state_from_gap_analysis(
        meta_file: Path,
@@ -459,12 +487,14 @@ history:
 **Parallel?**: Yes (can implement alongside other state setters)
 
 **Notes**:
+
 - Audit date stored as ISO 8601 string (JSON-serializable)
 - Coverage percentage is 0.0 to 1.0 (not percentage)
 - Null audit date indicates no gap analysis run yet
 - Integration function updates state from GapAnalysis object
 
 **Quality Validation**:
+
 - Does it validate coverage_percentage range?
 - Does it handle None audit date?
 - Does it serialize datetime to ISO string?
@@ -475,7 +505,9 @@ history:
 **Purpose**: Implement comprehensive functions to read and write complete documentation state.
 
 **Steps**:
+
 1. Implement read function:
+
    ```python
    def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
        """Read documentation state from feature meta.json.
@@ -503,6 +535,7 @@ history:
    ```
 
 2. Implement write function:
+
    ```python
    def write_documentation_state(
        meta_file: Path,
@@ -540,6 +573,7 @@ history:
    ```
 
 3. Implement initialization function:
+
    ```python
    def initialize_documentation_state(
        meta_file: Path,
@@ -577,6 +611,7 @@ history:
    ```
 
 4. Implement update function:
+
    ```python
    def update_documentation_state(
        meta_file: Path,
@@ -619,6 +654,7 @@ history:
 **Parallel?**: No (ties together read/write logic)
 
 **Notes**:
+
 - read_documentation_state returns None for non-documentation missions (graceful)
 - write_documentation_state validates required fields
 - initialize_documentation_state creates state from scratch
@@ -626,6 +662,7 @@ history:
 - All functions preserve other meta.json fields
 
 **Quality Validation**:
+
 - Does read return None for non-doc missions?
 - Does write validate state structure?
 - Does initialize create valid state?
@@ -636,7 +673,9 @@ history:
 **Purpose**: Ensure backward compatibility with features that don't have documentation_state field.
 
 **Steps**:
+
 1. Implement migration/upgrade function:
+
    ```python
    def ensure_documentation_state(meta_file: Path) -> None:
        """Ensure meta.json has documentation_state field.
@@ -675,6 +714,7 @@ history:
    ```
 
 2. Add version check helper:
+
    ```python
    def get_state_version(state: DocumentationState) -> int:
        """Get state schema version for future migrations.
@@ -695,12 +735,14 @@ history:
 **Parallel?**: No (migration logic must be careful)
 
 **Notes**:
+
 - Migration only runs for documentation mission features
 - Initializes with safe defaults
 - Preserves all existing meta.json fields
 - Future-proofed with _schema_version field (optional)
 
 **Quality Validation**:
+
 - Does it only touch documentation mission features?
 - Does it preserve existing fields?
 - Are defaults sensible?
@@ -711,6 +753,7 @@ history:
 **Unit Tests** (to be implemented in WP09):
 
 1. Test state initialization:
+
    ```python
    def test_initialize_documentation_state(tmp_path):
        meta_file = tmp_path / "meta.json"
@@ -738,6 +781,7 @@ history:
    ```
 
 2. Test state reading:
+
    ```python
    def test_read_documentation_state(tmp_path):
        meta_file = tmp_path / "meta.json"
@@ -760,6 +804,7 @@ history:
    ```
 
 3. Test state updates:
+
    ```python
    def test_update_documentation_state(tmp_path):
        meta_file = tmp_path / "meta.json"
@@ -785,6 +830,7 @@ history:
    ```
 
 4. Test backward compatibility:
+
    ```python
    def test_ensure_state_for_old_feature(tmp_path):
        # Old feature without documentation_state
@@ -805,6 +851,7 @@ history:
    ```
 
 5. Test non-documentation missions unaffected:
+
    ```python
    def test_read_state_for_non_doc_mission(tmp_path):
        meta_file = tmp_path / "meta.json"
@@ -819,6 +866,7 @@ history:
 **Manual Validation**:
 
 1. Test state persistence:
+
    ```bash
    # Create test meta.json
    cat > /tmp/test-meta.json << EOF
@@ -853,14 +901,17 @@ history:
    ```
 
 2. Test JSON structure:
+
    ```bash
    cat /tmp/test-meta.json | python -m json.tool
    ```
+
    - Verify JSON is valid
    - Verify documentation_state field is present
    - Verify all subfields are present
 
 3. Test backward compatibility:
+
    ```bash
    # Create old-style meta.json
    cat > /tmp/old-meta.json << EOF
@@ -964,6 +1015,7 @@ history:
 6. **Migration**: Old features can be upgraded gracefully
 
 **Validation Commands**:
+
 ```bash
 # Test module imports
 python -c "from specify_cli.doc_state import DocumentationState, read_documentation_state, write_documentation_state, initialize_documentation_state, ensure_documentation_state; print('✓ All imports successful')"
@@ -1001,6 +1053,7 @@ print('✓ State updates correctly')
 ```
 
 **Review Focus Areas**:
+
 - Schema is complete and well-documented
 - Validation catches invalid values
 - Read/write operations are symmetric (write then read returns same value)

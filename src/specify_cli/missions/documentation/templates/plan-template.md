@@ -14,6 +14,7 @@
 **Documentation Framework**: [Sphinx | MkDocs | Docusaurus | Jekyll | Hugo | None (starting fresh) or NEEDS CLARIFICATION]
 **Languages Detected**: [Python, JavaScript, Rust, etc. - from codebase analysis]
 **Generator Tools**:
+
 - JSDoc for JavaScript/TypeScript API reference
 - Sphinx for Python API reference (autodoc + napoleon extensions)
 - rustdoc for Rust API reference
@@ -21,6 +22,7 @@
 **Output Format**: [HTML | Markdown | PDF or NEEDS CLARIFICATION]
 **Hosting Platform**: [Read the Docs | GitHub Pages | GitBook | Custom or NEEDS CLARIFICATION]
 **Build Commands**:
+
 - `sphinx-build -b html docs/ docs/_build/html/` (Python)
 - `npx jsdoc -c jsdoc.json` (JavaScript)
 - `cargo doc --no-deps` (Rust)
@@ -71,6 +73,7 @@ docs/
 ```
 
 **Divio Type Organization**:
+
 - **Tutorials** (`tutorials/`): Learning-oriented, hands-on lessons for beginners
 - **How-To Guides** (`how-to/`): Goal-oriented recipes for specific tasks
 - **Reference** (`reference/`): Information-oriented technical specifications
@@ -114,6 +117,7 @@ docs/
 ### Research Output
 
 See [research.md](research.md) for detailed findings on:
+
 - Gap analysis results (coverage matrix, prioritized gaps)
 - Generator configuration research
 - Divio template examples
@@ -128,6 +132,7 @@ Define documentation structure, configure generators, plan content outline for e
 ### Documentation Structure
 
 **Directory Layout**:
+
 ```
 docs/
 ├── index.md                    # Landing page
@@ -138,6 +143,7 @@ docs/
 ```
 
 **Navigation Strategy**:
+
 - Landing page links to all four Divio sections
 - Each section has clear purpose statement
 - Cross-links between types (tutorials → reference, how-tos → explanation)
@@ -146,6 +152,7 @@ docs/
 ### Generator Configurations
 
 **Sphinx Configuration** (Python):
+
 ```python
 # docs/conf.py
 project = '[PROJECT NAME]'
@@ -160,6 +167,7 @@ html_static_path = ['_static']
 ```
 
 **JSDoc Configuration** (JavaScript):
+
 ```json
 {
   "source": {
@@ -177,6 +185,7 @@ html_static_path = ['_static']
 ```
 
 **rustdoc Configuration** (Rust):
+
 ```toml
 # Cargo.toml
 [package.metadata.docs.rs]
@@ -187,20 +196,24 @@ rustdoc-args = ["--document-private-items"]
 ### Content Outline
 
 **Tutorials** (WP02 in tasks):
+
 - Getting Started (installation, first use, basic concepts)
 - [Additional tutorials based on key user journeys]
 
 **How-To Guides** (WP03 in tasks):
+
 - How to [solve specific problem 1]
 - How to [solve specific problem 2]
 - [Additional guides based on common tasks]
 
 **Reference** (WP04 in tasks):
+
 - API Reference (generated from code)
 - CLI Reference (manual)
 - Configuration Reference (manual)
 
 **Explanation** (WP05 in tasks):
+
 - Architecture Overview (design decisions, system structure)
 - Core Concepts (domain concepts explained)
 - [Additional explanations as needed]
@@ -235,12 +248,14 @@ Validating against spec.md success criteria:
 *GATE: Documentation mission requires adherence to Write the Docs best practices and Divio principles.*
 
 **Write the Docs Principles**:
+
 - Documentation as code (version controlled, reviewed, tested)
 - Accessible language (clear, plain, bias-free)
 - User-focused (written for audience, not developers)
 - Maintained (updated with code changes)
 
 **Divio Documentation System**:
+
 - Four distinct types with clear purposes
 - Learning-oriented tutorials
 - Goal-oriented how-tos
@@ -248,6 +263,7 @@ Validating against spec.md success criteria:
 - Understanding-oriented explanations
 
 **Accessibility Standards**:
+
 - WCAG 2.1 AA compliance
 - Proper heading hierarchy
 - Alt text for all images
@@ -257,12 +273,14 @@ Validating against spec.md success criteria:
 ## Risks & Dependencies
 
 **Risks**:
+
 - Documentation becomes outdated as code evolves
 - Generated documentation quality depends on code comment quality
 - Accessibility requirements may require manual auditing
 - Framework limitations may restrict functionality
 
 **Dependencies**:
+
 - Generator tools must be installed in development environment
 - Code must have comments/docstrings for reference generation
 - Hosting platform must be available and accessible

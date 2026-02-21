@@ -63,6 +63,7 @@ history:
 - **All tests pass**, **mypy --strict clean**, **ruff clean**
 
 **Success metrics**:
+
 - Parser correctly extracts sections from the real constitution at `.kittify/memory/constitution.md`
 - Pydantic models accept valid data and reject invalid data
 - YAML emission produces properly formatted output with header comment
@@ -77,6 +78,7 @@ history:
 - **Codebase pattern**: Follow `src/specify_cli/telemetry/` and `src/specify_cli/status/` subpackage structure
 
 **Key architectural decisions**:
+
 - Use Python `re` for markdown parsing — no external markdown library (research.md RQ-1)
 - Schema-first: Pydantic models define the YAML output contract (plan.md AD-2)
 - All schema fields have sensible defaults (empty strings, False, 0, etc.)
@@ -91,6 +93,7 @@ history:
 **Purpose**: Establish the directory and module structure for the constitution subpackage.
 
 **Steps**:
+
 1. Create `src/specify_cli/constitution/__init__.py` with module docstring and placeholder exports
 2. Create empty module files: `parser.py`, `schemas.py`, `extractor.py`, `sync.py`, `hasher.py`
 3. Create `tests/specify_cli/constitution/__init__.py`
@@ -98,6 +101,7 @@ history:
 5. Create `tests/specify_cli/constitution/test_schemas.py` with placeholder test class
 
 **Files**:
+
 - `src/specify_cli/constitution/__init__.py` (new)
 - `src/specify_cli/constitution/parser.py` (new, stub)
 - `src/specify_cli/constitution/schemas.py` (new, stub)
@@ -112,10 +116,12 @@ history:
 
 ### Subtask T002 – Implement `ConstitutionParser` — Section Splitter
 
-**Purpose**: Parse constitution markdown into a list of `ConstitutionSection` objects by splitting on `## ` headings.
+**Purpose**: Parse constitution markdown into a list of `ConstitutionSection` objects by splitting on `##` headings.
 
 **Steps**:
+
 1. In `parser.py`, define `ConstitutionSection` dataclass:
+
    ```python
    @dataclass
    class ConstitutionSection:
@@ -127,6 +133,7 @@ history:
    ```
 
 2. Implement `ConstitutionParser` class:
+
    ```python
    class ConstitutionParser:
        def parse(self, content: str) -> list[ConstitutionSection]:
@@ -140,9 +147,11 @@ history:
    - Initialize `structured_data` as empty dict, `requires_ai` as True (updated by sub-parsers)
 
 **Files**:
+
 - `src/specify_cli/constitution/parser.py`
 
 **Edge cases**:
+
 - Constitution with no `##` headings → return single section with all content
 - Empty constitution → return empty list
 - Preamble before first `##` heading → capture as unnamed section (heading = "preamble", level = 0)
@@ -153,6 +162,7 @@ history:
 **Purpose**: Extract data from markdown tables (e.g., `| Key | Value |` rows) into dict format.
 
 **Steps**:
+
 1. Add `parse_table(content: str) -> list[dict[str, str]]` method to `ConstitutionParser`:
    - Detect table rows: `^\|(.+)\|$` pattern
    - Skip separator row: `^\|[-:| ]+\|$`
@@ -164,15 +174,18 @@ history:
    - If table found: parse it, store in `structured_data["tables"]`, set `requires_ai = False`
 
 **Files**:
+
 - `src/specify_cli/constitution/parser.py`
 
 **Example**:
+
 ```markdown
 | Check | Status | Notes |
 |-------|--------|-------|
 | Python 3.11+ | ✅ | Required |
 | pytest | ✅ | 90%+ coverage |
 ```
+
 → `[{"Check": "Python 3.11+", "Status": "✅", "Notes": "Required"}, ...]`
 
 ### Subtask T004 – Implement YAML Code Block Parser
@@ -180,6 +193,7 @@ history:
 **Purpose**: Extract data from fenced YAML code blocks in the constitution.
 
 **Steps**:
+
 1. Add `parse_yaml_blocks(content: str) -> list[dict]` method:
    - Pattern: `` ```yaml\n(.*?)\n``` `` with `re.DOTALL`
    - Parse each YAML block with `ruamel.yaml`
@@ -189,11 +203,13 @@ history:
    - If YAML blocks found: store in `structured_data["yaml_blocks"]`, set `requires_ai = False`
 
 **Files**:
+
 - `src/specify_cli/constitution/parser.py`
 
 **Parallel?**: Yes — independent of T003.
 
 **Edge cases**:
+
 - Invalid YAML in code block → log warning, skip block
 - Multiple YAML blocks in one section → return all as list
 
@@ -202,6 +218,7 @@ history:
 **Purpose**: Extract numbered directive-style rules from the constitution.
 
 **Steps**:
+
 1. Add `parse_numbered_lists(content: str) -> list[str]` method:
    - Pattern: `^\d+\.\s+(.+)$` with `re.MULTILINE`
    - Return list of item texts (stripped)
@@ -210,6 +227,7 @@ history:
    - If numbered lists found: store in `structured_data["numbered_items"]`, set `requires_ai = False`
 
 **Files**:
+
 - `src/specify_cli/constitution/parser.py`
 
 **Parallel?**: Yes — independent of T003, T004.
@@ -219,6 +237,7 @@ history:
 **Purpose**: Extract quantitative values from prose patterns like "minimum 90% coverage", "TDD required", "< 2 seconds".
 
 **Steps**:
+
 1. Add `extract_keywords(content: str) -> dict[str, Any]` method:
    - Pattern dictionary mapping regex → structured output:
      - `(\d+)%\s*coverage` → `{"min_coverage": int}`
@@ -233,9 +252,11 @@ history:
    - If any keywords found, set `requires_ai = False`
 
 **Files**:
+
 - `src/specify_cli/constitution/parser.py`
 
 **Notes**:
+
 - Case-insensitive matching
 - Multiple matches per section are merged
 - This is best-effort — AI fallback handles missed patterns
@@ -245,7 +266,9 @@ history:
 **Purpose**: Define the Pydantic model for `governance.yaml` output, matching the schema from plan.md AD-2.
 
 **Steps**:
+
 1. In `schemas.py`, create nested Pydantic models:
+
    ```python
    class TestingConfig(BaseModel):
        min_coverage: int = 0
@@ -280,9 +303,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/schemas.py`
 
 **Notes**:
+
 - Use `Field(default_factory=...)` for mutable defaults
 - All fields must have defaults — extraction may not find values for everything
 - Import from pydantic: `BaseModel`, `Field`
@@ -292,7 +317,9 @@ history:
 **Purpose**: Define Pydantic models for `agents.yaml` output.
 
 **Steps**:
+
 1. In `schemas.py`:
+
    ```python
    class AgentProfile(BaseModel):
        agent_key: str
@@ -311,6 +338,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/schemas.py`
 
 **Parallel?**: Yes — independent of T007.
@@ -320,7 +348,9 @@ history:
 **Purpose**: Define Pydantic models for `directives.yaml` output.
 
 **Steps**:
+
 1. In `schemas.py`:
+
    ```python
    class Directive(BaseModel):
        id: str
@@ -334,6 +364,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/schemas.py`
 
 **Parallel?**: Yes — independent of T007, T008.
@@ -343,7 +374,9 @@ history:
 **Purpose**: Define the Pydantic model for `metadata.yaml` — tracks extraction provenance.
 
 **Steps**:
+
 1. In `schemas.py`:
+
    ```python
    class SectionsParsed(BaseModel):
        structured: int = 0
@@ -360,6 +393,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/schemas.py`
 
 ### Subtask T011 – Implement YAML Emission Helpers
@@ -367,7 +401,9 @@ history:
 **Purpose**: Serialize Pydantic models to YAML files with the required header comment.
 
 **Steps**:
+
 1. In a new module or in `schemas.py`, create helper functions:
+
    ```python
    YAML_HEADER = "# Auto-generated from constitution.md — do not edit directly.\n# Run 'spec-kitty constitution sync' to regenerate.\n\n"
 
@@ -384,6 +420,7 @@ history:
 2. Ensure the YAML output is human-readable (block style, sorted keys)
 
 **Files**:
+
 - `src/specify_cli/constitution/schemas.py` (or a separate `emitter.py` — implementer's choice)
 
 **Parallel?**: Yes — can proceed once any schema is defined.
@@ -393,6 +430,7 @@ history:
 **Purpose**: Comprehensive test coverage for parser and schema modules.
 
 **Steps**:
+
 1. In `tests/specify_cli/constitution/test_parser.py`:
    - Test section splitting with real constitution content
    - Test table parsing with various formats
@@ -410,6 +448,7 @@ history:
    - Test schema validation (required fields, type errors)
 
 3. Use the real constitution as a fixture:
+
    ```python
    @pytest.fixture
    def real_constitution(tmp_path):
@@ -421,6 +460,7 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/constitution/test_parser.py`
 - `tests/specify_cli/constitution/test_schemas.py`
 

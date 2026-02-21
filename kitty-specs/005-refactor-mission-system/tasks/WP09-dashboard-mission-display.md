@@ -28,10 +28,12 @@ subtasks:
 **Status**: ✅ **Approved**
 
 **Key Checks**:
+
 1. `APIHandler.handle_root()` now loads the active mission (via `get_active_mission`) and passes it to `get_dashboard_html(mission_context=...)`, so the initial HTML payload seeds `window.__INITIAL_MISSION__` before any dashboard JavaScript runs. This satisfies T062 and the R3 hybrid decision (server render + manual refresh) because the mission badge renders immediately, even if `/api/features` is slow or offline.
 2. `dashboard.js` reads `window.__INITIAL_MISSION__` into `activeMission` before the first `updateMissionDisplay()` call, and the refresh button simply reloads the page, so the mission display remains consistent with the `/api/features` payload on subsequent refreshes.
 
 **Validation**:
+
 - `python3 - <<'PY' ... src/specify_cli/dashboard/templates/__init__.py` (see review log) confirmed `get_dashboard_html()` now embeds the mission JSON inline, proving the placeholder replacement works outside the HTTP server.
 
 # Work Package Prompt: WP09 – Dashboard Mission Display
@@ -41,6 +43,7 @@ subtasks:
 **Goal**: Add active mission display to spec-kitty dashboard header, making it visible which domain mode is active without running CLI commands.
 
 **Success Criteria**:
+
 - Dashboard displays active mission name prominently (header or sidebar)
 - Mission display updates when mission switched (after page refresh)
 - Optional: Refresh button for manual update
@@ -52,6 +55,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Users can't see active mission when viewing dashboard:
+
 - Must run `spec-kitty mission current` in terminal
 - Risk of confusion when switching between research and software work
 - No visual confirmation of current mode
@@ -60,10 +64,12 @@ subtasks:
 > "I want to see the currently active mission displayed prominently, so I know which domain mode my current work is using without running CLI commands."
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 7, FR-027 through FR-029)
 - Research: `kitty-specs/005-refactor-mission-system/research.md` (R3: Dashboard integration - Hybrid approach selected)
 
 **Design Decision from Research**:
+
 - **Approach**: Hybrid (server-side rendering + manual refresh button)
 - **Rationale**: Aligns with "resist complication" guidance, mission switching is infrequent
 - **Implementation**: Add mission to template context on page load, optional refresh button
@@ -72,12 +78,14 @@ subtasks:
 > "If there are clear cases where the dashboard should adapt, it should adapt, but we should resist the urge to complicate the dashboard unless necessary."
 
 **Dashboard Technology Stack** (current):
+
 - Backend: FastAPI or similar Python web framework
 - Templates: Jinja2 or similar templating
 - Frontend: HTML/CSS/JavaScript (minimal)
 - Real-time updates: WebSocket for feature status (existing)
 
 **Existing Dashboard Features**:
+
 - Project name displayed
 - Feature overview (kanban lanes)
 - Work package status
@@ -92,9 +100,11 @@ subtasks:
 **Purpose**: Add active mission to dashboard server context.
 
 **Steps**:
+
 1. Locate dashboard server file: `src/specify_cli/dashboard/server.py`
 2. Find main route handler (likely `/` or `/index`)
 3. Add mission to template context:
+
    ```python
    from specify_cli.mission import get_active_mission, MissionError
 
@@ -148,9 +158,11 @@ subtasks:
 **Purpose**: Display mission name in dashboard UI.
 
 **Steps**:
+
 1. Locate dashboard template (likely `templates/index.html` or `dashboard/templates/`)
 2. Find header section (top of page)
 3. Add mission display:
+
    ```html
    <header class="dashboard-header">
      <div class="header-left">
@@ -185,7 +197,9 @@ subtasks:
 **Purpose**: Allow manual dashboard refresh to see mission updates.
 
 **Steps**:
+
 1. Add refresh button to mission display (in template):
+
    ```html
    <div class="mission-display">
      <span class="mission-label">Mission:</span>
@@ -198,6 +212,7 @@ subtasks:
    ```
 
 2. Alternative with JavaScript reload:
+
    ```html
    <button class="refresh-button" onclick="refreshDashboard()">
      ↻ Refresh
@@ -225,8 +240,10 @@ subtasks:
 **Purpose**: Make mission display prominent but not obtrusive.
 
 **Steps**:
+
 1. Locate dashboard CSS file (likely `static/style.css` or inline styles)
 2. Add CSS for mission display:
+
    ```css
    .mission-display {
      display: flex;
@@ -286,18 +303,21 @@ subtasks:
 **Purpose**: Verify dashboard works with default software-dev mission.
 
 **Steps**:
+
 1. Ensure project using software-dev mission:
+
    ```bash
    spec-kitty mission current
    # Should show: Software Dev Kitty
    ```
 
 2. Start dashboard:
+
    ```bash
    spec-kitty dashboard
    ```
 
-3. Open in browser: http://localhost:8000 (or configured port)
+3. Open in browser: <http://localhost:8000> (or configured port)
 4. Verify mission displayed in header:
    - Should show: "Mission: Software Dev Kitty (software)"
    - Should be styled correctly
@@ -321,7 +341,9 @@ subtasks:
 **Purpose**: Verify dashboard updates after mission switch.
 
 **Steps**:
+
 1. Switch to research mission:
+
    ```bash
    spec-kitty mission switch research
    ```
@@ -333,6 +355,7 @@ subtasks:
    - No research-specific UI changes (per constraint)
 
 4. Test mission switch back:
+
    ```bash
    spec-kitty mission switch software-dev
    ```
@@ -359,6 +382,7 @@ subtasks:
 **Manual Testing Workflow**:
 
 1. **Initial State**:
+
    ```bash
    # Start with software-dev mission
    spec-kitty mission current  # Verify: Software Dev Kitty
@@ -368,6 +392,7 @@ subtasks:
    ```
 
 2. **Mission Switch Test**:
+
    ```bash
    # Switch to research
    spec-kitty mission switch research
@@ -378,6 +403,7 @@ subtasks:
    ```
 
 3. **Switch Back Test**:
+
    ```bash
    # Switch back to software-dev
    spec-kitty mission switch software-dev
@@ -399,6 +425,7 @@ subtasks:
    - Should show "Unknown" or fallback gracefully
 
 **Automated Testing** (optional):
+
 - Could add Playwright test for dashboard rendering
 - Not critical for this feature (manual testing sufficient)
 
@@ -407,18 +434,23 @@ subtasks:
 ## Risks & Mitigations
 
 **Risk 1**: Dashboard becomes cluttered
+
 - **Mitigation**: Minimal design, header placement, no large visual changes
 
 **Risk 2**: Mission display breaks dashboard layout
+
 - **Mitigation**: Test responsive design, use flexbox for adaptive layout
 
 **Risk 3**: Users expect auto-update without refresh
+
 - **Mitigation**: Document refresh requirement, make button obvious
 
 **Risk 4**: Dashboard WebSocket updates break
+
 - **Mitigation**: Don't modify WebSocket logic, only add template context
 
 **Risk 5**: Backend changes break existing dashboard
+
 - **Mitigation**: Test all dashboard features after changes, not just mission display
 
 ---
@@ -437,6 +469,7 @@ subtasks:
 - [ ] Works on different screen sizes
 
 **Visual Verification**:
+
 - [ ] Screenshot with software-dev mission
 - [ ] Screenshot with research mission
 - [ ] Mission text readable and well-styled
@@ -447,6 +480,7 @@ subtasks:
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Mission display must be visible but not dominating
 2. Refresh mechanism must work (button or manual reload)
 3. No breaking changes to existing dashboard features
@@ -454,6 +488,7 @@ subtasks:
 5. Works with all missions (generic, not mission-specific)
 
 **What Reviewers Should Verify**:
+
 - Start dashboard with software-dev → verify mission shown
 - Switch to research, refresh → verify mission updated
 - Check layout on different screen sizes → no overflow
@@ -461,6 +496,7 @@ subtasks:
 - Verify no mission-specific UI complications added
 
 **Acceptance Criteria from Spec**:
+
 - User Story 7, Scenarios 1-4 satisfied
 - FR-027 through FR-029 implemented
 - SC-016, SC-017 achieved (visible without CLI, updates within 5 seconds of refresh)

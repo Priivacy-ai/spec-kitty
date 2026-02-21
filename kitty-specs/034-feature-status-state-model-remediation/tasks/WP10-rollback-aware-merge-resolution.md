@@ -32,6 +32,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -47,6 +48,7 @@ history:
 **This WP fixes the core bug identified in the PRD**: when a reviewer sends a WP back from `for_review` to `in_progress` on one branch while another branch concurrently moves it to `done`, the current resolver incorrectly picks `done` (higher priority) instead of honoring the reviewer's rollback.
 
 **Success Criteria**:
+
 1. A reviewer rollback (`for_review -> in_progress` with review_ref) takes precedence over concurrent forward progression during merge.
 2. Non-conflicting WPs from different branches merge correctly without interference.
 3. The existing monotonic "most done wins" behavior is preserved as a FALLBACK when no rollback is detected.
@@ -57,12 +59,14 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` AD-4 defines the rollback-aware conflict resolution algorithm.
 - `research.md` R-4 documents the current monotonic behavior and its failure modes.
 - `data-model.md` Transition Matrix shows reviewer rollback: `for_review -> in_progress`.
 - `contracts/transition-matrix.json` specifies `conflict_resolution.strategy: "rollback_aware"`.
 
 **Current Code** (from `src/specify_cli/merge/status_resolver.py`):
+
 ```python
 LANE_PRIORITY = {
     "done": 4,
@@ -71,13 +75,16 @@ LANE_PRIORITY = {
     "planned": 1,
 }
 ```
+
 This is used in `resolve_lane_conflict()` to pick the "most done" lane when two branches disagree. This is the bug.
 
 **Dependency Artifacts Available**:
+
 - WP01 provides `status/models.py` with Lane enum, CANONICAL_LANES, and StatusEvent.
 - WP03 provides `status/reducer.py` with event deduplication and sorting logic.
 
 **Constraints**:
+
 - The existing `parse_conflict_markers()`, `resolve_status_conflicts()`, `get_conflicted_files()`, and `is_status_file()` functions must not be broken.
 - The resolver operates on git merge conflict markers, not on the event log directly. For frontmatter lane conflicts, it reads the "ours" and "theirs" lane values from conflict markers.
 - JSONL merge support is a NEW capability -- currently no auto-resolution exists for `.jsonl` files.
@@ -91,8 +98,10 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Purpose**: Expand the lane priority map to include all 7 canonical lanes.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/status_resolver.py`.
 2. Replace the current `LANE_PRIORITY` dict:
+
    ```python
    # OLD:
    LANE_PRIORITY = {
@@ -115,18 +124,21 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
        "doing": 3,      # Maps to same priority as in_progress
    }
    ```
+
 3. The `"doing"` entry remains for backward compatibility with old frontmatter values that haven't been migrated yet.
 4. Note: this LANE_PRIORITY is the FALLBACK for when no rollback is detected. The rollback-aware logic (T050) takes precedence.
 
 **Files**: `src/specify_cli/merge/status_resolver.py`
 
 **Validation**:
+
 - Test: `LANE_PRIORITY["in_progress"] == 3`
 - Test: `LANE_PRIORITY["doing"] == 3` (alias parity)
 - Test: `LANE_PRIORITY["blocked"] == 0`
 - Test: all 7 canonical lanes plus "doing" are in the map.
 
 **Edge Cases**:
+
 - A WP file with `lane: "doing"` from before migration: `LANE_PRIORITY["doing"]` resolves correctly.
 - A WP file with `lane: "claimed"` (new lane): resolved correctly.
 
@@ -135,7 +147,9 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Purpose**: Detect whether a merge conflict involves a reviewer rollback signal.
 
 **Steps**:
+
 1. Create a function `_detect_rollback(content: str) -> bool` in `status_resolver.py`:
+
    ```python
    def _detect_rollback(content: str) -> bool:
        """Detect if content contains a reviewer rollback signal.
@@ -146,15 +160,18 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
        3. The lane value is in_progress AND there's a review reference
        """
    ```
+
 2. Detection heuristics (check each in order):
 
    **Heuristic 1**: Parse frontmatter for `review_status: "has_feedback"`:
+
    ```python
    if re.search(r'review_status:\s*["\']?has_feedback["\']?', content):
        return True
    ```
 
    **Heuristic 2**: Parse history entries for review-related backward movement:
+
    ```python
    # Look for history entries mentioning "review" or "changes_requested"
    # combined with a lane that's "behind" for_review (e.g., in_progress, doing)
@@ -167,6 +184,7 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
    ```
 
    **Heuristic 3**: Look for `reviewed_by` being set while lane is going backward:
+
    ```python
    if re.search(r'reviewed_by:\s*\S+', content):
        lane_match = LANE_PATTERN.search(content)
@@ -181,12 +199,14 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Files**: `src/specify_cli/merge/status_resolver.py`
 
 **Validation**:
+
 - Test: content with `review_status: "has_feedback"` and `lane: in_progress` -> True.
 - Test: content with `lane: done` and no review signals -> False.
 - Test: content with `reviewed_by: "alice"` and `lane: in_progress` -> True.
 - Test: content with `lane: for_review` (forward progression) -> False.
 
 **Edge Cases**:
+
 - Both sides have rollback signals: pick the one with the lower (earlier) lane.
 - History mentions "review" but in a non-rollback context (e.g., "moved to for_review"): avoid false positives by checking the lane value.
 
@@ -195,8 +215,10 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Purpose**: Implement the rollback-aware resolution logic.
 
 **Steps**:
+
 1. Locate `resolve_lane_conflict()` in `status_resolver.py` (or the equivalent function that picks the winning lane).
 2. Create a new function or modify the existing one:
+
    ```python
    def resolve_lane_conflict_rollback_aware(
        ours_content: str,
@@ -228,18 +250,21 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
        theirs_priority = LANE_PRIORITY.get(theirs_lane, 0)
        return ours_lane if ours_priority >= theirs_priority else theirs_lane
    ```
+
 3. Update the call sites in `resolve_status_conflicts()` to use the new function, passing the full content of each side (not just the lane value).
 4. The existing `resolve_lane_conflict()` function may be kept as a deprecated alias or removed if all call sites are updated.
 
 **Files**: `src/specify_cli/merge/status_resolver.py`
 
 **Validation**:
+
 - Test: ours=`done`, theirs=`in_progress` with rollback signal -> `in_progress` wins.
 - Test: ours=`done`, theirs=`in_progress` without rollback signal -> `done` wins (monotonic fallback).
 - Test: ours=`for_review`, theirs=`in_progress` both with rollback -> `in_progress` wins (lower priority).
 - Test: ours=`in_progress`, theirs=`for_review` no rollback -> `for_review` wins (monotonic).
 
 **Edge Cases**:
+
 - Unknown lane value (not in LANE_PRIORITY): default to priority 0, log a warning.
 - Same lane on both sides: no conflict, return either (they are equal).
 
@@ -248,7 +273,9 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Purpose**: Add auto-resolution for `status.events.jsonl` files during git merge.
 
 **Steps**:
+
 1. Add `status.events.jsonl` pattern to `STATUS_FILE_PATTERNS`:
+
    ```python
    STATUS_FILE_PATTERNS = [
        "kitty-specs/*/tasks/*.md",
@@ -258,7 +285,9 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
        "kitty-specs/*/status.events.jsonl",  # NEW
    ]
    ```
+
 2. Create a JSONL merge function:
+
    ```python
    def resolve_jsonl_conflict(ours_content: str, theirs_content: str) -> str:
        """Merge two JSONL event log files.
@@ -298,12 +327,14 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
        lines = [json.dumps(e, sort_keys=True) for e in sorted_events]
        return "\n".join(lines) + "\n" if lines else ""
    ```
+
 3. Integrate into `resolve_status_conflicts()`: when a conflicted file matches `*.jsonl`, use `resolve_jsonl_conflict()` instead of the frontmatter-based resolver.
 4. Update `is_status_file()` to also match JSONL files.
 
 **Files**: `src/specify_cli/merge/status_resolver.py`
 
 **Validation**:
+
 - Test: two JSONL files with non-overlapping events -> merged file has all events sorted.
 - Test: two JSONL files with duplicate event_ids -> deduplicated (first wins).
 - Test: one JSONL with corrupted line -> corrupted line skipped, valid events preserved.
@@ -311,6 +342,7 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 - Test: both empty -> returns empty string.
 
 **Edge Cases**:
+
 - Rebase scenario: events may be re-ordered. Sort by (at, event_id) handles this.
 - Corrupted JSONL during conflict: skip the bad line but merge the rest. Log a warning.
 - Very large JSONL files: in-memory merge is acceptable for expected sizes (100s of events).
@@ -320,6 +352,7 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Purpose**: Comprehensive test coverage for all rollback resolution and JSONL merge scenarios.
 
 **Steps**:
+
 1. Create or extend `tests/specify_cli/status/test_conflict_resolution.py` (as specified in plan.md project structure).
 2. Test categories:
 
@@ -362,22 +395,27 @@ This is used in `resolve_lane_conflict()` to pick the "most done" lane when two 
 **Validation**: All tests pass. Coverage of rollback detection and resolution logic reaches 95%+.
 
 **Edge Cases**:
+
 - Tests must create realistic frontmatter content (not just isolated values) to test the regex patterns.
 - JSONL test events should have valid ULID event_ids and ISO timestamps.
 
 ## Test Strategy
 
 **Unit Tests**:
+
 - `tests/specify_cli/status/test_conflict_resolution.py` (T052) -- all rollback detection, resolution, and JSONL merge tests.
 
 **Integration Tests**:
+
 - Consider adding a test that creates an actual git merge conflict and runs the resolver. This would go in `tests/integration/`.
 
 **Existing Test Preservation**:
+
 - All tests in `tests/specify_cli/merge/` that test the existing status_resolver must continue to pass.
 - The existing tests may need updates if they explicitly assert on the old 4-lane LANE_PRIORITY values.
 
 **Running Tests**:
+
 ```bash
 python -m pytest tests/specify_cli/status/test_conflict_resolution.py -x -q
 python -m pytest tests/specify_cli/merge/ -x -q  # Verify existing tests still pass
@@ -396,6 +434,7 @@ python -m pytest tests/specify_cli/merge/ -x -q  # Verify existing tests still p
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Rollback wins over forward**: The core bug fix. Create a scenario with reviewer rollback and concurrent done, verify rollback wins.
 2. **Monotonic fallback preserved**: When no rollback is detected, the existing "most done wins" behavior is unchanged.
 3. **LANE_PRIORITY includes all 7 lanes**: No missing entries. "doing" alias included.

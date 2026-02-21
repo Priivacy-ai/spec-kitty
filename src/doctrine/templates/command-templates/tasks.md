@@ -38,12 +38,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding, verify you are in the planning repository:
 
 **Check your current branch:**
+
 ```bash
 git branch --show-current
 ```
 
 **Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
 **If you see a feature branch:** You're in the wrong place. Return to the target branch:
+
 ```bash
 cd $(git rev-parse --show-toplevel)
 git checkout <target-branch>
@@ -62,6 +64,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
+
    ```
    FEATURE_DIR = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
    tasks.md location: FEATURE_DIR + "/tasks.md"
@@ -127,6 +130,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Commit all tasks to target branch
 
    **CRITICAL**: Run this command from repo root:
+
    ```bash
    spec-kitty agent feature finalize-tasks --json --feature <feature-slug>
    ```
@@ -154,6 +158,7 @@ The combination of `tasks.md` and the bundled prompt files must enable a new eng
 **Parse dependencies from tasks.md structure**:
 
 The LLM should analyze tasks.md for dependency relationships:
+
 - Explicit phrases: "Depends on WP##", "Dependencies: WP##"
 - Phase grouping: Phase 2 WPs typically depend on Phase 1
 - Default to empty if unclear
@@ -161,6 +166,7 @@ The LLM should analyze tasks.md for dependency relationships:
 **Generate dependencies in WP frontmatter**:
 
 Each WP prompt file MUST include a `dependencies` field:
+
 ```yaml
 ---
 work_package_id: "WP02"
@@ -172,6 +178,7 @@ subtasks: ["T001", "T002"]
 ```
 
 **Include the correct implementation command**:
+
 - No dependencies: `spec-kitty implement WP01`
 - With dependencies: `spec-kitty implement WP02 --base WP01`
 

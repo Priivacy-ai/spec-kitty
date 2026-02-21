@@ -30,6 +30,7 @@ history:
 **Goal**: Implement tool detection and the get_vcs() factory function.
 
 **Success Criteria**:
+
 - `is_jj_available()` returns True when jj is installed, False otherwise
 - `is_git_available()` returns True when git is installed, False otherwise
 - `get_vcs()` returns GitVCS when git only, JujutsuVCS when jj available (with prefer_jj=True)
@@ -42,15 +43,18 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - Factory function signature
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/plan.md` - Detection logic
 
 **Architecture Decisions**:
+
 - Stateless factory function (not a class)
 - Cache detection results to avoid repeated subprocess calls
 - Factory reads meta.json for locked VCS when in feature context
 
 **Constraints**:
+
 - Use `shutil.which()` for tool detection (cross-platform)
 - Version parsing must handle edge cases gracefully
 - Must work when only git OR only jj is installed
@@ -62,8 +66,10 @@ history:
 **Purpose**: Detect which VCS tools are available on the system.
 
 **Steps**:
+
 1. Create `src/specify_cli/core/vcs/detection.py`
 2. Implement detection functions:
+
    ```python
    def is_jj_available() -> bool:
        """Check if jj is installed and working."""
@@ -80,15 +86,18 @@ history:
    def detect_available_backends() -> list[VCSBackend]:
        """Detect which VCS tools are installed, in preference order."""
    ```
+
 3. Implement caching:
    - Use module-level cache dict
    - Cache results after first call
    - Optional `_clear_cache()` for testing
 
 **Files**:
+
 - Create: `src/specify_cli/core/vcs/detection.py`
 
 **Implementation Details**:
+
 ```python
 import shutil
 import subprocess
@@ -110,6 +119,7 @@ def is_jj_available() -> bool:
 ```
 
 **Notes**:
+
 - jj version format: `jj 0.23.0`
 - git version format: `git version 2.43.0`
 - Handle both Unix and Windows paths
@@ -121,7 +131,9 @@ def is_jj_available() -> bool:
 **Purpose**: Create factory function that returns appropriate VCS implementation.
 
 **Steps**:
+
 1. Add to `src/specify_cli/core/vcs/detection.py`:
+
    ```python
    def get_vcs(
        path: Path,
@@ -130,6 +142,7 @@ def is_jj_available() -> bool:
    ) -> VCSProtocol:
        """Factory function to get appropriate VCS implementation."""
    ```
+
 2. Implement detection logic:
    - If `backend` specified, use that (validate available)
    - If path is in a feature, read meta.json for locked VCS
@@ -137,15 +150,18 @@ def is_jj_available() -> bool:
    - If git available, use git
    - Raise `VCSNotFoundError` if neither available
 3. Add helper for meta.json reading:
+
    ```python
    def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
        """Read VCS from feature meta.json if exists."""
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/detection.py`
 
 **Implementation Details**:
+
 ```python
 def get_vcs(
     path: Path,
@@ -173,17 +189,19 @@ def get_vcs(
 ```
 
 **Notes**:
+
 - Import implementations lazily to avoid circular imports
 - Validate backend is actually available before returning
 - Handle case where locked VCS is not available (error with helpful message)
 
 ---
 
-### Subtask T008 – Add detection exports to __init__.py
+### Subtask T008 – Add detection exports to **init**.py
 
 **Purpose**: Export detection functions in public API.
 
 **Steps**:
+
 1. Update `src/specify_cli/core/vcs/__init__.py`
 2. Add exports:
    - `is_jj_available`
@@ -195,6 +213,7 @@ def get_vcs(
 3. Update `__all__` list
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/__init__.py`
 
 **Notes**: get_vcs is the primary public API for obtaining a VCS instance.
@@ -206,6 +225,7 @@ def get_vcs(
 **Purpose**: Test detection functions work correctly.
 
 **Steps**:
+
 1. Create `tests/specify_cli/core/vcs/test_detection.py`
 2. Test detection functions:
    - Test `is_git_available()` (git should always be available in dev)
@@ -218,10 +238,12 @@ def get_vcs(
    - Test raises VCSNotFoundError appropriately
 
 **Files**:
+
 - Create: `tests/specify_cli/core/vcs/test_detection.py`
 - Create: `tests/specify_cli/core/vcs/__init__.py` (empty)
 
 **Test Examples**:
+
 ```python
 def test_is_git_available():
     # Git should be available in any dev environment
@@ -261,7 +283,7 @@ def test_get_vcs_with_explicit_git():
 
 - [ ] T006: detection.py with is_jj_available, is_git_available, version functions
 - [ ] T007: get_vcs() factory function with meta.json lookup
-- [ ] T008: Detection functions exported from __init__.py
+- [ ] T008: Detection functions exported from **init**.py
 - [ ] T009: Tests for detection and factory
 - [ ] `is_git_available()` returns True in dev environment
 - [ ] `get_vcs()` returns appropriate backend based on availability
@@ -270,6 +292,7 @@ def test_get_vcs_with_explicit_git():
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify detection uses shutil.which (not subprocess for existence check)
 2. Verify caching is implemented (lru_cache or module-level)
 3. Verify lazy import pattern for implementations
@@ -283,12 +306,12 @@ def test_get_vcs_with_explicit_git():
 - 2026-01-17T11:32:57Z – test-debug – shell_pid=36104 – lane=planned – Resetting after test
 - 2026-01-17T11:48:23Z – claude-code – shell_pid=40451 – lane=doing – Started implementation via workflow command
 - 2026-01-17T11:52:51Z – claude-code – shell_pid=40451 – lane=for_review – Ready for review: Detection and factory functions implemented with 29 passing tests
-- 2026-01-17T11:53:35Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
-- 2026-01-17T11:54:51Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+- 2026-01-17T11:53:35Z – **AGENT** – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T11:54:51Z – **AGENT** – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T11:55:22Z – claude-opus – shell_pid=42463 – lane=doing – Started implementation via workflow command
 - 2026-01-17T11:58:03Z – claude-opus – shell_pid=42463 – lane=for_review – Ready for review: Fixed _get_locked_vcs_from_feature() to only read meta.json for containing feature, added 6 new tests for locked VCS behavior
-- 2026-01-17T11:58:59Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
-- 2026-01-17T11:59:34Z – __AGENT__ – shell_pid=38749 – lane=done – Review passed: locked VCS lookup scoped to feature, tests added
+- 2026-01-17T11:58:59Z – **AGENT** – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T11:59:34Z – **AGENT** – shell_pid=38749 – lane=done – Review passed: locked VCS lookup scoped to feature, tests added
 
 ## Review Feedback
 
@@ -299,4 +322,3 @@ def test_get_vcs_with_explicit_git():
 **Issue 1**: `_get_locked_vcs_from_feature()` scans all feature directories under `kitty-specs/` and returns the first `meta.json` with a `vcs` field, even when the provided `path` is not inside that feature. This can cause `get_vcs()` to incorrectly lock to an unrelated feature when called from the repo root or other paths. Update the logic to only read `meta.json` for the feature that actually contains `path` (or the feature indicated by the worktree name), and return `None` when `path` is not inside a feature.
 
 **Issue 2**: Tests do not verify the required “locked VCS” behavior. The current meta.json tests accept either backend, so they won't fail even if the lock isn't respected. Add a test where `path` is inside a specific feature directory (or worktree path) and assert that `get_vcs()` returns the locked backend (and mismatched explicit backend raises `VCSBackendMismatchError`).
-

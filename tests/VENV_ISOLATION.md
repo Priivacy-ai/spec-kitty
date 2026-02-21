@@ -43,7 +43,7 @@ The `tests/test_isolation_helpers.py` module provides utilities:
 
 - **`get_venv_python()`** - Returns path to venv's Python executable
 - **`get_venv_metadata_version()`** - Gets installed version from venv
-- **`get_venv_module_version()`** - Gets __version__ from venv's module
+- **`get_venv_module_version()`** - Gets **version** from venv's module
 - **`run_cli_subprocess()`** - Runs CLI through venv with isolation
 
 ### Usage in Tests
@@ -132,12 +132,14 @@ The venv will have the current source version installed in editable mode.
 To test against a specific version, you can:
 
 1. **Clear the venv** to force rebuild:
+
    ```bash
    rm -rf .pytest_cache/spec-kitty-test-venv
    pytest tests/
    ```
 
 2. **Modify pyproject.toml version** before running tests
+
    ```bash
    # Edit version in pyproject.toml
    vim pyproject.toml
@@ -148,6 +150,7 @@ To test against a specific version, you can:
    ```
 
 3. **Install specific version in venv** manually:
+
    ```bash
    .pytest_cache/spec-kitty-test-venv/bin/pip install spec-kitty-cli==0.10.8
    pytest tests/
@@ -205,12 +208,14 @@ pytest tests/test_version_detection.py -v
 ### "Version mismatch" errors
 
 If you see errors like:
+
 ```
 Project version: 0.10.8
 Installed version: 0.10.8
 ```
 
 This means the test is still using global installation. Check that:
+
 1. Test uses `get_venv_python()` not `sys.executable`
 2. Test venv exists: `.pytest_cache/spec-kitty-test-venv/`
 3. Venv has correct version installed
@@ -225,6 +230,7 @@ pytest tests/  # Will rebuild on first run
 ### Version detection fails
 
 If `get_installed_version()` returns None:
+
 ```bash
 # Check venv exists
 ls .pytest_cache/spec-kitty-test-venv/

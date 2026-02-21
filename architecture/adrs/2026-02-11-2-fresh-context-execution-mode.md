@@ -70,7 +70,7 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 #### Negative
 
 * **Performance**: Slower execution (spawn/terminate overhead ~2-3 seconds per subtask)
-  - Example: 10-subtask WP adds 20-30 seconds total overhead
+  * Example: 10-subtask WP adds 20-30 seconds total overhead
 * **Lost continuity**: Agent doesn't learn from prior subtask execution (only reads results, not reasoning process)
 * **Complexity**: Adds execution mode dimension to orchestrator (more configuration, more testing)
 * **Resource usage**: More Docker container churn (if sandboxed mode enabled)
@@ -84,18 +84,21 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 ### Confirmation
 
 **Success Metrics**:
+
 * **Quality**: Hallucination rate reduced in fresh mode vs persistent (measure: code review rejection rate)
 * **Adoption**: 20-30% of WPs use fresh mode (indicates users find value)
 * **Performance**: Overhead <10% of total execution time (spawn/terminate cost acceptable)
 * **Reliability**: Zero context window exhaustion errors in fresh mode
 
 **Validation Timeline**:
+
 * **Week 1-2**: Implementation + unit tests
 * **Week 3-4**: Integration testing with complex WPs (10+ subtasks)
 * **Week 5-6**: A/B testing (same WP, persistent vs fresh) to measure quality delta
 * **Month 2-3**: Monitor adoption rate, adjust default if >50% adoption
 
 **Confidence Level**: **HIGH** (8/10)
+
 * Validated by Swarm's Ralph mode production use
 * Clear quality benefit (fresh reasoning)
 * Low risk (optional mode, clear rollback path)
@@ -175,26 +178,30 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 ## More Information
 
 **References**:
+
 * Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md` (Section "Ralph Mode")
-* Swarm codebase: https://github.com/mtomcal/swarm (see Ralph mode implementation in `loop.sh`)
-* **Cursor scaling research**: https://cursor.com/blog/scaling-agents
-  - Key quote: "Prompts matter more than the harness and models"
-  - Finding: Role-specific prompts prevent agent drift and maintain focus over long periods
-  - Validation: Focused prompts per task improve quality more than infrastructure complexity
+* Swarm codebase: <https://github.com/mtomcal/swarm> (see Ralph mode implementation in `loop.sh`)
+* **Cursor scaling research**: <https://cursor.com/blog/scaling-agents>
+  * Key quote: "Prompts matter more than the harness and models"
+  * Finding: Role-specific prompts prevent agent drift and maintain focus over long periods
+  * Validation: Focused prompts per task improve quality more than infrastructure complexity
 * Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-002)
 * Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.2)
 
 **Implementation Files**:
+
 * `orchestrator/scheduler.py` - Add `ExecutionMode` enum, `execute_wp_fresh_context()` function
 * `orchestrator/executor.py` - Support subtask-scoped agent spawning
 * WP prompt templates - Build focused subtask prompts (include prior results as read-only context)
 
 **Related ADRs**:
+
 * ADR-2026-02-09-2: WP Lifecycle State Machine (foundational state machine, fresh context mode extends with execution dimension)
 * ADR-2026-02-11-1: Docker-Sandboxed Agent Execution (complementary safety pattern)
 * ADR-2026-01-23-6: Config-Driven Agent Management (agent configuration foundation)
 
 **CLI Usage Examples**:
+
 ```bash
 # Default: persistent context (backward compatible)
 spec-kitty implement WP03
@@ -208,11 +215,13 @@ spec-kitty implement WP03 --fresh-context
 ```
 
 **Quality Measurement Plan**:
+
 * Track: Code review rejection rate (persistent vs fresh mode)
 * Track: Hallucination reports (manual review of agent outputs)
 * A/B test: Same WP executed twice (once persistent, once fresh) - compare quality
 
 **Rollback Plan**:
+
 * If quality benefit not observed: Keep as opt-in, don't make default
 * If performance overhead too high: Adjust implementation (cache agent state? reduce spawn time?)
 * Configuration: `execution_mode: persistent` in WP frontmatter to opt-out

@@ -268,6 +268,7 @@ done
 ```
 
 Run with:
+
 ```bash
 chmod +x test-all-clis.sh
 ./test-all-clis.sh

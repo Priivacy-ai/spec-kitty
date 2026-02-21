@@ -5,6 +5,7 @@ description: Display kanban board status showing work package progress across la
 ## Status Board
 
 Show the current status of all work packages in the active feature. This displays:
+
 - Kanban board with WPs organized by lane
 - Progress bar showing completion percentage
 - Parallelization opportunities (which WPs can run concurrently)
@@ -32,6 +33,7 @@ spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
 The command displays a rich kanban board with:
+
 - Progress bar showing completion percentage
 - Work packages organized by lane (planned/doing/for_review/done)
 - Summary metrics
@@ -74,6 +76,7 @@ Returns structured data:
 ## Output Example
 
 ```
+
 ╭─────────────────────────────────────────────────────────────────────╮
 │                    012-documentation-mission                        │
 │                     Progress: 80% [████████░░]                      │
@@ -89,4 +92,5 @@ Returns structured data:
 └─────────────┴─────────────┴─────────────┴─────────────┘
 
 🔀 Parallelization: WP09 can start (no dependencies)
+
 ```

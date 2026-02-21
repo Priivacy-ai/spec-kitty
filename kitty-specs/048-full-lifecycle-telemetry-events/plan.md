@@ -1,4 +1,5 @@
 # Implementation Plan: Full-Lifecycle Telemetry Events
+
 *Path: kitty-specs/048-full-lifecycle-telemetry-events/plan.md*
 
 **Branch**: `048-full-lifecycle-telemetry-events` | **Date**: 2026-02-16 | **Spec**: [spec.md](spec.md)
@@ -91,6 +92,7 @@ tests/specify_cli/
 **Rationale**: The CLI commands (create-feature, setup-plan) run at the **beginning** of a phase, not the end. The agent runtime does the actual work. Only the template controls when the phase is "done" — so the template's final step is the natural completion hook.
 
 **Template emit step pattern**:
+
 ```markdown
 ## Telemetry (final step)
 

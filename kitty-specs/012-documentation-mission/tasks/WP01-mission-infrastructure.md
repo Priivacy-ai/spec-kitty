@@ -50,6 +50,7 @@ history:
 **Goal**: Create the documentation mission directory structure and mission.yaml configuration file that defines the documentation workflow, artifacts, and validation rules.
 
 **Success Criteria**:
+
 - Mission directory exists at `src/specify_cli/missions/documentation/`
 - `mission.yaml` is valid YAML and passes pydantic validation
 - Mission loads successfully via `get_mission_by_name("documentation")`
@@ -61,11 +62,13 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Existing mission system in `src/specify_cli/mission.py`
 - Existing missions: software-dev, research (use as reference)
 - Mission schema defined in `MissionConfig` pydantic model
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Mission configuration design (lines 182-211)
 - [data-model.md](../data-model.md) - Mission Configuration entity (lines 26-91)
 - [research.md](../research.md) - Mission phase design (lines 575-617)
@@ -74,6 +77,7 @@ history:
   - `src/specify_cli/missions/research/mission.yaml`
 
 **Constraints**:
+
 - Must follow existing mission architecture patterns
 - Must not break existing mission loading logic
 - Domain must be "other" (documentation is new domain type)
@@ -86,6 +90,7 @@ history:
 **Purpose**: Establish the directory hierarchy for the documentation mission.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/` directory
 2. Create subdirectories:
    - `templates/` (for spec, plan, tasks templates)
@@ -93,6 +98,7 @@ history:
 3. Verify directory structure matches existing missions
 
 **Files**:
+
 - `src/specify_cli/missions/documentation/` (new directory)
 - `src/specify_cli/missions/documentation/templates/` (new directory)
 - `src/specify_cli/missions/documentation/command-templates/` (new directory)
@@ -106,14 +112,17 @@ history:
 **Purpose**: Define the documentation mission configuration following the pydantic schema.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/mission.yaml`
 2. Define basic metadata:
+
    ```yaml
    name: "Documentation Kitty"
    description: "Create and maintain high-quality software documentation following Write the Docs and Divio principles"
    version: "1.0.0"
    domain: "other"
    ```
+
 3. Define workflow phases (see T003-T007 for full config)
 4. Validate YAML syntax: `python -c "import yaml; yaml.safe_load(open('mission.yaml'))"`
 
@@ -128,7 +137,9 @@ history:
 **Purpose**: Specify required and optional artifacts for documentation missions.
 
 **Steps**:
+
 1. Add `artifacts:` section to mission.yaml:
+
    ```yaml
    artifacts:
      required:
@@ -157,7 +168,9 @@ history:
 **Purpose**: Specify default paths for documentation mission workspace.
 
 **Steps**:
+
 1. Add `paths:` section to mission.yaml:
+
    ```yaml
    paths:
      workspace: "docs/"
@@ -176,7 +189,9 @@ history:
 **Purpose**: Specify validation checks that run during mission acceptance.
 
 **Steps**:
+
 1. Add `validation:` section to mission.yaml:
+
    ```yaml
    validation:
      checks:
@@ -198,7 +213,9 @@ history:
 **Purpose**: Provide agent instructions for documentation mission behavior.
 
 **Steps**:
+
 1. Add `agent_context:` section to mission.yaml:
+
    ```yaml
    agent_context: |
      You are a documentation agent following Write the Docs best practices and the Divio documentation system.
@@ -234,7 +251,9 @@ history:
 **Purpose**: Define command-specific prompts for documentation mission commands.
 
 **Steps**:
+
 1. Add `commands:` section to mission.yaml:
+
    ```yaml
    commands:
      specify:
@@ -258,7 +277,9 @@ history:
 ## Test Strategy
 
 **Unit Tests** (to be implemented in WP09):
+
 1. Test mission loads successfully:
+
    ```python
    def test_documentation_mission_loads():
        mission = get_mission_by_name("documentation")
@@ -268,6 +289,7 @@ history:
    ```
 
 2. Test workflow phases are correct:
+
    ```python
    def test_documentation_mission_phases():
        mission = get_mission_by_name("documentation")
@@ -278,6 +300,7 @@ history:
    ```
 
 3. Test artifacts are defined:
+
    ```python
    def test_documentation_mission_artifacts():
        mission = get_mission_by_name("documentation")
@@ -287,7 +310,9 @@ history:
    ```
 
 **Manual Validation**:
+
 1. Load mission in Python REPL:
+
    ```python
    from specify_cli.mission import get_mission_by_name, list_available_missions
 
@@ -305,6 +330,7 @@ history:
    ```
 
 2. Validate YAML syntax:
+
    ```bash
    python -c "import yaml; print(yaml.safe_load(open('src/specify_cli/missions/documentation/mission.yaml')))"
    ```
@@ -337,6 +363,7 @@ history:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. Mission config is valid YAML and passes pydantic validation
 2. Mission loads without errors
 3. Workflow phases match documentation workflow (not software-dev phases)
@@ -345,6 +372,7 @@ history:
 6. Command prompts are documentation-specific (not generic)
 
 **Validation Commands**:
+
 ```bash
 # Validate YAML syntax
 python -c "import yaml; yaml.safe_load(open('src/specify_cli/missions/documentation/mission.yaml'))"
@@ -357,6 +385,7 @@ python -c "from specify_cli.mission import list_available_missions; print(list_a
 ```
 
 **Review Focus Areas**:
+
 - Config completeness: All sections present and populated
 - Phase correctness: 6 phases specific to documentation workflow
 - Artifact appropriateness: Includes gap-analysis.md for iterative work
@@ -369,5 +398,5 @@ python -c "from specify_cli.mission import list_available_missions; print(list_a
 - 2026-01-12T18:22:44Z – unknown – lane=done – Review passed
 - 2026-01-14T16:41:42Z – test-agent – shell_pid=70026 – lane=doing – Started implementation via workflow command
 - 2026-01-16T13:37:31Z – test-agent – shell_pid=70026 – lane=done – Review passed: mission documentation infrastructure matches requirements
-- 2026-01-16T13:51:33Z – __AGENT__ – shell_pid=10160 – lane=doing – Started review via workflow command
-- 2026-01-16T14:15:02Z – __AGENT__ – shell_pid=10160 – lane=done – Completed - infrastructure in place
+- 2026-01-16T13:51:33Z – **AGENT** – shell_pid=10160 – lane=doing – Started review via workflow command
+- 2026-01-16T14:15:02Z – **AGENT** – shell_pid=10160 – lane=done – Completed - infrastructure in place

@@ -63,6 +63,7 @@ history:
 **This WP depends on**: WP01-09 (All implementation and testing work packages)
 
 **Before starting work**:
+
 1. Ensure WP01-09 are complete and merged to main
 2. Verify all features work (mission loads, templates exist, generators work, tests pass)
 3. Pull latest from main to get all merged changes
@@ -76,6 +77,7 @@ history:
 **Goal**: Create comprehensive user documentation for the documentation mission, update spec-kitty project docs, and update all 12 AI agent context files to include documentation mission guidance.
 
 **Success Criteria**:
+
 - User guide created at `docs/documentation-mission.md` explaining the feature
 - Workflow phases documented with examples (discover, audit, design, generate, validate, publish)
 - All 4 Divio types documented with characteristics and when to use
@@ -90,11 +92,13 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - All WP01-09 complete (features implemented and tested)
 - Understanding of documentation mission workflow from implementation
 - Access to all 12 agent directories for updates
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - Full feature requirements
 - [plan.md](../plan.md) - Technical design
 - [research.md](../research.md) - Write the Docs and Divio research
@@ -104,6 +108,7 @@ history:
 - `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` - AGENT_DIRS list (lines 53-66)
 
 **Constraints**:
+
 - Documentation must be accurate (reflects actual implementation)
 - Must update all 12 agents consistently (use AGENT_DIRS constant)
 - Must provide complete examples (users can follow them)
@@ -111,6 +116,7 @@ history:
 - Must follow existing spec-kitty documentation style
 
 **Agent Directories** (from CLAUDE.md):
+
 ```python
 AGENT_DIRS = [
     (".claude", "commands"),
@@ -135,8 +141,10 @@ AGENT_DIRS = [
 **Purpose**: Create comprehensive user guide explaining how to use documentation missions.
 
 **Steps**:
+
 1. Create `docs/documentation-mission.md`
 2. Structure the guide:
+
    ```markdown
    # Documentation Mission Guide
 
@@ -221,6 +229,7 @@ AGENT_DIRS = [
    ## Troubleshooting
 
    [Will be detailed in T082]
+
    ```
 
 **Files**: `docs/documentation-mission.md` (new file)
@@ -228,6 +237,7 @@ AGENT_DIRS = [
 **Parallel?**: No (other subtasks add sections to this file)
 
 **Notes**:
+
 - User-facing documentation
 - Clear, practical examples
 - Assumes no prior Divio knowledge
@@ -238,7 +248,9 @@ AGENT_DIRS = [
 **Purpose**: Explain the 6 documentation mission workflow phases with examples.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Workflow Phases
 
@@ -347,6 +359,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write sections in parallel, then combine)
 
 **Notes**:
+
 - Each phase explained with purpose, activities, outputs
 - Clear progression: discover → audit → design → generate → validate → publish
 - Commands shown for each phase
@@ -357,7 +370,9 @@ AGENT_DIRS = [
 **Purpose**: Explain the 4 Divio documentation types with characteristics and when to use.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Divio Documentation Types
 
@@ -485,6 +500,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write Divio section alongside other sections)
 
 **Notes**:
+
 - Clear distinctions between types
 - Concrete examples from spec-kitty itself
 - Decision guide helps users choose right type
@@ -495,7 +511,9 @@ AGENT_DIRS = [
 **Purpose**: Explain the three iteration modes and when to use each.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Iteration Modes
 
@@ -555,6 +573,7 @@ AGENT_DIRS = [
    - Work focuses on filling specific gaps (not creating everything)
 
    **Example**:
+
    ```bash
    /spec-kitty.specify --mission documentation
    # Choose: gap-filling mode
@@ -597,6 +616,7 @@ AGENT_DIRS = [
    - May update existing docs (add feature to existing how-tos, reference)
 
    **Example**:
+
    ```bash
    /spec-kitty.specify --mission documentation
    # Choose: feature-specific mode, feature="authentication module"
@@ -623,6 +643,7 @@ AGENT_DIRS = [
    | Just shipped new feature | Feature-Specific | Document just the new feature |
    | Users report confusion | Gap-Filling | Audit finds gaps, prioritizes by impact |
    | Annual doc review | Gap-Filling | Check for outdated docs, fill gaps |
+
    ```
 
 **Files**: `docs/documentation-mission.md` (modified)
@@ -630,6 +651,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write alongside other sections)
 
 **Notes**:
+
 - All three modes explained with workflows
 - Examples show actual commands and outputs
 - Decision guide helps users choose mode
@@ -640,7 +662,9 @@ AGENT_DIRS = [
 **Purpose**: Explain how to use JSDoc, Sphinx, and rustdoc generators for API reference.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Automated API Documentation Generators
 
@@ -700,6 +724,7 @@ AGENT_DIRS = [
    4. API reference appears in docs/reference/api/javascript/
 
    **JSDoc format**:
+
    ```javascript
    /**
     * Greet someone by name.
@@ -736,6 +761,7 @@ AGENT_DIRS = [
    3. API reference appears in docs/reference/api/rust/
 
    **Doc comment format**:
+
    ```rust
    /// Greet someone by name.
    ///
@@ -754,6 +780,7 @@ AGENT_DIRS = [
    **Output**: HTML documentation with API reference (rustdoc is very high quality)
 
    **Configuration**: rustdoc configured via Cargo.toml metadata:
+
    ```toml
    [package.metadata.docs.rs]
    all-features = true
@@ -770,12 +797,14 @@ AGENT_DIRS = [
    2. Recommends all applicable generators
    3. Configures each generator with separate output directories
    4. Generates unified reference documentation:
+
       ```
       docs/reference/api/
       ├── python/      # Sphinx output
       ├── javascript/  # JSDoc output
       └── rust/        # rustdoc output (if applicable)
       ```
+
    5. Landing page links to all language references
 
    **Example**: FastAPI (Python) + React (TypeScript) project
@@ -802,6 +831,7 @@ AGENT_DIRS = [
    - Provides structure for manual API/CLI/config documentation
    - Includes examples of tables, option lists, etc.
    - Ensures consistency with generated reference
+
    ```
 
 **Files**: `docs/documentation-mission.md` (modified)
@@ -809,6 +839,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write alongside other sections)
 
 **Notes**:
+
 - All three generators explained with examples
 - Docstring/comment format shown for each
 - Multi-language projects addressed
@@ -820,7 +851,9 @@ AGENT_DIRS = [
 **Purpose**: Document common errors and solutions for documentation missions.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Troubleshooting
 
@@ -828,8 +861,10 @@ AGENT_DIRS = [
 
    **Symptoms**:
    ```
+
    MissionNotFoundError: Mission 'documentation' not found.
    Available missions: software-dev, research
+
    ```
 
    **Cause**: Documentation mission not installed in your project
@@ -849,6 +884,7 @@ AGENT_DIRS = [
    ### Problem: Generator not found
 
    **Symptoms**:
+
    ```
    GeneratorError: sphinx-build not found - install Sphinx to use this generator
    Visit: https://www.sphinx-doc.org/
@@ -859,18 +895,21 @@ AGENT_DIRS = [
    **Solution**:
 
    **For Sphinx** (Python):
+
    ```bash
    pip install sphinx sphinx-rtd-theme
    sphinx-build --version  # Verify installation
    ```
 
    **For JSDoc** (JavaScript):
+
    ```bash
    npm install -g jsdoc
    npx jsdoc --version  # Verify installation
    ```
 
    **For rustdoc** (Rust):
+
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    cargo doc --help  # Verify installation
@@ -891,6 +930,7 @@ AGENT_DIRS = [
    1. Add doc comments to your code:
 
    **Python**:
+
    ```python
    def my_function(arg1: str) -> bool:
        """Short description.
@@ -907,6 +947,7 @@ AGENT_DIRS = [
    ```
 
    **JavaScript**:
+
    ```javascript
    /**
     * Short description.
@@ -919,6 +960,7 @@ AGENT_DIRS = [
    ```
 
    **Rust**:
+
    ```rust
    /// Short description.
    ///
@@ -937,6 +979,7 @@ AGENT_DIRS = [
    ```
 
    2. Regenerate documentation:
+
    ```bash
    # For Sphinx
    sphinx-build -b html docs/ docs/_build/html/
@@ -959,6 +1002,7 @@ AGENT_DIRS = [
    **Solution**:
 
    Add explicit frontmatter to your docs:
+
    ```markdown
    ---
    type: tutorial
@@ -972,6 +1016,7 @@ AGENT_DIRS = [
    Valid types: `tutorial`, `how-to`, `reference`, `explanation`
 
    Re-run gap analysis:
+
    ```bash
    /spec-kitty.specify --mission documentation
    # Choose gap-filling mode
@@ -983,6 +1028,7 @@ AGENT_DIRS = [
    ### Problem: Documentation doesn't build
 
    **Symptoms**:
+
    ```
    Error: Build failed with warnings/errors
    ```
@@ -990,6 +1036,7 @@ AGENT_DIRS = [
    **Common causes and solutions**:
 
    **Broken links**:
+
    ```bash
    # Check for broken links
    markdown-link-check docs/**/*.md
@@ -998,6 +1045,7 @@ AGENT_DIRS = [
    ```
 
    **Invalid frontmatter**:
+
    ```bash
    # Validate YAML frontmatter
    python -c "
@@ -1015,6 +1063,7 @@ AGENT_DIRS = [
    ```
 
    **Missing theme** (Sphinx):
+
    ```bash
    # Install missing theme
    pip install sphinx-rtd-theme
@@ -1055,6 +1104,7 @@ AGENT_DIRS = [
    ### Problem: Documentation mission commands not found
 
    **Symptoms**:
+
    ```
    Error: /spec-kitty.specify not found or mission not specified
    ```
@@ -1062,6 +1112,7 @@ AGENT_DIRS = [
    **Cause**: Using old spec-kitty version or wrong command syntax
 
    **Solution**:
+
    ```bash
    # Check spec-kitty version
    spec-kitty --version
@@ -1074,6 +1125,7 @@ AGENT_DIRS = [
    # Not: /spec-kitty.specify --type documentation
    # Not: spec-kitty doc specify
    ```
+
    ```
 
 **Files**: `docs/documentation-mission.md` (modified)
@@ -1081,6 +1133,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write alongside other sections)
 
 **Notes**:
+
 - Common real-world problems
 - Clear symptoms, causes, solutions
 - Code examples for fixes
@@ -1092,7 +1145,9 @@ AGENT_DIRS = [
 **Purpose**: Update all agent context files to mention documentation mission availability.
 
 **Steps**:
+
 1. Use AGENT_DIRS constant to update all agents:
+
    ```python
    # Script to update all agent contexts
    from pathlib import Path
@@ -1146,6 +1201,7 @@ AGENT_DIRS = [
        # For .claude: CLAUDE.md or README.md
        # For others: may be in subdirectory
        ...
+
    ```
 
 2. For each agent, add documentation mission context:
@@ -1153,6 +1209,7 @@ AGENT_DIRS = [
    - Other agents: Add similar context to their README or main context file
 
 3. Alternative: Create migration task to update agent files:
+
    ```python
    # In a migration or setup script
    def update_agent_contexts_for_documentation_mission():
@@ -1166,6 +1223,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (each agent update is independent)
 
 **Notes**:
+
 - Use AGENT_DIRS constant for consistency
 - Each agent may have different context file location
 - Keep update concise (2-3 paragraphs max)
@@ -1177,7 +1235,9 @@ AGENT_DIRS = [
 **Purpose**: Provide complete walkthrough example for initial documentation.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Complete Example: Initial Documentation for Python Library
 
@@ -1197,6 +1257,7 @@ AGENT_DIRS = [
    ```
 
    **Discovery conversation**:
+
    ```
    Q: Iteration mode?
    A: Initial (no existing docs)
@@ -1220,6 +1281,7 @@ AGENT_DIRS = [
    ```
 
    **Planning output**:
+
    ```
    ✓ Documentation structure designed:
      docs/
@@ -1265,6 +1327,7 @@ AGENT_DIRS = [
    ```
 
    **WP01 Output** (Structure & Sphinx):
+
    ```bash
    ✓ Created docs/ directory structure
    ✓ Generated docs/conf.py (Sphinx config)
@@ -1274,6 +1337,7 @@ AGENT_DIRS = [
    ```
 
    **WP02 Output** (Tutorials):
+
    ```bash
    ✓ Wrote docs/tutorials/getting-started.md (from tutorial template)
    ✓ Wrote docs/tutorials/basic-usage.md
@@ -1282,6 +1346,7 @@ AGENT_DIRS = [
    ```
 
    **WP04 Output** (Reference):
+
    ```bash
    ✓ Sphinx generated API docs for all public classes/functions
    ✓ Wrote docs/reference/cli.md (manual CLI reference)
@@ -1306,6 +1371,7 @@ AGENT_DIRS = [
    ### Result
 
    **Documentation structure**:
+
    ```
    docs/
    ├── index.md                          # Landing page
@@ -1329,6 +1395,7 @@ AGENT_DIRS = [
    **Quality**: Follows Write the Docs and Divio best practices, accessible, complete
 
    **Ready for**: Hosting on Read the Docs, GitHub Pages, or other platforms
+
    ```
 
 **Files**: `docs/documentation-mission.md` (modified)
@@ -1336,6 +1403,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write examples in parallel)
 
 **Notes**:
+
 - Complete end-to-end example
 - Shows actual commands and outputs
 - Demonstrates parallel implementation
@@ -1347,7 +1415,9 @@ AGENT_DIRS = [
 **Purpose**: Provide complete walkthrough example for gap-filling iteration.
 
 **Steps**:
+
 1. Add section to `docs/documentation-mission.md`:
+
    ```markdown
    ## Complete Example: Gap-Filling for Existing Project
 
@@ -1368,6 +1438,7 @@ AGENT_DIRS = [
    ```
 
    **Discovery conversation**:
+
    ```
    Q: Iteration mode?
    A: Gap-filling (improving existing docs)
@@ -1388,6 +1459,7 @@ AGENT_DIRS = [
    ```
 
    **Gap analysis runs automatically**:
+
    ```
    Auditing existing documentation...
    Detected framework: Plain Markdown
@@ -1430,6 +1502,7 @@ AGENT_DIRS = [
    ```
 
    **WP01 Output**:
+
    ```bash
    ✓ Created docs/tutorials/getting-started-with-spec-kitty.md
    ✓ Follows tutorial template (step-by-step, for beginners)
@@ -1442,6 +1515,7 @@ AGENT_DIRS = [
    ```
 
    **WP02 Output**:
+
    ```bash
    ✓ Created docs/tutorials/understanding-missions.md
    ✓ Explains mission system by having user try it
@@ -1508,6 +1582,7 @@ AGENT_DIRS = [
    - docs/how-to/customize-dashboard.md (new)
    - docs/reference/dashboard-api.md (new, or added to existing reference)
    - Integrated with existing documentation structure
+
    ```
 
 **Files**: `docs/documentation-mission.md` (modified)
@@ -1515,6 +1590,7 @@ AGENT_DIRS = [
 **Parallel?**: Yes (can write examples alongside other sections)
 
 **Notes**:
+
 - Two complete examples (initial + gap-filling)
 - Shows actual outputs and results
 - Demonstrates iteration (gap-filling can run multiple times)
@@ -1550,6 +1626,7 @@ AGENT_DIRS = [
 **Agent Context Validation**:
 
 1. Verify all 12 agents updated:
+
    ```bash
    for agent_dir in .claude .github .gemini .cursor .qwen .opencode .windsurf .codex .kilocode .augment .roo .amazonq; do
        echo "Checking $agent_dir..."
@@ -1655,6 +1732,7 @@ AGENT_DIRS = [
 5. **Agent Updates**: All 12 agents updated consistently
 
 **Validation Commands**:
+
 ```bash
 # Check documentation exists
 ls -la docs/documentation-mission.md
@@ -1676,6 +1754,7 @@ done
 ```
 
 **Review Focus Areas**:
+
 - Documentation is accurate (matches WP01-09 implementation)
 - Examples are complete and tested (actually work)
 - All sections present (phases, types, modes, generators, troubleshooting, examples)
@@ -1685,6 +1764,7 @@ done
 - Language is clear and accessible
 
 **Special Focus**:
+
 - Have a new user (unfamiliar with documentation mission) read the guide
 - Ask: Can you create documentation following this guide?
 - Revise based on their feedback

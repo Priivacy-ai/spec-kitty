@@ -47,6 +47,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T033 – Update CHANGELOG.md
+
 - **Purpose**: Document the new feature for users
 - **Steps**:
   1. Open CHANGELOG.md in project root
@@ -63,6 +64,7 @@ subtasks:
 - **Notes**: Follow existing changelog format
 
 ### Subtask T034 – Update CLI help text if needed
+
 - **Purpose**: Ensure help text reflects new behavior
 - **Steps**:
   1. Check if `spec-kitty init --help` mentions gitignore behavior
@@ -75,6 +77,7 @@ subtasks:
 - **Notes**: May not need changes if help is generic
 
 ### Subtask T035 – Add comprehensive docstrings
+
 - **Purpose**: Document all public methods for maintainers
 - **Steps**:
   1. Add module docstring to gitignore_manager.py
@@ -92,6 +95,7 @@ subtasks:
 - **Notes**: Be thorough but concise
 
 ### Subtask T036 – Update existing documentation
+
 - **Purpose**: Ensure docs don't reference old implementation
 - **Steps**:
   1. Search docs/ directory for "handle_codex_security"
@@ -104,6 +108,7 @@ subtasks:
 - **Notes**: May be in README or other docs
 
 ### Subtask T037 – Verify quickstart.md examples
+
 - **Purpose**: Ensure documentation examples actually work
 - **Steps**:
   1. Open `kitty-specs/003-auto-protect-agent/quickstart.md`
@@ -117,6 +122,7 @@ subtasks:
 - **Notes**: Critical for user trust
 
 ### Subtask T038 – Code cleanup and formatting
+
 - **Purpose**: Ensure code meets quality standards
 - **Steps**:
   1. Run code formatter (black/ruff format)
@@ -131,6 +137,7 @@ subtasks:
 - **Notes**: Match project style guide
 
 ### Subtask T039 – Performance verification
+
 - **Purpose**: Ensure <1 second requirement is met
 - **Steps**:
   1. Create test with large .gitignore (1000+ lines)
@@ -144,6 +151,7 @@ subtasks:
 - **Notes**: Use time.perf_counter() for accuracy
 
 ### Subtask T040 – Final platform testing
+
 - **Purpose**: Ensure feature works on all platforms
 - **Steps**:
   1. Test on Linux (Ubuntu or similar)

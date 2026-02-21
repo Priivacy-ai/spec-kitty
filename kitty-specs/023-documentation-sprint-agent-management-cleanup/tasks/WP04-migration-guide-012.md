@@ -51,10 +51,12 @@ history:
 **This WP depends on WP01** (check frontmatter `dependencies:` field).
 
 Before starting, ensure WP01 is complete and review research findings. This WP requires:
+
 - Config schema from WP01 research (T002)
 - Understanding of config-driven model
 
 **Check if WP01 is complete**:
+
 ```bash
 spec-kitty agent tasks status --feature 023-documentation-sprint-agent-management-cleanup
 ```
@@ -64,8 +66,9 @@ Look for WP01 in "done" lane. If not complete, wait for WP01 or coordinate with 
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -74,6 +77,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Provide 0.11.x → 0.12.0 upgrade guidance explaining config-driven agent management for existing users.
 
 **Success Criteria**:
+
 - [ ] Migration content created (section or separate file, based on content length)
 - [ ] "What Changed" section explains migration behavior change (recreating deleted dirs → respecting config)
 - [ ] "Why This Change" section explains benefits (user control, predictable behavior)
@@ -90,11 +94,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Address User Story 2 - existing users upgrading to 0.12.0 need to understand new config-driven agent management. This satisfies FR-004 and FR-005.
 
 **Reference Documents**:
+
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md` (ADR #6 - source of migration rationale)
 - WP01 research findings (config schema, agent mappings)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-004, FR-005)
 
 **Writing Style**:
+
 - Upgrade-focused (speak to 0.11.x users)
 - Explain "before vs after" behavior clearly
 - Provide actionable steps (not just concepts)
@@ -103,6 +109,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Decision Point (T015)**: If migration content exceeds 500 words, create separate file `upgrade-to-0-12-0.md`. Otherwise, add section to existing `upgrade-to-0-11-0.md`.
 
 **Constraints**:
+
 - T014 can start immediately (read ADR #6)
 - T015-T018 sequential after T014 completes
 - Keep total content under 500 words (concise upgrade guidance)
@@ -148,11 +155,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (can start immediately, independent)
 
 **Notes**:
+
 - ADR #6 is authoritative source for migration rationale
 - Focus on user-facing behavior changes (not internal implementation)
 - Extract concrete examples if ADR provides them
 
 **Validation**:
+
 - [ ] ADR #6 read in full
 - [ ] Problem statement extracted (why change was needed)
 - [ ] Decision extracted (config.yaml as single source)
@@ -169,9 +178,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Check existing upgrade guide**:
+
    ```bash
    wc -w docs/how-to/upgrade-to-0-11-0.md
    ```
+
    Check file length and structure
 
 2. **Make decision**:
@@ -206,6 +217,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    **File**: `docs/how-to/upgrade-to-0-11-0.md`
 
    Add at end of file:
+
    ```markdown
    ---
 
@@ -215,6 +227,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add table of contents** (if separate file):
+
    ```markdown
    ## Contents
 
@@ -230,11 +243,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T014)
 
 **Notes**:
+
 - Check existing file structure before deciding
 - Separate file is cleaner if content is substantial
 - Ensure consistent formatting with existing upgrade guides
 
 **Validation**:
+
 - [ ] File location decided (new file or section in existing)
 - [ ] Structure created with overview and table of contents
 - [ ] Key change highlighted upfront
@@ -249,6 +264,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Write "What Changed" section**:
+
    ```markdown
    ## What Changed
 
@@ -276,9 +292,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - **Respect user configuration choices**
 
    **Benefit**: Agents you remove stay removed across upgrades. Configuration is predictable and user-controlled.
+
    ```
 
 2. **Write "Why This Change" section**:
+
    ```markdown
    ## Why This Change
 
@@ -309,12 +327,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T015)
 
 **Notes**:
+
 - Use "before vs after" framing for clarity
 - Explain user benefit (control, predictability)
 - Link to ADR #6 for architectural deep-dive
 - Keep language accessible (not overly technical)
 
 **Validation**:
+
 - [ ] "What Changed" section explains before/after behavior
 - [ ] Problem statement included (recreating deleted dirs)
 - [ ] Solution explained (config.yaml as single source)
@@ -332,6 +352,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Write "Migration Steps" section header**:
+
    ```markdown
    ## Migration Steps
 
@@ -339,6 +360,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Step 1: Check Current Configuration**:
+
    ```markdown
    ### Step 1: Check Current Agent Configuration
 
@@ -353,9 +375,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Identify agents you don't use. Common candidates for removal: `gemini`, `cursor`, `qwen`, `windsurf`.
+
    ```
 
 3. **Step 2: Remove Unwanted Agents Properly**:
+
    ```markdown
    ### Step 2: Remove Unwanted Agents (0.11.x Users)
 
@@ -372,9 +396,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Ensures migrations respect your choices
 
    **If you already manually deleted directories**: They may be recreated on upgrade. After upgrading to 0.12.0, run `spec-kitty agent config sync --remove-orphaned` to clean up.
+
    ```
 
 4. **Step 3: Verify Filesystem Matches Config**:
+
    ```markdown
    ### Step 3: Verify Configuration Sync
 
@@ -389,9 +415,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Unwanted agents show dim "Not used" status (not "Orphaned")
 
    **If you see "Orphaned"**: Run `spec-kitty agent config sync --remove-orphaned` to clean up.
+
    ```
 
 5. **Step 4: Upgrade to 0.12.0**:
+
    ```markdown
    ### Step 4: Upgrade spec-kitty
 
@@ -409,9 +437,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Migrations will respect your `config.yaml` and skip agents you removed.
+
    ```
 
 6. **Step 5: Confirm Migration Success**:
+
    ```markdown
    ### Step 5: Confirm Migrations Respected Configuration
 
@@ -430,6 +460,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```bash
    spec-kitty agent config remove <unwanted-agents>
    ```
+
    ```
 
 **Files**: Migration guide file (from T015)
@@ -437,12 +468,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T016)
 
 **Notes**:
+
 - Emphasize proper removal workflow (not manual deletion)
 - Provide fallback for users who already manually deleted
 - Include verification steps after each action
 - Use realistic agent examples (gemini, cursor common candidates)
 
 **Validation**:
+
 - [ ] Five migration steps documented
 - [ ] Step 1: Check current configuration
 - [ ] Step 2: Remove unwanted agents via CLI (not manual deletion)
@@ -461,6 +494,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add "Troubleshooting" section header**:
+
    ```markdown
    ## Troubleshooting
 
@@ -468,6 +502,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Issue 1: Orphaned Directories After Upgrade**:
+
    ```markdown
    ### Orphaned Directories After Upgrade
 
@@ -485,9 +520,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Prevention**: Always use `spec-kitty agent config remove` instead of manual deletion.
+
    ```
 
 3. **Issue 2: Missing Configured Agents**:
+
    ```markdown
    ### Missing Configured Agents After Upgrade
 
@@ -502,12 +539,15 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **If specific agents missing**: Add them explicitly:
+
    ```bash
    spec-kitty agent config add claude codex
    ```
+
    ```
 
 4. **Issue 3: All 12 Agents Still Active**:
+
    ```markdown
    ### All 12 Agents Still Active After Upgrade
 
@@ -520,9 +560,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    spec-kitty agent config remove gemini cursor qwen windsurf kilocode roo
    # Keep only agents you use
    ```
+
    ```
 
 5. **Issue 4: Corrupt config.yaml**:
+
    ```markdown
    ### Corrupt config.yaml After Upgrade
 
@@ -539,9 +581,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    spec-kitty agent config add claude codex opencode
    # This recreates config.yaml with only specified agents
    ```
+
    ```
 
 6. **Add "Still Having Issues?" note**:
+
    ```markdown
    ### Still Having Issues?
 
@@ -555,12 +599,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T017)
 
 **Notes**:
+
 - Focus on issues specific to migration (not general agent management)
 - Provide quick solutions (not lengthy explanations)
 - Link to manage-agents.md for detailed command guidance
 - Keep concise (troubleshooting adds to 500-word limit)
 
 **Validation**:
+
 - [ ] Troubleshooting section added
 - [ ] Issue 1: Orphaned directories after upgrade
 - [ ] Issue 2: Missing configured agents
@@ -601,24 +647,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Migration steps don't match actual upgrade behavior
+
 - **Mitigation**: Extract migration logic from ADR #6 (authoritative source)
 - **Validation**: Test migration workflow in 0.11.x → 0.12.0 upgrade scenario
 
 **Risk**: Content exceeds 500 words (SC-002 violation)
+
 - **Mitigation**: Write concisely; link to ADR #6 and manage-agents.md for details
 - **Detection**: Run `wc -w` on final file
 
 **Risk**: Users skip Step 2 (removing agents properly)
+
 - **Mitigation**: Emphasize "IMPORTANT" callouts and provide fallback guidance
 - **Validation**: Include troubleshooting for orphaned directories (Issue 1)
 
 **Risk**: Migration guide contradicts manage-agents.md
+
 - **Mitigation**: Reference manage-agents.md for command details (don't duplicate)
 - **Cross-check**: Ensure command syntax matches between guides
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] Migration content created (separate file or section in existing file)
 - [ ] All five subtasks (T014-T018) completed
 - [ ] "What Changed" section explains before/after behavior
@@ -631,6 +682,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Tone appropriate for existing 0.11.x users
 
 **Review Focus**:
+
 - **Clarity**: Can 0.11.x user understand what changed and why?
 - **Actionability**: Can user follow migration steps without confusion?
 - **Completeness**: Are common migration issues covered?
@@ -641,6 +693,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -657,6 +710,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T11:01:43Z – claude – shell_pid=20855 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:18:18Z – claude – shell_pid=20855 – lane=for_review – Ready for review: Migration guide for 0.12.0 config-driven agent management. Step-by-step upgrade workflow covering removal of unwanted agents before upgrade, verification, optional sync, and adding new agents. Includes troubleshooting section for common scenarios.
 - 2026-01-23T11:19:52Z – Claude – shell_pid=42078 – lane=doing – Started review via workflow command

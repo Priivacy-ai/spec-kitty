@@ -10,6 +10,7 @@
 **Prompt Files**: Each work package references a matching prompt file in `tasks/` (flat structure per this feature's design).
 
 ## Subtask Format: `[Txxx] [P?] Description`
+
 - **[P]** indicates the subtask can proceed in parallel (different files/components).
 - Include precise file paths or modules.
 
@@ -22,24 +23,29 @@
 **Prompt**: `tasks/WP01-foundation-legacy-detection.md`
 
 ### Included Subtasks
+
 - [ ] T001 Create `src/specify_cli/legacy_detector.py` with `is_legacy_format(feature_path)` function
 - [ ] T002 [P] Add `get_lane_from_frontmatter(wp_path)` utility function in `scripts/tasks/task_helpers.py`
 - [ ] T003 [P] Add same utility to `src/specify_cli/tasks_support.py` (keep in sync)
 - [ ] T004 Document the LANES constant location and ensure single source of truth
 
 ### Implementation Notes
+
 - `is_legacy_format()` checks for presence of `tasks/planned/`, `tasks/doing/`, `tasks/for_review/`, `tasks/done/` subdirectories with .md files
 - `get_lane_from_frontmatter()` parses YAML frontmatter and returns `lane:` value, defaulting to "planned" with warning if missing
 - Invalid lane values should raise clear error with valid options listed
 
 ### Parallel Opportunities
+
 - T002 and T003 can proceed in parallel (different files)
 - T001 is independent of T002/T003
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - Risk: Inconsistent utility implementations in task_helpers.py vs tasks_support.py
 - Mitigation: Consider extracting to shared module, or ensure both call same underlying logic
 
@@ -52,6 +58,7 @@ spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP02-cli-refactoring-update-command.md`
 
 ### Included Subtasks
+
 - [ ] T005 Rename `move_command()` to `update_command()` in `scripts/tasks/tasks_cli.py`
 - [ ] T006 Refactor `stage_move()` to `stage_update()` - remove `shutil.move()`, update frontmatter only
 - [ ] T007 Update `locate_work_package()` in `scripts/tasks/task_helpers.py` to search flat `tasks/` directory
@@ -61,6 +68,7 @@ spec-kitty agent workflow implement WP01
 - [ ] T011 Add legacy format check at command entry points (warn but don't block)
 
 ### Implementation Notes
+
 1. `locate_work_package()` changes:
    - Remove iteration through lane subdirectories
    - Scan `tasks/*.md` directly with glob pattern `WP*.md`
@@ -75,13 +83,16 @@ spec-kitty agent workflow implement WP01
    - Update help text to reflect metadata-only change
 
 ### Parallel Opportunities
+
 - T007 and T008 can proceed in parallel (different files, same changes)
 - T009 is independent
 
 ### Dependencies
+
 - Depends on WP01 (legacy detection, lane utilities)
 
 ### Risks & Mitigations
+
 - Risk: Breaking existing workflows that expect `move` command
 - Mitigation: Clean break is intentional; migration guide in documentation
 - Risk: Rollback command depends on move logic
@@ -96,6 +107,7 @@ spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP03-status-command-dashboard.md`
 
 ### Included Subtasks
+
 - [ ] T012 Enhance `status` command in `scripts/tasks/tasks_cli.py` with formatted lane grouping
 - [ ] T013 [P] Add auto-detect feature from worktree/branch when feature argument omitted
 - [ ] T014 Update `scan_feature_kanban()` in `src/specify_cli/dashboard/scanner.py` to read frontmatter
@@ -103,7 +115,9 @@ spec-kitty agent workflow implement WP01
 - [ ] T016 [P] Update `src/specify_cli/acceptance.py` lane collection to use frontmatter
 
 ### Implementation Notes
+
 1. Status command output format:
+
    ```
    Feature: 007-frontmatter-only-lane
 
@@ -120,6 +134,7 @@ spec-kitty agent workflow implement WP01
    DONE (0)
      (none)
    ```
+
 2. `scan_feature_kanban()` changes:
    - Remove `lane_dir = tasks_dir / lane` iteration
    - Scan flat `tasks/` directory
@@ -129,14 +144,17 @@ spec-kitty agent workflow implement WP01
    - Or detect from worktree path
 
 ### Parallel Opportunities
+
 - T014, T015, T016 can all proceed in parallel (different files)
 - T13 is independent of dashboard changes
 
 ### Dependencies
+
 - Depends on WP01 (lane utilities)
 - Can proceed in parallel with WP02
 
 ### Risks & Mitigations
+
 - Risk: Dashboard performance with many WPs
 - Mitigation: Status command target is <1s for 50 WPs (per spec)
 
@@ -149,6 +167,7 @@ spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP04-migration-command.md`
 
 ### Included Subtasks
+
 - [ ] T017 Create `src/specify_cli/commands/upgrade.py` with command skeleton
 - [ ] T018 Implement feature scanning logic (find all features in kitty-specs/ and .worktrees/)
 - [ ] T019 Implement single-feature migration logic (flatten lane directories)
@@ -159,7 +178,9 @@ spec-kitty agent workflow implement WP01
 - [ ] T024 Clean up empty lane subdirectories after migration
 
 ### Implementation Notes
+
 1. Migration algorithm:
+
    ```python
    for each feature in kitty-specs/ and .worktrees/*/kitty-specs/:
        if is_legacy_format(feature):
@@ -169,11 +190,13 @@ spec-kitty agent workflow implement WP01
                    # Move file to tasks/
                    # Remove empty lane directory
    ```
+
 2. Idempotency:
    - Check if file already in flat tasks/ before moving
    - Check if lane: field already set correctly
    - Skip already-migrated files
 3. Warning prompt:
+
    ```
    WARNING: This will migrate your project to frontmatter-only lanes.
 
@@ -190,13 +213,16 @@ spec-kitty agent workflow implement WP01
    ```
 
 ### Parallel Opportunities
+
 - T021 (worktrees handling) can be developed in parallel with T19 (single feature migration)
 
 ### Dependencies
+
 - Depends on WP01 (legacy detection)
 - Can proceed in parallel with WP02, WP03
 
 ### Risks & Mitigations
+
 - Risk: Data loss if migration fails mid-way
 - Mitigation: Idempotent design allows safe re-run; recommend git commit before upgrade
 - Risk: Partial migration leaves inconsistent state
@@ -211,17 +237,21 @@ spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP05-legacy-detection-integration.md`
 
 ### Included Subtasks
+
 - [ ] T025 Add legacy detection check to `tasks_cli.py` command entry points
 - [ ] T026 Create warning message function with consistent formatting
 - [ ] T027 Ensure warning doesn't block command execution (warn only)
 - [ ] T028 Add detection to dashboard routes that display task information
 
 ### Implementation Notes
+
 1. Warning message format:
+
    ```
    ⚠️  Legacy directory-based lanes detected.
    Run `spec-kitty upgrade` to migrate to frontmatter-only lanes.
    ```
+
 2. Integration points:
    - `list_command()`
    - `status_command()` (new name for status)
@@ -230,12 +260,15 @@ spec-kitty agent workflow implement WP01
 3. Warning should appear once per command invocation, not per WP
 
 ### Parallel Opportunities
+
 - T28 (dashboard) can proceed in parallel with T25-T27 (CLI)
 
 ### Dependencies
+
 - Depends on WP01 (legacy detector), WP02 (CLI refactoring)
 
 ### Risks & Mitigations
+
 - Risk: Warning fatigue if shown on every command
 - Mitigation: Show once per session or allow suppression via flag
 
@@ -248,6 +281,7 @@ spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP06-documentation-test-updates.md`
 
 ### Included Subtasks
+
 - [ ] T029 Update `.kittify/AGENTS.md` - remove "don't edit lane" warning, explain new approach
 - [ ] T030 [P] Update `.kittify/templates/task-prompt-template.md` - remove directory-based instructions
 - [ ] T031 [P] Update/create `tasks/README.md` template for features explaining flat structure
@@ -257,6 +291,7 @@ spec-kitty agent workflow implement WP01
 - [ ] T035 Run full test suite and fix any regressions
 
 ### Implementation Notes
+
 1. AGENTS.md changes:
    - Change: "Never manually edit the `lane:` field" → "You can directly edit the `lane:` field"
    - Add: Explanation of flat tasks/ structure
@@ -271,13 +306,16 @@ spec-kitty agent workflow implement WP01
    - Add tests for migration idempotency
 
 ### Parallel Opportunities
+
 - T029, T030, T031 (docs) can proceed in parallel
 - T032, T033, T034 (tests) can proceed in parallel
 
 ### Dependencies
+
 - Depends on WP02, WP03, WP04, WP05 (need implementation complete to test)
 
 ### Risks & Mitigations
+
 - Risk: Missing test coverage for edge cases
 - Mitigation: Review spec edge cases section; ensure each has test coverage
 

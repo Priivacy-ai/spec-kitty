@@ -74,6 +74,7 @@ During discovery, you MUST ask:
 > Recommended: `docs/research/<feature-name>/`
 >
 > Other options:
+>
 > - `research-outputs/<feature-name>/`
 > - `docs/<feature-name>/`
 > - Custom path (must NOT be inside `kitty-specs/`)"
@@ -81,6 +82,7 @@ During discovery, you MUST ask:
 **Default**: If user doesn't specify, use `docs/research/<feature-slug>/`
 
 **Validation Rules**:
+
 - Must NOT be inside `kitty-specs/` (reserved for planning artifacts)
 - Must NOT be just `research/` at root (ambiguous)
 - Should include feature name/slug for clarity
@@ -142,6 +144,7 @@ Parse the JSON output for `feature` and `feature_dir`.
 ```
 
 Example with default path:
+
 ```json
 {
   "feature_number": "018",
@@ -161,6 +164,7 @@ The spec template is bundled with spec-kitty and will be used automatically. The
 ### 5. Generate Research Specification
 
 Fill in:
+
 - **Research Question**: Primary and sub-questions
 - **Methodology**: Approach, data sources, analysis framework
 - **Scope**: What's included/excluded
@@ -173,6 +177,7 @@ Write to `<feature_dir>/spec.md`
 ### 7. Validation
 
 Validate spec against quality criteria:
+
 - Research question is clear and answerable
 - Methodology is appropriate for the question
 - Deliverables are defined
@@ -181,6 +186,7 @@ Validate spec against quality criteria:
 ### 8. Report Completion
 
 Report:
+
 - Feature directory path
 - Spec file path
 - Deliverables path (from meta.json)
@@ -203,6 +209,7 @@ Report:
 ### Research Question Quality
 
 Good research questions are:
+
 - **Specific**: Focused on a particular topic
 - **Answerable**: Can be investigated with available resources
 - **Relevant**: Addresses a real need or gap
@@ -211,10 +218,12 @@ Good research questions are:
 ### Success Criteria for Research
 
 Research success criteria should be:
+
 - **Completion-based**: "All identified sources reviewed"
 - **Quality-based**: "Findings validated by domain expert"
 - **Outcome-based**: "Recommendations are actionable"
 
 NOT implementation-focused like:
+
 - "Database populated with 1000 records"
 - "Analysis script runs without errors"

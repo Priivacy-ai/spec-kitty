@@ -31,6 +31,7 @@ subtasks:
 **Status**: ✅ **Approved**
 
 **Validation Notes**:
+
 - `run_cli` now injects `SPEC_KITTY_TEMPLATE_ROOT`, allowing `tests/integration/test_research_workflow.py::test_full_research_workflow_via_cli` to execute the entire init→git→artifact validation flow without skipping (SC‑006 satisfied).
 - `tests/integration/test_mission_switching.py::test_mission_switch_shows_path_warnings_via_cli` asserts on the emitted “Path Convention Warnings” text, so SC‑011 path validation coverage is locked in.
 - `pytest tests/integration/ -v` → 23 passed in 5.8s; no skips and mission/research workflows verified end-to-end.
@@ -42,6 +43,7 @@ subtasks:
 **Goal**: Create comprehensive integration tests validating end-to-end mission switching workflows and complete research mission workflows.
 
 **Success Criteria**:
+
 - Integration test suite for mission switching scenarios (happy path + error cases)
 - Integration test suite for research mission workflow (init → accept → merge)
 - All acceptance scenarios from spec verified via automated tests
@@ -54,24 +56,28 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Unit tests verify individual modules, but integration tests ensure:
+
 - Modules work together correctly
 - End-to-end workflows function as specified
 - User journeys complete successfully
 - Error scenarios handled gracefully
 
 **Testing Philosophy**:
+
 - Integration tests validate contracts between modules
 - Focus on user-visible behavior, not implementation details
 - Test both happy paths and error scenarios
 - Use temporary test projects for isolation
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (All user stories with acceptance scenarios)
 - Previous WPs: WP01-WP09 (modules to integrate)
 
 **Test Scope**:
 
 **Mission Switching Tests** (T068-T072):
+
 1. Happy path: Clean project → switch → verify success
 2. Error: Active worktrees → switch → verify blocked
 3. Error: Dirty git → switch → verify blocked
@@ -79,6 +85,7 @@ subtasks:
 5. End-to-end: Switch → create feature → switch back
 
 **Research Workflow Tests** (T073-T076):
+
 1. Full workflow: Init research project → specify → plan → tasks → implement → review → accept → merge
 2. Citation validation: Review enforces citation quality
 3. Path validation: Acceptance checks research paths
@@ -93,8 +100,10 @@ subtasks:
 **Purpose**: Establish integration test structure for mission switching scenarios.
 
 **Steps**:
+
 1. Create file: `tests/integration/test_mission_switching.py`
 2. Add imports and fixtures:
+
    ```python
    """Integration tests for mission switching workflows."""
 
@@ -186,7 +195,9 @@ subtasks:
 **Purpose**: Verify mission switching works when all preconditions met.
 
 **Steps**:
+
 1. Add test to test_mission_switching.py:
+
    ```python
    def test_mission_switch_happy_path(clean_project):
        """Mission switch should succeed on clean project."""
@@ -247,7 +258,9 @@ subtasks:
 **Purpose**: Verify mission switching blocked when worktrees exist.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_mission_switch_blocked_by_worktree(project_with_worktree):
        """Mission switch should fail when worktrees exist."""
@@ -281,7 +294,9 @@ subtasks:
 **Purpose**: Verify mission switching blocked when git has uncommitted changes.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_mission_switch_blocked_by_dirty_git(dirty_project):
        """Mission switch should fail with uncommitted changes."""
@@ -315,7 +330,9 @@ subtasks:
 **Purpose**: Verify switching missions actually changes templates used.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_templates_change_after_mission_switch(clean_project):
        """After switching missions, new features should use new templates."""
@@ -366,8 +383,10 @@ subtasks:
 **Purpose**: Establish test structure for full research mission workflow.
 
 **Steps**:
+
 1. Create file: `tests/integration/test_research_workflow.py`
 2. Add imports and fixtures:
+
    ```python
    """Integration tests for research mission workflows."""
 
@@ -438,7 +457,9 @@ subtasks:
 **Purpose**: Verify complete research mission workflow works end-to-end.
 
 **Steps**:
+
 1. Add comprehensive workflow test:
+
    ```python
    def test_full_research_workflow(research_project):
        """Test complete research workflow from init to merge."""
@@ -483,7 +504,9 @@ subtasks:
 **Purpose**: Verify citation validation integrated into research review workflow.
 
 **Steps**:
+
 1. Add citation validation test:
+
    ```python
    def test_citation_validation_in_review(research_feature):
        """Citation validation should run during research review."""
@@ -549,7 +572,9 @@ subtasks:
 **Purpose**: Verify path validation works in mission switch and acceptance contexts.
 
 **Steps**:
+
 1. Add path validation tests to test_mission_switching.py:
+
    ```python
    def test_path_warnings_at_mission_switch(clean_project):
        """Mission switch should warn about missing paths."""
@@ -619,6 +644,7 @@ tests/integration/
 ```
 
 **Test Execution**:
+
 ```bash
 # Run all integration tests
 pytest tests/integration/ -v
@@ -634,6 +660,7 @@ pytest tests/integration/ --cov=src/specify_cli
 ```
 
 **CI/CD Integration**:
+
 - Integration tests should run in CI after unit tests pass
 - Use separate test environment (isolated from development)
 - May be slower than unit tests (creating projects, running commands)
@@ -643,6 +670,7 @@ pytest tests/integration/ --cov=src/specify_cli
 After integration tests pass, manually verify critical user journeys:
 
 1. **Mission Switching Journey**:
+
    ```bash
    spec-kitty init test-manual
    cd test-manual
@@ -654,6 +682,7 @@ After integration tests pass, manually verify critical user journeys:
    ```
 
 2. **Research Workflow Journey**:
+
    ```bash
    spec-kitty init test-research --mission research
    cd test-research
@@ -661,6 +690,7 @@ After integration tests pass, manually verify critical user journeys:
    ```
 
 3. **Error Scenario Journey**:
+
    ```bash
    # Create feature (worktree)
    # Try to switch missions → should fail
@@ -673,18 +703,23 @@ After integration tests pass, manually verify critical user journeys:
 ## Risks & Mitigations
 
 **Risk 1**: Integration tests brittle, break with unrelated changes
+
 - **Mitigation**: Focus on contracts (inputs/outputs), not implementation details
 
 **Risk 2**: Slash commands hard to test from Python
+
 - **Mitigation**: Test infrastructure (mission files, templates) and validation, accept limitations
 
 **Risk 3**: Integration tests slow down CI/CD
+
 - **Mitigation**: Keep tests focused, use parallelization, set timeout limits
 
 **Risk 4**: Temporary test projects conflict or leak
+
 - **Mitigation**: Use pytest tmp_path fixture, cleanup in teardown
 
 **Risk 5**: Tests pass in isolation but fail when run together
+
 - **Mitigation**: Run full suite frequently, isolate test state properly
 
 ---
@@ -692,6 +727,7 @@ After integration tests pass, manually verify critical user journeys:
 ## Definition of Done Checklist
 
 **Test Files**:
+
 - [ ] `tests/integration/test_mission_switching.py` created
 - [ ] `tests/integration/test_research_workflow.py` created
 - [ ] Test fixtures for clean/dirty/worktree projects implemented
@@ -700,6 +736,7 @@ After integration tests pass, manually verify critical user journeys:
 - [ ] Integration tests run in <2 minutes
 
 **Test Coverage**:
+
 - [ ] Happy path: Clean switch tested
 - [ ] Error: Worktrees block switch tested
 - [ ] Error: Dirty git blocks switch tested
@@ -709,6 +746,7 @@ After integration tests pass, manually verify critical user journeys:
 - [ ] Research: Path validation tested
 
 **Manual Validation**:
+
 - [ ] Mission switching journey completed successfully
 - [ ] Research workflow journey completed successfully
 - [ ] Error scenarios behave as expected
@@ -719,6 +757,7 @@ After integration tests pass, manually verify critical user journeys:
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Integration tests must verify end-to-end behavior
 2. All acceptance scenarios from spec must be covered
 3. Error scenarios must be tested (not just happy paths)
@@ -726,6 +765,7 @@ After integration tests pass, manually verify critical user journeys:
 5. Tests must not depend on external state
 
 **What Reviewers Should Verify**:
+
 - Run integration test suite: `pytest tests/integration/ -v`
 - All tests pass
 - Review test coverage: `pytest tests/integration/ --cov=src/specify_cli --cov-report=html`
@@ -735,6 +775,7 @@ After integration tests pass, manually verify critical user journeys:
 - Verify all user stories from spec have corresponding tests
 
 **Acceptance Criteria from Spec**:
+
 - All 7 user stories have integration test coverage
 - All 32 acceptance scenarios verified (automated or manual)
 - SC-009, SC-010, SC-011 mission switching success criteria met

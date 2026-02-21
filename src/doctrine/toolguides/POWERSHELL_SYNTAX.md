@@ -25,12 +25,14 @@ This guide helps AI agents use correct PowerShell syntax when working with spec-
 ## Location Verification (PowerShell)
 
 **Check your current location:**
+
 ```powershell
 Get-Location
 git branch --show-current
 ```
 
 **Expected for feature worktrees:**
+
 - Location: `C:\Users\...\project\.worktrees\001-feature-name`
 - Branch: `001-feature-name` (NOT `main`)
 
@@ -43,6 +45,7 @@ git branch --show-current
 Spec-kitty uses a Python CLI that works across all platforms:
 
 **Common commands:**
+
 - `spec-kitty agent feature create-feature <slug>` - Create a new feature
 - `spec-kitty verify-setup` - Check environment and paths
 - `spec-kitty agent workflow implement <WPID> --agent <name>` - Start implementing a work package
@@ -53,6 +56,7 @@ Spec-kitty uses a Python CLI that works across all platforms:
 ### Parameter Naming Convention
 
 PowerShell uses **PascalCase** with leading dash:
+
 - `-Json` (not `--json`)
 - `-FeatureName` (not `--feature-name`)
 - `-IncludeTasks` (not `--include-tasks`)
@@ -61,6 +65,7 @@ PowerShell uses **PascalCase** with leading dash:
 ### Examples
 
 **Create feature:**
+
 ```powershell
 .\.kittify\scripts\powershell\Create-NewFeature.ps1 `
   -FeatureName "User Authentication" `
@@ -68,11 +73,13 @@ PowerShell uses **PascalCase** with leading dash:
 ```
 
 **Check prerequisites:**
+
 ```powershell
 .\.kittify\scripts\powershell\check-prerequisites.ps1 -Json -IncludeTasks
 ```
 
 **Move task to review (after implementation):**
+
 ```powershell
 # Using the CLI (recommended):
 spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
@@ -129,16 +136,19 @@ Note: Git commands work with forward slashes, but native PowerShell file operati
 ## Environment Variables
 
 **Setting variables:**
+
 ```powershell
 $env:SPEC_KITTY_TEMPLATE_ROOT = "C:\path\to\spec-kitty"
 ```
 
 **Reading variables:**
+
 ```powershell
 echo $env:SPEC_KITTY_TEMPLATE_ROOT
 ```
 
 **Checking if set:**
+
 ```powershell
 if ($env:SPEC_KITTY_TEMPLATE_ROOT) {
     Write-Host "Variable is set"
@@ -150,6 +160,7 @@ if ($env:SPEC_KITTY_TEMPLATE_ROOT) {
 ## File Operations
 
 **Check if file exists:**
+
 ```powershell
 if (Test-Path "spec.md") {
     Write-Host "Spec exists"
@@ -157,11 +168,13 @@ if (Test-Path "spec.md") {
 ```
 
 **Read file:**
+
 ```powershell
 $content = Get-Content "spec.md" -Raw
 ```
 
 **Create directory:**
+
 ```powershell
 New-Item -ItemType Directory -Path "tasks\planned" -Force
 ```
@@ -181,17 +194,20 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 ## When to Use What
 
 **Use PowerShell scripts when:**
+
 - User specified `--script ps` during init
 - You're in a Windows PowerShell terminal
 - Templates reference `.ps1` files in frontmatter
 
 **Use Bash scripts when:**
+
 - User specified `--script sh` during init
 - You're in bash/zsh/fish terminal
 - Templates reference `.sh` files in frontmatter
 
 **Using spec-kitty commands:**
 All spec-kitty commands work the same way on PowerShell and Bash:
+
 ```powershell
 spec-kitty agent workflow implement WP01 --agent claude  # Auto-moves to doing
 spec-kitty agent tasks move-task WP01 --to for_review    # Completion step

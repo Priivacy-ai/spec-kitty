@@ -33,6 +33,7 @@ Implement pre-flight validation that checks ALL worktrees and the target branch 
 **User Story**: As a developer finishing a multi-WP feature, I want to see all blockers before the merge starts so I can fix them in one pass rather than discovering them one-by-one.
 
 **Success Criteria**:
+
 - Running `spec-kitty merge` on a feature with dirty worktrees shows all issues upfront
 - Target branch divergence is detected and reported with remediation
 - Pre-flight failure exits with non-zero status without modifying any branches
@@ -43,12 +44,14 @@ Implement pre-flight validation that checks ALL worktrees and the target branch 
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/spec.md` - User Story 1 acceptance scenarios
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - PreflightResult design
 - `kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md` - WPStatus, PreflightResult entities
 - `src/specify_cli/cli/commands/merge.py` - Existing merge implementation
 
 **Constraints**:
+
 - Must not break existing `--dry-run`, `--keep-branch` flags
 - Use Rich console for formatted output
 - Reuse `find_wp_worktrees()` from existing merge.py
@@ -60,16 +63,19 @@ Implement pre-flight validation that checks ALL worktrees and the target branch 
 **Purpose**: Define the data structures for pre-flight validation results.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/preflight.py`
 2. Add dataclass imports and type definitions
 3. Implement `WPStatus` and `PreflightResult` dataclasses per data-model.md
 
 **Files**:
+
 - `src/specify_cli/merge/preflight.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -101,16 +107,19 @@ class PreflightResult:
 **Purpose**: Check each WP worktree for uncommitted changes (FR-001).
 
 **Steps**:
+
 1. Add `check_worktree_status()` function
 2. Use `git status --porcelain` to detect changes
 3. Return `WPStatus` with `is_clean` and `error` fields
 
 **Files**:
+
 - `src/specify_cli/merge/preflight.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 import subprocess
 
@@ -150,16 +159,19 @@ def check_worktree_status(worktree_path: Path, wp_id: str, branch_name: str) -> 
 **Purpose**: Verify target branch can fast-forward to origin (FR-002).
 
 **Steps**:
+
 1. Add `check_target_divergence()` function
 2. Compare local and remote refs using `git rev-list`
 3. Return divergence status and message
 
 **Files**:
+
 - `src/specify_cli/merge/preflight.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, str | None]:
     """Check if target branch has diverged from origin.
@@ -206,16 +218,19 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
 **Purpose**: Orchestrate all pre-flight checks and display results (FR-003, FR-004).
 
 **Steps**:
+
 1. Add `run_preflight()` function that calls check functions
 2. Add `display_preflight_result()` for Rich console output
 3. Show all issues with actionable remediation steps
 
 **Files**:
+
 - `src/specify_cli/merge/preflight.py`
 
 **Parallel?**: No (depends on T003, T004, T005)
 
 **Implementation**:
+
 ```python
 from rich.console import Console
 from rich.table import Table
@@ -295,16 +310,19 @@ def display_preflight_result(result: PreflightResult, console: Console) -> None:
 **Purpose**: Integrate pre-flight into the merge command flow.
 
 **Steps**:
+
 1. Import preflight module in merge.py
 2. Call `run_preflight()` before any merge operation
 3. Display results and exit if preflight fails
 
 **Files**:
+
 - `src/specify_cli/cli/commands/merge.py`
 
 **Parallel?**: No (integration)
 
 **Notes**:
+
 - Insert preflight call after worktree detection, before any git checkout
 - On failure, display results and `raise typer.Exit(1)`
 - On success, proceed with existing merge flow
@@ -316,16 +334,19 @@ def display_preflight_result(result: PreflightResult, console: Console) -> None:
 **Purpose**: Allow `spec-kitty merge --feature <slug>` from main branch (FR-027).
 
 **Steps**:
+
 1. Add `--feature` flag to merge command
 2. If on main and `--feature` provided, use that slug
 3. If on main and no `--feature`, list available features or error
 
 **Files**:
+
 - `src/specify_cli/cli/commands/merge.py`
 
 **Parallel?**: No (integration)
 
 **Implementation**:
+
 ```python
 # Add to merge() function parameters:
 feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
@@ -354,12 +375,14 @@ if current_branch == target_branch:
 ## Review Guidance
 
 **Acceptance Test**:
+
 1. Create a feature with 2+ WP worktrees
 2. Make uncommitted changes in 2 worktrees
 3. Run `spec-kitty merge`
 4. Verify: Both dirty worktrees listed, remediation shown, no merge attempted
 
 **Edge Cases**:
+
 - All worktrees clean → preflight passes, merge proceeds
 - One worktree missing → error reported
 - Network offline → divergence check skipped (assume OK)

@@ -7,6 +7,7 @@
 ## Overview
 
 This quickstart demonstrates how to:
+
 1. Emit events when workflow state changes
 2. Read events to reconstruct current state
 3. Query event history with filters
@@ -52,11 +53,13 @@ ls -la .kittify/events/  # Should exist but be empty initially
 **Scenario**: User moves work package from "planned" to "doing"
 
 **Command**:
+
 ```bash
 spec-kitty agent tasks move-task WP01 --to doing
 ```
 
 **What Happens Internally**:
+
 ```python
 # In src/specify_cli/cli/commands/agent.py
 
@@ -93,6 +96,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore):
 ```
 
 **Result**:
+
 ```bash
 # Event appended to .kittify/events/2026-01-27.jsonl
 cat .kittify/events/2026-01-27.jsonl
@@ -120,6 +124,7 @@ cat .kittify/events/2026-01-27.jsonl
 ```
 
 **Clock State Updated**:
+
 ```bash
 cat .kittify/clock.json
 ```
@@ -138,11 +143,13 @@ cat .kittify/clock.json
 **Scenario**: User checks project status
 
 **Command**:
+
 ```bash
 spec-kitty status
 ```
 
 **What Happens Internally**:
+
 ```python
 # In src/specify_cli/cli/commands/status.py
 
@@ -168,6 +175,7 @@ def status(feature: str | None, event_store: EventStore):
 ```
 
 **Output**:
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Feature: 025-cli-event-log-integration              │
@@ -188,12 +196,14 @@ Progress: ▓▓▓░░░░░░░ 30% (1/4 WPs doing, 1 for_review)
 **Scenario**: Developer wants to see all events for a specific WP
 
 **Command**:
+
 ```bash
 # Built-in query (future enhancement)
 spec-kitty agent events query --entity WP01 --type WPStatusChanged
 ```
 
 **Python API** (for programmatic access):
+
 ```python
 from pathlib import Path
 from specify_cli.events.store import EventStore
@@ -214,6 +224,7 @@ for event in sorted(events, key=lambda e: e.lamport_clock):
 ```
 
 **Output**:
+
 ```
 Clock 1: planned → doing
 Clock 5: doing → for_review
@@ -227,6 +238,7 @@ Clock 8: for_review → done
 **Scenario**: Two agents modify WP status concurrently (simulated)
 
 **Simulation**:
+
 ```python
 # Agent A (offline, clock=5)
 event_a = Event(
@@ -250,6 +262,7 @@ event_b = Event(
 ```
 
 **Conflict Detection**:
+
 ```python
 from specify_cli.events.reader import EventReader
 
@@ -279,6 +292,7 @@ for clock, clock_events in events_by_clock.items():
 ```
 
 **Output**:
+
 ```
 ⚠️ Conflict detected at clock 5!
   Events: ['01HN3R5K8D1111111111111111', '01HN3R5K8E2222222222222222']
@@ -287,6 +301,7 @@ for clock, clock_events in events_by_clock.items():
 ```
 
 **Status Display** (shows conflict warning):
+
 ```bash
 spec-kitty status
 ```
@@ -304,6 +319,7 @@ spec-kitty status
 **Scenario**: Agent attempts invalid state transition
 
 **Command** (will fail):
+
 ```bash
 spec-kitty agent tasks move-task WP01 --to done
 ```
@@ -313,6 +329,7 @@ spec-kitty agent tasks move-task WP01 --to done
 **Valid Transitions from "planned"**: Only ["doing"]
 
 **What Happens Internally**:
+
 ```python
 from specify_cli.events.middleware import with_event_store, with_error_storage
 
@@ -345,6 +362,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore, error_storage: Err
 ```
 
 **Output**:
+
 ```
 ❌ Error: Invalid transition: planned → done
    Valid transitions from 'planned': doing
@@ -352,6 +370,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore, error_storage: Err
 ```
 
 **Error Log**:
+
 ```bash
 cat .kittify/errors/2026-01-27.jsonl
 ```
@@ -373,6 +392,7 @@ cat .kittify/errors/2026-01-27.jsonl
 ```
 
 **Manus Pattern** (agent learns from error):
+
 ```python
 # Future enhancement: Agent reviews error log before operating
 def check_past_errors(entity_id: str) -> list[ErrorEvent]:
@@ -392,12 +412,14 @@ def check_past_errors(entity_id: str) -> list[ErrorEvent]:
 **Scenario**: SQLite index becomes corrupted or out of sync
 
 **Symptoms**:
+
 ```bash
 spec-kitty status
 # Output: ⚠️ Warning: Index out of sync. Rebuilding...
 ```
 
 **Manual Rebuild**:
+
 ```bash
 # Delete corrupted index
 rm .kittify/events/index.db
@@ -407,6 +429,7 @@ spec-kitty agent events rebuild-index
 ```
 
 **What Happens Internally**:
+
 ```python
 from specify_cli.events.index import EventIndex
 
@@ -433,6 +456,7 @@ def rebuild_index(events_dir: Path):
 ```
 
 **Output**:
+
 ```
 Processing 2026-01-25.jsonl... (12 events)
 Processing 2026-01-26.jsonl... (27 events)
@@ -636,6 +660,7 @@ def benchmark_status_reconstruction():
 ### Problem: Events not appearing in log
 
 **Check**:
+
 ```bash
 # Verify .kittify/events/ directory exists
 ls -la .kittify/events/
@@ -645,6 +670,7 @@ ls -l .kittify/events/*.jsonl
 ```
 
 **Solution**: Ensure `.kittify/` directory is initialized:
+
 ```bash
 spec-kitty init  # Recreates directory structure
 ```
@@ -652,6 +678,7 @@ spec-kitty init  # Recreates directory structure
 ### Problem: Clock value not incrementing
 
 **Check**:
+
 ```bash
 # Inspect clock file
 cat .kittify/clock.json
@@ -661,6 +688,7 @@ spec-kitty agent events debug-clock
 ```
 
 **Solution**: Rebuild clock from event log:
+
 ```bash
 rm .kittify/clock.json
 spec-kitty agent events rebuild-clock
@@ -671,6 +699,7 @@ spec-kitty agent events rebuild-clock
 **Likely Cause**: Index out of sync with JSONL
 
 **Solution**: Rebuild index:
+
 ```bash
 spec-kitty agent events rebuild-index
 ```
@@ -682,6 +711,7 @@ spec-kitty agent events rebuild-index
 **Cause**: POSIX file locking not available on this platform
 
 **Solution**: Check WSL availability or disable file locking (development mode only):
+
 ```python
 # In config
 event_store = EventStore(repo_root, use_file_locking=False)
@@ -706,7 +736,7 @@ After completing this quickstart:
 - **Architecture**: `architecture/adrs/2026-01-27-11-dual-repository-pattern.md` (Git dependency setup)
 - **Research**: `kitty-specs/025-cli-event-log-integration/research.md` (design rationale)
 - **Constitution**: `.kittify/memory/constitution.md` (spec-kitty-events integration requirements)
-- **spec-kitty-events docs**: https://github.com/Priivacy-ai/spec-kitty-events/blob/main/README.md
+- **spec-kitty-events docs**: <https://github.com/Priivacy-ai/spec-kitty-events/blob/main/README.md>
 
 ---
 

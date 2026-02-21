@@ -75,15 +75,19 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Replace the hardcoded test token with the user's actual JWT access token.
 - **Steps**:
   1. Find the hardcoded test token on 2.x. Search for it:
+
      ```bash
      grep -rn "test.*token\|hardcoded\|Bearer.*test" src/specify_cli/sync/ src/specify_cli/cli/commands/
      ```
+
   2. Read `src/specify_cli/sync/auth.py` to find the credential loading functions (likely `load_credentials()` or `get_access_token()`)
   3. Replace the hardcoded token with a call to the auth module:
+
      ```python
      from specify_cli.sync.auth import get_access_token  # or equivalent
      token = get_access_token()
      ```
+
   4. If `get_access_token()` doesn't exist, create a wrapper that reads from `~/.spec-kitty/credentials`
 - **Files**: Sync status check file (find on 2.x — may be in `sync/runtime.py`, `sync/client.py`, or `cli/commands/` sync subcommand)
 - **Parallel?**: No — foundation for T012/T013
@@ -94,10 +98,12 @@ No dependencies — branches directly from the 2.x branch.
 - **Steps**:
   1. Check if credentials file exists at `~/.spec-kitty/credentials`
   2. If not present: print clear message and return early:
+
      ```python
      console.print("[yellow]Not authenticated.[/yellow] Run `spec-kitty auth login` to connect.")
      return
      ```
+
   3. If present but access token is expired:
      - Attempt refresh using the stored refresh token (use existing `auth.py` refresh logic)
      - If refresh succeeds: proceed with new access token
@@ -131,6 +137,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Validate all three paths: valid token, expired token, no credentials.
 - **Steps**:
   1. Create or extend test file for sync status:
+
      ```python
      # Test with valid credentials
      def test_status_check_with_valid_token(mock_credentials, mock_server):
@@ -159,11 +166,14 @@ No dependencies — branches directly from the 2.x branch.
          # Mock connection timeout
          # Assert "Server unreachable" in output
      ```
+
   2. Use `unittest.mock.patch` to mock credential loading and HTTP calls
   3. Run existing sync tests for regression:
+
      ```bash
      python -m pytest tests/sync/ -x -v
      ```
+
 - **Files**: `tests/sync/test_sync_status.py` (new or extend)
 - **Parallel?**: No — depends on T011-T013
 

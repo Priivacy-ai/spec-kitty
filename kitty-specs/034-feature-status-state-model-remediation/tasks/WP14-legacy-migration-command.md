@@ -89,6 +89,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
 - **Dependency WP05**: Provides the expanded 7-lane set and `LANE_ALIASES` mapping in `tasks_support.py`
 
 **Key constraints**:
+
 - Python 3.11+
 - Bootstrap events use `from_lane` set to the Lane value representing the initial state. For a WP currently at `in_progress`, the bootstrap event has `from_lane=Lane.PLANNED` and `to_lane=Lane.IN_PROGRESS` (or a single event with `from_lane` representing "no prior state"). The contract requires `from_lane` to be a valid Lane value -- use `"planned"` as the sentinel for "no prior state" since all WPs conceptually start at `planned`.
 - Alias `doing` MUST be resolved to `in_progress` before creating the bootstrap event -- never persist `doing` in the event log
@@ -106,7 +107,9 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Purpose**: Read existing frontmatter lanes from all WP files in a feature directory and generate bootstrap StatusEvents.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/migrate.py` (or add to `status/legacy_bridge.py` -- prefer a separate file for clarity):
+
    ```python
    from __future__ import annotations
    import ulid
@@ -122,6 +125,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    ```
 
 2. Define `MigrationResult` dataclass:
+
    ```python
    @dataclass
    class WPMigrationDetail:
@@ -148,6 +152,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    ```
 
 3. Implement `migrate_feature()`:
+
    ```python
    def migrate_feature(
        feature_dir: Path,
@@ -168,6 +173,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
      c. Resolve alias: `canonical = resolve_lane_alias(raw_lane)`
      d. Extract timestamp from frontmatter `history` list (last entry's timestamp) or use `datetime.now(UTC)`
      e. Create bootstrap `StatusEvent`:
+
         ```python
         event = StatusEvent(
             event_id=str(ulid.new()),
@@ -181,6 +187,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
             execution_mode="direct_repo",
         )
         ```
+
      f. If `to_lane == Lane.PLANNED`, skip creating an event (WP is already at initial state -- no transition occurred)
      g. If not `dry_run`, append the event via `append_event()`
    - Return `FeatureMigrationResult` with details
@@ -188,12 +195,14 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Files**: `src/specify_cli/status/migrate.py` (new file)
 
 **Validation**:
+
 - Feature with 4 WPs at `planned`, `doing`, `for_review`, `done` produces 3 events (planned WP skipped -- no transition needed)
 - `doing` is resolved to `in_progress` in the event's `to_lane`
 - All events have `actor="migration"` and `execution_mode="direct_repo"`
 - Events have valid ULID event_ids
 
 **Edge Cases**:
+
 - WP file with no `lane` field in frontmatter: treat as `planned` (no event needed)
 - WP file with unrecognized lane value (not in canonical set or aliases): report error for this WP, continue with others
 - Feature directory with no `tasks/` subdirectory: report error, return failed result
@@ -208,7 +217,9 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Purpose**: Ensure `doing` and any future aliases are resolved to canonical lane values before event creation.
 
 **Steps**:
+
 1. In `migrate_feature()`, before creating the StatusEvent:
+
    ```python
    raw_lane = frontmatter.get("lane", "planned")
    canonical_lane = resolve_lane_alias(raw_lane)
@@ -216,6 +227,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    ```
 
 2. Track alias resolution in `WPMigrationDetail`:
+
    ```python
    detail = WPMigrationDetail(
        wp_id=wp_id,
@@ -227,6 +239,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    ```
 
 3. Aggregate alias resolution count in `MigrationResult`:
+
    ```python
    result.aliases_resolved = sum(
        1 for f in result.features
@@ -238,11 +251,13 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Files**: `src/specify_cli/status/migrate.py` (same file)
 
 **Validation**:
+
 - WP with `lane: doing` produces event with `to_lane=Lane.IN_PROGRESS` and `alias_resolved=True`
 - WP with `lane: in_progress` produces event with `alias_resolved=False`
 - MigrationResult correctly counts total aliases resolved
 
 **Edge Cases**:
+
 - Case sensitivity: `lane: Doing` or `lane: DOING` should all resolve to `in_progress`
 - Whitespace: `lane: " doing "` (with spaces) should resolve correctly via `resolve_lane_alias()` which strips
 - Future aliases: if new aliases are added to `LANE_ALIASES`, migration automatically handles them
@@ -254,7 +269,9 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Purpose**: Ensure migration is safe to run multiple times without creating duplicate events.
 
 **Steps**:
+
 1. At the start of `migrate_feature()`, check for existing event log:
+
    ```python
    events_file = feature_dir / "status.events.jsonl"
    if events_file.exists():
@@ -270,6 +287,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
 2. The check must be strict: only skip if the file has actual content (not just empty lines or whitespace).
 
 3. After migration, verify the created event log by reading it back:
+
    ```python
    if not dry_run:
        events = read_events(feature_dir)
@@ -284,11 +302,13 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Files**: `src/specify_cli/status/migrate.py` (same file)
 
 **Validation**:
+
 - First run: creates `status.events.jsonl` with bootstrap events, returns `status="migrated"`
 - Second run: detects existing file, returns `status="skipped"` with no new events
 - File with only whitespace: treated as non-empty, returns `status="skipped"`
 
 **Edge Cases**:
+
 - Race condition: two agents run migration simultaneously. Both check file existence, both see "no file". First creates events, second appends duplicates. Mitigation: this is acceptable for now; the reducer's deduplication by `event_id` prevents state corruption. Document this in the migration output.
 - File with invalid JSON lines (corrupted prior migration): skip with warning, do not attempt to "fix" the file. Direct user to `status doctor`.
 
@@ -299,7 +319,9 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Purpose**: Create the CLI entry point for legacy migration.
 
 **Steps**:
+
 1. Add the migrate command to `src/specify_cli/cli/commands/agent/status.py`:
+
    ```python
    @app.command()
    def migrate(
@@ -321,6 +343,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
 3. For each feature, call `migrate_feature()` and collect results into `MigrationResult`.
 
 4. Output formatting -- default (Rich):
+
    ```python
    from rich.console import Console
    from rich.table import Table
@@ -336,6 +359,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    ```
 
 5. Output formatting -- JSON:
+
    ```python
    def migration_result_to_json(result: MigrationResult) -> dict[str, Any]:
        return {
@@ -374,12 +398,14 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Files**: `src/specify_cli/cli/commands/agent/status.py` (modified)
 
 **Validation**:
+
 - `spec-kitty agent status migrate --feature 034-feature-status-state-model-remediation --dry-run` previews without writing
 - `spec-kitty agent status migrate --all` migrates all features
 - `--json` flag produces valid JSON
 - Exit code is 1 when any feature fails
 
 **Edge Cases**:
+
 - `kitty-specs/` directory does not exist: error with "No kitty-specs/ directory found"
 - `kitty-specs/` is empty (no feature directories): report "No features found to migrate"
 - Feature directory exists but has no `tasks/` subdirectory: report as failed for that feature
@@ -392,6 +418,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Purpose**: End-to-end verification of the migration pipeline.
 
 **Steps**:
+
 1. Create `tests/integration/test_migration_e2e.py` (or `tests/specify_cli/status/test_migrate.py` for unit tests):
 
 2. Test cases:
@@ -420,6 +447,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
    - **test_migrate_cli_via_runner**: Use typer `CliRunner` to invoke `migrate --feature test-feature --dry-run`. Verify CLI output.
 
 3. Fixture helpers:
+
    ```python
    @pytest.fixture
    def feature_with_wps(tmp_path):
@@ -444,6 +472,7 @@ Create a migration command that bootstraps canonical event logs from existing fr
 **Validation**: All tests pass with `python -m pytest tests/specify_cli/status/test_migrate.py tests/integration/test_migration_e2e.py -v`
 
 **Edge Cases**:
+
 - Ensure temp directories are fully isolated (no cross-test contamination via `tmp_path`)
 - Verify that `read_frontmatter()` is called correctly for test WP files (frontmatter format must match what the real reader expects)
 - Test with both `---` delimited YAML frontmatter and potential edge cases in YAML parsing

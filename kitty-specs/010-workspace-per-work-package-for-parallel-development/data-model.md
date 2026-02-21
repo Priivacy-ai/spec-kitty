@@ -18,6 +18,7 @@ Represents a single unit of work within a feature.
 **Storage**: YAML frontmatter in `kitty-specs/###-feature/tasks/WP##.md`
 
 **Attributes**:
+
 - `work_package_id` (string, required): Unique identifier within feature (e.g., "WP01", "WP02")
 - `title` (string, required): Human-readable description
 - `lane` (string, required): Current status ("planned", "doing", "for_review", "done")
@@ -28,17 +29,20 @@ Represents a single unit of work within a feature.
 - `agent` (string, optional): Implementing AI agent
 
 **Relationships**:
+
 - **depends_on**: References to other WorkPackages via `dependencies` field
 - **depended_by**: Inverse relationship (computed, not stored)
 - **workspace**: Associated Worktree entity (exists if WP is implemented)
 
 **Validation Rules**:
+
 - `work_package_id` must match filename pattern `WP##-title.md`
 - `dependencies` must reference valid WP IDs within same feature
 - Cannot depend on self (`WP01` depending on `WP01` is invalid)
 - Dependency graph must be acyclic (no circular dependencies)
 
 **Example**:
+
 ```yaml
 ---
 work_package_id: "WP02"
@@ -61,6 +65,7 @@ Represents a git worktree for a single work package implementation.
 **Storage**: Filesystem directory at `.worktrees/###-feature-WP##/` + git ref at `.git/worktrees/###-feature-WP##/`
 
 **Attributes**:
+
 - `path` (Path): Filesystem location (e.g., `.worktrees/010-workspace-per-wp-WP01/`)
 - `branch_name` (string): Git branch name (e.g., `010-workspace-per-wp-WP01`)
 - `base_branch` (string): Branch this worktree branched from (`main` or another WP's branch)
@@ -69,16 +74,19 @@ Represents a git worktree for a single work package implementation.
 - `created_at` (datetime): Worktree creation timestamp (git metadata)
 
 **Relationships**:
+
 - **work_package**: References WorkPackage entity via `wp_id`
 - **parent_worktree**: References Worktree entity via `base_branch` (if base is another WP)
 
 **Lifecycle**:
+
 1. Created: `spec-kitty implement WP##` creates worktree
 2. Active: Agent works in worktree, commits to branch
 3. Merged: `spec-kitty merge` merges branch to main
 4. Removed: `git worktree remove` deletes filesystem directory
 
 **Detection**:
+
 - Legacy worktree: `.worktrees/###-feature/` (no `-WP##` suffix)
 - New worktree: `.worktrees/###-feature-WP##/` (with WP suffix)
 
@@ -91,23 +99,27 @@ Represents the relationships between work packages in a feature.
 **Storage**: Computed in-memory from WP frontmatter, not persisted as separate file
 
 **Attributes**:
+
 - `adjacency_list` (dict[str, list[str]]): Maps WP ID → list of WP IDs it depends on
   - Example: `{"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02"]}`
 - `feature_dir` (Path): Feature directory containing WPs
 - `cycles` (list[list[str]] | None): Detected circular dependencies (None if acyclic)
 
 **Computed Properties**:
+
 - `inverse_graph` (dict[str, list[str]]): Maps WP ID → list of WP IDs that depend on it
   - Example: `{"WP01": ["WP02", "WP03"], "WP02": ["WP04"]}`
   - Used for review feedback warnings ("WP02, WP03 depend on WP01")
 
 **Operations**:
+
 - `build_graph(feature_dir: Path)`: Parse all WP frontmatter, build adjacency list
 - `detect_cycles()`: Run DFS to find circular dependencies
 - `get_dependents(wp_id: str)`: Query inverse graph
 - `validate()`: Check for invalid references, self-dependencies, cycles
 
 **Example Graph**:
+
 ```python
 # Feature with 4 WPs: WP01 → WP02 → WP04
 #                     WP01 → WP03
@@ -136,6 +148,7 @@ Represents a Spec Kitty feature with planning artifacts and associated WP worktr
 **Storage**: Directory at `kitty-specs/###-feature-name/` + multiple `.worktrees/###-feature-WP##/` directories
 
 **Attributes**:
+
 - `feature_number` (string): Numeric identifier (e.g., "010")
 - `slug` (string): Full feature identifier (e.g., "010-workspace-per-wp")
 - `spec_path` (Path): Path to spec.md in main repo
@@ -145,6 +158,7 @@ Represents a Spec Kitty feature with planning artifacts and associated WP worktr
 - `model_type` (string): "legacy" or "workspace-per-wp"
 
 **Detection Logic**:
+
 ```python
 def detect_feature_model(feature_number: str) -> str:
     """Detect if feature uses legacy or workspace-per-wp model."""
@@ -161,6 +175,7 @@ def detect_feature_model(feature_number: str) -> str:
 ```
 
 **Relationships**:
+
 - **work_packages**: One-to-many with WorkPackage entities (via tasks/*.md files)
 - **worktrees**: One-to-many with Worktree entities (via `.worktrees/` directories)
 
@@ -173,6 +188,7 @@ def detect_feature_model(feature_number: str) -> str:
 **Algorithm**: Depth-first search with coloring (white/gray/black)
 
 **Pseudocode**:
+
 ```
 function detect_cycles(graph):
     color = {wp: WHITE for all wp in graph}
@@ -203,6 +219,7 @@ function dfs(node, color, path, cycles):
 **Complexity**: O(V + E) where V = number of WPs, E = number of dependencies
 
 **Test Cases**:
+
 1. No cycles: `{"WP01": [], "WP02": ["WP01"]}` → None
 2. Simple cycle: `{"WP01": ["WP02"], "WP02": ["WP01"]}` → `[["WP01", "WP02", "WP01"]]`
 3. Complex cycle: `{"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"], "WP04": ["WP03", "WP01"]}` → No cycles (valid DAG)
@@ -212,6 +229,7 @@ function dfs(node, color, path, cycles):
 **Algorithm**: Inverse graph construction
 
 **Pseudocode**:
+
 ```
 function build_inverse_graph(graph):
     inverse = {wp: [] for all wp in graph}
@@ -228,6 +246,7 @@ function get_dependents(wp_id, graph):
 ```
 
 **Use Case**: Review feedback warnings
+
 - WP01 moves to `for_review`
 - Query: `get_dependents("WP01")` → `["WP02", "WP03"]`
 - Display: "⚠️ WP02, WP03 depend on WP01. If changes requested, they'll need rebase."
@@ -246,6 +265,7 @@ planned → doing → for_review → done
 ```
 
 **Dependency-Aware Transitions**:
+
 - Moving WP01 from `doing` → `for_review`: Check for dependents, add warning if found
 - Moving WP01 from `for_review` → `planned`: Warn dependents about upcoming changes
 - Moving WP02 to `doing` when WP01 (dependency) is not `done`: Allowed, but warn about potential rebase needs
@@ -259,11 +279,13 @@ Not exists → Created → Active → Merged → Removed
 ```
 
 **Creation Triggers**:
+
 - User/agent runs `spec-kitty implement WP##`
 - Workspace doesn't exist yet
 - Dependencies satisfied (if `--base` specified, base workspace exists)
 
 **Removal Triggers**:
+
 - Feature merged to main: `spec-kitty merge` optionally removes all WP worktrees
 - Manual cleanup: `git worktree remove .worktrees/###-feature-WP##/`
 
@@ -296,6 +318,7 @@ Dashboard must detect and display:
 ### WP Location Logic
 
 **Where to find WPs:**
+
 - **Always** read WP files from `kitty-specs/###-feature/tasks/WP##.md` in main repository
 - Worktree structure (`.worktrees/###-feature-WP##/`) is for implementation isolation only
 - WP frontmatter (lane, dependencies) is source of truth
@@ -357,6 +380,7 @@ Dashboard must detect and display:
 ### Scenario 1: Simple Linear Dependency
 
 **tasks.md structure:**
+
 ```markdown
 ## Phase 1 - Foundation
 - WP01: Setup database schema
@@ -370,6 +394,7 @@ Dashboard must detect and display:
 ```
 
 **Generated WP frontmatter:**
+
 ```yaml
 # WP01.md
 ---
@@ -387,6 +412,7 @@ dependencies: ["WP01"]
 ```
 
 **Implementation commands:**
+
 ```bash
 spec-kitty implement WP01         # Branches from main
 spec-kitty implement WP02 --base WP01  # Branches from WP01
@@ -395,6 +421,7 @@ spec-kitty implement WP02 --base WP01  # Branches from WP01
 ### Scenario 2: Fan-Out Dependencies
 
 **tasks.md structure:**
+
 ```markdown
 ## Phase 1
 - WP01: Core authentication module
@@ -406,6 +433,7 @@ spec-kitty implement WP02 --base WP01  # Branches from WP01
 ```
 
 **Generated WP frontmatter:**
+
 ```yaml
 # WP01.md
 dependencies: []
@@ -415,6 +443,7 @@ dependencies: ["WP01"]
 ```
 
 **Implementation commands:**
+
 ```bash
 spec-kitty implement WP01              # Branches from main
 
@@ -429,6 +458,7 @@ spec-kitty implement WP04 --base WP01  # Agent C (parallel)
 ### Scenario 3: Complex DAG
 
 **tasks.md structure:**
+
 ```markdown
 - WP01: Database schema
 - WP02: API layer (depends on WP01)
@@ -437,6 +467,7 @@ spec-kitty implement WP04 --base WP01  # Agent C (parallel)
 ```
 
 **Dependency graph:**
+
 ```
     WP01
     /  \
@@ -446,6 +477,7 @@ spec-kitty implement WP04 --base WP01  # Agent C (parallel)
 ```
 
 **Generated frontmatter:**
+
 ```yaml
 # WP01.md: dependencies: []
 # WP02.md: dependencies: ["WP01"]
@@ -454,6 +486,7 @@ spec-kitty implement WP04 --base WP01  # Agent C (parallel)
 ```
 
 **Implementation order:**
+
 ```bash
 spec-kitty implement WP01
 # After WP01 done:

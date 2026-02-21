@@ -47,6 +47,7 @@ Currently, configuration and utilities are scattered throughout the 2,700-line `
 ## Requirements from Specification
 
 From the spec:
+
 - Each module must be under 200 lines (excluding comments/docstrings)
 - Modules must have clear, single responsibilities
 - Imports must work in local dev, pip install, and subprocess contexts
@@ -57,6 +58,7 @@ From the spec:
 ### T001: Create package directory structure
 
 Create the following directory structure under `src/specify_cli/`:
+
 ```
 src/specify_cli/
 ├── core/
@@ -80,6 +82,7 @@ Each `__init__.py` should start empty but will be populated as modules are creat
 ### T002: Extract all constants and configuration to core/config.py
 
 From `__init__.py`, extract lines containing:
+
 - `AI_CHOICES` dict (lines 80-93)
 - `MISSION_CHOICES` dict (lines 95-98)
 - `DEFAULT_MISSION_KEY` (line 100)
@@ -90,6 +93,7 @@ From `__init__.py`, extract lines containing:
 - `BANNER` string (lines 133-158)
 
 Create `src/specify_cli/core/config.py`:
+
 ```python
 """Configuration constants for spec-kitty."""
 
@@ -114,6 +118,7 @@ __all__ = [
 ### T003: Extract shared utility functions to core/utils.py
 
 Extract general utility functions that don't belong to specific domains:
+
 - Any path formatting utilities
 - Directory creation helpers
 - Safe file operations
@@ -126,6 +131,7 @@ Target ~100 lines. Focus on truly shared utilities, not domain-specific helpers.
 From `__init__.py`, extract the `StepTracker` class (lines 161-245) and its helper `StepInfo` if present.
 
 Create `src/specify_cli/cli/ui.py`:
+
 ```python
 """UI components for spec-kitty CLI."""
 
@@ -153,6 +159,7 @@ class StepTracker:
 ### T005: Extract menu selection functions to cli/ui.py
 
 Add to `cli/ui.py`:
+
 - `get_key()` function (lines 247-265)
 - `select_with_arrows()` function (lines 267-341)
 - `multi_select_with_arrows()` function (lines 344-412)
@@ -164,6 +171,7 @@ These provide the interactive menu functionality used throughout the CLI.
 Update each package's `__init__.py` with appropriate exports:
 
 `src/specify_cli/core/__init__.py`:
+
 ```python
 """Core utilities and configuration."""
 
@@ -189,11 +197,13 @@ __all__ = [
 ### T007-T009: Write unit tests
 
 Create test files under `tests/specify_cli/`:
+
 - `tests/specify_cli/test_core/test_config.py` - Verify constants are defined
 - `tests/specify_cli/test_core/test_utils.py` - Test utility functions
 - `tests/specify_cli/test_cli/test_ui.py` - Test StepTracker and menu functions
 
 Example test:
+
 ```python
 import pytest
 from specify_cli.core.config import AI_CHOICES, BANNER
@@ -210,8 +220,9 @@ def test_banner_is_string():
 
 ## Testing Strategy
 
-1. **Unit tests**: Each module gets its own test file
-2. **Import tests**: Verify imports work in different contexts:
+1. __Unit tests__: Each module gets its own test file
+2. __Import tests__: Verify imports work in different contexts:
+
    ```python
    # Test package import
    from specify_cli.core import config
@@ -219,7 +230,8 @@ def test_banner_is_string():
    # Test direct import
    from specify_cli.core.config import AI_CHOICES
    ```
-3. **Integration test**: After extraction, run a simple CLI command to ensure nothing broke
+
+3. __Integration test__: After extraction, run a simple CLI command to ensure nothing broke
 
 ## Definition of Done
 
@@ -234,18 +246,19 @@ def test_banner_is_string():
 
 ## Risks and Mitigations
 
-**Risk**: Other developers start work before foundation is ready
-**Mitigation**: This is day 1 priority, must complete before others begin
+__Risk__: Other developers start work before foundation is ready
+__Mitigation__: This is day 1 priority, must complete before others begin
 
-**Risk**: Imports break in unexpected ways
-**Mitigation**: Test imports in all three contexts immediately
+__Risk__: Imports break in unexpected ways
+__Mitigation__: Test imports in all three contexts immediately
 
-**Risk**: Constants are used in unexpected places
-**Mitigation**: Keep original file as reference, grep for usage
+__Risk__: Constants are used in unexpected places
+__Mitigation__: Keep original file as reference, grep for usage
 
 ## Review Guidance
 
 When reviewing this work package:
+
 1. Check that each module has a clear, single purpose
 2. Verify no behavioral changes (constants have same values)
 3. Ensure imports work in a fresh virtualenv
@@ -262,22 +275,24 @@ All other work packages (WP02-WP08) depend on this foundation being complete.
 
 ## Review Feedback
 
-**Status**: ✅ **APPROVED**
+__Status__: ✅ __APPROVED__
 
-**Summary**: The foundation layer modules have been successfully created, integrated, and tested. All extraction work is complete with proper separation of concerns, and the new module architecture is functioning correctly in the main codebase.
+__Summary__: The foundation layer modules have been successfully created, integrated, and tested. All extraction work is complete with proper separation of concerns, and the new module architecture is functioning correctly in the main codebase.
 
-**Review Date**: 2025-11-11
+__Review Date__: 2025-11-11
 
 ### ✅ Implementation Verified
 
-**Module Structure & Organization**:
+__Module Structure & Organization__:
+
 - ✅ `src/specify_cli/core/config.py` (92 lines) - All configuration constants properly extracted
 - ✅ `src/specify_cli/core/utils.py` (43 lines) - Utility functions organized and exported
 - ✅ `src/specify_cli/cli/step_tracker.py` (91 lines) - StepTracker class properly isolated
 - ✅ `src/specify_cli/cli/ui.py` (192 lines) - Menu functions and UI helpers consolidated
 - ✅ All modules under 200-line specification (largest is 192 lines)
 
-**Integration & Imports**:
+__Integration & Imports__:
+
 - ✅ Main `__init__.py` correctly imports from `specify_cli.core.config` (line 66-75)
 - ✅ Main `__init__.py` correctly imports from `specify_cli.core.utils` (line 76)
 - ✅ Main `__init__.py` correctly imports from `specify_cli.cli` (line 77)
@@ -285,14 +300,16 @@ All other work packages (WP02-WP08) depend on this foundation being complete.
 - ✅ No duplicate code found in main `__init__.py`
 - ✅ All modules compile successfully without syntax errors
 
-**Code Quality**:
+__Code Quality__:
+
 - ✅ Module docstrings present and descriptive
 - ✅ Clear single responsibility per module
 - ✅ Proper export definitions via `__all__`
 - ✅ Constants maintain original values (no behavioral changes)
 - ✅ No circular imports detected
 
-**Testing**:
+__Testing__:
+
 - ✅ Test files created for all core modules:
   - `tests/specify_cli/test_core/test_config.py` - Tests for configuration constants
   - `tests/specify_cli/test_core/test_utils.py` - Tests for utility functions
@@ -301,6 +318,7 @@ All other work packages (WP02-WP08) depend on this foundation being complete.
 - ✅ Tests follow pytest conventions
 
 ### Definition of Done Checklist - FINAL STATUS
+
 - [X] All 9 subtasks completed
 - [X] Each module is under 200 lines (largest: 192 lines)
 - [X] All modules have docstrings
@@ -313,10 +331,11 @@ All other work packages (WP02-WP08) depend on this foundation being complete.
 ### Notes
 
 The implementation successfully achieves the refactoring objectives:
-1. **Code organization**: Previously scattered configuration and utilities are now in focused, maintainable modules
-2. **Single responsibility**: Each module has a clear, single purpose
-3. **Dependency clarity**: New module structure makes dependencies explicit
-4. **Foundation layer**: Successfully provides the basis for subsequent work packages
+
+1. __Code organization__: Previously scattered configuration and utilities are now in focused, maintainable modules
+2. __Single responsibility__: Each module has a clear, single purpose
+3. __Dependency clarity__: New module structure makes dependencies explicit
+4. __Foundation layer__: Successfully provides the basis for subsequent work packages
 
 The previous review iteration identified opportunities for integration, and those have been properly implemented. The foundation layer is ready for dependent work packages to proceed.
 

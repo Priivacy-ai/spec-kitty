@@ -83,6 +83,7 @@ tests/specify_cli/upgrade/
 **Decision**: Migration writes events directly via `append_event()` + post-hoc `materialize()`, NOT through `emit_status_transition()`.
 
 **Rationale**:
+
 - `emit_status_transition()` calls `validate_transition()` which would reject many historical transitions (`planned -> done`, `planned -> for_review`, etc.) that aren't in `ALLOWED_TRANSITIONS`
 - `emit_status_transition()` triggers SaaS sync per event, which is unwanted during migration
 - `emit_status_transition()` calls `materialize()` after every single event, which is wasteful when writing N events per feature
@@ -93,6 +94,7 @@ tests/specify_cli/upgrade/
 **Decision**: For each feature, accumulate all events in memory, write them to a temp file, then `os.replace()` to the final path.
 
 **Rationale**:
+
 - Current `append_event()` appends one line at a time (not atomic across multiple events)
 - Crash mid-write would leave a partial event log
 - Atomic swap ensures either all events or none are persisted
@@ -123,6 +125,7 @@ tests/specify_cli/upgrade/
 **Decision**: Every migration-generated event sets `force=true` with `reason="historical migration"` (or `"historical migration: no evidence in frontmatter"` for done without evidence).
 
 **Rationale**:
+
 - Historical transitions bypassed live guard validation
 - Many transitions (e.g., `planned -> done`, `planned -> in_progress`) are not in the 16-pair `ALLOWED_TRANSITIONS` matrix
 - `force=true` requires `actor` + `reason`, which migration always provides
@@ -176,10 +179,12 @@ frontmatter = {
 ### Actor Resolution per Transition
 
 For transition `entries[i] → entries[i+1]`:
+
 - Use `entries[i+1].agent` as the actor (the agent who CAUSED the transition to the new lane)
 - Fallback: `"migration"` if agent is empty/absent
 
 For gap-fill and fallback transitions:
+
 - Actor: `"migration"`
 
 ## Files to Create/Modify

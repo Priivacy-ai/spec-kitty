@@ -1,14 +1,16 @@
 # Agent: GitHub Copilot
 
 ## Basic Info
+
 - **Directory**: `.github/prompts/`
 - **Primary Interface**: CLI (new Copilot CLI) + VS Code extension
 - **Vendor**: GitHub (Microsoft)
-- **Documentation**: https://github.com/github/copilot-cli
+- **Documentation**: <https://github.com/github/copilot-cli>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # New Copilot CLI (standalone) - RECOMMENDED
 brew install github/gh-copilot/copilot-cli
@@ -20,11 +22,13 @@ gh extension install github/gh-copilot
 ```
 
 ### Verification
+
 ```bash
 which copilot && copilot --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ copilot --version
 0.0.384
@@ -44,12 +48,14 @@ GitHub Copilot CLI - An AI-powered coding assistant
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument - `copilot -p "Your prompt here"`
 - [x] Stdin - Not directly, but can use shell substitution
 - [x] Interactive mode - `copilot -i "Start with this prompt"`
 - [x] File context - `copilot --add-dir <path>` for directory access
 
 ### Example Invocation
+
 ```bash
 # Non-interactive mode (exits after completion)
 copilot -p "Fix the bug in main.js" --allow-all-tools
@@ -74,6 +80,7 @@ copilot -p "Complete this task" --share ./session.md
 ```
 
 ### Context Handling
+
 - Operates in current working directory by default
 - Add directories with `--add-dir <path>`
 - `--allow-all-paths` disables path restrictions
@@ -83,12 +90,14 @@ copilot -p "Complete this task" --share ./session.md
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
 | Non-zero | Error |
 
 ### Output Format
+
 - [x] Stdout (default with markdown rendering)
 - [x] Silent mode (`-s, --silent`) - agent response only, no stats
 - [x] Session sharing (`--share <path>`) - exports to markdown
@@ -99,16 +108,19 @@ copilot -p "Complete this task" --share ./session.md
 ## Parallel Execution
 
 ### Rate Limits
+
 - Depends on GitHub Copilot subscription tier
 - Individual: Standard limits
 - Business/Enterprise: Higher limits
 
 ### Concurrent Sessions
+
 - Yes, multiple instances can run in parallel
 - Each session independent
 - Session resume capability with `--resume [sessionId]`
 
 ### Resource Requirements
+
 - Memory: Moderate
 - CPU: Light (API calls are remote)
 - Network: Required for all operations
@@ -117,6 +129,7 @@ copilot -p "Complete this task" --share ./session.md
 ## Authentication
 
 ### Methods
+
 1. **GitHub Token**: Environment variable `GITHUB_TOKEN`
 2. **GitHub CLI Auth**: Uses `gh auth` credentials
 3. **Copilot Subscription**: Required (Individual, Business, or Enterprise)
@@ -132,9 +145,11 @@ copilot -p "test" --allow-all
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes - Full headless support
 
 ### Capabilities for Orchestration
+
 - **Non-interactive mode**: `-p, --prompt` flag
 - **Full auto-approval**: `--yolo` or `--allow-all` flag
 - **Task input**: Command line argument
@@ -144,6 +159,7 @@ copilot -p "test" --allow-all
 - **Granular permissions**: `--allow-tool`, `--deny-tool` for fine control
 
 ### Unique Features
+
 - **Multi-model support**: GPT-5.x, Claude models, Gemini available
 - **MCP Integration**: Built-in GitHub MCP server, custom MCP support
 - **Session management**: `--continue`, `--resume` for session persistence
@@ -151,6 +167,7 @@ copilot -p "test" --allow-all
 - **Path permissions**: `--allow-all-paths` or `--add-dir` for filesystem access
 
 ### Available Models
+
 ```
 claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4,
 gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.2, gpt-5.1,
@@ -158,11 +175,13 @@ gpt-5, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1, gemini-3-pro-preview
 ```
 
 ### Limitations
+
 - Requires GitHub Copilot subscription
 - Network connectivity required
 - No local/offline mode
 
 ### Integration Complexity
+
 **Low** - Full headless support with comprehensive automation flags. Very similar to Claude Code CLI.
 
 ## Recommended Orchestration Pattern
@@ -208,6 +227,7 @@ The gh-copilot extension has been deprecated in favor of the newer GitHub Copilo
 The old extension only supported `suggest` and `explain` commands for shell/git/gh command generation. The new standalone CLI is a full agentic coding assistant.
 
 ## Sources
+
 - [GitHub Copilot CLI Repository](https://github.com/github/copilot-cli)
 - [Deprecation Announcement (Sep 2025)](https://github.blog/changelog/2025-09-25-upcoming-deprecation-of-gh-copilot-cli-extension)
 - Local CLI testing: `copilot --help` (v0.0.384)

@@ -32,12 +32,14 @@ git branch --show-current  # Should output: 2.x
 ```
 
 **Why this is critical**:
+
 - **2.x is a NEW branch** (not a version tag on main)
 - **2.x is greenfield architecture** (events-only, no YAML activity logs)
 - **Incompatible with main** (cannot coexist due to fundamental architecture differences)
 - **main branch (v0.13.x) becomes 1.x** (maintenance-only, YAML logs remain)
 
 **What NOT to do**:
+
 - ❌ DO NOT implement on `main` branch (would break stable 1.x line)
 - ❌ DO NOT modify existing YAML activity log code on main
 - ❌ DO NOT add backward compatibility with 1.x (greenfield means fresh start)
@@ -116,11 +118,13 @@ This work package establishes the foundational dependency on spec-kitty-events l
 ### Implementation Notes
 
 **File Structure**: All new modules go in `src/specify_cli/events/`:
+
 - `types.py` - Event and LamportClock dataclasses (T006, T007)
 - `clock_storage.py` - ClockStorage class (T008, T011)
 - `file_io.py` - JSONL append with locking (T009, T010)
 
 **Critical Implementation Details**:
+
 - T009: Use `fcntl.flock()` for POSIX file locking (atomic appends)
 - T010: Daily rotation checks current date vs filename, creates new file if date changed
 - T011: Rebuild clock by reading all JSONL files, taking max(lamport_clock) + 1
@@ -164,6 +168,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 ### Implementation Notes
 
 **AOP Pattern**: The `@with_event_store` decorator (T015) provides clean dependency injection:
+
 ```python
 @with_event_store
 def move_task(wp_id: str, lane: str, event_store: EventStore):
@@ -171,6 +176,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore):
 ```
 
 **Event Emission Points**:
+
 - T016: After frontmatter update in `spec-kitty agent tasks move-task`
 - T017: After spec.md creation in `spec-kitty agent feature setup-spec`
 - T018: After each WP file creation in `spec-kitty agent feature finalize-tasks`
@@ -213,6 +219,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore):
 ### Implementation Notes
 
 **SQL Schema** (T019):
+
 ```sql
 CREATE TABLE events (
     event_id TEXT PRIMARY KEY,
@@ -268,6 +275,7 @@ CREATE TABLE events (
 ### Implementation Notes
 
 **Reading Flow**:
+
 1. T025: EventStore.read() checks if filters provided → use index query, else read all JSONL
 2. T026: Sort events by `lamport_clock` field (causal order, not timestamp)
 3. T027: Wrap JSON parsing in try/except, log warning, continue on failure
@@ -315,6 +323,7 @@ CREATE TABLE events (
 ### Implementation Notes
 
 **Conflict Detection Flow** (T031):
+
 ```python
 events_by_clock = group_by_lamport_clock(events)
 for clock, clock_events in events_by_clock.items():
@@ -363,6 +372,7 @@ for clock, clock_events in events_by_clock.items():
 ### Implementation Notes
 
 **ErrorEvent Structure** (T036):
+
 ```python
 @dataclass
 class ErrorEvent:
@@ -415,12 +425,14 @@ class ErrorEvent:
 ### Implementation Notes
 
 **Commit Pinning** (T041):
+
 ```toml
 [tool.poetry.dependencies]
 spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234" }
 ```
 
 **CI Setup** (T042):
+
 ```yaml
 - name: Setup SSH for private repo
   run: |
@@ -450,22 +462,28 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 ## Parallelization Strategy
 
 **Wave 1** (no dependencies):
+
 - WP01 (Git Dependency Setup) - foundational
 
 **Wave 2** (depends on WP01):
+
 - WP02 (Event Storage Foundation)
 
 **Wave 3** (depends on WP02):
+
 - WP03 (EventStore & AOP Middleware)
 
 **Wave 4** (depends on WP03):
+
 - WP04 (SQLite Query Index) [P]
 - WP07 (Error Logging) [P]
 
 **Wave 5** (depends on WP04):
+
 - WP05 (Event Reading & State Reconstruction)
 
 **Wave 6** (depends on WP05):
+
 - WP06 (Conflict Detection) [P]
 - WP08 (CI Configuration) [P]
 
@@ -478,6 +496,7 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 **Minimum Viable Product**: WP01 + WP02 + WP03 + WP04 + WP05 (5 work packages)
 
 **Rationale**:
+
 - WP01-WP03: Core event emission (US1 satisfied)
 - WP04-WP05: Event reading with index (US2, US3 satisfied)
 - Omits: Conflict detection (US4), Error logging (US7), CI finalization (US6 partial)
@@ -496,6 +515,7 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 **Estimated Prompt Sizes**: 220-420 lines (all within 700-line maximum)
 
 **Subtask Distribution**:
+
 - WP01: 5 subtasks (~280 lines)
 - WP02: 7 subtasks (~420 lines) ⚠️ (upper limit, but manageable)
 - WP03: 6 subtasks (~350 lines)
@@ -512,15 +532,18 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 ## Implementation Sequence
 
 **Recommended order for single-agent implementation**:
+
 1. WP01 (foundation) → 2. WP02 (storage) → 3. WP03 (emission) → 4. WP04 (index) → 5. WP05 (reading) → 6. WP06 (conflicts) → 7. WP07 (errors) → 8. WP08 (CI)
 
 **Recommended order for multi-agent parallelization**:
+
 - Agent 1: WP01 → WP02 → WP03 → WP05 (sequential critical path)
 - Agent 2: Wait for WP03 → WP04 (index, parallel with Agent 1's WP05)
 - Agent 3: Wait for WP03 → WP07 (errors, parallel with WP04/WP05)
 - Agent 4: Wait for WP05 → WP06 (conflicts) + WP08 (CI)
 
 **Timeline Estimate** (single agent):
+
 - WP01-WP05 (MVP): ~5-7 implementation sessions
 - WP06-WP08 (polish): ~3-4 implementation sessions
 - **Total**: ~8-11 sessions for complete feature
@@ -530,6 +553,7 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 ## Success Metrics
 
 **Coverage**:
+
 - ✅ US1 (Event Emission): WP02 + WP03
 - ✅ US2 (Event Reading): WP05
 - ✅ US3 (SQLite Index): WP04
@@ -541,6 +565,7 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 **Functional Requirements Coverage**: 27/28 FRs (FR-028 explicitly deferred as migration to future feature)
 
 **Quality Gates**:
+
 - Event write latency: <15ms (T014, T023 implementation targets)
 - Query performance: <500ms for 1000+ events (T021 optimization target)
 - CLI command completion: <2 seconds (validated as trivial overhead)

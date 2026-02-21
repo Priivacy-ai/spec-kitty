@@ -48,10 +48,12 @@ history:
 **This WP depends on WP02 and WP05** (check frontmatter `dependencies:` field).
 
 Before starting, ensure both dependencies are complete:
+
 - WP02 creates `docs/how-to/manage-agents.md` (link target)
 - WP05 creates CLI reference section for `spec-kitty agent config` (link target)
 
 **Check if dependencies are complete**:
+
 ```bash
 spec-kitty agent tasks status --feature 023-documentation-sprint-agent-management-cleanup
 ```
@@ -63,8 +65,9 @@ If this WP has dependent WPs (other WPs depend on this one): None - WP06 is a le
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -73,6 +76,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Add cross-references to agent config documentation from related pages (agent-subcommands, configuration, install guide, supported-agents) to improve discoverability.
 
 **Success Criteria**:
+
 - [ ] `docs/reference/agent-subcommands.md` updated with `config` entry in command index
 - [ ] `docs/reference/configuration.md` updated with config-driven model section
 - [ ] `docs/how-to/install-spec-kitty.md` updated with cross-reference to manage-agents
@@ -88,17 +92,20 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Improve documentation discoverability by adding cross-references from related pages. This addresses FR-008 and FR-009 requirements and ensures SC-006 (3+ cross-references).
 
 **Reference Documents**:
+
 - WP02 output (`docs/how-to/manage-agents.md` - link target)
 - WP05 output (`docs/reference/cli-commands.md#spec-kitty-agent-config` - link target)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-008, FR-009, SC-006)
 
 **Writing Style**:
+
 - Minimal additions (don't rewrite existing content)
 - Add cross-reference notes/links in logical locations
 - Use relative paths for links
 - Ensure link text is descriptive
 
 **Constraints**:
+
 - T025 sequential (updates command index)
 - T026-T028 can be parallelized (independent files)
 - Each update should be 1-3 sentences plus link
@@ -119,6 +126,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Table format: `| Command | Description |`
 
 3. **Add row for `config` subcommand**:
+
    ```markdown
    | `config` | Manage project AI agent configuration (add, remove, list, sync agents) |
    ```
@@ -126,6 +134,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    Insert alphabetically if table is sorted, or at logical location.
 
 4. **Add section for `config` details** (if file has detailed sections for each subcommand):
+
    ```markdown
    ### spec-kitty agent config
 
@@ -147,11 +156,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (single file, sequential)
 
 **Notes**:
+
 - Extract description from WP05 main section
 - Add both table entry and detailed section (if file structure supports it)
 - Link to both CLI reference (syntax) and how-to guide (workflow)
 
 **Validation**:
+
 - [ ] `config` row added to command index table
 - [ ] Description matches WP05 main section
 - [ ] Detailed section added (if file has per-command sections)
@@ -173,6 +184,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Insert after general config explanation, or create new section "Agent Configuration"
 
 3. **Add section header**:
+
    ```markdown
    ## Agent Configuration
 
@@ -180,6 +192,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Explain config-driven model**:
+
    ```markdown
    ### Config-Driven Agent Management
 
@@ -213,9 +226,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
    - [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Command syntax and options
    - [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
+
    ```
 
 5. **Add note about legacy behavior**:
+
    ```markdown
    > **Legacy behavior**: Projects without `agents.available` field default to all 12 agents for backward compatibility. To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
    ```
@@ -225,12 +240,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T027 and T028)
 
 **Notes**:
+
 - Extract config schema from WP01 research T002
 - Explain fields and values
 - Link to manage-agents.md, CLI reference, and ADR #6
 - Note about legacy fallback behavior
 
 **Validation**:
+
 - [ ] Section added to configuration.md
 - [ ] Config-driven model explained
 - [ ] Schema shown with YAML example
@@ -253,6 +270,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Likely near end of init examples or in "Next Steps" section
 
 3. **Add cross-reference note**:
+
    ```markdown
    ### Managing Agents After Initialization
 
@@ -267,6 +285,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Alternative (if simpler note preferred)**:
+
    ```markdown
    > **Managing agents after init**: To add or remove agents later, see [Managing AI Agents](manage-agents.md).
    ```
@@ -276,11 +295,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T026 and T028)
 
 **Notes**:
+
 - Insert near init examples (logical progression from init to post-init management)
 - Can be subsection or simple callout, depending on file structure
 - Use relative path (same directory: `manage-agents.md`)
 
 **Validation**:
+
 - [ ] Cross-reference added after init examples
 - [ ] Note mentions agent management is possible post-init
 - [ ] Link to manage-agents.md included
@@ -300,6 +321,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Likely at the beginning (intro paragraph) or in a "Managing Agents" section
 
 3. **Add intro paragraph with cross-reference**:
+
    ```markdown
    ## Managing Active Agents
 
@@ -314,6 +336,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Or add simpler note** (if file already has intro):
+
    ```markdown
    > **Managing agents**: Use `spec-kitty agent config` commands to manage which agents are active in your project. See [Managing AI Agents](../how-to/manage-agents.md) for details.
    ```
@@ -327,11 +350,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T026 and T027)
 
 **Notes**:
+
 - Insert at logical location (intro or dedicated section)
 - Use relative path (`../how-to/manage-agents.md` from reference/ directory)
 - Ensure agent list is complete (12 agents)
 
 **Validation**:
+
 - [ ] Cross-reference added to supported-agents.md
 - [ ] Note explains agent management commands
 - [ ] Link to manage-agents.md included
@@ -368,24 +393,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Broken links due to incorrect relative paths
+
 - **Mitigation**: Test each link by clicking in documentation browser
 - **Detection**: Manual link checking; future tooling could automate
 
 **Risk**: Cross-references disrupt existing content flow
+
 - **Mitigation**: Insert at logical locations (after related content, in "See Also" sections)
 - **Validation**: Read surrounding paragraphs to ensure natural flow
 
 **Risk**: Duplicate information across manage-agents.md and cross-reference locations
+
 - **Mitigation**: Keep cross-references brief (1-3 sentences); link to manage-agents.md for details
 - **Validation**: Compare cross-reference text against manage-agents.md to avoid duplication
 
 **Risk**: Files don't exist or have moved
+
 - **Mitigation**: Verify file existence before adding links
 - **Detection**: Link resolution testing
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] All four subtasks (T025-T028) completed
 - [ ] agent-subcommands.md updated with `config` entry
 - [ ] configuration.md updated with config-driven model section
@@ -396,6 +426,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Cross-references don't duplicate manage-agents.md content
 
 **Review Focus**:
+
 - **Discoverability**: Can user find agent config docs from related pages?
 - **Link Accuracy**: Do all links resolve correctly?
 - **Content Integration**: Do cross-references flow naturally?
@@ -406,6 +437,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -422,6 +454,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T11:08:30Z – claude – shell_pid=30211 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:10:44Z – claude – shell_pid=30211 – lane=for_review – Ready for review: Added cross-references to agent config documentation from 4 related pages. Updated agent-subcommands.md with config command entry, configuration.md with config-driven model section, install-spec-kitty.md with post-init management guide, and supported-agents.md with management commands overview. All relative paths tested and agent config commands now discoverable from multiple documentation entry points.
 - 2026-01-23T11:15:49Z – Claude – shell_pid=38575 – lane=doing – Started review via workflow command

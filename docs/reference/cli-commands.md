@@ -9,12 +9,14 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 **Description**: Spec Kitty CLI entry point.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--version`, `-v` | Show version and exit |
 | `--help` | Show this message and exit |
 
 **Commands**:
+
 - `init` - Initialize a new Spec Kitty project from templates
 - `accept` - Validate feature readiness before merging to main
 - `dashboard` - Open or stop the Spec Kitty dashboard
@@ -41,9 +43,11 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 **Description**: Initialize a new Spec Kitty project from templates.
 
 **Arguments**:
+
 - `PROJECT_NAME`: Name for your new project directory (optional if using `--here`, or use `.` for current directory)
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--ignore-agent-tools` | Skip checks for AI agent tools like Claude Code |
@@ -62,6 +66,7 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty init my-project
 spec-kitty init my-project --ai codex
@@ -82,6 +87,7 @@ spec-kitty init my-project --ai codex --non-interactive
 **Description**: Upgrade a Spec Kitty project to the current version.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--dry-run` | Preview changes without applying |
@@ -93,6 +99,7 @@ spec-kitty init my-project --ai codex --non-interactive
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty upgrade
 spec-kitty upgrade --dry-run
@@ -108,9 +115,11 @@ spec-kitty upgrade --target 0.6.5
 **Description**: Create workspace for work package implementation (git worktree).
 
 **Arguments**:
+
 - `WP_ID`: Work package ID (e.g., `WP01`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--base TEXT` | Base WP to branch from (e.g., `WP01`) |
@@ -119,6 +128,7 @@ spec-kitty upgrade --target 0.6.5
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02 --base WP01
@@ -135,6 +145,7 @@ spec-kitty implement WP01 --json
 **Description**: Validate feature readiness before merging to main.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug to accept (auto-detected by default) |
@@ -156,6 +167,7 @@ spec-kitty implement WP01 --json
 **Description**: Merge a completed feature branch into the target branch and clean up resources.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--strategy TEXT` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
@@ -175,6 +187,7 @@ spec-kitty implement WP01 --json
 **Description**: Open or stop the Spec Kitty dashboard.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--port INTEGER` | Preferred port for the dashboard (falls back to first available port) |
@@ -190,6 +203,7 @@ spec-kitty implement WP01 --json
 **Description**: Execute Phase 0 research workflow to scaffold artifacts.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug to target (auto-detected when omitted) |
@@ -205,6 +219,7 @@ spec-kitty implement WP01 --json
 **Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--repair`, `-r` | Attempt workspace recovery (may lose uncommitted work) |
@@ -212,6 +227,7 @@ spec-kitty implement WP01 --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty sync
 spec-kitty sync --verbose
@@ -231,11 +247,13 @@ spec-kitty sync --repair
 **Description**: Operation history via git reflog. View recent git operations.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
 
 **Commands**:
+
 - `log` - Show operation history (git reflog)
 
 ### spec-kitty ops log
@@ -245,6 +263,7 @@ spec-kitty sync --repair
 **Description**: Show git reflog entries. Displays recent git operations that have modified the repository state.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--limit`, `-n INTEGER` | Number of operations to show (default: 20) |
@@ -252,6 +271,7 @@ spec-kitty sync --repair
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty ops log
 spec-kitty ops log -n 50
@@ -267,6 +287,7 @@ spec-kitty ops log --verbose
 **Description**: View available Spec Kitty missions. Missions are selected per-feature during `/spec-kitty.specify`.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -278,6 +299,7 @@ spec-kitty ops log --verbose
 **Description**: List all available missions with their source (project/built-in).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -289,6 +311,7 @@ spec-kitty ops log --verbose
 **Description**: Show currently active mission.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -300,9 +323,11 @@ spec-kitty ops log --verbose
 **Description**: Show details for a specific mission without switching.
 
 **Arguments**:
+
 - `MISSION_NAME`: Mission name to display details for [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -314,9 +339,11 @@ spec-kitty ops log --verbose
 **Description**: (deprecated) Switch active mission - removed in v0.8.0.
 
 **Arguments**:
+
 - `MISSION_NAME`: Mission name (no longer supported) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--force` | (ignored) |
@@ -331,6 +358,7 @@ spec-kitty ops log --verbose
 **Description**: Validate and optionally fix file encoding in feature artifacts.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug to validate (auto-detected when omitted) |
@@ -348,6 +376,7 @@ spec-kitty ops log --verbose
 **Description**: Validate and optionally fix task metadata inconsistencies.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug to validate (auto-detected when omitted) |
@@ -366,6 +395,7 @@ spec-kitty ops log --verbose
 **Description**: Verify that the current environment matches Spec Kitty expectations.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug to verify (auto-detected when omitted) |
@@ -384,6 +414,7 @@ spec-kitty ops log --verbose
 **Description**: List legacy worktrees blocking 0.11.0 upgrade.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -397,6 +428,7 @@ spec-kitty ops log --verbose
 **Description**: Repair broken templates.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -408,6 +440,7 @@ spec-kitty ops log --verbose
 **Description**: Repair broken templates caused by v0.10.0-0.10.8 bundling bug.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--project-path PATH`, `-p` | Path to project to repair |
@@ -423,6 +456,7 @@ spec-kitty ops log --verbose
 **Description**: Commands for AI agents to execute spec-kitty workflows programmatically.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -436,6 +470,7 @@ spec-kitty ops log --verbose
 Manage project AI agent configuration (add, remove, list agents).
 
 **Usage**:
+
 ```bash
 spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 ```
@@ -461,6 +496,7 @@ spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 View configured agents and available options.
 
 **Synopsis**:
+
 ```bash
 spec-kitty agent config list
 ```
@@ -476,6 +512,7 @@ Lists agents currently configured in your project (from `.kittify/config.yaml`) 
 **Output**:
 
 Two sections:
+
 - **Configured agents**: Agents in `config.yaml` with status indicators:
   - ✓ (green) - Directory exists
   - ⚠ (yellow) - Configured but directory missing
@@ -484,11 +521,13 @@ Two sections:
 **Examples**:
 
 View configured agents:
+
 ```bash
 spec-kitty agent config list
 ```
 
 Example output:
+
 ```
 Configured agents:
   ✓ opencode (.opencode/command/)
@@ -506,6 +545,7 @@ Available but not configured:
 Add one or more agents to your project.
 
 **Synopsis**:
+
 ```bash
 spec-kitty agent config add <agent1> [agent2] [agent3] ...
 ```
@@ -535,16 +575,19 @@ Adds specified agents to your project by creating agent directories, copying sla
 **Examples**:
 
 Add a single agent:
+
 ```bash
 spec-kitty agent config add claude
 ```
 
 Add multiple agents:
+
 ```bash
 spec-kitty agent config add codex gemini cursor
 ```
 
 Example output:
+
 ```
 ✓ Added .codex/prompts/
 ✓ Added .gemini/commands/
@@ -553,10 +596,13 @@ Updated .kittify/config.yaml
 ```
 
 Error handling (invalid key):
+
 ```bash
 spec-kitty agent config add cluade
 ```
+
 Output:
+
 ```
 Error: Invalid agent keys: cluade
 
@@ -570,6 +616,7 @@ Valid agent keys:
 Remove one or more agents from your project.
 
 **Synopsis**:
+
 ```bash
 spec-kitty agent config remove [OPTIONS] <agent1> [agent2] [agent3] ...
 ```
@@ -602,16 +649,19 @@ Removes specified agents from your project by deleting agent directories and upd
 **Examples**:
 
 Remove a single agent:
+
 ```bash
 spec-kitty agent config remove gemini
 ```
 
 Remove multiple agents:
+
 ```bash
 spec-kitty agent config remove cursor qwen windsurf
 ```
 
 Example output:
+
 ```
 ✓ Removed .cursor/
 ✓ Removed .qwen/
@@ -620,11 +670,13 @@ Updated .kittify/config.yaml
 ```
 
 Keep in config but remove directory:
+
 ```bash
 spec-kitty agent config remove gemini --keep-config
 ```
 
 Restore later with:
+
 ```bash
 spec-kitty agent config sync --create-missing
 ```
@@ -634,6 +686,7 @@ spec-kitty agent config sync --create-missing
 Audit agent configuration sync status.
 
 **Synopsis**:
+
 ```bash
 spec-kitty agent config status
 ```
@@ -649,6 +702,7 @@ Displays a comprehensive table showing all 12 supported agents, whether they're 
 **Output**:
 
 Rich table with columns:
+
 - **Agent Key** (cyan): Agent identifier
 - **Directory** (dim): Filesystem path
 - **Configured**: ✓ if in `config.yaml`, ✗ otherwise
@@ -656,6 +710,7 @@ Rich table with columns:
 - **Status**: Colored status indicator
 
 **Status values**:
+
 - `[green]OK[/green]`: Configured and directory exists (normal state)
 - `[yellow]Missing[/yellow]`: Configured but directory doesn't exist (needs sync)
 - `[red]Orphaned[/red]`: Directory exists but not configured (should be cleaned up)
@@ -666,11 +721,13 @@ Rich table with columns:
 **Examples**:
 
 Audit agent configuration:
+
 ```bash
 spec-kitty agent config status
 ```
 
 Example output:
+
 ```
 Agent Key  Directory                Configured  Exists  Status
 ──────────────────────────────────────────────────────────────────
@@ -690,6 +747,7 @@ Run 'spec-kitty agent config sync --remove-orphaned' to clean up
 Synchronize filesystem with config.yaml.
 
 **Synopsis**:
+
 ```bash
 spec-kitty agent config sync [OPTIONS]
 ```
@@ -721,32 +779,38 @@ Automatically aligns filesystem with `.kittify/config.yaml` by creating missing 
 **Examples**:
 
 Default sync (remove orphaned only):
+
 ```bash
 spec-kitty agent config sync
 ```
 
 Create missing configured agents:
+
 ```bash
 spec-kitty agent config sync --create-missing
 ```
 
 Complete sync (both directions):
+
 ```bash
 spec-kitty agent config sync --create-missing --remove-orphaned
 ```
 
 Keep orphaned directories:
+
 ```bash
 spec-kitty agent config sync --keep-orphaned
 ```
 
 Example output:
+
 ```
 ✓ Created .claude/commands/
 ✓ Removed orphaned .gemini/
 ```
 
 No changes needed:
+
 ```
 No changes needed - filesystem matches config
 ```
@@ -754,10 +818,12 @@ No changes needed - filesystem matches config
 ---
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)

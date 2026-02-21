@@ -35,6 +35,7 @@ Each worktree branch contained a copy of `kitty-specs/###-feature/tasks/*.md`. S
 **Git Sparse-Checkout** (Native Git Feature):
 
 1. **Use sparse-checkout to exclude kitty-specs/** (implement.py:583-616)
+
    ```python
    # Enable sparse-checkout for worktree
    git config core.sparseCheckout true
@@ -154,6 +155,7 @@ Benefits:
 | 3/12 agents | 12/12 agents |
 
 ### Files: workflow.py (+80), tasks.py (+87), review.md (rewritten: 23 lines), m_0_11_2 (+185)
+
 ### Commits: 28d1422
 
 ---
@@ -184,6 +186,7 @@ shell_pid: "45599"  # In frontmatter
 ```
 
 ### Files: workflow.py (+12 per function)
+
 ### Commits: 35cbba7
 
 ---
@@ -202,6 +205,7 @@ branch_name = re.sub(r'-WP\d+$', '', branch_name)
 ```
 
 ### Files: tasks.py (+3)
+
 ### Commits: 35cbba7
 
 ---
@@ -242,10 +246,12 @@ spec-kitty agent tasks move-task WP03 --to done
 ## Future: When We Add Jujutsu
 
 **Remove** (~60 lines):
+
 - Sparse-checkout configuration code
 - Auto-commit code
 
 **Replace with** (~40 lines):
+
 ```python
 # jj sparse set to exclude kitty-specs/ from working copies
 jj sparse set --clear --add '!kitty-specs/**'
@@ -255,6 +261,7 @@ jj describe -m "chore: Move {task_id} to {lane} [{agent}]"
 ```
 
 **Keep** (~400 lines):
+
 - Agent tracking
 - PID tracking
 - Validation
@@ -316,12 +323,14 @@ jj describe -m "chore: Move {task_id} to {lane} [{agent}]"
 ### The Problem
 
 **Constrained by WP COUNT instead of SIZE**:
+
 - Old guidance: "Target 4-10 work packages. Do not exceed 10 work packages."
 - Agents optimized for minimum WP count → packed 20+ subtasks into each WP
 - Result: 1312-line WP prompts that overwhelmed implementing agents
 - Agents made mistakes, skipped details, cut corners to handle overwhelming context
 
 **Token-conscious agents panic**:
+
 - Seeing "create 10 WPs for complex feature" → agents try to minimize token usage
 - Rush through planning to save tokens
 - Write brief, vague prompts
@@ -356,10 +365,12 @@ jj describe -m "chore: Move {task_id} to {lane} [{agent}]"
 #### Part 2: Size-Based Guidance (lines 103-116, 217-292)
 
 **Removed**:
+
 - ❌ "Target 4-10 work packages"
 - ❌ "Do not exceed 10 work packages"
 
 **Added**:
+
 - ✅ "Target: 3-7 subtasks per WP (200-500 line prompts)"
 - ✅ "Maximum: 10 subtasks per WP (700 line prompts)"
 - ✅ "Complex feature: 80-120 subtasks → 15-20 WPs ← **Totally fine!**"
@@ -401,18 +412,22 @@ For each cohesive unit of work:
 #### Part 5: Common Mistakes Section (lines 462-552)
 
 **MISTAKE 1**: Optimizing for WP Count
+
 - Bad: "I'll create exactly 5-7 WPs" → 20 subtasks per WP
 - Good: "Each WP should be 3-7 subtasks. If that means 15 WPs, fine."
 
 **MISTAKE 2**: Token Conservation During Planning
+
 - Bad: "Save tokens with brief prompts" → confused agents, rework
 - Good: "Invest tokens now for thorough prompts" → correct first time
 
 **MISTAKE 3**: Mixing Unrelated Concerns
+
 - Bad: "WP03: Misc Backend Work (12 subtasks)"
 - Good: Split by concern (User Mgmt, Infrastructure, Admin)
 
 **MISTAKE 4**: Insufficient Detail
+
 - Bad: 20 lines per subtask ("Create endpoint, add validation, test it")
 - Good: 60 lines per subtask (specific steps, files, validation criteria, edge cases)
 
@@ -432,14 +447,17 @@ For each cohesive unit of work:
 ### Expected Outcomes
 
 **For simple features** (10-15 subtasks):
+
 - Before: 2-3 WPs of 5-7 subtasks each ✓ (Already worked)
 - After: 2-4 WPs of 3-5 subtasks each ✓ (Similar, slightly better)
 
 **For medium features** (30-50 subtasks):
+
 - Before: 5-7 WPs of 6-10 subtasks each (prompts: 400-700 lines) ⚠️ (Borderline)
 - After: 6-10 WPs of 4-6 subtasks each (prompts: 250-400 lines) ✓ (Much better)
 
 **For complex features** (80-120 subtasks):
+
 - Before: 8-10 WPs of 10-15 subtasks each (prompts: 700-1100 lines) ❌ (Broken - like feature 012!)
 - After: 15-20 WPs of 5-7 subtasks each (prompts: 300-450 lines) ✓ (Manageable)
 
@@ -461,6 +479,7 @@ The migration system handles OTHER command templates (review, implement) but NOT
 ### Testing
 
 **Test by running /spec-kitty.tasks on a new feature**:
+
 - Agent should see: "⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK"
 - Agent should see: "QUALITY OVER SPEED: This is NOT the time to save tokens"
 - Agent should follow: 3-7 subtasks per WP guideline
@@ -470,11 +489,13 @@ The migration system handles OTHER command templates (review, implement) but NOT
 ### Real-World Example
 
 **Feature 012 (this feature)**:
+
 - 86 total subtasks across 10 WPs
 - Average: 8.6 subtasks per WP ← **Too high!**
 - Some WPs had 10+ subtasks → 1000+ line prompts
 
 **With new guidance, feature 012 would have been**:
+
 - 86 subtasks across 15-17 WPs
 - Average: 5-6 subtasks per WP ✓
 - All prompts: 300-500 lines ✓

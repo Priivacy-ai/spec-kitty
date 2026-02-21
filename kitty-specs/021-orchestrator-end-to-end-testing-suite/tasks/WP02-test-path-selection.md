@@ -46,13 +46,16 @@ Implement the test path model that selects execution paths based on agent availa
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Key decision #3 (Test Path Model)
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - TestPath definition
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` - From WP01
 
 **Constraints**:
+
 - Agent selection should be deterministic (sort by agent_id)
 - Same-agent mode allowed for 1-agent path
 - Must handle edge case of 0 available agents
@@ -66,8 +69,10 @@ Implement the test path model that selects execution paths based on agent availa
 **Purpose**: Define the data structure for test path configuration.
 
 **Steps**:
+
 1. Open `src/specify_cli/orchestrator/testing/paths.py`
 2. Add imports and dataclass:
+
    ```python
    from __future__ import annotations
 
@@ -110,6 +115,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/paths.py` (~45 lines)
 
 **Parallel?**: No - must complete before T007-T009
@@ -121,7 +127,9 @@ Implement the test path model that selects execution paths based on agent availa
 **Purpose**: Determine which test path to use based on agent count.
 
 **Steps**:
+
 1. Add path type determination:
+
    ```python
    def determine_path_type(agent_count: int) -> Literal["1-agent", "2-agent", "3+-agent"]:
        """Determine test path type based on available agent count.
@@ -146,6 +154,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/paths.py` (add ~20 lines)
 
 **Parallel?**: Yes - once T006 complete
@@ -157,7 +166,9 @@ Implement the test path model that selects execution paths based on agent availa
 **Purpose**: Assign specific agents to implementation, review, and fallback roles.
 
 **Steps**:
+
 1. Add assignment function:
+
    ```python
    def assign_agents(
        available_agents: list[str],
@@ -192,6 +203,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/paths.py` (add ~30 lines)
 
 **Parallel?**: Yes - once T006 complete
@@ -203,7 +215,9 @@ Implement the test path model that selects execution paths based on agent availa
 **Purpose**: Main entry point that combines detection and path selection.
 
 **Steps**:
+
 1. Add module-level cache:
+
    ```python
    # Module-level cache
    _test_path_cache: TestPath | None = None
@@ -215,6 +229,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 2. Implement main selection function:
+
    ```python
    from specify_cli.orchestrator.testing.availability import (
        detect_all_agents,
@@ -272,6 +287,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 3. Add synchronous wrapper for pytest:
+
    ```python
    import asyncio
 
@@ -283,6 +299,7 @@ Implement the test path model that selects execution paths based on agent availa
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/paths.py` (add ~60 lines)
 
 **Parallel?**: No - depends on T007 and T008
@@ -301,6 +318,7 @@ Implement the test path model that selects execution paths based on agent availa
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] `TestPath` correctly represents all path types
 - [ ] 1 agent → same agent for impl and review
 - [ ] 2 agents → different agents, no fallback
@@ -310,6 +328,7 @@ Implement the test path model that selects execution paths based on agent availa
 - [ ] `force_path` parameter allows overriding for tests
 
 **Code Quality**:
+
 - Deterministic behavior (sorted agent lists)
 - Type hints on all functions
 - Edge cases handled (0 agents, 1 agent same-agent mode)

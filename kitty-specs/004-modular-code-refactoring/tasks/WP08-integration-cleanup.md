@@ -51,9 +51,10 @@ After all modules have been extracted by agents A-F, this work package brings ev
 
 ## Implementation Guidance
 
-### T070-T071: Update main __init__.py
+### T070-T071: Update main **init**.py
 
 **T070**: Update `__init__.py` to use new modules
+
 ```python
 #!/usr/bin/env python3
 """Spec Kitty CLI - setup tooling for Spec Kitty projects."""
@@ -92,6 +93,7 @@ if __name__ == "__main__":
 ```
 
 **T071**: Remove old monolithic code
+
 - Delete all extracted functions
 - Keep only app setup and command registration
 - Target: ~150 lines total
@@ -99,16 +101,19 @@ if __name__ == "__main__":
 ### T072-T074: Fix integration issues
 
 **T072**: Fix any circular imports
+
 - Identify circular dependencies
 - Refactor to break cycles
 - Use TYPE_CHECKING if needed
 
 **T073**: Update all import statements
+
 - Search and replace old imports
 - Update to use new module paths
 - Ensure consistency
 
 **T074**: Ensure subprocess imports work
+
 ```python
 # Add to modules that spawn subprocesses
 try:
@@ -120,11 +125,13 @@ except ImportError:
 ### T075-T077: Testing
 
 **T075**: Run full regression test suite
+
 ```bash
 pytest tests/ -v
 ```
 
 **T076**: Test pip installation
+
 ```bash
 # In clean virtualenv
 pip install -e .
@@ -133,6 +140,7 @@ spec-kitty check
 ```
 
 **T077**: Test development mode
+
 ```bash
 # From source directory
 python -m specify_cli --version
@@ -141,11 +149,13 @@ python -m specify_cli --version
 ### T078-T079: Documentation and performance
 
 **T078**: Update documentation
+
 - Update README with new structure
 - Document module organization
 - Add developer guide
 
 **T079**: Performance verification
+
 - Measure startup time
 - Check command response time
 - Ensure no regression
@@ -202,7 +212,7 @@ None - this is the final integration step.
 
 All integration tasks completed successfully:
 
-✅ **T070**: __init__.py updated to use new modules (147 lines - under 150 target)
+✅ **T070**: **init**.py updated to use new modules (147 lines - under 150 target)
 ✅ **T071**: All old monolithic code removed
 ✅ **T072**: No circular imports detected
 ✅ **T073**: All import statements updated to new module paths
@@ -212,6 +222,7 @@ All integration tasks completed successfully:
 ✅ **T077**: Development mode tested and working
 
 **Test Results**:
+
 - Core tests: 19/19 ✅
 - Dashboard tests: 13/13 ✅
 - Template tests: 12/12 ✅
@@ -220,7 +231,8 @@ All integration tasks completed successfully:
 - **Total**: 57/57 passing (100%)
 
 **Module Compliance**:
-- __init__.py: 147 lines (target: <150) ✅
+
+- **init**.py: 147 lines (target: <150) ✅
 - All extracted modules under 200 lines (excluding init/github_client which are complex)
 - Clean imports, no duplication
 

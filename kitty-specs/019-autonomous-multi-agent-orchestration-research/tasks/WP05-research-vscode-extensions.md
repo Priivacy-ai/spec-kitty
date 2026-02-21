@@ -34,6 +34,7 @@ Research the 3 agents that are primarily VS Code extensions:
 3. **Roo Cline** - VS Code extension (fork of Cline)
 
 **Success Criteria**:
+
 - All 3 agents have completed research files
 - CLI availability documented (likely limited for all)
 - Any headless workarounds documented
@@ -47,6 +48,7 @@ Research the 3 agents that are primarily VS Code extensions:
 - **Scope**: Headless/CLI only
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - Research questions
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/plan.md` - Research template
 
@@ -57,12 +59,15 @@ Reference documents:
 **Purpose**: Determine if Kilocode can be used headlessly.
 
 **Steps**:
+
 1. Check for Kilocode CLI:
+
    ```bash
    which kilocode kilo
    npm search kilocode
    pip search kilocode
    ```
+
 2. Visit Kilocode website/documentation
 3. Check VS Code Marketplace for extension details
 4. Look for API documentation
@@ -74,6 +79,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions**:
+
 - Does Kilocode have any CLI component?
 - Is there an API for programmatic access?
 - What LLM does it use (own model or third-party)?
@@ -85,12 +91,15 @@ Reference documents:
 **Purpose**: Determine if Augment Code can be used headlessly.
 
 **Steps**:
+
 1. Check for Augment CLI:
+
    ```bash
    which augment augment-code
    npm search augment-code
    pip search augment
    ```
+
 2. Visit Augment website/documentation
 3. Check VS Code and JetBrains Marketplace listings
 4. Look for API documentation
@@ -102,6 +111,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions**:
+
 - Does Augment have any CLI component?
 - Is there an API for programmatic access?
 - What's the relationship to their enterprise offering?
@@ -114,12 +124,15 @@ Reference documents:
 **Purpose**: Determine if Roo Cline (or parent Cline project) can be used headlessly.
 
 **Steps**:
+
 1. Research Cline (original project):
+
    ```bash
    which cline
    npm search cline cline-ai
    pip search cline
    ```
+
 2. Check Cline GitHub repository for CLI features
 3. Research Roo Cline fork differences
 4. Look for MCP (Model Context Protocol) integration
@@ -131,6 +144,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions**:
+
 - Does Cline (parent project) have a CLI?
 - What does Roo add to standard Cline?
 - Is there an API or server mode?
@@ -143,15 +157,18 @@ Reference documents:
 **Purpose**: Capture common patterns for VS Code extension headless use.
 
 **Steps**:
+
 1. Research VS Code headless/server mode:
    - Can extensions run in VS Code Server?
    - What about code-server (browser-based VS Code)?
 2. Document extension host API possibilities
 3. Note any common CLI patterns for VS Code extensions
 4. Research if extensions can be invoked via VS Code CLI:
+
    ```bash
    code --extensionDevelopmentPath=/path/to/extension
    ```
+
 5. Document limitations of headless VS Code
 
 **Files**: Add common patterns section to each research file
@@ -163,6 +180,7 @@ Reference documents:
 **Purpose**: Complete all 3 research files following template.
 
 **Steps**:
+
 1. Ensure all sections from plan.md template are filled
 2. Be honest about IDE-only limitations
 3. Document any workarounds discovered
@@ -172,6 +190,7 @@ Reference documents:
 5. Add source links
 
 **Files**:
+
 - `research/09-kilocode.md`
 - `research/10-augment-code.md`
 - `research/11-roo-cline.md`

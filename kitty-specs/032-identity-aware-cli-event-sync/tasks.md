@@ -19,6 +19,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T001 Create ProjectIdentity dataclass in `sync/project_identity.py`
 - [x] T002 Implement identity generation helpers (uuid4, slug from dir/remote, node_id)
 - [x] T003 Implement atomic config.yaml persistence (temp file + rename)
@@ -27,19 +28,23 @@
 - [x] T006 Write unit tests in `tests/sync/test_project_identity.py`
 
 ### Implementation Notes
+
 1. Use `uuid.uuid4()` for `project_uuid`; use `sync.clock.generate_node_id()` for stable `node_id`
 2. Derive project_slug from git remote origin URL (if available) or directory name
 3. Atomic writes: write to `.kittify/config.yaml.tmp`, then `os.replace()` to final path
 4. Config schema: add `project:` section with `uuid`, `slug`, `node_id` keys
 
 ### Parallel Opportunities
+
 - T001-T002 can be developed together (dataclass + helpers)
 - T006 tests can be written in parallel once API is designed
 
 ### Dependencies
+
 - None (foundation package)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Config corruption on write failure | Atomic write pattern (temp + rename) |
@@ -56,6 +61,7 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
+
 - [x] T007 Import ProjectIdentity into `sync/emitter.py`
 - [x] T008 Add identity injection in `EventEmitter._emit()`
 - [x] T009 Add validation: warn and queue-only if identity missing
@@ -63,18 +69,22 @@
 - [x] T011 Update `tests/sync/test_event_emission.py` with identity verification
 
 ### Implementation Notes
+
 1. Call `get_project_identity()` at start of `_emit()` (not in each emit_* method)
 2. Add `project_uuid` as string, `project_slug` as optional string
 3. Validation: if `project_uuid` is None, log warning and skip WebSocket send
 4. Identity resolution happens once per emitter lifetime (cached in instance)
 
 ### Parallel Opportunities
+
 - T011 tests can be written once API is designed
 
 ### Dependencies
+
 - Depends on **WP01** (ProjectIdentity module must exist)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Performance overhead | Cache identity in emitter; resolve once per lifetime |
@@ -90,24 +100,29 @@
 **Estimated Size**: ~250 lines
 
 ### Included Subtasks
+
 - [x] T012 Add `get_team_slug()` method to AuthClient
 - [x] T013 Store team_slug in credentials during login flow
 - [x] T014 Handle unauthenticated case (return "local")
 - [x] T015 Write tests for get_team_slug in `tests/sync/test_auth.py`
 
 ### Implementation Notes
+
 1. Team slug comes from SaaS during OAuth/login flow
 2. Store in same credentials file as access_token
 3. If not authenticated or team_slug missing, return "local" (default)
 4. EventEmitter already calls `_get_team_slug()` which expects this method
 
 ### Parallel Opportunities
+
 - **Can run in parallel with WP02** (different files, no conflicts)
 
 ### Dependencies
+
 - None (can start after WP01, but parallel with WP02)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | SaaS doesn't provide team_slug | Gracefully default to "local" |
@@ -123,6 +138,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T016 Create SyncRuntime dataclass in `sync/runtime.py`
 - [x] T017 Implement lazy singleton `get_runtime()` function
 - [x] T018 Start BackgroundSyncService unconditionally in `SyncRuntime.start()`
@@ -131,6 +147,7 @@
 - [x] T021 Write tests in `tests/sync/test_runtime.py`
 
 ### Implementation Notes
+
 1. Module-level `_runtime: SyncRuntime | None = None`
 2. `get_runtime()` creates and starts on first call (idempotent)
 3. Check `sync.auto_start` in `.kittify/config.yaml`; default True if missing/invalid
@@ -138,12 +155,15 @@
 5. Wire into `get_emitter()`: call `get_runtime()`, create emitter, then `runtime.attach_emitter(emitter)`
 
 ### Parallel Opportunities
+
 - T021 tests can be developed alongside implementation
 
 ### Dependencies
+
 - Depends on **WP02** (emitter must call runtime on get_emitter)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Runtime not stopping cleanly | atexit handler + explicit stop() API |
@@ -159,6 +179,7 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
+
 - [x] T022 Audit implement.py on 2.x branch for emission points
 - [x] T023 Consolidate to single emission in implement.py
 - [x] T024 Audit accept.py on 2.x branch for emission points
@@ -166,6 +187,7 @@
 - [x] T026 Add test verifying single emission per command
 
 ### Implementation Notes
+
 1. **Work on 2.x branch** - these files have event emissions that main doesn't have
 2. Find all `emit_wp_status_changed()` calls in each file
 3. Keep the most appropriate one (usually end of successful flow)
@@ -173,12 +195,15 @@
 5. Test by mocking emitter and counting calls
 
 ### Parallel Opportunities
+
 - T022-T023 (implement.py) and T024-T025 (accept.py) can run in parallel
 
 ### Dependencies
+
 - Depends on **WP04** (runtime must be working for proper testing)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Removing wrong emission | Audit carefully; keep emission at success point |
@@ -194,6 +219,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [x] T027 Create `tests/integration/test_sync_e2e.py` with fixtures
 - [x] T028 Test: init -> implement -> event contains project_uuid
 - [x] T029 Test: unauthenticated graceful degradation (queue only)
@@ -202,18 +228,22 @@
 - [x] T032 Test: single emission per command (no duplicates)
 
 ### Implementation Notes
+
 1. Use pytest fixtures for temporary repos and config files
 2. Mock WebSocket for isolation; verify queue contents
 3. Test both fresh init and migration (existing config without identity)
 4. For read-only test, use `os.chmod()` to make config.yaml read-only
 
 ### Parallel Opportunities
+
 - Tests are independent; can split across multiple test files if needed
 
 ### Dependencies
+
 - Depends on **WP01, WP02, WP04, WP05** (all modules must be working)
 
 ### Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Flaky tests from timing | Use proper async waits; avoid sleeps |
@@ -236,6 +266,7 @@ WP06: Integration tests
 ```
 
 **Execution Order**:
+
 1. WP01 (foundation, must complete first)
 2. WP02 + WP03 (parallel wave)
 3. WP04 (depends on WP02)

@@ -30,6 +30,7 @@ Implement conflict prediction for `--dry-run` mode, showing which files will con
 **User Story**: As a developer, I want to see which files will conflict before merging so I can prepare for resolution or adjust my merge strategy.
 
 **Success Criteria**:
+
 - `spec-kitty merge --dry-run` shows files that will conflict
 - Status files marked as "auto-resolvable" in forecast
 - Conflicts grouped by file with WP attribution
@@ -40,11 +41,13 @@ Implement conflict prediction for `--dry-run` mode, showing which files will con
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/spec.md` - User Story 2 acceptance scenarios
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - forecast.py design
 - `kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md` - ConflictPrediction entity
 
 **Constraints**:
+
 - Must work with git 2.30+ (merge-tree available in 2.38+, use fallback for older)
 - Conflict detection is best-effort prediction, not guaranteed
 - Integrate into executor's dry-run path
@@ -56,15 +59,18 @@ Implement conflict prediction for `--dry-run` mode, showing which files will con
 **Purpose**: Define the data structure for predicted conflicts.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/forecast.py`
 2. Add ConflictPrediction dataclass per data-model.md
 
 **Files**:
+
 - `src/specify_cli/merge/forecast.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 """Conflict prediction for merge dry-run."""
 
@@ -97,17 +103,20 @@ class ConflictPrediction:
 **Purpose**: Identify which files each WP modifies to find overlaps (FR-005).
 
 **Steps**:
+
 1. Add `build_file_wp_mapping()` function
 2. For each WP, run `git diff --name-only target...branch`
 3. Build dict mapping file path → list of WP IDs
 4. Files with 2+ WPs are potential conflicts
 
 **Files**:
+
 - `src/specify_cli/merge/forecast.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 import subprocess
 
@@ -188,16 +197,19 @@ def predict_conflicts(
 **Purpose**: Identify status files that can be auto-resolved.
 
 **Steps**:
+
 1. Add `is_status_file()` function
 2. Match patterns: `kitty-specs/**/tasks/*.md` and `kitty-specs/**/tasks.md`
 3. Use `fnmatch` for glob-style matching
 
 **Files**:
+
 - `src/specify_cli/merge/forecast.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 import fnmatch
 
@@ -263,12 +275,14 @@ def display_conflict_forecast(
 ## Review Guidance
 
 **Acceptance Test**:
+
 1. Create feature where WP01 and WP02 both modify `tests/conftest.py`
 2. Create feature where WP01 and WP02 both modify `kitty-specs/.../tasks/WP01.md`
 3. Run `spec-kitty merge --dry-run`
 4. Verify: conftest.py listed as "manual required", tasks file listed as "auto-resolvable"
 
 **Edge Cases**:
+
 - File modified by only 1 WP → no conflict prediction
 - All conflicts are status files → "All conflicts auto-resolvable"
 - git diff fails → skip that WP gracefully

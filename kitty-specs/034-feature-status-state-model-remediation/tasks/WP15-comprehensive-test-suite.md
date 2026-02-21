@@ -77,6 +77,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Success**: All tests pass. Cross-branch fixtures produce byte-identical output. Dual-write tests confirm three-way consistency (event log + snapshot + frontmatter). Read-cutover tests confirm canonical authority. Rollback beats forward progression in merge scenarios.
 
 **Success Criteria References**:
+
 - SC-003: "Unit tests for transition legality, Reducer determinism/idempotency, Conflict resolution"
 - SC-004: "Integration tests for dual-write and read-cutover, Cross-branch compatibility tests"
 
@@ -92,6 +93,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 - **Dependency WP11**: Provides `status validate` which is exercised in E2E tests and drift detection scenarios
 
 **Key constraints**:
+
 - Python 3.11+, pytest
 - All tests must use `tmp_path` fixtures for full isolation (no shared state between tests)
 - Cross-branch parity fixtures must use fixed timestamps and event_ids (no ULID generation -- use predetermined values)
@@ -109,9 +111,11 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: Verify that Phase 1 (dual-write) behavior maintains three-way consistency: event log, snapshot, and frontmatter.
 
 **Steps**:
+
 1. Create `tests/integration/test_dual_write.py`:
 
 2. Test fixture -- set up Phase 1 environment:
+
    ```python
    @pytest.fixture
    def phase1_feature(tmp_path):
@@ -169,6 +173,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/integration/test_dual_write.py -v` all pass
 
 **Edge Cases**:
+
 - Event append succeeds but frontmatter write fails: verify the operation is atomic (or document that event log is canonical and frontmatter is recoverable)
 - Multiple WPs in same feature: verify each WP's frontmatter is independently updated
 - Rapid sequential transitions: verify event ordering is preserved
@@ -180,9 +185,11 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: Verify that Phase 2 (read-cutover) reads from `status.json` as sole authority and treats frontmatter as a generated view.
 
 **Steps**:
+
 1. Create `tests/integration/test_read_cutover.py`:
 
 2. Test fixture -- set up Phase 2 environment:
+
    ```python
    @pytest.fixture
    def phase2_feature(tmp_path):
@@ -237,6 +244,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/integration/test_read_cutover.py -v` all pass
 
 **Edge Cases**:
+
 - `status.json` does not exist in Phase 2: materialize should create it; reading before materialization should trigger explicit error (not fallback to frontmatter)
 - `status.json` is corrupted: fail with explicit error message, not silent fallback
 - Phase transitions mid-test: verify that switching from Phase 1 to Phase 2 (via config change) changes read behavior
@@ -248,9 +256,11 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: Exercise the full CLI pipeline via `CliRunner`, covering create -> migrate -> emit -> validate -> materialize -> doctor.
 
 **Steps**:
+
 1. Create `tests/integration/test_status_e2e.py`:
 
 2. Import typer test utilities:
+
    ```python
    from typer.testing import CliRunner
    from specify_cli.cli.commands.agent.status import app as status_app
@@ -299,6 +309,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/integration/test_status_e2e.py -v` all pass
 
 **Edge Cases**:
+
 - CLI runner captures both stdout and stderr: verify error messages go to stderr
 - Exit codes: 0 for success, 1 for validation failures, 2 for runtime errors
 - Feature auto-detection: tests must set working directory or use `--feature` flag explicitly
@@ -310,7 +321,9 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: Create deterministic fixtures that both 2.x and 0.1x reducers must produce identical output from.
 
 **Steps**:
+
 1. Create `tests/cross_branch/` directory structure:
+
    ```
    tests/cross_branch/
    ├── __init__.py
@@ -333,11 +346,13 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
    - Event 10: `done -> in_progress` with `force=true` (force exit from terminal)
 
    **All events use fixed, predetermined values**:
+
    ```json
    {"event_id": "01HXY0000000000000000001", "feature_slug": "099-parity-test", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "at": "2026-02-01T10:00:00Z", "actor": "agent-1", "force": false, "execution_mode": "worktree", "reason": null, "review_ref": null, "evidence": null}
    ```
 
 3. Create `expected_snapshot.json` -- the deterministic output from reducing the 10 events:
+
    ```json
    {
      "feature_slug": "099-parity-test",
@@ -373,6 +388,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
    ```
 
 4. Create `test_parity.py`:
+
    ```python
    import json
    from pathlib import Path
@@ -414,6 +430,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/cross_branch/test_parity.py -v` all pass
 
 **Edge Cases**:
+
 - The `materialized_at` field varies per run: exclude from byte comparison (compare all other fields)
 - ULID-like event_ids in fixtures must be valid 26-char Crockford base32 strings
 - Fixture file must use `\n` line endings (not `\r\n`) for cross-platform consistency
@@ -426,6 +443,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: Simulate git merge scenarios with diverging event logs and verify rollback-aware precedence.
 
 **Steps**:
+
 1. Create `tests/integration/test_conflict_resolution.py`:
 
 2. Test cases:
@@ -471,6 +489,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/integration/test_conflict_resolution.py -v` all pass
 
 **Edge Cases**:
+
 - Three-way merge (3 branches with conflicting events): verify rollback still wins
 - Rollback without `review_ref` (force transition): does not get rollback priority
 - Same timestamp events: `event_id` ULID ordering breaks the tie deterministically
@@ -482,6 +501,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Purpose**: End-to-end migration from legacy frontmatter to canonical event log with full verification.
 
 **Steps**:
+
 1. Create `tests/integration/test_migration_e2e.py` (if not already created in WP14 tests -- this may extend it):
 
 2. Test cases:
@@ -524,6 +544,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 **Validation**: `python -m pytest tests/integration/test_migration_e2e.py -v` all pass
 
 **Edge Cases**:
+
 - Feature migrated from a very old version with only 4 lanes: verify 4-lane features migrate cleanly
 - Feature with mixed old-format and new-format WP files: handle both
 
@@ -540,6 +561,7 @@ Create integration tests covering dual-write, read-cutover, end-to-end CLI, cros
 - **Cross-branch compatibility tests**: T078
 
 **Test organization**:
+
 ```
 tests/
 ├── integration/

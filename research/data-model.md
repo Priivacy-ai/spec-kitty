@@ -1054,6 +1054,7 @@ When the preferred agent is unavailable, try the next agent in the defaults list
 ```
 
 **Triggers**:
+
 - Agent not installed
 - Authentication failed
 - Rate limit exceeded
@@ -1061,6 +1062,7 @@ When the preferred agent is unavailable, try the next agent in the defaults list
 - Non-zero exit code
 
 **Behavior**:
+
 1. Log failure and reason
 2. Mark current agent as temporarily unavailable
 3. Select next agent from defaults list
@@ -1078,11 +1080,13 @@ Use the same agent for both implementation and review roles.
 ```
 
 **Use Cases**:
+
 - Only one agent available
 - User preference for consistency
 - Cost optimization
 
 **Behavior**:
+
 1. Agent completes implementation
 2. Wait `review_delay_seconds` (default: 30)
 3. Same agent performs review
@@ -1098,6 +1102,7 @@ Stop immediately when preferred agent is unavailable.
 ```
 
 **Behavior**:
+
 1. Log failure and reason
 2. Mark WP as failed
 3. Pause orchestration
@@ -1113,6 +1118,7 @@ Wait and retry later when agent becomes available.
 ```
 
 **Behavior**:
+
 1. Log reason for queuing
 2. Calculate retry time (based on rate limit reset or backoff)
 3. Queue invocation

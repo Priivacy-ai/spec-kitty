@@ -34,6 +34,7 @@ spec-kitty implement WP01
 ### Opt-Out (If Needed)
 
 Add to `.kittify/config.yaml`:
+
 ```yaml
 sync:
   auto_start: false

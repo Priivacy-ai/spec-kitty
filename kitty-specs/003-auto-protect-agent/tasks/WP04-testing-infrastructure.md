@@ -49,6 +49,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T023 – Create test_gitignore_manager.py structure
+
 - **Purpose**: Set up new test file for GitignoreManager
 - **Steps**:
   1. Create directory `tests/unit/` if it doesn't exist
@@ -60,7 +61,8 @@ subtasks:
 - **Parallel?**: Yes (independent)
 - **Notes**: Follow pytest conventions
 
-### Subtask T024 – Test GitignoreManager.__init__ validation
+### Subtask T024 – Test GitignoreManager.**init** validation
+
 - **Purpose**: Test initialization and validation logic
 - **Steps**:
   1. Test successful initialization with valid directory
@@ -73,6 +75,7 @@ subtasks:
 - **Notes**: Use pytest.raises for exception testing
 
 ### Subtask T025 – Test protect_all_agents method
+
 - **Purpose**: Verify all agents are protected correctly
 - **Steps**:
   1. Test with no existing .gitignore (file creation)
@@ -86,6 +89,7 @@ subtasks:
 - **Notes**: Assert exact number of directories
 
 ### Subtask T026 – Test protect_selected_agents method
+
 - **Purpose**: Verify selective protection works
 - **Steps**:
   1. Test with single agent selection
@@ -98,6 +102,7 @@ subtasks:
 - **Notes**: Check warnings for unknown agents
 
 ### Subtask T027 – Test duplicate detection logic
+
 - **Purpose**: Ensure duplicates are never created
 - **Steps**:
   1. Add entries, then add same entries again
@@ -110,6 +115,7 @@ subtasks:
 - **Notes**: Critical for idempotency
 
 ### Subtask T028 – Test line ending preservation
+
 - **Purpose**: Verify cross-platform compatibility
 - **Steps**:
   1. Create .gitignore with Windows line endings (\r\n)
@@ -122,6 +128,7 @@ subtasks:
 - **Notes**: Use binary mode to verify bytes
 
 ### Subtask T029 – Test error handling scenarios
+
 - **Purpose**: Verify graceful error handling
 - **Steps**:
   1. Test read-only .gitignore file
@@ -134,6 +141,7 @@ subtasks:
 - **Notes**: Use os.chmod for permission tests
 
 ### Subtask T030 – Update existing test_gitignore_management.py
+
 - **Purpose**: Fix tests broken by removing old functions
 - **Steps**:
   1. Remove tests for handle_codex_security
@@ -146,6 +154,7 @@ subtasks:
 - **Notes**: May need to rewrite some tests
 
 ### Subtask T031 – Add integration tests for init flow
+
 - **Purpose**: Test complete end-to-end flow
 - **Steps**:
   1. Create test that simulates full spec-kitty init
@@ -158,6 +167,7 @@ subtasks:
 - **Notes**: May need to mock Rich console
 
 ### Subtask T032 – Add edge case tests
+
 - **Purpose**: Test boundary conditions and special cases
 - **Steps**:
   1. Test .github/ directory special handling

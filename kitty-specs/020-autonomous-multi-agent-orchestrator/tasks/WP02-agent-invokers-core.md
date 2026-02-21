@@ -31,6 +31,7 @@ history:
 Implement the base AgentInvoker protocol and invokers for the 5 most common agents (Claude Code, GitHub Codex, GitHub Copilot, Google Gemini, Qwen Code).
 
 **Success Criteria**:
+
 - AgentInvoker Protocol defines standard interface
 - Each invoker correctly builds CLI commands for its agent
 - Installation detection works via `shutil.which()`
@@ -39,6 +40,7 @@ Implement the base AgentInvoker protocol and invokers for the 5 most common agen
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Agent invocation patterns table
 - [data-model.md](../data-model.md) - AgentInvoker protocol, InvocationResult
 - [spec.md](../spec.md) - FR-006, FR-009 (agent support requirements)
@@ -54,6 +56,7 @@ Implement the base AgentInvoker protocol and invokers for the 5 most common agen
 | Qwen Code | `qwen` | stdin | `-p` | `--output-format json` |
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP02 --base WP01
 ```
@@ -65,8 +68,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Define the standard interface all agent invokers must implement.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/base.py`
 2. Define Protocol class:
+
    ```python
    from typing import Protocol
    from pathlib import Path
@@ -112,6 +117,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 3. Create base implementation class with common functionality:
+
    ```python
    class BaseInvoker:
        def is_installed(self) -> bool:
@@ -119,6 +125,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/agents/base.py`
 
 ---
@@ -128,8 +135,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Invoker for Claude Code CLI (`claude`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/claude.py`
 2. Implement ClaudeInvoker:
+
    ```python
    class ClaudeInvoker(BaseInvoker):
        agent_id = "claude-code"
@@ -151,6 +160,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Notes**:
+
 - Claude accepts prompt via stdin
 - JSON output includes conversation turns
 - Exit code 0 = success
@@ -164,8 +174,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Invoker for GitHub Codex CLI (`codex`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/codex.py`
 2. Implement CodexInvoker:
+
    ```python
    class CodexInvoker(BaseInvoker):
        agent_id = "codex"
@@ -182,6 +194,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Notes**:
+
 - `codex exec -` reads prompt from stdin
 - `--full-auto` enables autonomous mode
 - JSON output for structured results
@@ -195,8 +208,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Invoker for GitHub Copilot CLI (`copilot`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/copilot.py`
 2. Implement CopilotInvoker:
+
    ```python
    class CopilotInvoker(BaseInvoker):
        agent_id = "copilot"
@@ -213,6 +228,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Notes**:
+
 - Copilot takes prompt as `-p` argument, not stdin
 - `--silent` reduces noise in output
 - Returns exit code only (no structured JSON)
@@ -226,8 +242,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Invoker for Google Gemini CLI (`gemini`).
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/agents/gemini.py`
 2. Implement GeminiInvoker:
+
    ```python
    class GeminiInvoker(BaseInvoker):
        agent_id = "gemini"
@@ -245,6 +263,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Notes**:
+
 - Gemini uses `-p` for headless, prompt via stdin
 - Exit codes: 0 (success), 41 (auth error), 42 (rate limit), 52 (general error), 130 (interrupted)
 - JSON output available

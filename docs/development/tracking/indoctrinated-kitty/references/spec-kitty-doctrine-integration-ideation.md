@@ -10,15 +10,15 @@
 
 This document proposes a structural integration between:
 
--   **Spec Kitty** (mission-oriented workflow runner)
--   **Doctrine** (behavioral and strategic capability library)
+- **Spec Kitty** (mission-oriented workflow runner)
+- **Doctrine** (behavioral and strategic capability library)
 
 The goal is to:
 
--   Preserve Spec Kitty as the **workflow engine**
--   Extract Doctrine as a **portable capability layer**
--   Introduce compositional modularity to missions
--   Enable deep customization without turning Spec Kitty into
+- Preserve Spec Kitty as the **workflow engine**
+- Extract Doctrine as a **portable capability layer**
+- Introduce compositional modularity to missions
+- Enable deep customization without turning Spec Kitty into
     configuration chaos
 
 ------------------------------------------------------------------------
@@ -49,12 +49,12 @@ Example:
 
 Required fields:
 
--   `id`
--   `inputs`
--   `outputs`
--   `preconditions`
--   `success_criteria`
--   `hooks` (doctrine injection points)
+- `id`
+- `inputs`
+- `outputs`
+- `preconditions`
+- `success_criteria`
+- `hooks` (doctrine injection points)
 
 This prevents step soup and enforces composability discipline.
 
@@ -70,10 +70,10 @@ Example:
 
 Recipe structure:
 
--   Ordered list of step IDs (or DAG)
--   Default doctrine pack
--   Optional step-level overrides
--   Expected final artifacts
+- Ordered list of step IDs (or DAG)
+- Default doctrine pack
+- Optional step-level overrides
+- Expected final artifacts
 
 This makes missions **structural compositions** rather than monolithic
 workflows.
@@ -95,11 +95,11 @@ Doctrine is reduced to portable assets only:
 
 Doctrine provides:
 
--   Strategy packs
--   Role definitions
--   Guardrails
--   Templates
--   Tactical techniques
+- Strategy packs
+- Role definitions
+- Guardrails
+- Templates
+- Tactical techniques
 
 Doctrine never orchestrates execution.\
 It only injects behavior into step hooks.
@@ -110,18 +110,18 @@ It only injects behavior into step hooks.
 
 Doctrine packs bundle:
 
--   Default agent profile
--   Active directives
--   Preferred tactics
--   Template defaults
+- Default agent profile
+- Active directives
+- Preferred tactics
+- Template defaults
 
 Example packs:
 
--   `default`
--   `fast-pass`
--   `audit-grade`
--   `exploratory`
--   `risk-first`
+- `default`
+- `fast-pass`
+- `audit-grade`
+- `exploratory`
+- `risk-first`
 
 A mission selects a default pack but can be overridden per feature.
 
@@ -131,11 +131,11 @@ A mission selects a default pack but can be overridden per feature.
 
 When running a mission:
 
-1.  Load mission recipe
-2.  Resolve step definitions (local → pinned shared repo)
-3.  Resolve doctrine pack
-4.  Inject doctrine snippets into step hooks
-5.  Execute steps in defined order
+1. Load mission recipe
+2. Resolve step definitions (local → pinned shared repo)
+3. Resolve doctrine pack
+4. Inject doctrine snippets into step hooks
+5. Execute steps in defined order
 
 Version pinning is mandatory to prevent drift.
 
@@ -145,9 +145,9 @@ Version pinning is mandatory to prevent drift.
 
 To avoid taxonomy confusion:
 
--   **Mission = Recipe (structural)**
--   **Doctrine Pack = Behavioral Mode**
--   **Step = Atomic executable unit**
+- **Mission = Recipe (structural)**
+- **Doctrine Pack = Behavioral Mode**
+- **Step = Atomic executable unit**
 
 This keeps structure and strategy orthogonal.
 
@@ -157,22 +157,22 @@ This keeps structure and strategy orthogonal.
 
 To avoid combinatorial explosion:
 
--   Ship stable **Core Missions**
--   Allow **Custom Missions** under separate namespace
--   Enforce strict step contracts
--   Pin shared step repo versions
--   Keep doctrine strictly non-orchestrating
+- Ship stable **Core Missions**
+- Allow **Custom Missions** under separate namespace
+- Enforce strict step contracts
+- Pin shared step repo versions
+- Keep doctrine strictly non-orchestrating
 
 ------------------------------------------------------------------------
 
 ## 8. Benefits
 
--   Structural modularity
--   Behavioral modularity
--   Clean separation of concerns
--   Reusable step ecosystem
--   Strategy flexibility without mission multiplication
--   Stable core identity for Spec Kitty
+- Structural modularity
+- Behavioral modularity
+- Clean separation of concerns
+- Reusable step ecosystem
+- Strategy flexibility without mission multiplication
+- Stable core identity for Spec Kitty
 
 ------------------------------------------------------------------------
 

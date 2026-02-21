@@ -32,6 +32,7 @@ Research the 2 agents that are primarily cloud/API-based:
 2. **Qwen Code** (Alibaba) - DashScope API, possibly Alibaba Cloud CLI
 
 **Success Criteria**:
+
 - Both agents have completed research files
 - CLI or API invocation method documented
 - Authentication requirements documented
@@ -44,6 +45,7 @@ Research the 2 agents that are primarily cloud/API-based:
 - **Scope**: Headless/CLI only - API calls count if scriptable
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - Research questions
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/plan.md` - Research template
 
@@ -54,20 +56,25 @@ Reference documents:
 **Purpose**: Document Gemini's CLI/API capabilities for automation.
 
 **Steps**:
+
 1. Check for Gemini CLI:
+
    ```bash
    which gemini
    gemini --help
    pip search google-generativeai
    npm search @google/generative-ai
    ```
+
 2. Check Google Cloud CLI:
+
    ```bash
    gcloud ai --help
    gcloud ai models list
    ```
+
 3. Research Gemini API:
-   - Visit https://ai.google.dev/docs
+   - Visit <https://ai.google.dev/docs>
    - Find API endpoint structure
    - Check for code-specific features
 4. Check for Google AI Studio CLI tools
@@ -79,6 +86,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agent
 
 **Key Questions**:
+
 - Is there a `gemini` CLI tool?
 - Can `gcloud ai` invoke Gemini for code tasks?
 - What's the API endpoint for code generation?
@@ -92,18 +100,23 @@ Reference documents:
 **Purpose**: Document Qwen Code's CLI/API capabilities.
 
 **Steps**:
+
 1. Check for Qwen CLI:
+
    ```bash
    which qwen qwen-code
    pip search qwen dashscope
    ```
+
 2. Check Alibaba Cloud CLI:
+
    ```bash
    aliyun --help
    aliyun ai --help
    ```
+
 3. Research DashScope API (Alibaba's AI platform):
-   - Visit https://dashscope.aliyun.com/
+   - Visit <https://dashscope.aliyun.com/>
    - Find API documentation
    - Check for code-specific models
 4. Search for third-party Qwen CLI wrappers
@@ -115,6 +128,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agent
 
 **Key Questions**:
+
 - Is there a standalone Qwen CLI?
 - Does Alibaba Cloud CLI have AI/Qwen commands?
 - What's the DashScope API structure?
@@ -128,6 +142,7 @@ Reference documents:
 **Purpose**: Detail authentication setup for both cloud agents.
 
 **Steps**:
+
 1. For Google Gemini:
    - Document API key generation process
    - Note OAuth flow if needed
@@ -149,6 +164,7 @@ Reference documents:
 **Purpose**: Complete both research files following template.
 
 **Steps**:
+
 1. Ensure all sections from plan.md template are filled
 2. For API-only agents, document:
    - How to make API calls from scripts
@@ -160,6 +176,7 @@ Reference documents:
 4. Add source links
 
 **Files**:
+
 - `research/03-google-gemini.md`
 - `research/05-qwen-code.md`
 

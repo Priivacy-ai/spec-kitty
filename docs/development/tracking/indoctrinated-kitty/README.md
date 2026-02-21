@@ -14,16 +14,21 @@ Status rules:
 1. ADR: `architecture/adrs/2026-02-17-1-explicit-governance-layer-model.md`
 2. Curation flow + candidates: `src/doctrine/curation/`
 3. Doctrine ideation and fit review:
+
 - `references/2026-02-17-doctrine-v2-final-proposal.md`
 - `references/2026-02-17-doctrine-folder-schema-proposal.md`
 - `references/2026-02-17-mission-approach-fit-review.md`
 - `references/spec-kitty-doctrine-integration-ideation.md`
 - `references/domain_concepts.puml`
+
 4. Initiative visual (canonical): `architecture/diagrams/indoctrinated-kitty.png`
 5. Ongoing implementation baseline:
+
 - `src/specify_cli/constitution/`
 - `src/specify_cli/glossary/`
+
 6. Quality-gate architecture baseline:
+
 - `architecture/adrs/2026-02-18-1-standardized-automated-quality-gates-for-agentic-development.md`
 
 ## Initiative Outcomes

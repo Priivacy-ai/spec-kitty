@@ -19,6 +19,7 @@ Represents the user-global `~/.kittify/` directory and its state.
 | user_files | list[str] | User-owned file names (config.yaml) |
 
 **Invariants**:
+
 - `version` matches CLI version after `ensure_runtime()` completes
 - `managed_dirs` are fully overwritten on update
 - `user_dirs` and `user_files` are never modified by updates
@@ -33,6 +34,7 @@ Represents the state of `~/.kittify/cache/version.lock`.
 | path | Path | Absolute path to the lock file |
 
 **States**:
+
 - **Missing**: `~/.kittify/` not yet populated or interrupted update → trigger full bootstrap
 - **Stale**: Version does not match current CLI → trigger update with file lock
 - **Current**: Version matches CLI → fast path return

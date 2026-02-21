@@ -76,6 +76,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Steps**:
   1. Read `src/specify_cli/sync/queue.py` on 2.x to confirm current structure
   2. Add `get_queue_stats()` returning a `QueueStats` dataclass:
+
      ```python
      @dataclass
      class QueueStats:
@@ -85,7 +86,9 @@ No dependencies — branches directly from the 2.x branch.
          retry_distribution: dict[str, int]  # bucket -> count
          top_event_types: list[tuple[str, int]]  # (event_type, count)
      ```
+
   3. Implement with queries over `queue`:
+
      ```sql
      SELECT COUNT(*) FROM queue;
 
@@ -109,6 +112,7 @@ No dependencies — branches directly from the 2.x branch.
      ORDER BY count DESC
      LIMIT 5;
      ```
+
   4. Convert `MIN(timestamp)` (unix epoch seconds) to `timedelta` using `datetime.now()` minus `datetime.fromtimestamp(...)`
 - **Files**: `src/specify_cli/sync/queue.py` (edit)
 - **Parallel?**: No — foundation for T021-T023
@@ -139,6 +143,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Steps**:
   1. Find existing `sync status` command on 2.x
   2. After connection/auth output, append queue health section:
+
      ```python
      queue = OfflineQueue()
      stats = queue.get_queue_stats()
@@ -148,6 +153,7 @@ No dependencies — branches directly from the 2.x branch.
      else:
          console.print("\n[green]Queue empty — all events synced.[/green]")
      ```
+
   3. Ensure output order remains stable for tests
 - **Files**: CLI command file for sync status
 - **Parallel?**: No — depends on T020 and T022

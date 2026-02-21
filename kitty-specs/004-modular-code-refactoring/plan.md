@@ -24,6 +24,7 @@ Refactor two monolithic Python files (`__init__.py` with 2,700 lines and `dashbo
 ## Parallel Work Organization
 
 ### Dependency Graph
+
 ```
 Foundation Layer (Sequential - Day 1)
     ├── core/config.py
@@ -67,6 +68,7 @@ Foundation Layer (Sequential - Day 1)
 ```
 
 ### Agent Coordination Rules
+
 1. **No concurrent edits**: Each agent owns specific files exclusively
 2. **Import stubs**: Agents create import statements for not-yet-extracted modules
 3. **Interface contracts**: Define function signatures before implementation
@@ -77,6 +79,7 @@ Foundation Layer (Sequential - Day 1)
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 Since the constitution file is not yet established for this project, we'll follow Python best practices:
+
 - ✅ **Single Responsibility**: Each module has one clear purpose
 - ✅ **Testability**: All modules independently testable
 - ✅ **No Breaking Changes**: CLI interface remains identical
@@ -189,6 +192,7 @@ tests/specify_cli/
 Based on the parallel work organization, the implementation will be divided into the following work packages:
 
 #### WP-001: Foundation Layer (Sequential)
+
 - **Owner**: Single developer/agent
 - **Duration**: Day 1
 - **Deliverables**: core/config.py, core/utils.py, cli/ui.py
@@ -196,6 +200,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Unit tests for each module
 
 #### WP-002: Dashboard Infrastructure (Parallel Wave 1)
+
 - **Owner**: Agent A
 - **Duration**: Days 2-3
 - **Deliverables**: dashboard/static/*, dashboard/templates/*, dashboard/scanner.py, dashboard/diagnostics.py
@@ -203,6 +208,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Integration tests for scanning and diagnostics
 
 #### WP-003: Template System (Parallel Wave 1)
+
 - **Owner**: Agent B
 - **Duration**: Days 2-3
 - **Deliverables**: template/manager.py, template/renderer.py, template/asset_generator.py
@@ -210,6 +216,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Unit tests for template operations
 
 #### WP-004: Core Services (Parallel Wave 1)
+
 - **Owner**: Agent C
 - **Duration**: Days 2-3
 - **Deliverables**: core/git_ops.py, core/project_resolver.py, core/tool_checker.py
@@ -217,6 +224,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Unit tests for each service
 
 #### WP-005: Dashboard Handlers (Parallel Wave 2)
+
 - **Owner**: Agent D
 - **Duration**: Days 4-5
 - **Deliverables**: dashboard/handlers/*, dashboard/server.py, dashboard/lifecycle.py
@@ -224,6 +232,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: HTTP endpoint tests
 
 #### WP-006: CLI Commands (Parallel Wave 2)
+
 - **Owner**: Agent E
 - **Duration**: Days 4-5
 - **Deliverables**: cli/commands/* (except init.py)
@@ -231,6 +240,7 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Command integration tests
 
 #### WP-007: GitHub & Init (Parallel Wave 2)
+
 - **Owner**: Agent F
 - **Duration**: Days 4-5
 - **Deliverables**: template/github_client.py, cli/commands/init.py, cli/helpers.py
@@ -238,9 +248,10 @@ Based on the parallel work organization, the implementation will be divided into
 - **Tests**: Mock GitHub API tests, init command tests
 
 #### WP-008: Integration & Cleanup
+
 - **Owner**: 1-2 developers
 - **Duration**: Day 6
-- **Deliverables**: Updated __init__.py, import fixes, documentation
+- **Deliverables**: Updated **init**.py, import fixes, documentation
 - **Dependencies**: All previous work packages
 - **Tests**: Full regression test suite
 
@@ -270,6 +281,7 @@ The critical path is 6 days with proper parallelization. Without parallelization
 ## Constitution Re-check
 
 Post-design verification:
+
 - ✅ **Single Responsibility**: Each module has one clear purpose (verified in data-model.md)
 - ✅ **Testability**: All module interfaces defined for independent testing
 - ✅ **No Breaking Changes**: CLI interface preserved exactly

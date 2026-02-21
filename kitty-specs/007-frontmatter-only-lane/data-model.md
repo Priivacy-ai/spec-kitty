@@ -35,6 +35,7 @@ A development feature tracked by Spec Kitty.
 **Location**: `kitty-specs/{feature-id}/`
 
 **Constraints**:
+
 - Feature ID matches branch name
 - One spec.md per feature
 - One flat tasks/ directory per feature
@@ -59,6 +60,7 @@ A unit of work within a feature.
 **Location**: `kitty-specs/{feature-id}/tasks/WP##-description.md`
 
 **File Format**:
+
 ```yaml
 ---
 work_package_id: "WP01"
@@ -75,6 +77,7 @@ activity_log: |
 ```
 
 **Constraints**:
+
 - `work_package_id` must be unique within feature
 - `lane` must be valid Lane enum value
 - File lives in flat `tasks/` directory (never in subdirectories)
@@ -91,6 +94,7 @@ Workflow status for a work package.
 | `done` | Reviewed and accepted |
 
 **Valid Transitions**:
+
 ```
 planned → doing → for_review → done
                       ↓
@@ -197,12 +201,14 @@ kitty-specs/007-feature/tasks/
 **Command**: `tasks_cli.py update <feature> <wp_id> <lane> [--note "message"]` (deprecated - use `spec-kitty agent workflow implement/review`)
 
 **Parameters**:
+
 - `feature`: Feature ID (e.g., "007-frontmatter-only-lane")
 - `wp_id`: Work package ID (e.g., "WP01")
 - `lane`: Target lane (planned|doing|for_review|done)
 - `--note`: Optional activity log message
 
 **Behavior**:
+
 1. Validate lane value
 2. Locate WP file in `tasks/`
 3. Update `lane:` frontmatter field
@@ -210,11 +216,13 @@ kitty-specs/007-feature/tasks/
 5. Return success/failure status
 
 **Output** (success):
+
 ```
 Updated WP01 to lane 'for_review'
 ```
 
 **Output** (legacy format detected):
+
 ```
 Error: Legacy directory-based lanes detected.
 Run 'spec-kitty upgrade' to migrate to frontmatter-only lanes.
@@ -225,9 +233,11 @@ Run 'spec-kitty upgrade' to migrate to frontmatter-only lanes.
 **Command**: `tasks_cli.py status [feature]`
 
 **Parameters**:
+
 - `feature`: Optional. Auto-detected from worktree if omitted.
 
 **Output**:
+
 ```
 Feature: 007-frontmatter-only-lane
 

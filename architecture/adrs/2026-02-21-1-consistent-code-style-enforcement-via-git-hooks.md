@@ -35,15 +35,15 @@ We evaluated whether custom lint rules could extend ruff's formatter to cover th
 
 **Chosen option:** "Option 2: ruff format (Black-compatible) + ruff check + mypy via git hooks", because:
 
-- It provides immediate feedback at commit time with zero CI wait
-- Black-compatible formatting is the dominant Python standard, reducing onboarding friction
-- Incremental enforcement (staged files only) avoids a mass-reformatting commit
-- The trade-off of losing some multi-line formatting preferences (e.g., comprehension clause separation) is acceptable for the consistency gained
+* It provides immediate feedback at commit time with zero CI wait
+* Black-compatible formatting is the dominant Python standard, reducing onboarding friction
+* Incremental enforcement (staged files only) avoids a mass-reformatting commit
+* The trade-off of losing some multi-line formatting preferences (e.g., comprehension clause separation) is acceptable for the consistency gained
 
 ### Trade-offs Accepted
 
-- **Comprehension formatting:** `for`/`if` clauses in comprehensions may collapse to a single line at `line-length = 120`. We accept this because there is no way to enforce per-construct line breaks in Black/ruff format without a plugin system, and writing a standalone AST checker for a single style preference adds maintenance burden disproportionate to the benefit.
-- **Line length 120:** Wider than Black's default of 88. Chosen to match the existing codebase style, but it causes more expressions to fit on a single line. Reducing to 88 would restore more multi-line formatting but would require reformatting a significant portion of the codebase.
+* **Comprehension formatting:** `for`/`if` clauses in comprehensions may collapse to a single line at `line-length = 120`. We accept this because there is no way to enforce per-construct line breaks in Black/ruff format without a plugin system, and writing a standalone AST checker for a single style preference adds maintenance burden disproportionate to the benefit.
+* **Line length 120:** Wider than Black's default of 88. Chosen to match the existing codebase style, but it causes more expressions to fit on a single line. Reducing to 88 would restore more multi-line formatting but would require reformatting a significant portion of the codebase.
 
 ### Consequences
 
@@ -122,10 +122,12 @@ This would make consistent style enforcement a first-class citizen of every spec
 ### Option 1: No Local Enforcement (CI Only)
 
 **Pros:**
+
 * Zero setup for contributors
 * No local tooling requirements
 
 **Cons:**
+
 * Style violations only caught after push (slow feedback)
 * Noisy PRs mixing style fixes with functional changes
 * Commit message violations discovered late
@@ -133,22 +135,26 @@ This would make consistent style enforcement a first-class citizen of every spec
 ### Option 2: ruff format + ruff check + mypy via Git Hooks
 
 **Pros:**
+
 * Immediate feedback at commit/push time
 * Black-compatible formatting is industry standard
 * Incremental enforcement on staged files only
 * Hooks are versioned and portable
 
 **Cons:**
+
 * Requires one-time `git config` setup per clone
 * Cannot express all formatting preferences (e.g., comprehension clause breaks)
 
 ### Option 3: ruff format + Custom AST Lint Script
 
 **Pros:**
+
 * Could enforce per-construct formatting rules (e.g., multi-line comprehensions)
 * Full control over style beyond what Black offers
 
 **Cons:**
+
 * Maintenance burden for a custom linter
 * Fragile — AST-based checks may not handle all edge cases
 * Non-standard tooling that new contributors won't recognize
@@ -157,10 +163,12 @@ This would make consistent style enforcement a first-class citizen of every spec
 ### Option 4: Lower line-length to 88 (Black Default)
 
 **Pros:**
+
 * More expressions naturally stay multi-line
 * Matches Black's default, familiar to most Python developers
 
 **Cons:**
+
 * Would require reformatting ~400+ files in the existing codebase
 * 88 chars may feel restrictive for a codebase already written at ~120
 * Doesn't actually solve the per-construct problem — just makes it less frequent

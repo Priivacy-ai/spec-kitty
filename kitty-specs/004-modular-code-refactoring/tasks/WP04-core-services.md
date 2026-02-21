@@ -66,21 +66,25 @@ Service functions are scattered in `__init__.py`. This work package extracts the
 ### T030-T033: Extract git operations to core/git_ops.py
 
 **T030**: Extract `is_git_repo()` to `core/git_ops.py`
-- Lines 942-960 from __init__.py
+
+- Lines 942-960 from **init**.py
 - Uses subprocess to check git status
 - Returns boolean
 
 **T031**: Extract `init_git_repo()` to `core/git_ops.py`
-- Lines 962-983 from __init__.py
+
+- Lines 962-983 from **init**.py
 - Creates new repo with initial commit
 - Returns success boolean
 
 **T032**: Extract `run_command()` to `core/git_ops.py`
-- Lines 898-914 from __init__.py
+
+- Lines 898-914 from **init**.py
 - Generic subprocess wrapper
 - Returns (returncode, stdout, stderr)
 
 **T033**: Add `get_current_branch()` helper
+
 - New function for git branch detection
 - Used by various commands
 - ~15 lines
@@ -88,28 +92,33 @@ Service functions are scattered in `__init__.py`. This work package extracts the
 ### T034-T037: Extract project resolution to core/project_resolver.py
 
 **T034**: Extract `locate_project_root()` to `core/project_resolver.py`
-- Lines 784-792 from __init__.py (as `_locate_project_root`)
+
+- Lines 784-792 from **init**.py (as `_locate_project_root`)
 - Walks up directory tree looking for .kittify
 - Returns Path or None
 
 **T035**: Extract `resolve_template_path()` to `core/project_resolver.py`
-- Lines 763-782 from __init__.py
+
+- Lines 763-782 from **init**.py
 - Resolves template file paths
 - Checks multiple locations
 
 **T036**: Extract `resolve_worktree_aware_feature_dir()` to `core/project_resolver.py`
-- Lines 819-862 from __init__.py
+
+- Lines 819-862 from **init**.py
 - Complex worktree handling
 - Returns feature directory path
 
 **T037**: Extract `get_active_mission_key()` to `core/project_resolver.py`
-- Lines 731-762 from __init__.py
+
+- Lines 731-762 from **init**.py
 - Reads active mission from .kittify/active-mission
 - Returns mission key string
 
 ### T038: Extract tool checking to core/tool_checker.py
 
-Extract from __init__.py:
+Extract from **init**.py:
+
 - `check_tool()` (lines 925-940) - Check if command exists
 - `check_tool_for_tracker()` (lines 916-923) - Tracker-aware version
 - Create `check_all_tools()` - New function to check all required tools
@@ -117,6 +126,7 @@ Extract from __init__.py:
 ### T039: Write unit tests
 
 Create `tests/test_core/`:
+
 - `test_git_ops.py` - Test git operations with mock repos
 - `test_project_resolver.py` - Test path resolution
 - `test_tool_checker.py` - Test tool checking
@@ -166,6 +176,7 @@ Create `tests/test_core/`:
 ### Approval Summary ✅
 
 All Definition of Done items successfully completed:
+
 - ✅ Git operations extracted and working (git_ops.py: 115 lines)
 - ✅ Project resolver handles all path cases (project_resolver.py: 110 lines)
 - ✅ Tool checker verifies dependencies (tool_checker.py: 69 lines)
@@ -174,6 +185,7 @@ All Definition of Done items successfully completed:
 - ✅ No behavioral changes
 
 ### Tests Executed
+
 ```
 ✅ All 19 core tests PASSED (0.22s)
    - test_config.py: 5 tests
@@ -184,11 +196,13 @@ All Definition of Done items successfully completed:
 ```
 
 ### Module Sizes (All Compliant)
+
 - git_ops.py: 115 lines ✅
 - project_resolver.py: 110 lines ✅
 - tool_checker.py: 69 lines ✅
 
 ### Code Quality Observations
+
 1. Clean service interfaces with focused responsibilities
 2. Comprehensive type hints and documentation
 3. Good test coverage with realistic scenarios
@@ -196,6 +210,7 @@ All Definition of Done items successfully completed:
 5. Worktree-aware path resolution working correctly
 
 ### Validation Performed
+
 - All module imports work correctly
 - Line counts verified under 200 lines threshold
 - Test suite validates git operations, path resolution, and tool checking

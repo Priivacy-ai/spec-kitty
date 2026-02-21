@@ -32,6 +32,7 @@ history:
 **Goal**: Implement new `spec-kitty sync` command for workspace synchronization.
 
 **Success Criteria**:
+
 - `spec-kitty sync` updates stale workspace for both VCS backends
 - Conflicts reported with file paths and line ranges
 - For jj: sync succeeds even with conflicts (stores them)
@@ -45,15 +46,18 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - sync_workspace signature
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/data-model.md` - SyncResult, ConflictInfo
 
 **Architecture Decisions**:
+
 - Unified `sync` command works for both backends
 - Key difference: jj sync always succeeds, git may fail on conflicts
 - SyncResult includes changes_integrated for automation
 
 **Constraints**:
+
 - Must detect current workspace context automatically
 - Conflict reporting should be actionable (file + lines)
 - --repair is best-effort (may not recover all scenarios)
@@ -65,8 +69,10 @@ history:
 **Purpose**: Create the new sync command file.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/sync.py`
 2. Set up basic command structure:
+
    ```python
    import typer
    from rich.console import Console
@@ -86,6 +92,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `src/specify_cli/cli/commands/sync.py`
 
 ---
@@ -95,7 +102,9 @@ history:
 **Purpose**: Implement the core sync logic.
 
 **Steps**:
+
 1. Detect current workspace context:
+
    ```python
    def _detect_workspace_context() -> tuple[Path, Path]:
        """Detect current workspace and feature paths."""
@@ -104,12 +113,16 @@ history:
        # Find feature from path or branch name
        return workspace_path, feature_path
    ```
+
 2. Call VCS sync:
+
    ```python
    vcs = get_vcs(workspace_path)
    result = vcs.sync_workspace(workspace_path)
    ```
+
 3. Display results:
+
    ```python
    if result.status == SyncStatus.UP_TO_DATE:
        console.print("[green]✓ Already up to date[/green]")
@@ -124,6 +137,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/sync.py`
 
 ---
@@ -133,7 +147,9 @@ history:
 **Purpose**: Display conflicts with actionable details.
 
 **Steps**:
+
 1. Implement conflict display:
+
    ```python
    def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
        console.print(f"\n[yellow]Conflicts ({len(conflicts)} files):[/yellow]")
@@ -144,7 +160,9 @@ history:
                    console.print(f"    Lines {start}-{end}")
            console.print(f"    Type: {c.conflict_type.value}")
    ```
+
 2. Add helpful resolution hints:
+
    ```python
    console.print("\n[dim]To resolve conflicts:[/dim]")
    console.print("[dim]  1. Edit the conflicted files to resolve markers[/dim]")
@@ -152,6 +170,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/sync.py`
 
 ---
@@ -161,7 +180,9 @@ history:
 **Purpose**: Implement workspace recovery functionality.
 
 **Steps**:
+
 1. Add repair logic:
+
    ```python
    if repair:
        console.print("[yellow]Attempting workspace recovery...[/yellow]")
@@ -181,12 +202,15 @@ history:
            console.print("[red]✗ Recovery failed[/red]")
            console.print("Manual intervention may be required")
    ```
+
 2. Document limitations in help text
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/sync.py`
 
 **Notes**:
+
 - jj has better recovery via operation log
 - git recovery is more limited (may lose work)
 
@@ -197,15 +221,19 @@ history:
 **Purpose**: Add sync command to spec-kitty CLI.
 
 **Steps**:
+
 1. Find main CLI registration (likely `src/specify_cli/cli/main.py` or similar)
 2. Add sync command:
+
    ```python
    from specify_cli.cli.commands import sync
    app.add_typer(sync.app, name="sync")
    ```
+
 3. Verify command appears in `spec-kitty --help`
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/main.py` (or equivalent)
 
 ---
@@ -215,8 +243,10 @@ history:
 **Purpose**: Test sync command for both backends.
 
 **Steps**:
+
 1. Create `tests/specify_cli/cli/commands/test_sync.py`
 2. Add parametrized tests:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -245,6 +275,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `tests/specify_cli/cli/commands/test_sync.py`
 
 **Parallel?**: Yes - can start once T039-T043 scaffolded
@@ -272,6 +303,7 @@ history:
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify jj sync succeeds with conflicts (key differentiator)
 2. Verify git sync reports conflicts appropriately
 3. Verify conflict display is actionable
@@ -282,7 +314,7 @@ history:
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-17T12:52:45Z – __AGENT__ – shell_pid=10296 – lane=doing – Started implementation via workflow command
-- 2026-01-17T13:00:39Z – __AGENT__ – shell_pid=10296 – lane=for_review – Sync command implemented with git/jj support, conflict reporting, --repair flag, and 21 tests passing
-- 2026-01-17T13:04:21Z – __AGENT__ – shell_pid=16064 – lane=doing – Started review via workflow command
-- 2026-01-17T13:07:58Z – __AGENT__ – shell_pid=16064 – lane=done – Review passed: sync command correctly implements git/jj workspace synchronization with conflict reporting, --repair flag, and 21 tests
+- 2026-01-17T12:52:45Z – **AGENT** – shell_pid=10296 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:00:39Z – **AGENT** – shell_pid=10296 – lane=for_review – Sync command implemented with git/jj support, conflict reporting, --repair flag, and 21 tests passing
+- 2026-01-17T13:04:21Z – **AGENT** – shell_pid=16064 – lane=doing – Started review via workflow command
+- 2026-01-17T13:07:58Z – **AGENT** – shell_pid=16064 – lane=done – Review passed: sync command correctly implements git/jj workspace synchronization with conflict reporting, --repair flag, and 21 tests

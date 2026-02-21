@@ -19,6 +19,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [ ] T001 [P] Create `src/specify_cli/constitution/` subpackage skeleton (`__init__.py`, module stubs)
 - [ ] T002 Implement `ConstitutionParser` — section splitter (heading-based markdown splitting)
 - [ ] T003 Implement markdown table parser → dict extraction
@@ -33,20 +34,24 @@
 - [ ] T012 Write parser + schema unit tests
 
 ### Implementation Notes
+
 - Parser uses Python `re` module — no external markdown library needed (per research.md RQ-1)
-- Split constitution on `^## ` headings, then parse each section's content type
+- Split constitution on `^##` headings, then parse each section's content type
 - Pydantic models define defaults for all fields (data-model.md has the full schema)
 - YAML emission uses ruamel.yaml with `# Auto-generated from constitution.md` header
 
 ### Parallel Opportunities
+
 - T004, T005 (YAML block + numbered list parsers) are independent of T003 (table parser)
 - T008, T009 (agent + directive schemas) are independent of T007 (governance schema)
 - T011 (YAML emission) can proceed once any schema is defined
 
 ### Dependencies
+
 - None (starting package).
 
 ### Risks & Mitigations
+
 - Risk: Regex parsing fragile for edge cases → Mitigate with comprehensive test fixtures from real constitutions
 - Risk: Schema too rigid for diverse constitutions → Use generous defaults and Optional fields
 
@@ -60,6 +65,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T013 Implement `Extractor` class — deterministic pipeline (parse → map → validate → emit)
 - [ ] T014 Implement section-to-schema mapping (constitution heading keywords → target YAML fields)
 - [ ] T015 Implement merge logic for multi-section extraction (e.g., testing info scattered across sections)
@@ -68,18 +74,22 @@
 - [ ] T018 Write extractor unit + integration tests
 
 ### Implementation Notes
+
 - Section mapping uses keyword matching: "testing" → `governance.testing`, "quality" → `governance.quality`, etc.
 - AI fallback: build structured prompt with schema fields + prose text, parse YAML response
 - If AI unavailable: skip prose sections, set `extraction_mode: "deterministic"` in metadata
 - YAML writer calls `model.model_dump()` → `ruamel.yaml.dump()` with header comment
 
 ### Parallel Opportunities
+
 - T016 (AI fallback interface) is independent of T013-T015 (deterministic pipeline)
 
 ### Dependencies
+
 - Depends on WP01 (parser and schemas).
 
 ### Risks & Mitigations
+
 - Risk: Section keyword mapping misidentifies sections → Use ranked keyword matching with minimum confidence
 - Risk: AI fallback response doesn't match schema → Validate with Pydantic, fall back to empty defaults
 
@@ -93,6 +103,7 @@
 **Estimated Size**: ~420 lines
 
 ### Included Subtasks
+
 - [ ] T019 Implement `hasher.py` — SHA-256 content hashing with whitespace normalization
 - [ ] T020 Implement staleness detection — compare file hash vs metadata.yaml hash
 - [ ] T021 Implement `sync.py` — orchestration function (read constitution → parse → extract → write YAML → update metadata)
@@ -102,18 +113,22 @@
 - [ ] T025 Write sync + hashing + CLI tests
 
 ### Implementation Notes
+
 - Hash function: `sha256:{hex}` format (per research.md RQ-3)
 - `sync()` is idempotent — same input → same output (FR-1.6)
 - `status` command: show last sync time, hash match (synced/stale), list YAML files (FR-5.3)
 - CLI registration follows same pattern as `agent telemetry` subcommand
 
 ### Parallel Opportunities
+
 - T19-T20 (hashing) and T22-T23 (CLI commands) can be developed in parallel once sync is stubbed
 
 ### Dependencies
+
 - Depends on WP02 (extractor pipeline).
 
 ### Risks & Mitigations
+
 - Risk: Hash mismatch on whitespace-only changes → Normalize whitespace before hashing
 - Risk: CLI command registration conflicts → Follow established telemetry CLI pattern
 
@@ -127,6 +142,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [x] T026 Create migration `m_0_XX_0_constitution_directory.py` — move file + create directory
 - [x] T027 Update `src/specify_cli/dashboard/handlers/api.py` — constitution path
 - [x] T028 Update `src/specify_cli/core/worktree.py` — symlink path
@@ -136,6 +152,7 @@
 - [x] T032 Write migration tests (parametrized across scenarios: old path exists, new path exists, no constitution)
 
 ### Implementation Notes
+
 - Migration number: next available after existing migrations (check `src/specify_cli/upgrade/migrations/`)
 - Must handle all 3 scenarios: old path → move, new path already exists → skip, no constitution → skip
 - Dashboard API update: change `constitution_path` to `.kittify/constitution/constitution.md`
@@ -143,13 +160,16 @@
 - Initial sync: call `sync()` after moving file, catch exceptions (FR-3.4)
 
 ### Parallel Opportunities
+
 - T027-T030 (reference updates) are independent of each other
 - T031 (initial sync trigger) can proceed once sync() from WP03 is available
 
 ### Dependencies
+
 - Depends on WP03 (sync function needed for initial extraction during migration).
 
 ### Risks & Mitigations
+
 - Risk: Breaking existing projects that rely on old path → Migration is idempotent, handles all edge cases
 - Risk: Missing a code reference → research.md RQ-4 lists all 6 references exhaustively
 
@@ -163,6 +183,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T033 Implement post-save hook function — call sync() after CLI constitution writes
 - [x] T034 Wire hook into constitution command template write path
 - [x] T035 Implement `load_governance_config()` convenience function for Feature 044 consumers
@@ -171,6 +192,7 @@
 - [x] T038 Write integration tests (end-to-end: write constitution → verify YAML → load config)
 
 ### Implementation Notes
+
 - Post-save hook: synchronous Python call after write (per AD-4)
 - If extraction fails, log warning, leave previous YAML intact (FR-2.3)
 - `load_governance_config(repo_root)` → returns `GovernanceConfig` Pydantic model
@@ -178,13 +200,16 @@
 - The hook fires after constitution.md writes in the CLI — not in agent command templates
 
 ### Parallel Opportunities
+
 - T035, T036 (convenience loaders) are independent of T033-T034 (hook wiring)
 - T037 (exports) can proceed once all modules exist
 
 ### Dependencies
+
 - Depends on WP03 (sync function) and WP04 (migration ensures new path is canonical).
 
 ### Risks & Mitigations
+
 - Risk: Post-save hook adds latency to constitution writes → Deterministic extraction is <500ms (acceptable)
 - Risk: Circular import with constitution → sync → extractor → schemas → Use lazy imports if needed
 
@@ -252,7 +277,7 @@ WP04 (Migration)     WP05 (Post-save + Integration)
 | T034 | Wire hook into constitution write path | WP05 | P1 | No |
 | T035 | load_governance_config() convenience function | WP05 | P1 | Yes |
 | T036 | load_agents_config() convenience function | WP05 | P1 | Yes |
-| T037 | Finalize __init__.py public API exports | WP05 | P1 | Yes |
+| T037 | Finalize **init**.py public API exports | WP05 | P1 | Yes |
 | T038 | Integration tests | WP05 | P1 | No |
 
 ---
@@ -261,6 +286,7 @@ WP04 (Migration)     WP05 (Post-save + Integration)
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 - WP03: done

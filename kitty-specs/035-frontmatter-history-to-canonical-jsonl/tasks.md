@@ -19,6 +19,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T001 Create NormalizedHistoryEntry and Transition dataclasses
 - [x] T002 Implement normalize_entries() for Format A history arrays
 - [x] T003 Implement collapse_duplicates() to remove consecutive same-lane entries
@@ -28,19 +29,23 @@
 - [x] T007 Implement build_transition_chain() orchestrator function
 
 ### Implementation Notes
+
 - All functions are pure (no I/O, no side effects) — easy to test in isolation
 - Use `resolve_lane_alias()` from `transitions.py` for alias normalization
 - Actor resolution: use `entries[i+1].agent` for transition to `entries[i+1].lane`, fallback to `"migration"`
 - DoneEvidence only when `review_status == "approved"` AND `reviewed_by` present
 
 ### Parallel Opportunities
+
 - T001 (dataclasses) must come first; T002-T006 can be developed in any order
 - T007 integrates all, must come last
 
 ### Dependencies
+
 - None (foundation work package)
 
 ### Risks & Mitigations
+
 - Risk: Edge cases in history parsing (empty, single-entry, malformed). Mitigation: Thorough fallback paths defined in plan algorithm section.
 
 ---
@@ -53,6 +58,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [x] T008 Tests for normalize_entries (Format A, alias resolution, missing fields, empty history)
 - [x] T009 Tests for collapse_duplicates (consecutive dupes, no dupes, all same)
 - [x] T010 Tests for pair_transitions (multi-entry, single entry)
@@ -61,18 +67,22 @@
 - [x] T013 [P] Tests for build_transition_chain integration (multi-step, single-entry, empty, planned-only)
 
 ### Implementation Notes
+
 - Each test function corresponds to a plan test case (T080-T091)
 - Use inline frontmatter dicts as test data (no file I/O needed for parser tests)
 - Validate both the transition list and metadata (history_entries count, has_evidence flag)
 
 ### Parallel Opportunities
+
 - T008-T012 are independent test groups that can be written in any order
 - T013 integration tests should come after individual function tests
 
 ### Dependencies
+
 - Depends on WP01 (parser module must exist for tests to import)
 
 ### Risks & Mitigations
+
 - Risk: Test data doesn't match real WP files. Mitigation: Use examples from actual kitty-specs WP files discovered during research.
 
 ---
@@ -85,6 +95,7 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
+
 - [x] T014 Update WPMigrationDetail dataclass (events_created, event_ids, history_entries, has_evidence)
 - [x] T015 Implement _write_events_atomic() helper (temp file + os.replace)
 - [x] T016 Implement _check_idempotency() with 3-layer logic (marker, live-events, migration-actor-only)
@@ -94,6 +105,7 @@
 - [x] T020 Update FeatureMigrationResult to track replace/backup actions
 
 ### Implementation Notes
+
 - Atomic write mirrors `reducer.py`'s `materialize()` pattern: write to `.tmp`, then `os.replace()`
 - 3-layer check order: (1) marker → skip, (2) live events → skip, (3) migration-only → backup+replace
 - All StatusEvent objects built directly (NOT via emit_status_transition)
@@ -101,13 +113,16 @@
 - Call `materialize(feature_dir)` once after all events written
 
 ### Parallel Opportunities
+
 - T014, T015, T016, T017 are independent helper implementations
 - T018 integrates all helpers, T019-T020 extend the result
 
 ### Dependencies
+
 - Depends on WP01 (imports build_transition_chain from history_parser)
 
 ### Risks & Mitigations
+
 - Risk: Breaking existing tests (force=False → force=True). Mitigation: WP04 updates all existing test assertions.
 - Risk: Atomic write failure leaves .tmp file. Mitigation: Clean up .tmp in finally block.
 
@@ -121,6 +136,7 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
+
 - [x] T021 Update existing TestMigrateFeature tests for force=True and multi-event output
 - [x] T022 Update TestAliasResolution and TestIdempotency for new behavior
 - [x] T023 Add test_marker_idempotency (events with marker reason → skip)
@@ -130,6 +146,7 @@
 - [x] T027 Update TestMigrateCLI and TestMigrationResultJSON for new output schema
 
 ### Implementation Notes
+
 - Key change: all assertions checking `force is False` must become `force is True`
 - New events have `reason` field set (was None before)
 - WPMigrationDetail has new fields: `events_created`, `event_ids`, `history_entries`, `has_evidence`
@@ -137,13 +154,16 @@
 - CLI JSON output schema adds new fields
 
 ### Parallel Opportunities
+
 - T021-T022 (update existing) and T023-T026 (new tests) can be worked independently
 - T027 (CLI tests) can be done last
 
 ### Dependencies
+
 - Depends on WP03 (tests exercise the rewritten migrate_feature)
 
 ### Risks & Mitigations
+
 - Risk: Many test updates needed (29 existing tests). Mitigation: Most changes are mechanical (force=False→True, event_id→event_ids).
 
 ---
@@ -156,12 +176,14 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
+
 - [x] T028 Create BaseMigration subclass with migration_id = "2.0.0_historical_status_migration"
 - [x] T029 Implement detect() — scan kitty-specs for features with WPs but no full-history events
 - [x] T030 Implement can_apply() — verify status module importable, kitty-specs exists
 - [x] T031 Implement apply() — iterate features, call migrate_feature, aggregate MigrationResult
 
 ### Implementation Notes
+
 - Import pattern: `from specify_cli.status.migrate import migrate_feature, MigrationResult`
 - detect() returns True if ANY feature has WP files but no events (or only migration-actor events)
 - apply() processes features independently; one failure doesn't abort
@@ -169,12 +191,15 @@
 - dry_run parameter passed through to migrate_feature
 
 ### Parallel Opportunities
+
 - None (sequential implementation within this WP)
 
 ### Dependencies
+
 - Depends on WP03 (wrapper calls migrate_feature which must have the new behavior)
 
 ### Risks & Mitigations
+
 - Risk: Migration registry collision. Mitigation: Unique ID following naming convention.
 - Risk: Version ordering. Mitigation: target_version="2.0.0" is higher than all existing 0.x migrations.
 
@@ -188,6 +213,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T032 Test detect() with unmigrated features (returns True)
 - [x] T033 Test detect() with all features already migrated (returns False)
 - [x] T034 Test apply() calls migrate_feature and aggregates results correctly
@@ -195,18 +221,22 @@
 - [x] T036 Test cross-branch idempotency (run migration twice, second returns no changes)
 
 ### Implementation Notes
+
 - Use tmp_path fixtures with synthetic feature dirs containing WP files
 - Reuse _write_wp helper pattern from test_migrate.py
 - Cross-branch test: run apply(), then manually mark migration_id in metadata, run apply() again → no-op
 
 ### Parallel Opportunities
+
 - T032-T035 are independent test cases
 - T036 is the integration scenario, best written last
 
 ### Dependencies
+
 - Depends on WP05 (tests import the wrapper class)
 
 ### Risks & Mitigations
+
 - Risk: Test isolation (metadata.yaml shared state). Mitigation: Each test uses its own tmp_path.
 
 ---
@@ -276,6 +306,7 @@ WP01 (parser) ─────────────────┐
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 - WP03: done

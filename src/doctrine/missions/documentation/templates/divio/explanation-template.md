@@ -18,6 +18,7 @@ outcome: user-understands-why-and-how
 {Introduce the concept/topic and why understanding it matters}
 
 This explanation covers:
+
 - {Key aspect 1 that will be discussed}
 - {Key aspect 2 that will be discussed}
 - {Key aspect 3 that will be discussed}
@@ -43,6 +44,7 @@ This explanation covers:
 **Why it works this way**: {Explain the reasoning}
 
 **Implications**:
+
 - {What this means for users}
 - {How this affects behavior}
 - {What to keep in mind}
@@ -76,6 +78,7 @@ This explanation covers:
 **The problem**: {What needed to be solved}
 
 **Considered alternatives**:
+
 - **Option A**: {Description}
   - Pros: {Benefits}
   - Cons: {Drawbacks}
@@ -109,10 +112,12 @@ This explanation covers:
 {Explain how this concept relates to another}
 
 **Differences**:
+
 - {Key difference 1}
 - {Key difference 2}
 
 **Similarities**:
+
 - {Key similarity 1}
 - {Key similarity 2}
 
@@ -123,11 +128,13 @@ This explanation covers:
 ## Trade-offs and Limitations
 
 **Benefits of this approach**:
+
 - {Benefit 1}
 - {Benefit 2}
 - {Benefit 3}
 
 **Limitations**:
+
 - {Limitation 1 and why it exists}
 - {Limitation 2 and why it exists}
 
@@ -140,6 +147,7 @@ This explanation covers:
 {What this concept means for this type of user}
 
 **Key takeaways**:
+
 - {Actionable insight 1}
 - {Actionable insight 2}
 
@@ -159,6 +167,7 @@ This explanation covers:
 ## Write the Docs Best Practices (Remove this section before publishing)
 
 **Explanation Principles**:
+
 - ✅ Understanding-oriented: Clarify and illuminate
 - ✅ Discuss concepts, not tasks (not instructional)
 - ✅ Provide context and background
@@ -169,6 +178,7 @@ This explanation covers:
 - ✅ No imperative mood (not "do this")
 
 **Accessibility**:
+
 - ✅ Proper heading hierarchy
 - ✅ Alt text for diagrams (especially important for conceptual diagrams)
 - ✅ Clear language, define technical terms
@@ -176,12 +186,14 @@ This explanation covers:
 - ✅ Descriptive link text
 
 **Inclusivity**:
+
 - ✅ Diverse examples
 - ✅ Gender-neutral language
 - ✅ No cultural assumptions
 - ✅ Consider different learning styles (visual, verbal, etc.)
 
 **Explanation-Specific Guidelines**:
+
 - Start with "why" before "what"
 - Use analogies and metaphors to clarify
 - Diagrams are very valuable for explanations

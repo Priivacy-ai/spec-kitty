@@ -1,6 +1,6 @@
 # [CHECKLIST TYPE] Checklist: [FEATURE NAME]
-*Path: [templates/checklist-template.md](templates/checklist-template.md)*
 
+*Path: [templates/checklist-template.md](templates/checklist-template.md)*
 
 **Purpose**: [Brief description of what this checklist covers]
 **Created**: [DATE]

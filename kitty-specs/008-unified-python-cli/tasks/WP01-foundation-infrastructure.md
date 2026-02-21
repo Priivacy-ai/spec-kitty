@@ -65,6 +65,7 @@ history:
 **Goal**: Establish core agent CLI namespace and path resolution infrastructure for all parallel work streams.
 
 **Success Criteria**:
+
 - `spec-kitty agent --help` displays help text showing agent subcommands
 - Path resolution works correctly from main repository
 - Path resolution works correctly from worktree
@@ -79,23 +80,27 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Research phase complete (research.md validates approach) ✅
 - Worktree exists: `.worktrees/008-unified-python-cli/`
 - Python 3.11+ installed
 - Typer already in project dependencies
 
 **Related Documents**:
+
 - Spec: `kitty-specs/008-unified-python-cli/spec.md` (FR-005, FR-007, FR-012, FR-013, FR-014)
 - Plan: `kitty-specs/008-unified-python-cli/plan.md` (Phase 1 section)
 - Research: `kitty-specs/008-unified-python-cli/research.md` (Path resolution validation)
 - Quickstart: `kitty-specs/008-unified-python-cli/quickstart.md` (Development patterns)
 
 **Architectural Decisions**:
+
 - Use Typer sub-app pattern for agent namespace (decision from research.md)
 - Three-tier path resolution: env var → git → `.kittify/` marker (research validation)
 - Check `is_symlink()` before `exists()` for broken symlinks (existing pattern, commit d9a07fc)
 
 **Constraints**:
+
 - Must complete in 2 days maximum (blocks all parallel work)
 - Stub modules only - no deep command implementation yet
 - Must work identically in main repo and worktree
@@ -110,6 +115,7 @@ history:
 **Purpose**: Establish `src/specify_cli/cli/commands/agent/` namespace for all agent commands.
 
 **Steps**:
+
 1. Navigate to repository root
 2. Create directory: `mkdir -p src/specify_cli/cli/commands/agent`
 3. Verify directory exists
@@ -118,18 +124,20 @@ history:
 
 **Parallel?**: No (prerequisite for T002-T006)
 
-**Notes**: This directory will contain 4 modules (feature, tasks, context, release) plus __init__.py.
+**Notes**: This directory will contain 4 modules (feature, tasks, context, release) plus **init**.py.
 
 ---
 
-### T002 – Create agent __init__.py with Typer sub-app registration
+### T002 – Create agent **init**.py with Typer sub-app registration
 
 **Purpose**: Register agent namespace as Typer sub-app so `spec-kitty agent` works.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/__init__.py`
 2. Import Typer
 3. Create Typer app instance:
+
    ```python
    import typer
    from typing_extensions import Annotated
@@ -140,7 +148,9 @@ history:
        no_args_is_help=True
    )
    ```
+
 4. Import and register stub modules (will be created in T003-T006):
+
    ```python
    from . import feature, tasks, context, release
 
@@ -163,8 +173,10 @@ history:
 **Purpose**: Placeholder for feature lifecycle commands (implemented in WP02).
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/feature.py`
 2. Create minimal Typer app:
+
    ```python
    import typer
 
@@ -190,8 +202,10 @@ history:
 **Purpose**: Placeholder for task workflow commands (implemented in WP03).
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/tasks.py`
 2. Create minimal Typer app:
+
    ```python
    import typer
 
@@ -217,8 +231,10 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Placeholder for agent context management commands (implemented in WP04).
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/context.py`
 2. Create minimal Typer app:
+
    ```python
    import typer
 
@@ -244,8 +260,10 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Placeholder for release packaging commands (implemented in WP05).
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/release.py`
 2. Create minimal Typer app:
+
    ```python
    import typer
 
@@ -271,15 +289,20 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Make `spec-kitty agent` accessible by registering in main CLI entry point.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/__init__.py` (or main CLI file)
 2. Import agent module:
+
    ```python
    from .commands import agent
    ```
+
 3. Register agent sub-app with main Typer app:
+
    ```python
    app.add_typer(agent.app, name="agent")
    ```
+
 4. Verify import chain works
 
 **Files**: `src/specify_cli/cli/__init__.py`
@@ -295,6 +318,7 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Upgrade path resolution to automatically detect worktree vs main repo execution.
 
 **Steps**:
+
 1. Read existing `src/specify_cli/core/paths.py`
 2. Review `locate_project_root()` function (exists from research SR001)
 3. Enhance with three-tier resolution:
@@ -302,11 +326,13 @@ spec-kitty agent workflow implement WP03
    - Tier 2: Try `git rev-parse --show-toplevel` (use subprocess)
    - Tier 3: Walk up directory tree looking for `.kittify/` marker
 4. Add worktree detection:
+
    ```python
    def is_worktree_context(current_path: Path) -> bool:
        """Detect if current path is within .worktrees/ directory"""
        return ".worktrees" in current_path.parts
    ```
+
 5. Return tuple: `(repo_root: Path, is_worktree: bool)`
 
 **Files**: `src/specify_cli/core/paths.py`
@@ -322,7 +348,9 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Allow override of path detection via env var (useful for CI/CD).
 
 **Steps**:
+
 1. In `paths.py`, check env var first in resolution hierarchy:
+
    ```python
    import os
 
@@ -333,6 +361,7 @@ spec-kitty agent workflow implement WP03
        # Tier 2: Git...
        # Tier 3: Marker...
    ```
+
 2. Validate env var path exists and has `.kittify/`
 3. Document in docstring
 
@@ -349,7 +378,9 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Prevent crashes when symlinks are broken (worktree edge case).
 
 **Steps**:
+
 1. In `paths.py`, anywhere checking file/directory existence, use pattern:
+
    ```python
    if path.is_symlink() and not path.exists():
        # Broken symlink detected
@@ -358,6 +389,7 @@ spec-kitty agent workflow implement WP03
        # Valid path
        return path
    ```
+
 2. Apply pattern consistently
 3. Write helper function if needed
 
@@ -374,6 +406,7 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Establish test infrastructure for agent command unit tests.
 
 **Steps**:
+
 1. Create directory: `mkdir -p tests/unit/agent`
 2. Create `tests/unit/agent/__init__.py` (empty, makes it a package)
 3. Verify pytest discovers the directory
@@ -391,6 +424,7 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Establish test infrastructure for end-to-end agent workflow tests.
 
 **Steps**:
+
 1. Create directory: `mkdir -p tests/integration`
 2. Create `tests/integration/__init__.py` (empty)
 3. Verify pytest discovers the directory
@@ -408,8 +442,10 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Provide test utilities for simulating worktree environments.
 
 **Steps**:
+
 1. Open or create `tests/conftest.py` (pytest fixture file)
 2. Add worktree fixture:
+
    ```python
    import pytest
    from pathlib import Path
@@ -435,7 +471,9 @@ spec-kitty agent workflow implement WP03
            "feature_dir": feature_dir
        }
    ```
+
 3. Add main repo fixture:
+
    ```python
    @pytest.fixture
    def mock_main_repo(tmp_path):
@@ -462,6 +500,7 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Manual smoke test that foundation infrastructure is wired correctly.
 
 **Steps**:
+
 1. Install package in development mode: `pip install -e .` (from repo root)
 2. Run: `spec-kitty agent --help`
 3. Verify output shows:
@@ -483,8 +522,10 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Verify path resolution works correctly from main repository.
 
 **Steps**:
+
 1. Create `tests/unit/test_paths.py`
 2. Test `locate_project_root()` with `mock_main_repo` fixture:
+
    ```python
    from specify_cli.core.paths import locate_project_root
 
@@ -499,6 +540,7 @@ spec-kitty agent workflow implement WP03
        assert repo_root == mock_main_repo
        assert (repo_root / ".kittify").exists()
    ```
+
 3. Run test: `pytest tests/unit/test_paths.py -v`
 
 **Files**: `tests/unit/test_paths.py`
@@ -514,7 +556,9 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Verify path resolution works correctly from worktree.
 
 **Steps**:
+
 1. In `tests/unit/test_paths.py`, add worktree test:
+
    ```python
    def test_locate_project_root_from_worktree(mock_worktree, monkeypatch):
        # Change to worktree directory
@@ -527,7 +571,9 @@ spec-kitty agent workflow implement WP03
        assert repo_root == mock_worktree["repo_root"]
        assert (repo_root / ".kittify").exists()
    ```
+
 2. Test worktree detection:
+
    ```python
    def test_is_worktree_context(mock_worktree):
        from specify_cli.core.paths import is_worktree_context
@@ -535,6 +581,7 @@ spec-kitty agent workflow implement WP03
        assert is_worktree_context(mock_worktree["worktree_path"]) is True
        assert is_worktree_context(mock_worktree["repo_root"]) is False
    ```
+
 3. Run test: `pytest tests/unit/test_paths.py::test_locate_project_root_from_worktree -v`
 
 **Files**: `tests/unit/test_paths.py`
@@ -550,7 +597,9 @@ spec-kitty agent workflow implement WP03
 **Purpose**: Verify graceful error handling for broken symlinks (doesn't crash).
 
 **Steps**:
+
 1. In `tests/unit/test_paths.py`, add broken symlink test:
+
    ```python
    import os
 
@@ -574,6 +623,7 @@ spec-kitty agent workflow implement WP03
        except FileNotFoundError as e:
            assert "broken symlink" in str(e).lower()
    ```
+
 2. Run test: `pytest tests/unit/test_paths.py::test_broken_symlink_handling -v`
 
 **Files**: `tests/unit/test_paths.py`
@@ -587,15 +637,18 @@ spec-kitty agent workflow implement WP03
 ## Test Strategy
 
 **Unit Tests** (T015-T017):
+
 - Path resolution from main repo ✅
 - Path resolution from worktree ✅
 - Broken symlink handling ✅
 - Coverage target: 90%+ for `paths.py` enhancements
 
 **Integration Tests**:
+
 - Deferred to WP02-WP05 (command-level integration tests)
 
 **Manual Tests** (T014):
+
 - `spec-kitty agent --help` ✅
 - `spec-kitty agent feature --help` ✅
 - `spec-kitty agent tasks --help` ✅
@@ -603,6 +656,7 @@ spec-kitty agent workflow implement WP03
 - `spec-kitty agent release --help` ✅
 
 **Commands to Run**:
+
 ```bash
 # Unit tests
 pytest tests/unit/test_paths.py -v
@@ -619,18 +673,22 @@ spec-kitty agent --help
 ## Risks & Mitigations
 
 **Risk 1: Import chain breaks**
+
 - **Symptom**: `ModuleNotFoundError` when running `spec-kitty agent`
 - **Mitigation**: Test imports incrementally (`python -c "from specify_cli.cli.commands import agent"`), ensure all `__init__.py` files created
 
 **Risk 2: Foundation delays block parallel work**
+
 - **Symptom**: Phase 1 takes >2 days, WP02-WP05 cannot start
 - **Mitigation**: Keep scope minimal (stubs only), prioritize T014 acceptance test, defer deep path logic if needed
 
 **Risk 3: Path resolution edge cases**
+
 - **Symptom**: Tests fail on specific platforms or directory structures
 - **Mitigation**: Use pathlib (cross-platform), test both marker and git detection, handle gracefully
 
 **Risk 4: Pytest fixtures don't work**
+
 - **Symptom**: Unit tests can't create mock environments
 - **Mitigation**: Use `tmp_path` fixture (pytest built-in), validate fixture structure before using
 
@@ -655,12 +713,14 @@ spec-kitty agent --help
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Manual test passes**: `spec-kitty agent --help` shows all subcommands
 2. **Unit tests pass**: `pytest tests/unit/test_paths.py -v` all green
 3. **No import errors**: `python -c "from specify_cli.cli.commands import agent"` succeeds
 4. **Coverage sufficient**: `pytest --cov` shows 90%+ for `paths.py`
 
 **What Reviewers Should Check**:
+
 - Typer sub-app registration follows pattern from research.md
 - Path resolution uses three-tier strategy (env var → git → marker)
 - Broken symlink pattern matches commit d9a07fc
@@ -668,6 +728,7 @@ spec-kitty agent --help
 - Test fixtures enable both main repo and worktree simulation
 
 **Context to Revisit**:
+
 - Research findings (research.md) - path resolution validation
 - Quickstart guide (quickstart.md) - Python migration patterns
 - Recent git history - symlink handling precedent
@@ -687,6 +748,7 @@ spec-kitty agent --help
 **Status**: ✅ APPROVED
 
 **Success Criteria**: ALL MET ✅
+
 - Agent CLI structure created (`src/specify_cli/cli/commands/agent/`)
 - All 4 stub modules present (feature.py, tasks.py, context.py, release.py)
 - Path resolution: 10/10 unit tests PASSED (main repo, worktree, broken symlinks)

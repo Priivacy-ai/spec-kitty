@@ -27,16 +27,20 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 ## Setup Checklist
 
 1. **Select Claude during project creation**
+
    ```bash
    spec-kitty init my-project --ai claude
    ```
+
    This copies Claude-specific commands into `.claude/commands/` and activates the automation scripts under `.kittify/scripts/`.
 
 2. **Refresh Claude’s long-term context after planning**
+
    ```bash
    cd <feature worktree>
    .kittify/scripts/bash/update-agent-context.sh claude
    ```
+
    The script injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
 
 ## Running Claude Against Prompts
@@ -61,6 +65,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 - Lane transitions triggered by workflow commands (`spec-kitty agent workflow implement/review`) surface instantly on the kanban dashboard.
 - Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
+
   ```bash
   spec-kitty agent workflow review WP02
   ```
@@ -87,9 +92,11 @@ Once Claude (and any partner agents) finish the feature:
 
 1. Ensure `tasks/for_review/` is empty and all checklists are complete.
 2. Run the guided merge:
+
  ```bash
   spec-kitty merge --remove-worktree
   ```
+
    Run it from the feature worktree; the CLI automatically performs the Git steps from the main checkout so worktrees stay in sync.
    The command documents merge steps, updates activity logs, and optionally removes the feature worktree to keep the repository tidy.
 
@@ -100,16 +107,19 @@ Once Claude (and any partner agents) finish the feature:
 - Review the dashboard monitoring workflow in [`Use the Dashboard`](../how-to/use-dashboard.md).
 
 ## Related How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [Slash Commands](../reference/slash-commands.md)
 - [Agent Subcommands](../reference/agent-subcommands.md)
 
 ## Learn More
+
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [Mission System](../explanation/mission-system.md)
 - [Kanban Workflow](../explanation/kanban-workflow.md)

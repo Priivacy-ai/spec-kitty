@@ -5,11 +5,13 @@
 ## What Changed
 
 **Old model (0.10.x)**:
+
 - Planning commands created a single worktree per feature
 - All work packages shared the same worktree
 - Pattern: `.worktrees/###-feature/`
 
 **New model (0.11.0+)**:
+
 - Planning commands work in main repository (no worktree created)
 - Each work package gets its own worktree on-demand
 - Pattern: `.worktrees/###-feature-WP##/`
@@ -34,11 +36,13 @@ ls .worktrees/
 Look for directories matching pattern `###-feature` (without `-WP##` suffix).
 
 **Examples of legacy worktrees**:
+
 - `008-unified-python-cli/` ← Legacy (0.10.x)
 - `009-improved-documentation/` ← Legacy (0.10.x)
 - `010-workspace-per-wp-WP01/` ← New (0.11.0+, this is OK)
 
 **Or use the utility command (after upgrading spec-kitty-cli)**:
+
 ```bash
 pip install --upgrade spec-kitty-cli  # Get 0.11.0 first
 spec-kitty list-legacy-features       # Then check for legacy worktrees
@@ -49,6 +53,7 @@ spec-kitty list-legacy-features       # Then check for legacy worktrees
 ### ☐ Step 2: Decide What to Do With Each Feature
 
 For each legacy worktree, choose one:
+
 - **Option A**: Complete the feature (recommended)
 - **Option B**: Delete the feature (if abandoning)
 
@@ -108,6 +113,7 @@ ls .worktrees/
 If you still see legacy worktrees (directories without `-WP##` suffix), go back to Step 3 and handle them.
 
 > **After upgrading spec-kitty-cli to 0.11.0**, you can also verify with:
+>
 > ```bash
 > spec-kitty list-legacy-features
 > # Should show: "No legacy worktrees detected"
@@ -129,6 +135,7 @@ git checkout main
 ### ☐ Step 6: Read Breaking Changes
 
 Review what changed in 0.11.0:
+
 - Planning commands no longer create worktrees
 - New command: `spec-kitty implement WP##`
 - Dependency tracking in WP frontmatter
@@ -144,6 +151,7 @@ spec-kitty --version  # Should show 0.11.0
 ```
 
 If the upgrade is blocked with error message:
+
 ```
 ❌ Cannot upgrade to 0.11.0
 Legacy worktrees detected:
@@ -184,12 +192,14 @@ git commit -m "Remove test feature 012-test-feature"
 ```
 
 **Option B: Revert the commit**
+
 ```bash
 git revert HEAD  # Reverts the test feature commit
 # Creates new commit that undoes the test
 ```
 
 **Option C: Hard reset (⚠️ DESTRUCTIVE - only if you're sure)**
+
 ```bash
 # WARNING: This permanently deletes the commit. Only use if:
 #  - The test feature commit has NOT been pushed to remote
@@ -201,6 +211,7 @@ git reset --hard HEAD~1
 ```
 
 **Recommended**: Use Option A or B. They're safer and create a clear history.
+
 ```
 
 **Success!** You're now on 0.11.0.
@@ -217,6 +228,7 @@ git reset --hard HEAD~1
 ```
 
 **After (0.11.0)**:
+
 ```bash
 /spec-kitty.specify "My Feature"
 → Creates kitty-specs/010-my-feature/spec.md in main
@@ -230,6 +242,7 @@ Same for `/spec-kitty.plan` and `/spec-kitty.tasks`.
 ### Implementation Command (New)
 
 **Before (0.10.x)**:
+
 ```bash
 # Agents work in shared worktree created during planning
 cd .worktrees/010-my-feature/
@@ -237,6 +250,7 @@ cd .worktrees/010-my-feature/
 ```
 
 **After (0.11.0)**:
+
 ```bash
 # Create worktree for specific WP
 spec-kitty implement WP01
@@ -262,6 +276,7 @@ dependencies: ["WP01"]  # WP02 depends on WP01
 ```
 
 Implement with dependencies:
+
 ```bash
 spec-kitty implement WP02 --base WP01
 # WP02 branches from WP01's branch, includes WP01's changes
@@ -274,6 +289,7 @@ spec-kitty implement WP02 --base WP01
 Create worktree for a specific work package.
 
 **Usage**:
+
 ```bash
 # Independent WP (branches from main)
 spec-kitty implement WP01
@@ -283,6 +299,7 @@ spec-kitty implement WP02 --base WP01
 ```
 
 **What it does**:
+
 1. Creates `.worktrees/###-feature-WP##/` directory
 2. Creates git branch `###-feature-WP##`
 3. Checks out code in the worktree
@@ -293,11 +310,13 @@ spec-kitty implement WP02 --base WP01
 Check for legacy worktrees before upgrading.
 
 **Usage**:
+
 ```bash
 spec-kitty list-legacy-features
 ```
 
 **Output examples**:
+
 ```bash
 # No legacy worktrees
 No legacy worktrees detected. Safe to upgrade to 0.11.0.
@@ -427,6 +446,7 @@ spec-kitty merge 011-user-authentication
 ### Issue: "Cannot upgrade, legacy worktrees detected"
 
 **Error message**:
+
 ```
 ❌ Cannot upgrade to 0.11.0
 Legacy worktrees detected:
@@ -441,12 +461,14 @@ Complete or delete these features before upgrading.
 ### Issue: "Uncommitted changes in worktree"
 
 When trying to complete a feature:
+
 ```
 ❌ Cannot merge feature 008-unified-python-cli
 Uncommitted changes detected in .worktrees/008-unified-python-cli/
 ```
 
 **Solution**:
+
 ```bash
 cd .worktrees/008-unified-python-cli/
 git status  # Check what's uncommitted
@@ -461,6 +483,7 @@ spec-kitty merge 008-unified-python-cli
 If you have `kitty-specs/009-feature/` in main but no worktree:
 
 **Scenario 1**: Feature was already merged
+
 ```bash
 # Check git history
 git log --all --grep="009-feature"
@@ -472,6 +495,7 @@ git commit -m "Clean up merged feature 009 artifacts"
 ```
 
 **Scenario 2**: Feature was planned but never implemented
+
 ```bash
 # Feature exists in main but was never started
 # Safe to delete if you don't need it
@@ -485,6 +509,7 @@ git commit -m "Remove unimplemented feature 009"
 If you encounter issues after upgrading:
 
 **Rollback to 0.10.12**:
+
 ```bash
 pip install spec-kitty-cli==0.10.12
 spec-kitty --version  # Should show 0.10.12
@@ -493,9 +518,10 @@ spec-kitty --version  # Should show 0.10.12
 **Note**: Features planned in 0.11.0 format (artifacts in main) will need re-planning if you rollback to 0.10.12 (worktree model).
 
 **Report the issue**:
-Please report bugs at: https://github.com/Priivacy-ai/spec-kitty/issues
+Please report bugs at: <https://github.com/Priivacy-ai/spec-kitty/issues>
 
 Include:
+
 - Error message
 - Output of `spec-kitty --version`
 - Steps to reproduce
@@ -513,11 +539,12 @@ After upgrading, you'll benefit from:
 ## Getting Help
 
 - **Documentation**: [Workspace-per-WP guide](../explanation/workspace-per-wp.md)
-- **Issues**: https://github.com/Priivacy-ai/spec-kitty/issues
+- **Issues**: <https://github.com/Priivacy-ai/spec-kitty/issues>
 
 ## Summary
 
 **Before upgrading to 0.11.0**:
+
 1. ✅ Check for legacy worktrees: `ls .worktrees/` (look for directories without `-WP##` suffix)
 2. ✅ Complete or delete each legacy feature
 3. ✅ Verify clean state: `ls .worktrees/` (should be empty or only new format)
@@ -526,6 +553,7 @@ After upgrading, you'll benefit from:
 6. ✅ Test with dummy feature to verify new workflow
 
 **After upgrading**:
+
 - Planning commands work in main (no worktree created)
 - Use `spec-kitty implement WP##` to create worktrees
 - Enjoy parallel multi-agent development!
@@ -533,13 +561,16 @@ After upgrading, you'll benefit from:
 Welcome to Spec Kitty 0.11.0! 🎉
 
 ## Command Reference
+
 - [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
 - [`spec-kitty list-legacy-features`](../reference/cli-commands.md#spec-kitty-list-legacy-features)
 
 ## See Also
+
 - [Install Spec Kitty](install-spec-kitty.md)
 - [Non-Interactive Init](non-interactive-init.md)
 
 ## Background
+
 - [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
 - [Git Worktrees](../explanation/git-worktrees.md)

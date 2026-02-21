@@ -76,6 +76,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Steps**:
   1. Create `src/specify_cli/telemetry/query.py`
   2. Define `EventFilter` as a frozen dataclass:
+
      ```python
      @dataclass(frozen=True)
      class EventFilter:
@@ -87,6 +88,7 @@ Depends on WP01 (SimpleJsonStore).
          until: datetime | None = None
          success: bool | None = None
      ```
+
   3. Add a `matches(self, event: Event) -> bool` method that checks each non-None field:
      - `event_type`: compare to `event.event_type`
      - `wp_id`: compare to `event.payload.get("wp_id")`
@@ -104,12 +106,14 @@ Depends on WP01 (SimpleJsonStore).
 - **Purpose**: Filtered reads over a single feature's `execution.events.jsonl`.
 - **Steps**:
   1. In `query.py`, implement:
+
      ```python
      def query_execution_events(
          feature_dir: Path,
          filters: EventFilter | None = None,
      ) -> list[Event]:
      ```
+
   2. Instantiate `SimpleJsonStore(feature_dir / "execution.events.jsonl")`
   3. Call `store.load_all_events()` to get all events sorted by `(lamport_clock, node_id)`
   4. If `filters` is not None, filter with `[e for e in events if filters.matches(e)]`
@@ -123,12 +127,14 @@ Depends on WP01 (SimpleJsonStore).
 - **Purpose**: Cross-feature queries iterating over all `kitty-specs/*/execution.events.jsonl` files.
 - **Steps**:
   1. In `query.py`, implement:
+
      ```python
      def query_project_events(
          repo_root: Path,
          filters: EventFilter | None = None,
      ) -> list[Event]:
      ```
+
   2. Glob for `repo_root / "kitty-specs" / "*" / EXECUTION_EVENTS_FILE`
   3. For each file found, instantiate `SimpleJsonStore` and load events
   4. Merge all events into a single list

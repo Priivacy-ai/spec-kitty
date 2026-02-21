@@ -8,6 +8,7 @@
 ## Background
 
 The v0.11.0 release introduces a workspace-per-work-package model that changed how features and tasks are organized:
+
 - **New format (0.11.0+)**: Tasks stored in flat `tasks/` directory with lane status in YAML frontmatter
 - **Legacy format (pre-0.11.0)**: Tasks stored in lane subdirectories (`tasks/planned/`, `tasks/doing/`, etc.)
 

@@ -33,6 +33,7 @@ Implement dependency-based merge ordering and refactor the merge execution into 
 **User Story**: As a developer, I want WPs merged in dependency order rather than numerical order so that dependent WPs have the latest code from their dependencies.
 
 **Success Criteria**:
+
 - WPs with `dependencies: ["WP01"]` in frontmatter merge after WP01
 - Circular dependencies detected and reported clearly
 - Missing dependency info falls back to numerical order with warning
@@ -43,11 +44,13 @@ Implement dependency-based merge ordering and refactor the merge execution into 
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/spec.md` - User Story 3 acceptance scenarios
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - ordering.py and executor.py design
 - `src/specify_cli/core/dependency_graph.py` - Existing graph utilities (build_dependency_graph, detect_cycles, topological_sort)
 
 **Constraints**:
+
 - Use `build_dependency_graph()` and `topological_sort()` from WP01
 - Maintain backward compatibility with existing merge behavior
 - Executor must handle both workspace-per-WP and legacy modes
@@ -59,16 +62,19 @@ Implement dependency-based merge ordering and refactor the merge execution into 
 **Purpose**: Determine WP merge order based on dependency graph (FR-008, FR-009).
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/ordering.py`
 2. Import dependency graph utilities
 3. Implement `get_merge_order()` that builds graph and sorts topologically
 
 **Files**:
+
 - `src/specify_cli/merge/ordering.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 """Merge ordering based on WP dependencies."""
 
@@ -145,16 +151,19 @@ def get_merge_order(
 **Purpose**: Provide clear error messages when circular dependencies exist (FR-010).
 
 **Steps**:
+
 1. Enhance `get_merge_order()` cycle detection message
 2. Show the full cycle path in the error
 3. Ensure pre-flight surfaces this error clearly
 
 **Files**:
+
 - `src/specify_cli/merge/ordering.py`
 
 **Parallel?**: Yes
 
 **Notes**:
+
 - The existing `detect_cycles()` returns list of cycles
 - Format as "WP01 → WP02 → WP03 → WP01" to show the loop
 
@@ -165,16 +174,19 @@ def get_merge_order(
 **Purpose**: When no dependency info exists, use WP number order (FR-011).
 
 **Steps**:
+
 1. Detect when graph has no edges (all WPs have empty dependencies)
 2. Log a warning about missing dependency info
 3. Return WPs sorted by ID (WP01, WP02, ...)
 
 **Files**:
+
 - `src/specify_cli/merge/ordering.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 def has_dependency_info(graph: dict[str, list[str]]) -> bool:
     """Check if any WP has declared dependencies."""
@@ -193,18 +205,21 @@ if not has_dependency_info(graph):
 **Purpose**: Create a dedicated module for merge execution, separating from CLI.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/executor.py`
 2. Move `merge_workspace_per_wp()` logic from merge.py
 3. Create `MergeExecutor` class or `execute_merge()` function
 4. Keep merge.py as thin CLI wrapper
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 - `src/specify_cli/cli/commands/merge.py` (modify)
 
 **Parallel?**: No (requires WP01 structure)
 
 **Implementation outline**:
+
 ```python
 """Core merge execution logic."""
 
@@ -260,11 +275,13 @@ def execute_merge(
 **Purpose**: Ensure executor calls preflight before any merge operation.
 
 **Steps**:
+
 1. Import preflight module in executor
 2. Call `run_preflight()` at start of `execute_merge()`
 3. Return early with error if preflight fails
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 
 **Parallel?**: No (depends on T021)
@@ -276,16 +293,19 @@ def execute_merge(
 **Purpose**: Use dependency-ordered WP list instead of sorted glob.
 
 **Steps**:
+
 1. Import ordering module in executor
 2. Call `get_merge_order()` to reorder WPs
 3. Use ordered list for merge loop
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 
 **Parallel?**: No (depends on T021)
 
 **Notes**:
+
 - Display merge order to user before starting
 - Catch `MergeOrderError` and display cycle info
 
@@ -302,6 +322,7 @@ def execute_merge(
 ## Review Guidance
 
 **Acceptance Test**:
+
 1. Create feature with WP frontmatter:
    - WP01: `dependencies: []`
    - WP02: `dependencies: ["WP01"]`
@@ -311,6 +332,7 @@ def execute_merge(
 3. Verify: Order shown is WP01 → WP02/WP03 → WP04
 
 **Edge Cases**:
+
 - No dependencies declared → numerical order
 - WP02 depends on WP99 (missing) → error or skip
 - Circular: WP01 → WP02 → WP01 → clear error message

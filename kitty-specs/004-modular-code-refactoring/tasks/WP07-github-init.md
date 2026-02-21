@@ -46,18 +46,21 @@ work_package_title: GitHub Client and Init Command
 ### Issues Fixed ✅
 
 **Issue #1: Init command registration broken**
+
 - ✅ Refactored to module-level init() function with dependency injection
-- ✅ Used global variables for injected dependencies (_console, _show_banner, etc.)
+- ✅ Used global variables for injected dependencies (_console,_show_banner, etc.)
 - ✅ Fixed Typer registration to work as standalone command
 - ✅ Completed full init implementation (566 lines)
 - ✅ **All 3 init tests passing**: test_init_local_mode, test_init_package_mode, test_init_remote_mode
 
 **Issue #2: GitHub extraction creates nested directory**
+
 - ✅ Fixed download_and_extract_template() to flatten directory structure
 - ✅ Files now land directly in project_path (no extra nesting)
 - ✅ **Test passing**: test_download_and_extract_template_flattens_nested_archives
 
 ### Test Results
+
 ```
 ✅ 6/6 WP07 tests PASSED (0.10s)
    - test_init_command.py: 3/3 tests
@@ -65,6 +68,7 @@ work_package_title: GitHub Client and Init Command
 ```
 
 ### Module Sizes
+
 - init.py: 566 lines (complex command, acceptable)
 - github_client.py: 328 lines (complex GitHub operations)
 - init_help.py: 44 lines
@@ -93,17 +97,20 @@ The init command is the largest and most complex command (520+ lines) with GitHu
 ### T060-T063: Extract GitHub client to template/github_client.py
 
 **T060**: Extract `download_template_from_github()`
-- Lines 985-1104 from __init__.py
+
+- Lines 985-1104 from **init**.py
 - Streaming download with progress
 - ~120 lines
 
 **T061**: Extract `download_and_extract_template()`
-- Lines 1106-1306 from __init__.py
+
+- Lines 1106-1306 from **init**.py
 - ZIP extraction and flattening
 - Most complex extraction logic
 - ~200 lines (may need to split)
 
 **T062**: Extract GitHub auth helpers
+
 ```python
 def _github_token(cli_token: str | None = None) -> str | None:
     """Return sanitized GitHub token."""
@@ -115,7 +122,8 @@ def _github_auth_headers(cli_token: str | None = None) -> dict:
 ```
 
 **T063**: Extract `parse_repo_slug()`
-- Lines 432-436 from __init__.py
+
+- Lines 432-436 from **init**.py
 - Parse owner/repo format
 - ~5 lines
 
@@ -124,23 +132,27 @@ def _github_auth_headers(cli_token: str | None = None) -> dict:
 The init command needs to be broken into logical sections:
 
 **T064**: Extract init command setup
+
 - Command decorator and parameters
 - Initial validation
 - ~50 lines
 
 **T065**: Extract interactive prompts logic
+
 - AI assistant selection
 - Script type selection
 - Mission selection
 - ~100 lines
 
 **T066**: Extract template mode detection
+
 - Check for local repo
 - Check for package installation
 - Default to remote
 - ~30 lines
 
 **T067**: Extract main orchestration loop
+
 - Template downloading
 - Agent asset generation
 - Git initialization
@@ -150,11 +162,13 @@ The init command needs to be broken into logical sections:
 ### T068-T069: Testing
 
 **T068**: Mock GitHub API for testing
+
 - Mock HTTP responses
 - Test download progress
 - Test error handling
 
 **T069**: Test init command with all flags
+
 - Test interactive mode
 - Test non-interactive mode
 - Test all combinations of flags

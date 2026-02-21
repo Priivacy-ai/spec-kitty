@@ -17,6 +17,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 **Time Frame**: Sequential phased research with synthesis at completion
 
 **Resources Available**:
+
 - Current Spec Kitty codebase (v0.15.0+) at `/Users/robert/ClaudeCowork/SpecKitty/spec-kitty/`
 - Agent discovery documentation (`product-ideas/agent-command-discovery-and-skills.md`)
 - User pain point data (installation time, .gitignore burden, template versioning, worktree complexity)
@@ -24,6 +25,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 - Existing implementation code (AGENT_DIRS, agent_config.py, init.py, dashboard/)
 
 **Key Background**:
+
 - Spec Kitty currently duplicates 12 agent directories across every project
 - Primary pain points: installation/upgrade time per project, .gitignore maintenance burden, template versioning consistency, worktree sparse checkout complexity
 - Backwards compatibility is CRITICAL constraint (1000% requirement)
@@ -90,16 +92,19 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 ### Data Sources
 
 **Primary Sources**:
+
 - Spec Kitty codebase (Python 3.11+, typer, rich, ruamel.yaml, pytest)
 - Agent discovery documentation (14 agents)
 - Git repository analysis (current .gitignore patterns, worktree configurations)
 
 **Secondary Sources**:
+
 - User pain point reports (installation time, .gitignore maintenance, template versioning, worktree complexity)
 - Agent ecosystem patterns (common practices for user-level vs project-level tooling)
 - Industry patterns (how other CLIs handle centralization: npm, poetry, cargo, homebrew)
 
 **Search Strategy**:
+
 - **Keywords**: agent directories, user-level configuration, project-level duplication, centralized tooling, backwards compatibility, multi-project dashboard
 - **Inclusion Criteria**: Relevant to Spec Kitty architecture, addresses one of 6 workflow patterns, covers agent discovery mechanisms, relates to migration feasibility
 - **Exclusion Criteria**: Not applicable to Spec Kitty context, purely theoretical without practical implementation path, violates hard constraints (backwards compatibility, 14 agent support)
@@ -107,6 +112,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 ### Analysis Framework
 
 **Coding Scheme**:
+
 - Workflow pattern characteristics (solo/team, single/multi-project, homogeneous/mixed agents)
 - Centralization impact dimensions (setup time, version control, collaboration, contributor experience, multi-project management)
 - Agent discovery categories (file-based commands, MCP prompts, skills, hybrid)
@@ -116,6 +122,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 **Synthesis Method**: Thematic analysis across workflow patterns, architectural design, and feasibility assessment → integrated recommendation
 
 **Quality Assessment**:
+
 - Evidence confidence levels (HIGH: codebase facts, documented agent specs; MEDIUM: inferred from patterns; LOW: assumptions requiring validation)
 - Trade-off validity (pros/cons must be specific to workflow pattern, not generic)
 - Architecture completeness (addresses backwards compatibility, all 14 agents, migration path)
@@ -129,6 +136,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 **Purpose**: Track all evidence collected with citations and findings
 
 **Columns**:
+
 - `evidence_id`: Unique identifier (EV-001, EV-002, ...)
 - `timestamp`: When evidence collected (ISO format)
 - `source_type`: codebase | agent_doc | user_pain_point | industry_pattern
@@ -139,6 +147,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 - `notes`: Additional context or caveats
 
 **Agent Guidance**:
+
 1. Read source code or documentation and extract key finding
 2. Add row to evidence-log.csv with next sequential evidence_id
 3. Assign confidence level based on source quality (codebase = HIGH, inferred = MEDIUM, assumed = LOW)
@@ -151,6 +160,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 **Purpose**: Maintain master list of all sources for bibliography
 
 **Columns**:
+
 - `source_id`: Unique identifier (SRC-001, SRC-002, ...)
 - `source_type`: codebase_file | agent_documentation | user_feedback | industry_reference
 - `file_path_or_url`: Absolute path or URL
@@ -160,6 +170,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 - `notes`: Additional context
 
 **Agent Guidance**:
+
 1. Add source to register when first discovered during data collection
 2. Update review_status as research progresses (pending → reviewed)
 3. Maintain relevance ratings to prioritize deep analysis
@@ -172,6 +183,7 @@ This research investigates whether Spec Kitty's agent directories (.claude/, .co
 This location is SEPARATE from `kitty-specs/` planning artifacts.
 
 This path will:
+
 - Be created in each WP worktree during implementation
 - Contain the actual research findings (4 markdown deliverables)
 - Be merged to main when WPs complete
@@ -186,6 +198,7 @@ This path will:
 ## Project Structure
 
 ### Sprint Planning Artifacts (in kitty-specs/)
+
 ```
 kitty-specs/026-agent-directory-centralization-architecture-research/
 ├── spec.md                        # Research question and scope
@@ -200,6 +213,7 @@ kitty-specs/026-agent-directory-centralization-architecture-research/
 ```
 
 ### Research Deliverables (in deliverables_path)
+
 ```
 docs/research/026-agent-directory-centralization/
 ├── decision-framework.md          # WP11 synthesis output
@@ -242,23 +256,28 @@ docs/research/026-agent-directory-centralization/
 ### Relevant Constitution Principles
 
 **Language/Framework**:
+
 - ✅ Python 3.11+ (research involves codebase analysis, not new implementation)
 - ✅ No code implementation in this research phase
 
 **Testing**:
+
 - ⚠️ N/A for pure research (no code changes)
 - ✅ Research methodology is documented and reproducible
 
 **Architecture Pattern**:
+
 - ✅ Research examines potential changes to agent directory management
 - ✅ No private dependency changes (spec-kitty-events not affected)
 - ✅ Research considers backwards compatibility (CRITICAL constraint aligns with constitution)
 
 **Branch Strategy**:
+
 - ✅ Research targets current architecture (not tied to 1.x vs 2.x split)
 - ℹ️ Findings may inform future 2.x architecture if centralization adopted
 
 **Quality Standards**:
+
 - ✅ All research findings will be evidence-based with citations
 - ✅ Confidence levels assigned to all evidence
 - ✅ Reproducible methodology documented
@@ -266,6 +285,7 @@ docs/research/026-agent-directory-centralization/
 ### Gate Validation
 
 **Before Phase 0 (Data Collection)**:
+
 - [x] Research question is clear and focused
 - [x] Methodology is documented and reproducible
 - [x] Data sources identified and accessible (codebase, agent docs, user pain points)
@@ -273,12 +293,14 @@ docs/research/026-agent-directory-centralization/
 - [x] No constitution violations (pure research, no implementation)
 
 **Re-check After Phase 1 (Workflow Analysis)**:
+
 - [ ] All 6 workflow patterns analyzed with specific findings
 - [ ] Evidence logged with proper citations and confidence levels
 - [ ] Trade-offs documented (pros/cons per pattern)
 - [ ] Findings support decision framework synthesis
 
 **Re-check After Phase 5 (Synthesis)**:
+
 - [ ] All 4 deliverables complete (decision-framework, architecture-proposal, feasibility-study, recommendation)
 - [ ] All claims cited with evidence IDs
 - [ ] Recommendation includes implementation roadmap
@@ -308,6 +330,7 @@ docs/research/026-agent-directory-centralization/
 ## Quality Gates
 
 ### Before Data Gathering (Phase 0 - WP01)
+
 - [x] Research question is clear and focused
 - [x] Methodology is documented and reproducible
 - [x] Data sources identified and accessible
@@ -315,6 +338,7 @@ docs/research/026-agent-directory-centralization/
 - [x] Evidence tracking files prepared (source-register.csv, evidence-log.csv)
 
 ### During Data Gathering (Phase 0 - WP01)
+
 - [ ] All codebase sources documented in source-register.csv (AGENT_DIRS, agent_config.py, init.py, template.py, dashboard/)
 - [ ] All 14 agent discovery mechanisms documented from cross-agent doc
 - [ ] User pain points quantified (installation time, .gitignore entries, template count, worktree sparse paths)
@@ -322,6 +346,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] Quality threshold maintained (HIGH confidence for codebase facts, MEDIUM for inferred patterns)
 
 ### During Workflow Analysis (Phase 1 - WP02-WP07)
+
 - [ ] All 6 workflow patterns analyzed with specific trade-offs (not generic)
 - [ ] Adversarial debate conducted for each pattern (pros vs cons)
 - [ ] Impact quantified on setup time, version control, collaboration, contributor experience, multi-project management
@@ -329,6 +354,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] Trade-off matrices populated per pattern
 
 ### During Agent Compatibility Audit (Phase 2 - WP08)
+
 - [ ] All 14 agents reviewed (Claude, Copilot, Gemini, Cursor, Qwen, OpenCode, Windsurf, Codex, Kilocode, Augment, Roo, Q, Kimi, Mistral)
 - [ ] Discovery mechanisms mapped (file-based, MCP, skills) to centralization scenarios
 - [ ] Compatibility matrix populated (14 agents × centralization viability)
@@ -336,6 +362,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] Findings support architecture design phase
 
 ### During Architecture Design (Phase 3 - WP09)
+
 - [ ] Centralized directory structure designed
 - [ ] Project registration protocol specified
 - [ ] Backwards compatibility mechanism defined (not just "maintain compatibility")
@@ -344,6 +371,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] All 14 agents addressed in design
 
 ### During Feasibility Assessment (Phase 4 - WP10)
+
 - [ ] Migration risks identified with severity ratings (CRITICAL/HIGH/MEDIUM/LOW)
 - [ ] Conflict scenarios documented (project-local vs user-global precedence)
 - [ ] Edge cases identified (mid-flight worktrees, legacy projects, custom commands)
@@ -352,6 +380,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] Findings support feasibility study synthesis
 
 ### Before Synthesis (Phase 5 - WP11-WP14)
+
 - [ ] All workflow analyses complete (WP02-WP07)
 - [ ] Agent compatibility audit complete (WP08)
 - [ ] Architecture design complete (WP09)
@@ -360,6 +389,7 @@ docs/research/026-agent-directory-centralization/
 - [ ] Source-register.csv contains all sources with review status
 
 ### Before Publication (Phase 5 - WP14)
+
 - [ ] Research question answered in recommendation.md
 - [ ] All claims cited with evidence IDs (e.g., [EV-042])
 - [ ] Methodology clear and reproducible
@@ -371,28 +401,33 @@ docs/research/026-agent-directory-centralization/
 ## Research Execution Principles
 
 **Deep Research per Work Package**:
+
 - Each WP must conduct thorough investigation, not surface-level analysis
 - Adversarial debate required for workflow analyses (challenge assumptions, identify trade-offs)
 - Evidence must be cited with confidence levels (no unsupported claims)
 - Limitations and alternative interpretations must be documented
 
 **Sequential Dependencies**:
+
 - Each phase builds on previous findings (no parallel execution)
 - Later WPs synthesize earlier research (integration of findings)
 - Quality gates enforce completeness before progression
 
 **Evidence-Based**:
+
 - All findings logged in evidence-log.csv with source references
 - Confidence levels assigned (HIGH/MEDIUM/LOW)
 - Claims must reference evidence IDs in deliverables
 - Trade-offs must be specific to workflow patterns (not generic pros/cons)
 
 **Backwards Compatibility**:
+
 - CRITICAL constraint in all architectural decisions
 - Migration risks must be identified with mitigation strategies
 - Existing projects must continue working (1000% requirement)
 
 **Comprehensive Agent Coverage**:
+
 - All 14 agents must be addressed in compatibility audit
 - Agent discovery mechanisms mapped to centralization scenarios
 - Compatibility blockers identified with workarounds
@@ -400,6 +435,7 @@ docs/research/026-agent-directory-centralization/
 ## Next Steps
 
 **After planning complete**:
+
 1. Run `/spec-kitty.tasks` to generate work packages (WP01-WP14)
 2. Finalize task dependencies with `spec-kitty agent feature finalize-tasks`
 3. Begin implementation with `spec-kitty implement WP01` (Data Collection)
@@ -407,6 +443,7 @@ docs/research/026-agent-directory-centralization/
 5. Synthesize findings in final phase (WP11-WP14)
 
 **Expected Timeline**:
+
 - Phase 0 (WP01): Data Collection & Baseline Analysis
 - Phase 1 (WP02-WP07): Workflow Pattern Analysis (sequential)
 - Phase 2 (WP08): Agent Compatibility Audit
@@ -415,6 +452,7 @@ docs/research/026-agent-directory-centralization/
 - Phase 5 (WP11-WP14): Synthesis & Recommendation (4 deliverables)
 
 **Deliverable Targets**:
+
 - `decision-framework.md`: Trade-off matrix for user-level vs project-level by workflow
 - `architecture-proposal.md`: Centralized design with backwards compatibility + multi-project dashboard
 - `feasibility-study.md`: Migration risks, conflict scenarios, agent compatibility (14 agents)

@@ -28,6 +28,7 @@ subtasks:
 # Work Package Prompt: WP09 – Review Feedback Warning System
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP09 --base WP05
 ```
@@ -55,6 +56,7 @@ spec-kitty implement WP09 --base WP05
 **Primary Goal**: Add warning system to implement and review workflows that alerts agents when dependent WPs need manual rebase after parent WP changes (git limitation).
 
 **Success Criteria**:
+
 - ✅ Implement command displays warning when resuming WP whose base has changed
 - ✅ Review prompts include warning when WP has dependent WPs in progress
 - ✅ Warnings include specific git rebase commands to execute
@@ -69,17 +71,20 @@ spec-kitty implement WP09 --base WP05
 **Why warnings needed**: Git cannot automatically rebase dependent workspaces when parent changes (unlike jj which will solve this in future feature). Manual rebase required. Warnings ensure agents don't work on stale code.
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - User Story 6 (Review Feedback Dependency Warning), FR-016 through FR-018
 - [plan.md](../plan.md) - Implementation Notes (review feedback handling)
 - [quickstart.md](../quickstart.md) - Review Feedback Handling section
 
 **Git Limitation**: When WP01 changes after WP02 is created from it:
+
 ```
 WP01 modified → WP02 workspace has OLD version of WP01
 Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature-WP01
 ```
 
 **Warning Scenarios**:
+
 1. **Review prompt**: WP01 enters review, WP02 (dependent) is in progress → warn reviewer
 2. **Implement resume**: Agent resumes WP02, WP01 (base) has changed → warn implementer
 3. **Review feedback**: WP01 moves back to planned (changes requested), WP02 in progress → warn both agents
@@ -93,7 +98,9 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
 **Purpose**: Query dependency graph to find WPs that depend on current WP, used for warnings.
 
 **Steps**:
+
 1. In `src/specify_cli/cli/commands/implement.py`, import dependent detection:
+
    ```python
    from specify_cli.core.dependency_graph import (
        build_dependency_graph,
@@ -102,6 +109,7 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
    ```
 
 2. After workspace creation, check for dependents:
+
    ```python
    def check_for_dependents(feature_dir: Path, wp_id: str, console: Console):
        """Check if any WPs depend on this WP and warn if in progress."""
@@ -139,7 +147,9 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
 **Purpose**: Detect if WP's base branch has changed since workspace was created, warn agent to rebase.
 
 **Steps**:
+
 1. In implement command, detect if workspace already exists (resuming work):
+
    ```python
    if workspace_path.exists():
        # Workspace exists - resuming work
@@ -156,6 +166,7 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
    ```
 
 2. Implement base change detection:
+
    ```python
    def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
        """Check if base branch has commits not in current workspace."""
@@ -192,7 +203,9 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
 **Purpose**: Provide specific git rebase command in warnings so agents know exactly what to run.
 
 **Steps**:
+
 1. Implement warning display function:
+
    ```python
    def display_rebase_warning(
        workspace_path: Path,
@@ -220,6 +233,7 @@ Manual rebase required: cd .worktrees/011-feature-WP02 && git rebase 011-feature
 **Files**: `src/specify_cli/cli/commands/implement.py`
 
 **Example Warning Output**:
+
 ```
 ⚠️  Base branch 010-workspace-per-wp-WP01 has changed
 Your WP02 workspace may have outdated code from base
@@ -244,8 +258,10 @@ Future jj integration will auto-rebase dependent workspaces.
 **Purpose**: Update review workflow to warn when reviewing a WP that has dependent WPs in progress.
 
 **Steps**:
+
 1. This is primarily a template update (done in WP07), but add runtime logic:
 2. In review command (if exists), or in review prompt template generation:
+
    ```python
    def generate_review_warnings(feature_dir: Path, wp_id: str) -> str:
        """Generate warning text for review prompts."""
@@ -267,11 +283,13 @@ Future jj integration will auto-rebase dependent workspaces.
            return ""
 
        warning = f"""
+
 ## ⚠️ Dependency Warning
 
 {', '.join(in_progress)} depend on this WP ({wp_id}).
 
 **If you request changes:**
+
 - Dependent WPs will have outdated code
 - Implementer must notify dependent WP agents to rebase
 - Manual rebase command: cd .worktrees/###-feature-WPXX && git rebase ###-feature-{wp_id}
@@ -279,6 +297,7 @@ Future jj integration will auto-rebase dependent workspaces.
 This is a git limitation. Future jj integration will auto-rebase.
 """
        return warning
+
    ```
 
 3. Include warning in review prompt display or template
@@ -329,8 +348,10 @@ This is a git limitation. Future jj integration will auto-rebase.
 **Purpose**: Include dependency rebase guidance in WP prompt template so agents see it in their prompts.
 
 **Steps**:
+
 1. Open `.kittify/templates/task-prompt-template.md`
 2. Add section after "Review Feedback" section:
+
    ```markdown
    ## ⚠️ Dependency Rebase Guidance
 
@@ -354,6 +375,7 @@ This is a git limitation. Future jj integration will auto-rebase.
    1. Notify agents working on dependent WPs
    2. They'll need to rebase their workspaces to get your changes
    3. This is a git limitation - future jj integration will auto-rebase
+
    ```
 
 3. Template should include conditional text based on whether WP has dependencies or dependents
@@ -371,6 +393,7 @@ This is a git limitation. Future jj integration will auto-rebase.
 **Purpose**: Write unit tests to validate warnings are displayed in correct scenarios.
 
 **Steps**:
+
 1. Create test file: `tests/specify_cli/test_review_warnings.py`
 2. Test scenarios:
    - WP has dependents in progress → warning displayed
@@ -380,6 +403,7 @@ This is a git limitation. Future jj integration will auto-rebase.
    - Resuming WP whose base unchanged → no warning
 
 **Example Test**:
+
 ```python
 def test_warning_when_dependents_in_progress(tmp_path):
     """Test warning displays when WP has dependents in doing lane."""
@@ -417,6 +441,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
 **Warning display points:**
 
 1. **During implement (resuming work)**:
+
    ```
    spec-kitty implement WP02
    → Workspace exists (resuming)
@@ -425,6 +450,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
    ```
 
 2. **During review (WP entering review)**:
+
    ```
    spec-kitty agent workflow review WP01
    → Query dependents of WP01
@@ -433,6 +459,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
    ```
 
 3. **In WP prompts (static guidance)**:
+
    ```
    WP prompt includes section explaining:
    - When rebase is needed
@@ -447,6 +474,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
 **Unit Tests**: `tests/specify_cli/test_review_warnings.py`
 
 **Test Coverage**:
+
 - Dependent detection logic (various lane states)
 - Base change detection (git log comparison)
 - Warning display formatting
@@ -454,6 +482,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
 - Integration with workflow commands (implement/review)
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_review_warnings.py -v
 ```
@@ -463,18 +492,22 @@ pytest tests/specify_cli/test_review_warnings.py -v
 ## Risks & Mitigations
 
 **Risk 1: Warning not displayed**
+
 - Impact: Agents work on stale code, miss parent WP changes
 - Mitigation: Multiple warning points (implement, review, workflow commands), prominent display with Rich formatting
 
 **Risk 2: False positive warnings**
+
 - Impact: Warns about rebase when not needed, causes confusion
 - Mitigation: Accurate base change detection (git merge-base comparison), only warn if base actually changed
 
 **Risk 3: Rebase command incorrect**
+
 - Impact: Agent runs wrong rebase command, breaks workspace
 - Mitigation: Test rebase commands manually, include conflict resolution guidance
 
 **Risk 4: Warning fatigue**
+
 - Impact: Too many warnings, agents ignore them
 - Mitigation: Only warn when actually needed (in-progress dependents, changed base), make warnings actionable
 
@@ -497,17 +530,20 @@ pytest tests/specify_cli/test_review_warnings.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. **Warnings are prominent**: Use Rich formatting (yellow, bold) to catch attention
 2. **Warnings are actionable**: Include specific commands to run
 3. **Warnings are accurate**: Only display when condition actually met
 4. **Git limitation acknowledged**: Warnings explain this will be solved by future jj integration
 
 **Key Acceptance Checkpoints**:
+
 - Create WP01, create WP02 --base WP01, modify WP01, resume WP02 → warning displayed
 - Review WP01 with WP02 in progress → warning displayed
 - Review WP01 with WP02 in done lane → no warning (not in progress)
 
 **Manual Testing Commands**:
+
 ```bash
 # Setup
 /spec-kitty.specify "Test Feature"
@@ -538,11 +574,13 @@ spec-kitty implement WP02
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP09
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T10:56:39Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T11:01:02Z – unknown – lane=for_review – Implementation complete: warning system for dependent WPs and rebase guidance
 - 2026-01-08T11:03:33Z – agent – lane=doing – Started review via workflow command

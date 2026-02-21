@@ -112,6 +112,7 @@ Planning requirements (scale to complexity):
    - For each integration → patterns task
 
 2. **Generate and dispatch research agents**:
+
    ```
    For each unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"
@@ -161,6 +162,7 @@ Planning requirements (scale to complexity):
 **This command is COMPLETE after generating planning artifacts.**
 
 After reporting:
+
 - `plan.md` path
 - `research.md` path (if generated)
 - `data-model.md` path (if generated)
@@ -170,6 +172,7 @@ After reporting:
 **YOU MUST STOP HERE.**
 
 Do NOT:
+
 - ❌ Generate `tasks.md`
 - ❌ Create work package (WP) files
 - ❌ Create `tasks/` subdirectories

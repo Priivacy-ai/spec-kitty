@@ -1,4 +1,5 @@
 # Feature Specification: Unified Python CLI for Agents
+
 *Path: [kitty-specs/008-unified-python-cli/spec.md](kitty-specs/008-unified-python-cli/spec.md)*
 
 **Feature Branch**: `008-unified-python-cli`
@@ -90,12 +91,14 @@ Before implementation begins, a research phase validates that the proposed migra
 ### Functional Requirements
 
 **Research & Validation**:
+
 - **FR-001**: System MUST conduct research phase to validate proposed migration approach before implementation
 - **FR-002**: Research MUST validate that all bash script functionality can be migrated to Python or identify exceptions
 - **FR-003**: Research MUST validate proposed path resolution strategy handles all edge cases (worktrees, symlinks, Windows) or suggest alternatives
 - **FR-004**: Research MUST validate upgrade migration approach can safely update existing projects
 
 **Unified CLI Implementation**:
+
 - **FR-005**: System MUST provide a `spec-kitty agent` command namespace for all agent-facing operations
 - **FR-006**: All agent commands MUST support `--json` output mode for agent parsing
 - **FR-007**: System MUST automatically detect whether execution is in main repository or worktree
@@ -104,12 +107,14 @@ Before implementation begins, a research phase validates that the proposed migra
 - **FR-010**: System MUST eliminate all bash scripts in `scripts/bash/` that are part of the spec-kitty package (approximately 2,600+ lines)
 
 **Path Resolution**:
+
 - **FR-012**: System MUST walk up directory tree to find repository root (via `.kittify/` marker or git)
 - **FR-013**: System MUST detect worktree locations and resolve paths accordingly
 - **FR-014**: System MUST handle symlinks correctly (including broken symlinks)
 - **FR-015**: System MUST fall back to file copying on Windows when symlinks are not supported
 
 **Upgrade Migration**:
+
 - **FR-016**: System MUST provide `spec-kitty upgrade` migration that updates existing projects to new CLI
 - **FR-017**: Upgrade MUST remove all bash scripts from `.kittify/scripts/bash/` in existing projects
 - **FR-018**: Upgrade MUST update slash command templates (`.claude/commands/*.md`) to use `spec-kitty agent` commands
@@ -118,11 +123,13 @@ Before implementation begins, a research phase validates that the proposed migra
 - **FR-021**: Upgrade MUST be idempotent (safe to run multiple times)
 
 **Agent Command Coverage**:
+
 - **FR-022**: System MUST provide agent commands for feature management (`create-feature`, `check-prerequisites`, `setup-plan`, `accept`, `merge`)
 - **FR-023**: System MUST provide agent commands for task workflow (`workflow implement/review`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`)
 - **FR-024**: System MUST provide agent commands for context management (`update-context`)
 
 **Testing & Quality**:
+
 - **FR-026**: All agent commands MUST have unit test coverage
 - **FR-027**: All agent commands MUST have integration tests verifying they work from various locations
 - **FR-028**: System MUST validate all slash commands work with new CLI before release

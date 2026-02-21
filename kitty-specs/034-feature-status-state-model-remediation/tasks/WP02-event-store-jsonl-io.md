@@ -78,6 +78,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 - **Contracts**: `kitty-specs/034-feature-status-state-model-remediation/contracts/event-schema.json` -- full field definitions
 
 **Key constraints**:
+
 - File path: `kitty-specs/<feature>/status.events.jsonl` (relative to repo root)
 - One JSON object per line -- no pretty-printing within lines
 - `json.dumps(event.to_dict(), sort_keys=True)` for deterministic key ordering per line
@@ -95,7 +96,9 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Purpose**: Core I/O module for the event store. Three public functions: append, read typed, read raw.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/store.py` with imports:
+
    ```python
    from __future__ import annotations
 
@@ -106,11 +109,13 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
    ```
 
 2. Define the store file name constant:
+
    ```python
    EVENTS_FILENAME = "status.events.jsonl"
    ```
 
 3. Define custom exception:
+
    ```python
    class StoreError(Exception):
        """Raised when event store operations fail (corruption, I/O errors)."""
@@ -118,6 +123,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
    ```
 
 4. Implement `_events_path()` helper:
+
    ```python
    def _events_path(feature_dir: Path) -> Path:
        """Return the path to the events JSONL file for a feature directory."""
@@ -125,6 +131,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
    ```
 
 5. Implement `append_event()`:
+
    ```python
    def append_event(feature_dir: Path, event: StatusEvent) -> None:
        """Append a single StatusEvent as a JSON line to the event store.
@@ -140,6 +147,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
    ```
 
 6. Implement `read_events()`:
+
    ```python
    def read_events(feature_dir: Path) -> list[StatusEvent]:
        """Read and deserialize all events from the event store.
@@ -163,6 +171,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
    ```
 
 7. Implement `read_events_raw()`:
+
    ```python
    def read_events_raw(feature_dir: Path) -> list[dict]:
        """Read all events as raw dicts without deserializing into StatusEvent.
@@ -192,11 +201,13 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Files**: `src/specify_cli/status/store.py` (new file)
 
 **Validation**:
+
 - `append_event(dir, event)` creates the file if it does not exist
 - `read_events(dir)` returns the same event back
 - `read_events_raw(dir)` returns the raw dict representation
 
 **Edge Cases**:
+
 - Blank lines between events (e.g., from manual editing) should be skipped
 - Trailing newline at end of file is normal (each append adds `\n`)
 - File with only whitespace returns empty list
@@ -209,6 +220,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Purpose**: Ensure every JSON line in the event store has deterministic key ordering for git-friendly diffs.
 
 **Steps**:
+
 1. In `append_event()`, use `json.dumps(event.to_dict(), sort_keys=True)` -- this is already specified in T006
 2. Verify that `StatusEvent.to_dict()` produces a flat dict (no nested objects that might serialize non-deterministically)
 3. For nested objects (evidence, repos, verification), `to_dict()` must recursively produce dicts with string keys
@@ -219,6 +231,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Validation**: Write two events with different field insertion orders in their source dicts. After serialization, the JSON lines should have identical key ordering.
 
 **Edge Cases**:
+
 - Unicode in actor names or reasons: `ensure_ascii=False` is NOT used in per-line serialization (only in snapshot materialization). Per-line uses default `ensure_ascii=True` for maximum compatibility
 - Empty string values should serialize as `""`, not be omitted
 - `None` values should serialize as `null`
@@ -230,6 +243,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Purpose**: When the event store contains invalid JSON, report the exact line number and fail immediately.
 
 **Steps**:
+
 1. The corruption detection is already implemented in `read_events_raw()` (T006) -- this subtask ensures comprehensive error reporting
 2. Error message format: `"Line {N}: invalid JSON: {first_80_chars_of_line}"`
 3. For invalid event structure (valid JSON but wrong fields): `"Line {N}: invalid event structure: {exception_message}"`
@@ -238,11 +252,13 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Files**: `src/specify_cli/status/store.py` (same file)
 
 **Validation**:
+
 - Insert `{"this is not a valid event"}` as a line -- should raise StoreError with "invalid JSON"
 - Insert `not json at all` as a line -- should raise StoreError with "invalid JSON"
 - Insert `{"event_id": "bad"}` (valid JSON, missing fields) -- should raise StoreError with "invalid event structure"
 
 **Edge Cases**:
+
 - Very long corrupted lines: preview truncated to 80 chars
 - Binary data in file: json.loads will raise JSONDecodeError, caught and re-raised as StoreError
 - Empty JSON object `{}` is valid JSON but invalid event -- caught in `read_events()` at the StatusEvent.from_dict level
@@ -254,6 +270,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Purpose**: Idempotent creation of the events file and its parent directory tree.
 
 **Steps**:
+
 1. In `append_event()`, call `path.parent.mkdir(parents=True, exist_ok=True)` before opening
 2. The `open(path, "a")` call will create the file if it does not exist
 3. On subsequent appends, `mkdir` is a no-op (`exist_ok=True`) and `open("a")` appends
@@ -261,11 +278,13 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Files**: `src/specify_cli/status/store.py` (same file)
 
 **Validation**:
+
 - Given a completely non-existent directory tree, `append_event()` creates all needed directories and the file
 - Given an existing directory but no file, `append_event()` creates just the file
 - Given an existing file, `append_event()` appends to it
 
 **Edge Cases**:
+
 - Permission errors (read-only filesystem) should propagate as OSError, not caught
 - Race condition: two processes creating the same directory simultaneously -- `exist_ok=True` handles this
 
@@ -276,6 +295,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Purpose**: Comprehensive testing of all store operations.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_store.py`
 2. Use `tmp_path` fixture for isolated test environments
 3. Create a helper function or fixture to build valid `StatusEvent` instances for testing
@@ -299,6 +319,7 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 **Validation**: `python -m pytest tests/specify_cli/status/test_store.py -v` -- all pass
 
 **Edge Cases**:
+
 - Test with unicode characters in event fields (actor name with non-ASCII)
 - Test with very long reason strings
 - Test that appending to an existing file with prior content does not corrupt it

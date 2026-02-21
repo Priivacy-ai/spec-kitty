@@ -30,6 +30,7 @@ subtasks:
 # Work Package Prompt: WP08 – Integration Tests (Full Workflow Validation)
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP08 --base WP07
 ```
@@ -77,6 +78,7 @@ spec-kitty implement WP08 --base WP07
 **Primary Goal**: Write and validate comprehensive integration tests for the complete workspace-per-WP workflow, covering planning in main, workspace creation, dependencies, parallel development, and merging.
 
 **Success Criteria**:
+
 - ✅ Integration test file created with 8+ test scenarios
 - ✅ Tests cover happy paths (specify → plan → tasks → implement → merge)
 - ✅ Tests cover error cases (missing dependencies, validation failures)
@@ -92,17 +94,20 @@ spec-kitty implement WP08 --base WP07
 **Why comprehensive integration tests**: Unit tests validate individual functions, but integration tests validate the entire workflow works end-to-end. Critical for catching issues where components work individually but fail when combined.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.6: Workflow Changes, Implementation Notes (TDD Approach)
 - [spec.md](../spec.md) - User Stories 1-6 (acceptance scenarios to validate)
 - [quickstart.md](../quickstart.md) - Workflow examples to test
 
 **Test Environment**:
+
 - Use pytest `tmp_path` fixture for isolated test repos
 - Create real git repositories (not mocked)
 - Run actual spec-kitty commands (or call functions directly)
 - Validate filesystem state and git history
 
 **Coverage Goals**:
+
 - Specify → plan → tasks in main (no worktrees)
 - Implement creates workspace correctly
 - Implement with --base branches from correct base
@@ -119,8 +124,10 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Set up integration test file structure and helper functions.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py`
 2. Add imports:
+
    ```python
    import subprocess
    from pathlib import Path
@@ -129,6 +136,7 @@ spec-kitty implement WP08 --base WP07
    ```
 
 3. Create helper functions:
+
    ```python
    def init_test_repo(tmp_path: Path) -> Path:
        """Initialize test git repository."""
@@ -156,14 +164,18 @@ spec-kitty implement WP08 --base WP07
        """Create WP prompt file with frontmatter."""
        wp_file = feature_dir / "tasks" / f"{wp_id}-test.md"
        frontmatter = f"""---
+
 work_package_id: {wp_id}
 dependencies: {dependencies}
 lane: planned
 ---
+
 # {wp_id} Content
+
 """
        wp_file.write_text(frontmatter)
        return wp_file
+
    ```
 
 **Files**: `tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py`
@@ -242,7 +254,9 @@ lane: planned
 **Purpose**: Validate `spec-kitty implement WP01` creates workspace correctly, branches from main.
 
 **Steps**:
+
 1. Write test function:
+
    ```python
    def test_implement_wp_no_dependencies(tmp_path):
        """Test implementing WP01 (no dependencies) creates workspace from main."""
@@ -294,7 +308,9 @@ lane: planned
 **Purpose**: Validate workspace creation with dependencies branches from correct base.
 
 **Steps**:
+
 1. Write test function:
+
    ```python
    def test_implement_wp_with_dependencies(tmp_path):
        """Test implementing WP02 with --base WP01 branches from WP01."""
@@ -347,7 +363,9 @@ lane: planned
 **Purpose**: Validate multiple agents can implement different WPs simultaneously without conflicts.
 
 **Steps**:
+
 1. Write test simulating parallel implementation:
+
    ```python
    def test_parallel_wp_implementation(tmp_path):
        """Test multiple WPs implemented in parallel (Agent A on WP01, Agent B on WP03)."""
@@ -398,7 +416,9 @@ lane: planned
 **Purpose**: Validate error handling for invalid dependency scenarios (missing base, circular deps, etc.).
 
 **Steps**:
+
 1. Write test for missing base workspace:
+
    ```python
    def test_implement_missing_base_error(tmp_path):
        """Test error when implementing WP with --base that doesn't exist."""
@@ -415,6 +435,7 @@ lane: planned
    ```
 
 2. Write test for circular dependencies:
+
    ```python
    def test_circular_dependency_detection(tmp_path):
        """Test /spec-kitty.tasks fails with circular dependencies."""
@@ -435,6 +456,7 @@ lane: planned
    ```
 
 3. Write test for missing --base flag:
+
    ```python
    def test_implement_missing_base_flag_error(tmp_path):
        """Test error when WP has dependencies but --base not provided."""
@@ -461,7 +483,9 @@ lane: planned
 **Purpose**: Validate merge command handles multiple WP branches correctly.
 
 **Steps**:
+
 1. Write comprehensive merge test:
+
    ```python
    def test_merge_workspace_per_wp(tmp_path):
        """Test merging feature with multiple WP worktrees."""
@@ -523,7 +547,9 @@ lane: planned
 **Purpose**: Validate migration blocks upgrade when legacy worktrees exist.
 
 **Steps**:
+
 1. Write test:
+
    ```python
    def test_pre_upgrade_validation_blocks_legacy(tmp_path):
        """Test migration blocks when legacy worktrees exist."""
@@ -573,7 +599,9 @@ lane: planned
 **Purpose**: Execute all integration tests and verify they pass.
 
 **Steps**:
+
 1. Run integration tests:
+
    ```bash
    pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
    ```
@@ -598,6 +626,7 @@ lane: planned
 **Expected**: 10+ integration tests, all PASS
 
 **Execution**:
+
 ```bash
 # Run from current worktree (where new code lives)
 pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v --tb=short
@@ -618,6 +647,7 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v -
 **Integration Test File**: `tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py`
 
 **Test Categories**:
+
 1. Planning workflow (T071) - 1 test
 2. Workspace creation (T072-T073) - 2 tests
 3. Parallel development (T074) - 1 test
@@ -628,6 +658,7 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v -
 **Total**: ~10 integration tests
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
 ```
@@ -639,14 +670,17 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
 ## Risks & Mitigations
 
 **Risk 1: Integration tests don't catch real workflow issues**
+
 - Impact: Tests pass but actual usage fails
 - Mitigation: Use real git operations (not mocked), test in isolated repos, dogfood on Spec Kitty itself
 
 **Risk 2: Test environment differs from production**
+
 - Impact: Tests pass in tmp_path but fail in real projects
 - Mitigation: Test on actual Spec Kitty codebase after test suite passes
 
 **Risk 3: Flaky tests (timing, filesystem issues)**
+
 - Impact: Tests fail intermittently
 - Mitigation: Proper cleanup (tmp_path fixture), no hardcoded paths, wait for git operations to complete
 
@@ -670,6 +704,7 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. **Real git operations**: Tests use actual git commands, not mocks (validates real behavior)
 2. **Comprehensive coverage**: All user stories from spec.md have corresponding tests
 3. **Error paths tested**: Not just happy paths - tests validate error messages and exit codes
@@ -677,6 +712,7 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
 5. **All tests pass**: Run test suite, verify 100% pass
 
 **Key Acceptance Checkpoints**:
+
 - Run integration tests: `pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v` → ALL PASS
 - Run end-to-end manually: Create feature, implement WPs, merge → works correctly
 - Validate test coverage: `pytest --cov=src/specify_cli/cli/commands/ --cov-report=term-missing`
@@ -692,11 +728,13 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP08
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T10:54:31Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T10:58:30Z – unknown – lane=for_review – All 11 integration tests passing - comprehensive workflow validation complete
 - 2026-01-08T11:03:15Z – agent – lane=doing – Started review via workflow command

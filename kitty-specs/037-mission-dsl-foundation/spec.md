@@ -61,6 +61,7 @@ A mission author defines guard conditions on transitions using declarative expre
 ### User Story 4 - Mission-Specific Workflows (Priority: P2)
 
 Three distinct mission types are defined with genuinely different state machines:
+
 - **software-dev**: Linear with rollback transitions (e.g., review -> implement for rework)
 - **research**: Evidence-gated transitions requiring source documentation
 - **plan**: Goal-oriented with rollback for iteration

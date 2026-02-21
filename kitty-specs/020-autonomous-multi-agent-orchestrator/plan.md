@@ -6,6 +6,7 @@
 ## Summary
 
 Build a Python-based orchestrator that executes spec-kitty features autonomously by:
+
 1. Reading WP dependency graphs from task frontmatter
 2. Spawning AI agents in parallel for independent WPs
 3. Assigning different agents for implementation vs. review
@@ -186,6 +187,7 @@ Based on feature 019 research:
 **Decision**: Use `asyncio` with `subprocess` for parallel execution.
 
 **Rationale**:
+
 - Native Python async is simpler than threading
 - `asyncio.create_subprocess_exec` handles process spawning cleanly
 - Easier to implement concurrency limits with semaphores
@@ -196,6 +198,7 @@ Based on feature 019 research:
 **Decision**: Single JSON file (`.kittify/orchestration-state.json`)
 
 **Rationale**:
+
 - Human-readable for debugging
 - Git-friendly (can be committed for visibility)
 - Atomic writes prevent corruption
@@ -206,6 +209,7 @@ Based on feature 019 research:
 **Decision**: Priority-based with role filtering
 
 **Rationale**:
+
 - User assigns priorities per agent in config
 - Implementation role: use highest-priority implementation-capable agent
 - Review role: use highest-priority review-capable agent that is different from implementation agent
@@ -216,6 +220,7 @@ Based on feature 019 research:
 **Decision**: Semaphore-based with per-agent limits
 
 **Rationale**:
+
 - Global semaphore limits total concurrent processes
 - Per-agent semaphores respect individual agent limits
 - Prevents overloading any single agent's rate limits
@@ -250,17 +255,20 @@ spec-kitty orchestrate --abort
 ## Testing Strategy
 
 ### Unit Tests
+
 - Scheduler: dependency resolution, agent assignment
 - State: persistence, resume, concurrent writes
 - Config: parsing, validation, defaults
 
 ### Integration Tests
+
 - Mock agent processes (fast exit, specific codes)
 - Full orchestration of 3-WP feature
 - Resume after simulated interruption
 - Fallback strategy execution
 
 ### Manual Testing
+
 - Real agent execution with test feature
 - Cross-agent review verification
 - Parallel execution timing validation
@@ -279,6 +287,7 @@ spec-kitty orchestrate --abort
 **Status**: Complete (leverages feature 019 research)
 
 All technical decisions are informed by the comprehensive research from feature 019:
+
 - Agent CLI capabilities fully documented
 - Invocation patterns validated
 - Architecture recommendation provided

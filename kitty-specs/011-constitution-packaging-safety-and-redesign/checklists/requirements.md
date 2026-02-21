@@ -32,12 +32,14 @@
 ## Validation Results
 
 ### Content Quality - PASS ✅
+
 - Specification focuses on WHAT and WHY, not HOW
 - No mention of specific programming languages or frameworks in requirements
 - User scenarios written from user/business perspective
 - All mandatory sections (User Scenarios, Requirements, Success Criteria) completed
 
 ### Requirement Completeness - PASS ✅
+
 - No [NEEDS CLARIFICATION] markers present
 - All 27 functional requirements are testable (FR-001 through FR-027)
 - Success criteria use measurable metrics (verify with commands, Content-Length > 0, completes without errors)
@@ -48,6 +50,7 @@
 - Dependencies identified (pyproject.toml changes, template manager updates, migration system)
 
 ### Feature Readiness - PASS ✅
+
 - Each functional requirement maps to acceptance scenario in user stories
 - User scenarios prioritized (P1: Safe dogfooding & Optional constitution, P2: Windows dashboard & Smooth upgrades)
 - Each story independently testable with specific verification steps
@@ -59,6 +62,7 @@
 All checklist items pass. Specification is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
 
 The specification successfully captures all four goals:
+
 1. **Packaging safety** (FR-001 through FR-006) - Clear separation of templates vs runtime artifacts
 2. **Optional constitution** (FR-007 through FR-016) - Interactive discovery with minimal/comprehensive modes
 3. **Windows dashboard fix** (FR-017 through FR-020) - Platform-appropriate signal handling

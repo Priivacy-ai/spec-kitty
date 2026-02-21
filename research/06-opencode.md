@@ -1,14 +1,16 @@
 # Agent: OpenCode
 
 ## Basic Info
+
 - **Directory**: `.opencode/`
 - **Primary Interface**: CLI (TUI default, headless available)
 - **Vendor**: OpenCode AI (anomalyco)
-- **Documentation**: https://opencode.ai/docs/cli/
+- **Documentation**: <https://opencode.ai/docs/cli/>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # Via official installer
 curl -fsSL https://opencode.ai/install | sh
@@ -18,11 +20,13 @@ npm install -g opencode
 ```
 
 ### Verification
+
 ```bash
 which opencode && opencode --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ opencode --version
 1.1.14
@@ -36,6 +40,7 @@ $ which opencode
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument - `opencode run "Your prompt here"`
 - [x] Stdin - Can pipe prompts via stdin
 - [x] File path (--file, -f) - `-f, --file` to attach files to message
@@ -43,6 +48,7 @@ $ which opencode
 - [ ] Environment variable - Not supported
 
 ### Example Invocation
+
 ```bash
 # Basic non-interactive prompt
 opencode run "What is 2+2?"
@@ -73,6 +79,7 @@ opencode run --variant high "Complex analysis"
 ```
 
 ### Context Handling
+
 - Automatically operates in current directory
 - Can specify project path: `opencode [project]`
 - Multi-provider support: 75+ LLM providers
@@ -81,6 +88,7 @@ opencode run --variant high "Complex analysis"
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
@@ -89,12 +97,14 @@ opencode run --variant high "Complex analysis"
 Note: Specific exit codes not documented. Use `--format json` for structured output.
 
 ### Output Format
+
 - [x] Stdout (plain text) - Default formatted output
 - [x] Stdout (JSON) - `--format json` for raw JSON events
 - [ ] File output - Results go to stdout
 - [ ] Structured logs - JSON events provide structure
 
 ### Parsing Output
+
 ```bash
 # JSON output
 opencode run --format json "prompt"
@@ -109,16 +119,19 @@ opencode import session.json
 ## Parallel Execution
 
 ### Rate Limits
+
 - Depends on underlying provider (Anthropic, OpenAI, Google, etc.)
 - Multi-provider means flexible rate limit management
 - Can switch providers if one is rate-limited
 
 ### Concurrent Sessions
+
 - Yes, multiple instances can run
 - Each session has unique ID
 - Sessions can be exported/imported
 
 ### Resource Requirements
+
 - Memory: Moderate (Node.js runtime)
 - CPU: Light (API calls are remote)
 - Network: Required for cloud providers
@@ -127,9 +140,11 @@ opencode import session.json
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Capabilities for Orchestration
+
 - **Non-interactive mode**: `run` subcommand
 - **Task input**: Accepts prompts via argument, stdin, or with `-f` files
 - **Completion detection**: JSON format output
@@ -138,6 +153,7 @@ opencode import session.json
 - **Server mode**: `opencode serve` for headless HTTP server
 
 ### Unique Features
+
 - **Multi-provider**: 75+ LLM providers supported
 - **Server mode**: `opencode serve` exposes HTTP API
 - **Web UI**: `opencode web` for browser interface
@@ -145,11 +161,13 @@ opencode import session.json
 - **GitHub integration**: `opencode github` and `opencode pr <number>`
 
 ### Limitations
+
 - No explicit dangerous/bypass mode documented
 - Exit codes not well documented
 - Newer project, documentation still evolving
 
 ### Integration Complexity
+
 **Low** - Clean `run` subcommand with JSON output and multi-provider flexibility.
 
 ## Recommended Orchestration Pattern
@@ -173,6 +191,7 @@ opencode run --attach http://localhost:4096 "Task 1"
 ```
 
 ## Sources
+
 - [OpenCode CLI Documentation](https://opencode.ai/docs/cli/)
 - [OpenCode Commands](https://opencode.ai/docs/commands/)
 - [GitHub Repository](https://github.com/opencode-ai/opencode)

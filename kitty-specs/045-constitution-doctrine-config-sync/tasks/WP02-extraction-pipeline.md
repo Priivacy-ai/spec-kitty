@@ -57,6 +57,7 @@ history:
 - **All tests pass**, **mypy --strict clean**, **ruff clean**
 
 **Success metrics**:
+
 - Feed the real constitution through the extractor → verify governance.yaml has correct testing/quality values
 - AI fallback prompt is well-structured and parseable
 - Extraction is idempotent (FR-1.6)
@@ -78,7 +79,9 @@ history:
 **Purpose**: Orchestrate the extraction from parsed sections to validated Pydantic models.
 
 **Steps**:
+
 1. Create `src/specify_cli/constitution/extractor.py`:
+
    ```python
    class Extractor:
        def __init__(self, parser: ConstitutionParser | None = None):
@@ -100,6 +103,7 @@ history:
    ```
 
 2. Define `ExtractionResult` dataclass:
+
    ```python
    @dataclass
    class ExtractionResult:
@@ -115,6 +119,7 @@ history:
    - Use keyword extraction results to populate specific fields
 
 **Files**:
+
 - `src/specify_cli/constitution/extractor.py` (new)
 
 ### Subtask T014 – Implement Section-to-Schema Mapping
@@ -122,7 +127,9 @@ history:
 **Purpose**: Map constitution section headings to target schema fields using keyword matching.
 
 **Steps**:
+
 1. Define mapping dictionary:
+
    ```python
    SECTION_MAPPING: dict[str, tuple[str, str]] = {
        # keyword → (target_schema, target_field)
@@ -147,9 +154,11 @@ history:
    - Return None for unclassifiable sections (→ AI fallback candidates)
 
 **Files**:
+
 - `src/specify_cli/constitution/extractor.py`
 
 **Notes**:
+
 - Case-insensitive matching
 - A section can match multiple keywords — use first match or highest-ranked
 - Unmapped sections become AI fallback candidates
@@ -159,6 +168,7 @@ history:
 **Purpose**: Handle cases where governance data is scattered across multiple constitution sections.
 
 **Steps**:
+
 1. Implement `_merge_governance_data(sections: list[ConstitutionSection]) -> GovernanceConfig`:
    - Collect all governance-classified sections
    - For each section, extract keyword data and table data
@@ -174,9 +184,11 @@ history:
    - Assign auto-generated IDs: `DIR-001`, `DIR-002`, etc.
 
 **Files**:
+
 - `src/specify_cli/constitution/extractor.py`
 
 **Notes**:
+
 - Merging must be deterministic — same input → same output (idempotency requirement FR-1.6)
 - Sort sections by document order to ensure consistent override behavior
 
@@ -185,7 +197,9 @@ history:
 **Purpose**: Define the interface for AI-assisted extraction of prose sections that can't be parsed deterministically.
 
 **Steps**:
+
 1. Create AI fallback function:
+
    ```python
    def extract_with_ai(
        prose_sections: list[ConstitutionSection],
@@ -199,6 +213,7 @@ history:
    ```
 
 2. Build structured prompt template:
+
    ```
    Extract structured configuration from the following constitution text.
 
@@ -225,11 +240,13 @@ history:
    - Update metadata: `extraction_mode = "hybrid"` if AI was used, `"deterministic"` if not
 
 **Files**:
+
 - `src/specify_cli/constitution/extractor.py`
 
 **Parallel?**: Yes — independent of T013-T015 (deterministic pipeline).
 
 **Notes**:
+
 - The AI fallback is optional and graceful — extraction works without it
 - For this WP, the subprocess invocation can be a stub that returns empty dict
 - The actual agent integration will be refined in WP05
@@ -239,7 +256,9 @@ history:
 **Purpose**: Write validated Pydantic models to `.kittify/constitution/*.yaml` files.
 
 **Steps**:
+
 1. Implement `write_extraction_result(result: ExtractionResult, constitution_dir: Path) -> None`:
+
    ```python
    def write_extraction_result(result: ExtractionResult, constitution_dir: Path) -> None:
        """Write all YAML files from an extraction result."""
@@ -253,9 +272,11 @@ history:
 2. Use `emit_yaml()` from WP01 (T011)
 
 **Files**:
+
 - `src/specify_cli/constitution/extractor.py`
 
 **Notes**:
+
 - Create directory if it doesn't exist
 - Overwrite existing YAML files (one-way flow, no merge)
 
@@ -264,6 +285,7 @@ history:
 **Purpose**: Comprehensive test coverage for the extraction pipeline.
 
 **Steps**:
+
 1. Create `tests/specify_cli/constitution/test_extractor.py`:
 
 2. **Unit tests**:
@@ -286,6 +308,7 @@ history:
    - Conflicting data across sections → last wins
 
 **Files**:
+
 - `tests/specify_cli/constitution/test_extractor.py`
 
 **Target**: 12-15 tests covering all extractor methods and edge cases.

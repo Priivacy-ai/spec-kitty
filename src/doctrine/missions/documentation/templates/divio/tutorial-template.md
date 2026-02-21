@@ -16,6 +16,7 @@ outcome: learner-can-do-something
 ## What You'll Learn
 
 In this tutorial, you will:
+
 - {Bullet point: First thing they'll accomplish}
 - {Bullet point: Second thing they'll accomplish}
 - {Bullet point: Third thing they'll accomplish}
@@ -25,11 +26,13 @@ In this tutorial, you will:
 ## Before You Begin
 
 **Prerequisites**:
+
 - {Required knowledge or skill - keep minimal for beginners}
 - {Required tool or software with installation link}
 - {Required account or access}
 
 **What You'll Need**:
+
 - {Physical or digital resources needed}
 - {Optional: Link to starter code or files}
 
@@ -88,6 +91,7 @@ In this tutorial, you will:
 ## What You've Accomplished
 
 Congratulations! You've completed {the task}. You now have:
+
 - ✅ {Concrete accomplishment #1}
 - ✅ {Concrete accomplishment #2}
 - ✅ {Concrete accomplishment #3}
@@ -95,6 +99,7 @@ Congratulations! You've completed {the task}. You now have:
 ## Next Steps
 
 Now that you've learned {the basics}, you can:
+
 - **Learn More**: See [Explanation: {Topic}](../explanation/{link}) to understand why this works
 - **Solve Problems**: Check [How-To: {Task}](../how-to/{link}) for specific scenarios
 - **Reference**: Refer to [{API/CLI}](../reference/{link}) for all options
@@ -112,6 +117,7 @@ Now that you've learned {the basics}, you can:
 ## Write the Docs Best Practices (Remove this section before publishing)
 
 **Tutorial Principles**:
+
 - ✅ Learning-oriented: Help learners gain competence
 - ✅ Allow learner to learn by doing
 - ✅ Get learners started quickly with early success
@@ -124,6 +130,7 @@ Now that you've learned {the basics}, you can:
 - ✅ Ignore options and alternatives (focus on the happy path)
 
 **Accessibility**:
+
 - ✅ Use proper heading hierarchy (H1 → H2 → H3, no skipping)
 - ✅ Provide alt text for all images and screenshots
 - ✅ Use clear, plain language (avoid jargon, or define it immediately)
@@ -131,12 +138,14 @@ Now that you've learned {the basics}, you can:
 - ✅ Use descriptive link text (not "click here")
 
 **Inclusivity**:
+
 - ✅ Use diverse names in examples (not just "John", "Alice")
 - ✅ Gender-neutral language where possible
 - ✅ Avoid cultural assumptions (not everyone celebrates the same holidays)
 - ✅ Consider accessibility needs (keyboard navigation, screen readers)
 
 **Tutorial-Specific Guidelines**:
+
 - Start with a working example, not theory
 - Each step should produce a visible result
 - Don't explain everything - just enough to complete the task

@@ -79,9 +79,11 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Understand what already exists before making changes. 2.x has partial global runtime — don't duplicate or break existing work.
 - **Steps**:
   1. Read `src/specify_cli/core/project_resolver.py` on 2.x:
+
      ```bash
      git show 2.x:src/specify_cli/core/project_resolver.py
      ```
+
   2. Identify the `resolve_template_path()` function and trace its resolution chain
   3. Document the current chain:
      - Where does it look first? (project `.kittify/`?)
@@ -90,9 +92,11 @@ No dependencies — branches directly from the 2.x branch.
      - When does it emit warnings?
   4. Read `src/specify_cli/cli/commands/migrate.py` to understand current migration behavior
   5. Check for any `~/.kittify` references already in the codebase:
+
      ```bash
      grep -rn "\.kittify\|home.*kittify\|expanduser.*kittify" src/specify_cli/
      ```
+
   6. Document findings as comments in your implementation PR
 - **Files**: Read-only (audit)
 - **Parallel?**: No — must complete before T035-T039
@@ -103,6 +107,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Make template resolution check the global runtime directory.
 - **Steps**:
   1. In `resolve_template_path()`, add `~/.kittify/` to the search path:
+
      ```python
      from pathlib import Path
 
@@ -134,6 +139,7 @@ No dependencies — branches directly from the 2.x branch.
 
          raise FileNotFoundError(f"Template '{template_name}' not found in any resolution path")
      ```
+
   2. Adapt this to the actual function signature on 2.x (may already have some of this)
   3. Ensure the function handles missing `project_root` gracefully (e.g., running outside a project)
 - **Files**: `src/specify_cli/core/project_resolver.py` (edit)
@@ -144,11 +150,14 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: After a user runs `spec-kitty migrate`, no warning messages should appear during normal operations.
 - **Steps**:
   1. Find where legacy fallback warnings are emitted:
+
      ```bash
      grep -rn "warn\|fallback\|legacy\|deprecat" src/specify_cli/core/project_resolver.py
      ```
+
   2. Add a check: if `~/.kittify/` exists and has content, suppress legacy warnings
   3. Implementation:
+
      ```python
      def _is_global_runtime_configured() -> bool:
          """Check if ~/.kittify has been set up by spec-kitty migrate."""
@@ -160,6 +169,7 @@ No dependencies — branches directly from the 2.x branch.
          # Emit warning only if global runtime is NOT configured
          warn_once("...")
      ```
+
   4. Ensure warnings are suppressed ONLY after migration, not for brand-new installs
 - **Files**: `src/specify_cli/core/project_resolver.py` (edit)
 - **Parallel?**: No — depends on T035
@@ -169,6 +179,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Guide users who haven't migrated without flooding them with warnings on every command.
 - **Steps**:
   1. When resolution falls through to legacy/package-default paths AND `~/.kittify/` doesn't exist:
+
      ```python
      _migrate_warning_shown = False
 
@@ -179,6 +190,7 @@ No dependencies — branches directly from the 2.x branch.
              print("Note: Run `spec-kitty migrate` to set up global runtime (~/.kittify/)", file=sys.stderr)
              _migrate_warning_shown = True
      ```
+
   2. Call this function when a template resolves from package defaults (step 5 in the chain) and `~/.kittify/` doesn't exist
   3. This is a soft nudge, not an error — the CLI should still work without migration
   4. Use `stderr` so it doesn't interfere with JSON output from `--json` flags
@@ -191,6 +203,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Steps**:
   1. Read `src/specify_cli/cli/commands/migrate.py` on 2.x
   2. Add global runtime installation to the migrate command:
+
      ```python
      def install_global_runtime():
          """Install templates and missions to ~/.kittify/."""
@@ -213,17 +226,20 @@ No dependencies — branches directly from the 2.x branch.
          # Copy mission configs similarly
          # ...
      ```
+
   3. Ensure idempotency:
      - `mkdir(exist_ok=True)` for directories
      - Only overwrite if source is newer (or use checksum comparison)
      - Don't delete user customizations in `~/.kittify/`
   4. Report what was installed: "Global runtime: X templates installed to ~/.kittify/"
   5. Add `--dry-run` flag to preview what would be installed:
+
      ```python
      if dry_run:
          console.print("Would install N templates to ~/.kittify/templates/")
          return
      ```
+
 - **Files**: `src/specify_cli/cli/commands/migrate.py` (edit)
 - **Parallel?**: No — depends on understanding T034's audit
 
@@ -232,6 +248,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Validate the resolution chain works correctly in all scenarios.
 - **Steps**:
   1. Create or extend `tests/specify_cli/core/test_project_resolver.py`:
+
      ```python
      def test_resolves_from_project_mission_templates(tmp_path, monkeypatch):
          """Template in project .kittify/missions/{key}/templates/ is found first."""
@@ -257,7 +274,9 @@ No dependencies — branches directly from the 2.x branch.
      def test_migrate_idempotent(tmp_path, monkeypatch):
          """Running migrate twice produces identical state."""
      ```
+
   2. Use `monkeypatch` to override `Path.home()`:
+
      ```python
      @pytest.fixture
      def mock_home(tmp_path, monkeypatch):
@@ -266,6 +285,7 @@ No dependencies — branches directly from the 2.x branch.
          monkeypatch.setattr(Path, "home", lambda: home_dir)
          return home_dir
      ```
+
   3. Run: `python -m pytest tests/specify_cli/core/test_project_resolver.py -x -v`
 - **Files**: `tests/specify_cli/core/test_project_resolver.py` (new/extend)
 - **Parallel?**: No — depends on T035-T038

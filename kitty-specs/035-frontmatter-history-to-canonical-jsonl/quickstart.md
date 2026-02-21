@@ -26,11 +26,13 @@ Replaces the bootstrap-only `status migrate` command with full history reconstru
 ## Critical Design Rules
 
 **All migration events use `force=true`** with `reason="historical migration"`. This is because:
+
 - Historical transitions bypassed live validation
 - `planned -> done` and similar jumps are not in `ALLOWED_TRANSITIONS`
 - Current code's `force=False` is a latent bug
 
 **Do NOT use `emit_status_transition()`**. Migration bypasses the emit pipeline because:
+
 - emit validates guards (would reject historical transitions)
 - emit triggers SaaS sync (unwanted during migration)
 - emit materializes per-event (wasteful for N events)
@@ -38,6 +40,7 @@ Replaces the bootstrap-only `status migrate` command with full history reconstru
 Instead: build `StatusEvent` objects directly, write atomically, call `materialize()` once.
 
 **3-layer idempotency**:
+
 1. Marker `historical_frontmatter_to_jsonl:v1` in event reasons → skip
 2. Non-migration actors in events → skip (live data)
 3. Only migration actors → backup + replace with full history

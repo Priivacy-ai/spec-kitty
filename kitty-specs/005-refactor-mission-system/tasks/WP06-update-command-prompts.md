@@ -30,6 +30,7 @@ subtasks:
 **Goal**: Remove duplicated "Location Pre-flight Check" sections from 8 command prompt files, replace with calls to shared Python validation from WP01 guards module.
 
 **Success Criteria**:
+
 - All 8 command prompts updated (software-dev: plan/implement/review/merge, research: plan/implement/review/merge)
 - Pre-flight check sections replaced with Python validation calls
 - 60+ lines of duplicate bash code eliminated
@@ -43,6 +44,7 @@ subtasks:
 **Problem Statement**: Every command duplicates ~20 lines of location validation:
 
 **Current State** (duplicated in 8 files):
+
 ```markdown
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
@@ -59,12 +61,14 @@ git branch --show-current
 **This command MUST run from a feature worktree, not the main repository.**
 
 If you're on the `main` branch:
+
 1. Check for available worktrees: `ls .worktrees/`
 2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
 
 The script will fail if you're not in a feature worktree.
+
 ```
 
 **Desired State** (DRY - single source):
@@ -83,6 +87,7 @@ if not result.is_valid:
 ```
 
 This validates you're on a feature branch in a worktree, not on main.
+
 ```
 
 **Supporting Documents**:
@@ -129,11 +134,13 @@ This validates you're on a feature branch in a worktree, not on main.
    ```
 
    **What this validates**:
-   - Current branch is a feature branch (pattern: `###-feature-name`)
-   - Not running from `main` branch
-   - Provides navigation instructions if validation fails
+
+- Current branch is a feature branch (pattern: `###-feature-name`)
+- Not running from `main` branch
+- Provides navigation instructions if validation fails
 
    **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
    ```
 
 4. Save file
@@ -289,9 +296,11 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Add citation validation to research review workflow.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/research/commands/review.md`
 2. Replace pre-flight check with Python validation
 3. Ensure citation validation section from T040 is present:
+
    ```markdown
    ## Citation Validation (Research Mission)
 
@@ -334,6 +343,7 @@ This validates you're on a feature branch in a worktree, not on main.
    **Action if validation fails**:
    - Return task to implementer with specific citation issues
    - Do not proceed with review until fixed
+
    ```
 
 4. Test: Create research feature with invalid citations, run review, verify blocked
@@ -351,10 +361,12 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Update research merge command with Python validation.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/research/commands/merge.md`
 2. Replace pre-flight check with Python validation
 3. Ensure merge workflow preserved (git operations, worktree cleanup)
 4. Add final citation validation check before merge (optional safety check):
+
    ```markdown
    ## Final Research Integrity Check
 
@@ -385,6 +397,7 @@ This validates you're on a feature branch in a worktree, not on main.
    print('✓ Citations validated')
    "
    ```
+
    ```
 
 5. Test merge workflow end-to-end
@@ -413,6 +426,7 @@ This validates you're on a feature branch in a worktree, not on main.
    - Compare error message to baseline → should be equivalent or better
 
 3. **Regression Testing**:
+
    ```bash
    # For each command (plan, implement, review, merge):
 
@@ -428,6 +442,7 @@ This validates you're on a feature branch in a worktree, not on main.
    ```
 
 4. **Research-Specific Testing**:
+
    ```bash
    # Test research mission commands with CSVs
    spec-kitty init test-research --mission research
@@ -464,18 +479,23 @@ This validates you're on a feature branch in a worktree, not on main.
 ## Risks & Mitigations
 
 **Risk 1**: Guards module has bugs, breaks all commands
+
 - **Mitigation**: WP01 must be thoroughly tested (100% coverage) before starting this WP
 
 **Risk 2**: Prompt updates break command execution flow
+
 - **Mitigation**: Test each command end-to-end after update, compare to baseline
 
 **Risk 3**: Error messages confuse users (different from previous)
+
 - **Mitigation**: Guards.py error messages designed to match existing guidance
 
 **Risk 4**: Python validation slower than bash
+
 - **Mitigation**: Guards.py is lightweight (<200ms target), acceptable overhead
 
 **Risk 5**: Research citation guidance overwhelming
+
 - **Mitigation**: Keep guidance concise, focus on essentials, link to examples
 
 ---
@@ -483,6 +503,7 @@ This validates you're on a feature branch in a worktree, not on main.
 ## Definition of Done Checklist
 
 **Software-Dev Commands**:
+
 - [ ] plan.md updated with Python validation
 - [ ] implement.md updated with Python validation
 - [ ] review.md updated with Python validation
@@ -491,6 +512,7 @@ This validates you're on a feature branch in a worktree, not on main.
 - [ ] All 4 commands tested from worktree (pass validation)
 
 **Research Commands**:
+
 - [ ] plan.md updated with Python validation
 - [ ] implement.md updated with Python validation AND citation guidance
 - [ ] review.md updated with Python validation AND citation validation calls
@@ -499,6 +521,7 @@ This validates you're on a feature branch in a worktree, not on main.
 - [ ] Citation guidance clear and actionable
 
 **Overall**:
+
 - [ ] 60+ lines of duplication eliminated
 - [ ] All commands use shared guards module
 - [ ] Error messages equivalent or better than before
@@ -510,6 +533,7 @@ This validates you're on a feature branch in a worktree, not on main.
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Guards module must be complete and tested (WP01 done)
 2. Each command must fail correctly from wrong location
 3. Each command must pass validation from correct location
@@ -519,10 +543,12 @@ This validates you're on a feature branch in a worktree, not on main.
 **What Reviewers Should Verify**:
 
 **Before Updates** (establish baseline):
+
 - Run each command from main → capture current error
 - Run each command from worktree → verify works
 
 **After Updates**:
+
 - Run each command from main → verify guards.py error equivalent to baseline
 - Run each command from worktree → verify works identically
 - Check file diffs → verify only pre-flight section changed
@@ -531,6 +557,7 @@ This validates you're on a feature branch in a worktree, not on main.
 - Test research review → verify citation validation runs
 
 **Acceptance Criteria from Spec**:
+
 - User Story 1, Scenarios 1-4 satisfied
 - FR-001, FR-002, FR-003 implemented
 - SC-001, SC-002 achieved (single location, 1 file to update)

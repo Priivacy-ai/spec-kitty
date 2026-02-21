@@ -20,6 +20,7 @@ Implement a glossary semantic integrity runtime system that enforces semantic co
 **Target Platform**: Cross-platform (Linux, macOS, Windows 10+ per constitution)
 **Project Type**: Single project (CLI library extension, not separate web/mobile app)
 **Performance Goals**:
+
 - Term extraction < 100ms per step (deterministic heuristics, no LLM)
 - Clarification prompt display < 500ms (Rich rendering)
 - Checkpoint/resume < 200ms (minimal payload)
@@ -35,6 +36,7 @@ Implement a glossary semantic integrity runtime system that enforces semantic co
 - 3 strictness modes, 4 scope levels, 4 conflict types
 
 **Integration Points**:
+
 - Mission primitive execution context (middleware injection point)
 - Feature 007 event contracts (import from spec-kitty-events package)
 - Existing typer CLI commands (extend with clarification prompts)
@@ -274,11 +276,13 @@ class GlossaryMiddleware(Protocol):
 See [quickstart.md](quickstart.md) for developer setup and common workflows.
 
 **Developer Setup**:
+
 1. Install spec-kitty 2.x with glossary feature
 2. (Optional) Create seed files in `.kittify/glossaries/`
 3. Configure strictness mode in `.kittify/config.yaml` (default: medium)
 
 **Common Workflows**:
+
 1. Mission author: Add `glossary_check: enabled` to step metadata in mission.yaml
 2. Developer: Encounter conflict, resolve interactively via Typer prompt
 3. Operator: Set `strictness: off` for local dev, `strictness: max` for production
@@ -292,12 +296,14 @@ See [quickstart.md](quickstart.md) for developer setup and common workflows.
 **Action**: Run agent context update script to add new technology stack to appropriate agent-specific context file.
 
 **New technology to add**:
+
 - Python package: `src/specify_cli/glossary/` (glossary semantic integrity runtime)
 - Dependencies: typer (CLI), rich (console), ruamel.yaml (seed files), spec-kitty-events (Feature 007 contracts)
 - Testing: pytest (90%+ coverage), mypy --strict
 - Event contracts: Feature 007 canonical glossary events (GlossaryScopeActivated, TermCandidateObserved, SemanticCheckEvaluated, etc.)
 
 **Agent-specific files**:
+
 - Claude Code: `.claude/context.md`
 - GitHub Copilot: `.github/context.md`
 - (Other agents as detected by script)
@@ -315,16 +321,19 @@ The user must explicitly run `/spec-kitty.tasks` to generate work packages.
 ## Implementation Notes
 
 **Risks**:
+
 - Over-questioning can reduce velocity if severity policy too aggressive (mitigate: cap at 3 questions per burst, severity-first prioritization)
 - Weak confidence scoring can under-detect conflicts (mitigate: start conservative, tune based on user feedback)
 - Feature 007 events package not yet published (mitigate: stub adapter boundaries, gate implementation on 007 availability)
 
 **Assumptions**:
+
 - Mission primitives in 2.x are configurable and can carry glossary-check metadata (validate during WP01 implementation)
 - Participants will answer targeted clarifications when prompted (design escape hatch: defer to async)
 - Term extraction heuristics have acceptable precision (validate with test corpus, iterate if needed)
 
 **Open Questions**:
+
 - Confidence scoring calibration strategy for v1 default policy (defer to WP03: conflict detection implementation)
 - Exact dashboard ROI metrics beyond "prevented rework" (out of scope for CLI, defer to SaaS)
 

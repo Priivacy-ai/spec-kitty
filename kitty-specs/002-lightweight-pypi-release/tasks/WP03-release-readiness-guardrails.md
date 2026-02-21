@@ -18,7 +18,6 @@ subtasks:
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md)*
 
-
 # Work Package Prompt: WP03 – Release Readiness Guardrails
 
 ## Objectives & Success Criteria
@@ -37,6 +36,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T005 – Release readiness workflow
+
 - **Purpose**: Automate pre-merge verification and provide maintainers immediate feedback.
 - **Steps**:
   1. Create `.github/workflows/release-readiness.yml`.
@@ -58,6 +58,7 @@ subtasks:
   - Consider caching pip packages for faster feedback.
 
 ### Subtask T006 – Protect main branch workflow
+
 - **Purpose**: Detect and block direct pushes to `main`, guiding maintainers to branch protection rules.
 - **Steps**:
   1. Create `.github/workflows/protect-main.yml`.
@@ -111,6 +112,7 @@ subtasks:
 3. Append to the **Activity Log** with timestamp, lane, PID, and action.
 spec-kitty agent workflow implement WP03
 5. Commit or stage updates to preserve workflow audit trail.
+
 - 2025-11-02T18:04:30Z – claude-sonnet-4.5 – shell_pid=13425 – lane=doing – Started implementation
 - 2025-11-02T18:12:12Z – claude-sonnet-4.5 – shell_pid=13425 – lane=for_review – Ready for review
 - 2025-11-02T22:51:25Z – claude-sonnet-4.5 – shell_pid=16185 – lane=done – Approved - Guardrails working

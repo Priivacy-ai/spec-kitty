@@ -77,6 +77,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
 - **Purpose**: Ship current LLM model pricing so cost estimation works out of the box.
 - **Steps**:
   1. Create `src/specify_cli/telemetry/_pricing.yaml`:
+
      ```yaml
      # Default LLM pricing table
      # Prices in USD per 1,000 tokens
@@ -114,6 +115,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
          input_per_1k: 0.00015
          output_per_1k: 0.0035
      ```
+
   2. Use current market rates at time of implementation (the above are estimates — verify before committing)
 - **Files**: `src/specify_cli/telemetry/_pricing.yaml` (new)
 - **Notes**: The `_` prefix follows the convention from `sync/_events_schema.json` for package-internal data files. YAML chosen over JSON for human readability and comments.
@@ -124,6 +126,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
 - **Steps**:
   1. Create `src/specify_cli/telemetry/cost.py`
   2. Implement:
+
      ```python
      _PRICING_PATH = Path(__file__).resolve().parent / "_pricing.yaml"
      _pricing_cache: dict[str, dict[str, float]] | None = None
@@ -142,6 +145,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
          _pricing_cache = data.get("models", {})
          return _pricing_cache
      ```
+
   3. Use `import yaml` (PyYAML — already a dependency via `ruamel.yaml` or standard `pyyaml`)
   4. Module-level cache avoids re-reading the file on every cost query
 - **Files**: `src/specify_cli/telemetry/cost.py` (new, ~30 lines initially)
@@ -152,6 +156,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
 - **Purpose**: Aggregate ExecutionEvents into per-group cost summaries.
 - **Steps**:
   1. In `cost.py`, define `CostSummary` dataclass:
+
      ```python
      @dataclass
      class CostSummary:
@@ -174,13 +179,16 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
                  "event_count": self.event_count,
              }
      ```
+
   2. Implement:
+
      ```python
      def cost_summary(
          events: list[Event],
          group_by: str = "agent",  # "agent" | "model" | "feature"
      ) -> list[CostSummary]:
      ```
+
   3. Group events by the `group_by` key:
      - `"agent"`: `event.payload.get("agent", "unknown")`
      - `"model"`: `event.payload.get("model", "unknown")`
@@ -196,6 +204,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
 - **Purpose**: When an event has tokens but no cost, estimate using the pricing table.
 - **Steps**:
   1. In `cost_summary()`, for each event:
+
      ```python
      cost = event.payload.get("cost_usd")
      estimated = 0.0
@@ -215,6 +224,7 @@ Depends on WP01 (SimpleJsonStore). Can run in parallel with WP02 and WP03.
          else:
              cost = 0.0  # Unknown model
      ```
+
   2. Track `estimated_cost_usd` separately in each group's running total
   3. Call `load_pricing_table()` once at the start of `cost_summary()`
   4. FR-017: if `cost_usd` is explicitly set (not None, not 0.0), use it — do NOT override with estimate

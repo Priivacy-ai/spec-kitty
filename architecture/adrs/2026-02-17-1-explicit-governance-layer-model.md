@@ -26,17 +26,17 @@ This creates ambiguity in how runtime behavior is selected and constrained per p
 
 ## Decision Drivers
 
-* Clear separation of orchestration vs governance concerns
-* Constitution as per-project governance authority
-* Pull-based doctrine curation with provenance
-* Early validation of governance artifacts via schemas/tests
-* Readable conceptual model for architecture and glossary alignment
+- Clear separation of orchestration vs governance concerns
+- Constitution as per-project governance authority
+- Pull-based doctrine curation with provenance
+- Early validation of governance artifacts via schemas/tests
+- Readable conceptual model for architecture and glossary alignment
 
 ## Considered Options
 
-* Option 1: Keep mission-centric model where missions directly select all doctrine assets
-* Option 2: Use constitution-centric governance selection model (chosen)
-* Option 3: Keep hybrid model with no explicit authority boundary
+- Option 1: Keep mission-centric model where missions directly select all doctrine assets
+- Option 2: Use constitution-centric governance selection model (chosen)
+- Option 3: Keep hybrid model with no explicit authority boundary
 
 ## Decision Outcome
 
@@ -46,19 +46,19 @@ This creates ambiguity in how runtime behavior is selected and constrained per p
 
 #### Positive
 
-* Mission remains a stable orchestration contract (states/transitions/guards/artifacts).
-* Constitution becomes the explicit per-project selector for active governance assets.
-* Governance vocabulary aligns with glossary updates (`Paradigm`, `Directive`, `Tactic`, `TemplateSet`, `AgentProfile`).
-* Curation and schema validation become visible architecture concerns.
+- Mission remains a stable orchestration contract (states/transitions/guards/artifacts).
+- Constitution becomes the explicit per-project selector for active governance assets.
+- Governance vocabulary aligns with glossary updates (`Paradigm`, `Directive`, `Tactic`, `TemplateSet`, `AgentProfile`).
+- Curation and schema validation become visible architecture concerns.
 
 #### Negative
 
-* Requires migration effort from mission-embedded behavior text to doctrine artifacts.
-* Introduces additional governance entities that need documentation and maintenance.
+- Requires migration effort from mission-embedded behavior text to doctrine artifacts.
+- Introduces additional governance entities that need documentation and maintenance.
 
 #### Neutral
 
-* This ADR defines the model boundary; implementation details (file formats, parsers, runtime wiring) remain feature-level work.
+- This ADR defines the model boundary; implementation details (file formats, parsers, runtime wiring) remain feature-level work.
 
 ### Confirmation
 
@@ -77,14 +77,14 @@ Missions directly encode governance selections and behavior activation.
 
 **Pros:**
 
-* Fewer files and indirections
-* Easier short-term implementation
+- Fewer files and indirections
+- Easier short-term implementation
 
 **Cons:**
 
-* Blurs orchestration and governance authority
-* Weak per-project configurability semantics
-* Harder to reason about overrides and governance provenance
+- Blurs orchestration and governance authority
+- Weak per-project configurability semantics
+- Harder to reason about overrides and governance provenance
 
 ### Option 2: Constitution-centric governance selection (chosen)
 
@@ -92,15 +92,15 @@ Constitution selects active governance assets; mission focuses on orchestration.
 
 **Pros:**
 
-* Strong authority boundary
-* Better per-project adaptability
-* Cleaner glossary and model consistency
-* Fits pull-based curation and profile/tool selection concepts
+- Strong authority boundary
+- Better per-project adaptability
+- Cleaner glossary and model consistency
+- Fits pull-based curation and profile/tool selection concepts
 
 **Cons:**
 
-* More moving parts
-* Requires migration and validation plumbing
+- More moving parts
+- Requires migration and validation plumbing
 
 ### Option 3: Hybrid/no explicit authority
 
@@ -108,12 +108,12 @@ Keep existing mixed pattern and incrementally evolve without explicit model cont
 
 **Pros:**
 
-* Lowest immediate change cost
+- Lowest immediate change cost
 
 **Cons:**
 
-* Continues semantic drift
-* Higher long-term complexity and ambiguity
+- Continues semantic drift
+- Higher long-term complexity and ambiguity
 
 ## More Information
 

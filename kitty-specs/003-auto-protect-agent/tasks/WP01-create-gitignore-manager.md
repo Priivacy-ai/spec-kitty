@@ -55,6 +55,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T001 – Create gitignore_manager.py with class skeleton
+
 - **Purpose**: Establish the new module structure for GitignoreManager
 - **Steps**:
   1. Create new file `src/specify_cli/gitignore_manager.py`
@@ -66,6 +67,7 @@ subtasks:
 - **Notes**: Follow existing code style in specify_cli package
 
 ### Subtask T002 – Define AGENT_DIRECTORIES registry
+
 - **Purpose**: Create centralized registry of all AI agent directories
 - **Steps**:
   1. Inside gitignore_manager.py, create AGENT_DIRECTORIES constant
@@ -76,7 +78,8 @@ subtasks:
 - **Parallel?**: No (depends on T001)
 - **Notes**: All directories must have trailing slash
 
-### Subtask T003 – Implement GitignoreManager.__init__ with validation
+### Subtask T003 – Implement GitignoreManager.**init** with validation
+
 - **Purpose**: Initialize GitignoreManager with project path validation
 - **Steps**:
   1. Add `__init__` method accepting `project_path: Path` parameter
@@ -89,6 +92,7 @@ subtasks:
 - **Notes**: Raise ValueError if project_path is invalid
 
 ### Subtask T004 – Create data classes
+
 - **Purpose**: Define structured data types for the system
 - **Steps**:
   1. Create `@dataclass` AgentDirectory with fields: name (str), directory (str), is_special (bool), description (str)
@@ -99,9 +103,10 @@ subtasks:
 - **Notes**: Place data classes before GitignoreManager class
 
 ### Subtask T005 – Migrate ensure_gitignore_entries logic
+
 - **Purpose**: Port existing functionality into GitignoreManager.ensure_entries
 - **Steps**:
-  1. Copy logic from existing `ensure_gitignore_entries` function (src/specify_cli/__init__.py:689-726)
+  1. Copy logic from existing `ensure_gitignore_entries` function (src/specify_cli/**init**.py:689-726)
   2. Adapt to use instance variables (self.gitignore_path, self.marker)
   3. Create method signature: `def ensure_entries(self, entries: List[str]) -> bool`
   4. Maintain existing behavior: read file, detect duplicates, add new entries, preserve formatting
@@ -111,6 +116,7 @@ subtasks:
 - **Notes**: Reference existing tests to ensure compatibility
 
 ### Subtask T006 – Add line ending detection and preservation
+
 - **Purpose**: Ensure cross-platform compatibility
 - **Steps**:
   1. Create helper method `_detect_line_ending(self, content: str) -> str`
@@ -123,6 +129,7 @@ subtasks:
 - **Notes**: Preserve whatever exists in current file
 
 ### Subtask T007 – Implement get_agent_directories class method
+
 - **Purpose**: Provide access to the agent directory registry
 - **Steps**:
   1. Add `@classmethod` decorator
@@ -140,7 +147,7 @@ subtasks:
 - **Risk**: Path handling differences across operating systems
   - **Mitigation**: Use pathlib exclusively, test on multiple platforms
 - **Risk**: Import errors in existing code
-  - **Mitigation**: Don't modify imports in __init__.py until WP03
+  - **Mitigation**: Don't modify imports in **init**.py until WP03
 
 ## Definition of Done Checklist
 

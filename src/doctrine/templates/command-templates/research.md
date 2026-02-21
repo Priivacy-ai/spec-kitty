@@ -6,9 +6,7 @@ scripts:
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-
 *Path: [templates/commands/research.md](templates/commands/research.md)*
-
 
 ## Location Pre-flight Check
 
@@ -20,6 +18,7 @@ git branch --show-current
 ```
 
 **Expected output:**
+
 - `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
 - Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
 
@@ -30,6 +29,7 @@ git branch --show-current
 This command creates research artifacts in your feature directory. You must be in the feature worktree.
 
 **Correct the issue:**
+
 1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this research command again
@@ -41,6 +41,7 @@ This command creates research artifacts in your feature directory. You must be i
 When you run `{SCRIPT}`, the following files are generated in your feature directory:
 
 **Generated files**:
+
 - **research.md** – Decisions, rationale, and supporting evidence
 - **data-model.md** – Entities, attributes, and relationships
 - **research/evidence-log.csv** – Sources and findings audit trail
@@ -55,11 +56,13 @@ When you run `{SCRIPT}`, the following files are generated in your feature direc
 **Before this**: `/spec-kitty.plan` calls this as "Phase 0" research phase
 
 **This command**:
+
 - Scaffolds research artifacts
 - Creates templates for capturing decisions and evidence
 - Establishes audit trail for traceability
 
 **After this**:
+
 - Fill in research.md, data-model.md, and CSV logs with actual findings
 - Continue with `/spec-kitty.plan` which uses your research to drive technical design
 

@@ -185,6 +185,7 @@ As a Spec Kitty operator, I want to see which model was selected for each task a
 ## Scope Boundaries
 
 ### In Scope
+
 - RoutingProvider Protocol + NullRoutingProvider + ConfigDrivenRoutingProvider
 - `agent-tool-routing.yml` configuration file
 - Static rule-based routing (phase/complexity → model)
@@ -195,6 +196,7 @@ As a Spec Kitty operator, I want to see which model was selected for each task a
 - Routing observability via telemetry commands
 
 ### Out of Scope
+
 - Agent-level routing changes — existing agent selection (agent_config.py) remains unchanged
 - Custom endpoint management (bring-your-own API endpoints) — deferred
 - Multi-provider aggregation (split a task across multiple models) — deferred

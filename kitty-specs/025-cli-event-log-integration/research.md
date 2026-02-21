@@ -13,6 +13,7 @@ This feature integrates event sourcing patterns into the spec-kitty CLI using th
 3. **Workflow State Machines** - Adopted Jira's three-phase transition model (Conditions → Validators → Post-Functions)
 
 **Key Research Findings**:
+
 - ✅ Postgres JSONL adequate for MVP scale (Martin Fowler, Marten case study)
 - ✅ CQRS unnecessary for Phase 1 (read/write ratio insufficient to justify complexity)
 - ✅ Snapshotting deferred until WPs exceed 1000 events (performance optimization)
@@ -21,6 +22,7 @@ This feature integrates event sourcing patterns into the spec-kitty CLI using th
 - ✅ Synchronous writes appropriate for CLI use case (reliability > latency)
 
 **Sources**: All research sourced from `/Users/robert/ClaudeCowork/SpecKitty/research/best-practices/`:
+
 - `event-sourcing.md` (650 lines, 7 sources, HIGH confidence)
 - `sync-protocols.md` (439 lines, 9 sources, MEDIUM-HIGH confidence)
 - `workflow-state-machines.md` (849 lines, 5 sources, HIGH confidence)
@@ -38,6 +40,7 @@ This feature integrates event sourcing patterns into the spec-kitty CLI using th
 
 From research (lines 148-176):
 > **Postgres JSONB Approach (Marten Pattern)**:
+>
 > - Cost-effective for MVP (<100k events/month)
 > - JSONB indexing supports flexible event queries
 > - Built-in ACID transactions for consistency
@@ -65,6 +68,7 @@ From research (lines 205-237):
 
 From research (lines 52-62):
 > **Snapshot Strategy**:
+>
 > - Cache aggregate state at periodic intervals (e.g., every 100 events)
 > - Production evidence suggests snapshots become critical when aggregates exceed ~1000 events
 
@@ -94,6 +98,7 @@ From research (lines 52-62):
 From research (lines 295-319):
 > **Phase 1 (MVP): Last-Write-Wins**
 > **Rationale**:
+>
 > - Workflow state = structured entities (WorkPackage, Task, Status)
 > - Not collaborative text editing (no need for character-level CRDTs)
 > - Conflicts rare in workflow management (agents work on separate WPs)
@@ -105,6 +110,7 @@ From research (lines 295-319):
 From research (lines 161-170):
 > **CRDT Trade-Offs**:
 > **Disadvantages**:
+>
 > - **Payload bloat**: 16-32 bytes metadata per character
 > - **Memory overhead**: 2-3x more bandwidth than actual data
 > - **Bundle size**: 100-200KB for CRDT libraries
@@ -118,6 +124,7 @@ From Linear case study (lines 75-77):
 
 From research (lines 249-278):
 > **Offline Buffer Pattern** (from Linear):
+>
 > 1. Queue operations locally in IndexedDB
 > 2. Optimistic UI: Apply changes immediately
 > 3. Background sync: Resend queued operations when reconnected
@@ -146,6 +153,7 @@ From research (lines 249-278):
 
 From research (lines 193-246):
 > Jira implements the most explicit gate enforcement pattern through a three-phase transition sequence:
+>
 > ```
 > 1. CONDITIONS (Access Control) → who can transition
 > 2. VALIDATORS (Input Validation) → gate checks
@@ -209,17 +217,20 @@ From research (lines 136-145):
 ### Confidence Assessment
 
 **HIGH Confidence** (authoritative sources):
+
 - Event sourcing patterns (Martin Fowler)
 - CQRS guidance (Martin Fowler)
 - Jira transition model (Atlassian official docs)
 - GitHub Actions patterns (GitHub official docs)
 
 **MEDIUM Confidence** (case studies):
+
 - Linear LWW approach (reverse engineering)
 - Figma fractional indexing (company blog)
 - Postgres JSONL scale (Marten case study)
 
 **Areas Requiring Runtime Validation**:
+
 - Exact event write latency (15ms estimate, needs profiling)
 - SQLite index update performance (assumed <5ms, needs measurement)
 - File locking behavior on Windows (POSIX locks availability needs testing)
@@ -240,19 +251,22 @@ With research complete, proceed to Phase 1 design:
 ## References
 
 **Primary Research Documents**:
+
 - event-sourcing.md - 650 lines, 7 sources ([WEB-001] through [WEB-007])
 - sync-protocols.md - 439 lines, 9 sources ([WEB-007] through [WEB-015])
 - workflow-state-machines.md - 849 lines, 5 sources ([WEB-014] through [WEB-018])
 
 **Authoritative Sources**:
-- Martin Fowler - Event Sourcing: https://martinfowler.com/eaaDev/EventSourcing.html
-- Martin Fowler - CQRS: https://www.martinfowler.com/bliki/CQRS.html
-- Atlassian Jira Workflows: https://support.atlassian.com/jira-cloud-administration/docs/configure-advanced-issue-workflows/
-- GitHub Actions Syntax: https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions
-- Temporal Workflows: https://docs.temporal.io/workflows
+
+- Martin Fowler - Event Sourcing: <https://martinfowler.com/eaaDev/EventSourcing.html>
+- Martin Fowler - CQRS: <https://www.martinfowler.com/bliki/CQRS.html>
+- Atlassian Jira Workflows: <https://support.atlassian.com/jira-cloud-administration/docs/configure-advanced-issue-workflows/>
+- GitHub Actions Syntax: <https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions>
+- Temporal Workflows: <https://docs.temporal.io/workflows>
 
 **Case Studies**:
-- Linear Sync Engine: https://github.com/wzhudev/reverse-linear-sync-engine
-- Figma Multiplayer: https://www.figma.com/blog/how-figmas-multiplayer-technology-works/
-- Marten (Postgres JSONB): https://martendb.io/events/
+
+- Linear Sync Engine: <https://github.com/wzhudev/reverse-linear-sync-engine>
+- Figma Multiplayer: <https://www.figma.com/blog/how-figmas-multiplayer-technology-works/>
+- Marten (Postgres JSONB): <https://martendb.io/events/>
 - NeuroChain (Fintech at Scale): Event Sourcing in 2026 blog

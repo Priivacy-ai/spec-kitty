@@ -45,9 +45,11 @@ Use this to review phases, templates, and expected artifacts before you start.
 Use this for product and engineering delivery.
 
 Workflow:
+
 - Specify -> Plan -> Tasks -> Implement -> Review
 
 Key artifacts:
+
 - `spec.md`, `plan.md`, `tasks/`, WP workspaces
 
 ### Research Mission
@@ -55,9 +57,11 @@ Key artifacts:
 Use this for investigations, experiments, or feasibility work.
 
 Workflow:
+
 - Question -> Methodology -> Gather -> Analyze -> Synthesize
 
 Key artifacts:
+
 - Research prompts, findings, and summary reports
 
 ### Documentation Mission
@@ -65,9 +69,11 @@ Key artifacts:
 Use this when your goal is documentation coverage or quality.
 
 Workflow:
+
 - Audit -> Design -> Generate -> Validate
 
 Key artifacts:
+
 - Coverage matrix, doc plan, generated doc sets
 
 ---

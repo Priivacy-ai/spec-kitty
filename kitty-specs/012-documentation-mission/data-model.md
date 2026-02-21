@@ -17,6 +17,7 @@ This data model describes the entities, attributes, and relationships for the do
 **File Location**: `src/specify_cli/missions/documentation/mission.yaml`
 
 **Schema**:
+
 ```yaml
 name: string                    # "Documentation Kitty"
 description: string             # Mission description
@@ -69,11 +70,13 @@ commands:                       # Command-specific configurations
 ```
 
 **Relationships**:
+
 - Has many: Divio Documentation Templates
 - Has many: Generator Configuration Templates
 - Has many: Command Templates
 
 **Validation Rules**:
+
 - Version must match semver pattern: `^\d+\.\d+\.\d+$`
 - Workflow must have at least 1 phase
 - Domain must be valid enum value
@@ -85,6 +88,7 @@ commands:                       # Command-specific configurations
 **Purpose**: Represents one of the four documentation types from the Divio system.
 
 **Enumeration Values**:
+
 - `tutorial` - Learning-oriented, hands-on lessons
 - `how-to` - Goal-oriented problem-solving guides
 - `reference` - Technical descriptions and API docs
@@ -93,6 +97,7 @@ commands:                       # Command-specific configurations
 **Template Location**: `src/specify_cli/missions/documentation/templates/divio/{type}-template.md`
 
 **Template Structure**:
+
 ```markdown
 ---
 type: string                    # Divio type (tutorial/how-to/reference/explanation)
@@ -116,6 +121,7 @@ created: date                   # Creation date
 | explanation | Understanding concepts | Curious users | Thematic discussion | Informative, insightful |
 
 **Validation Rules**:
+
 - Must have frontmatter with `type` field
 - Type must be one of 4 valid values
 - Must include sections appropriate to type (defined per type)
@@ -129,11 +135,13 @@ created: date                   # Creation date
 **File Location**: `src/specify_cli/missions/documentation/templates/*.md`
 
 **Types**:
+
 - **Standard templates**: spec-template.md, plan-template.md, tasks-template.md, task-prompt-template.md
 - **Divio templates**: Located in `divio/` subdirectory (see Divio Documentation Type)
 - **Generator config templates**: Located in `generators/` subdirectory
 
 **Attributes**:
+
 ```yaml
 filename: string                # Template file name
 content: string                 # Template content (Markdown with placeholders)
@@ -147,6 +155,7 @@ guidance:                       # Inline guidance for authors
 ```
 
 **Placeholder Conventions**:
+
 - `{project_name}` - Project name
 - `{author}` - Author name
 - `{target_audience}` - Intended readers
@@ -154,6 +163,7 @@ guidance:                       # Inline guidance for authors
 - `[CONTENT PLACEHOLDER: ...]` - Content to be filled by author
 
 **Relationships**:
+
 - Belongs to: Mission Configuration
 - Can be instantiated as: Documentation Artifact (in feature directories)
 
@@ -166,6 +176,7 @@ guidance:                       # Inline guidance for authors
 **Types**: JSDoc (JS/TS), Sphinx (Python), rustdoc (Rust)
 
 **Protocol Definition**:
+
 ```python
 from typing import Protocol, Dict, Any
 from pathlib import Path
@@ -199,6 +210,7 @@ class DocGenerator(Protocol):
 **Concrete Implementations**:
 
 #### JSDocGenerator
+
 ```python
 @dataclass
 class JSDocGenerator:
@@ -212,6 +224,7 @@ class JSDocGenerator:
 ```
 
 #### SphinxGenerator
+
 ```python
 @dataclass
 class SphinxGenerator:
@@ -226,6 +239,7 @@ class SphinxGenerator:
 ```
 
 #### RustdocGenerator
+
 ```python
 @dataclass
 class RustdocGenerator:
@@ -238,10 +252,12 @@ class RustdocGenerator:
 ```
 
 **Relationships**:
+
 - Belongs to: Documentation Mission
 - Configured by: Generator Configuration
 
 **Validation Rules**:
+
 - Must implement all protocol methods
 - Must check for required tools (npm, sphinx, cargo) before generate()
 - Must handle subprocess failures gracefully
@@ -255,6 +271,7 @@ class RustdocGenerator:
 **File Location**: `kitty-specs/{feature}/gap-analysis.md` (generated during audit phase)
 
 **Attributes**:
+
 ```yaml
 project_name: string            # Project being analyzed
 analysis_date: datetime         # When analysis ran
@@ -289,6 +306,7 @@ existing:                       # Existing docs inventory
 ```
 
 **Methods** (conceptual):
+
 ```python
 def analyze_gaps(docs_dir: Path) -> GapAnalysis:
     """Analyze documentation directory and return gap analysis."""
@@ -304,11 +322,13 @@ def get_coverage_percentage(self) -> float:
 ```
 
 **Relationships**:
+
 - Created during: Audit phase of documentation mission
 - Used by: Plan phase to prioritize documentation work
 - References: Existing documentation files
 
 **Validation Rules**:
+
 - All gaps must have valid divio_type (one of 4 types)
 - Priority must be high/medium/low
 - Confidence score must be between 0 and 1
@@ -320,11 +340,13 @@ def get_coverage_percentage(self) -> float:
 **Purpose**: Settings for automated doc tools including output format, theme, extensions.
 
 **File Locations** (examples):
+
 - Sphinx: `docs/conf.py` (generated from template)
 - JSDoc: `jsdoc.json` (generated from template)
 - rustdoc: `Cargo.toml` metadata section
 
 **Sphinx Configuration Schema**:
+
 ```python
 project: string                 # Project name
 author: string                  # Author name
@@ -340,6 +362,7 @@ autodoc_default_options: Dict[str, Any]
 ```
 
 **JSDoc Configuration Schema**:
+
 ```json
 {
   "source": {
@@ -357,6 +380,7 @@ autodoc_default_options: Dict[str, Any]
 ```
 
 **rustdoc Configuration** (in Cargo.toml):
+
 ```toml
 [package.metadata.docs.rs]
 all-features: boolean           # Document all features
@@ -367,6 +391,7 @@ documentation: string           # Documentation URL
 ```
 
 **Relationships**:
+
 - Created by: Documentation Generator during configure()
 - Used by: Documentation Generator during generate()
 - Belongs to: Feature (stored in feature's docs directory)
@@ -378,11 +403,13 @@ documentation: string           # Documentation URL
 **Purpose**: Approach for current documentation mission run determining discovery questions and workflow focus.
 
 **Enumeration Values**:
+
 - `initial` - First-time documentation for a project (no existing docs)
 - `gap_filling` - Iterative improvement of existing documentation
 - `feature_specific` - Documenting a specific new feature/module
 
 **Storage**: Persisted in feature's `meta.json`:
+
 ```json
 {
   "feature_number": "012",
@@ -419,6 +446,7 @@ documentation: string           # Documentation URL
 | feature_specific | Which feature, which aspects | Audit feature docs only | Targeted templates for feature |
 
 **State Transitions**:
+
 ```
 initial → gap_filling (after first iteration completes)
 gap_filling → gap_filling (subsequent iterations)
@@ -426,6 +454,7 @@ feature_specific → gap_filling (after feature docs added)
 ```
 
 **Relationships**:
+
 - Determines: Specify phase questions
 - Influences: Audit phase execution
 - Affects: Template generation strategy
@@ -437,6 +466,7 @@ feature_specific → gap_filling (after feature docs added)
 **Purpose**: Structured view of project documentation showing which Divio types exist for which project areas.
 
 **Structure**:
+
 ```python
 from typing import Optional, Dict, Tuple
 from pathlib import Path
@@ -473,6 +503,7 @@ class CoverageMatrix:
 ```
 
 **Example**:
+
 ```
 Project: spec-kitty
 
@@ -493,6 +524,7 @@ Gaps (prioritized):
 ```
 
 **Relationships**:
+
 - Created by: Gap Analysis during audit phase
 - Used in: Planning phase to prioritize work packages
 - Displayed in: Gap analysis reports

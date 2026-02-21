@@ -44,6 +44,7 @@ No `--base` flag needed (this is the foundation WP).
 **Goal**: Create the `ProjectIdentity` dataclass with generation, atomic persistence, and graceful backfill.
 
 **Success Criteria**:
+
 - [ ] `spec-kitty init` creates config.yaml with valid `project_uuid`, `project_slug`, and `node_id`
 - [ ] Existing projects without identity fields get them auto-generated on first access
 - [ ] Read-only repos get in-memory identity with clear warning
@@ -56,11 +57,13 @@ No `--base` flag needed (this is the foundation WP).
 **Target Branch**: 2.x (all implementation on 2.x, not main)
 
 **Supporting Documents**:
+
 - [plan.md](../plan.md) - Architecture decisions AD-2 (Graceful Backfill)
 - [data-model.md](../data-model.md) - ProjectIdentity entity definition
 - [spec.md](../spec.md) - User Story 1 acceptance scenarios
 
 **Key Constraints**:
+
 - Python 3.11+ required (use type hints, `|` union syntax)
 - mypy --strict must pass
 - Atomic writes required (never corrupt config.yaml)
@@ -75,8 +78,10 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Define the core data structure for project identity.
 
 **Steps**:
+
 1. Create new file `src/specify_cli/sync/project_identity.py`
 2. Define `ProjectIdentity` as a dataclass with fields:
+
    ```python
    from dataclasses import dataclass
    from uuid import UUID
@@ -91,10 +96,12 @@ No `--base` flag needed (this is the foundation WP).
        def is_complete(self) -> bool:
            return all([self.project_uuid, self.project_slug, self.node_id])
    ```
+
 3. Add `with_defaults()` method that returns new instance with missing fields filled
 4. Add `to_dict()` and `from_dict()` for serialization
 
 **Files**:
+
 - `src/specify_cli/sync/project_identity.py` (NEW, ~80 lines)
 
 **Parallel?**: No (foundation for other subtasks)
@@ -106,7 +113,9 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Provide functions to generate each identity field with appropriate logic.
 
 **Steps**:
+
 1. Add `generate_project_uuid()` function:
+
    ```python
    from uuid import uuid4
    
@@ -115,6 +124,7 @@ No `--base` flag needed (this is the foundation WP).
    ```
 
 2. Add `derive_project_slug()` function:
+
    ```python
    import subprocess
    from pathlib import Path
@@ -143,6 +153,7 @@ No `--base` flag needed (this is the foundation WP).
    ```
 
 3. Add `generate_node_id()` function:
+
    ```python
    from specify_cli.sync.clock import generate_node_id as generate_machine_node_id
    
@@ -152,9 +163,11 @@ No `--base` flag needed (this is the foundation WP).
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/project_identity.py` (append, ~50 lines)
 
 **Notes**:
+
 - Slug derivation must handle SSH URLs (`git@github.com:user/repo.git`)
 - Slug derivation must handle HTTPS URLs (`https://github.com/user/repo.git`)
 - Node ID should be stable per machine (use existing LamportClock generator)
@@ -166,7 +179,9 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Write identity to config.yaml atomically to prevent corruption.
 
 **Steps**:
+
 1. Add `atomic_write_config()` function:
+
    ```python
    import os
    import tempfile
@@ -207,9 +222,11 @@ No `--base` flag needed (this is the foundation WP).
 2. Ensure parent directory exists before writing
 
 **Files**:
+
 - `src/specify_cli/sync/project_identity.py` (append, ~40 lines)
 
 **Notes**:
+
 - Use `os.replace()` for atomic rename (POSIX-compliant)
 - Temp file must be in same directory as target (ensures same filesystem)
 - Clean up temp file on failure
@@ -221,7 +238,9 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Load identity from config, generating missing fields if needed.
 
 **Steps**:
+
 1. Add `load_identity()` function:
+
    ```python
    def load_identity(config_path: Path) -> ProjectIdentity:
        """Load identity from config.yaml, returning empty if not found."""
@@ -245,6 +264,7 @@ No `--base` flag needed (this is the foundation WP).
    ```
 
 2. Add `ensure_identity()` function:
+
    ```python
    def ensure_identity(repo_root: Path) -> ProjectIdentity:
        """Load or generate project identity. Atomic write if generating."""
@@ -269,6 +289,7 @@ No `--base` flag needed (this is the foundation WP).
 3. Update `ProjectIdentity.with_defaults()` to accept `repo_root` for slug derivation
 
 **Files**:
+
 - `src/specify_cli/sync/project_identity.py` (append, ~50 lines)
 
 ---
@@ -278,7 +299,9 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Handle read-only repos gracefully with in-memory identity.
 
 **Steps**:
+
 1. Add `is_writable()` helper:
+
    ```python
    def is_writable(path: Path) -> bool:
        """Check if path (or its parent directory) is writable."""
@@ -289,6 +312,7 @@ No `--base` flag needed (this is the foundation WP).
 
 2. Update `ensure_identity()` to use `is_writable()` check
 3. Log clear warning when falling back to in-memory:
+
    ```python
    from rich.console import Console
    console = Console(stderr=True)
@@ -296,9 +320,11 @@ No `--base` flag needed (this is the foundation WP).
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/project_identity.py` (append, ~20 lines)
 
 **Notes**:
+
 - Check parent directory writability if file doesn't exist yet
 - Use rich console for consistent warning styling
 - In-memory identity still works for event emission
@@ -310,6 +336,7 @@ No `--base` flag needed (this is the foundation WP).
 **Purpose**: Comprehensive test coverage for project_identity module.
 
 **Steps**:
+
 1. Create `tests/sync/test_project_identity.py`
 2. Add tests for:
    - `ProjectIdentity` dataclass creation and properties
@@ -325,9 +352,11 @@ No `--base` flag needed (this is the foundation WP).
    - `ensure_identity()` handles read-only (mock os.access)
 
 **Files**:
+
 - `tests/sync/test_project_identity.py` (NEW, ~150 lines)
 
 **Test Commands**:
+
 ```bash
 pytest tests/sync/test_project_identity.py -v
 mypy src/specify_cli/sync/project_identity.py --strict
@@ -351,6 +380,7 @@ mypy src/specify_cli/sync/project_identity.py --strict
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. Atomic write pattern is correct (temp file in same directory, os.replace)
 2. All edge cases handled (no remote, read-only, missing .kittify dir)
 3. Type annotations are complete (mypy --strict passes)

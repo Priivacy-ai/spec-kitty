@@ -27,6 +27,7 @@ subtasks:
 **Goal**: Establish clear, consistent terminology across all documentation distinguishing Project (codebase), Feature (unit of work), and Mission (domain mode).
 
 **Success Criteria**:
+
 - Glossary section added to README.md with clear definitions and examples
 - All user-facing documentation uses consistent terminology
 - CLI help text uses standard terms
@@ -39,6 +40,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Terminology confusion creates communication barriers:
+
 - "Project" sometimes means entire codebase, sometimes means "feature"
 - "Mission" confused with "feature" in user feedback
 - No clear definitions in documentation
@@ -50,6 +52,7 @@ subtasks:
 > "Is mission the same as task?"
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 6, FR-024 through FR-026)
 - Original Analysis: Identified this as terminology confusion issue
 
@@ -70,6 +73,7 @@ subtasks:
   - Scope: Project-wide (all features in a project use same mission)
 
 **Terminology to AVOID**:
+
 - "Project" when meaning "feature" (e.g., "start a new project" → "start a new feature")
 - "Task" when meaning "feature" (reserved for subtasks within features)
 - "Workflow" when meaning "mission" (workflow is a mission attribute)
@@ -81,8 +85,10 @@ subtasks:
 **Purpose**: Create definitive terminology reference in main documentation.
 
 **Steps**:
+
 1. Open README.md
 2. Add glossary section (suggested location: after Quick Start, before detailed sections):
+
    ```markdown
    ## Terminology
 
@@ -194,10 +200,12 @@ subtasks:
 **Purpose**: Search and replace inconsistent terminology throughout README.
 
 **Steps**:
+
 1. Open README.md
 2. Search for problematic patterns and fix:
 
    **Pattern 1**: "Create a new project" when meaning "feature"
+
    ```
    FIND: "create a new project"
    CONTEXT: If talking about /spec-kitty.specify
@@ -205,12 +213,14 @@ subtasks:
    ```
 
    **Pattern 2**: "Project" in feature context
+
    ```
    FIND: "The project includes spec.md, plan.md, tasks.md"
    REPLACE: "The feature includes spec.md, plan.md, tasks.md"
    ```
 
    **Pattern 3**: Ambiguous "workflow"
+
    ```
    FIND: "Select a workflow"
    REPLACE: "Select a mission"
@@ -223,6 +233,7 @@ subtasks:
    - **Mission System**: Explains "missions" vs "features" clearly
 
 4. Verify examples use consistent terminology:
+
    ```markdown
    # Good example
    spec-kitty init my-project                    # Create project
@@ -249,10 +260,12 @@ subtasks:
 **Purpose**: Ensure all CLI commands use consistent terminology in help strings.
 
 **Steps**:
+
 1. Locate CLI command definitions in `src/specify_cli/cli/commands/`
 2. Review help strings in all commands:
 
    **Init command** (init.py):
+
    ```python
    def init(
        project_name: str = typer.Argument(None, help="Name for your new project directory"),
@@ -263,6 +276,7 @@ subtasks:
    ```
 
    **Mission commands** (mission.py from WP03):
+
    ```python
    @app.command("list")
    def list_cmd():
@@ -294,7 +308,9 @@ subtasks:
 **Purpose**: Ensure error messages use consistent terminology.
 
 **Steps**:
+
 1. Search codebase for error messages:
+
    ```bash
    grep -r "Error:" src/specify_cli/
    grep -r "raise.*Error" src/specify_cli/
@@ -303,6 +319,7 @@ subtasks:
 2. Review each error message for terminology:
 
    **Example issues to fix**:
+
    ```python
    # Before (inconsistent)
    raise MissionError("Cannot find project")  # ❌ Ambiguous
@@ -341,7 +358,9 @@ subtasks:
 **Purpose**: Ensure command prompt files use consistent terminology.
 
 **Steps**:
+
 1. Search command prompts for terminology:
+
    ```bash
    grep -r "project" .kittify/missions/*/commands/*.md
    grep -r "workflow" .kittify/missions/*/commands/*.md
@@ -378,6 +397,7 @@ subtasks:
 **Terminology Audit Approach**:
 
 1. **Automated Search**:
+
    ```bash
    # Find all uses of key terms
    grep -rn "project" README.md src/ .kittify/ | grep -v ".git" > audit-project.txt
@@ -391,6 +411,7 @@ subtasks:
    - Flag inconsistencies
 
 3. **Fix Verification**:
+
    ```bash
    # After updates, search for specific patterns that should be gone
    grep -r "create a new project" README.md src/  # Should NOT find in feature context
@@ -404,6 +425,7 @@ subtasks:
    - Should be clear and unambiguous
 
 **Documentation Review Checklist**:
+
 - [ ] README.md - consistent terminology
 - [ ] CLI help text - consistent terminology
 - [ ] Error messages - consistent terminology
@@ -416,15 +438,19 @@ subtasks:
 ## Risks & Mitigations
 
 **Risk 1**: Breaking existing user mental models
+
 - **Mitigation**: Definitions align with intuitive meanings, add glossary for clarity
 
 **Risk 2**: Over-correcting, creating awkward phrasing
+
 - **Mitigation**: Review in context, allow "project" where it's a filesystem term (project root, project directory)
 
 **Risk 3**: Missing inconsistencies in less-visited docs
+
 - **Mitigation**: Automated grep search finds all usages
 
 **Risk 4**: Introducing new inconsistencies during updates
+
 - **Mitigation**: Use glossary as reference, cross-check after each file update
 
 ---
@@ -442,6 +468,7 @@ subtasks:
 - [ ] All user-facing strings use standard terminology
 
 **Automated Validation**:
+
 ```bash
 # These searches should return zero problematic matches
 grep -r "create a new project" README.md | grep -v "spec-kitty init"  # Should be empty
@@ -454,6 +481,7 @@ grep -r "feature mission" src/  # Should be "active mission"
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Glossary must be clear, findable, and complete
 2. Terminology must be consistent across all user-facing content
 3. Definitions must align with actual system behavior
@@ -461,6 +489,7 @@ grep -r "feature mission" src/  # Should be "active mission"
 5. No confusing or ambiguous usage
 
 **What Reviewers Should Verify**:
+
 - Open README.md → Find glossary → Can understand Project/Feature/Mission within 1 minute
 - Read Quick Start → Terminology consistent
 - Run `spec-kitty --help` → Help text uses correct terms
@@ -468,6 +497,7 @@ grep -r "feature mission" src/  # Should be "active mission"
 - Grep for "project" → All usages appropriate (filesystem terms or project initialization)
 
 **Acceptance Criteria from Spec**:
+
 - User Story 6, Scenarios 1-5 satisfied
 - FR-024 through FR-026 implemented
 - SC-014, SC-015 achieved (100% consistency, findable within 1 minute)

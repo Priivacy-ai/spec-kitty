@@ -27,6 +27,7 @@ subtasks:
 # Work Package Prompt: WP03 – Frontmatter Schema Extension
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP03 --base WP01
 ```
@@ -54,6 +55,7 @@ spec-kitty implement WP03 --base WP01
 **Primary Goal**: Extend WP frontmatter schema to include `dependencies: []` field, update field ordering, ensure backward compatibility with existing WP files.
 
 **Success Criteria**:
+
 - ✅ WP frontmatter schema includes `dependencies` field (optional, defaults to [])
 - ✅ WP_FIELD_ORDER updated to include dependencies in correct position
 - ✅ Validation ensures dependencies are list of strings matching WP## pattern
@@ -67,11 +69,13 @@ spec-kitty implement WP03 --base WP01
 **Why this matters**: The `dependencies` field is the canonical source of truth for WP relationships. Without it, the implement command cannot validate correct branching, and dependency warnings cannot be displayed.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.5: WP Frontmatter Schema Extension
 - [data-model.md](../data-model.md) - WorkPackage entity definition
 - [spec.md](../spec.md) - FR-011, FR-012 (WP prompt generation with dependencies)
 
 **Current Schema** (in `src/specify_cli/frontmatter.py`):
+
 ```yaml
 work_package_id: "WP01"
 title: "Setup Infrastructure"
@@ -83,6 +87,7 @@ agent: ""
 ```
 
 **Target Schema** (0.11.0):
+
 ```yaml
 work_package_id: "WP01"
 title: "Setup Infrastructure"
@@ -105,6 +110,7 @@ agent: ""
 **Purpose**: Add `dependencies` field to WP frontmatter data model in frontmatter.py.
 
 **Steps**:
+
 1. Open `src/specify_cli/frontmatter.py`
 2. Locate WP frontmatter field definitions (likely in constants or dataclass)
 3. Add `dependencies` field definition:
@@ -118,6 +124,7 @@ agent: ""
 **Parallel?**: No (single file modification)
 
 **Example**:
+
 ```python
 # In frontmatter.py
 WP_FRONTMATTER_FIELDS = {
@@ -138,6 +145,7 @@ WP_FRONTMATTER_FIELDS = {
 **Purpose**: Ensure backward compatibility - WP files without `dependencies:` field default to empty list.
 
 **Steps**:
+
 1. In frontmatter parsing logic, check if dependencies field exists
 2. If missing, set default value: `frontmatter.get('dependencies', [])`
 3. Ensure no errors when parsing old WP files (pre-0.11.0)
@@ -147,6 +155,7 @@ WP_FRONTMATTER_FIELDS = {
 **Parallel?**: Part of T016 (same file)
 
 **Example**:
+
 ```python
 def parse_wp_frontmatter(wp_file: Path) -> dict:
     """Parse WP frontmatter with backward compatibility."""
@@ -168,6 +177,7 @@ def parse_wp_frontmatter(wp_file: Path) -> dict:
 **Purpose**: Define canonical field ordering for WP frontmatter to ensure consistent YAML output.
 
 **Steps**:
+
 1. Locate WP_FIELD_ORDER constant in `src/specify_cli/frontmatter.py`
 2. Insert `dependencies` in logical position:
    - After: `lane` (status information)
@@ -179,6 +189,7 @@ def parse_wp_frontmatter(wp_file: Path) -> dict:
 **Parallel?**: No (same file as T016-T017)
 
 **Example**:
+
 ```python
 WP_FIELD_ORDER = [
     "work_package_id",
@@ -205,6 +216,7 @@ WP_FIELD_ORDER = [
 **Purpose**: Validate dependencies field contains valid WP IDs, preventing malformed dependency declarations.
 
 **Steps**:
+
 1. Add validation function in frontmatter.py or use dependency_graph.py utilities
 2. Validation rules:
    - Must be a list (not string or dict)
@@ -216,6 +228,7 @@ WP_FIELD_ORDER = [
 **Files**: `src/specify_cli/frontmatter.py`
 
 **Validation Logic**:
+
 ```python
 import re
 
@@ -251,6 +264,7 @@ def validate_dependencies(deps: list) -> tuple[bool, list[str]]:
 **Purpose**: Write tests to validate dependencies field parsing works correctly.
 
 **Steps**:
+
 1. Add test cases to existing frontmatter test file or create new test
 2. Test scenarios:
    - Parse WP with empty dependencies
@@ -262,6 +276,7 @@ def validate_dependencies(deps: list) -> tuple[bool, list[str]]:
 **Files**: `tests/specify_cli/test_frontmatter.py` (or create if doesn't exist)
 
 **Example Test**:
+
 ```python
 def test_parse_wp_with_dependencies(tmp_path):
     """Test parsing WP frontmatter with dependencies field."""
@@ -290,6 +305,7 @@ dependencies:
 **Purpose**: Ensure WP files from 0.10.x (without dependencies field) still parse correctly in 0.11.0.
 
 **Steps**:
+
 1. Create test WP file using old schema (no dependencies field)
 2. Parse with new frontmatter code
 3. Verify dependencies defaults to []
@@ -298,6 +314,7 @@ dependencies:
 **Files**: `tests/specify_cli/test_frontmatter.py`
 
 **Example Test**:
+
 ```python
 def test_backward_compat_no_dependencies(tmp_path):
     """Test parsing old WP files without dependencies field."""
@@ -327,6 +344,7 @@ subtasks:
 **Test file**: `tests/specify_cli/test_frontmatter.py` (or similar)
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_frontmatter.py -v -k dependencies
 ```
@@ -338,9 +356,11 @@ pytest tests/specify_cli/test_frontmatter.py -v -k dependencies
 ## Risks & Mitigations
 
 **Risk**: Breaking existing WP files that lack dependencies field
+
 - **Mitigation**: Optional field with default value, extensive backward compatibility testing
 
 **Risk**: Invalid dependency values accepted (bad WP IDs)
+
 - **Mitigation**: Strict validation with regex pattern matching
 
 ---
@@ -359,6 +379,7 @@ pytest tests/specify_cli/test_frontmatter.py -v -k dependencies
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. dependencies field is truly optional (old WPs work without it)
 2. Validation catches all invalid formats
 3. Field ordering is logical and consistent

@@ -58,17 +58,20 @@ history:
 **Problem**: The architectural fix (moving from types.py to adapter.py) was done correctly in terms of file structure and imports, BUT the essential methods from the original types.py classes were not added to the adapter classes.
 
 **Missing from Event class in adapter.py**:
+
 1. `to_json()` method - used by file_io.py line 36
 2. `from_json()` classmethod - needed for deserialization
 3. `__post_init__()` validation - validates event fields
 
 **Missing from LamportClock class in adapter.py**:
+
 1. `initialize()` method - sets clock to 1
 2. `to_dict()` method - used by ClockStorage for JSON serialization
 3. `from_dict()` classmethod - used by ClockStorage for deserialization
 4. `__post_init__()` validation - validates clock value >= 1
 
 **Evidence of breakage**:
+
 ```
 $ python3 -c "from specify_cli.events import Event, generate_ulid; e = Event(...); e.to_json()"
 AttributeError: 'Event' object has no attribute 'to_json'
@@ -82,7 +85,7 @@ The integration test fails at file_io.py:36 because `event.to_json()` doesn't ex
 
 Add the missing methods to adapter.py. Here's what needs to be added:
 
-### For Event class (add after `to_lib_event()` method):
+### For Event class (add after `to_lib_event()` method)
 
 ```python
 def to_json(self) -> str:
@@ -110,7 +113,7 @@ def __post_init__(self) -> None:
         raise ValueError(f"lamport_clock must be >= 1, got {self.lamport_clock}")
 ```
 
-### For LamportClock class (add after `update()` method):
+### For LamportClock class (add after `update()` method)
 
 ```python
 def initialize(self) -> int:
@@ -187,10 +190,11 @@ ENDPY
 ## What's Working
 
 **Good news**: The architectural structure is now correct!
+
 - ✅ types.py deleted (duplicate removed)
 - ✅ Imports updated to use adapter
 - ✅ generate_ulid() moved to adapter
-- ✅ __init__.py exports correct
+- ✅ **init**.py exports correct
 
 The ONLY issue is that the methods weren't copied over when migrating from types.py to adapter.py.
 
@@ -199,6 +203,7 @@ The ONLY issue is that the methods weren't copied over when migrating from types
 ## Root Cause Analysis
 
 This happened because:
+
 1. Original types.py had complete Event/LamportClock implementations
 2. When deleting types.py, the implementer correctly updated imports
 3. BUT forgot that adapter.py's Event/LamportClock were originally just adapter stubs
@@ -212,16 +217,17 @@ This happened because:
 ## Dependent WP Warning
 
 WP03 depends on WP02. Once this is fixed, ensure WP03 implementers know that:
+
 - Event has `to_json()`, `from_json()`, `__post_init__()`
 - LamportClock has `initialize()`, `to_dict()`, `from_dict()`, `__post_init__()`
 - All imports should be from `specify_cli.events.adapter`
-
 
 ## Critical Issue: Architectural Violation - Duplicate Event/LamportClock Classes
 
 **Problem**: WP02 created a new `types.py` module with Event and LamportClock classes, but WP01 already provides these through `adapter.py`. This creates two different class hierarchies and violates the adapter pattern established in WP01.
 
 **Evidence**:
+
 ```python
 # These are TWO DIFFERENT classes (not the same object):
 from specify_cli.events.adapter import Event as AdapterEvent
@@ -231,11 +237,13 @@ from specify_cli.events.types import Event as TypesEvent
 ```
 
 **Import confusion**:
+
 - `__init__.py` exports Event from `adapter`
 - `clock_storage.py` and `file_io.py` import Event from `types`
 - This means different parts of the codebase use incompatible Event objects
 
 **Why this violates the architecture**:
+
 1. WP01 established the adapter pattern for loose coupling with spec-kitty-events library
 2. All CLI code should use `specify_cli.events.adapter.Event` and `LamportClock`
 3. Creating parallel `types.py` classes bypasses the adapter layer without justification
@@ -244,6 +252,7 @@ from specify_cli.events.types import Event as TypesEvent
 **How to fix**:
 
 1. **Delete the duplicate types module**:
+
    ```bash
    rm src/specify_cli/events/types.py
    ```
@@ -253,6 +262,7 @@ from specify_cli.events.types import Event as TypesEvent
    - These are utilities, not types, so they belong with the adapter
 
 3. **Update all imports**:
+
    ```python
    # In clock_storage.py and file_io.py, change:
    from specify_cli.events.types import Event, LamportClock  # ❌ DELETE THIS
@@ -262,6 +272,7 @@ from specify_cli.events.types import Event as TypesEvent
    ```
 
 4. **Verify no import errors**:
+
    ```bash
    python3 -c "from specify_cli.events import Event, LamportClock, generate_ulid; print('OK')"
    ```
@@ -275,6 +286,7 @@ from specify_cli.events.types import Event as TypesEvent
 ## Implementation Quality (Otherwise Excellent)
 
 **What's working well**:
+
 - ✅ All 11 Event fields match data-model.md specification
 - ✅ ULID generation produces valid 26-character identifiers
 - ✅ LamportClock implements tick(), update(), initialize() correctly
@@ -287,24 +299,26 @@ from specify_cli.events.types import Event as TypesEvent
 - ✅ Integration test passes (events written, clock persisted, recovery works)
 
 **Code quality**:
+
 - Clean, readable implementation
 - Proper error handling
 - Good docstrings
 - Follows Python conventions
 
 **Test results**:
+
 - Integration test passes (5 events emitted, clock persistence verified)
 - Clock recovery test passes (value=7 is correct: max_clock=6, recovery=6+1=7)
 - ULID generation produces valid identifiers
 
 Once the architectural issue is resolved, this will be an excellent implementation.
 
-
 ## Objectives & Success Criteria
 
 **Primary Goal**: Implement core entities (Event, LamportClock, ClockStorage) and JSONL file operations with atomic writes.
 
 **Success Criteria**:
+
 - ✅ Event dataclass matches schema in data-model.md (ULID, Lamport clock, entity metadata)
 - ✅ LamportClock provides tick() operation with persistence
 - ✅ JSONL append uses POSIX file locking (atomic writes, no race conditions)
@@ -317,6 +331,7 @@ Once the architectural issue is resolved, this will be an excellent implementati
 **User Story**: US1 - Event Emission on Workflow State Changes (partial - storage layer)
 
 **Independent Test**:
+
 ```python
 from specify_cli.events.types import Event, LamportClock
 from specify_cli.events.file_io import append_event_to_jsonl
@@ -356,6 +371,7 @@ print("✓ Event written successfully")
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -372,12 +388,14 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 ### Architectural Constraints
 
 **From data-model.md (lines 19-76)**:
+
 - Events are immutable (append-only)
 - JSONL files are source of truth (not SQLite index)
 - Lamport clocks provide causal ordering (not wall-clock timestamps)
 - Daily file rotation (YYYY-MM-DD.jsonl format)
 
 **From plan.md (Technical Context)**:
+
 - POSIX file locking required for atomic appends
 - Synchronous writes prioritized (15ms overhead acceptable)
 - Cross-platform support (Linux, macOS, Windows WSL)
@@ -399,6 +417,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Create types module**:
+
    ```python
    # src/specify_cli/events/types.py (new file)
 
@@ -449,6 +468,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 2. **Add ULID generation utility**:
+
    ```python
    # In src/specify_cli/events/types.py (add to bottom)
 
@@ -487,9 +507,11 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/types.py` (new file, ~100 lines)
 
 **Validation**:
+
 - [ ] Event dataclass has all 11 fields from data-model.md
 - [ ] `to_json()` and `from_json()` methods for serialization
 - [ ] `generate_ulid()` produces 26-character alphanumeric IDs
@@ -497,6 +519,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] Import succeeds: `from specify_cli.events.types import Event, generate_ulid`
 
 **Edge Cases**:
+
 - Empty `event_id`: Raises ValueError
 - Negative `lamport_clock`: Raises ValueError
 - Missing payload keys: Tolerated (weak schema - payload is flexible dict)
@@ -512,6 +535,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Add LamportClock to types module**:
+
    ```python
    # In src/specify_cli/events/types.py (add after Event class)
 
@@ -580,9 +604,11 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/types.py` (modify: add LamportClock class, ~60 lines)
 
 **Validation**:
+
 - [ ] `tick()` increments value by 1 and updates timestamp
 - [ ] `update(remote)` sets clock to max(local, remote) + 1
 - [ ] `initialize()` sets clock to 1 with current timestamp
@@ -590,6 +616,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] Validation: Clock value cannot be < 1
 
 **Edge Cases**:
+
 - Multiple rapid ticks: Each tick increments by exactly 1 (monotonic)
 - Concurrent ticks from multiple processes: File locking handles (see T009)
 - Clock value reaches MAX_INT: Unlikely in practice (Python ints unbounded)
@@ -605,6 +632,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Create clock_storage module**:
+
    ```python
    # src/specify_cli/events/clock_storage.py (new file)
 
@@ -680,9 +708,11 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/clock_storage.py` (new file, ~70 lines)
 
 **Validation**:
+
 - [ ] `load()` returns LamportClock(value=1) if file doesn't exist
 - [ ] `load()` raises RuntimeError if file corrupted (invalid JSON)
 - [ ] `save()` writes clock to `.kittify/clock.json`
@@ -690,6 +720,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] `save()` creates parent directory if missing
 
 **Edge Cases**:
+
 - File doesn't exist: Returns default clock (value=1)
 - File corrupted (invalid JSON): Raises RuntimeError with helpful message
 - Parent directory missing: `save()` creates it automatically
@@ -706,6 +737,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Create file_io module**:
+
    ```python
    # src/specify_cli/events/file_io.py (new file)
 
@@ -801,9 +833,11 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/file_io.py` (new file, ~100 lines)
 
 **Validation**:
+
 - [ ] `append_event()` creates `.kittify/events/YYYY-MM-DD.jsonl` if missing
 - [ ] Uses `fcntl.flock()` on POSIX systems (Linux, macOS, WSL)
 - [ ] Falls back to best-effort on Windows (non-WSL)
@@ -812,6 +846,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] Lock is released even if write fails (try/finally)
 
 **Edge Cases**:
+
 - Parent directory missing: `mkdir(parents=True)` creates it
 - Concurrent writes: File locking serializes writes (no corruption)
 - Windows non-WSL: Best-effort without locking (warn user if in multi-process setup)
@@ -829,6 +864,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 
 1. **Verify T009 implementation**:
    The daily rotation logic is already embedded in T009's `append_event()` method:
+
    ```python
    # Extract date from event.timestamp
    date_str = event.timestamp[:10]  # "2026-01-27T10:00:00Z" -> "2026-01-27"
@@ -836,6 +872,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 2. **Add explicit rotation test**:
+
    ```python
    # Test daily rotation
    from specify_cli.events.file_io import append_event_to_jsonl
@@ -886,6 +923,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 
 3. **Document behavior**:
    Add docstring comment in `file_io.py`:
+
    ```python
    def append_event(self, event: Event) -> Path:
        """
@@ -906,15 +944,18 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/file_io.py` (modify: add docstring, already implemented)
 
 **Validation**:
+
 - [ ] Events with different dates go to different files
 - [ ] Filename format is ISO date: `YYYY-MM-DD.jsonl`
 - [ ] Date extracted from `event.timestamp` field (first 10 characters)
 - [ ] New files created automatically when date changes
 
 **Edge Cases**:
+
 - Date boundary during event emission: Events use their timestamp, not system clock
 - Clock skew (system time wrong): Not an issue (Lamport clock provides ordering)
 - Year rollover (2026-12-31 → 2027-01-01): Works correctly (date extracted from timestamp)
@@ -930,6 +971,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Add recovery function to clock_storage.py**:
+
    ```python
    # In src/specify_cli/events/clock_storage.py (add new function)
 
@@ -979,6 +1021,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 2. **Integrate recovery into ClockStorage.load()**:
+
    ```python
    # Modify ClockStorage.load() in clock_storage.py
 
@@ -1027,9 +1070,11 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/clock_storage.py` (modify: add recovery, ~50 lines)
 
 **Validation**:
+
 - [ ] `recover_clock_from_events()` scans all JSONL files in events_dir
 - [ ] Finds max `lamport_clock` value across all events
 - [ ] Returns LamportClock with value = max + 1
@@ -1038,6 +1083,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] Recovered clock is saved back to clock.json
 
 **Edge Cases**:
+
 - No events exist yet: Returns LamportClock(value=1)
 - Events directory doesn't exist: Returns LamportClock(value=1)
 - All JSONL files corrupted: Returns LamportClock(value=1)
@@ -1054,6 +1100,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **Steps**:
 
 1. **Add directory initialization utility**:
+
    ```python
    # In src/specify_cli/events/file_io.py (add new function)
 
@@ -1082,6 +1129,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 2. **Call initialization in JSONLFileWriter constructor**:
+
    ```python
    # Modify JSONLFileWriter.__init__() in file_io.py
 
@@ -1092,6 +1140,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 3. **Add initialization to spec-kitty init command** (optional):
+
    ```python
    # In src/specify_cli/cli/commands/init.py (if exists)
 
@@ -1104,10 +1153,12 @@ If you're not on 2.x, the implementation command at the bottom will create the w
    ```
 
 **Files**:
+
 - `src/specify_cli/events/file_io.py` (modify: add initialization function)
 - `src/specify_cli/cli/commands/init.py` (optional: integrate into init command)
 
 **Validation**:
+
 - [ ] `initialize_event_directories()` creates `.kittify/events/`
 - [ ] `initialize_event_directories()` creates `.kittify/errors/`
 - [ ] Function is idempotent (safe to call multiple times)
@@ -1115,6 +1166,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 - [ ] Directories created automatically on first event write
 
 **Edge Cases**:
+
 - Directories already exist: No-op (exist_ok=True)
 - Parent directories missing: Created automatically (parents=True)
 - Permission denied: Raises PermissionError (expected, user must fix permissions)
@@ -1128,6 +1180,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T006**: Import test - `from specify_cli.events.types import Event, generate_ulid`
 2. **T007**: Unit test - `clock.tick()` increments value, `to_dict()` roundtrip
 3. **T008**: File test - Save/load clock to/from `.kittify/clock.json`
@@ -1137,6 +1190,7 @@ If you're not on 2.x, the implementation command at the bottom will create the w
 7. **T012**: Init test - Verify directories created automatically
 
 **Integration test** (covers all subtasks):
+
 ```python
 from specify_cli.events.types import Event, LamportClock, generate_ulid
 from specify_cli.events.clock_storage import ClockStorage, recover_clock_from_events
@@ -1194,6 +1248,7 @@ print("✓ Clock recovery test passed")
 **Impact**: Concurrent writes may corrupt JSONL files
 
 **Mitigation**:
+
 - T009 detects Windows and uses best-effort (no locking)
 - Document Windows WSL recommendation for multi-agent setups
 - Single-agent CLI use (majority) unaffected
@@ -1203,6 +1258,7 @@ print("✓ Clock recovery test passed")
 **Impact**: Recovery process runs often, adds latency
 
 **Mitigation**:
+
 - T008 uses atomic write (temp file + rename) to prevent corruption
 - T011 recovery is fast (single pass through event log)
 - Corrupted clock.json is unlikely in practice (atomic writes)
@@ -1212,6 +1268,7 @@ print("✓ Clock recovery test passed")
 **Impact**: Git repo grows large with many JSONL files
 
 **Mitigation**:
+
 - Daily rotation keeps individual files small (<1MB typically)
 - Users can archive/delete old files (events are immutable)
 - Future enhancement: Automatic archival after 90 days
@@ -1273,6 +1330,7 @@ print("✓ Clock recovery test passed")
    - ✓ Idempotent (safe to call multiple times)
 
 **Reviewers should**:
+
 - Run integration test (verify events written + clock persisted)
 - Test recovery (delete clock.json, verify recovery from events)
 - Check file locking on POSIX system (concurrent writes don't corrupt)
@@ -1284,6 +1342,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T10:16:44Z – unknown – shell_pid=28472 – lane=planned – Reset to planned - starting fresh from clean 2.x branch
 - 2026-01-30T10:31:59Z – unknown – shell_pid=49716 – lane=for_review – Ready for review: implemented event storage foundation (Event/LamportClock types, ULID generator), clock persistence + recovery, JSONL append with POSIX locking + daily rotation, and event/error directory initialization.
 - 2026-01-30T10:32:37Z – claude-reviewer – shell_pid=55140 – lane=doing – Started review via workflow command
@@ -1294,7 +1353,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-30T10:44:37Z – claude-reviewer-2 – shell_pid=60293 – lane=doing – Started review via workflow command
 - 2026-01-30T10:46:31Z – claude-reviewer-2 – shell_pid=60293 – lane=planned – Moved to planned
 - 2026-01-30T10:47:19Z – claude-implementer – shell_pid=61314 – lane=doing – Started implementation via workflow command
-- 2026-01-30T10:49:03Z – claude-implementer – shell_pid=61314 – lane=for_review – Review feedback addressed: Added all missing methods (to_json, from_json, __post_init__, initialize, to_dict, from_dict) to Event and LamportClock classes in adapter.py. All integration tests pass.
+- 2026-01-30T10:49:03Z – claude-implementer – shell_pid=61314 – lane=for_review – Review feedback addressed: Added all missing methods (to_json, from_json, **post_init**, initialize, to_dict, from_dict) to Event and LamportClock classes in adapter.py. All integration tests pass.
 - 2026-01-30T10:50:37Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 - 2026-01-30T10:51:39Z – codex – shell_pid=14744 – lane=done – Review passed: adapter Event/LamportClock now include serialization/validation methods, ULID generator exported, storage/file IO use adapter types; verification snippet passes.
 

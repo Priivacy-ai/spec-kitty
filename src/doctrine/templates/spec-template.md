@@ -1,4 +1,5 @@
 # Feature Specification: [FEATURE NAME]
+
 *Path: [templates/spec-template.md](templates/spec-template.md)*
 
 <!-- Replace [FEATURE NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->

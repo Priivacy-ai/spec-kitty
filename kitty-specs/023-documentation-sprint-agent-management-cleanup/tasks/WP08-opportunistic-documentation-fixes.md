@@ -52,8 +52,9 @@ This is an independent cleanup work package that can start immediately. Loosely 
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -62,6 +63,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Fix obvious documentation-code mismatches discovered during validation (outdated command syntax, broken links, config examples).
 
 **Success Criteria**:
+
 - [ ] Documented commands match `--help` output (FR-013 requirement)
 - [ ] Config examples match AgentConfig schema (FR-014 requirement)
 - [ ] All internal documentation links resolve (FR-015 requirement)
@@ -75,14 +77,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Fix obvious documentation issues discovered during feature implementation. This addresses User Story 5 (FR-013 through FR-015) and improves overall documentation quality.
 
 **Reference Documents**:
+
 - WP01 research findings (for config schema reference, if available)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-013 through FR-015)
 
 **Source Files for Validation** (read-only):
+
 - `src/specify_cli/orchestrator/agent_config.py` (AgentConfig dataclass for config examples)
 - `src/specify_cli/cli/commands/*.py` (command implementations for syntax validation)
 
 **Scope Definition**:
+
 - **"Obvious"**: Issues found through casual inspection, not deep audit
 - **"Easy wins"**: Fixes that take < 5 minutes per issue
 - **Out of scope**: Comprehensive documentation audit, major rewrites, new content
@@ -96,11 +101,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
   - Comprehensive link checker across all docs
 
 **Writing Style**:
+
 - Surgical fixes (change minimal text)
 - Match existing doc style
 - Don't introduce new content unless fixing omission
 
 **Constraints**:
+
 - All three subtasks can be parallelized (independent)
 - Limit to 10-15 fixes total (scope control)
 - Document all changes for review
@@ -115,9 +122,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Identify tutorials to check**:
+
    ```bash
    ls docs/tutorials/*.md
    ```
+
    Prioritize: `getting-started.md`, `first-feature.md`, `multi-agent-workflow.md` (if exists)
 
 2. **Extract commands from each tutorial**:
@@ -125,6 +134,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - List all `spec-kitty` commands found
 
 3. **Validate against `--help` output**:
+
    ```bash
    # For each command found, check help
    spec-kitty <command> --help
@@ -139,6 +149,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 4. **Fix command syntax**:
 
    **Example fix**:
+
    ```markdown
    Before:
    ```bash
@@ -146,6 +157,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    After:
+
    ```bash
    spec-kitty init --ai claude
    ```
@@ -170,11 +182,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T035 and T036)
 
 **Notes**:
+
 - Focus on high-traffic tutorials (getting-started, first-feature)
 - If unsure, run command to see actual behavior
 - Don't fix commands that work but are "old style" (e.g., older flag names that still work)
 
 **Validation**:
+
 - [ ] Tutorials checked for command syntax
 - [ ] Common mismatches identified (renamed commands, flags)
 - [ ] Command syntax fixed to match `--help` output
@@ -193,6 +207,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - File: `src/specify_cli/orchestrator/agent_config.py`
    - Dataclasses: `AgentConfig`, `AgentSelectionConfig`
    - Expected fields:
+
      ```python
      class AgentConfig:
          available: list[str]
@@ -205,6 +220,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      ```
 
 2. **Find config examples in docs**:
+
    ```bash
    cd docs
    grep -r "agents:" . --include="*.md" -A 5
@@ -223,6 +239,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 4. **Fix config examples**:
 
    **Example fix 1: Wrong field name**:
+
    ```yaml
    Before:
    agents:
@@ -236,6 +253,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Example fix 2: Wrong enum value**:
+
    ```yaml
    Before:
    agents:
@@ -249,6 +267,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Example fix 3: Missing structure**:
+
    ```yaml
    Before:
    agents:
@@ -282,11 +301,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T034 and T036)
 
 **Notes**:
+
 - Focus on high-visibility docs (configuration.md, getting-started.md)
 - If unsure, check AgentConfig dataclass definition
 - Don't add new config examples, only fix existing ones
 
 **Validation**:
+
 - [ ] Config examples found via grep
 - [ ] Each example checked against AgentConfig schema
 - [ ] Field names corrected (`available`, not `list`)
@@ -308,6 +329,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - "See Also" sections
 
 2. **Manual link checking** (if no automated tool available):
+
    ```bash
    cd docs
    # Extract markdown links
@@ -319,24 +341,28 @@ Use language identifiers in code blocks: ````python`, ````bash`
 3. **Check common broken link patterns**:
 
    **Pattern 1: File moved**:
+
    ```markdown
    Before: [Config Guide](config.md)
    After: [Config Guide](../reference/configuration.md)
    ```
 
    **Pattern 2: File renamed**:
+
    ```markdown
    Before: [Agent Commands](agent-cmds.md)
    After: [Agent Commands](agent-subcommands.md)
    ```
 
    **Pattern 3: Incorrect relative path**:
+
    ```markdown
    Before: [Install](install-spec-kitty.md)  # from reference/ directory
    After: [Install](../how-to/install-spec-kitty.md)  # correct relative path
    ```
 
 4. **Verify link targets exist**:
+
    ```bash
    # For each link found, check target file exists
    ls docs/path/to/target.md
@@ -345,6 +371,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 5. **Fix broken links**:
 
    **Example fix 1: Update relative path**:
+
    ```markdown
    Before (from docs/reference/cli-commands.md):
    See [Managing Agents](manage-agents.md)
@@ -354,6 +381,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Example fix 2: Remove dead link**:
+
    ```markdown
    Before:
    For details, see [Advanced Topics](advanced.md).
@@ -364,6 +392,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Check anchor links** (if time permits):
+
    ```markdown
    [Command Syntax](cli-commands.md#spec-kitty-agent-config)
    ```
@@ -386,12 +415,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T034 and T035)
 
 **Notes**:
+
 - Focus on reference docs and index pages (highest link density)
 - If link target doesn't exist and no replacement, remove link or generalize text
 - Use relative paths (not absolute)
 - Test fixed links by clicking in documentation browser
 
 **Validation**:
+
 - [ ] High-traffic docs checked for links
 - [ ] Broken links identified (target file doesn't exist)
 - [ ] Relative paths corrected
@@ -428,24 +459,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Scope creep (finding too many issues, spending too much time)
+
 - **Mitigation**: Strict limit of 10-15 fixes total; time-box to 1-2 hours
 - **Action**: If more issues found, document for future work package
 
 **Risk**: Fixing commands that are "old style" but still work
+
 - **Mitigation**: Only fix commands that fail or produce errors; leave deprecated-but-working syntax
 - **Validation**: Run command to verify it actually fails before fixing
 
 **Risk**: Config examples have subtly wrong structure (hard to detect)
+
 - **Mitigation**: Focus on obvious field name mismatches; defer complex schema issues
 - **Validation**: Cross-reference WP01 research T002 or AgentConfig dataclass directly
 
 **Risk**: Breaking working links with incorrect relative path fixes
+
 - **Mitigation**: Verify target file exists before fixing; test link in browser
 - **Validation**: Click link after fix to ensure it resolves
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] All three subtasks (T034-T036) completed
 - [ ] Command syntax validated in tutorials (T034)
 - [ ] Config examples validated against schema (T035)
@@ -457,6 +493,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Internal links resolve (FR-015)
 
 **Review Focus**:
+
 - **Accuracy**: Do fixed commands actually work?
 - **Scope Control**: Were only "obvious" issues fixed?
 - **Impact**: Are fixed issues user-facing (high priority)?
@@ -467,6 +504,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -483,6 +521,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T11:27:22Z – claude – shell_pid=50727 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:29:42Z – claude – shell_pid=50727 – lane=for_review – Completed opportunistic documentation fixes: (T034) Validated tutorial command syntax - all current; (T035) Fixed config.yaml example in configuration.md - removed unnecessary quotes from strategy/agent names; (T036) Fixed 2 broken links to deleted jj docs in cli-commands.md and configuration.md. Total: 3 fixes, <50 lines changed, well under scope limits.
 - 2026-01-23T11:30:00Z – Claude – shell_pid=51920 – lane=doing – Started review via workflow command

@@ -20,28 +20,33 @@ Before running this command:
 **BEFORE PROCEEDING:** You MUST be in the feature worktree, NOT the main repository.
 
 Verify your current location:
+
 ```bash
 pwd
 git branch --show-current
 ```
 
 **Expected output:**
+
 - `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
 - Branch: Should show your feature branch name like `001-feature-name` (NOT `main` or `release/*`)
 
 **If you see:**
+
 - Branch showing `main` or `release/`
 - OR pwd shows the main repository root
 
 ⛔ **STOP - DANGER! You are in the wrong location!**
 
 **Correct the issue:**
+
 1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this merge command again
 
 **Exception (main branch):**
 If you are on `main` and need to merge a workspace-per-WP feature, run:
+
 ```bash
 spec-kitty merge --feature <feature-slug>
 ```
@@ -69,6 +74,7 @@ else:
 ```
 
 **What this validates**:
+
 - Current branch follows the feature pattern like `001-feature-name`
 - You're not attempting to run from `main` or any release branch
 - The validator prints clear navigation instructions if you're outside the feature worktree
@@ -129,6 +135,7 @@ spec-kitty merge
 ```
 
 This will:
+
 - Create a merge commit
 - Remove the worktree
 - Delete the feature branch
@@ -175,28 +182,37 @@ spec-kitty merge --target develop --push
 ## Merge Strategies
 
 ### `merge` (default)
+
 Creates a merge commit preserving all feature branch commits.
+
 ```bash
 spec-kitty merge --strategy merge
 ```
+
 ✅ Preserves full commit history
 ✅ Clear feature boundaries in git log
 ❌ More commits in main branch
 
 ### `squash`
+
 Squashes all feature commits into a single commit.
+
 ```bash
 spec-kitty merge --strategy squash
 ```
+
 ✅ Clean, linear history on main
 ✅ Single commit per feature
 ❌ Loses individual commit details
 
 ### `rebase`
+
 Requires manual rebase first (command will guide you).
+
 ```bash
 spec-kitty merge --strategy rebase
 ```
+
 ✅ Linear history without merge commits
 ❌ Requires manual intervention
 ❌ Rewrites commit history
@@ -235,12 +251,14 @@ my-project/                              # Main repo (main branch)
 ```
 
 **Merge behavior for workspace-per-WP**:
+
 - Run `spec-kitty merge` from **any** WP worktree for the feature
 - The command automatically detects all WP branches (WP01, WP02, WP03, etc.)
 - Merges each WP branch into main in sequence
 - Cleans up all WP worktrees and branches
 
 ### Legacy Pattern (0.10.x)
+
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
@@ -253,6 +271,7 @@ my-project/                    # Main repo (main branch)
 ```
 
 ### The Rules
+
 1. **Main branch** stays in the primary repo root
 2. **Feature branches** live in `.worktrees/<feature-slug>/`
 3. **Work on features** happens in their worktrees (isolation)
@@ -260,6 +279,7 @@ my-project/                    # Main repo (main branch)
 5. **Cleanup is automatic** - worktrees removed after merge
 
 ### Why Worktrees?
+
 - ✅ Work on multiple features simultaneously
 - ✅ Each feature has its own sandbox
 - ✅ No branch switching in main repo
@@ -267,6 +287,7 @@ my-project/                    # Main repo (main branch)
 - ✅ Clean separation of concerns
 
 ### The Flow
+
 ```
 1. /spec-kitty.specify           → Creates branch + worktree
 2. cd .worktrees/<feature>/      → Enter worktree
@@ -282,7 +303,9 @@ my-project/                    # Main repo (main branch)
 ## Error Handling
 
 ### "Already on main branch"
+
 You're not on a feature branch. Switch to your feature branch first:
+
 ```bash
 cd .worktrees/<feature-slug>
 # or
@@ -290,7 +313,9 @@ git checkout <feature-branch>
 ```
 
 ### "Working directory has uncommitted changes"
+
 Commit or stash your changes:
+
 ```bash
 git add .
 git commit -m "Final changes"
@@ -299,7 +324,9 @@ git stash
 ```
 
 ### "Could not fast-forward main"
+
 Your main branch is behind origin:
+
 ```bash
 git checkout main
 git pull
@@ -308,7 +335,9 @@ spec-kitty merge
 ```
 
 ### "Merge failed - conflicts"
+
 Resolve conflicts manually:
+
 ```bash
 # Fix conflicts in files
 git add <resolved-files>
@@ -329,6 +358,7 @@ git branch -d <feature-branch>
 ## Examples
 
 ### Complete feature and push
+
 ```bash
 cd .worktrees/001-auth-system
 /spec-kitty.accept
@@ -336,16 +366,19 @@ cd .worktrees/001-auth-system
 ```
 
 ### Squash merge for cleaner history
+
 ```bash
 spec-kitty merge --strategy squash --push
 ```
 
 ### Merge but keep branch for reference
+
 ```bash
 spec-kitty merge --keep-branch --push
 ```
 
 ### Check what will happen first
+
 ```bash
 spec-kitty merge --dry-run
 ```
@@ -353,6 +386,7 @@ spec-kitty merge --dry-run
 ## After Merging
 
 After a successful merge, you're back on the main branch with:
+
 - ✅ Feature code integrated
 - ✅ Worktree removed (if it existed)
 - ✅ Feature branch deleted (unless `--keep-branch`)
@@ -371,6 +405,7 @@ The typical flow is:
 ```
 
 Or combine conceptually:
+
 ```bash
 # Accept verifies readiness
 /spec-kitty.accept --mode local
@@ -383,6 +418,7 @@ The `/spec-kitty.accept` command **verifies** your feature is complete.
 The `/spec-kitty.merge` command **integrates** your feature into main.
 
 Together they complete the workflow:
+
 ```
 specify → plan → tasks → implement → review → accept → merge ✅
 ```

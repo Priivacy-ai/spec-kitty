@@ -80,6 +80,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 - **Existing ULID usage**: `src/specify_cli/sync/emitter.py` -- import pattern: `import ulid` with `hasattr(ulid, "new")` check
 
 **Key constraints**:
+
 - Python 3.11+ required (StrEnum available natively)
 - ULID pattern must match `^[0-9A-HJKMNP-TV-Z]{26}$` (Crockford base32)
 - Alias `doing` accepted at input boundaries only -- never persisted in events
@@ -98,6 +99,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Purpose**: Public API surface for the status package. All consumers import from here.
 
 **Steps**:
+
 1. Create the `src/specify_cli/status/` directory
 2. Create `__init__.py` with exports from `models.py` and `transitions.py`
 3. Export the following names:
@@ -109,6 +111,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Validation**: `from specify_cli.status import Lane, StatusEvent, validate_transition` should succeed without error.
 
 **Edge Cases**:
+
 - Circular import prevention: ensure `__init__.py` only imports from submodules, not the reverse
 - Keep the `__init__.py` minimal -- no logic, only re-exports
 
@@ -119,7 +122,9 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Purpose**: Define all data types for the canonical status model.
 
 **Steps**:
+
 1. Create the file with these imports:
+
    ```python
    from __future__ import annotations
    import re
@@ -129,6 +134,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 2. Define `Lane` as a StrEnum:
+
    ```python
    class Lane(StrEnum):
        PLANNED = "planned"
@@ -141,6 +147,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 3. Define `RepoEvidence` dataclass:
+
    ```python
    @dataclass(frozen=True)
    class RepoEvidence:
@@ -166,6 +173,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 4. Define `VerificationResult` dataclass:
+
    ```python
    @dataclass(frozen=True)
    class VerificationResult:
@@ -182,6 +190,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 5. Define `ReviewApproval` dataclass:
+
    ```python
    @dataclass(frozen=True)
    class ReviewApproval:
@@ -198,6 +207,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 6. Define `DoneEvidence` dataclass:
+
    ```python
    @dataclass(frozen=True)
    class DoneEvidence:
@@ -223,6 +233,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 7. Define `StatusEvent` dataclass with ULID validation:
+
    ```python
    ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
@@ -247,6 +258,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 8. Define `StatusSnapshot` dataclass matching `contracts/snapshot-schema.json`:
+
    ```python
    @dataclass
    class StatusSnapshot:
@@ -265,12 +277,14 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Files**: `src/specify_cli/status/models.py` (new file)
 
 **Validation**:
+
 - `Lane("in_progress")` returns `Lane.IN_PROGRESS`
 - `StatusEvent.to_dict()` followed by `StatusEvent.from_dict()` round-trips perfectly
 - ULID_PATTERN matches valid ULIDs, rejects invalid ones
 - `DoneEvidence` requires `review` field (ReviewApproval)
 
 **Edge Cases**:
+
 - `Lane("doing")` should raise `ValueError` -- alias resolution happens in transitions, not in the enum itself
 - `StatusEvent.from_dict()` must convert string lane values to `Lane` enum instances
 - `to_dict()` must serialize `Lane` values as their string values, not enum member names
@@ -283,7 +297,9 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Purpose**: Transition matrix, guard conditions, alias resolution, and validation logic.
 
 **Steps**:
+
 1. Define constants matching `contracts/transition-matrix.json`:
+
    ```python
    CANONICAL_LANES: tuple[str, ...] = (
        "planned", "claimed", "in_progress", "for_review",
@@ -315,6 +331,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 2. Implement `resolve_lane_alias()`:
+
    ```python
    def resolve_lane_alias(lane: str) -> str:
        """Resolve alias to canonical lane name. Returns input if not an alias."""
@@ -322,6 +339,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ```
 
 3. Implement `validate_transition()`:
+
    ```python
    def validate_transition(
        from_lane: str,
@@ -335,6 +353,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    ) -> tuple[bool, str | None]:
        """Validate a lane transition. Returns (ok, error_message)."""
    ```
+
    - First resolve aliases on both from_lane and to_lane
    - Check if `(from_lane, to_lane)` is in `ALLOWED_TRANSITIONS`
    - If not allowed and not forced: return `(False, "Illegal transition: {from} -> {to}")`
@@ -350,6 +369,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
    - `_guard_review_ref_required(review_ref)` -- for `for_review -> in_progress`
 
 5. Implement `is_terminal()`:
+
    ```python
    def is_terminal(lane: str) -> bool:
        return resolve_lane_alias(lane) in TERMINAL_LANES
@@ -358,6 +378,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Files**: `src/specify_cli/status/transitions.py` (new file)
 
 **Validation**:
+
 - `validate_transition("planned", "claimed", actor="agent-1")` returns `(True, None)`
 - `validate_transition("planned", "done")` returns `(False, "Illegal transition: planned -> done")`
 - `validate_transition("done", "planned", force=True, actor="admin", reason="reopening")` returns `(True, None)`
@@ -365,6 +386,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 - `resolve_lane_alias("claimed")` returns `"claimed"` (pass-through)
 
 **Edge Cases**:
+
 - Forced transition from terminal lane (done -> planned): must succeed with actor+reason
 - Forced transition without actor: must fail with `"Force transitions require actor and reason"`
 - Forced transition without reason: must fail similarly
@@ -378,6 +400,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Purpose**: Verify all data types, serialization, and validation rules.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/__init__.py` (empty)
 2. Create `tests/specify_cli/status/test_models.py`
 3. Test cases:
@@ -406,6 +429,7 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 **Purpose**: Verify every legal and illegal transition pair, alias resolution, guard conditions, and force override behavior.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_transitions.py`
 2. Test cases:
    - `test_all_legal_transitions_accepted` -- parametrize over all 16 ALLOWED_TRANSITIONS pairs, verify `(True, None)`

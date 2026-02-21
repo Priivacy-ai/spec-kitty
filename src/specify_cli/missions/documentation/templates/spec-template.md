@@ -18,11 +18,13 @@
 ### Gap Analysis Results *(for gap-filling mode only)*
 
 **Existing Documentation**:
+
 - [List current docs and their Divio types]
 - Example: `README.md` - explanation (partial)
 - Example: `API.md` - reference (outdated)
 
 **Identified Gaps**:
+
 - [Missing Divio types or outdated content]
 - Example: No tutorial for getting started
 - Example: Reference docs don't cover new v2 API
@@ -46,6 +48,7 @@
 **Why this priority**: [Explain value - e.g., "New users can't adopt the library without a tutorial"]
 
 **Independent Test**: [How to verify documentation achieves the goal]
+
 - Example: "New developer with no prior knowledge can complete getting-started tutorial in under 15 minutes"
 
 **Acceptance Scenarios**:

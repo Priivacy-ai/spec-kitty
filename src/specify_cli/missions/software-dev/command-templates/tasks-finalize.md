@@ -34,6 +34,7 @@ spec-kitty agent feature finalize-tasks --json
 ```
 
 This command will:
+
 - Parse dependencies from tasks.md
 - Update WP frontmatter with `dependencies` field
 - Validate dependencies (check for cycles, invalid references)
@@ -42,6 +43,7 @@ This command will:
 ### 2. Check Output
 
 The JSON output includes:
+
 - `"commit_created": true/false` — whether a commit was made
 - `"commit_hash"` — the commit hash if created
 - `"wp_count"` — number of WP files processed
@@ -50,6 +52,7 @@ The JSON output includes:
 ### 3. Verify
 
 **IMPORTANT — DO NOT COMMIT AGAIN AFTER THIS COMMAND**:
+
 - `finalize-tasks` commits the files automatically
 - If `commit_created=true`, files are ALREADY committed — do not run `git commit` again
 - Other dirty files shown by `git status` (templates, config) are UNRELATED
@@ -58,6 +61,7 @@ The JSON output includes:
 ### 4. Report
 
 Provide a concise outcome summary:
+
 - Path to `tasks.md`
 - Work package count and per-package subtask tallies
 - Parallelization highlights
@@ -68,6 +72,7 @@ Provide a concise outcome summary:
 ## Output
 
 After completing this step:
+
 - All WP files have `dependencies` field in frontmatter
 - Dependencies are validated (no cycles, no invalid references)
 - Task artifacts are committed to the target branch

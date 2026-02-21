@@ -44,6 +44,7 @@ spec-kitty implement WP06 --base WP05
 **Scope Note**: Post-MVP (run after core identity + auto-sync are stable).
 
 **Success Criteria**:
+
 - [ ] Full test suite passes
 - [ ] All emitted events contain project_uuid
 - [ ] Graceful degradation works when unauthenticated
@@ -58,12 +59,14 @@ spec-kitty implement WP06 --base WP05
 **Target Branch**: 2.x
 
 **Supporting Documents**:
+
 - [spec.md](../spec.md) - All acceptance scenarios
 - [quickstart.md](../quickstart.md) - Validation scenarios
 
 **Prerequisites**: WP01, WP02, WP04, WP05 must be complete.
 
 **Key Constraints**:
+
 - Tests must be isolated (no shared state)
 - Mock WebSocket for reliability
 - Handle async code correctly
@@ -77,8 +80,10 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Set up reusable fixtures for integration tests.
 
 **Steps**:
+
 1. Create `tests/integration/test_sync_e2e.py`
 2. Add fixtures:
+
    ```python
    import pytest
    import tempfile
@@ -130,6 +135,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (NEW, ~60 lines fixtures)
 
 ---
@@ -139,7 +145,9 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Verify full flow from init to event emission.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    class TestIdentityAwareFlow:
        def test_init_creates_identity(self, temp_repo):
@@ -181,6 +189,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (append, ~50 lines)
 
 ---
@@ -190,7 +199,9 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Verify queue-only mode when not authenticated.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_unauthenticated_queues_only(self, temp_repo, mock_queue, mock_websocket):
        """Events are queued (not sent via WS) when unauthenticated."""
@@ -216,6 +227,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (append, ~30 lines)
 
 ---
@@ -225,7 +237,9 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Verify identity is generated for projects without it.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_backfill_existing_config(self, temp_repo_with_config):
        """Identity added to existing config.yaml without overwriting other fields."""
@@ -254,6 +268,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (append, ~30 lines)
 
 ---
@@ -263,7 +278,9 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Verify in-memory identity when config is not writable.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_readonly_fallback(self, temp_repo, caplog):
        """Read-only repo uses in-memory identity with warning."""
@@ -298,6 +315,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (append, ~35 lines)
 
 ---
@@ -307,7 +325,9 @@ spec-kitty implement WP06 --base WP05
 **Purpose**: Verify each command emits exactly one status change.
 
 **Steps**:
+
 1. Add test:
+
    ```python
    def test_no_duplicate_emissions(self, temp_repo):
        """Commands emit exactly one WPStatusChanged per transition."""
@@ -322,6 +342,7 @@ spec-kitty implement WP06 --base WP05
    ```
 
 **Files**:
+
 - `tests/integration/test_sync_e2e.py` (append, ~30 lines)
 
 ---
@@ -354,6 +375,7 @@ mypy tests/integration/test_sync_e2e.py
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. Tests are isolated (no shared state between tests)
 2. All acceptance scenarios from spec.md are covered
 3. Mocks are appropriate (WebSocket, auth)

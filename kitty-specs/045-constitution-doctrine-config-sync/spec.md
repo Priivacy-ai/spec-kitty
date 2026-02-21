@@ -133,6 +133,7 @@ As a project owner who occasionally edits `constitution.md` manually (outside th
 ## Scope Boundaries
 
 ### In Scope
+
 - Constitution directory structure (`.kittify/constitution/`)
 - Agentic extraction from markdown to YAML
 - Post-save hook + explicit sync command
@@ -142,6 +143,7 @@ As a project owner who occasionally edits `constitution.md` manually (outside th
 - Dashboard API path update
 
 ### Out of Scope
+
 - Bi-directional sync (YAML → constitution.md) — one-way only
 - Git server webhook configuration — noted as possible but not implemented
 - Constitution versioning/history — deferred (git handles version history)

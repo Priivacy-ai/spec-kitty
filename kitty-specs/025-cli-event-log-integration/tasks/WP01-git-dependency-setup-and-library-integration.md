@@ -53,6 +53,7 @@ history:
 `git merge-base --is-ancestor 2.x HEAD` returns exit code 1 in the WP01 worktree, so the implementation is still not based on `2.x`. This violates the WP constraint and blocks approval.
 
 **How to fix**: Recreate or rebase the WP01 branch on top of `2.x` and re-apply the WP01 commits. Example:
+
 - `git checkout 2.x && git pull`
 - `git checkout -b 025-cli-event-log-integration-WP01-2x`
 - `git cherry-pick <WP01 commits>` (or `git rebase --onto 2.x <old-base> 025-cli-event-log-integration-WP01`)
@@ -60,11 +61,10 @@ history:
 
 Then update WP metadata base commit to match the new base.
 
-
 ## Markdown Formatting
 
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -73,6 +73,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Primary Goal**: Integrate spec-kitty-events library as a Git dependency with commit pinning per ADR-11 (Dual-Repository Pattern).
 
 **Success Criteria**:
+
 - ✅ `pyproject.toml` declares spec-kitty-events with SSH Git URL and commit hash pinning
 - ✅ Fresh clone + `pip install -e .` successfully installs spec-kitty-events library
 - ✅ CI/CD pipeline (GitHub Actions) uses SSH deploy key to access private repository
@@ -84,6 +85,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **User Story**: US6 - Git Dependency Integration with Commit Pinning
 
 **Independent Test**:
+
 ```bash
 # Fresh environment
 git clone <spec-kitty-repo> /tmp/spec-kitty-test
@@ -104,6 +106,7 @@ python -c "from specify_cli.events.adapter import EventAdapter; print('OK')"
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 If the 2.x branch doesn't exist yet, create it NOW:
+
 ```bash
 git checkout main
 git checkout -b 2.x
@@ -111,6 +114,7 @@ git push origin 2.x
 ```
 
 **Verify you're on 2.x before implementing**:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -118,13 +122,14 @@ git branch --show-current  # Must output: 2.x
 **Why**: 2.x is a greenfield branch incompatible with main (v0.13.x). Per ADR-12, main will become the 1.x maintenance branch (YAML logs). This feature implements events-only architecture on 2.x.
 
 **DO NOT**:
+
 - ❌ Implement on main branch
 - ❌ Modify existing code on main
 - ❌ Create worktrees from main
 
 ### Prerequisites
 
-- **Spec-kitty-events repository**: https://github.com/Priivacy-ai/spec-kitty-events (PRIVATE)
+- **Spec-kitty-events repository**: <https://github.com/Priivacy-ai/spec-kitty-events> (PRIVATE)
 - **Constitution**: `.kittify/memory/constitution.md` - Architecture: Private Dependency Pattern section
 - **ADR-11**: `architecture/adrs/2026-01-27-11-dual-repository-pattern.md`
 - **ADR-12**: `architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md`
@@ -133,12 +138,14 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From Constitution (lines 59-132)**:
+
 - MUST use SSH Git URL for private repo access
 - MUST use commit hash pinning (not branch names)
 - MUST configure SSH deploy key for CI/CD
 - MUST NOT commit with local `pip -e ../spec-kitty-events` path dependency
 
 **From Plan (Technical Context)**:
+
 - Library provides: Lamport clocks, CRDT merge rules, event storage adapters
 - Adapter layer needed: Translate between library types and CLI types
 - Target branch: 2.x only (no 1.x compatibility)
@@ -160,6 +167,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Get latest commit hash from spec-kitty-events**:
+
    ```bash
    # Clone the library repo locally (temporary)
    git clone git@github.com:Priivacy-ai/spec-kitty-events.git /tmp/spec-kitty-events
@@ -168,6 +176,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Update pyproject.toml**:
+
    ```toml
    [tool.poetry.dependencies]
    python = "^3.11"
@@ -181,6 +190,7 @@ git branch --show-current  # Must output: 2.x
    - Pin to exact commit (e.g., `rev = "a1b2c3d4e5f6..."`, 40 characters)
 
 3. **Update poetry.lock**:
+
    ```bash
    poetry lock --no-update
    ```
@@ -188,22 +198,26 @@ git branch --show-current  # Must output: 2.x
    This regenerates `poetry.lock` with the new dependency pinned.
 
 4. **Test installation locally**:
+
    ```bash
    poetry install
    python -c "import spec_kitty_events; print(spec_kitty_events.__version__)"
    ```
 
 **Files**:
+
 - `pyproject.toml` (modify: add spec-kitty-events dependency)
 - `poetry.lock` (regenerate via `poetry lock`)
 
 **Validation**:
+
 - [ ] `pyproject.toml` contains SSH Git URL (NOT https)
 - [ ] `rev` parameter uses full 40-character commit hash (NOT branch name)
 - [ ] `poetry install` succeeds without errors
 - [ ] Library imports successfully: `from spec_kitty_events import Event`
 
 **Edge Cases**:
+
 - If poetry.lock merge conflicts occur: Run `poetry lock --no-update` to regenerate
 - If SSH key not configured locally: Will fail here (expected), document in T002
 
@@ -216,11 +230,13 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create documentation file**:
+
    ```bash
    # Location: docs/development/ssh-deploy-keys.md (new file)
    ```
 
 2. **Write SSH key generation instructions**:
+
    ```markdown
    # SSH Deploy Key Setup for CI/CD
 
@@ -242,7 +258,7 @@ git branch --show-current  # Must output: 2.x
 
    ### 2. Add Public Key to spec-kitty-events Repository
 
-   1. Go to https://github.com/Priivacy-ai/spec-kitty-events/settings/keys
+   1. Go to <https://github.com/Priivacy-ai/spec-kitty-events/settings/keys>
    2. Click "Add deploy key"
    3. Title: "spec-kitty CI/CD Read-Only"
    4. Key: Paste contents of `spec-kitty-events-deploy-key.pub`
@@ -251,7 +267,7 @@ git branch --show-current  # Must output: 2.x
 
    ### 3. Add Private Key to spec-kitty Repository Secrets
 
-   1. Go to https://github.com/Priivacy-ai/spec-kitty/settings/secrets/actions
+   1. Go to <https://github.com/Priivacy-ai/spec-kitty/settings/secrets/actions>
    2. Click "New repository secret"
    3. Name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
    4. Value: Paste contents of `spec-kitty-events-deploy-key` (PRIVATE key, entire file)
@@ -286,10 +302,12 @@ git branch --show-current  # Must output: 2.x
    2. Update secret in spec-kitty with new private key
    3. Trigger a test build to verify new key works
    4. Remove old public key from spec-kitty-events
+
    ```
 
 3. **Reference in CONTRIBUTING.md**:
    Add a link in `CONTRIBUTING.md` under "Development Setup":
+
    ```markdown
    ### Private Dependencies
 
@@ -299,10 +317,12 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `docs/development/ssh-deploy-keys.md` (new file, ~80 lines)
 - `CONTRIBUTING.md` (modify: add link to SSH deploy key docs)
 
 **Validation**:
+
 - [ ] Documentation includes key generation command
 - [ ] Instructions for adding public key to spec-kitty-events repo
 - [ ] Instructions for adding private key to GitHub Actions secrets
@@ -320,11 +340,13 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Locate workflow file**:
+
    ```bash
    # .github/workflows/ci.yml (or test.yml, whichever runs pip install)
    ```
 
 2. **Add SSH setup step BEFORE pip install**:
+
    ```yaml
    # In .github/workflows/ci.yml (or equivalent)
 
@@ -357,6 +379,7 @@ git branch --show-current  # Must output: 2.x
    - Must run BEFORE `poetry install` step
 
 3. **Add workflow comment documentation**:
+
    ```yaml
    - name: Setup SSH for private repository access
      # Purpose: spec-kitty depends on private spec-kitty-events library.
@@ -368,13 +391,15 @@ git branch --show-current  # Must output: 2.x
 
 4. **Test the workflow**:
    - Commit changes and push to 2.x branch
-   - Monitor GitHub Actions run: https://github.com/Priivacy-ai/spec-kitty/actions
+   - Monitor GitHub Actions run: <https://github.com/Priivacy-ai/spec-kitty/actions>
    - Verify "Install dependencies" step succeeds
 
 **Files**:
+
 - `.github/workflows/ci.yml` (or equivalent workflow file - modify)
 
 **Validation**:
+
 - [ ] SSH setup step runs BEFORE pip install
 - [ ] Secret name matches documentation: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
 - [ ] SSH key written to `~/.ssh/id_ed25519`
@@ -383,6 +408,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] CI build succeeds and installs spec-kitty-events
 
 **Edge Cases**:
+
 - If workflow uses matrix strategy (multiple Python versions): SSH setup must be in each job
 - If multiple workflows exist: Update all workflows that run `poetry install`
 
@@ -395,11 +421,13 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create adapter module**:
+
    ```bash
    # src/specify_cli/events/adapter.py (new file)
    ```
 
 2. **Implement EventAdapter class**:
+
    ```python
    """
    Adapter layer for spec-kitty-events library.
@@ -540,7 +568,8 @@ git branch --show-current  # Must output: 2.x
            )
    ```
 
-3. **Create adapter __init__.py**:
+3. **Create adapter **init**.py**:
+
    ```python
    # src/specify_cli/events/__init__.py
    """Event log integration package."""
@@ -551,10 +580,12 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/adapter.py` (new file, ~150 lines)
 - `src/specify_cli/events/__init__.py` (new file, ~5 lines)
 
 **Validation**:
+
 - [ ] Adapter provides Event and LamportClock classes matching CLI schema (data-model.md)
 - [ ] `from_lib_event()` and `to_lib_event()` methods translate between types
 - [ ] `HAS_LIBRARY` flag indicates if library is available
@@ -562,6 +593,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Import succeeds: `from specify_cli.events import Event, LamportClock`
 
 **Edge Cases**:
+
 - Library API changes: Adapter shields CLI code from changes (update only adapter)
 - Library not installed: Gracefully handled via HAS_LIBRARY check (error message shown)
 
@@ -576,6 +608,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add startup check in CLI entry point**:
+
    ```python
    # src/specify_cli/cli/app.py (or main.py - wherever CLI initializes)
 
@@ -591,6 +624,7 @@ git branch --show-current  # Must output: 2.x
    **Note**: This is aggressive (exits immediately), suitable for 2.x greenfield approach. For gradual rollout, you'd use warnings instead.
 
 2. **Add error handling in EventStore initialization**:
+
    ```python
    # src/specify_cli/events/store.py (will be created in WP02, but stub for now)
 
@@ -604,6 +638,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 3. **Test error message**:
+
    ```bash
    # Temporarily uninstall library
    pip uninstall spec-kitty-events -y
@@ -616,16 +651,19 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/app.py` (modify: add library check)
 - `src/specify_cli/events/store.py` (create stub with library check)
 
 **Validation**:
+
 - [ ] CLI shows clear error if library missing (not cryptic ImportError)
 - [ ] Error message includes setup instructions
 - [ ] Error references docs/development/ssh-deploy-keys.md
 - [ ] CLI exits gracefully (not with Python traceback)
 
 **Edge Cases**:
+
 - Library installed but import fails (corrupted install): Shows same error, advises reinstall
 - Library version mismatch (future): Could add version check in T004 adapter
 
@@ -638,6 +676,7 @@ git branch --show-current  # Must output: 2.x
 **No separate test files required** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T001**: Local test - `poetry install` succeeds, library imports
 2. **T002**: Documentation review - clear, complete instructions
 3. **T003**: CI test - GitHub Actions build succeeds after SSH setup
@@ -645,6 +684,7 @@ git branch --show-current  # Must output: 2.x
 5. **T005**: Error test - Uninstall library, verify clear error message
 
 **Integration test** (covers all subtasks):
+
 ```bash
 # Fresh environment (e.g., Docker container or VM)
 git clone git@github.com:Priivacy-ai/spec-kitty.git /tmp/spec-kitty-test
@@ -669,6 +709,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 **Symptom**: GitHub Actions fails with "Permission denied (publickey)"
 
 **Mitigation**:
+
 - T002 provides clear setup instructions
 - T003 includes verification step (trigger workflow run)
 - T005 error message guides developers to documentation
@@ -678,6 +719,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 **Impact**: Adapter layer (T004) breaks when library updated
 
 **Mitigation**:
+
 - Commit pinning (T001) prevents unexpected breakage
 - Adapter pattern (T004) isolates changes to single file
 - Document update process in T002 (update commit hash, test, commit)
@@ -687,6 +729,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 **Symptom**: Developers without GitHub SSH keys can't install library locally
 
 **Mitigation**:
+
 - T002 documents SSH key setup for developers
 - T005 provides clear error with instructions
 - Alternative: Use HTTPS with PAT (not implemented, requires token management)
@@ -738,6 +781,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
    - ✓ CLI exits gracefully (no Python traceback)
 
 **Reviewers should**:
+
 - Clone fresh and test `pip install -e .` (verifies T001, T003)
 - Read T002 documentation and confirm clarity
 - Check T004 adapter matches data-model.md Event schema
@@ -751,6 +795,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 
 ---
 <<<<<<< HEAD
+
 - 2026-01-28T05:35:40Z – unknown – shell_pid=42305 – lane=for_review – Ready for review: All 5 subtasks completed (T001-T005). Library integrated with SSH Git dependency, CI/CD configured, adapter layer created, error handling implemented. Commit: 071910e
 - 2026-01-28T05:44:10Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
 - 2026-01-28T05:46:47Z – codex – shell_pid=46237 – lane=planned – Moved to planned
@@ -765,6 +810,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-30T06:48:50Z – claude-reviewer – shell_pid=25272 – lane=done – Review passed: All 5 subtasks complete. Implementation verified on 2.x branch.
 =======
 - 2026-01-28T04:40:48Z – claude-planner – shell_pid=22944 – lane=doing – Started implementation via workflow command
+
 >>>>>>> 5eda48f7 (chore: Start WP01 implementation [claude-planner])
 
 ## Implementation Command

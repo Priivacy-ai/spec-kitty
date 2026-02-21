@@ -55,6 +55,7 @@ spec-kitty implement WP16 --base WP15
 This WP depends on all previous WPs (WP01-WP15). It is the final implementation step before documentation. The workspace branches from WP15 to ensure all 2.x implementation and tests are available.
 
 **Important**: This WP involves work on the 0.1x branch (main or release branches). The implementation will:
+
 1. Start in the WP16 worktree (2.x line) to prepare the backport
 2. Create a backport branch from `main` (0.1x target)
 3. Cherry-pick or adapt modules from 2.x to the backport branch
@@ -87,6 +88,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 - **Cross-branch fixtures**: `tests/cross_branch/fixtures/` from WP15 -- these are the shared fixtures for parity testing
 
 **Key constraints**:
+
 - Python 3.11+ on both branches
 - The 0.1x line does NOT have the `sync/` package (SaaS infrastructure). Any references to `sync/events.py` must be handled gracefully.
 - On 0.1x, `status reconcile --apply` must be disabled (dry-run only)
@@ -105,7 +107,9 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Determine which branches need the backport and document the branch strategy.
 
 **Steps**:
+
 1. Check git branches for 0.1x targets:
+
    ```bash
    git branch -a | grep -E "(main|release/)"
    ```
@@ -120,6 +124,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    - Create backport branch: `034-feature-status-state-model-remediation-backport` from `main`
 
 5. Verify the 0.1x codebase structure:
+
    ```bash
    git checkout main
    ls src/specify_cli/  # Verify expected directories
@@ -135,11 +140,13 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: None created permanently; notes are working documents
 
 **Validation**:
+
 - Target branches identified and accessible
 - Codebase structure differences documented
 - Missing dependencies identified
 
 **Edge Cases**:
+
 - `main` branch has diverged significantly from `2.x`: may need more manual adaptation than cherry-picking
 - Release branch already has conflicting changes: skip release branch, note in parity matrix
 - The `sync/` package does not exist on 0.1x: confirmed expected behavior
@@ -151,7 +158,9 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Port the `status/` package and CLI commands from 2.x to a backport branch from main.
 
 **Steps**:
+
 1. Create the backport branch:
+
    ```bash
    git checkout main
    git checkout -b 034-feature-status-state-model-remediation-backport
@@ -172,6 +181,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 
 3. Adapt imports for 0.1x:
    - Remove or guard `sync/events.py` imports:
+
      ```python
      # In status/__init__.py or the emit orchestration:
      try:
@@ -179,6 +189,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
      except ImportError:
          emit_wp_status_changed = None  # SaaS not available on 0.1x
      ```
+
    - Verify all other imports resolve against 0.1x's codebase
 
 4. Adapt `tasks_support.py` and `frontmatter.py` for 7-lane expansion (cherry-pick from WP05 or apply manually).
@@ -192,6 +203,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    - Verify version constraints match 2.x
 
 8. Run the test suite to verify nothing is broken:
+
    ```bash
    python -m pytest tests/ -x -q
    ```
@@ -199,11 +211,13 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: All `status/` files (new on 0.1x), modified files in `tasks_support.py`, `frontmatter.py`, `merge/status_resolver.py`, `cli/commands/agent/tasks.py`
 
 **Validation**:
+
 - All adapted modules import without errors on 0.1x
 - Existing tests continue to pass
 - New status tests pass (after copying test files)
 
 **Edge Cases**:
+
 - Cherry-pick conflicts: resolve manually, preferring the 2.x implementation
 - Import paths differ between branches: grep for all `from specify_cli.` imports and verify
 - Some test fixtures reference 2.x-only features: skip or adapt those tests
@@ -216,7 +230,9 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Verify that the emit orchestration pipeline handles the absence of `sync/events.py` gracefully.
 
 **Steps**:
+
 1. In the emit orchestration on 0.1x, the `try/except ImportError` pattern should already handle this:
+
    ```python
    try:
        from specify_cli.sync.events import emit_wp_status_changed
@@ -226,6 +242,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    ```
 
 2. In the emit pipeline, gate the SaaS step:
+
    ```python
    if _has_saas:
        emit_wp_status_changed(...)
@@ -233,12 +250,14 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    ```
 
 3. Verify this handling by running:
+
    ```python
    # On 0.1x, this import should fail gracefully:
    python -c "from specify_cli.status import emit_status_transition; print('OK')"
    ```
 
 4. Write a specific test:
+
    ```python
    def test_saas_unavailable_no_error(tmp_path, monkeypatch):
        """When sync.events is unavailable, emit succeeds without SaaS fan-out."""
@@ -250,11 +269,13 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: Verify existing code in `status/__init__.py` or emit orchestration module
 
 **Validation**:
+
 - `emit_status_transition()` succeeds on 0.1x without SaaS
 - No ImportError raised during normal operation
 - Event is still appended to JSONL regardless of SaaS availability
 
 **Edge Cases**:
+
 - `sync/` package partially exists but `events.py` is missing: ImportError still caught
 - SaaS configuration present in config but sync module absent: no error (config is ignored)
 - Note: This is NOT a fallback mechanism. SaaS is optional infrastructure. On 0.1x, it simply does not exist. The canonical local model is the primary system.
@@ -266,7 +287,9 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Verify that `resolve_phase()` caps at Phase 2 on 0.1x and that `reconcile --apply` is disabled.
 
 **Steps**:
+
 1. Verify `resolve_phase()` implementation on the backport branch:
+
    ```python
    def resolve_phase(repo_root: Path, feature_slug: str | None = None) -> tuple[int, str]:
        # ... existing resolution logic ...
@@ -278,6 +301,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    ```
 
 2. Add explicit branch check in `phase.py` (optional, for defense-in-depth):
+
    ```python
    import subprocess
 
@@ -301,6 +325,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    - Alternatively, add explicit check for 0.1x line in reconcile command
 
 4. Write verification tests:
+
    ```python
    def test_phase_capped_at_2(tmp_path):
        """On 0.1x, phase never exceeds 2."""
@@ -321,11 +346,13 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: `src/specify_cli/status/phase.py` (verify/adapt), `src/specify_cli/status/reconcile.py` (verify apply gate)
 
 **Validation**:
+
 - `resolve_phase()` never returns >2 on 0.1x, regardless of config
 - `reconcile --apply` fails with clear error message on 0.1x
 - `reconcile --dry-run` works normally on 0.1x
 
 **Edge Cases**:
+
 - Config explicitly sets phase 3 on 0.1x: capped to 2, with warning about cap
 - No config file: default phase (1) is within cap
 - Running on a detached HEAD (no branch name): don't cap (can't determine branch line)
@@ -337,18 +364,22 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Copy cross-branch fixtures to 0.1x and verify byte-identical reducer output.
 
 **Steps**:
+
 1. Copy test fixtures from 2.x to the backport branch:
+
    ```bash
    # From the WP16 worktree:
    cp -r tests/cross_branch/ /path/to/backport/tests/cross_branch/
    ```
 
 2. Copy the parity test:
+
    ```bash
    cp tests/cross_branch/test_parity.py /path/to/backport/tests/cross_branch/
    ```
 
 3. Run the parity tests on the backport branch:
+
    ```bash
    cd /path/to/backport
    python -m pytest tests/cross_branch/test_parity.py -v
@@ -360,6 +391,7 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
    - Compare byte-for-byte (excluding `materialized_at` timestamp)
 
 5. Run the full status test suite on 0.1x:
+
    ```bash
    python -m pytest tests/specify_cli/status/ -v
    python -m pytest tests/integration/test_dual_write.py tests/integration/test_read_cutover.py -v
@@ -370,11 +402,13 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: `tests/cross_branch/` (copied to 0.1x)
 
 **Validation**:
+
 - All parity tests pass on both branches
 - Reducer output is byte-identical (excluding timestamp)
 - No test failures unique to 0.1x
 
 **Edge Cases**:
+
 - Test imports that reference 2.x-only modules: update import paths for 0.1x
 - Test fixtures that assume SaaS availability: mock or skip on 0.1x
 - Different Python minor versions between branches: verify both use 3.11+
@@ -386,9 +420,11 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Purpose**: Create a comprehensive document listing every module with its parity status between 2.x and 0.1x.
 
 **Steps**:
+
 1. Create `kitty-specs/034-feature-status-state-model-remediation/parity-matrix.md`:
 
 2. Structure the parity matrix as a table:
+
    ```markdown
    # Parity Matrix: 2.x vs 0.1x
 
@@ -431,12 +467,14 @@ Backport Phases 0-2 to the 0.1x line with maximum parity and generate a parity m
 **Files**: `kitty-specs/034-feature-status-state-model-remediation/parity-matrix.md` (new)
 
 **Validation**:
+
 - Every module in the `status/` package and every modified existing module is listed
 - Status values are: "Identical", "Adapted", or "Missing"
 - Every non-Identical status has a clear justification
 - The parity matrix is accurate (cross-referenced with actual file comparisons)
 
 **Edge Cases**:
+
 - New modules added after initial backport: update the matrix
 - Modules that required minor import changes but are functionally identical: mark as "Identical" with note about import adaptation
 - Test modules: optionally include test parity in a separate table

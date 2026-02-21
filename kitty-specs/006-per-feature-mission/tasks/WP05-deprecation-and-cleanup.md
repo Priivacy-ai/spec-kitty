@@ -39,6 +39,7 @@ subtasks:
 - Remove obsolete `set_active_mission()` function
 
 **Success Metrics** (from spec):
+
 - SC-004: `spec-kitty mission switch` returns "command removed" error
 - SC-003: `spec-kitty mission list` shows missions with source (project/built-in)
 - SC-005: `spec-kitty init` no longer accepts mission selection
@@ -46,15 +47,18 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (FR-005, FR-006, User Story 5)
 - Plan: `kitty-specs/006-per-feature-mission/plan.md` (Phase 4)
 
 **Files to Modify**:
+
 - `src/specify_cli/cli/commands/mission.py` - CLI mission commands
 - `src/specify_cli/mission.py` - Core mission module
 - `src/specify_cli/cli/commands/init.py` - Init command (if --mission flag exists)
 
 **Constraints**:
+
 - Error messages should be helpful, not just "command not found"
 - List output should clearly indicate source of each mission
 - Don't break any code that still depends on deprecated functions
@@ -78,6 +82,7 @@ subtasks:
 - **Files**: `src/specify_cli/cli/commands/mission.py`
 - **Steps**:
   1. Replace switch command implementation with error:
+
      ```python
      @app.command()
      def switch(mission: str):
@@ -95,6 +100,7 @@ subtasks:
          console.print("For more info, see: [link]https://github.com/your-org/spec-kitty/blob/main/README.md[/link]")
          raise typer.Exit(1)
      ```
+
   2. Keep the command visible in help (so users see it's deprecated) or hide it
 - **Parallel?**: No (depends on T025)
 
@@ -105,6 +111,7 @@ subtasks:
 - **Steps**:
   1. Find the `list` command function
   2. Update to use `discover_missions()` from WP01:
+
      ```python
      from specify_cli.mission import discover_missions
 
@@ -134,6 +141,7 @@ subtasks:
 
          console.print(table)
      ```
+
   3. Add import for Table from rich if not present
 - **Parallel?**: Yes (independent of T025-T026)
 
@@ -143,9 +151,11 @@ subtasks:
 - **Files**: `src/specify_cli/cli/commands/init.py`
 - **Steps**:
   1. Search for `--mission` or `mission` parameter in init command:
+
      ```bash
      grep -n "mission" src/specify_cli/cli/commands/init.py
      ```
+
   2. If found, remove the parameter from function signature
   3. Remove any logic that sets active mission during init
   4. If init previously called `set_active_mission()`, remove that call
@@ -159,11 +169,14 @@ subtasks:
 - **Steps**:
   1. Find `set_active_mission()` function (around line 492)
   2. Check if any code still calls it:
+
      ```bash
      grep -r "set_active_mission" --include="*.py" .
      ```
+
   3. If no callers remain after T028, remove the function entirely
   4. If callers remain, keep function but add deprecation warning:
+
      ```python
      def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) -> None:
          """DEPRECATED: Use per-feature mission selection instead."""
@@ -174,6 +187,7 @@ subtasks:
          )
          # Original implementation or just pass
      ```
+
 - **Parallel?**: Yes (but verify after T028)
 
 ### Subtask T030 – Update CLI help text

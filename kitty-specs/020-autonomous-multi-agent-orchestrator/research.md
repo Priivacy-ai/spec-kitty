@@ -18,6 +18,7 @@ This feature builds directly on the comprehensive research conducted in feature 
 ### Feasibility Verdict
 
 **Fully Feasible** - All quality gates passed:
+
 - QG-001: ≥6 agents with CLI (9 found)
 - QG-002: Cursor CLI documented with workaround
 - QG-003: All findings include source links
@@ -26,6 +27,7 @@ This feature builds directly on the comprehensive research conducted in feature 
 ### Architecture Recommendation
 
 The research recommended a Python-based orchestrator with:
+
 - **Scheduler**: Reads WP dependencies, assigns agents
 - **Executor**: Spawns agent processes via asyncio
 - **Monitor**: Detects completion via exit codes and JSON
@@ -34,6 +36,7 @@ The research recommended a Python-based orchestrator with:
 ### Minimum Viable Agent Set
 
 For initial implementation:
+
 - **Implementation**: Claude Code (best task input support)
 - **Review**: GitHub Codex (different perspective)
 - **Fallback**: OpenCode (multi-provider flexibility)

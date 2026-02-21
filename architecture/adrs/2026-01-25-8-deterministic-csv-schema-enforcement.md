@@ -8,10 +8,12 @@
 ## Context and Problem Statement
 
 Research missions use two CSV files for planning artifacts:
+
 - `evidence-log.csv`: Citations with findings, confidence levels, timestamps
 - `source-register.csv`: Master list of sources with metadata
 
 Each CSV has a **canonical schema** defined in `src/specify_cli/validators/research.py`:
+
 - `evidence-log.csv`: `timestamp,source_type,citation,key_finding,confidence,notes`
 - `source-register.csv`: `source_id,citation,url,accessed_date,relevance,status`
 
@@ -20,6 +22,7 @@ Each CSV has a **canonical schema** defined in `src/specify_cli/validators/resea
 **Agents modify CSV schemas during implementation, causing merge conflicts and validation failures:**
 
 **Real-World Example:**
+
 ```
 # Main branch (created during /spec-kitty.research):
 evidence_id,component,finding,citation,confidence,timestamp,notes
@@ -58,11 +61,11 @@ component_name,category,citation,confidence,finding_type,notes
 
 ## Decision Drivers
 
-* **Agent behavior**: LLM agents follow visible instructions; if schema not documented, they guess
-* **Merge conflicts**: Wrong schemas create unmergeable conflicts at review time
-* **User data integrity**: Auto-migration risks data loss (ad hoc schemas in wild)
-* **Developer experience**: Late-stage validation blocks workflow, frustrates users
-* **Maintainability**: Schema should be defined once, propagated everywhere
+- **Agent behavior**: LLM agents follow visible instructions; if schema not documented, they guess
+- **Merge conflicts**: Wrong schemas create unmergeable conflicts at review time
+- **User data integrity**: Auto-migration risks data loss (ad hoc schemas in wild)
+- **Developer experience**: Late-stage validation blocks workflow, frustrates users
+- **Maintainability**: Schema should be defined once, propagated everywhere
 
 ## Considered Options
 
@@ -108,6 +111,7 @@ echo '2025-01-25T14:00:00,journal,"Citation",Finding,high,Notes' >> evidence-log
 ```
 
 **Why this works:**
+
 - Agents read implement.md before starting work
 - Schema is visible, concrete, with examples
 - Warning about validation blocking review
@@ -132,6 +136,7 @@ def validate_csv_schema(csv_path, expected_columns):
 ```
 
 **Reusable for:**
+
 - Upgrade migrations (detection)
 - Validators (existing citation validation)
 - Future CSV additions
@@ -151,6 +156,7 @@ def apply(project_path):
 ```
 
 **Output when wrong schema detected:**
+
 ```
 📋 Research CSV Schema Check (Informational)
 
@@ -195,9 +201,9 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 
 #### Neutral
 
-* Migration is informational only (non-blocking)
-* Users discover mismatches during upgrade, not during review
-* LLM agents can help with migration (documented in tips)
+- Migration is informational only (non-blocking)
+- Users discover mismatches during upgrade, not during review
+- LLM agents can help with migration (documented in tips)
 
 ### Confirmation
 
@@ -209,6 +215,7 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 4. **Agent behavior**: Agents preserve schemas when templates updated
 
 **Success criteria:**
+
 - Zero schema mismatches in new research features after 0.13.0
 - Existing users successfully migrate wrong schemas with LLM help
 - No data loss reports from auto-migration (N/A - we don't auto-migrate)
@@ -220,15 +227,15 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Use `chmod 444` to make CSV files read-only, forcing append-only writes.
 
 **Pros:**
-* Strongest enforcement - agents cannot overwrite headers
-* Simple, deterministic, foolproof
-* Works even if agents ignore instructions
+- Strongest enforcement - agents cannot overwrite headers
+- Simple, deterministic, foolproof
+- Works even if agents ignore instructions
 
 **Cons:**
-* File permissions fragile (git doesn't preserve)
-* Breaks legitimate use cases (bulk import)
-* Harder to troubleshoot (permission errors confusing)
-* Not portable (Windows file permissions different)
+- File permissions fragile (git doesn't preserve)
+- Breaks legitimate use cases (bulk import)
+- Harder to troubleshoot (permission errors confusing)
+- Not portable (Windows file permissions different)
 
 **Why Rejected:** Too restrictive, fragile file permissions, poor UX for legitimate edits.
 
@@ -237,15 +244,15 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Git hook validates CSV schemas before every commit, blocks if wrong.
 
 **Pros:**
-* Automatic enforcement at commit time
-* Early detection (before review)
-* Works for all agents (universal)
+- Automatic enforcement at commit time
+- Early detection (before review)
+- Works for all agents (universal)
 
 **Cons:**
-* Requires git hook setup (not all users have hooks)
-* Agents can bypass with `--no-verify`
-* Surprising failures (agent doesn't know why commit blocked)
-* Harder to debug (hook errors opaque)
+- Requires git hook setup (not all users have hooks)
+- Agents can bypass with `--no-verify`
+- Surprising failures (agent doesn't know why commit blocked)
+- Harder to debug (hook errors opaque)
 
 **Why Rejected:** Relies on hook setup, can be bypassed, poor error messages for agents.
 
@@ -254,16 +261,16 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Add schema documentation to implement.md templates that agents read.
 
 **Pros:**
-* Preventative - agents see schema before editing
-* Clear, visible, with examples
-* Works with agent workflow (read instructions first)
-* No runtime dependencies (hooks, permissions)
-* Users in control (can still override if needed)
+- Preventative - agents see schema before editing
+- Clear, visible, with examples
+- Works with agent workflow (read instructions first)
+- No runtime dependencies (hooks, permissions)
+- Users in control (can still override if needed)
 
 **Cons:**
-* Relies on agents reading instructions
-* Not enforced at runtime
-* Schema duplicated across 12 agent templates
+- Relies on agents reading instructions
+- Not enforced at runtime
+- Schema duplicated across 12 agent templates
 
 **Why Chosen:** Best balance of prevention, visibility, and user control. Works with agent behavior.
 
@@ -272,15 +279,15 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Migration automatically fixes wrong schemas by mapping columns.
 
 **Pros:**
-* Zero user effort (automatic fix)
-* Immediate resolution (no manual migration)
-* Works for all projects (universal)
+- Zero user effort (automatic fix)
+- Immediate resolution (no manual migration)
+- Works for all projects (universal)
 
 **Cons:**
-* **Risk of data loss**: Mapping arbitrary schemas error-prone
-* **Unknown schemas**: Ad hoc schemas in wild (can't predict all)
-* **User trust**: Auto-modifying data without permission concerning
-* **Complexity**: Requires schema inference, column mapping logic
+- **Risk of data loss**: Mapping arbitrary schemas error-prone
+- **Unknown schemas**: Ad hoc schemas in wild (can't predict all)
+- **User trust**: Auto-modifying data without permission concerning
+- **Complexity**: Requires schema inference, column mapping logic
 
 **Why Rejected:** Too risky - users know their data best, auto-migration could corrupt data.
 
@@ -326,6 +333,7 @@ Now exported in `__all__` for use by migrations, validators, and future tools.
 ## Testing Strategy
 
 **Unit Tests (13 tests):** `tests/specify_cli/validators/test_csv_schema.py`
+
 - Correct schema validation
 - Wrong column names/order detection
 - Missing/extra columns detection
@@ -333,6 +341,7 @@ Now exported in `__all__` for use by migrations, validators, and future tools.
 - Whitespace handling
 
 **Integration Tests - Detection (15 tests):** `tests/specify_cli/test_research_csv_schema_migration.py`
+
 - No features handling
 - Correct schema (no report)
 - Wrong evidence/source schemas (informational report)
@@ -340,6 +349,7 @@ Now exported in `__all__` for use by migrations, validators, and future tools.
 - Multiple features (mixed correct/wrong)
 
 **Integration Tests - Templates (25 tests):** `tests/specify_cli/test_research_implement_template_migration.py`
+
 - All 12 agents updated (parametrized)
 - Agent config respected
 - Software-dev templates skipped
@@ -378,6 +388,7 @@ Now exported in `__all__` for use by migrations, validators, and future tools.
 6. Commit to main branch
 
 **For new research features (0.13.0+):**
+
 - Templates already have correct schemas
 - Agents see schema documentation in implement.md
 - Follow append-only pattern (no overwrites)

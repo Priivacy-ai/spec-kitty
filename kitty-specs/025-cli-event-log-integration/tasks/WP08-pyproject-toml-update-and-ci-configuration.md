@@ -51,6 +51,7 @@ history:
 **Primary Goal**: Finalize Git dependency configuration, validate CI/CD pipeline, and document the dependency update process.
 
 **Success Criteria**:
+
 - ✅ spec-kitty-events pinned to specific stable commit hash in pyproject.toml
 - ✅ GitHub Actions workflow includes SSH setup steps (uses deploy key)
 - ✅ CI build succeeds end-to-end (installs spec-kitty-events, runs tests)
@@ -63,6 +64,7 @@ history:
 **User Story**: US6 - Git Dependency Integration (completion)
 
 **Independent Test**:
+
 ```bash
 # Trigger GitHub Actions workflow
 git push origin 2.x
@@ -106,11 +108,13 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 ### Architectural Constraints
 
 **From constitution (Private Dependency Pattern)**:
+
 - MUST use commit hash pinning (not `rev="main"`)
 - MUST document update process for contributors
 - MUST validate CI builds before merging
 
 **From spec.md (FR-001 to FR-004)**:
+
 - Git dependency with SSH URL
 - Deploy key configured in GitHub Actions
 - Graceful error if library unavailable
@@ -133,6 +137,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **Steps**:
 
 1. **Identify stable commit in spec-kitty-events**:
+
    ```bash
    # Clone spec-kitty-events to check latest stable commit
    cd /tmp
@@ -149,6 +154,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 2. **Update pyproject.toml with commit hash**:
+
    ```toml
    # In pyproject.toml (modify)
 
@@ -168,6 +174,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    - Replace the example hash with actual stable commit
 
 3. **Regenerate poetry.lock**:
+
    ```bash
    cd /path/to/spec-kitty
    poetry lock --no-update
@@ -178,6 +185,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 4. **Test locally**:
+
    ```bash
    # Fresh virtual environment test
    poetry env remove python3.11  # Remove existing venv
@@ -194,10 +202,12 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 **Files**:
+
 - `pyproject.toml` (modify: update spec-kitty-events dependency)
 - `poetry.lock` (regenerate via `poetry lock`)
 
 **Validation**:
+
 - [ ] pyproject.toml has SSH Git URL with full commit hash
 - [ ] `poetry lock --no-update` succeeds
 - [ ] `poetry install` installs spec-kitty-events successfully
@@ -205,6 +215,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 - [ ] Commit hash points to tested, stable commit
 
 **Edge Cases**:
+
 - Commit hash doesn't exist: poetry install fails with clear error
 - Network failure during install: poetry retries automatically
 - SSH key not configured: Fails with permission denied (expected locally)
@@ -220,12 +231,14 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **Steps**:
 
 1. **Locate CI workflow file**:
+
    ```bash
    ls .github/workflows/
    # Common names: ci.yml, test.yml, python-package.yml
    ```
 
 2. **Add SSH setup before install**:
+
    ```yaml
    # In .github/workflows/ci.yml (or equivalent)
 
@@ -281,6 +294,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 3. **Add workflow comment documentation**:
+
    ```yaml
    - name: Setup SSH for spec-kitty-events access
      # Purpose: spec-kitty depends on private spec-kitty-events library.
@@ -291,9 +305,11 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 **Files**:
+
 - `.github/workflows/ci.yml` (or equivalent - modify)
 
 **Validation**:
+
 - [ ] SSH setup step runs BEFORE `poetry install`
 - [ ] Uses `SPEC_KITTY_EVENTS_DEPLOY_KEY` secret
 - [ ] SSH key written to `~/.ssh/id_ed25519` with permissions 600
@@ -301,6 +317,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 - [ ] Workflow comment explains purpose
 
 **Edge Cases**:
+
 - Secret not configured: Workflow fails with permission denied (T043 will catch)
 - Multiple workflows: Update all workflows that run `poetry install`
 - Matrix strategy (multiple Python versions): SSH setup in each matrix job
@@ -316,6 +333,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **Steps**:
 
 1. **Commit changes and push**:
+
    ```bash
    # Ensure all WP01-WP07 changes are committed
    git add .
@@ -335,6 +353,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 2. **Monitor GitHub Actions run**:
+
    ```bash
    # Get latest workflow run
    gh run list --workflow=ci.yml --branch=2.x --limit=1
@@ -356,6 +375,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    - ✅ Type checking
 
 4. **If workflow fails, diagnose and fix**:
+
    ```bash
    # View logs
    gh run view <run_id> --log
@@ -367,15 +387,18 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 **Files**:
+
 - (No new files - verification step)
 
 **Validation**:
+
 - [ ] GitHub Actions workflow triggered by push to 2.x
 - [ ] All steps succeed (green checkmarks)
 - [ ] "Install dependencies" step shows spec-kitty-events installed
 - [ ] Tests pass (pytest and mypy)
 
 **Edge Cases**:
+
 - Workflow doesn't trigger: Check workflow file syntax (YAML validation)
 - SSH step fails: Verify secret name matches (SPEC_KITTY_EVENTS_DEPLOY_KEY)
 - Tests fail: Fix implementation before proceeding
@@ -391,6 +414,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **Steps**:
 
 1. **Add dependency update section to CONTRIBUTING.md**:
+
    ```markdown
    # In CONTRIBUTING.md (add new section)
 
@@ -415,12 +439,14 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
       ```
 
    2. **Get commit hash:**
+
       ```bash
       git log -1 --format="%H"
       # Example: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
       ```
 
    3. **Update spec-kitty pyproject.toml:**
+
       ```bash
       cd /path/to/spec-kitty
       git checkout 2.x
@@ -430,12 +456,14 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
       ```
 
    4. **Regenerate lock file:**
+
       ```bash
       poetry lock --no-update
       poetry install
       ```
 
    5. **Test integration:**
+
       ```bash
       # Run spec-kitty tests
       poetry run pytest tests/
@@ -445,6 +473,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
       ```
 
    6. **Commit and push:**
+
       ```bash
       git add pyproject.toml poetry.lock
       git commit -m "Update spec-kitty-events to <short_hash>
@@ -455,6 +484,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
       ```
 
    7. **Verify CI:**
+
       ```bash
       gh run list --workflow=ci.yml --limit=1
       gh run watch <run_id>
@@ -491,18 +521,22 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
    **Never commit with local path dependency!**
+
    ```
 
 **Files**:
+
 - `CONTRIBUTING.md` (modify: add dependency update section, ~80 lines)
 
 **Validation**:
+
 - [ ] Documentation includes step-by-step update process
 - [ ] Covers: get commit hash → update pyproject.toml → regenerate lock → test → commit
 - [ ] Troubleshooting section addresses common errors
 - [ ] Warning about local path dependencies (never commit)
 
 **Edge Cases**:
+
 - Contributor forgets to run `poetry lock`: Tests fail in CI (lock file out of sync)
 - Commit hash typo: poetry install fails with clear error
 - Local path dependency committed: Pre-commit hook should catch (if configured)
@@ -518,12 +552,14 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **Steps**:
 
 1. **Locate version command**:
+
    ```bash
    find src -name "*.py" | xargs grep -l "__version__"
    # Likely in: src/specify_cli/__init__.py or src/specify_cli/cli/app.py
    ```
 
 2. **Add library version to version output**:
+
    ```python
    # In src/specify_cli/cli/app.py (or wherever --version is handled)
 
@@ -560,6 +596,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 3. **Test version output**:
+
    ```bash
    spec-kitty --version
    # Expected output:
@@ -568,15 +605,18 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/app.py` (modify: add library version to --version output)
 
 **Validation**:
+
 - [ ] `spec-kitty --version` shows spec-kitty-events version
 - [ ] Handles library not installed (shows "not installed" instead of crashing)
 - [ ] Version extracted from `spec_kitty_events.__version__`
 
 **Edge Cases**:
-- Library doesn't have __version__: Shows "unknown"
+
+- Library doesn't have **version**: Shows "unknown"
 - Library not installed: Shows "not installed"
 - Import fails: Exception caught, shows "not installed"
 
@@ -589,6 +629,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T041**: Install test - `poetry install` succeeds with pinned commit
 2. **T042**: Workflow test - Verify SSH setup step in CI workflow file
 3. **T043**: CI test - GitHub Actions build succeeds end-to-end
@@ -596,6 +637,7 @@ git log --oneline --graph -20  # Should see WP01-WP07 merge commits
 5. **T045**: Version test - `spec-kitty --version` shows library version
 
 **Full CI validation test**:
+
 ```bash
 # 1. Ensure all WPs merged to 2.x
 git checkout 2.x
@@ -640,6 +682,7 @@ echo "✓ CI validation complete"
 **Impact**: CI build fails with "Permission denied (publickey)"
 
 **Mitigation**:
+
 - T042 references docs/development/ssh-deploy-keys.md in workflow comments
 - T043 validation test catches this before merge
 - T044 documents troubleshooting steps
@@ -649,6 +692,7 @@ echo "✓ CI validation complete"
 **Impact**: Spec-kitty misses bug fixes or new features from library
 
 **Mitigation**:
+
 - T044 documents update process (explicit, intentional)
 - Commit pinning prevents silent breakage
 - Contributors can update when needed (controlled, not automatic)
@@ -658,6 +702,7 @@ echo "✓ CI validation complete"
 **Impact**: Developers can't install library locally (SSH key issues)
 
 **Mitigation**:
+
 - T044 documents local SSH setup
 - WP01 T002 documentation provides SSH key generation instructions
 - `spec-kitty --version` (T045) shows if library installed correctly
@@ -713,6 +758,7 @@ echo "✓ CI validation complete"
    - ✓ Handles library not installed gracefully
 
 **Reviewers should**:
+
 - Trigger CI build manually (verify T043)
 - Read T044 documentation (verify clarity)
 - Run `spec-kitty --version` (verify T045)
@@ -725,6 +771,7 @@ echo "✓ CI validation complete"
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T12:48:49Z – unknown – shell_pid=57334 – lane=doing – T043 not run locally (no GitHub Actions access in this environment).
 - 2026-01-30T12:49:14Z – unknown – shell_pid=57334 – lane=for_review – Ready for review: doc dependency update process, tighten SSH setup, and show spec-kitty-events version
 - 2026-01-30T12:56:21Z – claude-wp08-reviewer – shell_pid=1386 – lane=doing – Started review via workflow command

@@ -76,6 +76,7 @@ agents:
 ## State File (`.kittify/orchestration-state.json`)
 
 Key fields:
+
 - `run_id`: Unique orchestration run ID
 - `feature_slug`: Feature being orchestrated
 - `status`: PENDING | RUNNING | PAUSED | COMPLETED | FAILED
@@ -83,6 +84,7 @@ Key fields:
 - `wps_total`, `wps_completed`, `wps_failed`: Counts
 
 WPExecution fields:
+
 - `status`: pending | ready | implementation | review | rework | completed | failed
 - `implementation_agent`, `review_agent`: Agent IDs
 - `implementation_retries`, `review_retries`: Retry counts
@@ -92,5 +94,6 @@ WPExecution fields:
 ## Cross-Reference Links
 
 When referencing other docs, use relative paths:
+
 - From how-to to tutorial: `../tutorials/autonomous-orchestration.md`
 - From tutorial to reference: `../reference/cli-commands.md`

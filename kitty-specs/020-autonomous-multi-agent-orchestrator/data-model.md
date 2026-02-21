@@ -283,16 +283,19 @@ limits:
 ## Validation Rules
 
 ### OrchestratorConfig
+
 - All agent IDs in `defaults` must have corresponding `agents` entries
 - If `single_agent_mode.enabled`, `single_agent_mode.agent` must be set and enabled
 - `fallback.max_retries` must be >= 0
 - `limits.global_concurrency` must be >= 1
 
 ### WPExecution
+
 - `implementation_completed` requires `implementation_started` to be set
 - `review_started` requires `implementation_completed` to be set
 - `status` transitions: pending → ready → implementation → review → completed/failed
 
 ### OrchestrationRun
+
 - `completed_at` requires `status` in [completed, failed]
 - `wps_completed + wps_failed <= wps_total`

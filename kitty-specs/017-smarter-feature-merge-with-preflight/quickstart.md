@@ -149,6 +149,7 @@ spec-kitty merge --single
 ### "Merge state exists - use --resume or --abort"
 
 A previous merge was interrupted. Either:
+
 ```bash
 spec-kitty merge --resume   # Continue from where you left off
 spec-kitty merge --abort    # Discard state and start fresh
@@ -157,6 +158,7 @@ spec-kitty merge --abort    # Discard state and start fresh
 ### "Circular dependency detected"
 
 Fix your WP frontmatter - dependencies form a cycle:
+
 ```
 WP01 → WP02 → WP03 → WP01  # Invalid!
 ```
@@ -164,6 +166,7 @@ WP01 → WP02 → WP03 → WP01  # Invalid!
 ### "Cannot auto-resolve: non-status conflicts"
 
 Some conflicts are in code files, not status files. Resolve manually:
+
 ```bash
 # Open conflicted file, fix conflict markers
 vim src/merge.py

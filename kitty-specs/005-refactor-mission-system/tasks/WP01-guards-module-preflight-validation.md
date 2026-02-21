@@ -26,13 +26,14 @@ subtasks:
 ---
 work_package_id: "WP01"
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
+
+- "T001"
+- "T002"
+- "T003"
+- "T004"
+- "T005"
+- "T006"
+- "T007"
 title: "Guards Module - Pre-flight Validation"
 phase: "Phase 1 - Foundation"
 lane: "for_review"
@@ -40,11 +41,12 @@ assignee: ""
 agent: "codex"
 shell_pid: "45439"
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
+- timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
+
 # Work Package Prompt: WP01 – Guards Module - Pre-flight Validation
 
 ## Objectives & Success Criteria
@@ -52,6 +54,7 @@ history:
 **Goal**: Create `src/specify_cli/guards.py` module with shared pre-flight validation logic, eliminating 60+ lines of duplication across 8 command prompt files.
 
 **Success Criteria**:
+
 - Guards module exists with `validate_worktree_location()` and `validate_git_clean()` functions
 - Unit tests achieve 100% coverage
 - Running commands from main branch fails with standardized error from guards module
@@ -61,16 +64,19 @@ history:
 ## Context & Constraints
 
 **Problem Statement**: Every command (plan, implement, review, merge) duplicates 20+ lines of identical "Location Pre-flight Check" bash code. This creates:
+
 - Maintenance burden (updates require changing 8+ files)
 - Risk of inconsistency (different prompts may diverge)
 - Violation of DRY principle
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 1)
 - Plan: `kitty-specs/005-refactor-mission-system/plan.md` (Architecture Decision #1)
 - Research: `kitty-specs/005-refactor-mission-system/research.md` (Pre-command validation approach)
 
 **Architectural Constraints**:
+
 - Must validate BEFORE command prompts execute (fail fast)
 - Error messages must be actionable (show exact commands to fix)
 - Backwards compatible with existing worktree behavior
@@ -78,6 +84,7 @@ history:
 - Zero new dependencies (Python stdlib only)
 
 **Current Behavior to Preserve**:
+
 ```bash
 # From .kittify/missions/software-dev/commands/plan.md:19-39
 git branch --show-current
@@ -92,9 +99,11 @@ git branch --show-current
 **Purpose**: Establish module with docstring, imports, and exception classes.
 
 **Steps**:
+
 1. Create file: `src/specify_cli/guards.py`
 2. Add module docstring explaining purpose (pre-flight validation for commands)
 3. Add imports:
+
    ```python
    from __future__ import annotations
    from dataclasses import dataclass
@@ -102,7 +111,9 @@ git branch --show-current
    from typing import List, Optional
    import subprocess
    ```
+
 4. Define exception:
+
    ```python
    class GuardValidationError(Exception):
        """Raised when pre-flight validation fails."""
@@ -122,7 +133,9 @@ git branch --show-current
 **Purpose**: Create typed result object for validation outcomes.
 
 **Steps**:
+
 1. Add dataclass to guards.py:
+
    ```python
    @dataclass
    class WorktreeValidationResult:
@@ -157,9 +170,11 @@ git branch --show-current
 **Purpose**: Define expected behavior via tests before implementation.
 
 **Steps**:
+
 1. Create file: `tests/unit/test_guards.py`
 2. Add imports and test fixtures
 3. Write test cases:
+
    ```python
    def test_validate_worktree_on_feature_branch():
        """Should pass when on feature branch."""
@@ -182,6 +197,7 @@ git branch --show-current
        assert not result.is_valid
        assert len(result.errors) > 0
    ```
+
 4. Run tests: `pytest tests/unit/test_guards.py` (expect all to fail - TDD red phase)
 
 **Files**: `tests/unit/test_guards.py` (new)
@@ -197,7 +213,9 @@ git branch --show-current
 **Purpose**: Core validation function checking current branch and worktree location.
 
 **Steps**:
+
 1. Add function to guards.py:
+
    ```python
    def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeValidationResult:
        """Validate command is running from feature worktree.
@@ -260,7 +278,9 @@ git branch --show-current
 **Purpose**: Provide actionable error messages with worktree navigation instructions.
 
 **Steps**:
+
 1. Complete `WorktreeValidationResult.format_error()` implementation:
+
    ```python
    def format_error(self) -> str:
        """Format error message for display."""
@@ -307,7 +327,9 @@ git branch --show-current
 **Purpose**: Validate git repository has no uncommitted changes (required for mission switching).
 
 **Steps**:
+
 1. Add function to guards.py:
+
    ```python
    def validate_git_clean(project_root: Optional[Path] = None) -> WorktreeValidationResult:
        """Validate git repository has no uncommitted changes.
@@ -356,6 +378,7 @@ git branch --show-current
 **Purpose**: Ensure guards module has comprehensive test coverage.
 
 **Steps**:
+
 1. Run full test suite: `pytest tests/unit/test_guards.py -v`
 2. Run with coverage: `pytest tests/unit/test_guards.py --cov=src/specify_cli/guards --cov-report=term-missing`
 3. Verify 100% coverage (all lines tested)
@@ -392,6 +415,7 @@ git branch --show-current
    - Ensure all edge cases covered
 
 **Test Fixtures**:
+
 ```python
 import pytest
 from unittest.mock import Mock, patch
@@ -418,6 +442,7 @@ def mock_git_main_branch(monkeypatch):
 ```
 
 **Commands**:
+
 - Run tests: `pytest tests/unit/test_guards.py`
 - Coverage: `pytest tests/unit/test_guards.py --cov=src/specify_cli/guards`
 - Verbose: `pytest tests/unit/test_guards.py -vv`
@@ -427,15 +452,19 @@ def mock_git_main_branch(monkeypatch):
 ## Risks & Mitigations
 
 **Risk 1**: Guards module breaks existing command execution
+
 - **Mitigation**: Match existing bash check behavior exactly, test from both valid/invalid locations
 
 **Risk 2**: Git commands fail in non-git directories
+
 - **Mitigation**: Handle subprocess errors gracefully, return clear "not a git repository" error
 
 **Risk 3**: Inconsistent behavior across platforms (macOS/Linux/Windows)
+
 - **Mitigation**: Test on multiple platforms, use cross-platform git commands only
 
 **Risk 4**: Performance impact (Python startup time)
+
 - **Mitigation**: Keep validation logic lightweight, measure performance (<200ms target)
 
 ---
@@ -459,12 +488,14 @@ def mock_git_main_branch(monkeypatch):
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Error messages must match existing behavior (users see same guidance)
 2. Validation logic must handle edge cases (broken git, detached HEAD, etc.)
 3. Test coverage must be comprehensive (no untested branches)
 4. Performance must be acceptable (<200ms for validation)
 
 **What Reviewers Should Verify**:
+
 - Run `/spec-kitty.plan` from main branch → should fail with guards.py error
 - Run from feature worktree → should pass validation
 - Check test coverage report → should show 100%

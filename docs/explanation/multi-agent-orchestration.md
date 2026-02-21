@@ -14,7 +14,6 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 3. **Command discipline:** Slash commands enforce gated, automated steps so agents cannot skip discovery or validation.
 4. **Lane-driven coordination:** Tasks move through `planned → doing → for_review → done` via frontmatter fields, ensuring the dashboard and history stay in sync.
 
-
 ## Orchestration Workflow (0.11.0+)
 
 ### 1. Lead Agent Creates the Feature (in main)
@@ -25,6 +24,7 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 ```
 
 This creates:
+
 - `kitty-specs/001-user-authentication-system/spec.md` (committed to main)
 - NO worktree is created during planning
 
@@ -40,6 +40,7 @@ A planning agent executes in the main repository:
 ```
 
 Output artifacts live under `kitty-specs/<feature>/`:
+
 - `plan.md` - Implementation plan
 - `research.md` - Research findings (optional)
 - `data-model.md` - Database schema (software-dev mission)
@@ -53,6 +54,7 @@ All artifacts are committed to main, visible to all agents.
 ```
 
 Creates:
+
 - `tasks.md` - Work package breakdown with dependencies
 - `tasks/WP01-setup.md`, `tasks/WP02-api.md`, etc. - Individual WP prompts
 
@@ -86,6 +88,7 @@ spec-kitty implement WP03
 ```
 
 **Key points:**
+
 - Each agent works in their own isolated worktree
 - Each worktree has its own branch
 - No conflicts between agents (separate directories)
@@ -113,6 +116,7 @@ spec-kitty merge
 ```
 
 The merge command:
+
 - Detects all WP branches for the feature
 - Merges them to main in sequence
 - Cleans up all worktrees and branches
@@ -129,6 +133,7 @@ The merge command:
 ### Parallelization Patterns
 
 **Fan-out pattern** (maximum parallelism):
+
 ```
         WP01 (foundation)
        /  |  \
@@ -143,6 +148,7 @@ spec-kitty implement WP04 --base WP01 &  # Agent C
 ```
 
 **Diamond pattern** (converging dependencies):
+
 ```
         WP01
        /    \
@@ -183,6 +189,7 @@ spec-kitty agent tasks status
 ```
 
 Output shows kanban board:
+
 ```
 Feature: 001-user-authentication-system
 ═══════════════════════════════════════════════════════════════
@@ -197,20 +204,24 @@ Progress: ████████░░░░░░░░ 25% (1/4 done)
 ## See Also
 
 ### Related Explanations
+
 - [Workspace-per-WP Model](workspace-per-wp.md) - How worktrees enable parallel development
 - [Git Worktrees](git-worktrees.md) - How git worktrees work
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [AI Agent Architecture](ai-agent-architecture.md) - How agents execute commands
 
 ### Tutorials
+
 - [Multi-Agent Workflow Tutorial](../tutorials/multi-agent-workflow.md)
 
 ### How-To Guides
+
 - [Parallel Development](../how-to/parallel-development.md)
 - [Handle Dependencies](../how-to/handle-dependencies.md)
 - [Sync Workspaces](../how-to/sync-workspaces.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ### Reference
+
 - [Agent Subcommands](../reference/agent-subcommands.md)
 - [CLI Commands](../reference/cli-commands.md)

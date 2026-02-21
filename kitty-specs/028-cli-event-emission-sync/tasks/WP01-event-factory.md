@@ -38,6 +38,7 @@ Spec requires `ulid.new().str` for event IDs and causation IDs. The new `_genera
 
 **Issue 2: Payload validation is still incomplete vs events.schema.json**
 The new `_PAYLOAD_RULES` covers only a subset of schema constraints. Missing validations include:
+
 - `WPCreated.dependencies` array items must match `^WP\d{2}$`
 - `WPAssigned.retry_count` must be integer >= 0
 - `FeatureCreated.created_at` and `FeatureCompleted.completed_at` must be date-time strings when present
@@ -46,10 +47,10 @@ The new `_PAYLOAD_RULES` covers only a subset of schema constraints. Missing val
 - `HistoryAdded.author` should be string when present
 Also the envelope fields `event_id` and `causation_id` must match the ULID pattern. Right now the envelope validation only checks length via the vendored `Event` model and misses schema patterns. Please validate the full schema (either via JSON Schema validation using `contracts/events.schema.json` or by expanding `_PAYLOAD_RULES` + envelope rules to match it exactly).
 
-
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -64,17 +65,20 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Architecture and singleton design
 - **Data Model**: `kitty-specs/028-cli-event-emission-sync/data-model.md` - Entity definitions
 - **Contract**: `kitty-specs/028-cli-event-emission-sync/contracts/events.schema.json` - Event schemas
 - **Quickstart**: `kitty-specs/028-cli-event-emission-sync/quickstart.md` - Usage examples
 
 ### Architecture Decisions
+
 - **Singleton pattern**: Use double-checked locking for thread-safe lazy initialization
 - **Non-blocking**: All emission failures must be caught and logged, never raised
 - **Offline-first**: Queue events when WebSocket unavailable or unauthenticated
 
 ### Dependencies
+
 - **spec-kitty-events** library (Feature 003) - Import via Git dependency per ADR-11
 - **AuthClient** from Feature 027 - For team_slug and authentication status
 - **Existing sync module** - OfflineQueue, SyncConfig at `src/specify_cli/sync/`
@@ -219,6 +223,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but during implementation:
+
 - Run `python -c "from specify_cli.sync.events import get_emitter; print(get_emitter())"` to verify imports
 - Manually test clock persistence: emit event, restart Python, verify clock value incremented
 - Use `pytest tests/sync/test_events.py -v` once tests exist
@@ -262,6 +267,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP01 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-03T19:29:53Z – claude-opus – shell_pid=64523 – lane=doing – Started implementation via workflow command
 - 2026-02-03T20:11:43Z – claude-opus – shell_pid=64523 – lane=planned – Moved to planned
 - 2026-02-03T20:14:10Z – codex – shell_pid=63964 – lane=doing – Started implementation via workflow command

@@ -147,6 +147,7 @@ The system MUST organize missions in a standard directory structure:
 ```
 
 **Success Criteria**:
+
 - Directory structure exists and is documented
 - Missions are self-contained (all templates, commands, validators in one place)
 - Adding a new mission requires only creating a new directory, no core code changes
@@ -258,6 +259,7 @@ commands:
 ```
 
 **Success Criteria**:
+
 - Schema is documented and validated
 - All missions use consistent YAML structure
 - Mission config drives template selection, validation rules, and agent context
@@ -267,6 +269,7 @@ commands:
 The system MUST load mission configuration at runtime and use it to customize behavior:
 
 **Python changes** (`src/specify_cli/mission.py` - NEW):
+
 ```python
 from pathlib import Path
 from typing import Dict, Any, List
@@ -318,6 +321,7 @@ def get_active_mission() -> Mission:
 ```
 
 **Bash changes** (`scripts/bash/common.sh`):
+
 ```bash
 # Get active mission directory
 get_active_mission_dir() {
@@ -340,6 +344,7 @@ get_mission_template() {
 ```
 
 **Success Criteria**:
+
 - Core scripts/Python code load templates from active mission
 - No hardcoded paths to templates in core code
 - Switching missions changes behavior without code changes
@@ -349,6 +354,7 @@ get_mission_template() {
 The system MUST allow users to select a mission during project initialization:
 
 **CLI changes** (`src/specify_cli/__init__.py`):
+
 ```python
 @click.option(
     '--mission',
@@ -364,6 +370,7 @@ def init(project_name: str, mission: str, ...):
 ```
 
 **Success Criteria**:
+
 - `spec-kitty init --mission research` creates research project
 - Default mission is software-dev (backwards compatible)
 - Mission selection is persisted in `.kittify/active-mission`
@@ -373,6 +380,7 @@ def init(project_name: str, mission: str, ...):
 The system MUST provide a command to switch missions for existing projects:
 
 **CLI changes**:
+
 ```bash
 spec-kitty mission list              # List available missions
 spec-kitty mission current           # Show current mission
@@ -381,6 +389,7 @@ spec-kitty mission info <name>       # Show mission details
 ```
 
 **Python implementation** (`src/specify_cli/mission_cli.py` - NEW):
+
 ```python
 @click.group()
 def mission():
@@ -411,6 +420,7 @@ def switch(mission_name: str, force: bool):
 ```
 
 **Success Criteria**:
+
 - Users can list, view, and switch missions via CLI
 - Switching missions shows warnings about incompatibility
 - Documentation explains when/why to switch missions
@@ -420,6 +430,7 @@ def switch(mission_name: str, force: bool):
 The system MUST include a complete "Deep Research Kitty" mission as proof of concept:
 
 **Required files**:
+
 - `missions/research/mission.yaml` - Full configuration
 - `missions/research/templates/spec-template.md` - Research question format
 - `missions/research/templates/plan-template.md` - Methodology planning
@@ -433,12 +444,14 @@ The system MUST include a complete "Deep Research Kitty" mission as proof of con
 - `missions/research/validators.py` - Custom validation (sources cited, etc.)
 
 **Key differences from software-dev**:
+
 - Phases: question ’ methodology ’ gather ’ analyze ’ synthesize (not research ’ design ’ implement)
 - Artifacts: research-question.md, methodology.md, sources/, findings.md (not data-model.md, contracts/)
 - Validation: sources cited, methodology documented (not tests pass, git clean)
 - Agent context: "You are a research agent" (not "You are a software development agent")
 
 **Success Criteria**:
+
 - Can complete a full research workflow using research mission
 - Templates use research-appropriate language
 - Validation checks research-specific completeness
@@ -453,6 +466,7 @@ The system MUST include a complete "Deep Research Kitty" mission as proof of con
 The mission system MUST NOT break existing Spec Kitty projects or workflows.
 
 **Success Criteria**:
+
 - Existing projects continue working without changes
 - Software-dev mission behavior is identical to pre-mission system
 - Documentation includes migration guide for existing projects
@@ -463,6 +477,7 @@ The mission system MUST NOT break existing Spec Kitty projects or workflows.
 The mission system MUST make it easy to add new missions without modifying core code.
 
 **Success Criteria**:
+
 - New mission can be added by creating a directory with required files
 - No changes to core scripts/Python code required for new missions
 - Mission template/documentation explains how to create custom missions
@@ -473,6 +488,7 @@ The mission system MUST make it easy to add new missions without modifying core 
 Mission loading and switching MUST NOT introduce noticeable performance overhead.
 
 **Success Criteria**:
+
 - Mission config loaded once per command execution
 - Template loading adds <50ms to command execution time
 - Mission switching completes in <2 seconds
@@ -483,6 +499,7 @@ Mission loading and switching MUST NOT introduce noticeable performance overhead
 The mission system MUST be thoroughly documented for users and mission developers.
 
 **Success Criteria**:
+
 - User guide explains mission selection and switching
 - Developer guide explains how to create custom missions
 - mission.yaml schema is fully documented with examples

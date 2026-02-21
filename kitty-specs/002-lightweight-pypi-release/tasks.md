@@ -18,20 +18,25 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md`
 
 ### Included Subtasks
+
 - [X] T001 Implement `scripts/release/validate_release.py` with branch/tag modes, changelog parsing, semantic version comparisons, and actionable errors. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP01-release-validation-tooling.md`)
 - [X] T002 Add pytest coverage for validator success, mismatch, missing changelog, and regression scenarios in `tests/release/test_validate_release.py`. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP01-release-validation-tooling.md`)
 
 ### Implementation Notes
+
 - Use `tomllib`/`tomli` for `pyproject.toml` parsing and support manual tag overrides plus auto-detection from environment variables (`GITHUB_REF`, etc.).
 - Provide rich terminal output (exit codes + guidance) without leaking secrets; prefer stdout for summaries and stderr for failure reasons.
 
 ### Parallel Opportunities
+
 - None; build the CLI (T001) before introducing tests (T002).
 
 ### Dependencies
+
 - None. This is the foundational bundle for downstream automation.
 
 ### Risks & Mitigations
+
 - **Risk**: Validator misinterprets changelog headings.  
   **Mitigation**: Normalize headings via regex, support both `## [X.Y.Z]` and `## X.Y.Z`.
 - **Risk**: Git tag discovery fails in shallow clones.  
@@ -46,21 +51,26 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md`
 
 ### Included Subtasks
+
 - [X] T003 Update packaging metadata in `pyproject.toml` (readme, project URLs, classifiers) and ensure `CHANGELOG.md` links release notes for PyPI presentation. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP02-pypi-release-automation.md`)
 - [X] T004 Author `.github/workflows/release.yml` to run tests, invoke the validator in tag mode, build (`python -m build`), run `twine check`, upload artifacts, create a GitHub Release with changelog excerpt, and publish via `pypa/gh-action-pypi-publish@release/v1`. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP02-pypi-release-automation.md`)
 
 ### Implementation Notes
+
 - Guard the publish step with `if: secrets.PYPI_API_TOKEN != ''` and emit an informative failure if the secret is absent.
 - Use job summaries or uploaded artifacts (`SHA256SUMS`) for audit trails per spec.
 - Ensure workflow permissions include `id-token: write` for future trusted publishing.
 
 ### Parallel Opportunities
+
 - T003 can start once WP01 delivers validator contracts, but complete it before finalizing the workflow in T004.
 
 ### Dependencies
+
 - Depends on WP01 (release workflow requires the validator).
 
 ### Risks & Mitigations
+
 - **Risk**: `twine check` fails due to metadata gaps.  
   **Mitigation**: Extend metadata in T003 and perform dry-run packaging locally before enabling publish.
 - **Risk**: Publishing step leaks tokens in logs.  
@@ -75,20 +85,25 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md`
 
 ### Included Subtasks
+
 - [X] T005 [P] Add `.github/workflows/release-readiness.yml` (pull_request + workflow_dispatch) to execute tests, run the validator in branch mode, and surface checklist reminders in the job summary. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP03-release-readiness-guardrails.md`)
 - [X] T006 [P] Create `.github/workflows/protect-main.yml` that runs on `push` to `main`, failing when commits bypass PR merges (e.g., lack `Merge pull request` prefix) and pointing maintainers to branch protection settings. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP03-release-readiness-guardrails.md`)
 
 ### Implementation Notes
+
 - Expose validator results via `$GITHUB_STEP_SUMMARY` so maintainers see unmet criteria without digging through logs.
 - Ensure guard workflows exit successfully for merge commits and skip on tag pushes to avoid blocking release automation.
 
 ### Parallel Opportunities
+
 - Workflows can be drafted in parallel once WP01 validator behaviors are defined; validate locally with `act` or dry-run YAML linting before pushing.
 
 ### Dependencies
+
 - Depends on WP01 (validator), and benefits from metadata updates in WP02 for consistent versioning.
 
 ### Risks & Mitigations
+
 - **Risk**: Guard workflow produces false positives for squash merges.  
   **Mitigation**: Allow alternate commit messages via regex and document acceptable strategies.
 - **Risk**: Readiness workflow slows PR feedback.  
@@ -103,20 +118,25 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP04-documentation-and-secret-hygiene.md`
 
 ### Included Subtasks
+
 - [X] T007 [P] Expand documentation (`docs/index.md`, `docs/toc.yml`, `docs/releases/readiness-checklist.md`, `scripts/release/README.md`) to reference the validator, workflows, and rotation cadence. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP04-documentation-and-secret-hygiene.md`)
 - [X] T008 [P] Update `README.md` (release section) with end-to-end instructions: preparing changelog/version, configuring secrets, triggering tags, and linking to the readiness checklist & quickstart. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP04-documentation-and-secret-hygiene.md`)
 
 ### Implementation Notes
+
 - Keep instructions actionable: include GitHub UI paths for secrets, branch protection toggles, and command snippets for tagging releases.
 - Cross-link Quickstart and readiness checklist so both entry points stay synchronized.
 
 ### Parallel Opportunities
+
 - Documentation work can proceed alongside WP03 once workflow names and behaviors stabilize.
 
 ### Dependencies
+
 - Depends on outputs of WP01–WP03 to accurately describe tooling and pipeline behavior.
 
 ### Risks & Mitigations
+
 - **Risk**: Docs diverge from automation details over time.  
   **Mitigation**: Centralize authoritative instructions in `docs/releases/readiness-checklist.md` and reuse wording in README via shared snippets where feasible.
 

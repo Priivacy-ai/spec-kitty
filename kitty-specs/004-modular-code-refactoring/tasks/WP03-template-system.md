@@ -61,34 +61,40 @@ Template management code is scattered throughout `__init__.py`. This work packag
 ### T020-T023: Extract template manager functions
 
 **T020**: Extract `get_local_repo_root()` to `template/manager.py`
-- Lines 415-429 from __init__.py
+
+- Lines 415-429 from **init**.py
 - Handles SPEC_KITTY_TEMPLATE_ROOT environment variable
 - Returns Path or None
 
 **T021**: Extract `copy_specify_base_from_local()` to `template/manager.py`
-- Lines 451-501 from __init__.py
+
+- Lines 451-501 from **init**.py
 - Complex function that copies .kittify structure
 - Handles missions directory (with self-deletion bug fix already applied)
 - Returns commands directory path
 
 **T022**: Extract `copy_specify_base_from_package()` to `template/manager.py`
-- Lines 650-691 from __init__.py
+
+- Lines 650-691 from **init**.py
 - Uses importlib.resources for package data
 - Parallel to local version but for pip installations
 
 **T023**: Extract `copy_package_tree()` helper to `template/manager.py`
-- Lines 637-647 from __init__.py
+
+- Lines 637-647 from **init**.py
 - Recursive copy for package resources
 - Used by copy_specify_base_from_package()
 
 ### T024-T025: Extract template renderer functions
 
 **T024**: Extract `parse_frontmatter()` to `template/renderer.py`
-- Lines 94-115 from dashboard.py (also used in __init__.py)
+
+- Lines 94-115 from dashboard.py (also used in **init**.py)
 - Parses YAML frontmatter from markdown
 - Returns (metadata_dict, content_without_frontmatter)
 
 **T025**: Extract rendering functions to `template/renderer.py`
+
 - `render_template()` - Variable substitution in templates
 - `rewrite_paths()` (lines 439-448) - Regex-based path rewriting
 - Combined ~110 lines
@@ -96,16 +102,18 @@ Template management code is scattered throughout `__init__.py`. This work packag
 ### T026-T027: Extract asset generation functions
 
 **T026**: Extract `generate_agent_assets()` to `template/asset_generator.py`
-- Lines 605-634 from __init__.py
+
+- Lines 605-634 from **init**.py
 - Generates agent-specific command files
 - Calls render_command_template()
 
 **T027**: Extract `render_command_template()` to `template/asset_generator.py`
-- Lines 504-602 from __init__.py
+
+- Lines 504-602 from **init**.py
 - Complex template rendering with frontmatter
 - Agent-specific variable substitution
 
-### T028: Create template package __init__.py
+### T028: Create template package **init**.py
 
 ```python
 """Template management for spec-kitty."""
@@ -140,6 +148,7 @@ __all__ = [
 ### T029: Write unit tests
 
 Create `tests/test_template/`:
+
 - `test_manager.py` - Test template copying with mock filesystem
 - `test_renderer.py` - Test template rendering and frontmatter parsing
 - `test_asset_generator.py` - Test asset generation with mock templates
@@ -155,7 +164,7 @@ Create `tests/test_template/`:
 
 - [ ] All template functions extracted to appropriate modules
 - [ ] Each module under 200 lines
-- [ ] Package __init__.py with complete exports
+- [ ] Package **init**.py with complete exports
 - [ ] Unit tests written and passing
 - [ ] Template operations work identically to before
 - [ ] Both local and package modes tested
@@ -188,14 +197,16 @@ Create `tests/test_template/`:
 ### Approval Summary ✅
 
 All Definition of Done items successfully completed:
+
 - ✅ All template functions extracted to appropriate modules (T020-T027)
-- ✅ Each module well under 200 lines (manager: 158, asset_generator: 119, renderer: 99, __init__: 31)
-- ✅ Package __init__.py with complete exports (T028)
+- ✅ Each module well under 200 lines (manager: 158, asset_generator: 119, renderer: 99, **init**: 31)
+- ✅ Package **init**.py with complete exports (T028)
 - ✅ Unit tests written and passing - 9/9 tests pass (T029)
 - ✅ Template operations work identically to before
 - ✅ Both local and package modes tested
 
 ### Tests Executed
+
 ```
 ✅ All 9 template tests PASSED (0.08s)
    - test_asset_generator.py: 3 tests (command template rendering, agent assets)
@@ -204,12 +215,14 @@ All Definition of Done items successfully completed:
 ```
 
 ### Code Quality Observations
+
 1. Clean module separation with focused responsibilities
 2. Proper type hints and documentation
 3. Good test coverage with realistic scenarios
 4. `parse_frontmatter()` returns 3 values (metadata, body, raw_text) instead of 2 - this is an enhancement that preserves formatting
 
 ### Validation Performed
+
 - All module imports work correctly
 - Line counts verified under 200 lines threshold
 - Test suite validates both local and package installation modes

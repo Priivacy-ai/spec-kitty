@@ -38,6 +38,7 @@ subtasks:
 - Update help text to document new parameter
 
 **Success Metrics**:
+
 - Running `create-new-feature.sh --mission research "desc"` creates feature with `"mission": "research"` in meta.json
 - Running with invalid mission shows error listing available missions
 - Running without `--mission` flag still works (no mission field written)
@@ -45,16 +46,19 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (FR-009, FR-010)
 - Data Model: `kitty-specs/006-per-feature-mission/data-model.md` (create-new-feature.sh Interface)
 
 **Existing Code**:
+
 - `.kittify/scripts/bash/create-new-feature.sh` - Main script (~387 lines)
 - Lines 9-34: Argument parsing with while loop
 - Lines 304-327: meta.json generation with cat heredoc
 - Lines 331-353: JSON output mode
 
 **Constraints**:
+
 - Follow existing argument parsing pattern in the script
 - Mission validation should check `.kittify/missions/$MISSION/mission.yaml` exists
 - If `--mission` not provided, don't add mission field (allows backward compat)
@@ -67,10 +71,13 @@ subtasks:
 - **Files**: `.kittify/scripts/bash/create-new-feature.sh`
 - **Steps**:
   1. Add MISSION variable at top with other variables (line ~7):
+
      ```bash
      MISSION=""
      ```
+
   2. Add cases in the while loop (after `--feature-name` handling, around line 24):
+
      ```bash
      --mission=*)
          MISSION="${1#*=}"
@@ -84,6 +91,7 @@ subtasks:
          MISSION="$1"
          ;;
      ```
+
 - **Parallel?**: No (foundational for T007-T009)
 
 ### Subtask T007 – Validate mission exists
@@ -92,6 +100,7 @@ subtasks:
 - **Files**: `.kittify/scripts/bash/create-new-feature.sh`
 - **Steps**:
   1. Add validation after REPO_ROOT is determined (around line 75), before worktree creation:
+
      ```bash
      # Validate mission if provided
      if [ -n "$MISSION" ]; then
@@ -106,6 +115,7 @@ subtasks:
          fi
      fi
      ```
+
   2. Ensure error message lists all available missions
 - **Parallel?**: No (depends on T006)
 
@@ -115,6 +125,7 @@ subtasks:
 - **Files**: `.kittify/scripts/bash/create-new-feature.sh`
 - **Steps**:
   1. Find the meta.json generation section (around line 319):
+
      ```bash
      cat > "$META_FILE" <<EOF
      {
@@ -123,7 +134,9 @@ subtasks:
      }
      EOF
      ```
+
   2. Conditionally add mission field if MISSION is set:
+
      ```bash
      # Build mission line if provided
      MISSION_LINE=""
@@ -142,7 +155,9 @@ subtasks:
      }
      EOF
      ```
+
   3. Alternative approach using printf for cleaner JSON:
+
      ```bash
      if [ -n "$MISSION" ]; then
          printf '{\n  "feature_number": "%s",\n  "slug": "%s",\n  "friendly_name": "%s",\n  "source_description": "%s",\n  "created_at": "%s",\n  "mission": "%s"\n}\n' \
@@ -151,6 +166,7 @@ subtasks:
          # existing cat heredoc
      fi
      ```
+
 - **Parallel?**: No (depends on T006)
 
 ### Subtask T009 – Update script help text
@@ -159,13 +175,16 @@ subtasks:
 - **Files**: `.kittify/scripts/bash/create-new-feature.sh`
 - **Steps**:
   1. Find help text (around line 26):
+
      ```bash
      --help|-h)
          echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
          exit 0
          ;;
      ```
+
   2. Update to include --mission:
+
      ```bash
      --help|-h)
          echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] [--mission <key>] <feature_description>"
@@ -177,6 +196,7 @@ subtasks:
          exit 0
          ;;
      ```
+
 - **Parallel?**: No (depends on T006)
 
 ### Subtask T010 – Update PowerShell variant
@@ -185,10 +205,13 @@ subtasks:
 - **Files**: `.kittify/scripts/powershell/create-new-feature.ps1`
 - **Steps**:
   1. Check if file exists:
+
      ```bash
      ls -la .kittify/scripts/powershell/create-new-feature.ps1
      ```
+
   2. If exists, add `-Mission` parameter:
+
      ```powershell
      param(
          [switch]$Json,
@@ -198,6 +221,7 @@ subtasks:
          [string[]]$Description
      )
      ```
+
   3. Add validation and meta.json generation similar to bash
   4. If file doesn't exist, skip this subtask
 - **Parallel?**: Yes (independent of bash changes once pattern established)

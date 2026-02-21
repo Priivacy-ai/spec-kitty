@@ -57,6 +57,7 @@ history:
 - **All tests pass**, **mypy --strict clean**, **ruff clean**
 
 **Success metrics**:
+
 - Migration moves `.kittify/memory/constitution.md` → `.kittify/constitution/constitution.md`
 - Dashboard API serves constitution from new path
 - Worktree symlinks point to new directory
@@ -72,6 +73,7 @@ history:
 - **Migration pattern**: Follow existing migrations in `src/specify_cli/upgrade/migrations/`
 
 **References to update** (from research.md RQ-4):
+
 1. `src/specify_cli/dashboard/handlers/api.py` — constitution path construction
 2. `src/specify_cli/core/worktree.py` — symlink setup
 3. `src/specify_cli/cli/commands/init.py` — directory comment
@@ -88,11 +90,13 @@ history:
 **Purpose**: Implement the upgrade migration that moves the constitution file and creates the new directory (FR-3.1, FR-3.2).
 
 **Steps**:
+
 1. Determine next migration number:
    - Check existing migrations in `src/specify_cli/upgrade/migrations/`
    - Name format: `m_0_XX_0_constitution_directory.py`
 
 2. Create migration file following existing patterns:
+
    ```python
    """Migration: Move constitution to .kittify/constitution/ directory."""
    from pathlib import Path
@@ -133,9 +137,11 @@ history:
 3. Import and register in migration registry (follow existing pattern)
 
 **Files**:
+
 - `src/specify_cli/upgrade/migrations/m_0_XX_0_constitution_directory.py` (new)
 
 **Notes**:
+
 - Must handle all 4 scenarios gracefully
 - Do NOT delete `.kittify/memory/` — other files may live there
 - Migration must be idempotent
@@ -145,6 +151,7 @@ history:
 **Purpose**: Update the dashboard's constitution endpoint to serve from the new path (FR-3.5, FR-3.6).
 
 **Steps**:
+
 1. Edit `src/specify_cli/dashboard/handlers/api.py`:
    - Find the `handle_constitution()` method (~line 107-132)
    - Change path from `.kittify/memory/constitution.md` to `.kittify/constitution/constitution.md`
@@ -160,9 +167,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/dashboard/handlers/api.py`
 
 **Notes**:
+
 - Fallback ensures dashboard works before and after migration
 - Once migration is widespread, fallback can be removed in a future version
 
@@ -171,6 +180,7 @@ history:
 **Purpose**: Update worktree setup to symlink the new constitution directory instead of memory/.
 
 **Steps**:
+
 1. Edit `src/specify_cli/core/worktree.py`:
    - Find `setup_feature_directory()` function (~line 358-395)
    - Update the symlink source from `.kittify/memory` to `.kittify/constitution`
@@ -182,9 +192,11 @@ history:
    - New: `../../../.kittify/constitution`
 
 **Files**:
+
 - `src/specify_cli/core/worktree.py`
 
 **Notes**:
+
 - Windows fallback (file copy) must also be updated
 - Verify the relative path calculation is correct for worktree depth
 
@@ -193,12 +205,14 @@ history:
 **Purpose**: Update the directory comment in the init command to reference the new path.
 
 **Steps**:
+
 1. Edit `src/specify_cli/cli/commands/init.py`:
    - Find the directory structure comment (~line 112)
    - Change `.kittify/memory/     (for constitution.md -- project-specific)` to
      `.kittify/constitution/ (for constitution.md and structured config)`
 
 **Files**:
+
 - `src/specify_cli/cli/commands/init.py`
 
 ### Subtask T030 – Update Command Template Path References
@@ -206,25 +220,30 @@ history:
 **Purpose**: Update the constitution command template and any agent templates that reference the old path.
 
 **Steps**:
+
 1. Edit `src/specify_cli/missions/software-dev/command-templates/constitution.md`:
    - Update the output location from `.kittify/memory/constitution.md` to `.kittify/constitution/constitution.md`
    - This is the SOURCE template — agent copies are generated from it
 
 2. Check other command templates for references:
+
    ```bash
    grep -r ".kittify/memory/constitution" src/specify_cli/missions/
    grep -r ".kittify/memory/constitution" src/specify_cli/templates/
    ```
+
    - Update any hits
 
 3. **DO NOT edit agent copies** (`.claude/`, `.amazonq/`, etc.) — those are generated
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/constitution.md`
 - `src/specify_cli/templates/command-templates/constitution.md` (if it exists and differs)
 - Any other template files with references
 
 **Notes**:
+
 - Only edit SOURCE templates under `src/specify_cli/`
 - Agent copies will be regenerated via migration
 
@@ -233,7 +252,9 @@ history:
 **Purpose**: Run initial YAML extraction after moving the constitution file (FR-3.3, FR-3.4).
 
 **Steps**:
+
 1. In the migration's `apply()` method, after moving the file:
+
    ```python
    # Trigger initial extraction
    try:
@@ -250,6 +271,7 @@ history:
 2. Graceful failure: if sync fails (AI unavailable, import error), log warning but don't block migration (FR-3.4)
 
 **Files**:
+
 - `src/specify_cli/upgrade/migrations/m_0_XX_0_constitution_directory.py`
 
 **Parallel?**: Yes — can be developed alongside T026 in the same file.
@@ -259,6 +281,7 @@ history:
 **Purpose**: Comprehensive tests for the migration script across all scenarios.
 
 **Steps**:
+
 1. Create `tests/specify_cli/upgrade/migrations/test_constitution_migration.py`:
 
 2. **Scenario tests**:
@@ -279,6 +302,7 @@ history:
    - Run migration twice → verify same final state
 
 **Files**:
+
 - `tests/specify_cli/upgrade/migrations/test_constitution_migration.py`
 
 **Target**: 10-14 tests covering all scenarios and reference updates.

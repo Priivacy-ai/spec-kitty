@@ -46,6 +46,7 @@ All items passed validation. The specification is ready for `/spec-kitty.clarify
 ### Work Package Preview
 
 The Notes section includes a pre-analyzed WP structure from the user's input:
+
 - WP01: Event factory module (~200 lines)
 - WP02-WP05: Command integrations (can be parallelized)
 - WP06: Background sync service

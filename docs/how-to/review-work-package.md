@@ -24,6 +24,7 @@ You can also specify a WP ID:
 ## Review Process
 
 The review command:
+
 - Picks the next WP in `for_review` (or the one you specify)
 - Moves it to `lane: "doing"` for review
 - Shows the full prompt and the exact commands for passing or requesting changes
@@ -31,6 +32,7 @@ The review command:
 ## Providing Feedback
 
 If changes are required:
+
 1. Add feedback in the **Review Feedback** section of the WP file.
 2. Move the WP back to `planned` so the implementer can pick it up again.
 

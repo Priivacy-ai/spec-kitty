@@ -35,11 +35,13 @@ subtasks:
 ## Objectives & Success Criteria
 
 Integrate legacy format detection into CLI commands and dashboard to warn users about old format:
+
 1. Display warning when running CLI commands on legacy-format projects
 2. Warning should suggest running `spec-kitty upgrade`
 3. Warning should NOT block command execution
 
 **Success Criteria** (from spec FR-014 to FR-016, SC-007):
+
 - `tasks_cli.py list 007-feature` on old-format shows upgrade suggestion
 - Warning appears once per command, not per WP
 - Commands still execute successfully after warning
@@ -48,6 +50,7 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md` (User Story 4)
 
 **Dependencies**: WP01 (legacy detector), WP02 (CLI refactoring)
@@ -59,12 +62,16 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
 **Purpose**: Warn users when they run commands on old-format projects.
 
 **Steps**:
+
 1. Open `scripts/tasks/tasks_cli.py`
 2. Import legacy detector:
+
    ```python
    from src.specify_cli.legacy_detector import is_legacy_format
    ```
+
 3. Add check helper:
+
    ```python
    _legacy_warning_shown = False  # Module-level flag
 
@@ -79,6 +86,7 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
            show_legacy_warning()
            _legacy_warning_shown = True
    ```
+
 4. Add to command entry points:
    - `update_command()` (was move)
    - `list_command()`
@@ -93,7 +101,9 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
 **Purpose**: Consistent, clear warning format.
 
 **Steps**:
+
 1. Add warning function:
+
    ```python
    def show_legacy_warning():
        """Display legacy format warning."""
@@ -121,12 +131,14 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
 **Purpose**: Commands should work on both old and new format.
 
 **Steps**:
+
 1. Verify warning is display-only (no `raise` or `exit`)
 2. Ensure commands handle both formats during transition:
    - For `list_command`: If legacy format, scan subdirectories
    - For `update_command`: Fail with clear error on legacy format
    - For `status_command`: Works on both formats
 3. Add clear error for update on legacy:
+
    ```python
    def update_command(feature: str, wp_id: str, lane: str, ...):
        repo_root = find_repo_root()
@@ -150,8 +162,10 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
 **Purpose**: Dashboard should also warn about legacy format.
 
 **Steps**:
+
 1. Open `src/specify_cli/dashboard/handlers/features.py`
 2. Add legacy detection to feature list/kanban handlers:
+
    ```python
    def handle_features_list(self, ...):
        features = scan_all_features(repo_root)
@@ -173,6 +187,7 @@ Integrate legacy format detection into CLI commands and dashboard to warn users 
            "upgrade_needed": is_legacy
        }
    ```
+
 3. Frontend can display warning banner when `is_legacy` is true
 
 **Files**: `src/specify_cli/dashboard/handlers/features.py` (MODIFY)

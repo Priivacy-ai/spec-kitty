@@ -94,6 +94,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Finding**: Zero tests validate PyPI user experience. The 0.10.8 catastrophe (100% user failure despite 323 passing tests) was caused by this gap.
 
 **Decision**: Create dedicated distribution tests that:
+
 - Build wheel from source
 - Install without SPEC_KITTY_TEMPLATE_ROOT
 - Validate template resolution
@@ -105,6 +106,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Attack Surface**: `deliverables_path` validation in `mission.py`
 
 **Key Assumptions to Test**:
+
 - Path must NOT be inside kitty-specs/
 - Path should not be project root
 - Symlinks should be resolved
@@ -114,6 +116,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Attack Surface**: Schema validation in `csv_schema.py`
 
 **Key Assumptions to Test**:
+
 - Agents see schema before editing (documentation, not enforcement)
 - Validation during review catches mismatches
 - Migration is informational-only
@@ -123,6 +126,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Attack Surface**: `create_multi_parent_base()` function
 
 **Key Assumptions to Test**:
+
 - Deterministic merge ordering
 - Conflict detection and cleanup
 - No orphaned temporary branches
@@ -132,6 +136,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Attack Surface**: `@require_main_repo` decorator
 
 **Key Assumptions to Test**:
+
 - Cannot be bypassed via environment variables
 - Filesystem check is authoritative
 - Works from any subdirectory
@@ -141,6 +146,7 @@ Deep analysis of spec-kitty 0.13.0 changes identified **critical vulnerabilities
 **Attack Surface**: `get_agent_dirs_for_project()` function
 
 **Key Assumptions to Test**:
+
 - Corrupt config produces clear error (not silent fallback)
 - Missing config has explicit warning
 - Unknown agent keys are reported

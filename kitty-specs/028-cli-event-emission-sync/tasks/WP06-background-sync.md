@@ -42,10 +42,10 @@ history:
 
 **Issue 3 (needs decision)**: `spec-kitty sync now` only syncs a single batch (max 1000). If the queue has >1000 events, it leaves the remainder, which conflicts with “sync now triggers immediate sync of queued events.” Consider looping with `sync_all_queued_events()` (or a custom loop) and enforce the 1 batch / 5s rate limit between batches if required. If the intended behavior is “one batch only,” please update the command help text/spec to be explicit.
 
-
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -60,11 +60,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - User Story 7
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Background sync design
 - **Research**: `kitty-specs/028-cli-event-emission-sync/research.md` - Sync strategy decisions
 
 ### Functional Requirements
+
 - FR-031: System MUST provide background sync capability
 - FR-032: Background sync MUST use exponential backoff on failures
 - FR-033: Background sync MUST respect rate limits (1000 events/batch, 1 batch/5 sec)
@@ -74,6 +76,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - FR-037: Connection status MUST be surfaceable via `spec-kitty sync status`
 
 ### Dependencies
+
 - WP05 (Orchestrate) establishes patterns for long-running operations
 - Existing `batch_sync()` function in `src/specify_cli/sync/batch.py`
 - AuthClient from Feature 027 for token refresh
@@ -88,6 +91,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create `src/specify_cli/sync/background.py`
   2. Define BackgroundSyncService class:
+
      ```python
      import threading
      from dataclasses import dataclass
@@ -128,6 +132,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              """Execute batch sync."""
              ...
      ```
+
   3. Export from `__init__.py`
 - **Files**: `src/specify_cli/sync/background.py`
 - **Parallel?**: No (foundation for T030-T035)
@@ -141,6 +146,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Add `sync_interval_seconds` to BackgroundSyncService (default 300 = 5 min)
   2. Implement `_schedule_next_sync()`:
+
      ```python
      def _schedule_next_sync(self) -> None:
          if not self._running:
@@ -157,6 +163,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              self._perform_sync()
          self._schedule_next_sync()
      ```
+
   3. Allow configuration via SyncConfig or environment variable
 - **Files**: `src/specify_cli/sync/background.py`
 - **Parallel?**: No (timer implementation)
@@ -172,6 +179,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. On success: reset backoff to 0.5s, reset failure count
   3. On failure: double backoff (max 30s), increment failure count
   4. Implementation:
+
      ```python
      def _perform_sync(self) -> BatchSyncResult:
          try:
@@ -190,6 +198,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              logger.warning(f"Sync failed (attempt {self._consecutive_failures}): {e}")
              return BatchSyncResult(synced_count=0, error_count=1, errors=[str(e)])
      ```
+
 - **Files**: `src/specify_cli/sync/background.py`
 - **Parallel?**: No (error handling)
 - **Notes**:
@@ -201,6 +210,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Purpose**: Ensure service stops cleanly when CLI session ends
 - **Steps**:
   1. Register shutdown handler via `atexit`:
+
      ```python
      import atexit
 
@@ -213,7 +223,9 @@ Use language identifiers in code blocks: ````python`, ````bash`
              atexit.register(_service.stop)
          return _service
      ```
+
   2. In `stop()`, cancel timer and optionally flush queue:
+
      ```python
      def stop(self) -> None:
          self._running = False
@@ -227,6 +239,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              except Exception:
                  pass  # Best effort
      ```
+
   3. Use daemon threads to avoid blocking
 - **Files**: `src/specify_cli/sync/background.py`
 - **Parallel?**: No (shutdown handling)
@@ -240,6 +253,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Import `batch_sync` from `specify_cli.sync.batch`
   2. In `_perform_sync()`, call batch_sync with correct parameters:
+
      ```python
      from .batch import batch_sync, BatchSyncResult
 
@@ -256,8 +270,10 @@ Use language identifiers in code blocks: ````python`, ````bash`
          )
          return result
      ```
+
   3. Respect rate limits (handled by batch_sync)
   4. Handle 401 errors specially (token expired):
+
      ```python
      except HTTPStatusError as e:
          if e.response.status_code == 401:
@@ -266,6 +282,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              # Retry once
              ...
      ```
+
 - **Files**: `src/specify_cli/sync/background.py`
 - **Parallel?**: No (integration)
 - **Notes**:
@@ -278,6 +295,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create or update `src/specify_cli/cli/commands/sync.py`
   2. Add `sync now` subcommand:
+
      ```python
      import typer
      from specify_cli.sync.background import get_sync_service
@@ -295,6 +313,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              for err in result.errors:
                  console.print(f"  [red]Error:[/red] {err}")
      ```
+
   3. Register with main CLI app
 - **Files**: `src/specify_cli/cli/commands/sync.py`, `src/specify_cli/cli/commands/__init__.py`, `src/specify_cli/__init__.py`
 - **Parallel?**: Yes (independent from T035)
@@ -308,6 +327,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. In same file `src/specify_cli/cli/commands/sync.py`
   2. Add `sync status` subcommand:
+
      ```python
      @sync_app.command("status")
      def sync_status():
@@ -337,6 +357,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          auth_status = "Authenticated" if emitter.auth.is_authenticated() else "Not authenticated"
          console.print(f"Auth: {auth_status}")
      ```
+
   3. Register with main CLI app
 - **Files**: `src/specify_cli/cli/commands/sync.py`, `src/specify_cli/cli/commands/__init__.py`, `src/specify_cli/__init__.py`
 - **Parallel?**: Yes (independent from T034)
@@ -349,6 +370,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but verify manually:
+
 ```bash
 # Check status
 spec-kitty sync status
@@ -361,6 +383,7 @@ spec-kitty sync now
 ```
 
 Verify:
+
 1. `sync status` shows correct queue size
 2. `sync now` actually syncs events (check queue size before/after)
 3. Background service respects interval (add logging to verify)
@@ -405,10 +428,11 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP06 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T12:41:03Z – unknown – shell_pid=53403 – lane=for_review – Ready for review: BackgroundSyncService with periodic timer, exponential backoff, graceful shutdown, sync now and sync status CLI commands
 - 2026-02-04T12:41:19Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
 - 2026-02-04T12:43:47Z – codex – shell_pid=25757 – lane=planned – Moved to planned
 - 2026-02-04T12:46:38Z – codex – shell_pid=25757 – lane=doing – Addressing review feedback: start service, lock sync, drain full queue
-- 2026-02-04T12:47:21Z – codex – shell_pid=25757 – lane=for_review – Review feedback addressed: (1) start() called in singleton, (2) _lock guards _perform_sync, (3) sync_now drains full queue via sync_all_queued_events
+- 2026-02-04T12:47:21Z – codex – shell_pid=25757 – lane=for_review – Review feedback addressed: (1) start() called in singleton, (2) _lock guards_perform_sync, (3) sync_now drains full queue via sync_all_queued_events
 - 2026-02-04T12:48:15Z – claude-opus – shell_pid=56464 – lane=doing – Started review via workflow command
 - 2026-02-04T12:49:51Z – claude-opus – shell_pid=56464 – lane=done – Review passed: All 3 previous review issues addressed (service startup, lock-guarded sync, full queue drain). Thread-safe singleton, exponential backoff, graceful shutdown, CLI commands all meet FR-031 through FR-037.

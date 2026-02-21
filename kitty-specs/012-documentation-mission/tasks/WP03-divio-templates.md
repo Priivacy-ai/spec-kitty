@@ -52,6 +52,7 @@ history:
 **This WP depends on**: WP01 (Mission Infrastructure)
 
 **Before starting work**:
+
 1. Ensure WP01 is complete
 2. Mission directory exists: `src/specify_cli/missions/documentation/`
 3. Templates directory exists: `src/specify_cli/missions/documentation/templates/`
@@ -63,6 +64,7 @@ history:
 **Goal**: Create the four Divio documentation type templates (tutorial, how-to, reference, explanation) with comprehensive guidance following Write the Docs best practices and Divio principles.
 
 **Success Criteria**:
+
 - Four template files created in `templates/divio/` subdirectory
 - Each template has YAML frontmatter with `type` field
 - Each template has section structure appropriate to its Divio type
@@ -75,10 +77,12 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - WP01 complete: Mission directory structure exists
 - Understanding of Divio documentation system from research
 
 **Reference Documents**:
+
 - [research.md](../research.md) - Divio documentation types (lines 87-210)
   - Tutorial research (lines 87-105)
   - How-to research (lines 107-125)
@@ -94,6 +98,7 @@ history:
   - [Write the Docs Style Guide](https://www.writethedocs.org/guide/writing/style-guides/)
 
 **Constraints**:
+
 - Must follow Divio principles exactly (don't mix types)
 - Must include accessibility guidance
 - Must encourage bias-free language
@@ -115,9 +120,11 @@ history:
 **Purpose**: Create the subdirectory to organize Divio type templates separately from core mission templates.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/divio/` directory
 2. Add `.gitkeep` if needed (though templates will be added immediately)
 3. Verify directory structure:
+
    ```
    src/specify_cli/missions/documentation/
    └── templates/
@@ -143,6 +150,7 @@ history:
 **Purpose**: Create template for learning-oriented tutorial documentation following Divio tutorial principles.
 
 **Divio Tutorial Principles** (from research):
+
 - **Learning-oriented**: Focused on enabling the learner to do something
 - **Step-by-step**: Sequential actions leading to concrete accomplishment
 - **For beginners**: Assume minimal prior knowledge
@@ -151,8 +159,10 @@ history:
 - **Reliable**: Must work for all users following instructions
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/divio/tutorial-template.md`
 2. Add YAML frontmatter:
+
    ```yaml
    ---
    type: tutorial
@@ -163,7 +173,9 @@ history:
    prerequisites: "{required_knowledge}"
    ---
    ```
+
 3. Add template structure:
+
    ```markdown
    # Tutorial: {Title}
 
@@ -199,6 +211,7 @@ history:
    ```
 
    **You should see**:
+
    ```
    [Expected output]
    ```
@@ -272,6 +285,7 @@ history:
    - [ ] Gender-neutral language
    - [ ] No cultural assumptions
    - [ ] Welcoming tone for newcomers
+
    ```
 
 **Files**: `src/specify_cli/missions/documentation/templates/divio/tutorial-template.md` (new file)
@@ -279,12 +293,14 @@ history:
 **Parallel?**: Yes (can be created alongside other Divio templates)
 
 **Notes**:
+
 - Tutorial is about "doing to learn", not "learning about"
 - Each step must show immediate, visible result
 - Keep it simple - one path through, no branches
 - Test with actual beginners before finalizing
 
 **Quality Validation**:
+
 - Have a beginner follow the tutorial - can they complete it?
 - Does every step show a result?
 - Are explanations minimal?
@@ -295,6 +311,7 @@ history:
 **Purpose**: Create template for goal-oriented how-to guide documentation following Divio how-to principles.
 
 **Divio How-To Principles** (from research):
+
 - **Goal-oriented**: Solve a specific, practical problem
 - **For experienced users**: Assume basic familiarity with the system
 - **Problem-solving format**: Recipe for achieving an outcome
@@ -303,8 +320,10 @@ history:
 - **Action-focused**: Sequence of operations leading to result
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/divio/howto-template.md`
 2. Add YAML frontmatter:
+
    ```yaml
    ---
    type: how-to
@@ -315,7 +334,9 @@ history:
    solution_summary: "{quick_summary}"
    ---
    ```
+
 3. Add template structure:
+
    ```markdown
    # How to {Accomplish Goal}
 
@@ -430,6 +451,7 @@ history:
    - [ ] Examples use diverse names
    - [ ] Gender-neutral language
    - [ ] No assumptions about reader's context
+
    ```
 
 **Files**: `src/specify_cli/missions/documentation/templates/divio/howto-template.md` (new file)
@@ -437,12 +459,14 @@ history:
 **Parallel?**: Yes (can be created alongside other Divio templates)
 
 **Notes**:
+
 - How-to is NOT a tutorial (not for beginners)
 - Reader is solving a specific problem, not learning
 - Allow flexibility - readers adapt to their situation
 - Link to reference for details, explanation for understanding
 
 **Quality Validation**:
+
 - Does it solve a specific, real-world problem?
 - Can experienced users follow it without hand-holding?
 - Are variations included for common scenarios?
@@ -453,6 +477,7 @@ history:
 **Purpose**: Create template for information-oriented reference documentation following Divio reference principles.
 
 **Divio Reference Principles** (from research):
+
 - **Information-oriented**: Technical description of what exists
 - **For all users**: Developers, operators, anyone needing details
 - **Structured around code**: Mirrors code organization
@@ -461,8 +486,10 @@ history:
 - **Includes examples**: Show usage, not explanation
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/divio/reference-template.md`
 2. Add YAML frontmatter:
+
    ```yaml
    ---
    type: reference
@@ -473,7 +500,9 @@ history:
    auto_generated: "{true_if_generated_from_code}"
    ---
    ```
+
 3. Add template structure (with sections for both manual and auto-generated reference):
+
    ```markdown
    # Reference: {Component Name}
 
@@ -575,6 +604,7 @@ history:
    - **Description**: [Technical description of what this setting controls]
 
    **Example**:
+
    ```yaml
    setting_name: "custom_value"
    ```
@@ -601,6 +631,7 @@ history:
    - `metadata` keys must be strings
 
    **Example**:
+
    ```json
    {
      "id": "example-123",
@@ -663,6 +694,7 @@ history:
    - Note the source (which code files)
    - Explain how to regenerate
    - Keep manual additions separate from generated sections
+
    ```
 
 **Files**: `src/specify_cli/missions/documentation/templates/divio/reference-template.md` (new file)
@@ -670,6 +702,7 @@ history:
 **Parallel?**: Yes (can be created alongside other Divio templates)
 
 **Notes**:
+
 - Reference is description, not instruction
 - Must be complete (all APIs, all options, all details)
 - Must be consistent (same format throughout)
@@ -677,6 +710,7 @@ history:
 - Can mix auto-generated and manual content
 
 **Quality Validation**:
+
 - Is every public API/command/option documented?
 - Is the format consistent across all items?
 - Are descriptions factual (not instructional)?
@@ -688,6 +722,7 @@ history:
 **Purpose**: Create template for understanding-oriented explanation documentation following Divio explanation principles.
 
 **Divio Explanation Principles** (from research):
+
 - **Understanding-oriented**: Clarify and illuminate concepts
 - **For curious users**: Those wanting to understand "why"
 - **Not instructional**: Not teaching how to do things
@@ -696,8 +731,10 @@ history:
 - **Discusses alternatives**: Compares approaches, evaluates trade-offs
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/divio/explanation-template.md`
 2. Add YAML frontmatter:
+
    ```yaml
    ---
    type: explanation
@@ -708,7 +745,9 @@ history:
    concepts: "{key_concepts_covered}"
    ---
    ```
+
 3. Add template structure:
+
    ```markdown
    # Explanation: {Concept or Topic}
 
@@ -788,7 +827,9 @@ history:
    [How different parts relate and work together]
 
    ```
+
    [Conceptual diagram if helpful]
+
    ```
 
    ### Flow
@@ -915,6 +956,7 @@ history:
 **Parallel?**: Yes (can be created alongside other Divio templates)
 
 **Notes**:
+
 - Explanation is about understanding, not doing
 - Not required reading (for those curious about "why")
 - Discusses concepts, design decisions, trade-offs
@@ -922,6 +964,7 @@ history:
 - Compares with alternatives
 
 **Quality Validation**:
+
 - Does it explain "why" and "how it works"?
 - Are design decisions and their rationale clear?
 - Are alternatives discussed fairly?
@@ -933,10 +976,12 @@ history:
 **Purpose**: Ensure all four Divio templates include Write the Docs best practices for accessibility and bias-free language.
 
 **Steps**:
+
 1. Review all four templates (tutorial, how-to, reference, explanation)
 2. Ensure each template includes:
 
 **Accessibility Guidance**:
+
 ```markdown
 **Accessibility Checklist**:
 - [ ] Proper heading hierarchy (one H1, then H2, then H3 - no skipping levels)
@@ -949,6 +994,7 @@ history:
 ```
 
 **Bias-Free Language Guidance**:
+
 ```markdown
 **Inclusivity Checklist**:
 - [ ] Examples use diverse names (not just Western male names)
@@ -960,6 +1006,7 @@ history:
 ```
 
 **Clear Language Guidance**:
+
 ```markdown
 **Clarity Checklist**:
 - [ ] Active voice ("run the command" not "the command should be run")
@@ -977,6 +1024,7 @@ history:
    - Before code blocks: reminder about language tags
 
 **Files**:
+
 - `src/specify_cli/missions/documentation/templates/divio/tutorial-template.md` (modified)
 - `src/specify_cli/missions/documentation/templates/divio/howto-template.md` (modified)
 - `src/specify_cli/missions/documentation/templates/divio/reference-template.md` (modified)
@@ -985,12 +1033,14 @@ history:
 **Parallel?**: Yes (can be done while creating templates or immediately after)
 
 **Notes**:
+
 - Write the Docs guidance should be woven throughout templates
 - Checklists help authors verify their work
 - Inline reminders catch issues early
 - This is not optional - accessibility and inclusivity are requirements
 
 **Quality Validation**:
+
 - Are checklists present in all four templates?
 - Are reminders placed at relevant points?
 - Is guidance actionable (not vague)?
@@ -1001,6 +1051,7 @@ history:
 **Purpose**: Ensure all four Divio templates have appropriate placeholders that guide users on what content to provide.
 
 **Steps**:
+
 1. Review all four templates
 2. Add placeholders in these formats:
    - `{placeholder_name}` - Simple replacement (e.g., {project_name})
@@ -1009,6 +1060,7 @@ history:
 3. Ensure placeholders cover:
 
 **Common Placeholders** (all templates):
+
 ```markdown
 {project_name}          # Project or product name
 {component_name}        # Specific component being documented
@@ -1018,6 +1070,7 @@ history:
 ```
 
 **Tutorial-Specific Placeholders**:
+
 ```markdown
 {goal}                  # What learner will accomplish
 {duration}              # Estimated completion time
@@ -1028,6 +1081,7 @@ history:
 ```
 
 **How-To-Specific Placeholders**:
+
 ```markdown
 {problem_description}   # Problem being solved
 {solution_summary}      # Quick summary of approach
@@ -1037,6 +1091,7 @@ history:
 ```
 
 **Reference-Specific Placeholders**:
+
 ```markdown
 {api_module_cli}        # Type of reference (API/CLI/Config)
 {component_status}      # Stable/Beta/Deprecated
@@ -1047,6 +1102,7 @@ history:
 ```
 
 **Explanation-Specific Placeholders**:
+
 ```markdown
 {concept}               # Concept being explained
 {why_it_matters}        # Value of understanding
@@ -1057,6 +1113,7 @@ history:
 ```
 
 4. Add examples showing good vs. bad placeholder usage:
+
 ```markdown
 ## Example Placeholders
 
@@ -1068,6 +1125,7 @@ Download {project_name} from [link] and run:
 ```bash
 npm install {project_name}
 ```
+
 ```
 
 ✗ Bad:
@@ -1076,7 +1134,9 @@ npm install {project_name}
 
 Download it and install.
 ```
+
 (Too vague - doesn't guide the author)
+
 ```
 
 **Files**:
@@ -1115,6 +1175,7 @@ s that need content marked with placeholders?
    ```
 
 2. Test each template has frontmatter with type field:
+
    ```python
    @pytest.mark.parametrize("template_name,expected_type", [
        ("divio/tutorial-template.md", "tutorial"),
@@ -1134,6 +1195,7 @@ s that need content marked with placeholders?
    ```
 
 3. Test templates have required sections:
+
    ```python
    def test_tutorial_template_structure():
        mission = get_mission_by_name("documentation")
@@ -1149,6 +1211,7 @@ s that need content marked with placeholders?
    ```
 
 4. Test templates include Write the Docs guidance:
+
    ```python
    @pytest.mark.parametrize("template_name", [
        "divio/tutorial-template.md",
@@ -1187,6 +1250,7 @@ s that need content marked with placeholders?
    - Are examples clear?
 
 4. Test template loading:
+
    ```python
    from specify_cli.mission import get_mission_by_name
 
@@ -1274,6 +1338,7 @@ s that need content marked with placeholders?
    - Do templates themselves demonstrate good documentation?
 
 **Validation Commands**:
+
 ```bash
 # Check templates exist
 ls -la src/specify_cli/missions/documentation/templates/divio/
@@ -1298,6 +1363,7 @@ done
 ```
 
 **Review Focus Areas**:
+
 - Divio type principles correctly applied
 - Sections appropriate for each type
 - Writing guidance is clear and actionable

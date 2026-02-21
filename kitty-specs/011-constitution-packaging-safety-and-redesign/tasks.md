@@ -10,11 +10,13 @@
 Emergency 0.10.x release with 4 critical goals across 2 parallel implementation tracks:
 
 **Track 1 - Critical Safety (P0)**:
+
 - Segregate template source code from project instances (`.kittify/` → `src/specify_cli/`)
 - Fix upgrade migrations for 0.6.4+ users
 - Remove mission-specific constitution system
 
 **Track 2 - UX Improvements (P1)**:
+
 - Fix Windows dashboard with psutil
 - Redesign constitution command with phase-based discovery
 
@@ -55,12 +57,14 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP01-template-relocation-packaging.md](tasks/WP01-template-relocation-packaging.md)
 
 **Success Criteria**:
+
 - All templates moved to `src/specify_cli/templates/`, `src/specify_cli/missions/`, `src/specify_cli/scripts/`
 - `pyproject.toml` force-includes removed (lines 86-110)
 - `template/manager.py` loads from package resources, not `.kittify/`
 - Build package and verify: zero `.kittify/` or `memory/constitution.md` entries in wheel
 
 **Subtasks**:
+
 - [x] T001: Audit codebase for `.kittify/` references
 - [x] T002: Move `.kittify/templates/` → `src/specify_cli/templates/`
 - [x] T003: Move `.kittify/missions/` → `src/specify_cli/missions/`
@@ -72,6 +76,7 @@ None required - all design artifacts complete.
 - [x] T009: Test `spec-kitty init` from installed package
 
 **Risks**:
+
 - Breaking template loading for existing code
 - Worktree symlinks may break if paths not updated
 - Package size could increase if src/ structure not clean
@@ -92,12 +97,14 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP02-migration-repairs-graceful-handling.md](tasks/WP02-migration-repairs-graceful-handling.md)
 
 **Success Criteria**:
+
 - All 4 migrations (`m_0_7_3`, `m_0_10_2`, `m_0_10_6`, `m_0_10_0`) have graceful `can_apply()` and robust `apply()`
 - New `m_0_10_12_constitution_cleanup.py` migration created and registered
 - All migrations are idempotent (can run multiple times safely)
 - Upgrade from 0.6.4 → 0.10.12 completes without manual intervention
 
 **Subtasks**:
+
 - [x] T010: Fix `m_0_7_3_update_scripts.py` - graceful handling when bash scripts missing
 - [x] T011: Fix `m_0_10_6_workflow_simplification.py` - copy templates before validation
 - [x] T012: Fix `m_0_10_2_update_slash_commands.py` - explicit .toml file removal
@@ -107,6 +114,7 @@ None required - all design artifacts complete.
 - [x] T016: Test migration idempotency (run twice, verify same result)
 
 **Risks**:
+
 - Breaking existing upgrade paths
 - Data loss if migrations too aggressive
 - Overlapping migration cleanup causing failures
@@ -125,6 +133,7 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP03-mission-constitution-removal.md](tasks/WP03-mission-constitution-removal.md)
 
 **Success Criteria**:
+
 - `src/specify_cli/mission.py` no longer has `constitution_dir` property
 - `src/specify_cli/manifest.py` no longer scans for constitution files
 - `.kittify/missions/*/constitution/` directories deleted (template sources after WP01 move)
@@ -132,6 +141,7 @@ None required - all design artifacts complete.
 - No code references to mission constitutions remain
 
 **Subtasks**:
+
 - [x] T017: Remove `constitution_dir` property from `src/specify_cli/mission.py` (line 247-249)
 - [x] T018: Remove constitution scanning from `src/specify_cli/manifest.py` (lines 70-74)
 - [x] T019: Delete `src/specify_cli/missions/*/constitution/` directories (after WP01 template move)
@@ -139,6 +149,7 @@ None required - all design artifacts complete.
 - [x] T021: Grep codebase for "mission.*constitution" and clean up any remaining references
 
 **Risks**:
+
 - Breaking code that relies on mission constitutions
 - User confusion about where constitutions live
 - Documentation may still reference old system
@@ -157,6 +168,7 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP04-windows-dashboard-psutil-refactor.md](tasks/WP04-windows-dashboard-psutil-refactor.md)
 
 **Success Criteria**:
+
 - `psutil>=5.9.0` added to `pyproject.toml` dependencies
 - All `os.kill()` and `signal.SIGKILL` usage in `dashboard/lifecycle.py` replaced with psutil
 - Dashboard starts successfully on Windows 10/11
@@ -164,6 +176,7 @@ None required - all design artifacts complete.
 - Process termination works gracefully across all platforms
 
 **Subtasks**:
+
 - [x] T022: Add `psutil>=5.9.0` to `pyproject.toml` dependencies
 - [x] T023: Replace `os.kill(pid, 0)` with `psutil.Process(pid).is_running()` (line 100)
 - [x] T024: Replace `signal.SIGKILL` with `psutil.Process(pid).kill()` (lines 188, 289, 354, 381, 470, 499)
@@ -172,6 +185,7 @@ None required - all design artifacts complete.
 - [x] T027: Update imports (remove `signal`, add `psutil`)
 
 **Risks**:
+
 - psutil may behave differently across platforms
 - Process termination timing may change
 - Existing dashboard instances may need manual kill after upgrade
@@ -190,6 +204,7 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP05-constitution-command-redesign.md](tasks/WP05-constitution-command-redesign.md)
 
 **Success Criteria**:
+
 - Constitution command template updated with 4-phase discovery workflow
 - Each phase has skip option
 - Minimal path (3-5 questions) produces 1-page constitution
@@ -198,6 +213,7 @@ None required - all design artifacts complete.
 - All spec-kitty commands work without constitution
 
 **Subtasks**:
+
 - [x] T028: Update `src/specify_cli/templates/command-templates/constitution.md` with phase-based workflow
 - [x] T029: Implement Phase 1 (Technical Standards) with 4 questions + skip option
 - [x] T030: Implement Phase 2 (Code Quality) with 4 questions + skip option
@@ -206,6 +222,7 @@ None required - all design artifacts complete.
 - [x] T033: Add summary presentation and user confirmation before writing
 
 **Risks**:
+
 - Users may skip all phases and have no constitution
 - Phase questions may not cover all project needs
 - Backward compatibility with existing constitutions
@@ -226,6 +243,7 @@ None required - all design artifacts complete.
 **Prompt**: [tasks/WP06-integration-testing-validation.md](tasks/WP06-integration-testing-validation.md)
 
 **Success Criteria**:
+
 - Package build produces clean wheel (no `.kittify/` or filled constitutions)
 - Upgrade path 0.6.4 → 0.10.12 completes successfully in clean VM
 - Dashboard works on Windows 10/11 (starts, serves HTML, shuts down)
@@ -234,6 +252,7 @@ None required - all design artifacts complete.
 - Dogfooding workflow tested (dev fills constitution, builds package, verifies clean)
 
 **Subtasks**:
+
 - [x] T034: Create test script for package inspection (`unzip -l dist/*.whl | grep -E ...`)
 - [x] T035: Test upgrade path in Docker container (0.6.4 → 0.10.12)
 - [x] T036: Test dashboard on Windows (smoke test: start, access, shutdown)
@@ -243,6 +262,7 @@ None required - all design artifacts complete.
 - [x] T040: Test dogfooding workflow (fill constitution, build, inspect package)
 
 **Risks**:
+
 - Platform-specific issues may not surface in testing
 - Migration edge cases may only appear with real 0.6.4 projects
 - Windows testing requires actual Windows system (not WSL)
@@ -257,6 +277,7 @@ None required - all design artifacts complete.
 ### Track 1: Critical Safety (T001-T021)
 
 **Template Relocation (T001-T009)**:
+
 - T001: Audit codebase for `.kittify/` references
 - T002: Move `.kittify/templates/` → `src/specify_cli/templates/`
 - T003: Move `.kittify/missions/` → `src/specify_cli/missions/`
@@ -268,6 +289,7 @@ None required - all design artifacts complete.
 - T009: Test `spec-kitty init` from installed package
 
 **Migration Repairs (T010-T016)**:
+
 - T010: Fix `m_0_7_3_update_scripts.py` graceful handling
 - T011: Fix `m_0_10_6_workflow_simplification.py` copy before validate
 - T012: Fix `m_0_10_2_update_slash_commands.py` .toml removal
@@ -277,6 +299,7 @@ None required - all design artifacts complete.
 - T016: Test migration idempotency
 
 **Mission Constitution Removal (T017-T021)**:
+
 - T017: Remove `constitution_dir` property from `mission.py`
 - T018: Remove constitution scanning from `manifest.py`
 - T019: Delete `missions/*/constitution/` directories
@@ -286,6 +309,7 @@ None required - all design artifacts complete.
 ### Track 2: UX Improvements (T022-T033)
 
 **Windows Dashboard (T022-T027)**:
+
 - T022: Add psutil dependency
 - T023: Replace `os.kill(pid, 0)` with psutil
 - T024: Replace `signal.SIGKILL` with psutil (6 locations)
@@ -294,6 +318,7 @@ None required - all design artifacts complete.
 - T027: Update imports
 
 **Constitution Redesign (T028-T033)**:
+
 - T028: Update constitution command template
 - T029: Implement Phase 1 (Technical Standards)
 - T030: Implement Phase 2 (Code Quality)
@@ -304,6 +329,7 @@ None required - all design artifacts complete.
 ### Integration (T034-T040)
 
 **Testing & Validation (T034-T040)**:
+
 - T034: Package inspection test script
 - T035: Upgrade path test (Docker)
 - T036: Windows dashboard smoke test
@@ -317,11 +343,13 @@ None required - all design artifacts complete.
 ## Implementation Strategy
 
 ### Phase 1: Foundational (Sequential)
+
 1. **WP01**: Template Relocation (MUST complete first)
    - Moves all templates to `src/specify_cli/`
    - Unblocks WP05 constitution template update
 
 ### Phase 2: Parallel Implementation
+
 **Track 1 (P0)**:
 2. **WP02**: Migration Repairs [P]
 3. **WP03**: Mission Constitution Removal [P] (depends on WP01 for template location)
@@ -331,6 +359,7 @@ None required - all design artifacts complete.
 5. **WP05**: Constitution Redesign (depends on WP01 for template location)
 
 ### Phase 3: Integration (Sequential)
+
 6. **WP06**: Integration Testing & Validation
    - Runs after all implementation complete
    - Gates release
@@ -340,17 +369,20 @@ None required - all design artifacts complete.
 ## Coordination & Sync Points
 
 **Sync Point 1** (After WP01):
+
 - Templates moved to `src/specify_cli/`
 - WP03 can delete mission constitution directories
 - WP05 can update constitution command template
 - All other work packages can reference stable template locations
 
 **Sync Point 2** (Before WP06):
+
 - WP02, WP03, WP04, WP05 all complete
 - Code review complete
 - Ready for integration testing
 
 **Conflict Resolution**:
+
 - `pyproject.toml`: WP01 removes force-includes, WP04 adds psutil. Different sections, no conflict.
 - Templates: WP01 moves directory, WP05 updates content. Sequential, no conflict.
 
@@ -359,11 +391,13 @@ None required - all design artifacts complete.
 ## MVP Scope Recommendation
 
 **Minimum viable for 0.10.12 release**:
+
 - **WP01**: Template Relocation (CRITICAL - prevents packaging contamination)
 - **WP02**: Migration Repairs (CRITICAL - unblocks upgrade path)
 - **WP06**: Integration Testing (CRITICAL - validates release)
 
 **Can defer to 0.10.13** (if time pressure):
+
 - **WP03**: Mission Constitution Removal (cleanup, not breaking)
 - **WP04**: Windows Dashboard (P2 priority, platform-specific)
 - **WP05**: Constitution Redesign (UX improvement, not critical)

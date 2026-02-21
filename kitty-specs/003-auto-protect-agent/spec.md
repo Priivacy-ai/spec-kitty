@@ -1,4 +1,5 @@
 # Feature Specification: Auto-protect Agent Directories
+
 *Path: [kitty-specs/003-auto-protect-agent/spec.md](kitty-specs/003-auto-protect-agent/spec.md)*
 
 **Feature Branch**: `003-auto-protect-agent`

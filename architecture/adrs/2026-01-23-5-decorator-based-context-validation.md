@@ -13,6 +13,7 @@
 ## Context and Problem Statement
 
 Certain spec-kitty commands must run in specific locations to work correctly:
+
 - `implement` must run from **main repository** (creates worktrees)
 - `merge` must run from **main repository** (merges multiple worktree branches)
 - Hypothetical workspace commands must run from **inside worktrees**
@@ -20,6 +21,7 @@ Certain spec-kitty commands must run in specific locations to work correctly:
 Running commands in the wrong location causes critical failures:
 
 **Nested Worktree Problem** (Critical):
+
 ```bash
 $ cd .worktrees/010-feature-WP02/  # Inside worktree
 $ spec-kitty implement WP03         # Tries to create worktree from worktree
@@ -27,6 +29,7 @@ $ spec-kitty implement WP03         # Tries to create worktree from worktree
 ```
 
 **Previous solution:** Manual guard code in each command (20+ lines):
+
 ```python
 def implement(wp_id: str):
     cwd = Path.cwd().resolve()
@@ -38,6 +41,7 @@ def implement(wp_id: str):
 ```
 
 **Problems with manual guards:**
+
 - Verbose boilerplate in every command
 - Easy to forget when adding new commands
 - Inconsistent error messages
@@ -48,24 +52,25 @@ How do we enforce location requirements consistently and reliably?
 
 ## Decision Drivers
 
-* **Critical: Must prevent nested worktrees** (causes git corruption)
-* Need consistent location validation across all commands
-* Want declarative approach (clear from function signature)
-* Should reduce boilerplate code
-* Must provide clear, actionable error messages
-* Can't rely on agent discipline (need enforcement)
-* Want reusable framework for all location-aware commands
+- **Critical: Must prevent nested worktrees** (causes git corruption)
+- Need consistent location validation across all commands
+- Want declarative approach (clear from function signature)
+- Should reduce boilerplate code
+- Must provide clear, actionable error messages
+- Can't rely on agent discipline (need enforcement)
+- Want reusable framework for all location-aware commands
 
 ## Considered Options
 
-* **Option 1:** Manual guards in each command (status quo)
-* **Option 2:** Decorator-based validation (`@require_main_repo`)
-* **Option 3:** Pre-command hooks (global validation)
-* **Option 4:** Wrapper scripts that validate before execution
+- **Option 1:** Manual guards in each command (status quo)
+- **Option 2:** Decorator-based validation (`@require_main_repo`)
+- **Option 3:** Pre-command hooks (global validation)
+- **Option 4:** Wrapper scripts that validate before execution
 
 ## Decision Outcome
 
 **Chosen option:** "Option 2: Decorator-based validation", because:
+
 - Declarative (clear from function definition)
 - Reusable (single decorator for all commands)
 - Can't be accidentally removed (part of function signature)
@@ -78,29 +83,30 @@ How do we enforce location requirements consistently and reliably?
 
 #### Positive
 
-* Prevents nested worktrees automatically (critical bug prevention)
-* Consistent error messages across all commands
-* Declarative validation (self-documenting code)
-* Reduces code duplication (20+ lines → 1 line per command)
-* Easy to add validation to new commands
-* Clear from function signature what location is required
-* Testable in isolation (23 dedicated tests)
+- Prevents nested worktrees automatically (critical bug prevention)
+- Consistent error messages across all commands
+- Declarative validation (self-documenting code)
+- Reduces code duplication (20+ lines → 1 line per command)
+- Easy to add validation to new commands
+- Clear from function signature what location is required
+- Testable in isolation (23 dedicated tests)
 
 #### Negative
 
-* Adds decorator import to command files
-* Runtime overhead (context detection on each call, ~1ms)
-* Could be bypassed by calling function directly (not via CLI)
+- Adds decorator import to command files
+- Runtime overhead (context detection on each call, ~1ms)
+- Could be bypassed by calling function directly (not via CLI)
 
 #### Neutral
 
-* Three decorators: `@require_main_repo`, `@require_worktree`, `@require_either`
-* Error messages include current location, required location, and fix command
-* Context detection based on filesystem path analysis
+- Three decorators: `@require_main_repo`, `@require_worktree`, `@require_either`
+- Error messages include current location, required location, and fix command
+- Context detection based on filesystem path analysis
 
 ### Confirmation
 
 We'll validate this decision by:
+
 - Zero instances of nested worktree creation
 - No reports of commands running in wrong location
 - Error messages successfully guiding users to correct location
@@ -112,76 +118,79 @@ We'll validate this decision by:
 ### Option 1: Manual Guards in Each Command
 
 **Pros:**
-* Full control over error messages per command
-* No framework overhead
-* Simple to understand (explicit code)
+- Full control over error messages per command
+- No framework overhead
+- Simple to understand (explicit code)
 
 **Cons:**
-* Verbose boilerplate (20+ lines per command)
-* Easy to forget for new commands
-* Inconsistent error messages
-* Can be accidentally removed
-* No reusable framework
-* Duplicated code across commands
+- Verbose boilerplate (20+ lines per command)
+- Easy to forget for new commands
+- Inconsistent error messages
+- Can be accidentally removed
+- No reusable framework
+- Duplicated code across commands
 
 ### Option 2: Decorator-Based Validation
 
 **Pros:**
-* Declarative (clear from signature)
-* Reusable (DRY principle)
-* Can't be accidentally removed
-* Consistent error messages
-* Minimal boilerplate (1 line)
-* Testable in isolation
-* Pythonic approach
+- Declarative (clear from signature)
+- Reusable (DRY principle)
+- Can't be accidentally removed
+- Consistent error messages
+- Minimal boilerplate (1 line)
+- Testable in isolation
+- Pythonic approach
 
 **Cons:**
-* Adds import overhead
-* Runtime detection cost (~1ms)
-* Could be bypassed if function called directly
+- Adds import overhead
+- Runtime detection cost (~1ms)
+- Could be bypassed if function called directly
 
 ### Option 3: Pre-Command Hooks (Global Validation)
 
 **Pros:**
-* Centralized validation logic
-* No per-command changes needed
-* Could validate multiple aspects
+- Centralized validation logic
+- No per-command changes needed
+- Could validate multiple aspects
 
 **Cons:**
-* Magic behavior (not clear from function)
-* Hard to customize per command
-* Difficult to test
-* Framework complexity
-* Unclear which commands are protected
+- Magic behavior (not clear from function)
+- Hard to customize per command
+- Difficult to test
+- Framework complexity
+- Unclear which commands are protected
 
 ### Option 4: Wrapper Scripts
 
 **Pros:**
-* Language-agnostic
-* Could add shell-level checks
+- Language-agnostic
+- Could add shell-level checks
 
 **Cons:**
-* Extra layer of indirection
-* Harder to maintain
-* Not integrated with Python code
-* Difficult to test
-* Breaks direct Python imports
+- Extra layer of indirection
+- Harder to maintain
+- Not integrated with Python code
+- Difficult to test
+- Breaks direct Python imports
 
 ## More Information
 
 ### Implementation Summary
 
 **Decorators provided:**
+
 - `@require_main_repo` - Command must run from main repository
 - `@require_worktree` - Command must run from inside a worktree
 - `@require_either` - Command can run in either location (documentation only)
 
 **Context detection:**
+
 - Checks if ".worktrees" is in current path
 - Extracts worktree name and repo root automatically
 - Works from any subdirectory
 
 **Environment variables:**
+
 - `SPEC_KITTY_CONTEXT` - "main" or "worktree"
 - `SPEC_KITTY_WORKTREE_NAME` - Worktree name (if in worktree)
 - `SPEC_KITTY_REPO_ROOT` - Repository root path
@@ -204,6 +213,7 @@ We'll validate this decision by:
 ### Critical Bug Prevention
 
 This decision **prevents nested worktrees**, which corrupts git state:
+
 - Nested worktrees make repo unusable
 - Requires manual recovery
 - Could lose work if not detected

@@ -27,6 +27,7 @@ history:
 Create the foundational structure for the new `merge/` subpackage and add `topological_sort()` to the dependency graph module.
 
 **Success Criteria**:
+
 - `from specify_cli.merge import *` imports without error
 - `topological_sort()` correctly orders a DAG
 - All module stubs exist and are importable
@@ -34,10 +35,12 @@ Create the foundational structure for the new `merge/` subpackage and add `topol
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - Architecture overview
 - `src/specify_cli/core/dependency_graph.py` - Existing graph utilities to extend
 
 **Constraints**:
+
 - Follow existing code patterns in `src/specify_cli/`
 - Use Python 3.11+ features (type hints, dataclasses)
 - No new external dependencies
@@ -49,6 +52,7 @@ Create the foundational structure for the new `merge/` subpackage and add `topol
 **Purpose**: Establish the directory and module structure for all merge-related functionality.
 
 **Steps**:
+
 1. Create directory `src/specify_cli/merge/`
 2. Create `__init__.py` with public API exports (initially empty, will be populated as modules are implemented)
 3. Create stub files for each module:
@@ -60,6 +64,7 @@ Create the foundational structure for the new `merge/` subpackage and add `topol
    - `executor.py` - Core execution logic
 
 **Files**:
+
 - `src/specify_cli/merge/__init__.py`
 - `src/specify_cli/merge/preflight.py`
 - `src/specify_cli/merge/forecast.py`
@@ -71,11 +76,13 @@ Create the foundational structure for the new `merge/` subpackage and add `topol
 **Parallel?**: Yes, can be done alongside T002
 
 **Notes**:
+
 - Each stub file should have a docstring describing its purpose
 - Include `__all__ = []` in each stub (to be populated later)
 - Add `from __future__ import annotations` for forward references
 
 **Example stub**:
+
 ```python
 """Pre-flight validation for merge operations.
 
@@ -95,12 +102,14 @@ __all__: list[str] = []
 **Purpose**: Enable dependency-ordered merge by providing topological sorting of the WP dependency graph.
 
 **Steps**:
+
 1. Open `src/specify_cli/core/dependency_graph.py`
 2. Add `topological_sort()` function using Kahn's algorithm
 3. Add to `__all__` exports
 4. Add unit test in `tests/specify_cli/test_dependency_graph.py` (optional but recommended)
 
 **Files**:
+
 - `src/specify_cli/core/dependency_graph.py` (modify)
 
 **Parallel?**: Yes, can be done alongside T001
@@ -164,6 +173,7 @@ def topological_sort(graph: dict[str, list[str]]) -> list[str]:
 ```
 
 **Notes**:
+
 - The existing `detect_cycles()` should be called before `topological_sort()` in production code
 - Use sorted queue for deterministic ordering (same deps → alphabetical)
 - Graph format: `{"WP01": [], "WP02": ["WP01"]}` means WP02 depends on WP01
@@ -181,6 +191,7 @@ def topological_sort(graph: dict[str, list[str]]) -> list[str]:
 
 - Verify all imports work: `python -c "from specify_cli.merge import *"`
 - Test topological sort with sample graphs:
+
   ```python
   from specify_cli.core.dependency_graph import topological_sort
 

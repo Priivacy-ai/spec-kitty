@@ -48,13 +48,16 @@ Define all data structures for fixture management:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - All entity definitions
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Fixture structure
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/state.py` - `OrchestrationRun` dataclass
 
 **Constraints**:
+
 - Use `pathlib.Path` for all file paths
 - Match data-model.md specifications exactly
 - Ensure JSON serialization/deserialization works
@@ -68,8 +71,10 @@ Define all data structures for fixture management:
 **Purpose**: Represent a restorable snapshot of orchestration state.
 
 **Steps**:
+
 1. Open `src/specify_cli/orchestrator/testing/fixtures.py`
 2. Add imports:
+
    ```python
    from __future__ import annotations
 
@@ -84,6 +89,7 @@ Define all data structures for fixture management:
    ```
 
 3. Implement dataclass:
+
    ```python
    @dataclass
    class FixtureCheckpoint:
@@ -127,6 +133,7 @@ Define all data structures for fixture management:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (~50 lines)
 
 **Parallel?**: Yes - can proceed with T011, T012
@@ -138,7 +145,9 @@ Define all data structures for fixture management:
 **Purpose**: Store information needed to recreate a git worktree.
 
 **Steps**:
+
 1. Add to `fixtures.py`:
+
    ```python
    @dataclass
    class WorktreeMetadata:
@@ -177,6 +186,7 @@ Define all data structures for fixture management:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~35 lines)
 
 **Parallel?**: Yes - can proceed with T010, T012
@@ -188,7 +198,9 @@ Define all data structures for fixture management:
 **Purpose**: Combine all runtime context for an e2e test.
 
 **Steps**:
+
 1. Add to `fixtures.py`:
+
    ```python
    @dataclass
    class TestContext:
@@ -232,6 +244,7 @@ Define all data structures for fixture management:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~45 lines)
 
 **Parallel?**: Yes - can proceed with T010, T011
@@ -243,7 +256,9 @@ Define all data structures for fixture management:
 **Purpose**: Validate worktrees.json files when loading fixtures.
 
 **Steps**:
+
 1. Add validation function:
+
    ```python
    import json
 
@@ -309,6 +324,7 @@ Define all data structures for fixture management:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~55 lines)
 
 **Parallel?**: No - depends on T011
@@ -320,7 +336,9 @@ Define all data structures for fixture management:
 **Purpose**: Validate state.json files (OrchestrationRun format).
 
 **Steps**:
+
 1. Add validation function:
+
    ```python
    from specify_cli.orchestrator.state import OrchestrationRun
 
@@ -378,6 +396,7 @@ Define all data structures for fixture management:
 2. Note: May need to check if `OrchestrationRun.from_dict()` and `to_dict()` exist. If not, implement them or use dataclasses.asdict().
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~50 lines)
 
 **Parallel?**: No - depends on T010
@@ -396,6 +415,7 @@ Define all data structures for fixture management:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] All three dataclasses match data-model.md
 - [ ] `WorktreeMetadata.from_dict()` and `to_dict()` work correctly
 - [ ] `load_worktrees_file()` validates schema and returns list
@@ -403,6 +423,7 @@ Define all data structures for fixture management:
 - [ ] Error messages are clear and actionable
 
 **Code Quality**:
+
 - Type hints on all functions
 - Custom exceptions for each file type
 - Proper JSON handling with error recovery

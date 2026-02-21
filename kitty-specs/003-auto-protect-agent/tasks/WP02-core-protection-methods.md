@@ -56,6 +56,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T008 – Implement protect_all_agents() method
+
 - **Purpose**: Add all known agent directories to .gitignore
 - **Steps**:
   1. Create method `def protect_all_agents(self) -> ProtectionResult`
@@ -69,6 +70,7 @@ subtasks:
 - **Notes**: This is the primary method used during spec-kitty init
 
 ### Subtask T009 – Implement protect_selected_agents() method
+
 - **Purpose**: Add specific agent directories based on selection
 - **Steps**:
   1. Create method `def protect_selected_agents(self, agents: List[str]) -> ProtectionResult`
@@ -81,6 +83,7 @@ subtasks:
 - **Notes**: May not be used initially, but needed for completeness
 
 ### Subtask T010 – Add duplicate detection logic
+
 - **Purpose**: Avoid adding entries that already exist in .gitignore
 - **Steps**:
   1. In ensure_entries method, read existing lines into a set
@@ -92,6 +95,7 @@ subtasks:
 - **Notes**: Set operations provide O(1) lookup performance
 
 ### Subtask T011 – Implement marker comment system
+
 - **Purpose**: Mark auto-managed sections for clarity
 - **Steps**:
   1. Define marker as "# Added by Spec Kitty CLI (auto-managed)"
@@ -104,6 +108,7 @@ subtasks:
 - **Notes**: Preserve existing marker if found
 
 ### Subtask T012 – Add .gitignore file creation
+
 - **Purpose**: Handle case where .gitignore doesn't exist
 - **Steps**:
   1. Check if self.gitignore_path exists
@@ -115,6 +120,7 @@ subtasks:
 - **Notes**: Use Path.touch() for creation
 
 ### Subtask T013 – Implement result reporting
+
 - **Purpose**: Provide detailed feedback about operations
 - **Steps**:
   1. Track all operations during protection
@@ -128,6 +134,7 @@ subtasks:
 - **Notes**: Be specific about what was done
 
 ### Subtask T014 – Special .github/ directory handling
+
 - **Purpose**: Add warning about dual use with GitHub Actions
 - **Steps**:
   1. Check if entry being added is `.github/`
@@ -140,6 +147,7 @@ subtasks:
 - **Notes**: This addresses edge case from specification
 
 ### Subtask T015 – Permission error handling
+
 - **Purpose**: Handle read-only files gracefully
 - **Steps**:
   1. Wrap file operations in try-except blocks

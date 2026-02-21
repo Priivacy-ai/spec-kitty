@@ -1,4 +1,5 @@
 # Quickstart: Modular Code Refactoring
+
 *Path: kitty-specs/004-modular-code-refactoring/quickstart.md*
 
 ## Overview
@@ -68,6 +69,7 @@ touch src/specify_cli/dashboard/diagnostics.py
 4. Add necessary imports
 
 Example extraction:
+
 ```python
 # From dashboard.py lines 381-441 → scanner.py
 def scan_all_features(project_root: Path) -> list[dict]:
@@ -136,6 +138,7 @@ def test_scan_all_features(mock_project_root):
 ### 2. Daily Sync
 
 At end of each day:
+
 ```bash
 git add .
 git commit -m "Agent A: Extracted dashboard infrastructure modules"
@@ -161,6 +164,7 @@ except ImportError:
 ### 4. Testing Strategy
 
 Run tests for your modules:
+
 ```bash
 # Test just your modules
 pytest tests/test_dashboard/test_scanner.py -v
@@ -179,6 +183,7 @@ pytest tests/ -v
 ### Import Compatibility
 
 Handle three contexts:
+
 ```python
 # At top of module
 try:
@@ -198,6 +203,7 @@ except ImportError:
 ### Documentation
 
 Every module needs:
+
 - Module docstring explaining purpose
 - Function docstrings with args/returns
 - Type hints for public functions
@@ -334,6 +340,7 @@ Before marking your modules complete:
 ## Support
 
 If blocked or need clarification:
+
 1. Check the module ownership matrix in plan.md
 2. Coordinate with other agents via git commits
 3. Use stub implementations to continue development

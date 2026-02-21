@@ -47,22 +47,24 @@ history:
 **Date**: 2026-01-30
 
 **Issue 1 (blocking): `specify_cli.events` now imports symbols that don't exist**
+
 - `src/specify_cli/events/__init__.py` imports `generate_ulid` and `with_event_store`, but there is no `generate_ulid` in `adapter.py` and no `middleware.py` in `src/specify_cli/events/`. This makes `import specify_cli.events` crash at import time.
 - Fix: restore the missing module/function from WP03, or remove the imports and re‑add the real implementations before exporting.
 
 **Issue 2 (blocking): `reconstruct_all_wp_statuses` has a NameError and still misses WPs without events**
+
 - The updated signature uses `repo_root: Path | None`, but `Path` is not imported in `src/specify_cli/events/reader.py`, so calling the method raises `NameError: name 'Path' is not defined`.
 - The seeding logic only runs when `feature_slug` is provided; however the WP05 E2E test calls `spec-kitty status` without `--feature` and expects WPs with no events (e.g., WP03) to appear as `planned`. With `feature=None`, you still return only WPs that have events.
 - Fix: import `Path`, and seed planned WPs even when no feature filter is provided (e.g., discover all `kitty-specs/*/tasks/WP*.md` and default to planned, then overlay events).
 
 **Dependency check:** WP04 is still not merged to `main` and has review feedback. WP05 should rebase onto the finalized WP04 once it lands.
 
-
 ## Objectives & Success Criteria
 
 **Primary Goal**: Implement event reading with Lamport clock ordering and state reconstruction from event history.
 
 **Success Criteria**:
+
 - ✅ EventStore.read() with optional filters (delegates to index)
 - ✅ Events sorted by Lamport clock (causal ordering, not timestamps)
 - ✅ Graceful degradation (skip invalid JSON lines with warnings)
@@ -76,6 +78,7 @@ history:
 **User Story**: US2 - Reading Workflow State from Event Log
 
 **Independent Test**:
+
 ```bash
 # Setup: Emit several WPStatusChanged events
 cd /tmp/test-reconstruction
@@ -117,6 +120,7 @@ spec-kitty status
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -131,11 +135,13 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From data-model.md (State Reconstruction)**:
+
 - Current state = replay all events in causal order (Lamport clock, not timestamp)
 - Apply state-machine pattern (old_status → new_status transitions)
 - Start from default state (e.g., "planned" for WorkPackages)
 
 **From spec.md (US2)**:
+
 - Must handle out-of-order events (sort by Lamport clock)
 - Must handle missing event log gracefully (empty board)
 - Must skip invalid JSON lines with warning (graceful degradation)
@@ -157,6 +163,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify WP04 T024 implementation**:
+
    ```python
    # In src/specify_cli/events/store.py
    # Should already have read() method from WP04 T024
@@ -176,6 +183,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add comprehensive docstring**:
+
    ```python
    def read(
        self,
@@ -211,9 +219,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (verify: read() method exists from WP04)
 
 **Validation**:
+
 - [ ] `read()` exists and works (from WP04)
 - [ ] Returns list[Event] sorted by lamport_clock
 - [ ] Delegates to index when filters provided
@@ -232,6 +242,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify sorting in EventStore.read()**:
+
    ```python
    # In src/specify_cli/events/store.py
    # Should already have sorting at end of read() method
@@ -246,6 +257,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add validation test**:
+
    ```python
    # Test script to verify causal ordering
    from specify_cli.events.store import EventStore
@@ -277,14 +289,17 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (verify: sorting by lamport_clock exists)
 
 **Validation**:
+
 - [ ] Events sorted by `lamport_clock` field (not `timestamp`)
 - [ ] Sorting is stable (events with same clock maintain relative order)
 - [ ] Test with out-of-order timestamps validates causal ordering
 
 **Edge Cases**:
+
 - Events with same Lamport clock: Stable sort maintains emission order (tie-breaking by event_id lexicographic if needed)
 - Empty event list: Sorted list is still empty (no-op)
 
@@ -299,6 +314,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify graceful degradation in _read_jsonl_file()**:
+
    ```python
    # In src/specify_cli/events/store.py
    # Should already have graceful degradation from WP04
@@ -332,6 +348,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Test graceful degradation**:
+
    ```bash
    # Create JSONL file with mixed valid/invalid lines
    cat > /tmp/test-degradation/.kittify/events/2026-01-27.jsonl << 'EOF'
@@ -352,15 +369,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (verify: graceful degradation exists from WP04)
 
 **Validation**:
+
 - [ ] Invalid JSON lines skipped with warning (not raised as exception)
 - [ ] Warning includes filename and line number for debugging
 - [ ] Valid events before/after invalid line are still read
 - [ ] Empty lines skipped silently (no warning)
 
 **Edge Cases**:
+
 - Entire file corrupted: Returns empty list, logs warning for each line
 - Missing required fields: ValueError caught, logged, line skipped
 - Extra fields in JSON: Tolerated (weak schema in Event.from_json)
@@ -376,6 +396,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create reader module**:
+
    ```python
    # src/specify_cli/events/reader.py (new file)
 
@@ -514,9 +535,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/reader.py` (new file, ~150 lines)
 
 **Validation**:
+
 - [ ] `reconstruct_wp_status()` replays events to derive current status
 - [ ] Events processed in Lamport clock order (causal)
 - [ ] Default status is "planned" (before any events)
@@ -524,6 +547,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] `get_wp_history()` returns full transition log
 
 **Edge Cases**:
+
 - No events for WP: Returns "planned" (default)
 - Events missing `new_status` in payload: Ignored (status unchanged)
 - Multiple features with same WP ID: Filtered by feature_slug
@@ -539,12 +563,14 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Locate status command**:
+
    ```bash
    find src -name "*status*" -type f | xargs grep -l "spec-kitty status"
    # Likely in: src/specify_cli/cli/commands/status.py
    ```
 
 2. **Modify status command to use EventReader**:
+
    ```python
    # In src/specify_cli/cli/commands/status.py (modify)
 
@@ -595,6 +621,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 3. **Handle empty event log gracefully**:
+
    ```python
    # Add fallback for fresh projects (no events yet)
    if not wp_statuses:
@@ -605,9 +632,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/status.py` (modify: use EventReader instead of YAML)
 
 **Validation**:
+
 - [ ] `status` command decorated with `@with_event_store`
 - [ ] Uses `EventReader.reconstruct_all_wp_statuses()` to derive state
 - [ ] Groups WPs by status (kanban lanes)
@@ -616,6 +645,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Test: Run `spec-kitty status` after emitting events, verify board reflects state
 
 **Edge Cases**:
+
 - No events exist: Displays empty board with message
 - Event reading fails: Logs warning, displays empty board
 - Unknown status in event: WP placed in "planned" lane (fallback)
@@ -631,6 +661,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify fallback in EventStore.read()**:
+
    ```python
    # In src/specify_cli/events/store.py
    # Should already have fallback logic from WP04
@@ -647,6 +678,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Test fallback behavior**:
+
    ```bash
    # Setup project with events
    cd /tmp/test-fallback
@@ -662,9 +694,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (verify: fallback exists from WP04)
 
 **Validation**:
+
 - [ ] Fallback to `_read_all_jsonl()` when index missing
 - [ ] Direct JSONL reading still works (slower but functional)
 - [ ] Warning logged if index unavailable
@@ -680,12 +714,14 @@ git branch --show-current  # Must output: 2.x
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T025-T027**: Verification - Confirm WP04 implementation works
 2. **T028**: Unit test - Reconstruct status from test events
 3. **T029**: Integration test - `spec-kitty status` displays correct board
 4. **T030**: Fallback test - Delete index, verify status still works
 
 **End-to-end test** (covers all subtasks):
+
 ```bash
 # Setup fresh project
 cd /tmp/test-e2e-reading
@@ -754,6 +790,7 @@ echo "✓ End-to-end test passed"
 **Impact**: Violates US2 requirement (100% accuracy)
 
 **Mitigation**:
+
 - T028 implements simple state-machine logic (last new_status wins)
 - T026 ensures causal ordering (Lamport clock sort)
 - Integration test validates reconstruction accuracy
@@ -763,6 +800,7 @@ echo "✓ End-to-end test passed"
 **Impact**: Fallback mode has poor UX (>2 seconds for status command)
 
 **Mitigation**:
+
 - T030 fallback is edge case (index usually available)
 - Direct JSONL reading still acceptable for small projects (<100 events)
 - Users can rebuild index manually if needed
@@ -772,6 +810,7 @@ echo "✓ End-to-end test passed"
 **Impact**: Status command crashes on corrupted event log
 
 **Mitigation**:
+
 - T027 graceful degradation (skip invalid events)
 - T028 tolerates missing payload fields (uses .get() with defaults)
 - T029 wraps reconstruction in try/except (empty board on failure)
@@ -818,6 +857,7 @@ echo "✓ End-to-end test passed"
    - ✓ Works when index missing (slower but functional)
 
 **Reviewers should**:
+
 - Run end-to-end test (verify board reflects events)
 - Test reconstruction accuracy (compare with manual calculation)
 - Delete index and verify fallback works
@@ -829,6 +869,7 @@ echo "✓ End-to-end test passed"
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T13:21:39Z – unknown – shell_pid=4601 – lane=for_review – Ready for review: Implemented EventReader with state reconstruction, created spec-kitty status command using event log, verified all WP04 infrastructure (read, sorting, graceful degradation, fallback). All 6 subtasks complete. Test script included.
 - 2026-01-30T14:45:14Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 - 2026-01-30T14:46:16Z – codex – shell_pid=14744 – lane=for_review – Ready for review: EventReader class implemented with state reconstruction logic, new status command added, all 6 subtasks complete (T025-T030)

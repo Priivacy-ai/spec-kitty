@@ -11,11 +11,13 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 **When you mention directories or files, provide either the absolute path or a path relative to the project root.**
 
 ✅ **CORRECT**:
+
 - `kitty-specs/001-feature/tasks/WP01.md`
 - `/Users/robert/Code/myproject/kitty-specs/001-feature/spec.md`
 - `tasks/WP01.md` (relative to feature directory)
 
 ❌ **WRONG**:
+
 - "the tasks folder" (which one? where?)
 - "WP01.md" (in which lane? which feature?)
 - "the spec" (which feature's spec?)
@@ -39,6 +41,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 ❌ **Copy/paste from Microsoft Office** without cleaning
 
 **Real examples that crashed the dashboard:**
+
 - "User's favorite feature" → "User's favorite feature" (smart quote)
 - "Price: $100 ± $10" → "Price: $100 +/- $10"
 - "Temperature: 72°F" → "Temperature: 72 degrees F"
@@ -51,7 +54,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 ✅ ASCII arrow: `->` instead of →
 ✅ Lowercase `x` for multiplication
 ✅ `+/-` for plus-minus
-✅ ` degrees` for temperature
+✅ `degrees` for temperature
 ✅ Plain punctuation
 
 ### Safe Characters
@@ -73,6 +76,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 ### Auto-Fix Available
 
 If you accidentally introduce problematic characters:
+
 ```bash
 # Check for encoding issues
 spec-kitty validate-encoding --feature 001-my-feature
@@ -128,6 +132,7 @@ spec-kitty validate-encoding --all --fix
 ### Why Agent Directories Must Not Be Committed
 
 Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
+
 - Authentication tokens and API keys
 - User-specific credentials (auth.json)
 - Session data and conversation history
@@ -136,12 +141,14 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 ### What Should Be Committed
 
 ✅ **DO commit:**
+
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission definitions
 - `.kittify/constitution/constitution.md` - Project constitution
 - `.gitignore` - With all agent directories excluded
 
 ❌ **DO NOT commit:**
+
 - `.claude/`, `.codex/`, `.gemini/`, etc. - Agent runtime directories
 - `.kittify/templates/command-templates/` - These are templates, not final commands
 - Any `auth.json`, `credentials.json`, or similar files
@@ -149,6 +156,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 ### Automatic Protection
 
 Spec Kitty automatically:
+
 1. Adds all agent directories to `.gitignore` during `spec-kitty init`
 2. Installs deterministic git quality hooks (`pre-commit-encoding-check`, `pre-commit-markdown-check`, `pre-commit-agent-check`, and `commit-msg`).
 3. Creates `.claudeignore` to optimize AI scanning

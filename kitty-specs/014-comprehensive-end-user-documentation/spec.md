@@ -116,29 +116,34 @@ A user (new or experienced) needs to find information quickly. The documentation
 ### Functional Requirements
 
 **Audit & Cleanup**
+
 - **FR-001**: Documentation team MUST audit all existing documentation files before creating new content
 - **FR-002**: All outdated, redundant, or ill-fitting documentation MUST be removed
 - **FR-003**: Any valuable content from existing docs MUST be migrated to the appropriate Divio type
 
 **Divio Structure**
+
 - **FR-004**: Documentation MUST include Tutorials (learning-oriented, step-by-step guides)
 - **FR-005**: Documentation MUST include How-To Guides (task-oriented, problem-solving recipes)
 - **FR-006**: Documentation MUST include Reference (complete, accurate command/feature descriptions)
 - **FR-007**: Documentation MUST include Explanations (concept-oriented, "why" discussions)
 
 **Content Quality**
+
 - **FR-008**: Each documentation page MUST clearly indicate its Divio type
 - **FR-009**: Cross-references MUST link related content across Divio types
 - **FR-010**: All command documentation MUST include working examples
 - **FR-011**: Tutorials MUST be testable end-to-end by a new user
 
 **Coverage**
+
 - **FR-012**: Documentation MUST cover all spec-kitty slash commands (specify, plan, tasks, implement, review, accept, merge, status, etc.)
 - **FR-013**: Documentation MUST cover all three missions (software-dev, research, documentation)
 - **FR-014**: Documentation MUST explain the workspace-per-work-package model
 - **FR-015**: Documentation MUST explain dependency handling between work packages
 
 **Navigation & Discoverability**
+
 - **FR-016**: Documentation MUST have a clear landing page with navigation to all Divio types
 - **FR-017**: Documentation MUST have consistent navigation structure across all pages
 

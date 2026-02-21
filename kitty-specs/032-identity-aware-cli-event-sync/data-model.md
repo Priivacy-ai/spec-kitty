@@ -38,6 +38,7 @@ class ProjectIdentity:
 ```
 
 **Persistence** (in `.kittify/config.yaml`):
+
 ```yaml
 project:
   uuid: "550e8400-e29b-41d4-a716-446655440000"
@@ -46,6 +47,7 @@ project:
 ```
 
 **Generation Rules**:
+
 - `project_uuid`: UUID4, generated once per project
 - `project_slug`: Kebab-case from directory name, or from git remote `origin` URL
 - `node_id`: Stable machine ID from `sync.clock.generate_node_id()` (12-char hex, stable across restarts)
@@ -76,6 +78,7 @@ team_slug: str         # From auth or "local" if unauthenticated
 ```
 
 **Validation Rules**:
+
 - `project_uuid` MUST be present for WebSocket send (queue-only if missing)
 - `project_uuid` MUST be valid UUID4 format
 - `team_slug` defaults to "local" if not authenticated
@@ -131,6 +134,7 @@ class SyncRuntime:
 ```
 
 **Lifecycle**:
+
 1. Created lazily on first `get_emitter()` call
 2. Starts BackgroundSyncService via `get_sync_service()` if `sync.auto_start` is enabled
 3. Starts WebSocketClient only if authenticated and attaches to emitter

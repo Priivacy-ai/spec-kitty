@@ -34,6 +34,7 @@ history:
 **Goal**: Implement GitVCS class wrapping existing git operations.
 
 **Success Criteria**:
+
 - All VCSProtocol methods work correctly for git backend
 - Existing git worktree functionality is preserved
 - Conflict detection parses git conflict markers accurately
@@ -46,16 +47,19 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - VCSProtocol definition
 - `src/specify_cli/core/git_ops.py` - Existing git operations to wrap
 - `src/specify_cli/core/worktree.py` - Existing worktree functions
 
 **Architecture Decisions**:
+
 - Wrap existing git_ops.py functions, don't modify them
 - GitVCS implements VCSProtocol
 - For git, conflicts block operations (unlike jj)
 
 **Constraints**:
+
 - Must maintain backward compatibility with existing git workflow
 - Conflict detection requires parsing file content for markers
 - Git doesn't have Change IDs - use branch name as approximation
@@ -67,8 +71,10 @@ history:
 **Purpose**: Establish the GitVCS class structure implementing VCSProtocol.
 
 **Steps**:
+
 1. Create `src/specify_cli/core/vcs/git.py`
 2. Create GitVCS class with protocol properties:
+
    ```python
    class GitVCS:
        @property
@@ -79,9 +85,11 @@ history:
        def capabilities(self) -> VCSCapabilities:
            return GIT_CAPABILITIES
    ```
+
 3. Add stub methods for all VCSProtocol operations (return NotImplemented or raise)
 
 **Files**:
+
 - Create: `src/specify_cli/core/vcs/git.py`
 
 ---
@@ -91,6 +99,7 @@ history:
 **Purpose**: Wrap git worktree commands for workspace management.
 
 **Steps**:
+
 1. Implement `create_workspace()`:
    - Use `git worktree add <path> -b <branch>`
    - Handle `--base` by branching from specified commit/branch
@@ -105,11 +114,13 @@ history:
    - Return list of WorkspaceInfo
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 **Reference**: See `src/specify_cli/cli/commands/implement.py` lines 580-670 for existing worktree creation logic.
 
 **Notes**:
+
 - Sparse-checkout is critical for workspace isolation
 - Handle Windows symlink limitations (existing code does this)
 
@@ -120,6 +131,7 @@ history:
 **Purpose**: Implement workspace synchronization for git.
 
 **Steps**:
+
 1. Implement `sync_workspace()`:
    - Fetch latest from remote
    - Attempt rebase onto base branch
@@ -131,9 +143,11 @@ history:
    - Return True if base has commits not in workspace
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 **Implementation Details**:
+
 ```python
 def sync_workspace(self, workspace_path: Path) -> SyncResult:
     # 1. Fetch
@@ -170,6 +184,7 @@ def sync_workspace(self, workspace_path: Path) -> SyncResult:
 **Purpose**: Detect and report git merge conflicts.
 
 **Steps**:
+
 1. Implement `detect_conflicts()`:
    - Use `git diff --name-only --diff-filter=U` to find conflicted files
    - For each file, parse conflict markers to get line ranges
@@ -178,9 +193,11 @@ def sync_workspace(self, workspace_path: Path) -> SyncResult:
    - Check if any files in conflicted state
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 **Conflict Marker Parsing**:
+
 ```python
 def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
     """Find line ranges with conflict markers."""
@@ -207,6 +224,7 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
 **Purpose**: Implement git commit and log operations.
 
 **Steps**:
+
 1. Implement `get_current_change()`:
    - Use `git log -1 --format=...`
    - Build ChangeInfo (change_id=None for git)
@@ -220,9 +238,11 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
    - Return ChangeInfo for new commit
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 **Notes**:
+
 - Git format string: `--format=%H|%an|%ae|%at|%s|%P`
 - change_id is always None for git
 
@@ -233,6 +253,7 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
 **Purpose**: Implement git repository initialization and detection.
 
 **Steps**:
+
 1. Implement `init_repo()`:
    - Use `git init` (colocate parameter ignored for git)
 2. Implement `is_repo()`:
@@ -241,6 +262,7 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
    - Use `git rev-parse --show-toplevel`
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 ---
@@ -250,7 +272,9 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
 **Purpose**: Implement git-specific functions not in VCSProtocol.
 
 **Steps**:
+
 1. Add to `src/specify_cli/core/vcs/git.py`:
+
    ```python
    def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
        """Get git reflog as operation history."""
@@ -261,9 +285,11 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
    def git_stash_pop(workspace_path: Path) -> bool:
        """Pop stashed changes."""
    ```
+
 2. Parse `git reflog --format=...` for operation log
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/git.py`
 
 **Parallel?**: Yes - can proceed alongside protocol methods
@@ -275,6 +301,7 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
 **Purpose**: Test GitVCS implementation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/core/vcs/test_git.py`
 2. Test all VCSProtocol methods:
    - Workspace creation/removal
@@ -284,9 +311,11 @@ def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
 3. Use tmp_path fixture for isolated test repos
 
 **Files**:
+
 - Create: `tests/specify_cli/core/vcs/test_git.py`
 
 **Test Examples**:
+
 ```python
 def test_git_vcs_backend(self):
     vcs = GitVCS()
@@ -337,6 +366,7 @@ def test_create_workspace(self, tmp_path):
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify all VCSProtocol methods implemented
 2. Verify conflict detection parses markers correctly
 3. Verify SyncResult includes changes_integrated
@@ -348,13 +378,13 @@ def test_create_workspace(self, tmp_path):
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T11:54:03Z – claude-code – shell_pid=41909 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:01:50Z – claude-code – shell_pid=41909 – lane=for_review – Ready for review: Full GitVCS implementation with all VCSProtocol methods, 36 tests passing
-- 2026-01-17T12:02:18Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
-- 2026-01-17T12:04:09Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+- 2026-01-17T12:02:18Z – **AGENT** – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:04:09Z – **AGENT** – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T12:08:24Z – claude-opus – shell_pid=67058 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:15:04Z – claude-opus – shell_pid=67058 – lane=for_review – Fixed all 3 review issues: sparse-checkout in create_workspace, wrapped git_ops.py helpers, implemented _parse_rebase_stats. 68 VCS tests passing.
-- 2026-01-17T12:17:58Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
-- 2026-01-17T12:19:45Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
-- 2026-01-17T12:24:40Z – __AGENT__ – shell_pid=38749 – lane=done – Review passed - all 3 issues addressed
+- 2026-01-17T12:17:58Z – **AGENT** – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:19:45Z – **AGENT** – shell_pid=38749 – lane=planned – Moved to planned
+- 2026-01-17T12:24:40Z – **AGENT** – shell_pid=38749 – lane=done – Review passed - all 3 issues addressed
 
 ## Review Feedback
 
@@ -363,4 +393,3 @@ def test_create_workspace(self, tmp_path):
 **Date**: 2026-01-17
 
 **Issue 1**: `create_workspace()` only applies sparse-checkout when `sparse_exclude` is explicitly passed, but the protocol signature doesn’t expose this argument and the requirements call for always excluding `kitty-specs/`. Apply sparse-checkout by default (e.g., default to `["kitty-specs/"]` or unconditionally apply it) to preserve existing worktree isolation behavior.
-

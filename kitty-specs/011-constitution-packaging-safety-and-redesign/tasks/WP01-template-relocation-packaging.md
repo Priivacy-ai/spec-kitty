@@ -52,6 +52,7 @@ history:
 **Goal**: Move all template sources from `.kittify/` to `src/specify_cli/` to achieve clean separation between template source code (packaged) and project instances (runtime).
 
 **Success Criteria**:
+
 1. All template files moved from `.kittify/templates/` → `src/specify_cli/templates/`
 2. All mission files moved from `.kittify/missions/` → `src/specify_cli/missions/`
 3. All script files moved from `.kittify/scripts/` → `src/specify_cli/scripts/` (if they exist)
@@ -62,6 +63,7 @@ history:
 8. Spec-kitty's own `.kittify/` directory still works for dogfooding
 
 **Acceptance Test**:
+
 ```bash
 # Build package
 python -m build
@@ -80,6 +82,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 **Why This Matters**: This is the ROOT CAUSE fix for packaging contamination. Currently, any filled `.kittify/memory/constitution.md` in the spec-kitty repo gets packaged and distributed to all PyPI users, overwriting their project-specific values.
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (FR-001 through FR-006, User Story 1)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Risk Mitigation section, Project Structure)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (Research Area 1: Template Relocation Strategy)
@@ -100,10 +103,13 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 **Purpose**: Identify all hardcoded `.kittify/` paths that will break after relocation.
 
 **Steps**:
+
 1. Grep entire Python codebase for `.kittify/` references:
+
    ```bash
    grep -rn "\.kittify/" src/specify_cli/ --include="*.py"
    ```
+
 2. Document each reference with file path and line number
 3. Categorize references:
    - **Template loading** (will need update to use package resources)
@@ -112,12 +118,14 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 4. Create audit report: list of files to update in subsequent subtasks
 
 **Files to Check**:
+
 - `src/specify_cli/template/manager.py` (CRITICAL - main template loader)
 - `src/specify_cli/mission.py` (may reference mission locations)
 - `src/specify_cli/upgrade/migrations/*.py` (migrations that copy templates)
 - `tests/**/*.py` (test fixtures may reference template paths)
 
 **Expected Findings**:
+
 - `template/manager.py`: `copy_specify_base_from_local()` function (lines ~59-122)
 - Migration files: `m_0_7_3_update_scripts.py`, `m_0_10_6_workflow_simplification.py`
 - Test files may have hardcoded template paths
@@ -131,21 +139,27 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 **Purpose**: Relocate all template files to package location.
 
 **Steps**:
+
 1. Verify source exists: `ls -la .kittify/templates/`
 2. Create destination: `mkdir -p src/specify_cli/templates/`
 3. Move entire directory:
+
    ```bash
    mv .kittify/templates/* src/specify_cli/templates/
    ```
+
 4. Verify structure preserved:
+
    ```bash
    ls -R src/specify_cli/templates/
    # Should contain: command-templates/, plan-template.md, spec-template.md,
    # task-prompt-template.md, git-hooks/, claudeignore-template, AGENTS.md
    ```
+
 5. **DO NOT delete** `.kittify/templates/` yet - migrations may reference it
 
 **Files Moved**:
+
 ```
 .kittify/templates/command-templates/*.md  → src/specify_cli/templates/command-templates/
 .kittify/templates/plan-template.md        → src/specify_cli/templates/
@@ -157,6 +171,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 ```
 
 **Verification**:
+
 ```bash
 # Count files before and after
 find .kittify/templates -type f | wc -l  # Should be 0 after move
@@ -164,6 +179,7 @@ find src/specify_cli/templates -type f | wc -l  # Should match original count
 ```
 
 **Notes**:
+
 - Preserve file permissions and timestamps
 - Verify no symlinks are broken by move
 - Git will track this as rename if files are identical
@@ -175,33 +191,41 @@ find src/specify_cli/templates -type f | wc -l  # Should match original count
 **Purpose**: Relocate all mission definitions to package location.
 
 **Steps**:
+
 1. Verify source exists: `ls -la .kittify/missions/`
 2. Create destination: `mkdir -p src/specify_cli/missions/`
 3. Move entire directory:
+
    ```bash
    mv .kittify/missions/* src/specify_cli/missions/
    ```
+
 4. Verify structure preserved:
+
    ```bash
    ls -R src/specify_cli/missions/
    # Should contain: software-dev/ and research/ subdirectories
    # Each with: mission.yaml, templates/, command-templates/, constitution/
    ```
+
 5. **Note**: `constitution/` subdirectories will be deleted in WP03, but leave them for now
 
 **Files Moved**:
+
 ```
 .kittify/missions/software-dev/  → src/specify_cli/missions/software-dev/
 .kittify/missions/research/      → src/specify_cli/missions/research/
 ```
 
 **Verification**:
+
 ```bash
 # Verify mission.yaml files present
 find src/specify_cli/missions -name "mission.yaml" | wc -l  # Should be 2
 ```
 
 **Notes**:
+
 - Mission constitution directories will be removed in WP03
 - Keep the `constitution/` subdirectories for now to avoid breaking existing code
 - Tests may reference mission locations - will update after move complete
@@ -213,10 +237,13 @@ find src/specify_cli/missions -name "mission.yaml" | wc -l  # Should be 2
 **Purpose**: Relocate script files to package location (if they exist in `.kittify/`).
 
 **Steps**:
+
 1. Check if `.kittify/scripts/` exists:
+
    ```bash
    if [ -d .kittify/scripts ]; then echo "EXISTS"; else echo "NOT FOUND"; fi
    ```
+
 2. If EXISTS:
    - Create destination: `mkdir -p src/specify_cli/scripts/`
    - Move directory: `mv .kittify/scripts/* src/specify_cli/scripts/`
@@ -227,10 +254,12 @@ find src/specify_cli/missions -name "mission.yaml" | wc -l  # Should be 2
    - Document finding: "Scripts already in correct location" or "No scripts to move"
 
 **Expected Locations**:
+
 - `.kittify/scripts/bash/` → `src/specify_cli/scripts/bash/`
 - `.kittify/scripts/powershell/` → `src/specify_cli/scripts/powershell/`
 
 **Verification**:
+
 ```bash
 # If scripts exist, verify contents
 if [ -d src/specify_cli/scripts ]; then
@@ -240,6 +269,7 @@ fi
 ```
 
 **Notes**:
+
 - Scripts may already be in `scripts/` at repo root (not `.kittify/scripts/`)
 - Check `pyproject.toml` line 87 to see current packaging location
 - If scripts are at repo root, they may already be packaged correctly
@@ -253,6 +283,7 @@ fi
 **Files**: `src/specify_cli/template/manager.py`
 
 **Current Code** (lines ~59-122, `copy_specify_base_from_local()`):
+
 ```python
 # Copy from .kittify/memory/ for consistency with other .kittify paths
 memory_src = repo_root / ".kittify" / "memory"
@@ -277,6 +308,7 @@ missions_candidates = [
 ```
 
 **New Code** (update paths):
+
 ```python
 # Memory still comes from .kittify/ (that's OK - it's runtime, not template source)
 memory_src = repo_root / ".kittify" / "memory"
@@ -301,6 +333,7 @@ missions_candidates = [
 ```
 
 **Steps**:
+
 1. Read `src/specify_cli/template/manager.py`
 2. Locate `copy_specify_base_from_local()` function (around line 59)
 3. Update paths:
@@ -312,6 +345,7 @@ missions_candidates = [
 6. Verify `copy_specify_base_from_package()` function already uses `files("specify_cli")` - should not need changes
 
 **Verification**:
+
 ```python
 # After changes, function should load from:
 # - src/specify_cli/templates/ (template source)
@@ -321,6 +355,7 @@ missions_candidates = [
 ```
 
 **Notes**:
+
 - The `copy_specify_base_from_package()` function (line ~139) should already work correctly - it uses `files("specify_cli")` which loads from the package
 - Only `copy_specify_base_from_local()` needs updates (development/editable install path)
 
@@ -333,6 +368,7 @@ missions_candidates = [
 **Files**: `pyproject.toml`
 
 **Lines to REMOVE**:
+
 ```toml
 # Line 85-89: [tool.hatch.build.targets.wheel.force-include]
 [tool.hatch.build.targets.wheel.force-include]
@@ -362,6 +398,7 @@ include = [
 ```
 
 **After Changes**:
+
 ```toml
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
@@ -382,6 +419,7 @@ exclude = [
 ```
 
 **Steps**:
+
 1. Read `pyproject.toml`
 2. **DELETE** entire `[tool.hatch.build.targets.wheel.force-include]` section (lines 85-89)
 3. **UPDATE** `[tool.hatch.build.targets.sdist]` include list to remove `.kittify/*` entries (lines 94-98)
@@ -390,11 +428,13 @@ exclude = [
 6. **NOTE**: Line 87 `"scripts"` may refer to repo root `scripts/` - check if this exists and should be kept
 
 **Critical Impact**:
+
 - Removing line 88 (`.kittify/memory`) prevents packaging filled constitutions
 - Removing line 96 (`.kittify/memory/**/*`) prevents packaging filled constitutions in sdist
 - This is the PRIMARY FIX for the packaging contamination issue
 
 **Verification**:
+
 ```bash
 # Build and inspect
 python -m build
@@ -409,21 +449,25 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -i memory
 **Purpose**: Ensure spec-kitty developers can still use spec-kitty commands on the spec-kitty repo itself.
 
 **Test Scenarios**:
+
 1. **Run `spec-kitty init` in spec-kitty repo**:
    - Should create/update `.kittify/` structure
    - Should NOT overwrite template sources (now in src/)
    - Should symlink or copy missions from src/ to `.kittify/missions/`
 
 2. **Fill in constitution**:
+
    ```bash
    # Manually edit or use command to fill
    echo "# Spec Kitty Constitution" > .kittify/memory/constitution.md
    echo "## Test principle" >> .kittify/memory/constitution.md
    ```
+
    - File should be created in `.kittify/memory/`
    - Should NOT affect src/ directory
 
 3. **Run spec-kitty commands**:
+
    ```bash
    cd .worktrees/some-feature/
    # Commands should work with project .kittify/
@@ -431,6 +475,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -i memory
    ```
 
 4. **Build package and verify**:
+
    ```bash
    python -m build
    unzip -l dist/spec_kitty_cli-*.whl | grep "constitution.md"
@@ -438,12 +483,14 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -i memory
    ```
 
 **Expected Behavior**:
+
 - Spec-kitty's `.kittify/` at repo root is treated like any other project's `.kittify/`
 - Template sources are safely in src/ and get packaged
 - Runtime artifacts in `.kittify/` are NOT packaged
 - Worktrees can share `.kittify/memory/` via symlinks (existing behavior)
 
 **Failure Cases to Test**:
+
 - Running `spec-kitty init` should not prompt to overwrite src/specify_cli/templates/
 - Filled constitution should not appear in built package
 - Commands should not fail due to missing `.kittify/templates/`
@@ -455,23 +502,28 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -i memory
 **Purpose**: Prove that packaging contamination is fixed.
 
 **Steps**:
+
 1. Clean old build artifacts:
+
    ```bash
    rm -rf dist/ build/ *.egg-info
    ```
 
 2. Build package:
+
    ```bash
    python -m build
    ```
 
 3. Inspect wheel contents:
+
    ```bash
    unzip -l dist/spec_kitty_cli-*.whl > wheel_contents.txt
    cat wheel_contents.txt
    ```
 
 4. **CRITICAL CHECKS**:
+
    ```bash
    # Check 1: No .kittify/ paths in wheel
    grep "\.kittify/" wheel_contents.txt
@@ -498,6 +550,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -i memory
    - Package size reasonable (<5MB)
 
 **Verification Script**:
+
 ```bash
 #!/bin/bash
 set -e
@@ -538,7 +591,9 @@ echo "✓ ALL CHECKS PASSED"
 **Purpose**: Verify template loading works from installed package, not just editable install.
 
 **Steps**:
+
 1. **Create test environment**:
+
    ```bash
    # Create fresh virtualenv
    python -m venv /tmp/test-spec-kitty
@@ -546,11 +601,13 @@ echo "✓ ALL CHECKS PASSED"
    ```
 
 2. **Install from wheel** (not editable):
+
    ```bash
    pip install dist/spec_kitty_cli-*.whl
    ```
 
 3. **Create test project**:
+
    ```bash
    mkdir /tmp/test-project
    cd /tmp/test-project
@@ -558,6 +615,7 @@ echo "✓ ALL CHECKS PASSED"
    ```
 
 4. **Run `spec-kitty init`**:
+
    ```bash
    spec-kitty init
    # Select mission: software-dev
@@ -565,6 +623,7 @@ echo "✓ ALL CHECKS PASSED"
    ```
 
 5. **Verify results**:
+
    ```bash
    ls -la .kittify/
    # Should contain: memory/, missions/, templates/, scripts/, AGENTS.md
@@ -580,6 +639,7 @@ echo "✓ ALL CHECKS PASSED"
    ```
 
 6. **Run a command**:
+
    ```bash
    # Try running specify command (just to test loading works)
    spec-kitty agent feature setup-spec --help
@@ -587,12 +647,14 @@ echo "✓ ALL CHECKS PASSED"
    ```
 
 7. **Cleanup**:
+
    ```bash
    deactivate
    rm -rf /tmp/test-spec-kitty /tmp/test-project
    ```
 
 **Success Criteria**:
+
 - `spec-kitty init` completes successfully
 - All template files copied to project's `.kittify/`
 - Constitution template is blank/placeholder (not spec-kitty's filled version)
@@ -600,6 +662,7 @@ echo "✓ ALL CHECKS PASSED"
 - No references to package installation path in user's `.kittify/`
 
 **Failure Scenarios to Watch For**:
+
 - Error: "Template not found" → Template loading broken
 - Error: "No such file or directory: .kittify/templates" → Path references not updated
 - Constitution has spec-kitty's principles → Packaging contamination still present
@@ -653,6 +716,7 @@ echo "✓ ALL CHECKS PASSED"
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Grep audit complete**: Reviewer should verify all `.kittify/` references identified and planned for update
 2. **File move verified**: Check `git diff --summary` shows renames, not deletes+adds
 3. **Template loading updated**: Verify `template/manager.py` paths updated correctly
@@ -661,12 +725,14 @@ echo "✓ ALL CHECKS PASSED"
 6. **Init test passed**: Verify fresh install test created correct `.kittify/` structure
 
 **Red Flags for Reviewer**:
+
 - Any `.kittify/` paths remaining in pyproject.toml force-includes
 - Wheel contains `specify_cli/memory/` directory
 - Template loading uses hardcoded paths instead of package resources
 - Git diff shows file deletes instead of renames (loses history)
 
 **Context for Reviewer**:
+
 - This is the primary fix for issue where spec-kitty's filled constitution gets packaged and distributed to all users
 - Template sources now live in `src/` (packaged), project instances in `.kittify/` (runtime)
 - This enables safe dogfooding - spec-kitty developers can use spec-kitty commands without contamination risk
@@ -689,6 +755,7 @@ spec-kitty agent workflow implement WP01
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T10:38:46Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:43:06Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T10:43:17Z – agent – lane=doing – Started review via workflow command

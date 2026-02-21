@@ -77,6 +77,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 - **Data Model**: `kitty-specs/034-feature-status-state-model-remediation/data-model.md` -- Lane enum, Aliases section
 
 **Key constraints**:
+
 - Old LANES: `("planned", "doing", "for_review", "done")`
 - New LANES: `("planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled")`
 - `doing` must remain accepted at all input boundaries (backward compatibility)
@@ -86,6 +87,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 - No breaking changes to existing CLI behavior
 
 **Existing code to modify**:
+
 - `src/specify_cli/tasks_support.py` -- LANES tuple, `ensure_lane()` function
 - `src/specify_cli/frontmatter.py` -- `validate()` method lane checking
 - `src/specify_cli/agent_utils/status.py` -- lane references in status display
@@ -101,12 +103,16 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Purpose**: Expand the LANES tuple from 4 canonical lanes to 7, and add the LANE_ALIASES map.
 
 **Steps**:
+
 1. Open `src/specify_cli/tasks_support.py`
 2. Find the current LANES definition:
+
    ```python
    LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
    ```
+
 3. Replace with:
+
    ```python
    LANES: Tuple[str, ...] = (
        "planned", "claimed", "in_progress", "for_review",
@@ -114,17 +120,20 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
    )
    LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
    ```
+
 4. Note that `doing` is removed from LANES and moved to LANE_ALIASES. The canonical lanes no longer include `doing`.
 
 **Files**: `src/specify_cli/tasks_support.py` (modify existing)
 
 **Validation**:
+
 - `"claimed" in LANES` is True
 - `"in_progress" in LANES` is True
 - `"doing" in LANES` is False (it is an alias, not a canonical lane)
 - `LANE_ALIASES["doing"]` returns `"in_progress"`
 
 **Edge Cases**:
+
 - Code that does `if lane in LANES` with `lane="doing"` will now return False -- this is correct, but callers need to resolve aliases first (handled in T024)
 - The LANES tuple order matches the canonical lifecycle order for display purposes
 
@@ -135,13 +144,17 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Purpose**: Expand the valid_lanes list in the frontmatter validation to accept all 7 canonical lanes plus `doing` as an accepted input alias.
 
 **Steps**:
+
 1. Open `src/specify_cli/frontmatter.py`
 2. Find the `validate()` method in `FrontmatterManager` class
 3. Locate the valid_lanes check. It may look like:
+
    ```python
    valid_lanes = ["planned", "doing", "for_review", "done"]
    ```
+
 4. Replace with:
+
    ```python
    valid_lanes = [
        "planned", "claimed", "in_progress", "for_review",
@@ -149,11 +162,13 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
        "doing",  # Accepted alias for in_progress (backward compatibility)
    ]
    ```
+
 5. The validation should accept `doing` as input (for backward compatibility with existing frontmatter files) but the system should resolve it to `in_progress` when processing.
 
 **Files**: `src/specify_cli/frontmatter.py` (modify existing)
 
 **Validation**:
+
 - Frontmatter with `lane: claimed` passes validation
 - Frontmatter with `lane: in_progress` passes validation
 - Frontmatter with `lane: doing` passes validation (accepted alias)
@@ -161,6 +176,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 - Frontmatter with `lane: invalid_lane` fails validation
 
 **Edge Cases**:
+
 - Existing frontmatter files with `lane: doing` must not break -- they are valid input
 - New frontmatter files should use canonical values, but the validator accepts both
 - Case sensitivity: validation should be case-sensitive (lanes are lowercase)
@@ -173,8 +189,10 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Purpose**: Make `ensure_lane()` resolve aliases before validating against the canonical LANES tuple.
 
 **Steps**:
+
 1. Find the `ensure_lane()` function in `tasks_support.py`. It likely validates that a lane value is in LANES.
 2. Add alias resolution at the start:
+
    ```python
    def ensure_lane(lane: str) -> str:
        """Validate and normalize a lane value.
@@ -192,12 +210,14 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
            )
        return resolved
    ```
+
 3. The return value is the canonical lane name (never the alias)
 4. Update all callers of `ensure_lane()` to use the returned value (not the original input)
 
 **Files**: `src/specify_cli/tasks_support.py` (modify existing)
 
 **Validation**:
+
 - `ensure_lane("doing")` returns `"in_progress"`
 - `ensure_lane("claimed")` returns `"claimed"`
 - `ensure_lane("in_progress")` returns `"in_progress"`
@@ -206,6 +226,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 - `ensure_lane("  doing  ")` returns `"in_progress"` (whitespace stripped)
 
 **Edge Cases**:
+
 - `ensure_lane("")` should raise TaskCliError (empty string is not a valid lane)
 - `ensure_lane("Planned")` should return `"planned"` (case normalization)
 - If `ensure_lane` currently does not return the lane value, add a return statement
@@ -217,7 +238,9 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Purpose**: Find and update every hardcoded reference to the old 4-lane set throughout the codebase.
 
 **Steps**:
+
 1. Search for the old LANES tuple pattern:
+
    ```
    grep -rn '"doing"' src/specify_cli/
    grep -rn "'doing'" src/specify_cli/
@@ -237,6 +260,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
    - Find `LANE_PRIORITY` dict
    - Current: `{"done": 4, "for_review": 3, "doing": 2, "planned": 1}`
    - Update to include all 7 lanes:
+
      ```python
      LANE_PRIORITY: Dict[str, int] = {
          "canceled": 0,
@@ -248,6 +272,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
          "done": 6,
      }
      ```
+
    - Note: The priority values may need adjustment based on rollback-aware logic (WP10 will further refine this). For now, establish the 7-lane mapping.
    - Add `"doing"` alias handling in the resolver if it reads lane values from frontmatter
 
@@ -269,10 +294,12 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Files**: Multiple existing files (see list above)
 
 **Validation**:
+
 - `grep -rn '"doing"' src/specify_cli/` should show only alias-handling code, not usage as a canonical lane value
 - All modified files still pass their existing tests (after test updates in T026)
 
 **Edge Cases**:
+
 - Template files (`.md`) may contain `doing` as documentation -- these may or may not need updating
 - Migration files may reference old lane values for backward compatibility -- leave these as-is
 - Test files will be updated in T026
@@ -284,7 +311,9 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Purpose**: Update existing tests that assert on the 4-lane set, and add new tests for the expanded 7-lane model.
 
 **Steps**:
+
 1. Find existing tests that reference the old LANES tuple:
+
    ```
    grep -rn "LANES" tests/
    grep -rn '"doing"' tests/
@@ -321,6 +350,7 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 **Validation**: `python -m pytest tests/ -x -q` -- all tests pass (no regressions)
 
 **Edge Cases**:
+
 - Parametrized tests over lanes: add new lanes to parameter lists
 - Snapshot tests (if any) that capture lane output: update expected output
 - Integration tests that create WPs with specific lanes: verify new lanes work end-to-end

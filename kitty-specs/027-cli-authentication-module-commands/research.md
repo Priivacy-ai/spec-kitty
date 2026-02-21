@@ -9,6 +9,7 @@ Document the outcomes of Phase 0 discovery work.
 - **Research Status**: MINIMAL - Leverages Feature 009 research
 
 This feature was extracted from Feature 009 (CLI-SaaS Event Sync and Dashboards). The Phase 0 research for Feature 009 already investigated:
+
 - CLI repository structure (spec-kitty 2.x branch)
 - SaaS authentication endpoints
 - Existing sync infrastructure
@@ -34,6 +35,7 @@ See: `kitty-specs/009-cli-saas-event-sync-dashboards/research.md`
 ### CLI Repository (spec-kitty 2.x)
 
 **Verified Components**:
+
 - `sync/auth.py` - Empty file, needs full implementation
 - `sync/client.py` - WebSocketClient expects token parameter (235 lines)
 - `sync/config.py` - SyncConfig with server_url (38 lines)
@@ -45,11 +47,13 @@ See: `kitty-specs/009-cli-saas-event-sync-dashboards/research.md`
 ### SaaS Repository (spec-kitty-saas)
 
 **Authentication Endpoints (Feature 008)**:
+
 - `POST /api/v1/token/` - Obtain access + refresh tokens
 - `POST /api/v1/token/refresh/` - Refresh access token
 - `POST /api/v1/ws-token/` - Exchange access token for WebSocket token
 
 **JWT Configuration**:
+
 - Access token TTL: 15 minutes
 - Refresh token TTL: 7 days
 - Token rotation enabled (new refresh token on each refresh)

@@ -19,20 +19,24 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - Check for XPASS (unexpectedly passing tests that should be reviewed)
 
 - [ ] **CRITICAL: Verify all migrations are registered**:
+
   ```bash
   pytest tests/specify_cli/upgrade/test_migration_robustness.py::TestMigrationRegistryCompleteness -v
   ```
+
   - **Why**: Prevents release blocker bug (0.13.2) where migrations existed but weren't imported
   - **Impact**: If this test fails, migrations won't run during `spec-kitty upgrade`
   - **Fix**: Add missing imports to `src/specify_cli/upgrade/migrations/__init__.py`
 
 - [ ] Run linting and formatting checks:
+
   ```bash
   ruff check .
   ruff format --check .
   ```
 
 - [ ] Verify test coverage for new features:
+
   ```bash
   pytest tests/ --cov=src/specify_cli --cov-report=term-missing
   ```
@@ -68,6 +72,7 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
 ### Migration Testing (if migrations included)
 
 - [ ] Test migrations on sample projects:
+
   ```bash
   # Create test project with old version
   spec-kitty init test-project
@@ -79,6 +84,7 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   ```
 
 - [ ] Verify migration idempotency:
+
   ```bash
   spec-kitty upgrade  # Run again
   # Should report "No migrations needed"
@@ -105,6 +111,7 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - [ ] Amazon Q (`.amazonq/prompts/`)
 
 - [ ] Test slash commands with at least 2 different agents:
+
   ```bash
   # In a test project with agent configured
   /spec-kitty.specify
@@ -210,6 +217,7 @@ git push origin vX.Y.Z
 ### 7. Monitor Automated Publishing
 
 - [ ] Watch GitHub Actions workflow: `.github/workflows/release.yml`
+
   ```bash
   gh run watch
   ```
@@ -221,6 +229,7 @@ git push origin vX.Y.Z
   - GitHub release created
 
 - [ ] Check PyPI release:
+
   ```bash
   # Wait a few minutes for PyPI to update
   pip install --upgrade spec-kitty-cli
@@ -228,6 +237,7 @@ git push origin vX.Y.Z
   ```
 
 - [ ] Verify GitHub release created:
+
   ```bash
   gh release view vX.Y.Z
   ```
@@ -237,6 +247,7 @@ git push origin vX.Y.Z
 ### Installation Testing
 
 - [ ] Test fresh installation:
+
   ```bash
   pip install --upgrade spec-kitty-cli
   spec-kitty --version
@@ -246,6 +257,7 @@ git push origin vX.Y.Z
   ```
 
 - [ ] Test upgrade from previous version:
+
   ```bash
   pip install spec-kitty-cli==X.Y.[Z-1]  # Previous version
   spec-kitty init old-project
@@ -265,6 +277,7 @@ git push origin vX.Y.Z
 ### Issue Cleanup
 
 - [ ] Close resolved issues with release version:
+
   ```
   Fixed in vX.Y.Z
   ```
@@ -280,6 +293,7 @@ If critical issues discovered after release:
 ### Option 1: Hot Fix Release
 
 1. Create hotfix branch from tag:
+
    ```bash
    git checkout -b hotfix/X.Y.Z+1 vX.Y.Z
    ```
@@ -316,6 +330,7 @@ If critical issues discovered after release:
 ### For Agent Management Changes (0.12.0+)
 
 - [ ] Test config-driven behavior:
+
   ```bash
   spec-kitty agent config list
   spec-kitty agent config add claude
@@ -360,15 +375,18 @@ If critical issues discovered after release:
 **Common Causes:**
 
 1. **Git Default Branch Name Mismatch**
+
    ```
    Error: Command '['git', 'branch', 'feature-branch', 'main']' returned non-zero exit status 128
    ```
+
    - **Cause**: `git init` creates different default branch names in different environments
      - Local (macOS with git 2.30+): Creates "main"
      - CI (Ubuntu with older git): Creates "master"
      - User's machine: Depends on `init.defaultBranch` config
 
    - **Fix**: Always use `git init -b main` to explicitly set branch name
+
      ```python
      # ❌ BAD (environment-dependent)
      subprocess.run(["git", "init"], cwd=repo, check=True)
@@ -382,12 +400,15 @@ If critical issues discovered after release:
      - `tests/unit/test_move_task_git_validation.py`
 
 2. **Rich Console Formatting Differences**
+
    ```
    AssertionError: assert 'exists but is not a valid worktree' in output
    # Output has double spaces: 'exists but is not  a valid worktree'
    ```
+
    - **Cause**: Rich console adds ANSI color codes; `capsys.readouterr()` strips them but leaves spacing artifacts
    - **Fix**: Normalize whitespace before assertions
+
      ```python
      import re
      output = re.sub(r'\s+', ' ', captured.out)  # Normalize all whitespace
@@ -407,6 +428,7 @@ If critical issues discovered after release:
 **Debugging Strategy:**
 
 1. **Add Test Output Capture** (Added in v0.13.6):
+
    ```yaml
    - name: Run tests
      run: |
@@ -425,6 +447,7 @@ If critical issues discovered after release:
 2. **Check System Reminder Messages**: When workflow fails, CI output may include system reminders with actual error details
 
 3. **Test Locally with CI-like Environment**:
+
    ```bash
    # Simulate CI Python version
    python3.11 -m pytest
@@ -466,12 +489,14 @@ Quick reference for minimum release steps:
 ### v0.13.6 (2026-01-27) - Lessons Learned
 
 **Issues Encountered:**
+
 1. Tests passed locally (1733/1733) but failed in CI (5 failed, 5 errors)
 2. Git default branch mismatch (local: "main", CI: "master")
 3. Rich console formatting created double-space artifacts in assertions
 4. Misleading "PYPI_API_TOKEN not configured" error (actual cause: test failures)
 
 **Resolution:**
+
 - Fixed git fixtures: `git init` → `git init -b main`
 - Normalized whitespace in assertions: `re.sub(r'\s+', ' ', output)`
 - Added pytest output artifact capture for debugging
@@ -479,6 +504,7 @@ Quick reference for minimum release steps:
 - Time to resolution: ~30 minutes
 
 **Improvements Made:**
+
 - Enhanced release workflow with test output artifacts
 - Documented CI environment gotchas
 - Added git fixture best practices

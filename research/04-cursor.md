@@ -1,14 +1,16 @@
 # Agent: Cursor
 
 ## Basic Info
+
 - **Directory**: `.cursor/`
 - **Primary Interface**: IDE (VS Code fork) + CLI Agent
 - **Vendor**: Cursor (Anysphere)
-- **Documentation**: https://cursor.com/docs/cli/headless
+- **Documentation**: <https://cursor.com/docs/cli/headless>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # Cursor CLI is bundled with Cursor IDE
 # After installing Cursor.app, the CLI is available
@@ -20,11 +22,13 @@ cursor agent install-shell-integration
 ```
 
 ### Verification
+
 ```bash
 which cursor && cursor --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ cursor --version
 Cursor 2.0.64
@@ -45,6 +49,7 @@ OS                  darwin (arm64)
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument - `cursor agent -p "Your prompt here"`
 - [ ] Stdin - Not well supported (known issue: may read subsequent commands)
 - [ ] File path (--file, -f) - Not directly, use `$(cat prompt.txt)` workaround
@@ -52,6 +57,7 @@ OS                  darwin (arm64)
 - [x] Environment variable - `CURSOR_API_KEY` for authentication
 
 ### Example Invocation
+
 ```bash
 # Basic non-interactive prompt (headless mode)
 cursor agent -p "What is 2+2?"
@@ -82,6 +88,7 @@ cursor agent -c "Continue this task"
 ```
 
 ### Context Handling
+
 - Operates in workspace directory (cwd or `--workspace <path>`)
 - Can read files via tool calling by referencing paths in prompt
 - Supports image analysis by referencing image paths
@@ -90,6 +97,7 @@ cursor agent -c "Continue this task"
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
@@ -98,6 +106,7 @@ cursor agent -c "Continue this task"
 **Known Issue**: CLI can hang indefinitely after responding, even in `--print` mode. May need timeout wrapper.
 
 ### Output Format
+
 - [x] Stdout (plain text) - `--output-format text` (default)
 - [x] Stdout (JSON) - `--output-format json`
 - [x] Stdout (stream-json) - `--output-format stream-json` for NDJSON events
@@ -105,12 +114,14 @@ cursor agent -c "Continue this task"
 - [ ] Structured logs - JSON format provides structure
 
 **JSON output includes**:
+
 - System init events
 - Delta events (incremental output)
 - Tool call events
 - Final result object
 
 **Stream-JSON events**:
+
 - Real-time progress tracking
 - Works with jq pipelines
 - Enable `--stream-partial-output` for incremental deltas
@@ -118,16 +129,19 @@ cursor agent -c "Continue this task"
 ## Parallel Execution
 
 ### Rate Limits
+
 - Depends on Cursor subscription tier
 - Business/Pro: Higher limits
 - Free tier: Limited usage
 
 ### Concurrent Sessions
+
 - Yes, multiple instances can run
 - Each session has unique chat ID
 - Can resume sessions with `cursor agent resume`
 
 ### Resource Requirements
+
 - Memory: Moderate
 - CPU: Light (API calls are remote)
 - Network: Required for all operations
@@ -136,6 +150,7 @@ cursor agent -c "Continue this task"
 ## Authentication
 
 ### Methods
+
 1. **API Key**: `--api-key <key>` or `CURSOR_API_KEY` env var
 2. **Browser Login**: `cursor agent login`
 3. **Headless Login**: Set `NO_OPEN_BROWSER=1` for non-interactive auth
@@ -152,9 +167,11 @@ cursor agent login
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Capabilities for Orchestration
+
 - **Non-interactive mode**: `-p, --print` flag
 - **Task input**: Command line argument (stdin has issues)
 - **Completion detection**: JSON output format, exit codes (with caveats)
@@ -163,6 +180,7 @@ cursor agent login
 - **Cloud handoff**: Push to cloud agent for background execution
 
 ### Unique Features
+
 - **Cloud handoff**: Push local conversation to cloud for background processing
 - **Plan mode**: Design-first approach before coding
 - **Ask mode**: Q&A without modifications
@@ -171,12 +189,14 @@ cursor agent login
 - **Shell integration**: Works within terminal environment
 
 ### Limitations
+
 - **Hang issue**: CLI can hang after completion - may need timeout wrapper
 - **Stdin issues**: Can't reliably pipe prompts, use `$(cat file)` workaround
 - **Auth required**: Needs Cursor subscription
 - **Exit codes**: Not well documented, rely on output parsing
 
 ### Integration Complexity
+
 **Medium** - Full headless support exists but has quirks (hanging, stdin issues) that require workarounds.
 
 ## Recommended Orchestration Pattern
@@ -208,6 +228,7 @@ timeout 60 cursor agent -p --mode ask --output-format json \
 | Hanging issue | Yes | No | No |
 
 ## Sources
+
 - [Cursor CLI Overview](https://cursor.com/docs/cli/overview)
 - [Cursor Headless CLI Documentation](https://cursor.com/docs/cli/headless)
 - [Cursor CLI Blog Announcement](https://cursor.com/blog/cli)

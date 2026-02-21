@@ -54,6 +54,7 @@ Resolved:
 **This WP depends on**: WP01 (Mission Infrastructure)
 
 **Before starting work**:
+
 1. Ensure WP01 is complete
 2. Mission directory exists: `src/specify_cli/missions/documentation/`
 3. Command templates directory exists: `src/specify_cli/missions/documentation/command-templates/`
@@ -65,6 +66,7 @@ Resolved:
 **Goal**: Create command instruction templates (specify, plan, tasks, implement, review) that guide AI agents through documentation mission workflows with documentation-specific questions, checks, and guidance.
 
 **Success Criteria**:
+
 - Five command template files created in `command-templates/` subdirectory
 - Each template provides clear, actionable instructions for documentation missions
 - Templates reference documentation workflow phases (discover, audit, design, generate, validate, publish)
@@ -76,10 +78,12 @@ Resolved:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - WP01 complete: Mission directory and command-templates/ directory exist
 - Understanding of documentation mission workflow from research
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Mission workflow design (lines 182-211)
 - [data-model.md](../data-model.md) - Mission Configuration commands section (lines 73-90)
 - [research.md](../research.md) - Mission phase design (lines 575-617)
@@ -89,6 +93,7 @@ Resolved:
   - `src/specify_cli/missions/research/command-templates/*.md`
 
 **Constraints**:
+
 - Must follow existing command template format
 - Must integrate with spec-kitty's agent execution model
 - Commands must be documentation-specific (not generic)
@@ -96,6 +101,7 @@ Resolved:
 - Must guide agents to create correct artifacts
 
 **Documentation Workflow Phases** (from research):
+
 1. **discover** - Understand documentation needs and scope
 2. **audit** - Analyze existing documentation (gap-filling mode)
 3. **design** - Plan documentation structure and generators
@@ -110,9 +116,11 @@ Resolved:
 **Purpose**: Create the subdirectory for command instruction templates.
 
 **Steps**:
+
 1. Verify `src/specify_cli/missions/documentation/command-templates/` directory exists (should be created in WP01)
 2. If not, create it now
 3. Verify directory structure:
+
    ```
    src/specify_cli/missions/documentation/
    ├── mission.yaml
@@ -143,12 +151,14 @@ Resolved:
 **Command Context**: The specify command runs during the discovery phase to gather requirements and create a specification for the documentation project.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/command-templates/specify.md`
 2. Structure the template to guide discovery conversation
 3. Include documentation-specific discovery questions
 4. Reference the "discover" workflow phase
 
 **Content Structure**:
+
 ```markdown
 # Command Template: /spec-kitty.specify (Documentation Mission)
 
@@ -279,6 +289,7 @@ Confirm with user before proceeding.
    - Feature naming convention: `doc-{project-name}` or `docs-{feature-name}` for feature-specific
 
 3. **Create meta.json**: Include `mission: "documentation"` and `documentation_state` field:
+
    ```json
    {
      "feature_number": "###",
@@ -322,6 +333,7 @@ Confirm with user before proceeding.
 ## Key Guidelines
 
 **For Agents**:
+
 - Ask discovery questions one at a time (don't overwhelm user)
 - Auto-detect languages to recommend generators
 - For gap-filling, show audit results to user before asking what to fill
@@ -330,10 +342,12 @@ Confirm with user before proceeding.
 - Link to Write the Docs and Divio resources in spec
 
 **For Users**:
+
 - Discovery helps ensure documentation meets real needs
 - Gap analysis (if iterating) shows what's missing
 - Generator recommendations save manual API documentation work
 - Iteration mode affects workflow (initial vs gap-filling vs feature-specific)
+
 ```
 
 **Files**: `src/specify_cli/missions/documentation/command-templates/specify.md` (new file)
@@ -385,6 +399,7 @@ git branch --show-current  # Should show "main"
 ## Planning Interrogation
 
 For documentation missions, planning interrogation is lighter than software-dev:
+
 - **Simple projects** (single language, initial docs): 1-2 questions about structure preferences
 - **Complex projects** (multiple languages, existing docs): 2-3 questions about integration approach
 
@@ -392,6 +407,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 **Q1: Documentation Framework**
 "Do you have a preferred documentation framework/generator?"
+
 - Sphinx (Python ecosystem standard)
 - MkDocs (Markdown-focused, simple)
 - Docusaurus (React-based, modern)
@@ -402,6 +418,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 **Q2: Generator Integration Approach** (if multiple languages detected)
 "How should API reference for different languages be organized?"
+
 - Unified (all APIs in one reference section)
 - Separated (language-specific reference sections)
 - Parallel (side-by-side comparison)
@@ -518,6 +535,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    **For Each Generator**:
 
    **Sphinx (Python)**:
+
    ```python
    # docs/conf.py
    project = '{project_name}'
@@ -537,6 +555,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    ```
 
    **JSDoc (JavaScript)**:
+
    ```json
    {
      "source": {
@@ -552,6 +571,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    ```
 
    **rustdoc (Rust)**:
+
    ```toml
    [package.metadata.docs.rs]
    all-features = true
@@ -616,6 +636,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 ## Key Guidelines
 
 **For Agents**:
+
 - Run gap analysis only for gap-filling mode
 - Auto-detect documentation framework from existing docs
 - Configure generators based on detected languages
@@ -624,10 +645,12 @@ For documentation missions, planning interrogation is lighter than software-dev:
 - Plan includes both auto-generated and manual documentation
 
 **For Users**:
+
 - Planning designs documentation structure, doesn't write content yet
 - Generator configs enable automated API reference
 - Gap analysis (if iterating) shows what needs attention
 - Work breakdown will be detailed in `/spec-kitty.tasks`
+
 ```
 
 **Files**: `src/specify_cli/missions/documentation/command-templates/plan.md` (new file)
@@ -795,6 +818,7 @@ git branch --show-current  # Should show "main"
 ## Documentation-Specific Task Generation Rules
 
 **Generator Subtasks**:
+
 - Mark generators as `[P]` (parallel) - different languages can generate simultaneously
 - Include tool check subtasks (verify sphinx-build, npx, cargo available)
 - Include config generation subtasks (create conf.py, jsdoc.json)
@@ -802,16 +826,19 @@ git branch --show-current  # Should show "main"
 - Include integration subtasks (link generated docs into manual structure)
 
 **Content Authoring Subtasks**:
+
 - One subtask per document (don't bundle "write all tutorials" into one task)
 - Mark independent docs as `[P]` (parallel) - different docs can be written simultaneously
 - Include validation subtasks (test tutorials, verify how-tos solve problems)
 
 **Quality Validation Subtasks**:
+
 - Mark validation checks as `[P]` (parallel) - different checks can run simultaneously
 - Include automated checks (link checker, spell check, build)
 - Include manual checks (accessibility review, Divio compliance)
 
 **Work Package Scope**:
+
 - Each Divio type typically gets its own work package (WP for tutorials, WP for how-tos, etc.)
 - Exception: Small projects may combine types if only 1-2 docs per type
 - Generator setup is always separate (WP01 foundation)
@@ -822,6 +849,7 @@ git branch --show-current  # Should show "main"
 ## Key Guidelines
 
 **For Agents**:
+
 - Adapt work packages to iteration mode
 - For gap-filling, work packages target specific gaps from audit
 - Mark generator invocations as parallel (different languages)
@@ -830,11 +858,13 @@ git branch --show-current  # Should show "main"
 - Quality validation is final work package (depends on all others)
 
 **For Users**:
+
 - Tasks.md shows the full work breakdown
 - Work packages are independently implementable
 - MVP often just structure + reference (API docs)
 - Full documentation includes all Divio types
 - Parallel work packages can be implemented simultaneously
+
 ```
 
 **Files**: `src/specify_cli/missions/documentation/command-templates/tasks.md` (new file)
@@ -895,7 +925,9 @@ Documentation implementation differs from code implementation:
    ```bash
    mkdir -p docs/{tutorials,how-to,reference/api,explanation}
    ```
+
 2. Create index.md landing page:
+
    ```markdown
    # {Project Name} Documentation
 
@@ -908,11 +940,13 @@ Documentation implementation differs from code implementation:
    - [Reference](reference/) - Technical specifications
    - [Explanation](explanation/) - Understand concepts
    ```
+
 3. Configure generators (per plan.md):
    - For Sphinx: Create docs/conf.py from template
    - For JSDoc: Create jsdoc.json from template
    - For rustdoc: Update Cargo.toml with metadata
 4. Create build script:
+
    ```bash
    #!/bin/bash
    # build-docs.sh
@@ -928,9 +962,11 @@ Documentation implementation differs from code implementation:
 
    echo "Documentation built successfully!"
    ```
+
 5. Test build: Run build script, verify no errors
 
 **Deliverables**:
+
 - docs/ directory structure
 - index.md landing page
 - Generator configs (conf.py, jsdoc.json, Cargo.toml)
@@ -944,6 +980,7 @@ Documentation implementation differs from code implementation:
 **Objective**: Write documentation content using Divio templates.
 
 **Steps**:
+
 1. **Select appropriate Divio template**:
    - Tutorial: Use `templates/divio/tutorial-template.md`
    - How-To: Use `templates/divio/howto-template.md`
@@ -951,12 +988,14 @@ Documentation implementation differs from code implementation:
    - Explanation: Use `templates/divio/explanation-template.md`
 
 2. **Copy template to docs/**:
+
    ```bash
    # Example for tutorial
    cp templates/divio/tutorial-template.md docs/tutorials/getting-started.md
    ```
 
 3. **Fill in frontmatter**:
+
    ```yaml
    ---
    type: tutorial
@@ -994,11 +1033,13 @@ Documentation implementation differs from code implementation:
 **For Reference Documentation**:
 
 **Auto-Generated Reference** (API docs):
+
 1. Ensure code has good doc comments:
    - Python: Docstrings with Google/NumPy format
    - JavaScript: JSDoc comments with @param, @returns
    - Rust: /// doc comments
 2. Run generator:
+
    ```bash
    # Sphinx (Python)
    sphinx-build -b html docs/ docs/_build/html/
@@ -1009,6 +1050,7 @@ Documentation implementation differs from code implementation:
    # rustdoc (Rust)
    cargo doc --no-deps --document-private-items
    ```
+
 3. Review generated output:
    - Are all public APIs present?
    - Are descriptions clear?
@@ -1020,12 +1062,14 @@ Documentation implementation differs from code implementation:
    - Or supplement with manual reference
 
 **Manual Reference** (CLI, config, data formats):
+
 1. Use reference template
 2. Document every option, every command, every field
 3. Be consistent in format (use tables)
 4. Include examples for each item
 
 **Deliverables**:
+
 - Completed documentation files in docs/
 - All templates filled with real content
 - All code examples tested and working
@@ -1039,7 +1083,9 @@ Documentation implementation differs from code implementation:
 **Objective**: Validate documentation quality before considering complete.
 
 **Steps**:
+
 1. **Automated checks**:
+
    ```bash
    # Check heading hierarchy
    find docs/ -name "*.md" -exec grep -E '^#+' {} + | head -50
@@ -1081,6 +1127,7 @@ Documentation implementation differs from code implementation:
    - Revise based on feedback
 
 6. **Final build and deploy** (if applicable):
+
    ```bash
    # Build final documentation
    ./build-docs.sh
@@ -1090,6 +1137,7 @@ Documentation implementation differs from code implementation:
    ```
 
 **Deliverables**:
+
 - All automated checks passing
 - Manual review completed with feedback addressed
 - Divio compliance verified
@@ -1102,6 +1150,7 @@ Documentation implementation differs from code implementation:
 ## Key Guidelines
 
 **For Agents**:
+
 - Use Divio templates as starting point, not empty files
 - Fill templates with real content, not more placeholders
 - Test all code examples before committing
@@ -1110,6 +1159,7 @@ Documentation implementation differs from code implementation:
 - Validate quality at end (automated + manual checks)
 
 **For Users**:
+
 - Implementation creates actual documentation, not just structure
 - Templates provide guidance, you provide content
 - Generators handle API reference, you write the rest
@@ -1121,6 +1171,7 @@ Documentation implementation differs from code implementation:
 ## Common Pitfalls
 
 **DON'T**:
+
 - Mix Divio types (tutorial that explains concepts, how-to that teaches basics)
 - Skip testing code examples (broken examples break trust)
 - Use only Western male names in examples
@@ -1130,6 +1181,7 @@ Documentation implementation differs from code implementation:
 - Commit before validating (quality issue)
 
 **DO**:
+
 - Follow Divio principles for each type
 - Test every code example
 - Use diverse names in examples
@@ -1137,6 +1189,7 @@ Documentation implementation differs from code implementation:
 - Add descriptive alt text
 - Define technical terms
 - Validate before considering complete
+
 ```
 
 **Files**: `src/specify_cli/missions/documentation/command-templates/implement.md` (new file)
@@ -1389,9 +1442,10 @@ For each documentation file, verify it follows principles for its declared type:
    ```bash
    ./build-docs.sh
    ```
-   - Check for build errors/warnings
-   - Navigate to docs in browser
-   - Test links, images, navigation
+
+- Check for build errors/warnings
+- Navigate to docs in browser
+- Test links, images, navigation
 
 4. **Test tutorials** (if present):
    - Follow tutorial steps exactly
@@ -1464,9 +1518,11 @@ When returning work for changes, use this format:
 **Issue**: Tutorial step 3 command fails (missing required --flag option).
 
 **Fix**: Add --flag to command on line 67:
+
 ```bash
 command --flag --other-option value
 ```
+
 ```
 
 ---
@@ -1508,6 +1564,7 @@ Documentation is ready for "done" when:
 **Parallel?**: Yes (can be created alongside other command templates)
 
 **Notes**:
+
 - Review is about usability, not perfection
 - Divio compliance is primary concern
 - Accessibility and inclusivity are non-negotiable
@@ -1515,6 +1572,7 @@ Documentation is ready for "done" when:
 - Quality means "does it help users?"
 
 **Quality Validation**:
+
 - Does it provide comprehensive review checklists?
 - Does it cover all Divio types?
 - Does it include accessibility and inclusivity?
@@ -1525,6 +1583,7 @@ Documentation is ready for "done" when:
 **Unit Tests** (to be implemented in WP09):
 
 1. Test command templates exist:
+
    ```python
    def test_documentation_command_templates_exist():
        mission = get_mission_by_name("documentation")
@@ -1538,6 +1597,7 @@ Documentation is ready for "done" when:
    ```
 
 2. Test command templates reference documentation phases:
+
    ```python
    @pytest.mark.parametrize("command_name,expected_phase", [
        ("specify", "discover"),
@@ -1556,6 +1616,7 @@ Documentation is ready for "done" when:
    ```
 
 3. Test command templates mention Divio types:
+
    ```python
    def test_command_templates_mention_divio_types():
        mission = get_mission_by_name("documentation")
@@ -1590,6 +1651,7 @@ Documentation is ready for "done" when:
    - Quality validation detailed (for review)?
 
 4. Test template loading:
+
    ```python
    from specify_cli.mission import get_mission_by_name
 
@@ -1669,6 +1731,7 @@ Documentation is ready for "done" when:
 5. **Examples Included**: Concrete examples of questions, structure, validation
 
 **Validation Commands**:
+
 ```bash
 # Check command templates exist
 ls -la src/specify_cli/missions/documentation/command-templates/
@@ -1695,6 +1758,7 @@ done
 ```
 
 **Review Focus Areas**:
+
 - Commands are documentation-specific (not generic)
 - Each command guides appropriate workflow phase
 - Divio types, generators, and gap analysis are explained

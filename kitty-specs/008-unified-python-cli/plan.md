@@ -10,6 +10,7 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 **Core Problem Solved**: AI agents struggle with bash script locations, path confusion, and script copying to worktrees. New approach: agents call `spec-kitty agent <command>` from anywhere, CLI handles path resolution automatically.
 
 **Key Deliverables**:
+
 1. `spec-kitty agent` CLI namespace with 20+ commands
 2. Automatic path resolution (worktree-aware)
 3. `spec-kitty upgrade` migration for existing projects
@@ -21,6 +22,7 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 **Language/Version**: Python 3.11+ (existing spec-kitty requirement)
 
 **Primary Dependencies**:
+
 - Typer (CLI framework, already in use)
 - Rich (console output, already in use)
 - pathlib (path manipulation, stdlib)
@@ -28,16 +30,19 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 - pytest (testing framework, already in use)
 
 **Storage**: Filesystem only (no database)
+
 - YAML metadata (`.kittify/metadata.yaml`)
 - Markdown files (spec.md, plan.md, task prompts)
 - Git repository state
 
 **Testing**: pytest with unit + integration tests
+
 - Target: 90%+ coverage for `src/specify_cli/cli/commands/agent/` namespace
 - Integration tests verify commands work from main repo and worktrees
 - Cross-platform CI (Windows, macOS, Linux)
 
 **Target Platform**: Cross-platform CLI
+
 - macOS (primary development)
 - Linux (CI/CD and production)
 - Windows (fallback with file copy instead of symlinks)
@@ -45,11 +50,13 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 **Project Type**: Single Python package (spec-kitty CLI extension)
 
 **Performance Goals**:
+
 - Command execution <100ms for simple operations (path resolution, validation)
 - Command execution <5s for complex operations (worktree creation, migration)
 - Negligible overhead vs current bash implementation
 
 **Constraints**:
+
 - Must maintain existing `spec-kitty` CLI user experience (no breaking changes for user commands)
 - Must preserve upgrade migration infrastructure patterns
 - Must work identically in main repo and worktrees
@@ -57,6 +64,7 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 - Must handle broken symlinks and Windows gracefully
 
 **Scale/Scope**:
+
 - ~2,600 lines of bash code to eliminate
 - 24 bash scripts to migrate
 - 20+ agent commands to implement
@@ -82,18 +90,22 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 ### Gates
 
 **Gate 1: No unnecessary complexity**
+
 - ✅ PASS - Eliminates bash complexity, doesn't add new patterns
 - Justification: Consolidating to single language (Python) reduces overall system complexity
 
 **Gate 2: Existing patterns reused**
+
 - ✅ PASS - Reuses Typer sub-app pattern, existing path resolution logic, proven migration infrastructure
 - Evidence: `m_0_9_0_frontmatter_only.py` migration precedent
 
 **Gate 3: Breaking changes justified**
+
 - ✅ PASS - Clean cut migration justified by eliminating unmaintainable bash, improving agent reliability
 - Mitigation: Automated upgrade via `spec-kitty upgrade`, clear migration guide
 
 **Gate 4: Test coverage mandatory**
+
 - ✅ PASS - 90%+ coverage requirement for agent namespace (FR-026, FR-027)
 
 **Constitution Check Result**: ✅ **PASS** - Proceed with implementation
@@ -208,6 +220,7 @@ Phase 7: Validation (Sequential - Day 11)
 ### Work Distribution
 
 **Sequential Work (Phase 1 - Foundation)**:
+
 - Create `src/specify_cli/cli/commands/agent/__init__.py` with Typer sub-app registration
 - Create stub modules: `feature.py`, `context.py`, `tasks.py`, `release.py`
 - Enhance `src/specify_cli/core/paths.py` with worktree detection
@@ -217,6 +230,7 @@ Phase 7: Validation (Sequential - Day 11)
 **Parallel Streams (Phases 2-5)**:
 
 **Stream A: Feature Commands** (can start after Phase 1)
+
 - Owner: Agent Alpha
 - Files: `src/specify_cli/cli/commands/agent/feature.py`, `src/specify_cli/core/worktree.py`
 - Commands: `create-feature`, `check-prerequisites`, `setup-plan`
@@ -224,6 +238,7 @@ Phase 7: Validation (Sequential - Day 11)
 - No conflicts with: Streams B, C, D (different modules)
 
 **Stream B: Task Commands** (can start after Phase 1)
+
 - Owner: Agent Beta
 - Files: `src/specify_cli/cli/commands/agent/tasks.py`
 - Commands: `workflow implement/review`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`
@@ -231,6 +246,7 @@ Phase 7: Validation (Sequential - Day 11)
 - No conflicts with: Streams A, C, D (different modules)
 
 **Stream C: Context Commands** (can start after Phase 1, overlaps with Stream D)
+
 - Owner: Agent Gamma
 - Files: `src/specify_cli/cli/commands/agent/context.py`, `src/specify_cli/core/agent_context.py`
 - Commands: `update-context`
@@ -238,6 +254,7 @@ Phase 7: Validation (Sequential - Day 11)
 - No conflicts with: Streams A, B, D (different modules)
 
 **Stream D: Release Commands** (can start after Phase 1, overlaps with Stream C)
+
 - Owner: Agent Delta
 - Files: `src/specify_cli/cli/commands/agent/release.py`, `src/specify_cli/core/release.py`
 - Commands: `build-release`
@@ -245,12 +262,14 @@ Phase 7: Validation (Sequential - Day 11)
 - No conflicts with: Streams A, B, C (different modules)
 
 **Sequential Work (Phase 6 - Cleanup)**: Requires ALL streams complete
+
 - Delete bash scripts
 - Update slash command templates
 - Create upgrade migration
 - Update documentation
 
 **Sequential Work (Phase 7 - Validation)**: Requires Phase 6 complete
+
 - End-to-end workflow testing
 - Cross-platform validation
 - Upgrade migration testing
@@ -258,26 +277,31 @@ Phase 7: Validation (Sequential - Day 11)
 ### Coordination Points
 
 **Sync 1: After Phase 1 (Day 2)**
+
 - Foundation complete, all parallel streams can begin
 - Verify: `spec-kitty agent --help` works, path resolution tested
 - Handoff: Each stream gets foundation utilities
 
 **Sync 2: After Streams A+B Complete (Day 6)**
+
 - Feature and Task commands functional
 - Verify: Basic agent workflows work (create feature, move tasks)
 - Continue: Streams C+D can still run in parallel
 
 **Sync 3: After All Streams Complete (Day 8)**
+
 - All agent commands implemented
 - Verify: `spec-kitty agent --help` shows all commands, JSON modes work
 - Proceed: Begin Phase 6 cleanup
 
 **Sync 4: After Phase 6 (Day 10)**
+
 - Bash scripts deleted, templates updated, migration created
 - Verify: Upgrade migration works on test project
 - Proceed: Begin Phase 7 validation
 
 **Integration Tests Schedule**:
+
 - Daily: Each stream runs its own unit tests
 - Sync 1-4: Integration tests verify cross-stream compatibility
 - Phase 7: Full end-to-end workflow validation
@@ -313,6 +337,7 @@ Phase 7: Validation (Sequential - Day 11)
    - Set up pytest fixtures for worktree testing
 
 **Acceptance Criteria**:
+
 - ✅ `spec-kitty agent --help` displays help text
 - ✅ All stub modules import without errors
 - ✅ Path resolution works from main repo and worktree
@@ -356,6 +381,7 @@ Phase 7: Validation (Sequential - Day 11)
    - Integration test: Create feature from main repo and worktree
 
 **Acceptance Criteria**:
+
 - ✅ `spec-kitty agent create-feature "test-feature" --json` creates worktree and returns JSON
 - ✅ `spec-kitty agent check-prerequisites` validates feature structure
 - ✅ Commands work identically from main repo and worktree
@@ -400,6 +426,7 @@ Phase 7: Validation (Sequential - Day 11)
 
 **Acceptance Criteria**:
 spec-kitty agent workflow implement WP01
+
 - ✅ All 6 task commands functional with JSON output
 - ✅ Commands work from main repo and worktree
 - ✅ 90%+ test coverage for tasks.py
@@ -439,6 +466,7 @@ spec-kitty agent workflow implement WP01
    - Integration test: Update context for multiple agent types
 
 **Acceptance Criteria**:
+
 - ✅ `spec-kitty agent update-context --json` updates CLAUDE.md with tech stack from plan
 - ✅ Manual additions between markers are preserved
 - ✅ Works for all 12 agent types
@@ -475,6 +503,7 @@ spec-kitty agent workflow implement WP01
    - Test auto-retry logic
 
 **Acceptance Criteria**:
+
 - ✅ `spec-kitty agent feature accept --json` executes acceptance workflow with parseable JSON
 - ✅ `spec-kitty agent feature merge --json` executes merge workflow with parseable JSON
 - ✅ Auto-retry logic works (auto-navigates to latest worktree if in wrong location)
@@ -527,6 +556,7 @@ spec-kitty agent workflow implement WP01
    - Verify all slash commands updated
 
 **Acceptance Criteria**:
+
 - ✅ Upgrade migration successfully updates test project
 - ✅ All bash scripts deleted from main repository
 - ✅ All slash command templates reference `spec-kitty agent` commands
@@ -574,6 +604,7 @@ spec-kitty agent workflow implement WP01
    - Verify <100ms for simple commands, <5s for complex commands
 
 **Acceptance Criteria**:
+
 - ✅ All spec-kitty workflows complete without errors
 - ✅ Upgrade migration works on test projects
 - ✅ CI passes on all platforms (Windows, macOS, Linux)
@@ -608,26 +639,31 @@ spec-kitty agent workflow implement WP01
 ## Risk Management
 
 ### Risk 1: Parallel Stream Conflicts
+
 - **Description**: Multiple agents editing related code could create merge conflicts
 - **Mitigation**: Strict module separation (each stream owns different `.py` files), daily integration tests
 - **Severity**: Low (clean module boundaries)
 
 ### Risk 2: Foundation Phase Delays
+
 - **Description**: Phase 1 delays block all parallel work
 - **Mitigation**: Prioritize Phase 1 completion, minimal scope (stubs only)
 - **Severity**: Medium (critical path dependency)
 
 ### Risk 3: Cross-Platform Testing Gaps
+
 - **Description**: Development on macOS may miss Windows-specific issues
 - **Mitigation**: CI runs on all platforms, early testing in Phase 1
 - **Severity**: Low (existing patterns for Windows compatibility)
 
 ### Risk 4: Upgrade Migration Edge Cases
+
 - **Description**: Custom bash modifications may break automated migration
 - **Mitigation**: Migration detects modifications, provides warnings and manual guide
 - **Severity**: Medium (affects subset of users)
 
 ### Risk 5: Integration Test Failures
+
 - **Description**: Parallel streams may integrate incorrectly despite unit tests passing
 - **Mitigation**: Daily integration tests at coordination points, final validation in Phase 7
 - **Severity**: Low (integration points are well-defined)
@@ -635,21 +671,25 @@ spec-kitty agent workflow implement WP01
 ## Success Metrics
 
 **Code Quality**:
+
 - 90%+ test coverage for `src/specify_cli/cli/commands/agent/`
 - All tests pass on Windows, macOS, Linux
 - Ruff linter passes with zero violations
 
 **Agent Reliability**:
+
 - 0% path-related error rate in agent execution
 - 95%+ reduction in agent retry behavior
 - All spec-kitty workflows complete without errors
 
 **Migration Success**:
+
 - 100% of bash scripts eliminated (~2,600 lines)
 - 100% of test projects upgrade successfully
 - Migration is idempotent (safe to re-run)
 
 **Performance**:
+
 - Simple commands <100ms execution time
 - Complex commands <5s execution time
 - No measurable overhead vs bash baseline

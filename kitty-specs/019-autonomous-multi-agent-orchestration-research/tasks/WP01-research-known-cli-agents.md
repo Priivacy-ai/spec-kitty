@@ -35,6 +35,7 @@ Research the 4 agents with known CLI tools to produce comprehensive capability d
 4. **Amazon Q** (AWS) - `q` CLI
 
 **Success Criteria**:
+
 - Each agent has a completed research file following the template in `plan.md`
 - Working CLI commands verified locally (--help, --version, basic invocation)
 - Task specification method documented (how to pass prompts)
@@ -49,6 +50,7 @@ Research the 4 agents with known CLI tools to produce comprehensive capability d
 - **Output**: Individual research files in `research/` directory
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - Research questions
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/plan.md` - Research template
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/quickstart.md` - CLI testing commands
@@ -60,6 +62,7 @@ Reference documents:
 **Purpose**: Document Claude Code's CLI capabilities for autonomous orchestration.
 
 **Steps**:
+
 1. Check if installed: `which claude && claude --version`
 2. If not installed: `npm install -g @anthropic-ai/claude-code` (or find correct package)
 3. Run `claude --help` and capture full output
@@ -74,6 +77,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions to Answer**:
+
 - Can it accept a prompt file path as input?
 - Does it support stdin for prompts?
 - What's the output format (text, JSON, structured)?
@@ -87,6 +91,7 @@ Reference documents:
 **Purpose**: Document GitHub Codex CLI capabilities.
 
 **Steps**:
+
 1. Check if installed: `which codex && codex --version`
 2. If not installed: Research correct installation method (npm, pip, binary)
 3. Run `codex --help` and capture full output
@@ -100,6 +105,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions to Answer**:
+
 - Is this the same as OpenAI Codex or a GitHub-specific tool?
 - What's the relationship to GitHub Copilot?
 - Can it work on a codebase (vs single-file)?
@@ -111,6 +117,7 @@ Reference documents:
 **Purpose**: Document OpenCode CLI capabilities.
 
 **Steps**:
+
 1. Check if installed: `which opencode && opencode --version`
 2. If not installed: Research installation (npm, pip)
 3. Run `opencode --help` and capture full output
@@ -124,6 +131,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions to Answer**:
+
 - What LLM does it use?
 - How does it handle codebase context?
 - Is it actively maintained?
@@ -135,6 +143,7 @@ Reference documents:
 **Purpose**: Document Amazon Q Developer CLI capabilities.
 
 **Steps**:
+
 1. Check if installed: `which q && q --version`
 2. If not installed: Check AWS CLI v2 or dedicated install
 3. Run `q --help` and capture full output
@@ -148,6 +157,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agents
 
 **Key Questions to Answer**:
+
 - Is Q part of AWS CLI or standalone?
 - What AWS permissions are needed?
 - Can it work offline (local models) or cloud-only?
@@ -159,6 +169,7 @@ Reference documents:
 **Purpose**: Ensure all 4 research files are complete and follow template.
 
 **Steps**:
+
 1. Review each research file for completeness
 2. Ensure all sections from plan.md template are filled
 3. Verify source links are included
@@ -166,6 +177,7 @@ Reference documents:
 5. Add orchestration assessment (Yes/No/Partial)
 
 **Files**:
+
 - `research/01-claude-code.md`
 - `research/08-github-codex.md`
 - `research/06-opencode.md`

@@ -142,6 +142,7 @@ WP01: Package scaffolding + boundary test
 The rename follows an alias-first approach:
 
 **Step 1** (within WP07): Create `tool_config.py` by copying `agent_config.py` and renaming:
+
 - `AgentConfig` → `ToolConfig`
 - `AgentSelectionConfig` → `ToolSelectionConfig`
 - `AgentConfigError` → `ToolConfigError`
@@ -150,6 +151,7 @@ The rename follows an alias-first approach:
 - `get_configured_agents` → `get_configured_tools`
 
 **Step 2** (within WP07): Replace `agent_config.py` with a thin alias module:
+
 ```python
 """DEPRECATED: Use tool_config instead. This module will be removed in a future version."""
 import warnings
@@ -172,6 +174,7 @@ warnings.warn("agent_config is deprecated, use tool_config", DeprecationWarning,
 ### Import Boundary Enforcement
 
 A dedicated test (`tests/test_doctrine_import_boundary.py`) will:
+
 1. Walk all `.py` files under `src/doctrine/`
 2. Assert none contain `from specify_cli` or `import specify_cli`
 3. This test runs in CI and catches accidental coupling

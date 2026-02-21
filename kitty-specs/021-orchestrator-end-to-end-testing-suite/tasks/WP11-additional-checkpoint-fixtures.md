@@ -47,14 +47,17 @@ Complete the remaining checkpoint fixtures:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - Standard checkpoints table
 - `tests/fixtures/orchestrator/` - Existing fixtures from WP05
 
 **Existing Code**:
+
 - `tests/fixtures/orchestrator/checkpoint_wp_created/` - Reference structure
 - `tests/fixtures/orchestrator/__init__.py` - Fixture manifest
 
 **Constraints**:
+
 - Follow same structure as WP05 checkpoints
 - Keep features minimal (2 WPs)
 - Add version field for staleness detection
@@ -68,18 +71,22 @@ Complete the remaining checkpoint fixtures:
 **Purpose**: Fixture representing WP01 after review rejection.
 
 **Steps**:
+
 1. Create directory:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/checkpoint_review_rejected/feature/tasks
    ```
 
 2. Copy base feature files from `checkpoint_wp_created`:
+
    ```bash
    cp -r tests/fixtures/orchestrator/checkpoint_wp_created/feature/* \
          tests/fixtures/orchestrator/checkpoint_review_rejected/feature/
    ```
 
 3. Create `tests/fixtures/orchestrator/checkpoint_review_rejected/state.json`:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -133,6 +140,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 4. Update `tests/fixtures/orchestrator/checkpoint_review_rejected/feature/tasks/WP01.md` frontmatter:
+
    ```yaml
    ---
    work_package_id: "WP01"
@@ -146,6 +154,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 5. Create `tests/fixtures/orchestrator/checkpoint_review_rejected/worktrees.json`:
+
    ```json
    {
      "worktrees": [
@@ -160,6 +169,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_review_rejected/` (complete directory)
 
 **Parallel?**: Yes - can proceed with T053, T054
@@ -171,7 +181,9 @@ Complete the remaining checkpoint fixtures:
 **Purpose**: Fixture representing WP01 after review approval.
 
 **Steps**:
+
 1. Create directory:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/checkpoint_review_approved/feature/tasks
    ```
@@ -179,6 +191,7 @@ Complete the remaining checkpoint fixtures:
 2. Copy base feature files.
 
 3. Create `tests/fixtures/orchestrator/checkpoint_review_approved/state.json`:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -231,6 +244,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 4. Update WP01.md frontmatter:
+
    ```yaml
    ---
    work_package_id: "WP01"
@@ -246,6 +260,7 @@ Complete the remaining checkpoint fixtures:
 5. Create worktrees.json (same as T052).
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_review_approved/` (complete directory)
 
 **Parallel?**: Yes - can proceed with T052, T054
@@ -257,7 +272,9 @@ Complete the remaining checkpoint fixtures:
 **Purpose**: Fixture representing WP01 after merge to main.
 
 **Steps**:
+
 1. Create directory:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/checkpoint_wp_merged/feature/tasks
    ```
@@ -265,6 +282,7 @@ Complete the remaining checkpoint fixtures:
 2. Copy base feature files.
 
 3. Create `tests/fixtures/orchestrator/checkpoint_wp_merged/state.json`:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -327,6 +345,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 4. Update WP01.md frontmatter:
+
    ```yaml
    ---
    work_package_id: "WP01"
@@ -340,6 +359,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 5. Create worktrees.json:
+
    ```json
    {
      "worktrees": [
@@ -352,9 +372,11 @@ Complete the remaining checkpoint fixtures:
      ]
    }
    ```
+
    Note: WP01 worktree removed after merge, WP02 worktree active.
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_wp_merged/` (complete directory)
 
 **Parallel?**: Yes - can proceed with T052, T053
@@ -366,7 +388,9 @@ Complete the remaining checkpoint fixtures:
 **Purpose**: Warn when fixture version doesn't match current orchestrator.
 
 **Steps**:
+
 1. Update `tests/fixtures/orchestrator/__init__.py`:
+
    ```python
    """Orchestrator test fixtures.
 
@@ -510,6 +534,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 2. Update all state.json files to include version:
+
    ```json
    {
      "fixture_version": "021.1",
@@ -519,6 +544,7 @@ Complete the remaining checkpoint fixtures:
    ```
 
 **Files**:
+
 - `tests/fixtures/orchestrator/__init__.py` (update ~60 lines)
 - All `state.json` files (add `fixture_version` field)
 
@@ -538,6 +564,7 @@ Complete the remaining checkpoint fixtures:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] All 6 checkpoints exist and are loadable
 - [ ] `checkpoint_review_rejected` has rejection_reason
 - [ ] `checkpoint_review_approved` has review_count
@@ -546,6 +573,7 @@ Complete the remaining checkpoint fixtures:
 - [ ] Staleness warning triggers on version mismatch
 
 **Code Quality**:
+
 - Consistent structure across all checkpoints
 - History entries have all required fields
 - Version field present in all state.json files

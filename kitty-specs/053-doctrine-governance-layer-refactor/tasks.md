@@ -18,6 +18,7 @@
 **Prompt**: `tasks/WP01-governance-schema-baseline.md`
 
 ### Included Subtasks
+
 - [x] T001 Create schema directory scaffold for governance/domain artifacts
 - [x] T002 Add mission schema (`mission.schema.yaml`)
 - [x] T003 Add directive schema (`directive.schema.yaml`)
@@ -29,14 +30,17 @@
 - [x] T009 Implement schema validation tests with actionable failure messages
 
 ### Implementation Notes
+
 - MVP schema scope is intentionally limited to the agreed minimal set.
 - Defer template-set and constitution-selection schemas to follow-up work.
 - Keep schemas focused on required fields first; avoid speculative optional complexity.
 
 ### Dependencies
+
 - None.
 
 ### Risks & Mitigations
+
 - Over-strict schemas cause churn: start minimal and tighten incrementally.
 - Weak test diagnostics slow adoption: include fixture path + field-level error in failures.
 
@@ -49,6 +53,7 @@
 **Prompt**: `tasks/WP02-constitution-centric-resolution.md`
 
 ### Included Subtasks
+
 - [x] T010 Implement governance resolution module reading constitution selections first
 - [x] T011 Enforce hard-fail when constitution references unknown selected agent profiles
 - [x] T012 Enforce hard-fail when constitution references unavailable tools
@@ -57,14 +62,17 @@
 - [x] T015 Add CLI-usable validation helper to surface constitution resolution issues
 
 ### Implementation Notes
+
 - Mission remains orchestration-only and must not activate doctrine directly.
 - Constitution is project-level authority; no mission-level constitution behavior.
 - Keep resolver output deterministic to simplify planning/runtime adoption.
 
 ### Dependencies
+
 - Depends on WP01.
 
 ### Risks & Mitigations
+
 - Boundary drift between mission and constitution: codify in tests and module API.
 - Silent fallback confusion: log explicit fallback reason and selected defaults.
 
@@ -77,6 +85,7 @@
 **Prompt**: `tasks/WP03-doctrine-structure-and-curation.md`
 
 ### Included Subtasks
+
 - [x] T016 Create doctrine directory scaffolding for paradigms/directives/tactics/templates/agent-profiles/schemas/curation
 - [x] T017 Add `README.md` in curation directory documenting pull-based assimilation intent and flow
 - [x] T018 Add canonical import-candidate sample documenting source, mapping, adaptation, status
@@ -84,14 +93,17 @@
 - [x] T020 Add tests ensuring curated candidate adoption links to resulting doctrine artifacts
 
 ### Implementation Notes
+
 - Curation README must include the ZOMBIES-TDD example journey.
 - Keep scaffolding backward-compatible with existing doctrine missions/templates.
 - Prefer small, composable files over one large governance artifact.
 
 ### Dependencies
+
 - Depends on WP01.
 
 ### Risks & Mitigations
+
 - Folder model mismatch with docs: include tree assertions in tests.
 - Curation ambiguity: require source + target mapping + adaptation notes in schema.
 
@@ -104,6 +116,7 @@
 **Prompt**: `tasks/WP04-glossary-and-contextive-sync.md`
 
 ### Included Subtasks
+
 - [x] T021 Confirm glossary canonical terms reflect governance model and contracts
 - [x] T022 Add/adjust glossary entries for Research and Contracts linkage semantics
 - [x] T023 Align glossary terminology references in feature `053` artifacts
@@ -111,13 +124,16 @@
 - [x] T025 Add regression checks for known Contextive YAML parsing pitfalls
 
 ### Implementation Notes
+
 - Canonical glossary is source of truth; compiled Contextive files are generated artifacts.
 - Keep definitions aligned with ADR and journey terminology.
 
 ### Dependencies
+
 - Depends on WP02 and WP03.
 
 ### Risks & Mitigations
+
 - Canonical/generated drift: rerun compiler and verify in CI/test.
 - YAML format regressions: include parser-level validation tests.
 
@@ -161,6 +177,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 - WP03: done

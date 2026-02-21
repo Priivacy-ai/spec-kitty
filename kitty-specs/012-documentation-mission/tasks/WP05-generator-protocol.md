@@ -54,6 +54,7 @@ All three generators (JSDocGenerator, SphinxGenerator, RustdocGenerator) fail to
 Add `output_dir.mkdir(parents=True, exist_ok=True)` before writing config files in each `configure()` method:
 
 In JSDocGenerator.configure() (line ~209):
+
 ```python
 config_file = output_dir / "jsdoc.json"
 output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
@@ -62,6 +63,7 @@ try:
 ```
 
 In SphinxGenerator.configure() (line ~383):
+
 ```python
 config_file = output_dir / "conf.py"
 output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
@@ -70,6 +72,7 @@ try:
 ```
 
 In RustdocGenerator.configure() (line ~539):
+
 ```python
 instructions_file = output_dir / "rustdoc-config.md"
 output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
@@ -78,11 +81,13 @@ try:
 ```
 
 **Why this matters:**
+
 - Users will encounter errors when running configure() on fresh directories
 - This is a common use case (creating new documentation directories)
 - The error is not user-friendly (raw Python exception instead of GeneratorError)
 
 **Otherwise the implementation is excellent:**
+
 - ✓ All generators implement DocGenerator protocol correctly
 - ✓ Detection logic is sound and comprehensive
 - ✓ Subprocess invocation with proper error handling
@@ -91,12 +96,12 @@ try:
 - ✓ Cross-platform code using Path objects
 - ✓ GeneratorResult provides clear success/failure reporting
 
-
 ## ⚠️ Dependency Rebase Guidance
 
 **This WP depends on**: WP01 (Mission Infrastructure)
 
 **Before starting work**:
+
 1. Ensure WP01 is complete
 2. Mission directory exists and mission.yaml is valid
 3. No dependency on WP02-04 (templates); generators are independent
@@ -108,6 +113,7 @@ try:
 **Goal**: Implement a Python protocol defining the interface for documentation generators, plus three concrete implementations (JSDoc, Sphinx, rustdoc) that detect projects, generate configuration files, and invoke generator tools via subprocess.
 
 **Success Criteria**:
+
 - `src/specify_cli/doc_generators.py` module created with protocol and implementations
 - `DocGenerator` protocol defined with `detect()`, `configure()`, `generate()` methods
 - `GeneratorResult` dataclass captures success/failure, errors, warnings, generated files
@@ -124,10 +130,12 @@ try:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Python 3.11+ with subprocess module
 - Understanding of JSDoc, Sphinx, rustdoc from research
 
 **Reference Documents**:
+
 - [research.md](../research.md) - Generator integration patterns (lines 87-312)
   - JSDoc integration (lines 87-137)
   - Sphinx integration (lines 139-189)
@@ -137,6 +145,7 @@ try:
 - [spec.md](../spec.md) - Generator requirements (FR-018 to FR-026, lines 125-134)
 
 **Constraints**:
+
 - Generators invoke external tools (npx, sphinx-build, cargo) via subprocess
 - Must handle missing tools gracefully (detect and fail with helpful message)
 - Must capture stdout/stderr for error reporting
@@ -158,8 +167,10 @@ try:
 **Purpose**: Create the Python module that will house the generator protocol and implementations.
 
 **Steps**:
+
 1. Create `src/specify_cli/doc_generators.py`
 2. Add module docstring:
+
    ```python
    """Documentation generator integration for spec-kitty.
 
@@ -170,7 +181,9 @@ try:
    generator tools via subprocess to produce API reference documentation.
    """
    ```
+
 3. Add imports:
+
    ```python
    from __future__ import annotations
 
@@ -180,6 +193,7 @@ try:
    from pathlib import Path
    from typing import Any, Dict, List, Optional, Protocol
    ```
+
 4. Verify module can be imported
 
 **Files**: `src/specify_cli/doc_generators.py` (new file)
@@ -193,7 +207,9 @@ try:
 **Purpose**: Define the protocol (interface) that all documentation generators must implement.
 
 **Steps**:
+
 1. In `doc_generators.py`, define the `DocGenerator` protocol:
+
    ```python
    class DocGenerator(Protocol):
        """Protocol for documentation generators.
@@ -252,11 +268,13 @@ try:
 **Parallel?**: No (other classes depend on this protocol)
 
 **Notes**:
+
 - Protocol uses typing.Protocol (Python 3.8+)
 - Methods have clear docstrings
 - Return types and parameters are explicit
 
 **Quality Validation**:
+
 - Does protocol define all necessary methods?
 - Are method signatures clear?
 - Do docstrings explain purpose and parameters?
@@ -266,7 +284,9 @@ try:
 **Purpose**: Define the dataclass that generators return to report results.
 
 **Steps**:
+
 1. In `doc_generators.py`, define `GeneratorResult`:
+
    ```python
    @dataclass
    class GeneratorResult:
@@ -300,6 +320,7 @@ try:
    ```
 
 2. Add `GeneratorError` exception:
+
    ```python
    class GeneratorError(Exception):
        """Raised when a generator encounters an unrecoverable error."""
@@ -311,12 +332,14 @@ try:
 **Parallel?**: No (generators return this type)
 
 **Notes**:
+
 - Dataclass for easy instantiation
 - Default empty lists for errors/warnings/files
-- Custom __repr__ for logging
+- Custom **repr** for logging
 - Separate exception for generator errors
 
 **Quality Validation**:
+
 - Are all result fields present?
 - Is success field boolean?
 - Are error/warning lists initialized?
@@ -326,7 +349,9 @@ try:
 **Purpose**: Implement JSDoc generator for JavaScript/TypeScript projects.
 
 **Steps**:
+
 1. In `doc_generators.py`, implement `JSDocGenerator`:
+
    ```python
    @dataclass
    class JSDocGenerator:
@@ -485,6 +510,7 @@ try:
 **Parallel?**: Yes (can implement alongside SphinxGenerator and RustdocGenerator)
 
 **Notes**:
+
 - Detection checks for package.json and JS/TS files
 - Configuration generates jsdoc.json from template
 - Generation invokes npx jsdoc via subprocess
@@ -492,6 +518,7 @@ try:
 - Captures errors, warnings, generated files
 
 **Quality Validation**:
+
 - Does detect() correctly identify JS/TS projects?
 - Does configure() generate valid jsdoc.json?
 - Does generate() invoke JSDoc correctly?
@@ -503,7 +530,9 @@ try:
 **Purpose**: Implement Sphinx generator for Python projects.
 
 **Steps**:
+
 1. In `doc_generators.py`, implement `SphinxGenerator`:
+
    ```python
    @dataclass
    class SphinxGenerator:
@@ -565,6 +594,7 @@ try:
            theme = options.get("theme", "sphinx_rtd_theme")
 
            config_content = f'''# Sphinx configuration for {project_name}
+
 # Auto-generated by spec-kitty documentation mission
 
 project = '{project_name}'
@@ -573,6 +603,7 @@ version = '{version}'
 release = version
 
 # Extensions
+
 extensions = [
     'sphinx.ext.autodoc',      # Auto-generate docs from docstrings
     'sphinx.ext.napoleon',     # Support Google/NumPy docstring styles
@@ -581,15 +612,18 @@ extensions = [
 ]
 
 # Napoleon settings for Google-style docstrings
+
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
 
 # HTML output options
+
 html_theme = '{theme}'
 html_static_path = ['_static']
 
 # Autodoc options
+
 autodoc_default_options = {{
     'members': True,
     'undoc-members': True,
@@ -597,6 +631,7 @@ autodoc_default_options = {{
 }}
 
 # Path setup
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
@@ -686,6 +721,7 @@ sys.path.insert(0, os.path.abspath('..'))
                warnings=warnings,
                generated_files=generated_files
            )
+
    ```
 
 **Files**: `src/specify_cli/doc_generators.py` (modified)
@@ -778,6 +814,7 @@ rustdoc-args = ["{f"--document-private-items" if document_private else ""}"]
 ```
 
 This configuration:
+
 - Documents all features
 {"- Includes private items in documentation" if document_private else "- Documents only public items"}
 
@@ -864,6 +901,7 @@ No separate configuration file is needed for rustdoc.
                warnings=warnings,
                generated_files=generated_files
            )
+
    ```
 
 **Files**: `src/specify_cli/doc_generators.py` (modified)
@@ -922,6 +960,7 @@ No separate configuration file is needed for rustdoc.
 
        return True
    ```
+
 5. Update each generator to use helper (optional refactoring)
 
 **Files**: `src/specify_cli/doc_generators.py` (modified)
@@ -929,12 +968,14 @@ No separate configuration file is needed for rustdoc.
 **Parallel?**: No (modifies all generators)
 
 **Notes**:
+
 - Tool availability checked before subprocess invocation
 - Clear error messages with installation URLs
 - GeneratorError raised (not subprocess exception)
 - User gets actionable error message
 
 **Quality Validation**:
+
 - Does each generator check for its tool?
 - Are error messages clear and actionable?
 - Do error messages include installation URLs?
@@ -945,8 +986,10 @@ No separate configuration file is needed for rustdoc.
 **Purpose**: Create template files for Sphinx conf.py and JSDoc jsdoc.json that can be customized during configure().
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/generators/` directory
 2. Create `sphinx-conf.py.template`:
+
    ```python
    # Sphinx configuration for {project_name}
    # Auto-generated by spec-kitty documentation mission
@@ -985,7 +1028,9 @@ No separate configuration file is needed for rustdoc.
    import sys
    sys.path.insert(0, os.path.abspath('..'))
    ```
+
 3. Create `jsdoc.json.template`:
+
    ```json
    {
      "source": {
@@ -1006,21 +1051,25 @@ No separate configuration file is needed for rustdoc.
      }
    }
    ```
+
 4. Update generators to optionally load from templates instead of hardcoding (optional enhancement)
 
 **Files**:
+
 - `src/specify_cli/missions/documentation/templates/generators/sphinx-conf.py.template` (new file)
 - `src/specify_cli/missions/documentation/templates/generators/jsdoc.json.template` (new file)
 
 **Parallel?**: Yes (can create templates alongside generator implementation)
 
 **Notes**:
+
 - Templates provide baseline configuration
 - Generators currently hardcode config (templates are reference)
 - Future enhancement: load template, substitute placeholders
 - Placeholders: {project_name}, {author}, {version}, {theme}, {source_dir}, {output_dir}, {template}
 
 **Quality Validation**:
+
 - Are template files valid (Python/JSON syntax)?
 - Are placeholders clearly marked?
 - Do templates match what generators produce?
@@ -1030,6 +1079,7 @@ No separate configuration file is needed for rustdoc.
 **Unit Tests** (to be implemented in WP09):
 
 1. Test DocGenerator protocol compliance:
+
    ```python
    def test_jsdoc_generator_implements_protocol():
        generator = JSDocGenerator()
@@ -1041,6 +1091,7 @@ No separate configuration file is needed for rustdoc.
    ```
 
 2. Test detection logic:
+
    ```python
    def test_jsdoc_detects_javascript_project(tmp_path):
        # Create package.json
@@ -1058,6 +1109,7 @@ No separate configuration file is needed for rustdoc.
    ```
 
 3. Test configuration generation:
+
    ```python
    def test_sphinx_configure_creates_conf_py(tmp_path):
        generator = SphinxGenerator()
@@ -1074,6 +1126,7 @@ No separate configuration file is needed for rustdoc.
    ```
 
 4. Test graceful degradation:
+
    ```python
    def test_generator_error_when_tool_missing(tmp_path, monkeypatch):
        # Mock subprocess to simulate missing tool
@@ -1095,6 +1148,7 @@ No separate configuration file is needed for rustdoc.
    ```
 
 5. Test GeneratorResult:
+
    ```python
    def test_generator_result_success():
        result = GeneratorResult(
@@ -1154,6 +1208,7 @@ def hello(name: str) -> str:
 **Manual Validation**:
 
 1. Test JSDoc detection and generation:
+
    ```bash
    # Create test JS project
    mkdir -p /tmp/test-js
@@ -1173,6 +1228,7 @@ def hello(name: str) -> str:
    ```
 
 2. Test Sphinx detection and generation:
+
    ```bash
    # Create test Python project
    mkdir -p /tmp/test-py
@@ -1194,6 +1250,7 @@ def hello(name: str) -> str:
    ```
 
 3. Test rustdoc detection:
+
    ```bash
    # Create test Rust project
    mkdir -p /tmp/test-rust
@@ -1267,6 +1324,7 @@ def hello(name: str) -> str:
 6. **Result Reporting**: GeneratorResult accurately reflects success/failure and lists generated files
 
 **Validation Commands**:
+
 ```bash
 # Test module imports
 python -c "from specify_cli.doc_generators import JSDocGenerator, SphinxGenerator, RustdocGenerator, DocGenerator, GeneratorResult, GeneratorError; print('✓ All imports successful')"
@@ -1296,6 +1354,7 @@ print(f'✓ Sphinx config generated: {config}')
 ```
 
 **Review Focus Areas**:
+
 - All three generators implement the protocol correctly
 - Detection logic is sound (checks for correct file types)
 - Configuration generation produces valid config files

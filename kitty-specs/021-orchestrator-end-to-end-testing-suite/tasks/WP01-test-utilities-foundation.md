@@ -48,14 +48,17 @@ Create the core test utilities module with agent availability detection capabili
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Key decision #2 (Auth Verification)
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - AgentAvailability definition
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/agents/__init__.py` - Agent invoker registry (`get_invoker_registry()`)
 - `src/specify_cli/orchestrator/agents/base.py` - `AgentInvoker` base class
 
 **Constraints**:
+
 - Reuse existing agent invoker detection where possible
 - Probe timeout must be 10 seconds (configurable via env var)
 - Must categorize agents into core tier (5 agents) and extended tier (7 agents)
@@ -69,8 +72,10 @@ Create the core test utilities module with agent availability detection capabili
 **Purpose**: Establish the new testing subpackage within the orchestrator module.
 
 **Steps**:
+
 1. Create directory: `src/specify_cli/orchestrator/testing/`
 2. Create `__init__.py` with public exports:
+
    ```python
    from specify_cli.orchestrator.testing.availability import (
        AgentAvailability,
@@ -104,12 +109,14 @@ Create the core test utilities module with agent availability detection capabili
        "load_checkpoint",
    ]
    ```
+
 3. Create empty placeholder files:
    - `availability.py`
    - `paths.py` (WP02 will implement)
    - `fixtures.py` (WP03-04 will implement)
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/__init__.py` (new, ~40 lines)
 - `src/specify_cli/orchestrator/testing/availability.py` (new, placeholder)
 - `src/specify_cli/orchestrator/testing/paths.py` (new, placeholder)
@@ -124,21 +131,27 @@ Create the core test utilities module with agent availability detection capabili
 **Purpose**: Define the data structure for agent detection results.
 
 **Steps**:
+
 1. Open `availability.py`
 2. Add imports:
+
    ```python
    from __future__ import annotations
 
    from dataclasses import dataclass
    from typing import Literal
    ```
+
 3. Define tier constants:
+
    ```python
    CORE_AGENTS = frozenset({"claude", "codex", "copilot", "gemini", "opencode"})
    EXTENDED_AGENTS = frozenset({"cursor", "qwen", "augment", "kilocode", "roo", "windsurf", "amazonq"})
    ALL_AGENTS = CORE_AGENTS | EXTENDED_AGENTS
    ```
+
 4. Implement dataclass matching data-model.md:
+
    ```python
    @dataclass
    class AgentAvailability:
@@ -165,6 +178,7 @@ Create the core test utilities module with agent availability detection capabili
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` (~50 lines)
 
 **Parallel?**: No - dataclass must exist before detection functions
@@ -176,7 +190,9 @@ Create the core test utilities module with agent availability detection capabili
 **Purpose**: Detect whether an agent's CLI binary is installed and executable.
 
 **Steps**:
+
 1. Add function to `availability.py`:
+
    ```python
    import shutil
    from specify_cli.orchestrator.agents import get_invoker_registry
@@ -206,6 +222,7 @@ Create the core test utilities module with agent availability detection capabili
 2. Note: The `CLI_COMMAND` class attribute may need to be added to agent invokers if not present. Check existing implementation.
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` (add ~25 lines)
 
 **Parallel?**: Yes - can proceed with T004 once T002 done
@@ -219,7 +236,9 @@ Create the core test utilities module with agent availability detection capabili
 **Purpose**: Make a lightweight API call to verify the agent is authenticated.
 
 **Steps**:
+
 1. Add probe function to `availability.py`:
+
    ```python
    import asyncio
    import os
@@ -269,6 +288,7 @@ Create the core test utilities module with agent availability detection capabili
    ```
 
 2. Add `probe()` method to base invoker if not present:
+
    ```python
    # In agents/base.py, add to AgentInvoker class:
    async def probe(self) -> bool:
@@ -283,6 +303,7 @@ Create the core test utilities module with agent availability detection capabili
 3. Implement agent-specific probes in each invoker (optional, can default to True)
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` (add ~45 lines)
 - `src/specify_cli/orchestrator/agents/base.py` (add probe method if missing)
 
@@ -297,7 +318,9 @@ Create the core test utilities module with agent availability detection capabili
 **Purpose**: Detect all agents and cache results for session duration.
 
 **Steps**:
+
 1. Add module-level cache:
+
    ```python
    from functools import lru_cache
 
@@ -311,6 +334,7 @@ Create the core test utilities module with agent availability detection capabili
    ```
 
 2. Implement detection function:
+
    ```python
    async def detect_agent(agent_id: str) -> AgentAvailability:
        """Detect availability of a single agent."""
@@ -373,6 +397,7 @@ Create the core test utilities module with agent availability detection capabili
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` (add ~60 lines)
 
 **Parallel?**: No - depends on T003 and T004
@@ -391,6 +416,7 @@ Create the core test utilities module with agent availability detection capabili
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] `from specify_cli.orchestrator.testing import AgentAvailability` works
 - [ ] `detect_all_agents()` returns dict with all 12 agents
 - [ ] Core vs extended tier categorization is correct
@@ -398,6 +424,7 @@ Create the core test utilities module with agent availability detection capabili
 - [ ] Cache is used on second call to `detect_all_agents()`
 
 **Code Quality**:
+
 - Async functions use proper async/await patterns
 - Type hints on all public functions
 - Docstrings explain behavior and return values

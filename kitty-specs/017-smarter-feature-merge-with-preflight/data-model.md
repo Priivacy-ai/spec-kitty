@@ -21,6 +21,7 @@ Persisted state for resumable multi-WP merges. Stored at `.kittify/merge-state.j
 | `last_updated` | string | ISO 8601 timestamp of last state change |
 
 **Example**:
+
 ```json
 {
   "feature_slug": "017-smarter-feature-merge",
@@ -36,6 +37,7 @@ Persisted state for resumable multi-WP merges. Stored at `.kittify/merge-state.j
 ```
 
 **Lifecycle**:
+
 1. Created when multi-WP merge starts (after pre-flight passes)
 2. Updated after each WP merge completes or conflicts
 3. Deleted on successful completion or explicit `--abort`
@@ -83,6 +85,7 @@ Predicted conflict for a file, generated during `--dry-run` or pre-merge analysi
 | `confidence` | string | "certain", "likely", or "possible" |
 
 **Confidence Levels**:
+
 - `certain`: `git merge-tree` detected actual conflict markers
 - `likely`: Same lines modified in multiple WPs (git diff --stat overlap)
 - `possible`: Same file modified in multiple WPs (may not conflict)
@@ -102,6 +105,7 @@ Result of auto-resolving a status file conflict.
 | `resolved_conflicts` | int | Number of conflict regions resolved |
 
 **Resolution Types**:
+
 - `lane`: Resolved `lane:` field by "more done" wins
 - `checkbox`: Resolved checkboxes by preferring `[x]`
 - `history`: Resolved `history:` by chronological merge

@@ -75,6 +75,7 @@ This release is a continuation of the `2.x` development cycle, see [ADR 2026-01-
 ### 🐛 Fixed
 
 **Complete Bug #119 cherry-pick**:
+
 - Fixed missing update to `scripts/tasks/acceptance_support.py` (root-level test helper)
 - This file was missed in the original Bug #119 cherry-pick, causing test failures
 - Now all acceptance_support.py copies correctly exclude 'done' lane from assignee requirement
@@ -128,6 +129,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🛠️ Refactored
 
 **Consolidated workflow implement workspace creation**:
+
 - `spec-kitty agent workflow implement` now delegates workspace creation to `spec-kitty implement` when needed
 - Removes duplicated worktree/sparse-checkout setup in the agent command
 - Prevents agents from creating worktrees from inside another worktree
@@ -135,6 +137,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Clearer recovery guidance for multi-parent merge failures**:
+
 - When auto-merge fails, instructions now show concrete recovery steps
 - Explicitly warns there is no `spec-kitty agent workflow merge` command
 - Points agents to the correct `spec-kitty agent feature merge` command
@@ -144,6 +147,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **`spec-kitty upgrade` not bumping version when no migrations needed**:
+
 - When `spec-kitty upgrade` found no applicable migrations, it returned early without updating the version in `.kittify/metadata.yaml`
 - This left the project stuck at its old version (e.g., 0.13.21) even though the CLI was newer (0.13.24)
 - The dashboard then blocked with a version mismatch error
@@ -154,6 +158,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🔧 Improved
 
 **Review workflow shows git context for reviewers**:
+
 - `spec-kitty agent workflow review` now displays the WP's branch name, base branch, and commit count
 - Reviewers see exactly which commits belong to the WP vs inherited history
 - Provides ready-to-use `git log <base>..HEAD` and `git diff <base>..HEAD` commands
@@ -165,6 +170,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Merged Single-Parent Dependency Workflow Gap** (ADR-18):
+
 - Fixed `spec-kitty implement` failing when single-parent dependency has been merged to target branch
 - Issue: WP01 merged to 2.x → WP02 can't implement (looks for non-existent WP01 workspace branch)
 - Root cause: Implement command didn't distinguish between in-progress vs merged dependencies
@@ -182,6 +188,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Activity Log Parser Failing on Hyphenated Agent Names** ([#111](https://github.com/Priivacy-ai/spec-kitty/pull/111)):
+
 - Fixed `activity_entries()` regex in `tasks_support.py` to handle hyphenated agent names
 - Parser was using `[^–-]+?` pattern which treated hyphens as field separators
 - Agent names like `cursor-agent`, `claude-reviewer`, `cursor-reviewer` now parse correctly
@@ -191,6 +198,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - **Contributors**: Rodrigo D. L. (bruj0)
 
 **Workflow Completion Instructions Missing Git Commit Step** ([#104](https://github.com/Priivacy-ai/spec-kitty/pull/104)):
+
 - Fixed agents not committing implementation files before marking tasks done
 - Issue caused cascading failures where dependent work packages started from empty branches
   - WP02 worktree had HTML + CSS ✅
@@ -204,6 +212,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - **Contributors**: Jerome Lacube
 
 **Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94), [#99](https://github.com/Priivacy-ai/spec-kitty/pull/99)):
+
 - Fixed `/spec-kitty.dashboard` command template to use `spec-kitty dashboard` CLI command
 - Removed outdated Python code that manually checked dashboard status and opened browsers
 - Dashboard now properly:
@@ -222,6 +231,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Critical JSON Mode Corruption Fix** (Release Blocker):
+
 - Fixed JSON output corruption in `spec-kitty implement --json` mode (GitHub Issue #72 follow-up)
   - **Bug**: Warning messages from empty branch detection were written to stdout, corrupting JSON output
   - **Impact**: Automated workflows using `--json` flag would fail with JSON parse errors
@@ -230,6 +240,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - **Tests**: Updated 5 tests in `test_multi_parent_merge_empty_branches.py` to check stderr instead of stdout
 
 **Missing Migration Fix** (Existing Users Affected):
+
 - Fixed missing migration for commit workflow section (GitHub Issue #72 follow-up)
   - **Bug**: New projects got commit workflow section in implement.md, but existing projects didn't after upgrade
   - **Impact**: Existing users remained vulnerable to agents forgetting to commit work
@@ -238,6 +249,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - **Migration**: Automatically runs on `spec-kitty upgrade` for projects missing commit workflow
 
 **Subprocess Error Handling** (Defensive Programming):
+
 - Added timeout and error handling to multi-parent merge git commands
   - **Bug**: Git commands in empty branch detection lacked timeout parameters and try/except blocks
   - **Impact**: Function could hang forever or crash on git errors (corrupted repo, permission issues)
@@ -246,6 +258,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
 
 ### Added
+
 - Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
 - Empty branch detection in merge-base creation - warns when dependencies have no commits
 - Git commit workflow section in documentation mission template (consistency with software-dev/research)
@@ -253,11 +266,13 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
 
 ### Changed
+
 - `move-task --to done` now validates git status (same checks as "for_review")
 - Use `--force` flag to bypass validation (not recommended)
 - Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
 
 ### Fixed (Non-Critical)
+
 - WP agents can no longer mark tasks as "done" without committing implementation files
 - Multi-parent merge-bases no longer silently accept empty dependency branches
 - Documentation mission now instructs agents to commit work before review
@@ -272,6 +287,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Fixed /spec-kitty.clarify Command Template**:
+
 - Fixed broken placeholder in clarify template that prevented agents from running clarification workflow
   - **Bug**: Template contained `(Missing script command for sh)` placeholder instead of actual command
   - **Impact**: Agents couldn't get feature context, invented non-existent commands like `spec-kitty agent feature get-active --json`
@@ -281,6 +297,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Source template: `src/specify_cli/missions/software-dev/command-templates/clarify.md`
 
 **Testing**:
+
 - Added comprehensive test suite with 34 tests covering all scenarios
   - Parametrized tests for all 12 agents (claude, copilot, gemini, cursor, qwen, opencode, windsurf, codex, kilocode, auggie, roo, q)
   - Tests for detection, application, agent config respect, idempotency, dry-run
@@ -292,6 +309,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Critical Dependency Validation Fix**:
+
 - Fixed `spec-kitty agent workflow implement` not validating WP dependencies before creating workspaces
   - **Bug**: WP with single dependency could create workspace without `--base` flag
   - **Impact**: Workspace branched from main instead of dependency branch (silent correctness bug)
@@ -301,6 +319,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Agent commands now delegate to top-level commands (no more legacy script calls)
 
 **Fixed Broken Agent Commands**:
+
 - Fixed `spec-kitty agent feature accept` calling non-existent `scripts/tasks/tasks_cli.py`
   - Now delegates to top-level `accept()` command
 - Fixed `spec-kitty agent feature merge` calling non-existent `scripts/tasks/tasks_cli.py`
@@ -308,6 +327,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Parameter mapping: `keep_branch` → `delete_branch` (inverted logic)
 
 **Critical Merge Workflow Fix**:
+
 - Fixed merge failing when main branch lacks upstream tracking (Issue reported post-0.13.2 release)
   - 0.13.2 only checked if remote EXISTS, but not if branch TRACKS it
   - Added `has_tracking_branch()` function to check upstream tracking
@@ -315,16 +335,18 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Affects users with local-only repos or repos where main doesn't track origin/main
 
 **Testing & Prevention**:
+
 - Added 22 new tests for dependency validation and agent command wrappers
   - Unit tests: `test_implement_validation.py` (11 tests)
   - Integration tests: `test_agent_command_wrappers.py` (11 tests)
 - Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
-  - Verifies all m_*.py migration files are imported in __init__.py
+  - Verifies all m_*.py migration files are imported in **init**.py
   - Prevents silent bugs where migrations exist but never run
 - Added integration tests for merge with untracked branches
 - Added unit tests for `has_tracking_branch()` function
 
 **Documentation**:
+
 - Added `src/specify_cli/cli/commands/agent/README.md` (wrapper pattern documentation)
   - Dependency validation best practices
   - Parameter mapping guidelines
@@ -336,6 +358,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Critical Windows Compatibility Issues**:
+
 - Fixed UTF-8 encoding errors causing Windows crashes (Issue #101)
   - Added `encoding='utf-8'` to all `write_text()` and `read_text()` calls
   - Affected files: feature.py, worktree.py, agent_context.py, doc_generators.py, gap_analysis.py
@@ -346,12 +369,14 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Windows users no longer need to create python3 hardlinks/aliases
 
 **Workflow Improvements**:
+
 - Added `--base` parameter to `spec-kitty agent workflow implement` (Issue #96)
   - Enables agents to create dependent WP worktrees via workflow command
   - Provides feature parity with top-level `spec-kitty implement` command
   - Example: `spec-kitty agent workflow implement WP02 --base WP01 --agent claude`
 
 **Template and Documentation Fixes**:
+
 - Fixed broken `/spec-kitty.clarify` skill (Issue #106)
   - Removed unresolved `{SCRIPT}` and `{ARGS}` placeholders
   - Replaced with auto-detection instructions for feature paths
@@ -376,6 +401,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### ✨ Added
 
 **Adversarial Test Suite for 0.13.0 Release**:
+
 - **Distribution tests**: Validate PyPI user experience without SPEC_KITTY_TEMPLATE_ROOT bypass (prevents 0.10.8-style packaging failures)
 - **Path validation security tests**: Test directory traversal, symlink attacks, case-sensitivity bypasses, and path injection prevention
 - **CSV schema attack tests**: Validate handling of formula injection, encoding errors, duplicate columns, and empty files
@@ -385,6 +411,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - **Context & config tests**: Test non-interactive modes, agent configuration, and workspace validation
 
 **Test Infrastructure**:
+
 - New `tests/adversarial/` directory with shared fixtures and attack vectors
 - `@pytest.mark.distribution` and `@pytest.mark.slow` markers for CI optimization
 - Session-scoped `wheel_install` fixture for efficient testing
@@ -393,6 +420,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 📚 Documentation
 
 **Testing**:
+
 - Comprehensive adversarial test documentation in feature 024 spec
 - Attack vector catalog with prevention strategies
 - CI integration guidance for slow/distribution tests
@@ -402,6 +430,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### ✨ Added
 
 **Deterministic CSV Schema Enforcement for Research Missions**:
+
 - **Canonical schema documentation**: Research CSV schemas now documented in all 12 agent implement.md templates
 - **Two schemas enforced**:
   - `evidence-log.csv`: `timestamp,source_type,citation,key_finding,confidence,notes`
@@ -418,6 +447,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 **Solution Approach**: Document schemas where agents can see them (prevention) rather than runtime enforcement or auto-migration (data loss risk).
 
 **Fully Non-Interactive Init Support**:
+
 - Added `--non-interactive` / `--yes` and `SPEC_KITTY_NON_INTERACTIVE` to disable prompts
 - Added `--agent-strategy`, `--preferred-implementer`, and `--preferred-reviewer` to expose all selection options via CLI
 - Non-interactive mode now avoids arrow-key menus and requires `--force` for non-empty `--here` directories
@@ -426,18 +456,21 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **Windows UTF-8 Encoding Crashes**:
+
 - Fixed all `write_text()` calls to include `encoding='utf-8'` parameter
 - Affects feature creation, worktree setup, gap analysis, doc generators, agent context, and test fixtures
 - Windows users can now create features without charmap encoding errors
 - Fixes #101, incorporates PR #100
 
 **Constitution Template Workflow**:
+
 - Fixed incorrect next-step suggestion after creating constitution
 - Now correctly suggests `/spec-kitty.specify` instead of `/spec-kitty.plan`
 - Propagated fix to all 12 agent directories via migration
 - Fixes #97 (inspired by PR #98)
 
 **Research Mission Detection**:
+
 - Fixed `spec-kitty mission current` to show feature-level missions
 - Now auto-detects feature from current directory (kitty-specs or worktree)
 - Added `--feature` flag for explicit feature specification
@@ -447,17 +480,20 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🎉 Closed
 
 **Agent Configuration Feature**:
+
 - Closed #51 as completed (already implemented in v0.12.0)
 - Feature: `spec-kitty agent config add/remove/list`
 
 ### 📚 Documentation
 
 **Release Management**:
+
 - Added `RELEASE_CHECKLIST.md` - Comprehensive release preparation checklist with version-specific sections for research missions, agent management, and workspace-per-WP changes
 
 ### Migration Notes
 
 **For users with existing research features**:
+
 1. Run `spec-kitty upgrade` to trigger detection migration
 2. See informational report with schema diffs and migration tips
 3. Use LLM agent to help migrate data:
@@ -467,6 +503,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
    - Replace old file and commit to main
 
 **For new research features (0.13.0+)**:
+
 - Templates already have correct schemas
 - Agents see schema documentation before editing
 - Follow append-only pattern to avoid overwrites
@@ -477,6 +514,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### 🐛 Fixed
 
 **kitty-specs/ in .gitignore Blocking Feature Creation**:
+
 - Fixed issue where users with `kitty-specs/` in their `.gitignore` couldn't create features
 - Error manifested as: "Issue Detected: The spec-kitty agent feature create-feature command failed to commit because .gitignore contains kitty-specs/"
 - New migration `m_0_12_1_remove_kitty_specs_from_gitignore` automatically removes blocking entries
@@ -486,10 +524,12 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 ### Migration Notes
 
 **For users experiencing this bug:**
+
 1. Run `spec-kitty upgrade` to apply the fix automatically
 2. Or manually remove `kitty-specs/` from your `.gitignore`
 
 The migration will detect and remove entries like:
+
 - `kitty-specs`
 - `kitty-specs/`
 - `/kitty-specs`
@@ -502,6 +542,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### ✨ Added
 
 **Config-Driven Agent Management** (Feature 022):
+
 - **Single source of truth**: `.kittify/config.yaml` now controls which agents are configured
 - **New CLI commands**: `spec-kitty agent config list|add|remove|status|sync`
   - `list`: Show configured agents
@@ -514,6 +555,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 - **ADR #6**: Documents architectural decision for config-driven approach
 
 **Smarter Feature Merge with Pre-flight** (Feature 017):
+
 - **Pre-flight validation**: Checks all WP worktrees for uncommitted changes, missing worktrees, and target branch divergence before any merge starts
 - **Conflict forecasting**: `--dry-run` predicts which files will conflict and classifies them as auto-resolvable (status files) or manual
 - **Smart merge order**: WPs merged in dependency order based on frontmatter `dependencies` field
@@ -525,11 +567,13 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### 📚 Documentation
 
 **Merge Preflight Documentation** (Feature 018):
+
 - Added `docs/how-to/merge-feature.md` - Complete merge workflow guide with pre-flight, dry-run, strategies, and cleanup options
 - Added `docs/how-to/troubleshoot-merge.md` - Comprehensive troubleshooting guide with error reference table
 - Updated CLAUDE.md with Merge & Preflight Patterns section documenting MergeState dataclass and public API
 
 **Agent Management Documentation Sprint** (Feature 023):
+
 - Added `docs/how-to/manage-agents.md` - Complete guide to adding, removing, and managing AI agent integrations
 - Added `docs/how-to/upgrade-to-0-12-0.md` - Migration guide for config-driven agent management
 - Updated `docs/reference/cli-commands.md` with comprehensive `agent config` subcommand documentation
@@ -540,15 +584,18 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### 🐛 Fixed
 
 **Merge Resume Bug**:
+
 - Fixed `merge_workspace_per_wp()` missing `resume_state` parameter causing `TypeError` when using `--resume`
 
 **Agent Workflow Output Truncation** (GitHub Codex compatibility):
+
 - Fixed workflow commands (`implement`, `review`) outputting 300+ lines which got truncated by agents like GitHub Codex
 - Prompts now written to temp file with concise 15-line summary to stdout
 - Added directive language (`▶▶▶ NEXT STEP: Read the full prompt file now:`) so agents automatically read the file
 - Agents no longer miss work package requirements due to output truncation
 
 **False Staleness for Newly-Created Worktrees**:
+
 - Fixed stale detection flagging new worktrees as stale immediately
 - Previously, `git log -1` returned parent branch's commit time (could be hours old)
 - Now checks if branch has commits since diverging from main
@@ -559,6 +606,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### 🐛 Fixed
 
 **Merge Template Improvements**:
+
 - Added explicit preflight validation code using `python3 -c` with `validate_worktree_location()`
 - Added clear visual "⛔ Location Pre-flight Check (CRITICAL)" section to prevent agents running merge from wrong location
 - Fixed contradictory instructions in software-dev mission merge template (was incorrectly saying "run from main")
@@ -566,6 +614,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 - Added workspace-per-WP model (0.11.0+) documentation vs legacy pattern in worktree strategy section
 
 **Documentation Accuracy** (Feature 014):
+
 - Rewrote `multi-agent-orchestration.md` for 0.11.0+ workspace-per-WP model:
   - Planning happens in main repo (not worktrees)
   - Each WP gets its own worktree (not shared)
@@ -580,6 +629,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### 📚 Added
 
 **Comprehensive End-User Documentation** (Feature 014):
+
 - Complete Divio 4-type documentation suite:
   - **Tutorials**: Getting Started, Your First Feature, Claude Code Integration, Claude Code Workflow, Multi-Agent Workflow, Missions Overview
   - **How-To Guides**: 14 task-oriented guides covering installation, specifications, planning, implementation, review, dependencies, parallel development, dashboard usage, and migration
@@ -593,11 +643,13 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 ### 🚨 BREAKING CHANGES - Workspace Model Changed (Feature 010)
 
 **Old (0.10.x)**: One worktree per feature
+
 - `/spec-kitty.specify` created `.worktrees/###-feature/`
 - All WPs worked in same worktree
 - Sequential development (one agent at a time)
 
 **New (0.11.0)**: One worktree per work package
+
 - Planning commands (specify, plan, tasks) work in main repository (NO worktree created)
 - `spec-kitty implement WP##` creates `.worktrees/###-feature-WP##/`
 - Each WP has isolated worktree with dedicated branch
@@ -608,6 +660,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 **You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
 
 Check for legacy worktrees:
+
 ```bash
 spec-kitty list-legacy-features
 ```
@@ -626,6 +679,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 ### ✨ Added
 
 **Workspace-per-WP Features (010)**:
+
 - **New command**: `spec-kitty implement WP## [--base WPXX]` - Create workspace for work package
   - `--base` flag branches from another WP's branch (for dependencies)
   - Automatically moves WP from `planned` → `doing` lane
@@ -638,6 +692,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 - **Review warnings**: Alert when dependent WPs need rebase
 
 **Constitution Features (011)**:
+
 - **Interactive constitution command** (Phase-based discovery)
   - 4-phase discovery workflow (Technical, Quality, Tribal Knowledge, Governance)
   - Two paths: Minimal (Phase 1 only) or Comprehensive (all phases)
@@ -683,6 +738,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 ### 🎯 Why These Changes?
 
 **Feature 010 (Workspace-per-WP)**:
+
 - Enables parallel multi-agent development
 - Better isolation per work package
 - Explicit dependencies with validation
@@ -690,6 +746,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 - Foundation for future jujutsu VCS integration
 
 **Feature 011 (Constitution & Packaging Safety)**:
+
 - Safe dogfooding (no packaging contamination)
 - Cross-platform dashboard support
 - Optional, interactive constitution setup
@@ -718,12 +775,14 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 ### 📋 Migration for v0.10.12 Users
 
 If you installed v0.10.12 from PyPI and upgraded from v0.10.11:
+
 ```bash
 pip install --upgrade spec-kitty-cli
 spec-kitty upgrade  # Run again to apply missing migration 0.10.12
 ```
 
 The migration will remove mission-specific constitution directories:
+
 - `.kittify/missions/software-dev/constitution/` → removed
 - `.kittify/missions/research/constitution/` → removed
 - Single project-level constitution: `.kittify/memory/constitution.md` (kept)
@@ -748,9 +807,9 @@ The migration will remove mission-specific constitution directories:
   - `signal.SIGKILL` and `signal.SIGTERM` don't exist on Windows
   - Added `psutil>=5.9.0` dependency for cross-platform process management
   - Refactored `src/specify_cli/dashboard/lifecycle.py`:
-    * `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
-    * `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
-    * `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
+    - `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
+    - `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
+    - `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
   - Added proper exception handling (NoSuchProcess, AccessDenied, TimeoutExpired)
   - Dashboard now starts, serves HTML, and stops cleanly on Windows 10/11
   - All 41 dashboard tests passing
@@ -878,35 +937,43 @@ The migration will remove mission-specific constitution directories:
 **For users with broken installations (issues #62, #63, #64):**
 
 1. **Upgrade spec-kitty package:**
+
    ```bash
    pip install --upgrade spec-kitty-cli
    spec-kitty --version  # Should show 0.10.9
    ```
 
 2. **Run upgrade to apply repair migration:**
+
    ```bash
    cd /path/to/your/project
    spec-kitty upgrade
    ```
+
    This will automatically detect and fix broken templates.
 
 3. **Alternative: Use dedicated repair command:**
+
    ```bash
    spec-kitty repair
    ```
+
    Provides detailed feedback about what's being fixed.
 
 4. **Verify repair:**
+
    ```bash
    # Check for bash script references (should return nothing)
    grep -r "scripts/bash" .claude/commands/
    ```
 
 **For new projects:**
+
 - Automatically get correct templates from package
 - No action needed
 
 **For existing healthy projects:**
+
 - Run `spec-kitty upgrade` to stay current
 - No breaking changes
 
@@ -1105,6 +1172,7 @@ This release fixes critical issues found in v0.9.0 and adds version checking to 
 ### 🚀 Migration
 
 If you upgraded to v0.9.0 and still have issues, run `spec-kitty upgrade` again to apply v0.9.1 fixes:
+
 - Completes any remaining lane migrations
 - Cleans up worktree command directories
 - Normalizes all frontmatter for consistency
@@ -1819,11 +1887,13 @@ Addresses #27
 ### LLM Context Improvements
 
 All command templates enhanced with consistent context patterns:
+
 - **Location Pre-flight Checks**: pwd/git branch verification with expected outputs and correction steps
 - **File Discovery**: Lists what files {SCRIPT} provides, output locations, and available context
 - **Workflow Context**: Documents before/after commands and feature lifecycle integration
 
 Templates updated:
+
 - merge.md: CRITICAL safety check preventing merges from wrong location
 - clarify.md, research.md, analyze.md: HIGH priority core workflow commands
 - specify.md, checklist.md: Entry point and utility commands
@@ -1846,6 +1916,7 @@ Templates updated:
 ### Backward Compatibility
 
 All changes are fully backward compatible:
+
 - PID storage is optional (old `.dashboard` files still work)
 - Feature collision detection is advisory (doesn't block creation)
 - LLM context additions don't change command behavior

@@ -81,6 +81,7 @@ The 0.1x backport is planned for the main/release branches. Key adaptations:
 Set `status.phase: 1` in `.kittify/config.yaml` (this is the default, so most installations are already at Phase 1).
 
 **Phase 1 -> 2** (switch to canonical reads):
+
 1. Run `spec-kitty agent status migrate --all` to bootstrap event logs for all features
 2. Run `spec-kitty agent status validate` for each feature to verify integrity
 3. Set `status.phase: 2` in `.kittify/config.yaml` or per-feature in `meta.json`
@@ -160,10 +161,12 @@ The 2.x and 0.1x branches share the same core status engine. Key deltas are arch
 
 1. Set `status.phase: 0`
 2. Remove event logs and snapshots from all features:
+
    ```bash
    find kitty-specs/ -name "status.events.jsonl" -delete
    find kitty-specs/ -name "status.json" -delete
    ```
+
 3. Frontmatter remains intact and authoritative -- it was never modified destructively
 4. All status operations revert to pre-034 behavior
 5. No data loss: frontmatter lanes were maintained throughout dual-write phase

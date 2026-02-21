@@ -47,10 +47,12 @@ history:
 **This WP depends on WP01 and WP02** (check frontmatter `dependencies:` field).
 
 Before starting, ensure both dependencies are complete:
+
 - WP01 provides agent mappings research (T003)
 - WP02 creates the base `manage-agents.md` file
 
 **Check if dependencies are complete**:
+
 ```bash
 spec-kitty agent tasks status --feature 023-documentation-sprint-agent-management-cleanup
 ```
@@ -60,8 +62,9 @@ Look for WP01 and WP02 in "done" lane. If not complete, wait or coordinate with 
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -70,6 +73,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Complete `docs/how-to/manage-agents.md` with agent directory mappings table, troubleshooting section, and cross-reference links.
 
 **Success Criteria**:
+
 - [ ] Agent directory mappings table added (12 agents, special cases highlighted)
 - [ ] Troubleshooting section covers common issues (orphaned dirs, missing dirs, corrupt config)
 - [ ] Cross-reference links added (ADR #6, CLI reference, supported agents)
@@ -83,20 +87,24 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Add supplementary content to complete the how-to guide created in WP02. This addresses remaining requirements from FR-003 (config-driven model explanation with agent mappings).
 
 **Reference Documents**:
+
 - WP01 research findings (T003 - agent mappings with special cases)
 - WP02 output (`docs/how-to/manage-agents.md` - base document)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements)
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md` (ADR #6)
 
 **Source Files for Validation** (read-only):
+
 - `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` (AGENT_DIR_TO_KEY mapping)
 
 **Writing Style**:
+
 - Consistent with WP02 style (task-oriented, imperative)
 - Reference documentation (mappings table) should be concise
 - Troubleshooting should be solution-oriented
 
 **Constraints**:
+
 - Append to existing `manage-agents.md` (don't overwrite WP02 content)
 - Keep supplementary content under 200 lines total
 - All three subtasks can be completed in parallel (independent sections)
@@ -110,6 +118,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header** to `docs/how-to/manage-agents.md`:
+
    ```markdown
    ## Agent Directory Mappings
 
@@ -117,6 +126,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Create markdown table** (extract from WP01 research T003):
+
    ```markdown
    | Agent Key | Directory Path | Notes |
    |-----------|----------------|-------|
@@ -135,6 +145,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 3. **Add explanatory note for special cases**:
+
    ```markdown
    **Special Cases**:
 
@@ -146,6 +157,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add subdirectory variation note**:
+
    ```markdown
    **Subdirectory Patterns**:
 
@@ -158,6 +170,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Add usage note**:
+
    ```markdown
    > **When to reference this table**: Use agent keys (left column) in commands like `spec-kitty agent config add claude codex`. The directory paths (middle column) show where templates are stored, but you shouldn't need to interact with these directories directly.
    ```
@@ -167,12 +180,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T012 and T013)
 
 **Notes**:
+
 - Extract exact mappings from WP01 research T003
 - Highlight special cases visually (bold text)
 - Explain subdirectory variations for user awareness
 - Emphasize that users interact via keys, not directories
 
 **Validation**:
+
 - [ ] Table includes all 12 agents
 - [ ] Special cases (copilot, auggie, q) highlighted
 - [ ] Subdirectory variations explained
@@ -188,6 +203,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header** to `docs/how-to/manage-agents.md`:
+
    ```markdown
    ## Troubleshooting
 
@@ -195,6 +211,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Document orphaned directories issue**:
+
    ```markdown
    ### Orphaned Agent Directories
 
@@ -212,9 +229,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Detection**: Run `spec-kitty agent config status` - orphaned agents show red "Orphaned" status.
+
    ```
 
 3. **Document missing directories issue**:
+
    ```markdown
    ### Missing Configured Agent Directories
 
@@ -232,9 +251,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Detection**: Run `spec-kitty agent config status` - missing agents show yellow "Missing" status.
+
    ```
 
 4. **Document corrupt config.yaml issue**:
+
    ```markdown
    ### Corrupt or Missing config.yaml
 
@@ -253,9 +274,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Prevention**: Don't manually edit `.kittify/config.yaml` - use `spec-kitty agent config` commands instead.
+
    ```
 
 5. **Document "command not found" issue**:
+
    ```markdown
    ### "spec-kitty: command not found"
 
@@ -269,6 +292,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Document "Invalid agent keys" error**:
+
    ```markdown
    ### "Invalid agent keys" Error
 
@@ -288,9 +312,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Reference**: See [Agent Directory Mappings](#agent-directory-mappings) table for complete list.
+
    ```
 
 7. **Add "Still Stuck?" note**:
+
    ```markdown
    ### Still Stuck?
 
@@ -307,12 +333,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T011 and T013)
 
 **Notes**:
+
 - Focus on common issues users actually encounter
 - Provide both detection and solution steps
 - Link to relevant sections for more context
 - Keep solutions concise and actionable
 
 **Validation**:
+
 - [ ] Orphaned directories issue documented
 - [ ] Missing directories issue documented
 - [ ] Corrupt config.yaml issue documented
@@ -329,6 +357,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add "See Also" section** at end of `docs/how-to/manage-agents.md`:
+
    ```markdown
    ## See Also
 
@@ -336,6 +365,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Link to CLI commands reference** (FR-009 requirement):
+
    ```markdown
    ### Command Reference
 
@@ -343,6 +373,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 3. **Link to supported agents reference**:
+
    ```markdown
    ### Supported Agents
 
@@ -350,6 +381,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Link to configuration reference**:
+
    ```markdown
    ### Configuration
 
@@ -357,6 +389,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Link to ADR #6** (architectural context):
+
    ```markdown
    ### Architecture
 
@@ -364,6 +397,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Link to migration guide**:
+
    ```markdown
    ### Migration Guides
 
@@ -371,6 +405,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Link to init documentation** (for initial agent selection):
+
    ```markdown
    ### Initial Setup
 
@@ -378,6 +413,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 8. **Add navigation note** at top of document (after overview, before first section):
+
    ```markdown
    ---
 
@@ -391,12 +427,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T011 and T012)
 
 **Notes**:
+
 - Use relative paths for cross-references
 - Ensure all linked files exist (check with WP06)
 - Add brief description for each link (explain what user will find)
 - Include both reference docs and conceptual docs
 
 **Validation**:
+
 - [ ] "See Also" section added at end of document
 - [ ] Link to CLI commands reference (cli-commands.md)
 - [ ] Link to supported agents reference (supported-agents.md)
@@ -436,24 +474,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Mappings table out of sync with source code
+
 - **Mitigation**: Extract exact mappings from WP01 research T003 (which extracted from m_0_9_1_complete_lane_migration.py)
 - **Detection**: Compare table against `AGENT_DIR_TO_KEY` constant
 
 **Risk**: Troubleshooting solutions don't work
+
 - **Mitigation**: Test each solution in a real project before documenting
 - **Validation**: Simulate issues (orphaned dirs, missing dirs) and verify solutions
 
 **Risk**: Cross-reference links broken (files don't exist or moved)
+
 - **Mitigation**: Verify link targets exist; WP06 will add cross-references from other files (two-way linking)
 - **Detection**: Manual link checking; future tooling could automate
 
 **Risk**: Supplementary content overlaps with WP02 core content
+
 - **Mitigation**: Review WP02 output before starting; ensure T011-T013 add new information only
 - **Validation**: Read full document to check for duplication
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] Agent directory mappings table added with all 12 agents
 - [ ] Special cases (copilot, auggie, q) highlighted in table
 - [ ] Subdirectory variations explained
@@ -466,6 +509,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] No duplicate information from WP02
 
 **Review Focus**:
+
 - **Completeness**: Are all 12 agents in mappings table? Are common issues covered?
 - **Accuracy**: Do mappings match WP01 research? Do solutions actually work?
 - **Usability**: Can user find information quickly via navigation and cross-references?
@@ -476,6 +520,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -492,6 +537,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T10:59:09Z – claude – shell_pid=18511 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:01:30Z – claude – shell_pid=18511 – lane=for_review – Ready for review: Added 170 lines of supplementary content to manage-agents.md - agent directory mappings table (12 agents with special cases highlighted), troubleshooting section (6 common issues with solutions), cross-reference links, and quick navigation. Completes FR-003.
 - 2026-01-23T11:02:00Z – Claude – shell_pid=21098 – lane=doing – Started review via workflow command

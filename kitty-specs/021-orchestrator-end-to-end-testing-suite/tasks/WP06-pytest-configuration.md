@@ -49,15 +49,18 @@ Set up pytest fixtures and markers for orchestrator tests:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Marker list
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - TestContext
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` - From WP01
 - `src/specify_cli/orchestrator/testing/paths.py` - From WP02
 - `src/specify_cli/orchestrator/testing/fixtures.py` - From WP03/WP04
 
 **Constraints**:
+
 - Use unique `orchestrator_` prefix for all markers
 - Session-scoped fixtures must be cached correctly
 - Function-scoped fixtures must provide isolation
@@ -71,7 +74,9 @@ Set up pytest fixtures and markers for orchestrator tests:
 **Purpose**: Central configuration file for orchestrator e2e tests.
 
 **Steps**:
+
 1. Create directory if needed:
+
    ```bash
    mkdir -p tests/specify_cli/orchestrator
    ```
@@ -79,6 +84,7 @@ Set up pytest fixtures and markers for orchestrator tests:
 2. Create `tests/specify_cli/orchestrator/__init__.py` (empty)
 
 3. Create `tests/specify_cli/orchestrator/conftest.py`:
+
    ```python
    """pytest configuration for orchestrator e2e tests.
 
@@ -99,6 +105,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/__init__.py` (new, empty)
 - `tests/specify_cli/orchestrator/conftest.py` (~20 lines initial)
 
@@ -111,7 +118,9 @@ Set up pytest fixtures and markers for orchestrator tests:
 **Purpose**: Prevent pytest warnings and enable selective test execution.
 
 **Steps**:
+
 1. Add markers to `tests/specify_cli/orchestrator/conftest.py`:
+
    ```python
    def pytest_configure(config):
        """Register custom markers for orchestrator tests."""
@@ -163,6 +172,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 2. Alternative: Add to `pytest.ini` or `pyproject.toml`:
+
    ```ini
    # pytest.ini
    [pytest]
@@ -179,6 +189,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/conftest.py` (add ~40 lines)
 
 **Parallel?**: Yes - can proceed with T026
@@ -190,7 +201,9 @@ Set up pytest fixtures and markers for orchestrator tests:
 **Purpose**: Session-scoped fixture that detects and caches agent availability.
 
 **Steps**:
+
 1. Add to `conftest.py`:
+
    ```python
    import asyncio
    from specify_cli.orchestrator.testing.availability import (
@@ -246,6 +259,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/conftest.py` (add ~50 lines)
 
 **Parallel?**: No - depends on T026
@@ -257,7 +271,9 @@ Set up pytest fixtures and markers for orchestrator tests:
 **Purpose**: Fixture that provides the selected TestPath based on available agents.
 
 **Steps**:
+
 1. Add to `conftest.py`:
+
    ```python
    from specify_cli.orchestrator.testing.paths import (
        TestPath,
@@ -302,6 +318,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 2. Add path-specific skip helpers:
+
    ```python
    @pytest.fixture
    def require_2_agent_path(test_path: TestPath):
@@ -317,6 +334,7 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/conftest.py` (add ~45 lines)
 
 **Parallel?**: No - depends on T028
@@ -328,7 +346,9 @@ Set up pytest fixtures and markers for orchestrator tests:
 **Purpose**: Function-scoped fixture that loads a checkpoint and provides isolated TestContext.
 
 **Steps**:
+
 1. Add to `conftest.py`:
+
    ```python
    from specify_cli.orchestrator.testing.fixtures import (
        FixtureCheckpoint,
@@ -389,11 +409,13 @@ Set up pytest fixtures and markers for orchestrator tests:
    ```
 
 2. Add datetime import at top:
+
    ```python
    from datetime import datetime
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/conftest.py` (add ~60 lines)
 
 **Parallel?**: No - depends on T028, T029
@@ -412,6 +434,7 @@ Set up pytest fixtures and markers for orchestrator tests:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] `pytest --collect-only tests/specify_cli/orchestrator/` shows no warnings
 - [ ] `available_agents` fixture caches results (single detection per session)
 - [ ] `test_path` fixture returns correct path type based on agent count
@@ -420,6 +443,7 @@ Set up pytest fixtures and markers for orchestrator tests:
 - [ ] Markers work: `pytest -m orchestrator_happy_path`
 
 **Code Quality**:
+
 - Proper fixture scoping (session vs function)
 - Type hints on all fixtures
 - Clear docstrings explaining usage

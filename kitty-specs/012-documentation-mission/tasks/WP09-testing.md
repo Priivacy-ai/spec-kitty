@@ -77,6 +77,7 @@ history:
 **This WP depends on**: WP01-08 (All implementation work packages)
 
 **Before starting work**:
+
 1. Ensure WP01-08 are complete (all code implemented)
 2. Verify all modules can be imported
 3. Run existing spec-kitty tests to ensure baseline passes
@@ -90,6 +91,7 @@ history:
 **Goal**: Create comprehensive test suite for documentation mission covering mission loading, template validation, generator integration, gap analysis, state management, and migration, achieving 80%+ code coverage on new modules.
 
 **Success Criteria**:
+
 - Four test files created covering all documentation mission functionality
 - Mission config loading tested (mission.yaml validation, phase definitions)
 - All templates tested (existence, structure, frontmatter, sections)
@@ -105,11 +107,13 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - pytest installed and configured
 - All WP01-08 implementation complete
 - Test fixtures and helpers from existing spec-kitty tests
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Testing strategy (lines 255-261)
 - [quickstart.md](../quickstart.md) - Testing patterns and examples (lines 123-191)
 - Existing tests:
@@ -117,6 +121,7 @@ history:
   - `tests/specify_cli/upgrade/migrations/test_m_0_9_1_complete_lane_migration.py` (migration testing patterns)
 
 **Constraints**:
+
 - Must use pytest framework
 - Must use tmp_path fixture for file system tests
 - Must mock subprocess calls for unit tests (avoid requiring generator tools)
@@ -125,6 +130,7 @@ history:
 - Must be deterministic (no flaky tests)
 
 **Test Pyramid** (from quickstart):
+
 ```
 ╔══════════════════════════╗
 ║   E2E Tests (10%)        ║  5-10 tests: Full mission workflows
@@ -142,8 +148,10 @@ history:
 **Purpose**: Create test file for mission configuration loading and validation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/missions/test_documentation_mission.py`
 2. Add imports and fixtures:
+
    ```python
    """Tests for documentation mission configuration."""
 
@@ -169,7 +177,9 @@ history:
 **Purpose**: Test that mission.yaml loads correctly and passes validation.
 
 **Steps**:
+
 1. Add test for successful loading:
+
    ```python
    def test_documentation_mission_loads():
        """Test documentation mission loads from src/specify_cli/missions/."""
@@ -181,6 +191,7 @@ history:
    ```
 
 2. Add test for mission appears in list:
+
    ```python
    def test_documentation_mission_in_list():
        """Test documentation mission appears in available missions."""
@@ -190,6 +201,7 @@ history:
    ```
 
 3. Add test for config validation:
+
    ```python
    def test_documentation_mission_config_valid():
        """Test mission.yaml passes pydantic validation."""
@@ -208,6 +220,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests use actual mission files from src/specify_cli/missions/documentation/
 - No mocking needed (tests real mission loading)
 - Fast tests (< 10ms each)
@@ -217,7 +230,9 @@ history:
 **Purpose**: Test that documentation mission has correct workflow phases (discover, audit, design, generate, validate, publish).
 
 **Steps**:
+
 1. Add test for phase definitions:
+
    ```python
    def test_documentation_mission_workflow_phases():
        """Test documentation mission has 6 workflow phases."""
@@ -252,6 +267,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Validates phase count and names
 - Validates phase order (discover first, publish last)
 - Validates descriptions are present
@@ -261,7 +277,9 @@ history:
 **Purpose**: Test that mission defines appropriate artifacts and path conventions.
 
 **Steps**:
+
 1. Add test for required artifacts:
+
    ```python
    def test_documentation_mission_required_artifacts():
        """Test documentation mission requires appropriate artifacts."""
@@ -275,6 +293,7 @@ history:
    ```
 
 2. Add test for optional artifacts:
+
    ```python
    def test_documentation_mission_optional_artifacts():
        """Test documentation mission has optional artifacts."""
@@ -287,6 +306,7 @@ history:
    ```
 
 3. Add test for path conventions:
+
    ```python
    def test_documentation_mission_path_conventions():
        """Test documentation mission defines path conventions."""
@@ -303,6 +323,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Validates required artifacts include gap-analysis.md
 - Validates path conventions point to docs/
 - Tests actual values from mission.yaml
@@ -312,8 +333,10 @@ history:
 **Purpose**: Create test file for template structure and content validation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/missions/test_documentation_templates.py`
 2. Add imports:
+
    ```python
    """Tests for documentation mission templates."""
 
@@ -334,7 +357,9 @@ history:
 **Purpose**: Test that each Divio template has valid frontmatter with type field.
 
 **Steps**:
+
 1. Add parametrized test for frontmatter:
+
    ```python
    @pytest.mark.parametrize("template_name,expected_type", [
        ("divio/tutorial-template.md", "tutorial"),
@@ -377,6 +402,7 @@ history:
 **Parallel?**: Yes (parametrized test runs in parallel)
 
 **Notes**:
+
 - Tests all four Divio templates
 - Validates frontmatter exists and is valid YAML
 - Validates type field matches expected value
@@ -387,7 +413,9 @@ history:
 **Purpose**: Test that each Divio template has required sections per Divio principles.
 
 **Steps**:
+
 1. Add test for tutorial sections:
+
    ```python
    def test_tutorial_template_required_sections():
        """Test tutorial template has required sections."""
@@ -403,6 +431,7 @@ history:
    ```
 
 2. Add test for how-to sections:
+
    ```python
    def test_howto_template_required_sections():
        """Test how-to template has required sections."""
@@ -418,6 +447,7 @@ history:
    ```
 
 3. Add test for reference sections:
+
    ```python
    def test_reference_template_required_sections():
        """Test reference template has required sections."""
@@ -431,6 +461,7 @@ history:
    ```
 
 4. Add test for explanation sections:
+
    ```python
    def test_explanation_template_required_sections():
        """Test explanation template has required sections."""
@@ -449,6 +480,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests section presence (not content)
 - Flexible matching (OR conditions for variation)
 - Validates templates follow Divio structure
@@ -458,7 +490,9 @@ history:
 **Purpose**: Test that all command templates exist and reference appropriate workflow phases.
 
 **Steps**:
+
 1. Add test for command template existence:
+
    ```python
    def test_documentation_mission_command_templates():
        """Test all command templates exist."""
@@ -473,6 +507,7 @@ history:
    ```
 
 2. Add parametrized test for phase references:
+
    ```python
    @pytest.mark.parametrize("command_name,expected_phases", [
        ("specify", ["discover"]),
@@ -493,6 +528,7 @@ history:
    ```
 
 3. Add test for Divio mentions:
+
    ```python
    def test_command_templates_mention_divio():
        """Test command templates mention Divio types."""
@@ -519,6 +555,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests command templates exist and load
 - Validates phase references (each command mentions appropriate phase)
 - Validates Divio mentions (documentation-specific)
@@ -528,7 +565,9 @@ history:
 **Purpose**: Test that optional release-template.md has required sections for publish guidance.
 
 **Steps**:
+
 1. Add test for release template structure:
+
    ```python
    def test_release_template_required_sections():
        """Test release template has required sections for publish guidance."""
@@ -548,6 +587,7 @@ history:
    ```
 
 2. Add test for release template placeholders:
+
    ```python
    def test_release_template_has_placeholders():
        """Test release template has guidance placeholders."""
@@ -569,6 +609,7 @@ history:
 **Parallel?**: Yes (independent test function)
 
 **Notes**:
+
 - Release template is optional, but if present should guide complete handoff
 - Tests validate structure without requiring specific formatting
 - Placeholders ensure template provides guidance, not just empty sections
@@ -578,8 +619,10 @@ history:
 **Purpose**: Create test file for documentation generator protocol and implementations.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_doc_generators.py`
 2. Add imports and fixtures:
+
    ```python
    """Tests for documentation generators."""
 
@@ -611,7 +654,9 @@ history:
 **Purpose**: Test JSDocGenerator correctly detects JavaScript/TypeScript projects.
 
 **Steps**:
+
 1. Add test for package.json detection:
+
    ```python
    def test_jsdoc_detects_package_json(tmp_path):
        """Test JSDoc detects projects with package.json."""
@@ -622,6 +667,7 @@ history:
    ```
 
 2. Add test for JS file detection:
+
    ```python
    def test_jsdoc_detects_js_files(tmp_path):
        """Test JSDoc detects projects with .js files."""
@@ -634,6 +680,7 @@ history:
    ```
 
 3. Add test for TS file detection:
+
    ```python
    def test_jsdoc_detects_ts_files(tmp_path):
        """Test JSDoc detects projects with .ts files."""
@@ -644,6 +691,7 @@ history:
    ```
 
 4. Add negative test:
+
    ```python
    def test_jsdoc_does_not_detect_python_project(tmp_path):
        """Test JSDoc does not detect Python projects."""
@@ -664,7 +712,9 @@ history:
 **Purpose**: Test SphinxGenerator correctly detects Python projects.
 
 **Steps**:
+
 1. Add tests similar to JSDoc:
+
    ```python
    def test_sphinx_detects_setup_py(tmp_path):
        """Test Sphinx detects projects with setup.py."""
@@ -706,7 +756,9 @@ history:
 **Purpose**: Test RustdocGenerator correctly detects Rust projects.
 
 **Steps**:
+
 1. Add tests for rustdoc:
+
    ```python
    def test_rustdoc_detects_cargo_toml(tmp_path):
        """Test rustdoc detects projects with Cargo.toml."""
@@ -741,7 +793,9 @@ history:
 **Purpose**: Test generators handle missing tools gracefully with clear error messages.
 
 **Steps**:
+
 1. Add test for missing tool detection:
+
    ```python
    def test_jsdoc_raises_error_when_npx_missing(tmp_path, monkeypatch):
        """Test JSDoc raises GeneratorError when npx not installed."""
@@ -772,6 +826,7 @@ history:
    ```
 
 2. Add similar tests for Sphinx and rustdoc:
+
    ```python
    def test_sphinx_raises_error_when_sphinx_build_missing(tmp_path, monkeypatch):
        """Test Sphinx raises GeneratorError when sphinx-build not installed."""
@@ -789,6 +844,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Uses monkeypatch to mock subprocess.run
 - Tests that GeneratorError is raised (not generic exception)
 - Tests that error message includes installation URL
@@ -799,7 +855,9 @@ history:
 **Purpose**: Test end-to-end generator invocation with actual tools (marked as integration tests).
 
 **Steps**:
+
 1. Add Sphinx integration test:
+
    ```python
    @pytest.mark.integration
    def test_sphinx_generation_end_to_end(tmp_path):
@@ -855,6 +913,7 @@ history:
 **Parallel?**: Yes (independent integration tests)
 
 **Notes**:
+
 - Marked with @pytest.mark.integration
 - Skipped if tools not installed (pytest.skip)
 - Tests actual tool invocation (not mocked)
@@ -866,8 +925,10 @@ history:
 **Purpose**: Create test file for gap analysis functionality.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_gap_analysis.py`
 2. Add imports:
+
    ```python
    """Tests for documentation gap analysis."""
 
@@ -901,7 +962,9 @@ history:
 **Purpose**: Test framework detection correctly identifies documentation frameworks.
 
 **Steps**:
+
 1. Add tests for each framework:
+
    ```python
    def test_detect_sphinx_framework(tmp_path):
        """Test detects Sphinx from conf.py."""
@@ -955,7 +1018,9 @@ history:
 **Purpose**: Test Divio type classification from frontmatter and content heuristics.
 
 **Steps**:
+
 1. Add tests for frontmatter classification:
+
    ```python
    def test_classify_from_frontmatter():
        """Test classification from explicit frontmatter."""
@@ -988,6 +1053,7 @@ history:
    ```
 
 2. Add tests for heuristic classification:
+
    ```python
    def test_classify_tutorial_by_content():
        """Test tutorial classification from content heuristics."""
@@ -1066,6 +1132,7 @@ history:
    ```
 
 3. Add test for unclassifiable content:
+
    ```python
    def test_classify_unclassifiable_content():
        """Test returns UNCLASSIFIED for ambiguous content."""
@@ -1084,6 +1151,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests explicit classification (frontmatter)
 - Tests heuristic classification (content analysis)
 - Tests confidence scores (1.0 for explicit, 0.7 for heuristic, 0.0 for unclassified)
@@ -1094,7 +1162,9 @@ history:
 **Purpose**: Test CoverageMatrix class correctly builds matrix, calculates coverage, identifies gaps.
 
 **Steps**:
+
 1. Add test for matrix construction:
+
    ```python
    def test_coverage_matrix_initialization():
        """Test CoverageMatrix initializes correctly."""
@@ -1113,6 +1183,7 @@ history:
    ```
 
 2. Add test for gap identification:
+
    ```python
    def test_coverage_matrix_get_gaps():
        """Test get_gaps() returns missing cells."""
@@ -1134,6 +1205,7 @@ history:
    ```
 
 3. Add test for coverage percentage:
+
    ```python
    def test_coverage_matrix_percentage():
        """Test coverage percentage calculation."""
@@ -1156,6 +1228,7 @@ history:
    ```
 
 4. Add test for markdown table generation:
+
    ```python
    def test_coverage_matrix_markdown_table():
        """Test markdown table generation."""
@@ -1182,6 +1255,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests matrix construction and data access
 - Tests gap identification logic
 - Tests coverage calculation
@@ -1192,7 +1266,9 @@ history:
 **Purpose**: Test gap prioritization assigns appropriate priorities based on Divio type and project area.
 
 **Steps**:
+
 1. Add test for priority assignment:
+
    ```python
    def test_prioritize_tutorial_gaps_high():
        """Test tutorial gaps prioritized as HIGH."""
@@ -1234,6 +1310,7 @@ history:
    ```
 
 2. Add test for sorting by priority:
+
    ```python
    def test_gaps_sorted_by_priority():
        """Test gaps sorted with HIGH first, then MEDIUM, then LOW."""
@@ -1257,6 +1334,7 @@ history:
 **Parallel?**: Yes (independent test functions)
 
 **Notes**:
+
 - Tests priority assignment for each Divio type
 - Tests core vs peripheral area handling
 - Tests sorting by priority
@@ -1267,8 +1345,10 @@ history:
 **Purpose**: Create test file for documentation mission migration (tests from T050-T052).
 
 **Steps**:
+
 1. Create `tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py`
 2. Add imports:
+
    ```python
    """Tests for documentation mission installation migration."""
 
@@ -1292,7 +1372,9 @@ history:
 **Purpose**: Test migration correctly detects when documentation mission is missing.
 
 **Steps**:
+
 1. Add detection tests (from T048 notes):
+
    ```python
    def test_detect_missing_mission(tmp_path):
        """Test migration detects when documentation mission is missing."""
@@ -1327,7 +1409,9 @@ history:
 **Purpose**: Test migration correctly copies mission directory.
 
 **Steps**:
+
 1. Add tests for apply():
+
    ```python
    def test_apply_installs_mission(tmp_path):
        """Test migration successfully installs documentation mission."""
@@ -1380,7 +1464,9 @@ history:
 **Purpose**: Test migration can run multiple times safely (from T051).
 
 **Steps**:
+
 1. Add idempotency test (from T051 notes):
+
    ```python
    def test_migration_is_idempotent(tmp_path):
        """Test migration can run multiple times without errors."""
@@ -1429,7 +1515,9 @@ history:
 **Purpose**: Test migration doesn't affect existing missions (from T050).
 
 **Steps**:
+
 1. Add tests from T050 notes:
+
    ```python
    def test_migration_preserves_software_dev(tmp_path):
        """Test migration doesn't touch software-dev mission."""
@@ -1484,6 +1572,7 @@ history:
 ### Running Tests
 
 **All tests**:
+
 ```bash
 pytest tests/specify_cli/missions/test_documentation_mission.py -v
 pytest tests/specify_cli/missions/test_documentation_templates.py -v
@@ -1493,16 +1582,19 @@ pytest tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.
 ```
 
 **Unit tests only** (fast):
+
 ```bash
 pytest tests/specify_cli/ -v -m "not integration"
 ```
 
 **Integration tests** (require tools):
+
 ```bash
 pytest tests/specify_cli/ -v -m integration
 ```
 
 **With coverage**:
+
 ```bash
 pytest tests/specify_cli/ --cov=specify_cli.doc_generators --cov=specify_cli.gap_analysis --cov=specify_cli.doc_state --cov-report=html
 ```
@@ -1510,6 +1602,7 @@ pytest tests/specify_cli/ --cov=specify_cli.doc_generators --cov=specify_cli.gap
 ### Coverage Goals
 
 Target 80%+ coverage for:
+
 - `src/specify_cli/doc_generators.py`
 - `src/specify_cli/gap_analysis.py`
 - `src/specify_cli/doc_state.py`
@@ -1532,6 +1625,7 @@ Target 80%+ coverage for:
 ### Test Categories
 
 **Unit Tests** (~60 tests):
+
 - Mission loading (8 tests)
 - Template validation (12 tests)
 - Generator detection (12 tests)
@@ -1541,6 +1635,7 @@ Target 80%+ coverage for:
 - Migration (10 tests)
 
 **Integration Tests** (~5 tests):
+
 - Sphinx generation end-to-end
 - JSDoc generation end-to-end
 - rustdoc generation end-to-end
@@ -1548,6 +1643,7 @@ Target 80%+ coverage for:
 - Migration on real project
 
 **Parametrized Tests**:
+
 - Divio template frontmatter (4 templates)
 - Generator detection (3 generators × 3 scenarios)
 - Divio classification (5 types)
@@ -1566,6 +1662,7 @@ Target 80%+ coverage for:
 ## Definition of Done Checklist
 
 ### Test Files Created
+
 - [ ] `tests/specify_cli/missions/test_documentation_mission.py` created
 - [ ] `tests/specify_cli/missions/test_documentation_templates.py` created
 - [ ] `tests/specify_cli/test_doc_generators.py` created
@@ -1573,6 +1670,7 @@ Target 80%+ coverage for:
 - [ ] `tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py` created
 
 ### Mission Config Tests (test_documentation_mission.py)
+
 - [ ] T054: Test mission loads successfully
 - [ ] T054: Test mission appears in list
 - [ ] T054: Test config passes validation
@@ -1582,6 +1680,7 @@ Target 80%+ coverage for:
 - [ ] T056: Test path conventions define docs/ workspace
 
 ### Template Tests (test_documentation_templates.py)
+
 - [ ] T057: Test core templates exist (spec, plan, tasks)
 - [ ] T058: Test Divio templates have frontmatter (parametrized, 4 templates)
 - [ ] T058: Test frontmatter type field matches expected value
@@ -1594,6 +1693,7 @@ Target 80%+ coverage for:
 - [ ] T060: Test command templates mention Divio types
 
 ### Generator Tests (test_doc_generators.py)
+
 - [ ] T061: Test protocol compliance (all generators implement protocol)
 - [ ] T062: Test JSDoc detects package.json projects
 - [ ] T062: Test JSDoc detects .js files
@@ -1615,6 +1715,7 @@ Target 80%+ coverage for:
 - [ ] T066: [@pytest.mark.integration] Test rustdoc end-to-end generation
 
 ### Gap Analysis Tests (test_gap_analysis.py)
+
 - [ ] T068: Test detect Sphinx framework (conf.py)
 - [ ] T068: Test detect MkDocs framework (mkdocs.yml)
 - [ ] T068: Test detect Docusaurus framework (docusaurus.config.js)
@@ -1638,6 +1739,7 @@ Target 80%+ coverage for:
 - [ ] T071: Test gaps sorted by priority
 
 ### Migration Tests (test_m_0_12_0_documentation_mission.py)
+
 - [ ] T073: Test detect missing mission
 - [ ] T073: Test detect existing mission
 - [ ] T073: Test detect non-kittify project
@@ -1653,6 +1755,7 @@ Target 80%+ coverage for:
 - [ ] T052: Test migration can be loaded and instantiated
 
 ### Test Execution
+
 - [ ] All unit tests pass (100%)
 - [ ] Integration tests pass (if tools installed) or skip gracefully
 - [ ] Code coverage ≥80% for new modules
@@ -1661,12 +1764,14 @@ Target 80%+ coverage for:
 - [ ] Test execution time reasonable (unit <10s total, integration <30s total)
 
 ### Documentation
+
 - [ ] Test files have docstrings explaining what they test
 - [ ] Complex tests have inline comments
 - [ ] Fixtures are documented
 - [ ] Integration test requirements documented (which tools needed)
 
 ### Quality
+
 - [ ] `tasks.md` in feature directory updated with WP09 status
 
 ## Review Guidance
@@ -1681,6 +1786,7 @@ Target 80%+ coverage for:
 6. **Edge Cases**: Tests cover error cases, empty inputs, invalid data
 
 **Validation Commands**:
+
 ```bash
 # Run all tests
 pytest tests/specify_cli/missions/test_documentation_mission.py \
@@ -1705,6 +1811,7 @@ pytest tests/specify_cli/ -v -m integration
 ```
 
 **Review Focus Areas**:
+
 - All critical functionality has tests
 - Tests actually test the behavior (not just imports)
 - Edge cases and error conditions covered

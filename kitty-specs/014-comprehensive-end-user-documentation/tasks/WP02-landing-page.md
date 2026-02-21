@@ -39,13 +39,14 @@ history:
 **Date**: 2026-01-16
 
 **Issue 1: Landing page exceeds required length**
+
 - WP02 requires `docs/index.md` to be < 100 lines. Current file is 108 lines.
 Please shorten the landing page to under 100 lines (e.g., trim the Quick Start block or compress sections) while keeping logo and dashboard images.
 
 **Issue 2: DocFX build verification missing**
+
 - T007 requires verifying `docfx docs/docfx.json` builds without errors (warnings OK). The activity log notes DocFX was not installed and the build was not run.
 Please run the DocFX build and confirm it succeeds, or document any errors and fix them.
-
 
 ## Objectives & Success Criteria
 
@@ -62,6 +63,7 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
 - **Target**: < 100 lines, focused on navigation and value proposition
 
 ### Design Principles
+
 - Landing page should answer: "What is spec-kitty and where do I start?"
 - Clear navigation to all 4 Divio sections
 - Keep dashboard screenshots and logo (they're valuable)
@@ -70,9 +72,11 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
 ## Subtasks & Detailed Guidance
 
 ### Subtask T005 – Rewrite index.md as Landing Page
+
 - **Purpose**: Create a focused entry point that guides users to the right content
 - **Steps**:
   1. Create new `docs/index.md` with structure:
+
      ```markdown
      # Spec Kitty Documentation
 
@@ -106,6 +110,7 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
      ## Dashboard Preview
      [Keep existing dashboard screenshots]
      ```
+
   2. Keep the logo and dashboard images
   3. Remove all tutorial/reference content (move to appropriate sections)
 - **Files**: `docs/index.md`
@@ -113,9 +118,11 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
 - **Notes**: Links can point to files that don't exist yet (they'll be created in WP03-WP08)
 
 ### Subtask T006 – Update toc.yml for Divio Structure
+
 - **Purpose**: Configure DocFX navigation for 4-type documentation
 - **Steps**:
   1. Rewrite `docs/toc.yml` with structure:
+
      ```yaml
      - name: Home
        href: index.md
@@ -149,6 +156,7 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
            href: explanation/spec-driven-development.md
          # ... all explanations
      ```
+
   2. Include ALL planned documentation files (even if not created yet)
   3. Order items logically within each section
 - **Files**: `docs/toc.yml`
@@ -156,6 +164,7 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
 - **Notes**: DocFX will warn about missing files but will build
 
 ### Subtask T007 – Verify DocFX Build
+
 - **Purpose**: Ensure the new structure works with DocFX
 - **Steps**:
   1. Install DocFX if not available: `dotnet tool install -g docfx`

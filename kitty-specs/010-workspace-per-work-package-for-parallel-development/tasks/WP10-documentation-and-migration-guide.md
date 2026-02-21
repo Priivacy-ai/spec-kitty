@@ -29,6 +29,7 @@ subtasks:
 # Work Package Prompt: WP10 – Documentation and Migration Guide
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP10 --base WP09
 ```
@@ -79,6 +80,7 @@ spec-kitty implement WP10 --base WP09
 **Primary Goal**: Create comprehensive documentation for workspace-per-WP feature, including migration guide, workflow documentation, breaking change notes, and changelog.
 
 **Success Criteria**:
+
 - ✅ Migration guide created with step-by-step upgrade instructions
 - ✅ Workspace-per-WP workflow documented with examples
 - ✅ Dependency syntax documented
@@ -95,12 +97,14 @@ spec-kitty implement WP10 --base WP09
 **Why comprehensive docs critical**: This is a breaking change (0.10.12 → 0.11.0). Users will be frustrated if upgrade instructions are unclear or incomplete. Documentation must be thorough enough for self-service migration.
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - User Stories 3, 4 (planning workflow, dependency handling)
 - [plan.md](../plan.md) - Breaking Change Communication section
 - [quickstart.md](../quickstart.md) - Already exists, needs expansion with real examples
 - [data-model.md](../data-model.md) - Example scenarios to document
 
 **Documentation Tone**:
+
 - Clear and direct (not marketing-speak)
 - Step-by-step for migration guide
 - Examples for common workflows
@@ -116,8 +120,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Document the new workspace-per-WP workflow with examples and comparisons to old model.
 
 **Steps**:
+
 1. Create `docs/workspace-per-wp.md`
 2. Structure:
+
    ```markdown
    # Workspace-per-Work-Package (v0.11.0+)
 
@@ -185,8 +191,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Step-by-step guide for upgrading from 0.10.x to 0.11.0.
 
 **Steps**:
+
 1. Create `docs/upgrading-to-0-11-0.md`
 2. Structure:
+
    ```markdown
    # Upgrading to Spec Kitty 0.11.0
 
@@ -210,6 +218,7 @@ spec-kitty implement WP10 --base WP09
    - `010-workspace-per-wp-WP01/` ← New (OK)
 
    Or use utility command:
+
    ```bash
    spec-kitty list-legacy-features
    ```
@@ -217,12 +226,14 @@ spec-kitty implement WP10 --base WP09
    ### Step 2: Complete or Delete Features
 
    **Option A: Complete features (recommended)**
+
    ```bash
    spec-kitty merge 008-unified-python-cli
    spec-kitty merge 009-jujutsu-vcs
    ```
 
    **Option B: Delete features (if abandoning)**
+
    ```bash
    git worktree remove .worktrees/008-unified-python-cli
    git branch -D 008-unified-python-cli
@@ -248,6 +259,7 @@ spec-kitty implement WP10 --base WP09
    ### Step 5: Verify Upgrade
 
    Create a test feature to verify new workflow:
+
    ```bash
    /spec-kitty.specify "Test Feature"
    # Notice: NO worktree created!
@@ -260,6 +272,7 @@ spec-kitty implement WP10 --base WP09
    ## If Upgrade is Blocked
 
    Error message:
+
    ```
    ❌ Cannot upgrade to 0.11.0
    Legacy worktrees detected:
@@ -275,6 +288,7 @@ spec-kitty implement WP10 --base WP09
    ## Rollback
 
    If you need to downgrade:
+
    ```bash
    pip install spec-kitty-cli==0.10.12
    ```
@@ -284,6 +298,7 @@ spec-kitty implement WP10 --base WP09
    ## Getting Help
 
    [Link to issues, documentation, troubleshooting]
+
    ```
 
 3. Test guide by following it on a test project
@@ -300,8 +315,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Clear checklist users can follow before upgrading.
 
 **Steps**:
+
 1. Create checklist section in upgrading-to-0-11-0.md (T087)
 2. Checklist content:
+
    ```markdown
    ## Pre-Upgrade Checklist
 
@@ -318,6 +335,7 @@ spec-kitty implement WP10 --base WP09
      - Delete: `git worktree remove .worktrees/<feature>` + `git branch -D <branch>`
 
    - [ ] **Verify clean state**
+
      ```bash
      ls .worktrees/
      # Should be empty or only ###-feature-WP## patterns
@@ -328,12 +346,14 @@ spec-kitty implement WP10 --base WP09
    - [ ] **Read breaking changes**: Review what changed in 0.11.0
 
    - [ ] **Upgrade**
+
      ```bash
      pip install --upgrade spec-kitty-cli
      spec-kitty --version  # Verify 0.11.0
      ```
 
    - [ ] **Test with dummy feature**
+
      ```bash
      /spec-kitty.specify "Test"
      # Verify no worktree created
@@ -341,6 +361,7 @@ spec-kitty implement WP10 --base WP09
      ```
 
    **If any checklist item fails**, resolve before proceeding to next step.
+
    ```
 
 **Files**: `docs/upgrading-to-0-11-0.md` (section within file)
@@ -354,8 +375,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Explain how to declare dependencies in WP frontmatter and what it means.
 
 **Steps**:
+
 1. Add to `docs/workspace-per-wp.md` (T086) or create separate doc
 2. Content:
+
    ```markdown
    ## Dependency Syntax
 
@@ -411,6 +434,7 @@ spec-kitty implement WP10 --base WP09
    dependencies: ["WP99"]  # Invalid: WP99 doesn't exist
    dependencies: ["WP02"]  # Invalid in WP02 (self-dependency)
    ```
+
    ```
 
 **Files**: `docs/workspace-per-wp.md` or `docs/dependency-syntax.md`
@@ -424,8 +448,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Alert users in main README about 0.11.0 breaking change.
 
 **Steps**:
+
 1. Open `README.md` in repository root
 2. Add breaking change notice near top (after title, before features):
+
    ```markdown
    ## ⚠️ Breaking Change in v0.11.0
 
@@ -462,8 +488,10 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: Document all changes in 0.11.0 release for changelog.
 
 **Steps**:
+
 1. Open `CHANGELOG.md`
 2. Add 0.11.0 entry at top:
+
    ```markdown
    ## [0.11.0] - 2026-01-XX
 
@@ -520,7 +548,7 @@ spec-kitty implement WP10 --base WP09
    [Previous version entries...]
    ```
 
-3. Follow Keep a Changelog format (https://keepachangelog.com)
+3. Follow Keep a Changelog format (<https://keepachangelog.com>)
 4. Include all changes from this feature
 
 **Files**: `CHANGELOG.md`
@@ -536,6 +564,7 @@ spec-kitty implement WP10 --base WP09
 **Purpose**: quickstart.md already exists from planning phase - expand it with real-world scenarios users can follow.
 
 **Steps**:
+
 1. Open `kitty-specs/010-workspace-per-work-package-for-parallel-development/quickstart.md`
 2. Add sections if missing:
    - Real feature example (not placeholder "011-my-feature")
@@ -548,6 +577,7 @@ spec-kitty implement WP10 --base WP09
 **Files**: `kitty-specs/010-workspace-per-work-package-for-parallel-development/quickstart.md`
 
 **Example Addition**:
+
 ```markdown
 ## Real Example: This Feature (010-workspace-per-wp)
 
@@ -572,6 +602,7 @@ This feature itself was built using the NEW workspace-per-WP model as a dogfoodi
 ```
 
 ### Implementation Phase (worktrees created)
+
 ```bash
 # WP01 - Foundation
 spec-kitty implement WP01
@@ -587,6 +618,7 @@ spec-kitty implement WP06               # Independent, parallel!
 ```
 
 [Continue with full example...]
+
 ```
 
 **Parallel?**: Can write in parallel
@@ -628,26 +660,30 @@ spec-kitty implement WP06               # Independent, parallel!
    ```
 
    **Use --base flag:**
+
    ```bash
    spec-kitty implement WP02 --base WP01  # Branches from WP01
    ```
 
-   ### Testing Requirements
+### Testing Requirements
 
    **For workspace-per-WP features:**
-   - Write migration tests for template updates (parametrized across agents)
-   - Write integration tests for full workflow (specify → implement → merge)
-   - Write dependency graph tests (cycle detection, validation)
 
-   ### Agent Template Updates
+- Write migration tests for template updates (parametrized across agents)
+- Write integration tests for full workflow (specify → implement → merge)
+- Write dependency graph tests (cycle detection, validation)
+
+### Agent Template Updates
 
    **When modifying workflow commands, update ALL 12 agents:**
    [List AGENT_DIRS]
 
    **Test with migration test:**
+
    ```bash
    pytest tests/specify_cli/test_workspace_per_wp_migration.py -v
    ```
+
    ```
 
 3. Update "Recent Changes" section (already done in earlier step)
@@ -766,6 +802,7 @@ spec-kitty implement WP06               # Independent, parallel!
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP10
 ```
@@ -773,6 +810,7 @@ spec-kitty agent workflow implement WP10
 Or edit the `lane:` field in frontmatter directly.
 
 ---
+
 - 2026-01-08T11:03:49Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T11:10:48Z – unknown – lane=for_review – Documentation complete: workspace-per-wp.md, upgrading-to-0-11-0.md, README.md breaking change notice, CHANGELOG.md comprehensive 0.11.0 entry, expanded quickstart.md with dogfooding example, updated CLAUDE.md with development guidelines
 - 2026-01-08T11:13:48Z – agent – lane=doing – Started review via workflow command
@@ -788,6 +826,7 @@ Or edit the `lane:` field in frontmatter directly.
 ## Post-Implementation Note
 
 After WP10 completes, the feature is ready for merge and release:
+
 1. All WPs complete (WP01-WP10 in done lane)
 2. All tests passing (unit, integration, migration)
 3. Documentation complete

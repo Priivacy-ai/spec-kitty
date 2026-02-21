@@ -8,6 +8,7 @@
 Integrate the completed spec-kitty-events library into the CLI to replace primitive YAML activity logs with structured event log using Lamport clocks and CRDT merge rules. This feature provides causal ordering, conflict detection, and deterministic merge rules to serve as the foundation for CLI ↔ Django sync protocol (Dependency 0 for SaaS platform).
 
 **Key Technical Decisions** (validated during planning interrogation):
+
 - Events-only on 2.x branch (no YAML logs, migration script deferred)
 - AOP-style middleware for event emission integration
 - AOP decorator pattern for EventStore dependency injection (`@with_event_store`)
@@ -21,6 +22,7 @@ Integrate the completed spec-kitty-events library into the CLI to replace primit
 
 **Language/Version**: Python 3.11+ (existing spec-kitty requirement per constitution)
 **Primary Dependencies**:
+
 - spec-kitty-events (Git dependency: `git+https://github.com/Priivacy-ai/spec-kitty-events.git@<commit>`)
 - pathlib (event log file operations)
 - sqlite3 (query index)
@@ -28,6 +30,7 @@ Integrate the completed spec-kitty-events library into the CLI to replace primit
 - ruamel.yaml (frontmatter parsing, existing)
 
 **Storage**:
+
 - JSONL files (`.kittify/events/YYYY-MM-DD.jsonl`) - append-only, source of truth
 - JSON file (`.kittify/clock.json`) - Lamport clock state
 - SQLite database (`.kittify/events/index.db`) - query optimization index
@@ -40,17 +43,20 @@ Integrate the completed spec-kitty-events library into the CLI to replace primit
 **Project Type**: Single Python CLI application (spec-kitty existing codebase)
 
 **Performance Goals**:
+
 - Event write latency: <15ms per event (synchronous JSONL + index)
 - CLI command completion: <2 seconds (constitution requirement - 15ms event overhead trivial)
 - Index query: <500ms for 1000+ events (user story 3 acceptance criteria)
 
 **Constraints**:
+
 - File locking required (POSIX advisory locks for atomic appends)
 - Daily file rotation (Git merge-friendly, manageable file sizes)
 - JSONL as source of truth (index is derived state, rebuilds on corruption)
 - Immutable events (append-only, no updates/deletes)
 
 **Scale/Scope**:
+
 - Expected event volume: <100k events/month per project (research: adequate for Postgres JSONL)
 - Deployment: 2.x branch only (no 1.x migration until 2.x nears completion)
 - Integration: Foundation for CLI ↔ Django sync protocol (future feature)
@@ -87,6 +93,7 @@ Integrate the completed spec-kitty-events library into the CLI to replace primit
 ### Post-Design Re-Check
 
 *To be completed after Phase 1 design artifacts generated. Will validate:*
+
 - Data model entities don't introduce unexpected complexity
 - Event schema versioning strategy documented
 - Error handling patterns align with constitution quality gates
@@ -150,6 +157,7 @@ tests/
 ```
 
 **Integration Points**:
+
 - `spec-kitty agent tasks move-task` → Emits `WPStatusChanged` event
 - `spec-kitty status` → Reads events, reconstructs kanban board
 - `spec-kitty agent feature setup-spec` → Emits `SpecCreated` event
@@ -189,6 +197,7 @@ Three foundational research areas validated the technical approach:
    - Event sourcing enables audit trail (Temporal pattern)
 
 **Key Decisions**:
+
 - ✅ JSONL + SQLite (not Postgres or EventStoreDB)
 - ✅ Synchronous writes (not async or write-through cache)
 - ✅ Last-Write-Wins with Lamport clocks (not CRDTs or OT)
@@ -207,6 +216,7 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 ### Data Model Design
 
 **Core Entities** (defined in `data-model.md`):
+
 1. **Event**: Immutable record with ULID, Lamport clock, entity_id, event_type, payload
 2. **LamportClock**: Logical clock providing causal ordering (stored in `clock.json`)
 3. **EventStore**: Storage adapter wrapping spec-kitty-events library
@@ -215,6 +225,7 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 6. **ErrorStorage**: Error logging for Manus pattern (agent learning)
 
 **Event Types** (7 types defined):
+
 - Workflow: `WPStatusChanged`, `SpecCreated`, `WPCreated`, `WorkspaceCreated`, `SubtaskCompleted`
 - Gates: `GateCreated`, `GateResultChanged`
 
@@ -223,6 +234,7 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 ### Contracts
 
 **JSON Schemas** (in `contracts/`):
+
 - `EventV1.json`: Base event schema with required fields (event_id ULID, lamport_clock, entity_id, payload)
 - `WPStatusChangedPayload.json`: Payload schema for workflow transitions (feature_slug, old_status, new_status, gate_results)
 
@@ -233,6 +245,7 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 ### Quickstart Guide
 
 **Usage Examples** (in `quickstart.md`):
+
 1. Emit event on status change (`move_task` command)
 2. Read status from event log (`status` command)
 3. Query event history (Python API)
@@ -251,6 +264,7 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 Event log integration is **internal infrastructure** - it happens behind the scenes via AOP middleware decorators. The command interfaces (`/spec-kitty.implement`, `/spec-kitty.status`, `/spec-kitty.specify`, etc.) remain unchanged from the user's perspective.
 
 **No template updates needed** because:
+
 - Event emission is automatic (via `@with_event_store` decorator)
 - Commands don't expose event log operations directly to users
 - Event log is transparent to agents (they use existing commands as before)
@@ -272,6 +286,7 @@ Event log integration is **internal infrastructure** - it happens behind the sce
 | **Performance Targets** | ✅ PASS | Event write <15ms, status reconstruction <50ms (within <2s budget) |
 
 **New Architectural Patterns Introduced**:
+
 1. **AOP Middleware**: `@with_event_store` decorator for event emission (non-invasive integration)
 2. **Dual Storage**: JSONL (source of truth) + SQLite index (derived state for queries)
 3. **Weak Schema Versioning**: Tolerate missing fields on read, validate strictly on write

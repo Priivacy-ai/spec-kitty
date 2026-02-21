@@ -55,6 +55,7 @@ history:
 **Goal**: Fix 4 existing migrations to handle missing files gracefully + create new migration to remove mission-specific constitutions.
 
 **Success Criteria**:
+
 1. `m_0_7_3_update_scripts.py` handles missing bash scripts gracefully (returns success with warning, not failure)
 2. `m_0_10_6_workflow_simplification.py` copies templates BEFORE checking can_apply() (not during)
 3. `m_0_10_2_update_slash_commands.py` explicitly removes legacy .toml files
@@ -65,6 +66,7 @@ history:
 8. Upgrade from 0.6.4 → 0.10.12 completes without manual intervention
 
 **Acceptance Test**:
+
 ```bash
 # Create 0.6.4 project simulation
 mkdir /tmp/test-upgrade
@@ -89,17 +91,20 @@ echo $?  # Should be 0 (no errors)
 **Why This Matters**: Migration failures block users from upgrading. Currently, migrations fail partway through due to assumptions about file existence, requiring manual cleanup and deep knowledge of the migration system.
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (FR-021 through FR-027, User Story 4)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Migration section)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (Research Area 3: Migration Repair Patterns)
 - Data Model: `kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md` (Entity 2: Migration Structure)
 
 **Problem Pattern**: Existing migrations use `can_apply()` to check if files exist in package, then fail if files missing. This breaks when:
+
 1. Package structure changes between versions (files removed)
 2. User manually deleted files
 3. Earlier migrations already cleaned up files
 
 **Solution Pattern**:
+
 - `can_apply()` should always return `(True, "")` unless structural issues exist
 - `apply()` should handle missing files gracefully with warnings, not errors
 - All migrations must be idempotent (safe to run multiple times)
@@ -119,6 +124,7 @@ echo $?  # Should be 0 (no errors)
 **File**: `src/specify_cli/upgrade/migrations/m_0_7_3_update_scripts.py`
 
 **Current Code** (lines 44-55):
+
 ```python
 def can_apply(self, project_path: Path) -> tuple[bool, str]:
     """Check if we can find the template scripts."""
@@ -137,6 +143,7 @@ def can_apply(self, project_path: Path) -> tuple[bool, str]:
 **Problem**: If bash scripts removed from package in later version, migration fails instead of skipping gracefully.
 
 **New Code**:
+
 ```python
 def can_apply(self, project_path: Path) -> tuple[bool, str]:
     """Check if we can apply this migration.
@@ -155,6 +162,7 @@ def can_apply(self, project_path: Path) -> tuple[bool, str]:
 ```
 
 **Update apply() method** (lines 57-100):
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
     """Copy updated scripts from package templates."""
@@ -226,6 +234,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 ```
 
 **Key Changes**:
+
 1. `can_apply()` always returns True (unless not a spec-kitty project)
 2. `apply()` checks if scripts exist before trying to copy
 3. If no scripts found, returns success with warning (not error)
@@ -233,6 +242,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 5. Migration succeeds even if scripts missing
 
 **Testing**:
+
 ```python
 # Test 1: Normal case (scripts exist)
 assert migration.can_apply(project_path) == (True, "")
@@ -263,6 +273,7 @@ assert result1.success == result2.success
 **File**: `src/specify_cli/upgrade/migrations/m_0_10_6_workflow_simplification.py`
 
 **Current Code** (lines 78-94):
+
 ```python
 def can_apply(self, project_path: Path) -> tuple[bool, str]:
     """Check if we have mission templates to copy from."""
@@ -286,11 +297,13 @@ def can_apply(self, project_path: Path) -> tuple[bool, str]:
 **Problem**: This assumes mission templates already have the new workflow commands. But where would they come from? They need to be copied from the package first!
 
 **Solution**: The check is backwards. The migration should:
+
 1. Always return `(True, "")` from `can_apply()` (except structural issues)
 2. Copy templates from package during `apply()`
 3. If package templates don't have workflow commands, add warning but succeed
 
 **New Code**:
+
 ```python
 def can_apply(self, project_path: Path) -> tuple[bool, str]:
     """Check if we can apply this migration.
@@ -308,6 +321,7 @@ def can_apply(self, project_path: Path) -> tuple[bool, str]:
 ```
 
 **Update apply() method** (lines 96-156):
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
     """Update implement and review slash commands with new workflow-based templates."""
@@ -402,6 +416,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 ```
 
 **Key Changes**:
+
 1. `can_apply()` no longer checks if templates already updated
 2. `apply()` copies mission templates from package FIRST
 3. Then updates agent slash commands from those mission templates
@@ -409,6 +424,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 5. Checks both new (`pkg_root/missions/`) and old (`.kittify/missions/`) locations for compatibility
 
 **Testing**:
+
 ```python
 # Test 1: Fresh project, templates need update
 result = migration.apply(project_path)
@@ -439,6 +455,7 @@ assert len(result.warnings) > 0
 **File**: `src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py`
 
 **Expected Current Behavior** (need to verify):
+
 - Reads `.kittify/commands/*.toml` files
 - Creates equivalent `.claude/commands/spec-kitty.*.md` files
 - May or may not delete original .toml files
@@ -446,11 +463,13 @@ assert len(result.warnings) > 0
 **Required Change**: Ensure .toml files are explicitly removed after conversion.
 
 **Investigation Steps**:
+
 1. Read the migration file to understand current behavior
 2. Check if it already removes .toml files
 3. If not, add explicit removal step
 
 **Code Pattern to Add** (if missing):
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
     changes = []
@@ -488,6 +507,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 ```
 
 **Steps**:
+
 1. Read `src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py`
 2. Locate the `apply()` method
 3. Check if .toml removal already present
@@ -496,6 +516,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 6. Add changes to MigrationResult
 
 **Verification**:
+
 ```python
 # Setup: Create project with .toml files
 toml_file = project_path / ".kittify" / "commands" / "specify.toml"
@@ -528,11 +549,13 @@ assert result2.success == True  # Should succeed even if .toml already gone
 **Expected Cleanup**: This migration removes bash/powershell scripts in favor of Python-only workflow. Should also remove `.kittify/scripts/tasks/` which contained Python helper scripts that are now obsolete.
 
 **Investigation Steps**:
+
 1. Read migration file to check current cleanup logic
 2. Verify if `.kittify/scripts/tasks/` removal is explicit
 3. If missing, add explicit removal
 
 **Code Pattern to Add** (if missing):
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
     changes = []
@@ -557,6 +580,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 ```
 
 **Steps**:
+
 1. Read `src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py`
 2. Locate `apply()` method
 3. Check if tasks/ directory removal is present
@@ -564,6 +588,7 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 5. Ensure idempotency (if directory already gone, don't error)
 
 **Verification**:
+
 ```python
 # Setup: Create obsolete tasks directory
 tasks_dir = project_path / ".kittify" / "scripts" / "tasks"
@@ -592,6 +617,7 @@ assert result2.success == True  # Should succeed even if directory already gone
 **File**: Create new `src/specify_cli/upgrade/migrations/m_0_10_12_constitution_cleanup.py`
 
 **Template** (from research.md):
+
 ```python
 """Migration: Remove mission-specific constitution directories."""
 
@@ -727,6 +753,7 @@ class ConstitutionCleanupMigration(BaseMigration):
 ```
 
 **Steps**:
+
 1. Create new file: `src/specify_cli/upgrade/migrations/m_0_10_12_constitution_cleanup.py`
 2. Copy template code above
 3. Ensure proper imports (`shutil`, `Path`, `List`, `MigrationRegistry`, `BaseMigration`, `MigrationResult`)
@@ -739,6 +766,7 @@ class ConstitutionCleanupMigration(BaseMigration):
 7. Ensure idempotency (safe to run multiple times)
 
 **Testing Checklist**:
+
 ```python
 # Test 1: detect() finds constitutions
 missions_dir = project_path / ".kittify" / "missions" / "software-dev" / "constitution"
@@ -775,6 +803,7 @@ assert (project_path / ".kittify" / "missions" / "software-dev" / "constitution"
 **File**: `src/specify_cli/upgrade/migrations/__init__.py` or registry module
 
 **Steps**:
+
 1. Check how migrations are registered
 2. If using `@MigrationRegistry.register` decorator (as in template above):
    - Verify decorator is present in T014 code
@@ -783,6 +812,7 @@ assert (project_path / ".kittify" / "missions" / "software-dev" / "constitution"
    - Add registration call in appropriate place
 
 **Expected Registration Pattern**:
+
 ```python
 # In src/specify_cli/upgrade/migrations/__init__.py
 
@@ -799,6 +829,7 @@ from . import m_0_10_12_constitution_cleanup  # ADD THIS LINE
 ```
 
 **Verification**:
+
 ```python
 # Test: New migration appears in registry
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -810,6 +841,7 @@ assert "0.10.12_constitution_cleanup" in migration_ids
 ```
 
 **Additional Checks**:
+
 1. Verify migration is in correct version order
 2. Ensure target_version is "0.10.12"
 3. Confirm migration_id follows naming pattern: `X.Y.Z_description`
@@ -821,11 +853,13 @@ assert "0.10.12_constitution_cleanup" in migration_ids
 **Purpose**: Prove all migrations can be run multiple times without errors.
 
 **Test Approach**: For each migration, run it twice on the same project and verify:
+
 1. Both runs succeed
 2. Second run produces same or similar result as first
 3. No errors on second run (may have warnings like "already clean")
 
 **Test Script Template**:
+
 ```python
 #!/usr/bin/env python3
 """Test migration idempotency.
@@ -955,18 +989,21 @@ if __name__ == "__main__":
 ```
 
 **Steps**:
+
 1. Create test script (above template)
 2. Run script to test all 5 migrations
 3. Fix any migrations that fail idempotency test
 4. Document results in migration testing report
 
 **Expected Results**:
+
 - All migrations succeed on first run
 - All migrations succeed on second run
 - Second run may have fewer changes (already done) but no errors
 - Warnings acceptable (e.g., "already clean", "already updated")
 
 **Failure Cases to Fix**:
+
 - Error on second run → Migration not idempotent, needs fixing
 - Different errors first vs second run → State dependency issue
 - Crash on second run → Missing existence checks
@@ -976,6 +1013,7 @@ if __name__ == "__main__":
 ## Test Strategy
 
 **Unit Tests**: Each migration should have unit tests covering:
+
 1. `detect()` returns True when migration needed, False when not
 2. `can_apply()` handles missing project structure gracefully
 3. `apply()` succeeds with expected changes
@@ -983,6 +1021,7 @@ if __name__ == "__main__":
 5. `apply()` dry_run doesn't modify files
 
 **Integration Test**: Full upgrade path test (defer to WP06):
+
 - Create 0.6.4 project structure
 - Run `spec-kitty upgrade`
 - Verify all migrations succeeded
@@ -1023,6 +1062,7 @@ if __name__ == "__main__":
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Graceful handling**: All migrations succeed even when expected files missing
 2. **Idempotency verified**: Run twice test passes for all migrations
 3. **New migration complete**: Constitution cleanup migration fully implemented
@@ -1030,12 +1070,14 @@ if __name__ == "__main__":
 5. **Error handling robust**: Migrations use warnings instead of errors for missing files
 
 **Red Flags for Reviewer**:
+
 - Any migration throws exception for missing files
 - Second run of migration produces different errors than first run
 - New migration not registered (doesn't appear in migration list)
 - Hardcoded paths instead of using project_path parameter
 
 **Testing Checklist for Reviewer**:
+
 ```bash
 # 1. Run idempotency test script
 python tests/test_migration_idempotency.py
@@ -1068,6 +1110,7 @@ spec-kitty agent workflow implement WP02
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T10:43:24Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:48:17Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T11:45:00Z – claude-sonnet-4-5 – lane=done – Review passed: All migrations implemented correctly with graceful handling and idempotency. 21/21 tests passed.

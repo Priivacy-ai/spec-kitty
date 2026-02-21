@@ -31,6 +31,7 @@ history:
 Implement orchestration state persistence to enable resume after interruption.
 
 **Success Criteria**:
+
 - OrchestrationRun, WPExecution, InvocationResult dataclasses implemented
 - State saves to `.kittify/orchestration-state.json`
 - State loads correctly, preserving all fields
@@ -40,14 +41,17 @@ Implement orchestration state persistence to enable resume after interruption.
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [data-model.md](../data-model.md) - Entity schemas, validation rules, JSON schema
 - [spec.md](../spec.md) - FR-010, FR-011, FR-012 (state management requirements)
 - [plan.md](../plan.md) - Follow `merge/state.py` patterns
 
 **Existing Patterns**:
+
 - `src/specify_cli/merge/state.py` - MergeState persistence pattern
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP04 --base WP01
 ```
@@ -59,8 +63,10 @@ spec-kitty implement WP04 --base WP01
 **Purpose**: Track complete orchestration execution state.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/state.py`
 2. Implement OrchestrationRun matching data-model.md:
+
    ```python
    from dataclasses import dataclass, field
    from datetime import datetime
@@ -92,6 +98,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 3. Add serialization methods:
+
    ```python
    def to_dict(self) -> dict[str, Any]:
        """Serialize to JSON-compatible dict."""
@@ -104,6 +111,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/state.py`
 
 **Parallel?**: Yes - can proceed alongside T018, T019
@@ -115,7 +123,9 @@ spec-kitty implement WP04 --base WP01
 **Purpose**: Track individual work package execution state.
 
 **Steps**:
+
 1. Add to `state.py`:
+
    ```python
    @dataclass
    class WPExecution:
@@ -146,6 +156,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 2. Add validation method:
+
    ```python
    def validate(self) -> None:
        """Validate state transitions per data-model.md rules."""
@@ -164,7 +175,9 @@ spec-kitty implement WP04 --base WP01
 **Purpose**: Capture result from a single agent invocation.
 
 **Steps**:
+
 1. Move InvocationResult from `agents/base.py` to `state.py` (or keep in base and import):
+
    ```python
    @dataclass
    class InvocationResult:
@@ -184,6 +197,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 **Notes**:
+
 - This may already exist in WP02; ensure consistent definition
 - Consider keeping in `agents/base.py` and importing to `state.py`
 
@@ -196,7 +210,9 @@ spec-kitty implement WP04 --base WP01
 **Purpose**: Persist and restore orchestration state.
 
 **Steps**:
+
 1. Implement save function:
+
    ```python
    def save_state(state: OrchestrationRun, repo_root: Path) -> None:
        """Save orchestration state to JSON file."""
@@ -209,6 +225,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 2. Implement load function:
+
    ```python
    def load_state(repo_root: Path) -> OrchestrationRun | None:
        """Load orchestration state from JSON file."""
@@ -223,6 +240,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 3. Implement helper functions:
+
    ```python
    def has_active_orchestration(repo_root: Path) -> bool:
        """Check if there's an active (running/paused) orchestration."""
@@ -234,6 +252,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/state.py`
 
 ---
@@ -243,7 +262,9 @@ spec-kitty implement WP04 --base WP01
 **Purpose**: Prevent state corruption from crashes during write.
 
 **Steps**:
+
 1. Implement atomic write pattern:
+
    ```python
    import tempfile
    import shutil
@@ -274,6 +295,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 2. Implement JSON serializer for datetime:
+
    ```python
    def _json_serializer(obj: Any) -> Any:
        """JSON serializer for datetime and Path objects."""
@@ -285,6 +307,7 @@ spec-kitty implement WP04 --base WP01
    ```
 
 **Notes**:
+
 - Backup file allows recovery if new write is corrupted
 - Atomic rename ensures either old or new state, never partial
 

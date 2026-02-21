@@ -1,6 +1,5 @@
 # Implementation Plan: Constitution Parser and Structured Config
 
-
 **Branch**: `045-constitution-parser-and-structured-config` | **Date**: 2026-02-15 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `kitty-specs/045-constitution-doctrine-config-sync/spec.md`
 
@@ -29,6 +28,7 @@ Parse the constitution narrative markdown (`.kittify/memory/constitution.md`) in
 **Rationale**: Constitution contains both structured data (tables, code blocks, numbered rules) and qualitative prose. Deterministic parsing guarantees idempotency for structured content. AI handles the long tail of natural language guidance that can't be reliably regex-parsed.
 
 **Implementation**:
+
 - `ConstitutionParser` class with `parse_structured()` (deterministic) and `parse_prose()` (AI-assisted)
 - `parse_structured()` extracts: markdown tables → dicts, YAML code blocks → dicts, numbered lists → lists, heading hierarchy → section tree
 - `parse_prose()` sends unparsed sections to LLM with a structured output prompt
@@ -100,6 +100,7 @@ sections_parsed:
 **Decision**: Move file from `.kittify/memory/constitution.md` → `.kittify/constitution/constitution.md`, update all internal references, no symlink.
 
 **References to update**:
+
 1. `src/specify_cli/dashboard/handlers/api.py` line 110 — constitution path
 2. `src/specify_cli/missions/software-dev/command-templates/constitution.md` line 22 — location comment
 3. `src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py` — destination path

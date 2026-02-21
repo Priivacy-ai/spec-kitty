@@ -54,6 +54,7 @@ history:
 **Goal**: Replace POSIX-only signal handling with cross-platform psutil library to fix Windows dashboard ERR_EMPTY_RESPONSE issue (#71).
 
 **Success Criteria**:
+
 1. `psutil>=5.9.0` added to `pyproject.toml` dependencies
 2. All `os.kill(pid, 0)` replaced with `psutil.Process(pid).is_running()`
 3. All `signal.SIGKILL` usage replaced with `psutil.Process(pid).kill()` (6 locations)
@@ -65,6 +66,7 @@ history:
 9. Process termination works gracefully on all platforms (Linux, macOS, Windows)
 
 **Acceptance Test**:
+
 ```bash
 # On Windows 10/11
 spec-kitty dashboard
@@ -92,18 +94,21 @@ spec-kitty dashboard --stop
 **Why This Matters**: Windows users currently experience ERR_EMPTY_RESPONSE when accessing the dashboard. Root cause: POSIX-only signal handling (`signal.SIGKILL`, `signal.SIGTERM`) doesn't work on Windows.
 
 **Problem Details**:
+
 - `signal.SIGKILL` doesn't exist on Windows → AttributeError
 - `os.kill(pid, signal.SIGKILL)` crashes on Windows
 - Dashboard process may start but signal handling fails
 - HTTP server may not fully initialize due to signal errors
 
 **Solution**: Use `psutil` library which abstracts platform differences:
+
 - `psutil.Process(pid).is_running()` works on all platforms
 - `psutil.Process(pid).terminate()` = SIGTERM on POSIX, TerminateProcess on Windows
 - `psutil.Process(pid).kill()` = SIGKILL on POSIX, force terminate on Windows
 - `proc.wait(timeout=N)` prevents hanging on unresponsive processes
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (FR-017 through FR-020, User Story 3, Issue #71)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Track 2 UX Improvements)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (Research Area 2: psutil Cross-Platform Process Management)
@@ -112,6 +117,7 @@ spec-kitty dashboard --stop
 **Dependencies**: None (can run in parallel with WP01-WP03)
 
 **Platforms to Support**:
+
 - Linux (Ubuntu 20.04+, Debian, Fedora, etc.)
 - macOS (10.15+, 11.0+, 12.0+)
 - Windows (Windows 10, Windows 11, Windows Server 2019+)
@@ -127,6 +133,7 @@ spec-kitty dashboard --stop
 **File**: `pyproject.toml`
 
 **Current Dependencies** (around line 8-17):
+
 ```toml
 dependencies = [
     "typer>=0.9.0",
@@ -139,6 +146,7 @@ dependencies = [
 ```
 
 **Add psutil**:
+
 ```toml
 dependencies = [
     "typer>=0.9.0",
@@ -152,6 +160,7 @@ dependencies = [
 ```
 
 **Steps**:
+
 1. Read `pyproject.toml`
 2. Locate `dependencies` list (around line 8-17)
 3. Add `"psutil>=5.9.0",` with inline comment explaining purpose
@@ -159,12 +168,14 @@ dependencies = [
 5. Verify TOML syntax correct (trailing comma OK)
 
 **Version Selection Rationale**:
+
 - **5.9.0**: Released 2022-01, stable, widely tested
 - **Lower bound**: Ensures minimum feature set available
 - **No upper bound**: Allow users to get bug fixes and improvements
 - **Why not newer**: 5.9.0+ has all features we need, older versions may have Windows bugs
 
 **Verification**:
+
 ```bash
 # After adding dependency
 pip install -e .
@@ -184,11 +195,13 @@ EOF
 ```
 
 **Conflict Check**:
+
 - Note: WP01 also modifies `pyproject.toml` (removes force-includes)
 - This subtask adds dependency (different section)
 - No conflict: dependency section vs. build section
 
 **Documentation Note**:
+
 ```python
 # Add to pyproject.toml comment or module docstring
 """
@@ -207,6 +220,7 @@ signal.SIGTERM) which doesn't work on Windows.
 **File**: `src/specify_cli/dashboard/lifecycle.py`
 
 **Current Code** (around line 94-102):
+
 ```python
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive.
@@ -223,6 +237,7 @@ def _is_process_alive(pid: int) -> bool:
 **Issue**: `os.kill(pid, 0)` is POSIX-only. Windows doesn't support signal 0.
 
 **New Code**:
+
 ```python
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive.
@@ -252,6 +267,7 @@ def _is_process_alive(pid: int) -> bool:
 ```
 
 **Key Changes**:
+
 1. Import `psutil` instead of using `os.kill`
 2. Create `psutil.Process(pid)` object
 3. Call `proc.is_running()` for status check
@@ -262,21 +278,25 @@ def _is_process_alive(pid: int) -> bool:
 **Exception Handling Details**:
 
 **`psutil.NoSuchProcess`**:
+
 - Raised when process doesn't exist
 - Equivalent to POSIX `ProcessLookupError`
 - Return `False` (process dead)
 
 **`psutil.AccessDenied`**:
+
 - Raised when process exists but no permission to access
 - Common on Windows for system processes
 - Return `True` (process exists, even if we can't fully access it)
 
 **Generic `Exception`**:
+
 - Catch-all for unexpected errors
 - Prevents function from crashing
 - Conservative: assume process dead if unsure
 
 **Platform Differences**:
+
 ```python
 # POSIX (Linux/macOS):
 os.kill(pid, 0)  # Checks if process exists
@@ -292,6 +312,7 @@ proc.is_running()  # Works identically on Linux, macOS, Windows
 ```
 
 **Testing**:
+
 ```python
 # Test 1: Process exists
 pid = os.getpid()  # Current process
@@ -310,6 +331,7 @@ assert _is_process_alive(999999) == False
 ```
 
 **Performance Note**:
+
 - `psutil.Process(pid)` creation is fast (<0.1ms)
 - `is_running()` check is fast (<0.1ms)
 - No performance regression vs. `os.kill(pid, 0)`
@@ -323,6 +345,7 @@ assert _is_process_alive(999999) == False
 **File**: `src/specify_cli/dashboard/lifecycle.py`
 
 **Locations to Replace** (6 total):
+
 1. Line 188: `os.kill(pid, signal.SIGKILL)` in `_kill_orphaned_processes()`
 2. Line 289: `os.kill(pid, signal.SIGKILL)` in `start_dashboard()`
 3. Line 354: `os.kill(pid, signal.SIGKILL)` in `start_dashboard()`
@@ -333,6 +356,7 @@ assert _is_process_alive(999999) == False
 **Pattern for Each Replacement**:
 
 **Before**:
+
 ```python
 try:
     os.kill(pid, signal.SIGKILL)
@@ -342,6 +366,7 @@ except (ProcessLookupError, PermissionError):
 ```
 
 **After**:
+
 ```python
 try:
     proc = psutil.Process(pid)
@@ -362,6 +387,7 @@ except Exception as e:
 **Detailed Replacement for Each Location**:
 
 **Location 1: Line 188 (_kill_orphaned_processes)**:
+
 ```python
 # Context: Killing orphaned dashboard processes
 for pid in pids:
@@ -376,6 +402,7 @@ for pid in pids:
 ```
 
 **Location 2: Line 289 (start_dashboard - orphan cleanup)**:
+
 ```python
 # Context: PID alive but port not responding - kill the orphan
 elif existing_pid is not None and existing_port is not None:
@@ -388,6 +415,7 @@ elif existing_pid is not None and existing_port is not None:
 ```
 
 **Location 3: Line 354 (start_dashboard - cleanup failed start)**:
+
 ```python
 # Context: Clean up the failed process we just started
 if pid is not None:
@@ -399,6 +427,7 @@ if pid is not None:
 ```
 
 **Location 4: Line 381 (start_dashboard - cleanup after timeout)**:
+
 ```python
 # Context: Still failed - clean up and raise error
 if pid is not None:
@@ -410,6 +439,7 @@ if pid is not None:
 ```
 
 **Location 5: Line 470 (stop_dashboard - force kill after SIGTERM)**:
+
 ```python
 # Context: Still alive after SIGTERM, force kill
 if _is_process_alive(pid):
@@ -422,6 +452,7 @@ if _is_process_alive(pid):
 ```
 
 **Location 6: Line 499 (stop_dashboard - timeout, last resort)**:
+
 ```python
 # Context: Timeout - try killing by PID as last resort
 if pid is not None:
@@ -435,11 +466,13 @@ if pid is not None:
 ```
 
 **Exception Handling Strategy**:
+
 - **NoSuchProcess**: Process already dead (common race condition)
 - **AccessDenied**: Insufficient permissions (common on Windows for certain processes)
 - **Generic Exception**: Catch-all at cleanup sites (locations 4, 6) to prevent crash
 
 **Verification After Changes**:
+
 ```bash
 # Grep to verify all signal.SIGKILL removed
 grep -n "signal.SIGKILL" src/specify_cli/dashboard/lifecycle.py
@@ -451,6 +484,7 @@ grep -n "\.kill()" src/specify_cli/dashboard/lifecycle.py
 ```
 
 **Testing Each Location**:
+
 ```python
 # Test 1: Normal kill (location 1, 2, 3, 4, 5, 6)
 pid = start_test_process()
@@ -472,6 +506,7 @@ except psutil.NoSuchProcess:
 ```
 
 **Platform-Specific Behavior**:
+
 - **Linux/macOS**: `proc.kill()` sends SIGKILL (signal 9)
 - **Windows**: `proc.kill()` calls `TerminateProcess()` with exit code 1
 - Both are **immediate** and **forceful** (cannot be caught by process)
@@ -487,6 +522,7 @@ except psutil.NoSuchProcess:
 **Location**: Line 464 in `stop_dashboard()` function
 
 **Current Code** (lines 461-472):
+
 ```python
 # If HTTP shutdown failed but we have a PID, try killing the process
 if not ok and pid is not None:
@@ -504,6 +540,7 @@ if not ok and pid is not None:
 ```
 
 **New Code**:
+
 ```python
 # If HTTP shutdown failed but we have a PID, try killing the process
 if not ok and pid is not None:
@@ -526,6 +563,7 @@ if not ok and pid is not None:
 ```
 
 **Key Changes**:
+
 1. Create `psutil.Process(pid)` once, reuse for both terminate and kill
 2. Use `proc.terminate()` instead of `os.kill(pid, signal.SIGTERM)`
 3. Use `proc.wait(timeout=3.0)` instead of `time.sleep(0.5) + is_alive check`
@@ -533,6 +571,7 @@ if not ok and pid is not None:
 5. Proper exception handling for `NoSuchProcess`, `AccessDenied`, `TimeoutExpired`
 
 **Enhanced Version with Full Exception Handling**:
+
 ```python
 # If HTTP shutdown failed but we have a PID, try killing the process
 if not ok and pid is not None:
@@ -575,6 +614,7 @@ if not ok and pid is not None:
 ```
 
 **Benefits of proc.wait(timeout=N)**:
+
 1. **Blocks until process exits** or timeout reached
 2. **Avoids race conditions** (no sleep + check pattern)
 3. **Returns immediately** when process exits (no waiting full timeout)
@@ -583,18 +623,22 @@ if not ok and pid is not None:
 **Comparison: Old vs New Approach**:
 
 **Old (POSIX-only)**:
+
 ```python
 os.kill(pid, signal.SIGTERM)  # Send signal
 time.sleep(0.5)                # Wait fixed time
 if _is_process_alive(pid):     # Check if still alive
     os.kill(pid, signal.SIGKILL)  # Force kill
 ```
+
 Problems:
+
 - `signal.SIGTERM` doesn't exist on Windows
 - Fixed 0.5s sleep may be too short or too long
 - Race condition between check and kill
 
 **New (Cross-platform)**:
+
 ```python
 proc.terminate()              # Graceful termination
 try:
@@ -602,13 +646,16 @@ try:
 except psutil.TimeoutExpired:
     proc.kill()               # Force kill only if timeout
 ```
+
 Benefits:
+
 - Works on Windows, Linux, macOS
 - Dynamic wait (returns early if process exits quickly)
 - No race condition (wait() is atomic)
 - Longer timeout (3s vs 0.5s) gives process more time to clean up
 
 **Verification**:
+
 ```bash
 # Grep to verify signal.SIGTERM removed
 grep -n "signal.SIGTERM" src/specify_cli/dashboard/lifecycle.py
@@ -624,6 +671,7 @@ grep -n "\.wait(timeout=" src/specify_cli/dashboard/lifecycle.py
 ```
 
 **Testing**:
+
 ```python
 # Test 1: Graceful shutdown
 pid = start_dashboard_process()
@@ -652,6 +700,7 @@ except psutil.TimeoutExpired:
 ```
 
 **Platform Behavior**:
+
 - **Linux/macOS**: `proc.terminate()` sends SIGTERM (signal 15), catchable by process
 - **Windows**: `proc.terminate()` calls `TerminateProcess()` with exit code 0 (immediate)
 - **Note**: On Windows, terminate() and kill() are equivalent (both immediate)
@@ -665,6 +714,7 @@ except psutil.TimeoutExpired:
 **File**: `src/specify_cli/dashboard/lifecycle.py`
 
 **psutil Exception Types**:
+
 ```python
 psutil.NoSuchProcess       # Process doesn't exist (like ProcessLookupError)
 psutil.TimeoutExpired      # proc.wait(timeout=N) timed out
@@ -675,6 +725,7 @@ psutil.ZombieProcess       # Process is zombie (POSIX only)
 **Common Patterns**:
 
 **Pattern 1: Process existence check (already handled in T023)**:
+
 ```python
 try:
     proc = psutil.Process(pid)
@@ -686,6 +737,7 @@ except psutil.AccessDenied:
 ```
 
 **Pattern 2: Kill with cleanup**:
+
 ```python
 try:
     proc = psutil.Process(pid)
@@ -700,6 +752,7 @@ except psutil.AccessDenied:
 ```
 
 **Pattern 3: Terminate with timeout**:
+
 ```python
 try:
     proc = psutil.Process(pid)
@@ -717,11 +770,13 @@ except psutil.AccessDenied:
 **Audit All psutil Usage**:
 
 **Step 1: Find all psutil.Process() creations**:
+
 ```bash
 grep -n "psutil.Process(" src/specify_cli/dashboard/lifecycle.py
 ```
 
 **Step 2: For each usage, verify exception handling**:
+
 - Check if `try/except` block present
 - Verify `NoSuchProcess` handled
 - Verify `AccessDenied` handled (if killing/terminating)
@@ -730,6 +785,7 @@ grep -n "psutil.Process(" src/specify_cli/dashboard/lifecycle.py
 **Step 3: Add missing exception handlers**:
 
 **Example: Line 188 (_kill_orphaned_processes)**:
+
 ```python
 # Before (from T024)
 try:
@@ -753,6 +809,7 @@ except psutil.AccessDenied:
 ```
 
 **Example: Lines 464-472 (stop_dashboard - graceful termination)**:
+
 ```python
 # After T025, ensure full exception handling
 try:
@@ -790,6 +847,7 @@ except Exception as e:
 ```
 
 **Step 4: Add logging for unexpected errors**:
+
 ```python
 import logging
 
@@ -802,6 +860,7 @@ except Exception as e:
 ```
 
 **Verification Checklist**:
+
 - [ ] All `psutil.Process()` calls in try/except
 - [ ] All `proc.kill()` calls handle NoSuchProcess and AccessDenied
 - [ ] All `proc.terminate()` calls handle NoSuchProcess and AccessDenied
@@ -811,6 +870,7 @@ except Exception as e:
 - [ ] Logging added for unexpected errors
 
 **Testing Exception Scenarios**:
+
 ```python
 # Test NoSuchProcess
 try:
@@ -841,6 +901,7 @@ except psutil.TimeoutExpired:
 **File**: `src/specify_cli/dashboard/lifecycle.py`
 
 **Current Imports** (lines 1-15, approximately):
+
 ```python
 """Dashboard lifecycle management."""
 
@@ -859,6 +920,7 @@ from rich.console import Console
 ```
 
 **New Imports**:
+
 ```python
 """Dashboard lifecycle management.
 
@@ -882,6 +944,7 @@ logger = logging.getLogger(__name__)
 ```
 
 **Changes**:
+
 1. **Remove**: `import signal` (line ~6)
 2. **Add**: `import psutil` (add after stdlib imports, before third-party)
 3. **Add**: `import logging` (for error logging)
@@ -889,6 +952,7 @@ logger = logging.getLogger(__name__)
 5. **Update**: Module docstring to mention psutil and cross-platform support
 
 **Import Organization** (PEP 8):
+
 ```python
 # 1. Standard library imports
 import json
@@ -909,6 +973,7 @@ from rich.console import Console
 ```
 
 **Verification**:
+
 ```bash
 # 1. Verify signal import removed
 grep -n "^import signal" src/specify_cli/dashboard/lifecycle.py
@@ -928,6 +993,7 @@ python3 -c "from specify_cli.dashboard import lifecycle; print('✓ Imports OK')
 ```
 
 **Update Module Docstring**:
+
 ```python
 """Dashboard lifecycle management.
 
@@ -956,6 +1022,7 @@ Dashboard Metadata:
 ```
 
 **Linting Check**:
+
 ```bash
 # Run ruff or flake8 to verify import ordering
 ruff check src/specify_cli/dashboard/lifecycle.py
@@ -968,11 +1035,13 @@ isort src/specify_cli/dashboard/lifecycle.py
 ```
 
 **Backwards Compatibility Check**:
+
 - This is internal module, not public API
 - No external code should import signal from this module
 - Change is internal refactoring, transparent to users
 
 **Final Verification**:
+
 ```python
 # Test that all dashboard functions work with new imports
 from specify_cli.dashboard.lifecycle import (
@@ -994,6 +1063,7 @@ print(f"✓ psutil version: {psutil.__version__}")
 ## Test Strategy
 
 **Unit Tests**:
+
 ```python
 # tests/test_dashboard_lifecycle.py
 
@@ -1055,6 +1125,7 @@ def test_process_terminate_with_timeout():
 ```
 
 **Integration Tests** (defer to WP06):
+
 - Start dashboard on Windows 10/11
 - Access dashboard URL, verify HTML response
 - Stop dashboard, verify clean shutdown
@@ -1063,6 +1134,7 @@ def test_process_terminate_with_timeout():
 **Manual Testing Checklist**:
 
 **On Linux**:
+
 ```bash
 # Start dashboard
 spec-kitty dashboard
@@ -1081,12 +1153,14 @@ ps aux | grep dashboard  # Should be empty
 ```
 
 **On macOS**:
+
 ```bash
 # Same as Linux
 # Verify no errors related to signal handling
 ```
 
 **On Windows 10/11**:
+
 ```bash
 # Start dashboard (PowerShell)
 spec-kitty dashboard
@@ -1139,6 +1213,7 @@ Get-Process | Where-Object {$_.ProcessName -like "*dashboard*"}  # Should be emp
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Dependency added**: psutil in pyproject.toml dependencies
 2. **Signal usage removed**: No signal.SIGKILL or signal.SIGTERM references
 3. **psutil usage added**: All process operations use psutil
@@ -1146,12 +1221,14 @@ Get-Process | Where-Object {$_.ProcessName -like "*dashboard*"}  # Should be emp
 5. **Imports clean**: signal removed, psutil added, organized per PEP 8
 
 **Red Flags for Reviewer**:
+
 - Any remaining `signal.SIG*` references
 - Missing exception handling for psutil calls
 - Still using `os.kill()` for kill/terminate operations
 - Hardcoded sleep instead of `proc.wait(timeout=N)`
 
 **Testing Checklist for Reviewer**:
+
 ```bash
 # 1. Verify signal usage gone
 grep -rn "signal\.SIG" src/specify_cli/dashboard/
@@ -1173,6 +1250,7 @@ grep "^import signal" src/specify_cli/dashboard/lifecycle.py
 ```
 
 **Context for Reviewer**:
+
 - This fixes Windows dashboard ERR_EMPTY_RESPONSE issue (#71)
 - psutil provides identical API across Linux/macOS/Windows
 - Previous POSIX-only signal handling crashed on Windows
@@ -1196,6 +1274,7 @@ spec-kitty agent workflow implement WP04
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T10:48:58Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:56:09Z – unknown – lane=for_review – WP04 complete: psutil refactor for Windows dashboard. All signal.* references removed, cross-platform process management implemented. Tests pass (41/41 dashboard tests). Ready for Windows 10/11 validation.
 - 2026-01-12T11:12:14Z – agent – lane=doing – Started review via workflow command

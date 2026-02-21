@@ -44,6 +44,7 @@ For each work package defined in `tasks.md`:
 - WRONG: `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
 
 **For each WP**:
+
 1. Derive a kebab-case slug from the title
 2. Filename: `WPxx-slug.md` (e.g., `WP01-create-html-page.md`)
 3. Full path: `FEATURE_DIR/tasks/WP01-create-html-page.md`
@@ -65,6 +66,7 @@ For each work package defined in `tasks.md`:
 ### 4. Include Dependencies in Frontmatter
 
 Each WP prompt file MUST include a `dependencies` field:
+
 ```yaml
 ---
 work_package_id: "WP02"
@@ -76,12 +78,14 @@ subtasks: ["T001", "T002"]
 ```
 
 Include the correct implementation command:
+
 - No dependencies: `spec-kitty implement WP01`
 - With dependencies: `spec-kitty implement WP02 --base WP01`
 
 ### 5. Self-Check
 
 After generating each prompt:
+
 - Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT
 - Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT
 - Can implement in one session? ✓ | Multiple sessions needed? ❌ SPLIT
@@ -89,6 +93,7 @@ After generating each prompt:
 ## Output
 
 After completing this step:
+
 - `FEATURE_DIR/tasks/WP*.md` prompt files exist for all work packages
 - Each has proper frontmatter with `work_package_id`, `lane`, `dependencies`
 - `tasks.md` references all prompt filenames
@@ -98,6 +103,7 @@ After completing this step:
 ## Prompt Quality Guidelines
 
 **Good prompt** (~60 lines per subtask):
+
 ```markdown
 ### Subtask T001: Implement User Login Endpoint
 
@@ -119,6 +125,7 @@ After completing this step:
 ```
 
 **Bad prompt** (~20 lines per subtask):
+
 ```markdown
 ### T001: Add auth
 Steps: Create endpoint. Add validation. Test it.

@@ -8,6 +8,7 @@
 Enhance the `spec-kitty merge` command to provide pre-flight validation, conflict forecasting, dependency-ordered merging, automatic status file conflict resolution, and resume capability. The current ~590-line `merge.py` will be refactored into a modular architecture with dedicated components for each capability.
 
 **Key Technical Decisions**:
+
 - **Status file resolution**: Post-merge Python cleanup (not git merge drivers) - detects conflict markers in status files and resolves them before committing
 - **Merge state persistence**: JSON file at `.kittify/merge-state.json`
 - **Architecture**: Extract merge logic into `src/specify_cli/merge/` subpackage
@@ -103,6 +104,7 @@ def run_preflight(
 ```
 
 **Responsibilities**:
+
 - FR-001: Check all WP worktrees for uncommitted changes
 - FR-002: Verify target branch can fast-forward to origin
 - FR-003: Collect all issues into single result object
@@ -126,11 +128,13 @@ def predict_conflicts(
 ```
 
 **Responsibilities**:
+
 - FR-005: Compare each WP's changes against target and other WPs
 - FR-006: Group conflicts by file path
 - FR-007: Return in merge order
 
 **Algorithm**:
+
 1. For each WP, run `git diff --name-only <target>...<wp_branch>` to get modified files
 2. Build file → [WPs] mapping
 3. Files touched by 2+ WPs are conflict candidates
@@ -147,12 +151,14 @@ def get_merge_order(
 ```
 
 **Responsibilities**:
+
 - FR-008: Parse dependencies from WP frontmatter (reuse `dependency_graph.py`)
 - FR-009: Topological sort
 - FR-010: Detect and report cycles
 - FR-011: Fall back to numerical order if no dependencies
 
 **Implementation**: Add `topological_sort()` to `core/dependency_graph.py`:
+
 ```python
 def topological_sort(graph: dict[str, list[str]]) -> list[str]:
     """Kahn's algorithm for topological ordering."""
@@ -174,6 +180,7 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 ```
 
 **Responsibilities**:
+
 - FR-012: Only process files matching `kitty-specs/**/tasks/*.md` or `kitty-specs/**/tasks.md`
 - FR-013: Resolve `lane:` by "more done" value (done > for_review > doing > planned)
 - FR-014: Resolve checkboxes by preferring `[x]`
@@ -181,6 +188,7 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 - FR-016: Leave non-status files untouched
 
 **Algorithm**:
+
 1. After each WP merge, check `git diff --name-only --diff-filter=U` for conflicted files
 2. For each conflicted file matching status patterns:
    a. Parse conflict markers
@@ -214,6 +222,7 @@ def clear_state(repo_root: Path) -> None:
 ```
 
 **Responsibilities**:
+
 - FR-021: Persist state during multi-WP merge
 - FR-022: Support `--resume` flag
 - FR-023: Clear on success or explicit abort
@@ -235,6 +244,7 @@ def execute_merge(
 ```
 
 **Responsibilities**:
+
 - Orchestrate preflight, ordering, merge, resolution, cleanup
 - Update state after each WP
 - Handle interruptions gracefully

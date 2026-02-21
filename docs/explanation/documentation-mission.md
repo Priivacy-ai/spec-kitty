@@ -7,6 +7,7 @@ This guide covers the Documentation Kitty mission, which helps you create and ma
 The Documentation Mission provides a structured workflow for generating comprehensive documentation across four distinct types (Divio system), with automated gap analysis and support for API reference generation from code.
 
 **Key Features:**
+
 - **Divio 4-type system**: Distinct documentation for tutorials, how-tos, reference, and explanations
 - **Iteration modes**: Support for initial documentation, gap-filling, and feature-specific docs
 - **Generator integration**: Automatic API reference generation (JSDoc, Sphinx, rustdoc)
@@ -26,6 +27,7 @@ cd kitty-specs/
 ```
 
 When prompted, specify:
+
 - **Iteration mode**: `initial`
 - **Divio types**: `tutorial, how-to, reference, explanation`
 - **Target audience**: `developers` (or `end-users`, `contributors`, `operators`)
@@ -48,11 +50,13 @@ Identify and fill gaps in existing documentation:
 ```
 
 When prompted:
+
 - **Iteration mode**: `gap_filling`
 - **Divio types**: Leave blank to analyze all types
 - **Target audience**: Match your existing docs
 
 The mission will:
+
 1. Scan your `docs/` directory
 2. Classify existing docs by Divio type
 3. Build a coverage matrix
@@ -68,6 +72,7 @@ Document a specific feature or component:
 ```
 
 When prompted:
+
 - **Iteration mode**: `feature_specific`
 - **Divio types**: Choose relevant types (e.g., `how-to, reference` for API features)
 - **Target audience**: Match your users
@@ -81,12 +86,14 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Identify documentation needs and target audience
 
 **Activities**:
+
 - Define target audience (developers, end-users, contributors, operators)
 - Choose iteration mode (initial, gap-filling, feature-specific)
 - Select Divio types to include
 - Identify documentation gaps (if gap-filling mode)
 
 **Artifacts Created**:
+
 - `spec.md` - Documentation requirements and scope
 
 ### 2. Audit
@@ -94,6 +101,7 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Analyze existing documentation and identify gaps
 
 **Activities**:
+
 - Detect documentation framework (Sphinx, MkDocs, Docusaurus, etc.)
 - Classify existing docs by Divio type
 - Build coverage matrix showing what exists
@@ -101,9 +109,11 @@ The Documentation Mission follows a six-phase workflow:
 - Prioritize gaps by user impact
 
 **Artifacts Created**:
+
 - `gap-analysis.md` - Comprehensive audit report with coverage matrix
 
 **Gap Analysis Output Example**:
+
 ```
 ## Coverage Matrix
 
@@ -130,12 +140,14 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Plan documentation structure and select generators
 
 **Activities**:
+
 - Design documentation hierarchy and navigation
 - Configure generators for API reference docs
 - Plan Divio templates for each selected type
 - Define gap-filling strategy (if iterating)
 
 **Artifacts Created**:
+
 - `plan.md` - Documentation structure and generator config
 - `divio-templates/` - Template files for each Divio type
 - `generator-configs/` - Configuration for JSDoc/Sphinx/rustdoc
@@ -145,6 +157,7 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Create documentation from templates and generators
 
 **Activities**:
+
 - Populate Divio templates with project-specific content
 - Invoke generators to produce API reference docs
 - Create tutorial walkthroughs
@@ -152,6 +165,7 @@ The Documentation Mission follows a six-phase workflow:
 - Generate explanation docs for architecture/concepts
 
 **Artifacts Created**:
+
 - Documentation files in `docs/` directory
 - Generated API reference (e.g., `docs/api/python/`)
 
@@ -160,6 +174,7 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Check quality, accessibility, and completeness
 
 **Activities**:
+
 - Verify Divio type adherence (each doc follows its type's purpose)
 - Check accessibility guidelines (headings, alt text, clear language)
 - Assess generator output quality
@@ -167,6 +182,7 @@ The Documentation Mission follows a six-phase workflow:
 - Review for bias-free, inclusive language
 
 **Validation Checks**:
+
 - All selected Divio types have content
 - No conflicting generators (one per language)
 - Templates are populated (no placeholders)
@@ -177,12 +193,14 @@ The Documentation Mission follows a six-phase workflow:
 **Purpose**: Deploy documentation and notify stakeholders
 
 **Activities**:
+
 - Build final documentation site
 - Deploy to hosting (Read the Docs, GitHub Pages, etc.)
 - Update project README with docs link
 - Notify team of new documentation
 
 **Artifacts Created**:
+
 - `publish.md` - Deployment record and access URLs
 
 ## Divio Documentation System
@@ -194,6 +212,7 @@ The mission uses the Divio 4-type documentation system, where each type serves a
 **Purpose**: Learning-oriented, teaches a beginner
 
 **Characteristics**:
+
 - Step-by-step walkthrough
 - Assumes no prior knowledge
 - Teaches by doing (hands-on)
@@ -201,6 +220,7 @@ The mission uses the Divio 4-type documentation system, where each type serves a
 - Builds confidence and familiarity
 
 **Example Structure**:
+
 ```markdown
 # Getting Started with [Project]
 
@@ -222,6 +242,7 @@ You've learned the basics. Next, explore...
 ```
 
 **When to Use**:
+
 - Onboarding new users
 - Teaching core workflows
 - Building initial confidence
@@ -232,6 +253,7 @@ You've learned the basics. Next, explore...
 **Purpose**: Task-oriented, solves a specific problem
 
 **Characteristics**:
+
 - Focused on a single task or problem
 - Assumes some familiarity
 - Shows how to achieve a goal
@@ -239,6 +261,7 @@ You've learned the basics. Next, explore...
 - Includes verification steps
 
 **Example Structure**:
+
 ```markdown
 # How to Configure OAuth Authentication
 
@@ -257,16 +280,21 @@ pip install authlib
 ```
 
 ### Step 2: Configure Provider
+
 ...
 
 ### Step 3: Implement Login Flow
+
 ...
 
 ## Verification
+
 Test your OAuth flow by...
 
 ## Troubleshooting
+
 - **Error: Invalid redirect URI** - Check your...
+
 ```
 
 **When to Use**:
@@ -310,6 +338,7 @@ Validates an authentication token.
 ```python
 is_valid = validate_token("eyJ0eXAiOiJKV1QiLCJh...")
 ```
+
 ```
 
 **When to Use**:
@@ -365,6 +394,7 @@ Token-based authentication introduces...
 ```
 
 **When to Use**:
+
 - Explaining architecture
 - Discussing design decisions
 - Providing background concepts
@@ -377,10 +407,12 @@ The mission supports three API reference generators:
 ### JSDoc (JavaScript/TypeScript)
 
 **Detection**: Automatically enabled if project contains:
+
 - `package.json` file
 - `.js`, `.jsx`, `.ts`, or `.tsx` files
 
 **Configuration**:
+
 ```json
 {
   "source": {
@@ -396,12 +428,15 @@ The mission supports three API reference generators:
 ```
 
 **Setup**:
+
 1. Install JSDoc and template:
+
    ```bash
    npm install --save-dev jsdoc docdash
    ```
 
 2. Add JSDoc comments to your code:
+
    ```javascript
    /**
     * Validates user credentials.
@@ -416,6 +451,7 @@ The mission supports three API reference generators:
    ```
 
 3. Generate docs:
+
    ```bash
    npx jsdoc -c jsdoc.json
    ```
@@ -425,10 +461,12 @@ The mission supports three API reference generators:
 ### Sphinx (Python)
 
 **Detection**: Automatically enabled if project contains:
+
 - `setup.py` or `pyproject.toml` file
 - `.py` files
 
 **Configuration** (`conf.py`):
+
 ```python
 project = 'Your Project'
 extensions = [
@@ -443,12 +481,15 @@ napoleon_numpy_docstring = True
 ```
 
 **Setup**:
+
 1. Install Sphinx and theme:
+
    ```bash
    pip install sphinx sphinx-rtd-theme
    ```
 
 2. Add docstrings to your code:
+
    ```python
    def validate_token(token: str) -> bool:
        """Validate an authentication token.
@@ -466,6 +507,7 @@ napoleon_numpy_docstring = True
    ```
 
 3. Generate docs:
+
    ```bash
    sphinx-build -b html docs/ docs/_build/html/
    ```
@@ -475,10 +517,12 @@ napoleon_numpy_docstring = True
 ### rustdoc (Rust)
 
 **Detection**: Automatically enabled if project contains:
+
 - `Cargo.toml` file
 - `.rs` files
 
 **Configuration** (in `Cargo.toml`):
+
 ```toml
 [package.metadata.docs.rs]
 all-features = true
@@ -486,7 +530,9 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 ```
 
 **Setup**:
+
 1. Add doc comments to your code:
+
    ```rust
    /// Validates an authentication token.
    ///
@@ -507,6 +553,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
    ```
 
 2. Generate docs:
+
    ```bash
    cargo doc --no-deps --target-dir docs/output/
    ```
@@ -520,12 +567,14 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 **Use Case**: Creating documentation for a new project with no existing docs
 
 **Behavior**:
+
 - No gap analysis performed
 - Creates complete documentation suite
 - All selected Divio types included
 - Generators configured from scratch
 
 **State Persisted**:
+
 ```json
 {
   "iteration_mode": "initial",
@@ -548,6 +597,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 **Use Case**: Iterating on existing documentation to fill identified gaps
 
 **Behavior**:
+
 - Runs comprehensive gap analysis
 - Identifies missing Divio types per project area
 - Prioritizes gaps by user impact (HIGH/MEDIUM/LOW)
@@ -555,6 +605,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 - Updates coverage metadata after completion
 
 **State Persisted**:
+
 ```json
 {
   "iteration_mode": "gap_filling",
@@ -567,6 +618,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 ```
 
 **Gap Prioritization Rules**:
+
 - **HIGH**: Missing tutorials for core features (blocks new users)
 - **HIGH**: Missing reference for core APIs (users can't find APIs)
 - **MEDIUM**: Missing how-tos for common tasks (users struggle)
@@ -578,12 +630,14 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 **Use Case**: Documenting a specific feature or component
 
 **Behavior**:
+
 - Scoped to a single feature/module
 - Only includes relevant Divio types
 - Integrates with existing documentation structure
 - May trigger partial gap analysis for the feature
 
 **State Persisted**:
+
 ```json
 {
   "iteration_mode": "feature_specific",
@@ -602,6 +656,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 **Error**: `GeneratorError: sphinx-build not found - install Sphinx to use this generator`
 
 **Solution**: Install the required generator tool:
+
 ```bash
 # Sphinx (Python)
 pip install sphinx sphinx-rtd-theme
@@ -618,6 +673,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 **Error**: `conf.py not found - run configure() first`
 
 **Solution**: The generator configuration step failed. Manually run:
+
 ```bash
 # During /spec-kitty.plan phase
 # Generator configuration should be created automatically
@@ -631,6 +687,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 **Cause**: Documents lack frontmatter with explicit `type` field
 
 **Solution**: Add frontmatter to existing docs:
+
 ```markdown
 ---
 type: tutorial  # or how-to, reference, explanation
@@ -648,6 +705,7 @@ title: Getting Started
 **Cause**: Auto-generated docs may not be in `docs/` directory
 
 **Solution**: Configure generator output paths to write to `docs/api/`:
+
 ```python
 # Sphinx conf.py
 html_output = 'docs/api/python/'
@@ -663,6 +721,7 @@ html_output = 'docs/api/python/'
 **Issue**: Gap analysis shows "unknown" framework
 
 **Solution**: Add framework indicator file:
+
 - **Sphinx**: Create `docs/conf.py`
 - **MkDocs**: Create `mkdocs.yml`
 - **Docusaurus**: Create `docusaurus.config.js`
@@ -675,6 +734,7 @@ html_output = 'docs/api/python/'
 **Cause**: Template files contain placeholders like `[TODO: ...]`
 
 **Solution**: Replace all placeholders with actual content:
+
 ```markdown
 # Before
 ## Prerequisites
@@ -693,17 +753,20 @@ html_output = 'docs/api/python/'
 **Scenario**: Document a new Python CLI tool from scratch
 
 **Step 1: Specify**
+
 ```bash
 /spec-kitty.specify Create comprehensive documentation for our CLI tool
 ```
 
 Responses to prompts:
+
 - Iteration mode: `initial`
 - Divio types: `tutorial, how-to, reference, explanation`
 - Target audience: `developers`
 - Generators: `sphinx`
 
 **Step 2: Plan**
+
 ```bash
 /spec-kitty.plan
 - Tutorial: Getting started guide showing installation and first command
@@ -715,11 +778,13 @@ Responses to prompts:
 ```
 
 **Step 3: Generate Tasks**
+
 ```bash
 /spec-kitty.tasks
 ```
 
 Output includes work packages like:
+
 - WP01: Sphinx configuration and project setup
 - WP02: Tutorial content creation
 - WP03: How-to guides for common tasks
@@ -728,11 +793,13 @@ Output includes work packages like:
 - WP06: Documentation build and validation
 
 **Step 4: Implement**
+
 ```bash
 /spec-kitty.implement
 ```
 
 Agent creates:
+
 - `docs/conf.py` (Sphinx configuration)
 - `docs/tutorial/getting-started.md`
 - `docs/howto/configuring.md`, `docs/howto/deploying.md`
@@ -741,6 +808,7 @@ Agent creates:
 - Updated README with docs link
 
 **Step 5: Review and Accept**
+
 ```bash
 /spec-kitty.review
 /spec-kitty.accept
@@ -753,11 +821,13 @@ Agent creates:
 **Scenario**: Existing project has API reference but missing tutorials and how-tos
 
 **Step 1: Specify**
+
 ```bash
 /spec-kitty.specify Audit documentation and fill gaps
 ```
 
 Responses to prompts:
+
 - Iteration mode: `gap_filling`
 - Divio types: (leave blank to analyze all)
 - Target audience: `developers`
@@ -765,6 +835,7 @@ Responses to prompts:
 **Step 2: Gap Analysis**
 
 Automatic audit generates `gap-analysis.md`:
+
 ```markdown
 ## Coverage Matrix
 
@@ -790,6 +861,7 @@ Automatic audit generates `gap-analysis.md`:
 ```
 
 **Step 3: Plan**
+
 ```bash
 /spec-kitty.plan
 Focus on high-priority gaps first:
@@ -805,6 +877,7 @@ Then medium-priority:
 **Step 4: Generate Tasks**
 
 Tasks focus on filling gaps:
+
 - WP01: CLI Getting Started tutorial
 - WP02: API integration tutorial
 - WP03: Authentication tutorial
@@ -815,6 +888,7 @@ Tasks focus on filling gaps:
 **Step 5: Implement and Validate**
 
 After implementation, re-run gap analysis:
+
 ```bash
 # In validate phase, gap analysis runs again
 # New coverage: 9/12 cells = 75.0%
@@ -824,11 +898,11 @@ After implementation, re-run gap analysis:
 
 ## Additional Resources
 
-- **Write the Docs Best Practices**: https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/
-- **Divio Documentation System**: https://documentation.divio.com/
-- **Sphinx Documentation**: https://www.sphinx-doc.org/
-- **JSDoc Documentation**: https://jsdoc.app/
-- **rustdoc Guide**: https://doc.rust-lang.org/rustdoc/
+- **Write the Docs Best Practices**: <https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/>
+- **Divio Documentation System**: <https://documentation.divio.com/>
+- **Sphinx Documentation**: <https://www.sphinx-doc.org/>
+- **JSDoc Documentation**: <https://jsdoc.app/>
+- **rustdoc Guide**: <https://doc.rust-lang.org/rustdoc/>
 
 ## State Management
 
@@ -871,6 +945,7 @@ artifacts:
 ```
 
 Mission-specific commands customize behavior:
+
 - `/spec-kitty.specify` prompts for iteration mode, Divio types, generators
 - `/spec-kitty.plan` prompts for documentation structure, generator configs
 - `/spec-kitty.implement` generates docs from templates and invokes generators
@@ -888,12 +963,15 @@ For contributors interested in the implementation:
 These files are in the Spec Kitty source repository.
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
 
 ## Reference
+
 - [Missions](../reference/missions.md)
 - [Configuration](../reference/configuration.md)

@@ -24,6 +24,7 @@ Extend the existing gitignore protection from just `.codex/` to comprehensively 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 Since the constitution file is currently a template, standard software engineering principles apply:
+
 - ✅ Single Responsibility: GitignoreManager handles only gitignore operations
 - ✅ Open/Closed: Extensible for new agents without modifying core logic
 - ✅ Dependency Inversion: Abstract interfaces for file operations
@@ -67,12 +68,14 @@ tests/
 ## Phase 0: Research (Completed)
 
 Research artifacts have been generated:
+
 - ✅ `research.md` - Technical decisions and architecture approach documented
 - ✅ `data-model.md` - Data structures and entity relationships defined
 - ✅ `research/evidence-log.csv` - Evidence from codebase analysis logged
 - ✅ `research/source-register.csv` - Sources and references tracked
 
 Key findings:
+
 - Existing `ensure_gitignore_entries()` provides solid foundation
 - Agent directory registry exists at lines 1835-1848
 - Special handling needed for `.github/` (dual use with Actions)

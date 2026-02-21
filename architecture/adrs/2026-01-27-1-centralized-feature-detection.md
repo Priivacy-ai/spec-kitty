@@ -19,6 +19,7 @@ Prior to v0.14.0, the spec-kitty codebase had **10 different implementations** o
 **Scenario**: User has features `020-feature-a` and `021-feature-b` in `kitty-specs/`. Agent runs `/spec-kitty.plan` to create a plan for feature 020.
 
 **Old Behavior** (v0.13.x):
+
 ```python
 # core/paths.py used "highest numbered" heuristic
 candidates = [(20, "020-feature-a"), (21, "021-feature-b")]
@@ -27,6 +28,7 @@ return "021-feature-b"  # Wrong! Selects 021 instead of 020
 ```
 
 **New Behavior** (v0.14.0+):
+
 ```python
 # core/feature_detection.py is deterministic
 if len(features) > 1:
@@ -106,10 +108,12 @@ def detect_feature(
 ```
 
 **Modes**:
+
 - **Strict** (default): Raises `FeatureDetectionError` when detection fails
 - **Lenient**: Returns `None` when detection fails (for UI convenience)
 
 **Simplified Wrappers**:
+
 ```python
 def detect_feature_slug(repo_root: Path, **kwargs) -> str:
     """Returns just the slug string (always strict mode)."""
@@ -145,12 +149,14 @@ class NoFeatureFoundError(FeatureDetectionError):
 Replaced 10 scattered implementations with imports from centralized module:
 
 **High-Priority (Agent Commands)**:
+
 - `agent/feature.py` (setup-plan)
 - `agent/context.py` (update-context)
 - `agent/workflow.py` (implement, review)
 - `agent/tasks.py` (all task commands)
 
 **Medium-Priority**:
+
 - `implement.py` (detect_feature_context)
 - `acceptance.py` (detect_feature_slug)
 - `mission.py` (_detect_current_feature)
@@ -173,6 +179,7 @@ Replaced 10 scattered implementations with imports from centralized module:
 ### Removed "Highest Numbered" Fallback
 
 **Old Behavior** (v0.13.x):
+
 ```bash
 $ cd /repo  # Has 020-feature-a and 021-feature-b
 $ spec-kitty implement WP01
@@ -180,6 +187,7 @@ $ spec-kitty implement WP01
 ```
 
 **New Behavior** (v0.14.0+):
+
 ```bash
 $ cd /repo  # Has 020-feature-a and 021-feature-b
 $ spec-kitty implement WP01
@@ -198,11 +206,13 @@ Please specify explicitly using:
 **Users Affected**: ~5% (those with multiple features who relied on auto-detection)
 
 **Mitigation**:
+
 1. Clear error message with guidance
 2. Multiple ways to specify (--feature flag, env var, directory context)
 3. Documentation updated with examples
 
 **Benefits**:
+
 - Correct feature always selected (prevents wrong feature bug)
 - Explicit is better than implicit
 - Better user experience overall (no silent failures)
@@ -267,6 +277,7 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 ### Unit Tests (32 tests)
 
 **Core detection scenarios**:
+
 - Explicit parameter (highest priority)
 - Environment variable
 - Git branch name (with/without WP suffix)
@@ -277,10 +288,12 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 - Invalid slug format
 
 **Priority order tests**:
+
 - Explicit > env var > git branch > cwd > single auto
 - Verify lower priorities skipped when higher priority succeeds
 
 **Error message quality**:
+
 - Multiple features error lists all options
 - Error messages mention `--feature` flag
 - Error messages provide examples
@@ -288,16 +301,19 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 ### Integration Tests (13 tests)
 
 **No orphaned implementations**:
+
 - Grep validation for old function names
 - Import analysis verifies centralized usage
 - No "highest numbered" heuristics remain
 
 **Backward compatibility**:
+
 - acceptance.py maintains compatible API
 - implement.py returns same tuple format
 - Error types converted appropriately
 
 **Command validation**:
+
 - All agent commands accept `--feature` parameter
 - Commands call centralized detection
 - Error handling works correctly
@@ -310,6 +326,7 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 **Worst case**: <50ms (multiple features, error with list)
 
 **Comparison to v0.13.x**:
+
 - No performance regression
 - Slightly faster due to early exits in priority chain
 
@@ -376,4 +393,5 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 ---
 
 **Document History**:
+
 - 2026-01-27: Initial version documenting v0.14.0 centralized feature detection

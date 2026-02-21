@@ -8,6 +8,7 @@
 **Decision**: Build on `spec_kitty_events.Event` (Pydantic model)
 
 **Rationale**: The vendored `spec_kitty_events` package already provides:
+
 - `Event` Pydantic model with `event_type`, `aggregate_id`, `lamport_clock`, `causation_id`, `node_id`, `payload`
 - `EventStore` ABC with `save_event()`, `load_events(aggregate_id)`, `load_all_events()`
 - `LamportClock` with `tick()`, `update()`, `current()` for causal ordering
@@ -17,6 +18,7 @@
 ExecutionEvent data fits naturally into the `Event.payload` dict with `event_type="ExecutionEvent"`. No new model class needed — the existing `Event` is generic by design.
 
 **Alternatives considered**:
+
 - New `ExecutionEvent` dataclass in `status/models.py` — rejected: would couple telemetry to the status pipeline
 - New Pydantic model in `telemetry/models.py` — rejected: duplicates `spec_kitty_events.Event` structure
 - Plain dict (like `mission_v1/events.py`) — rejected: loses Pydantic validation and Lamport clock ordering
@@ -26,6 +28,7 @@ ExecutionEvent data fits naturally into the `Event.payload` dict with `event_typ
 **Decision**: Create `SimpleJsonStore` as a JSONL-backed implementation of `spec_kitty_events.EventStore`
 
 **Rationale**: The `EventStore` ABC requires three methods:
+
 - `save_event(event: Event)` — append-only JSONL write (idempotent by event_id)
 - `load_events(aggregate_id: str)` — filtered read, sorted by `(lamport_clock, node_id)`
 - `load_all_events()` — full read, sorted
@@ -33,12 +36,14 @@ ExecutionEvent data fits naturally into the `Event.payload` dict with `event_typ
 JSONL is the established pattern in the codebase (used by `status/store.py`, `mission_v1/events.py`, `sync/queue.py`). A file-backed adapter completes the missing "WP02" that was never implemented in `events/store.py`.
 
 **Implementation notes**:
+
 - Append mode for writes (single-process CLI, no file locking needed per constitution)
 - Stream-parse for reads (handle >100MB files per spec requirement)
 - Skip malformed lines with warning (consistent with existing `read_events()` behavior)
 - Idempotent: check `event_id` before appending (dedup on write)
 
 **Alternatives considered**:
+
 - SQLite-backed store — rejected: overkill for MVP, deferred per spec's "Out of Scope"
 - Extending `status/store.py` — rejected: user decision to keep events in separate files
 
@@ -49,6 +54,7 @@ JSONL is the established pattern in the codebase (used by `status/store.py`, `mi
 **Rationale**: Consistent with `status.events.jsonl` and `mission-events.jsonl` per-feature collocation. The `aggregate_id` field in `spec_kitty_events.Event` maps naturally to `feature_slug`. Cross-project queries iterate over all `kitty-specs/*/execution.events.jsonl` files.
 
 **Alternatives considered**:
+
 - Centralized `.kittify/telemetry/events.jsonl` — rejected: breaks per-feature collocation pattern
 - Same file as status events — rejected: user decision to keep separate for easier aggregation
 
@@ -57,16 +63,19 @@ JSONL is the established pattern in the codebase (used by `status/store.py`, `mi
 **Decision**: Add optional telemetry fields to `InvocationResult` in `orchestrator/agents/base.py`
 
 **Fields to add**:
+
 - `model: str | None = None`
 - `input_tokens: int | None = None`
 - `output_tokens: int | None = None`
 - `cost_usd: float | None = None`
 
 **Hook point**: After `execute_with_logging()` returns in `integration.py`:
+
 - `process_wp_implementation()` — emit after implementation completes
 - `process_wp_review()` — emit after review completes
 
 **Pattern**: Follow existing try/except-with-warning pattern from `emit_wp_assigned()`:
+
 ```python
 try:
     emit_execution_event(feature_dir, result, wp_id, agent_id, ...)
@@ -75,6 +84,7 @@ except Exception as e:
 ```
 
 **Alternatives considered**:
+
 - Separate telemetry extraction from stdout — rejected: fragile regex parsing, agent-specific formats
 - Post-processing step scanning log files — rejected: adds latency, complex
 
@@ -85,6 +95,7 @@ except Exception as e:
 **Registration**: Add `telemetry` sub-command to the `agent` command group in `cli/commands/agent/__init__.py`
 
 **Pattern**: Same as `agent config`, `agent feature` sub-groups:
+
 ```python
 # cli/commands/agent/telemetry.py
 app = typer.Typer(name="telemetry", help="Telemetry and cost tracking")

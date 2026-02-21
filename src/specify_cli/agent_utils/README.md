@@ -9,6 +9,7 @@ Python utilities that AI agents can import and call directly, without running CL
 Display a beautiful kanban status board with parallelization analysis.
 
 **Usage:**
+
 ```python
 from specify_cli.agent_utils.status import show_kanban_status
 
@@ -20,6 +21,7 @@ result = show_kanban_status("012-documentation-mission")
 ```
 
 **Why use this instead of CLI command?**
+
 - ✅ **No truncation** - Full output displays inline (CLI gets truncated at ~50 lines)
 - ✅ **Direct import** - No need to run `spec-kitty` via Bash tool
 - ✅ **Instant output** - Displays immediately in agent's console
@@ -78,6 +80,7 @@ Progress: 8/10 (80.0%)
 ```
 
 **Returns (structured dict):**
+
 ```python
 {
     'feature': '012-documentation-mission',
@@ -121,6 +124,7 @@ Progress: 8/10 (80.0%)
 **Use Cases:**
 
 1. **Check status before starting work:**
+
    ```python
    result = show_kanban_status("012-documentation-mission")
    if result['parallelization']['ready_wps']:
@@ -128,6 +132,7 @@ Progress: 8/10 (80.0%)
    ```
 
 2. **Find parallelization opportunities:**
+
    ```python
    result = show_kanban_status()
    if result['parallelization']['can_parallelize']:
@@ -137,6 +142,7 @@ Progress: 8/10 (80.0%)
    ```
 
 3. **Track progress:**
+
    ```python
    result = show_kanban_status()
    print(f"Progress: {result['progress_percentage']}%")
@@ -146,12 +152,14 @@ Progress: 8/10 (80.0%)
 ## When to Use Agent Utilities
 
 **Always prefer Python functions over CLI commands when:**
+
 - Output might be truncated (>50 lines)
 - You need structured data for decision-making
 - You want instant inline display
 - You're working programmatically
 
 **Use CLI commands when:**
+
 - Running from terminal manually
 - Output is short and won't truncate
 - You need the command for documentation/user instructions

@@ -95,6 +95,7 @@ spec-kitty agent status validate --feature 034-feature-name --json
 ```
 
 **Checks performed**:
+
 1. **Schema validation**: All required fields present, ULID format, canonical lane values, ISO 8601 timestamps
 2. **Transition legality**: Every `(from_lane, to_lane)` pair is in the allowed transitions set (force transitions are always legal)
 3. **Done-evidence completeness**: Every done transition has evidence or force flag
@@ -118,6 +119,7 @@ spec-kitty agent status reconcile --feature 034-feature-name --apply
 ```
 
 **How it works**:
+
 1. Scans target repos for branches matching `*<feature-slug>*WP##*`
 2. Scans commit messages containing `WP##`
 3. Checks which WP branches are merged into main/master
@@ -163,6 +165,7 @@ spec-kitty agent status migrate --all --dry-run
 ```
 
 **Migration behavior**:
+
 - Reads current frontmatter `lane` values from all WP files in the feature
 - Resolves aliases (`doing` -> `in_progress`) before creating events
 - Generates one bootstrap event per WP: `from_lane=planned, to_lane=<current_lane>`
@@ -299,6 +302,7 @@ kitty-specs/<feature>/
 ```
 
 **Authority hierarchy**:
+
 1. `status.events.jsonl` -- canonical truth (append-only, immutable events)
 2. `status.json` -- derived snapshot (regenerable via `status materialize`)
 3. WP frontmatter `lane` -- compatibility view (regenerable via legacy bridge)

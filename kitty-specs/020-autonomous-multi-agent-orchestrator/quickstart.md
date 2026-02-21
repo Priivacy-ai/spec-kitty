@@ -33,6 +33,7 @@ spec-kitty orchestrate --status
 ```
 
 Output:
+
 ```
 Orchestration: 020-my-feature
 Status: running
@@ -156,6 +157,7 @@ Error: Agent 'claude-code' not installed
 ```
 
 Install the agent CLI:
+
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
@@ -167,6 +169,7 @@ Error: Agent 'claude-code' authentication failed
 ```
 
 Ensure API key is set:
+
 ```bash
 export ANTHROPIC_API_KEY=sk-...
 ```
@@ -186,6 +189,7 @@ Error: No orchestration state found
 ```
 
 State was lost or corrupted. Start fresh:
+
 ```bash
 spec-kitty orchestrate --feature 020-my-feature
 ```

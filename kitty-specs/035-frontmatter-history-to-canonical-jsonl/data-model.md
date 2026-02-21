@@ -16,6 +16,7 @@ Intermediate representation after normalizing a raw Format A history entry.
 | `actor` | `str` | Agent identifier (from entry, or `"migration"` if missing) |
 
 **Invariants**:
+
 - `lane` is always a canonical lane (never an alias like `doing`)
 - `timestamp` is always a non-empty ISO 8601 string
 
@@ -137,6 +138,7 @@ Naming: ISO timestamp uses safe filename characters (e.g., `2026-02-09T120000Z`)
 ### Migration Marker
 
 Present in `StatusEvent.reason` field:
+
 ```
 "historical_frontmatter_to_jsonl:v1"
 ```

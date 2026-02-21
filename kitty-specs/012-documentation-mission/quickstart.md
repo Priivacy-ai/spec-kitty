@@ -7,6 +7,7 @@
 ## 🎯 What Are We Building?
 
 A new "documentation" mission type for spec-kitty that helps teams create and maintain software documentation following:
+
 - **Write the Docs** best practices (docs as code, accessibility, bias-free language)
 - **Divio's 4 documentation types**: tutorial, how-to, reference, explanation
 - **Auto-generated docs** from JSDoc (JS/TS), Sphinx (Python), rustdoc (Rust)
@@ -339,6 +340,7 @@ def analyze_gaps(docs_dir: Path) -> GapAnalysis:
 **Symptom**: `MissionNotFoundError: Mission 'documentation' not found`
 
 **Solution**:
+
 ```bash
 # Check mission directory exists
 ls -la src/specify_cli/missions/documentation/
@@ -356,6 +358,7 @@ print(list_available_missions())
 **Symptom**: `FileNotFoundError: Template not found: divio/tutorial-template.md`
 
 **Solution**:
+
 ```bash
 # Check template exists
 ls -la src/specify_cli/missions/documentation/templates/divio/
@@ -371,6 +374,7 @@ print(mission.list_templates())
 **Symptom**: `GeneratorResult(success=False, errors=['sphinx-build: command not found'])`
 
 **Solution**:
+
 ```bash
 # Check generator tool is installed
 which sphinx-build  # For Sphinx
@@ -428,6 +432,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  # Rust
 ## 🤝 Contributing
 
 When implementing work packages:
+
 1. Create branch: `012-documentation-mission-WP{NN}`
 2. Write tests first (TDD)
 3. Implement feature

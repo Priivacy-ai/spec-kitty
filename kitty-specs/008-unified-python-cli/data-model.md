@@ -1,6 +1,7 @@
 # Data Model
 
 ## AgentCommand
+
 - **Responsibility**: Represents a Python CLI command in the `spec-kitty agent` namespace, designed for AI agents to call programmatically.
 - **Key Fields**:
   - `name` — command name (string, e.g., "create-feature", "workflow", "update-context")
@@ -20,6 +21,7 @@
   - Uses `PathResolver` for location-aware path resolution
 
 ## PathResolver
+
 - **Responsibility**: Detects execution location (main repository vs worktree) and resolves file paths correctly regardless of where command is executed.
 - **Key Fields**:
   - `repo_root` — repository root path (Path object)
@@ -39,6 +41,7 @@
   - References `RepositoryConfig` for validation rules
 
 ## SlashCommandTemplate
+
 - **Responsibility**: Markdown file in `.claude/commands/` that defines an agent workflow by referencing `AgentCommand` instances.
 - **Key Fields**:
   - `command_name` — slash command identifier (string, e.g., "spec-kitty.implement")
@@ -58,6 +61,7 @@
   - Executed by AI agents as part of feature workflow
 
 ## UpgradeMigration
+
 - **Responsibility**: Migration script that transforms existing spec-kitty projects from bash-based to Python CLI-based architecture.
 - **Key Fields**:
   - `migration_version` — semantic version (e.g., "0.10.0")
@@ -80,6 +84,7 @@
   - References `ProjectConfig` for project-specific paths
 
 ## BashScript
+
 - **Responsibility**: Legacy bash script file that will be eliminated during migration.
 - **Key Fields**:
   - `script_path` — file path (e.g., ".kittify/scripts/bash/create-new-feature.sh")
@@ -100,6 +105,7 @@
   - May be referenced by `SlashCommandTemplate` (requires template update)
 
 ## WorktreeContext
+
 - **Responsibility**: Represents git worktree location where agents may execute commands, requiring automatic path resolution.
 - **Key Fields**:
   - `worktree_path` — absolute path to worktree (e.g., ".worktrees/008-unified-python-cli")
@@ -120,6 +126,7 @@
   - Used by `AgentCommand` instances to resolve feature-specific paths
 
 ## AgentCommandRegistry
+
 - **Responsibility**: Central registry of all `spec-kitty agent` commands, used for validation and help text generation.
 - **Key Fields**:
   - `commands` — dict mapping command name to `AgentCommand` instance
@@ -137,6 +144,7 @@
   - Used by `UpgradeMigration` to validate template updates
 
 ## RepositoryConfig
+
 - **Responsibility**: Configuration and metadata for spec-kitty project repository.
 - **Key Fields**:
   - `repo_root` — repository root directory

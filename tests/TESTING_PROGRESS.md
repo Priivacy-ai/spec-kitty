@@ -19,6 +19,7 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 **Commit:** `62f731a` (feat), `HEAD` (fix)
 
 #### Required Tests (6/6)
+
 - ✅ Test 1.1: Detect all 15+ problematic character types
 - ✅ Test 1.2: Sanitize text preserves content
 - ✅ Test 1.3: Sanitize file creates backup
@@ -27,6 +28,7 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 - ✅ Test 1.6: Dry run mode doesn't modify
 
 #### Additional Tests (9/9)
+
 - ✅ Test 1.7-1.8: Performance (single file < 50ms, 100 files < 2s)
 - ✅ Test 1.9-1.12: Edge cases (binary, empty, large files, permissions)
 - ✅ Test 1.13-1.14: Regression tests (clean files, backup safety)
@@ -35,6 +37,7 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 **Actual Coverage:** *Pending full test run*
 
 **Run Tests:**
+
 ```bash
 cd /Users/robert/Code/spec-kitty
 source /Users/robert/Code/spec-kitty-test/venv/bin/activate  # Has spec-kitty in editable mode
@@ -42,6 +45,7 @@ pytest tests/test_encoding_validation_functional.py -v
 ```
 
 **Results:**
+
 ```
 15 passed in 0.16s ✅
 ```
@@ -59,6 +63,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Commit:** `ddee94c`
 
 **Tests implemented:**
+
 - Test 2.1: Validate clean feature ✅
 - Test 2.2: Detect issues without fix ✅
 - Test 2.3: Fix issues with backup ✅
@@ -83,6 +88,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Commit:** `ddee94c`
 
 **Tests implemented:**
+
 - Test 3.1: Dashboard read resilient auto-fix ✅
 - Test 3.2: Dashboard read without auto-fix ✅
 - Test 3.3: Dashboard scanner creates error cards ✅
@@ -92,6 +98,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Coverage Target:** 90%+ for dashboard scanner encoding logic (on track)
 
 **Performance validated:**
+
 - Auto-fix: < 200ms ✅
 - Multiple files: < 500ms ✅
 
@@ -106,6 +113,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Commit:** `177f092` (from merged PR)
 
 **Tests implemented:**
+
 - Detect unfilled plan with template markers ✅
 - Threshold detection (5+ markers) ✅
 - Validation raises on unfilled ✅
@@ -124,6 +132,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Target:** `templates/git-hooks/pre-commit-encoding-check`
 
 **Tests to implement:**
+
 - Test 5.1: Hook blocks bad encoding
 - Test 5.2: Hook allows clean files
 - Test 5.3: Hook skips non-markdown
@@ -138,6 +147,7 @@ pytest tests/test_encoding_validation_functional.py -v
 **Target:** End-to-end workflows
 
 **Tests to implement:**
+
 - Test 6.1: End-to-end encoding workflow
 - Test 6.2: End-to-end plan validation workflow
 - Test 6.3: Multiple features mixed state
@@ -164,6 +174,7 @@ pytest tests/test_encoding_validation_functional.py -v
 ### ✅ Core Requirements Complete
 
 All critical guardrail functionality is now tested and validated:
+
 - ✅ Encoding validation (15 tests)
 - ✅ CLI commands (10 tests)
 - ✅ Dashboard resilience (16 tests)
@@ -176,12 +187,14 @@ All critical guardrail functionality is now tested and validated:
 The following test suites provide additional integration testing but are not required for core functionality:
 
 #### Optional 1: Pre-Commit Hook Tests (Git Integration)
+
 **File:** `tests/test_pre_commit_hook_functional.py`
 **Tests:** 4
 **Value:** Git commit blocking
 **Estimated Time:** 1 hour
 
 #### Optional 2: Integration Tests (E2E Coverage)
+
 **File:** `tests/test_encoding_plan_integration.py`
 **Tests:** 3
 **Value:** End-to-end workflow validation
@@ -194,12 +207,14 @@ The following test suites provide additional integration testing but are not req
 ## Coverage Requirements
 
 **Minimum Targets:**
+
 - ✅ `text_sanitization.py`: 95%+ (on track)
 - ⏳ `plan_validation.py`: 95%+ (tests pending)
 - ⏳ `validate_encoding.py`: 85%+ (tests pending)
 - ⏳ Dashboard scanner encoding: 90%+ (tests pending)
 
 **Critical Paths (Must Be 100%):**
+
 - ✅ Character mapping in `PROBLEMATIC_CHARS` (tested)
 - ✅ Backup file creation (tested)
 - ⏳ Plan marker detection (tests pending)
@@ -210,6 +225,7 @@ The following test suites provide additional integration testing but are not req
 ## Performance Benchmarks
 
 **Target:** All measured in completed Test Suite 1
+
 - ✅ Single file validation: < 50ms (**PASS**)
 - ✅ Directory scan (100 files): < 2s (**PASS**)
 - ⏳ Dashboard auto-fix: < 200ms (test pending)
@@ -219,6 +235,7 @@ The following test suites provide additional integration testing but are not req
 ## Test Execution
 
 ### Run Completed Tests
+
 ```bash
 # All encoding validation tests
 pytest tests/test_encoding_validation_functional.py -v
@@ -231,6 +248,7 @@ pytest tests/test_encoding_validation_functional.py \
 ```
 
 ### Run All Tests (When Complete)
+
 ```bash
 # Run all encoding/plan tests
 pytest tests/test_*encoding*.py tests/test_*plan*.py -v
@@ -247,6 +265,7 @@ pytest tests/test_*encoding*.py tests/test_*plan*.py \
 ## Success Criteria
 
 **Current Status:**
+
 - ✅ **Zero dashboard crashes** from encoding errors in Test Suite 1
 - ✅ **Zero false positives** in clean file validation
 - ✅ **100% detection rate** for all 15+ problematic character types
@@ -259,17 +278,20 @@ pytest tests/test_*encoding*.py tests/test_*plan*.py \
 ## Notes for Maintainers
 
 ### What's Working Well
+
 1. **Test Suite 1 is comprehensive** - Covers all requirements plus edge cases
 2. **Performance targets met** - Both single file and directory scans within spec
 3. **Real Unicode testing** - Tests use actual Unicode characters, not just ASCII
 4. **Edge cases covered** - Binary files, permissions, empty files, large files
 
 ### Technical Details
+
 - Tests use `spec-kitty-test/venv` which has spec-kitty installed in editable mode
 - All tests are deterministic and clean up after themselves
 - Tests work on macOS (tested), should work on Linux/Windows
 
 ### Recommendations for Remaining Tests
+
 1. Use `typer.testing.CliRunner` for CLI tests (Suite 2)
 2. Mock or use test fixtures for dashboard scanner tests (Suite 3)
 3. Create realistic test fixtures for plan validation (Suite 4)

@@ -40,6 +40,7 @@ class VCSCapabilities:
 ```
 
 **Git capabilities**:
+
 ```python
 GIT_CAPABILITIES = VCSCapabilities(
     supports_auto_rebase=False,
@@ -52,6 +53,7 @@ GIT_CAPABILITIES = VCSCapabilities(
 ```
 
 **jj capabilities**:
+
 ```python
 JJ_CAPABILITIES = VCSCapabilities(
     supports_auto_rebase=True,
@@ -93,6 +95,7 @@ class ChangeInfo:
 ```
 
 **Relationships**:
+
 - Many ChangeInfo can reference the same Change ID (jj evolution)
 - Parent references form the commit graph
 
@@ -126,6 +129,7 @@ class ConflictType(str, Enum):
 ```
 
 **Notes**:
+
 - In git, conflicts block operations and must be resolved immediately
 - In jj, conflicts are stored in the commit and can be resolved later
 - `sides > 2` only possible in jj (octopus merges)
@@ -165,6 +169,7 @@ class SyncStatus(str, Enum):
 ```
 
 **Relationships**:
+
 - `changes_integrated` contains all ChangeInfo objects for commits merged/rebased
 - `conflicts` contains ConflictInfo for each conflicted file
 
@@ -201,6 +206,7 @@ class WorkspaceInfo:
 ```
 
 **Relationships**:
+
 - Workspace belongs to one Feature (via naming convention)
 - Workspace has one current ChangeInfo
 - Workspace may depend on other Workspaces (via base_branch)
@@ -231,6 +237,7 @@ class OperationInfo:
 ```
 
 **Notes**:
+
 - jj has full operation log with complete undo capability
 - git approximates via reflog but with limited undo (destructive operations not recoverable)
 
@@ -257,6 +264,7 @@ vcs:
 ```
 
 **Dataclass representation**:
+
 ```python
 @dataclass
 class ProjectVCSConfig:
@@ -284,6 +292,7 @@ Per-feature VCS selection stored in feature's `meta.json`.
 ```
 
 **Dataclass representation**:
+
 ```python
 @dataclass
 class FeatureVCSConfig:
@@ -292,6 +301,7 @@ class FeatureVCSConfig:
 ```
 
 **Constraints**:
+
 - `vcs` is immutable after feature creation
 - Attempting to change raises `VCSLockError`
 

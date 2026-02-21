@@ -13,12 +13,13 @@ ssh-keygen -t ed25519 -C "spec-kitty-ci-deploy-key" -f spec-kitty-events-deploy-
 ```
 
 This creates two files:
+
 - `spec-kitty-events-deploy-key` (private key - for GitHub Actions secret)
 - `spec-kitty-events-deploy-key.pub` (public key - for spec-kitty-events repo)
 
 ### 2. Add Public Key to spec-kitty-events Repository
 
-1. Go to https://github.com/Priivacy-ai/spec-kitty-events/settings/keys
+1. Go to <https://github.com/Priivacy-ai/spec-kitty-events/settings/keys>
 2. Click "Add deploy key"
 3. Title: "spec-kitty CI/CD Read-Only"
 4. Key: Paste contents of `spec-kitty-events-deploy-key.pub`
@@ -27,7 +28,7 @@ This creates two files:
 
 ### 3. Add Private Key to spec-kitty Repository Secrets
 
-1. Go to https://github.com/Priivacy-ai/spec-kitty/settings/secrets/actions
+1. Go to <https://github.com/Priivacy-ai/spec-kitty/settings/secrets/actions>
 2. Click "New repository secret"
 3. Name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
 4. Value: Paste contents of `spec-kitty-events-deploy-key` (PRIVATE key, entire file)
@@ -46,10 +47,12 @@ After setup, GitHub Actions can access spec-kitty-events. Test by triggering a w
 ## Troubleshooting
 
 **Error: "Permission denied (publickey)"**
+
 - Check that public key was added to spec-kitty-events repo (Step 2)
 - Check that private key secret name matches exactly: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
 
 **Error: "Could not read from remote repository"**
+
 - Verify SSH URL in pyproject.toml uses `git+ssh://git@github.com/...` format
 - Verify deploy key has read access to spec-kitty-events repository
 
@@ -58,6 +61,7 @@ After setup, GitHub Actions can access spec-kitty-events. Test by triggering a w
 **Rotate every 12 months or immediately if compromised.**
 
 Follow the same steps above to generate new keys, then:
+
 1. Add new public key to spec-kitty-events (don't remove old key yet)
 2. Update secret in spec-kitty with new private key
 3. Trigger a test build to verify new key works

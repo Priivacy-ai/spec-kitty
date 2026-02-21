@@ -34,6 +34,7 @@ history:
 **Goal**: Implement JujutsuVCS class with full jj CLI integration.
 
 **Success Criteria**:
+
 - All VCSProtocol methods work correctly for jj backend
 - jj workspace creation uses colocated mode when git available
 - Conflict detection understands jj's conflict-as-data model
@@ -47,21 +48,25 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - VCSProtocol definition
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/spec.md` - jj-specific user stories
 
 **Architecture Decisions**:
+
 - JujutsuVCS implements VCSProtocol
 - Use colocated mode by default when git available
 - Conflicts are stored (non-blocking) - key differentiator from git
 - Use jj JSON output where available for reliable parsing
 
 **Constraints**:
+
 - All tests require real jj installation (no mocking - per FR-024)
 - Minimum jj version: 0.20+
 - Must handle both colocated and pure jj repos
 
 **jj Key Commands**:
+
 - `jj workspace add <path>` - Create workspace
 - `jj workspace forget <name>` - Remove workspace
 - `jj workspace list` - List workspaces
@@ -81,8 +86,10 @@ history:
 **Purpose**: Establish the JujutsuVCS class structure implementing VCSProtocol.
 
 **Steps**:
+
 1. Create `src/specify_cli/core/vcs/jujutsu.py`
 2. Create JujutsuVCS class with protocol properties:
+
    ```python
    class JujutsuVCS:
        @property
@@ -93,9 +100,11 @@ history:
        def capabilities(self) -> VCSCapabilities:
            return JJ_CAPABILITIES
    ```
+
 3. Add stub methods for all VCSProtocol operations
 
 **Files**:
+
 - Create: `src/specify_cli/core/vcs/jujutsu.py`
 
 ---
@@ -105,6 +114,7 @@ history:
 **Purpose**: Implement jj workspace creation and management.
 
 **Steps**:
+
 1. Implement `create_workspace()`:
    - Use `jj workspace add <path> --name <name>`
    - If base_branch specified, create from that revision
@@ -119,9 +129,11 @@ history:
    - Use `jj workspace list`
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **Implementation Details**:
+
 ```python
 def create_workspace(
     self,
@@ -154,6 +166,7 @@ def create_workspace(
 **Purpose**: Implement jj workspace synchronization with auto-rebase.
 
 **Steps**:
+
 1. Implement `sync_workspace()`:
    - Use `jj workspace update-stale`
    - Conflicts are stored, not blocking (key difference from git!)
@@ -164,9 +177,11 @@ def create_workspace(
    - Run `jj workspace update-stale --dry-run` or check status
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **Key Difference from Git**:
+
 ```python
 def sync_workspace(self, workspace_path: Path) -> SyncResult:
     # In jj, update-stale ALWAYS succeeds - conflicts are stored
@@ -194,6 +209,7 @@ def sync_workspace(self, workspace_path: Path) -> SyncResult:
 **Purpose**: Detect and report jj stored conflicts.
 
 **Steps**:
+
 1. Implement `detect_conflicts()`:
    - Use `jj status` to find conflicted files
    - Parse jj's conflict representation
@@ -202,9 +218,11 @@ def sync_workspace(self, workspace_path: Path) -> SyncResult:
    - Check `jj status` for conflict indicator
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **jj Status Parsing**:
+
 ```python
 def detect_conflicts(self, workspace_path: Path) -> list[ConflictInfo]:
     result = subprocess.run(
@@ -223,6 +241,7 @@ def detect_conflicts(self, workspace_path: Path) -> list[ConflictInfo]:
 ```
 
 **Notes**:
+
 - jj can have 3+ sided conflicts (octopus merges)
 - `sides` field in ConflictInfo captures this
 
@@ -233,6 +252,7 @@ def detect_conflicts(self, workspace_path: Path) -> list[ConflictInfo]:
 **Purpose**: Implement jj commit and change operations.
 
 **Steps**:
+
 1. Implement `get_current_change()`:
    - Use `jj log -r @ -T <template>` for working copy
    - Extract Change ID (stable across rebases)
@@ -244,9 +264,11 @@ def detect_conflicts(self, workspace_path: Path) -> list[ConflictInfo]:
    - Use `jj new` to create new change if needed
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **jj Template for Parsing**:
+
 ```python
 JJ_LOG_TEMPLATE = 'change_id ++ "|" ++ commit_id ++ "|" ++ description.first_line()'
 
@@ -260,6 +282,7 @@ def get_current_change(self, workspace_path: Path) -> ChangeInfo | None:
 ```
 
 **Key Difference from Git**:
+
 - In jj, the working copy IS a commit - no staging area
 - `jj describe` modifies the current change's message
 - `jj new` creates a new empty change on top
@@ -271,6 +294,7 @@ def get_current_change(self, workspace_path: Path) -> ChangeInfo | None:
 **Purpose**: Implement jj repository initialization with colocated mode.
 
 **Steps**:
+
 1. Implement `init_repo()`:
    - Use `jj git init --colocate` when colocate=True and git available
    - Use `jj init` for pure jj mode
@@ -280,9 +304,11 @@ def get_current_change(self, workspace_path: Path) -> ChangeInfo | None:
    - Use `jj workspace root`
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **Colocated Mode**:
+
 ```python
 def init_repo(self, path: Path, colocate: bool = True) -> bool:
     if colocate and is_git_available():
@@ -304,7 +330,9 @@ def init_repo(self, path: Path, colocate: bool = True) -> bool:
 **Purpose**: Implement jj-specific functions not in VCSProtocol.
 
 **Steps**:
+
 1. Add to `src/specify_cli/core/vcs/jujutsu.py`:
+
    ```python
    def jj_get_operation_log(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
        """Get jj operation log."""
@@ -315,10 +343,12 @@ def init_repo(self, path: Path, colocate: bool = True) -> bool:
    def jj_get_change_by_id(repo_path: Path, change_id: str) -> ChangeInfo | None:
        """Look up change by stable Change ID."""
    ```
+
 2. Parse `jj op log --limit <n>` for operation history
 3. Use `jj op undo` for undo functionality
 
 **Files**:
+
 - Modify: `src/specify_cli/core/vcs/jujutsu.py`
 
 **Parallel?**: Yes - can proceed alongside protocol methods
@@ -330,6 +360,7 @@ def init_repo(self, path: Path, colocate: bool = True) -> bool:
 **Purpose**: Test JujutsuVCS implementation with real jj.
 
 **Steps**:
+
 1. Create `tests/specify_cli/core/vcs/test_jujutsu.py`
 2. Mark all tests with `@pytest.mark.jj`
 3. Test all VCSProtocol methods
@@ -337,9 +368,11 @@ def init_repo(self, path: Path, colocate: bool = True) -> bool:
 5. Test conflict-as-data behavior (sync doesn't fail on conflicts)
 
 **Files**:
+
 - Create: `tests/specify_cli/core/vcs/test_jujutsu.py`
 
 **Test Examples**:
+
 ```python
 import pytest
 from specify_cli.core.vcs import VCSBackend, VCSProtocol
@@ -409,6 +442,7 @@ def test_sync_with_conflict_succeeds(tmp_path):
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify all VCSProtocol methods implemented
 2. Verify colocated mode creates both .jj/ and .git/
 3. Verify sync doesn't fail on conflicts (stores them instead)
@@ -421,10 +455,10 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T12:02:33Z – claude-code – shell_pid=65174 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:11:44Z – claude-code – shell_pid=65174 – lane=for_review – Full JujutsuVCS implementation with 36 passing tests. Key jj behaviors implemented: non-blocking conflicts, Change IDs, operation log with undo.
-- 2026-01-17T12:12:41Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
-- 2026-01-17T12:13:26Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
-- 2026-01-17T12:14:28Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
-- 2026-01-17T12:15:19Z – __AGENT__ – shell_pid=38749 – lane=for_review – Ready for review: jj init for non-colocated, tests updated
+- 2026-01-17T12:12:41Z – **AGENT** – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:13:26Z – **AGENT** – shell_pid=38749 – lane=planned – Moved to planned
+- 2026-01-17T12:14:28Z – **AGENT** – shell_pid=38749 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:15:19Z – **AGENT** – shell_pid=38749 – lane=for_review – Ready for review: jj init for non-colocated, tests updated
 - 2026-01-17T12:22:09Z – claude-code – shell_pid=84083 – lane=doing – Started review via workflow command
 - 2026-01-17T12:25:21Z – claude-code – shell_pid=84083 – lane=done – Review passed: Both issues fixed - init_repo() now uses 'jj init' for non-colocated mode, supports_operation_undo assertion removed from tests. All 101 VCS tests pass including 36 JujutsuVCS-specific tests.
 
@@ -437,4 +471,3 @@ def test_sync_with_conflict_succeeds(tmp_path):
 **Issue 1**: `init_repo()` uses `jj git init` even when `colocate=False`. The spec calls for pure jj repos when colocate is false (`jj init`), so this implementation can't create non-colocated repos. Adjust to use `jj init` when `colocate=False` (and `jj git init --colocate` only when colocating).
 
 **Issue 2**: Tests assert a `supports_operation_undo` capability that no longer exists in the data model. This will fail once WP01 removed the field. Update the JJ tests to match the spec-correct `VCSCapabilities` fields and drop the `supports_operation_undo` assertion.
-

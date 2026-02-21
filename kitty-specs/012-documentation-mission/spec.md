@@ -3,9 +3,10 @@
 **Feature Branch**: `012-documentation-mission`
 **Created**: 2026-01-12
 **Status**: Draft
-**Input**: User description: "I want to add a 'documentation' mission to spec kitty. I want us to research the state of the art best practices for writing software product documentation and then conceive of a set of tempaltes, commands and workflow that would let us do a documentation mission on a software project. For example, we'll dogfood this to rewrite spec kitty docs themselves. It should study https://www.writethedocs.org/index.html and make those people happy and it should know about the https://docs.divio.com/documentation-system/ four types of documentation. Additionally, it should know how generated docs of common natures operate, eg generated docs from various languages and frameworks. You recommend which ones but include JS, Python, Rust for sure."
+**Input**: User description: "I want to add a 'documentation' mission to spec kitty. I want us to research the state of the art best practices for writing software product documentation and then conceive of a set of tempaltes, commands and workflow that would let us do a documentation mission on a software project. For example, we'll dogfood this to rewrite spec kitty docs themselves. It should study <https://www.writethedocs.org/index.html> and make those people happy and it should know about the <https://docs.divio.com/documentation-system/> four types of documentation. Additionally, it should know how generated docs of common natures operate, eg generated docs from various languages and frameworks. You recommend which ones but include JS, Python, Rust for sure."
 
 **CRITICAL INFRASTRUCTURE FIXES**: During implementation of this feature, we discovered and fixed critical issues in the workspace-per-WP workflow system (feature 010). See [INFRASTRUCTURE-FIXES.md](INFRASTRUCTURE-FIXES.md) for complete documentation of:
+
 - Worktree state sync (git sparse-checkout + auto-commit)
 - Workflow command improvements (end instructions, automated feedback)
 - PID tracking restoration

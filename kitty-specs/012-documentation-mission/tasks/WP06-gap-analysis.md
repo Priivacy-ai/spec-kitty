@@ -52,6 +52,7 @@ history:
 **This WP depends on**: WP01 (Mission Infrastructure)
 
 **Before starting work**:
+
 1. Ensure WP01 is complete (mission.yaml exists)
 2. WP03 (Divio templates) should be complete for best reference, but not strictly required
 
@@ -62,6 +63,7 @@ history:
 **Goal**: Implement gap analysis algorithm that audits existing documentation, classifies docs into Divio types, builds coverage matrix, identifies gaps, and generates gap-analysis.md reports.
 
 **Success Criteria**:
+
 - `src/specify_cli/gap_analysis.py` module created
 - Framework detection identifies Sphinx, MkDocs, Docusaurus, Jekyll, or plain Markdown
 - Divio type classification uses multi-strategy approach (frontmatter, content heuristics)
@@ -75,16 +77,19 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Python 3.11+ with pathlib
 - ruamel.yaml for frontmatter parsing
 - Understanding of Divio documentation types
 
 **Reference Documents**:
+
 - [research.md](../research.md) - Gap analysis algorithms (lines 242-352)
 - [data-model.md](../data-model.md) - Gap Analysis and Coverage Matrix entities (lines 330-407)
 - [spec.md](../spec.md) - Gap analysis requirements (FR-005, FR-009, lines 106, 110)
 
 **Constraints**:
+
 - Must handle projects without Divio-structured docs
 - Must be conservative (only flag obvious gaps)
 - Must allow user override via frontmatter `type` field
@@ -92,6 +97,7 @@ history:
 - Should support common doc frameworks (Sphinx, MkDocs, Jekyll, Docusaurus)
 
 **Gap Analysis Strategy** (from research):
+
 1. **File structure analysis**: Detect framework from characteristic files
 2. **Frontmatter classification**: Parse YAML frontmatter for explicit `type` field
 3. **Content heuristics**: Analyze content patterns to infer Divio type
@@ -104,8 +110,10 @@ history:
 **Purpose**: Create the Python module for gap analysis functionality.
 
 **Steps**:
+
 1. Create `src/specify_cli/gap_analysis.py`
 2. Add module docstring:
+
    ```python
    """Gap analysis for documentation missions.
 
@@ -120,7 +128,9 @@ history:
    5. Prioritize gaps by user impact
    """
    ```
+
 3. Add imports:
+
    ```python
    from __future__ import annotations
 
@@ -144,7 +154,9 @@ history:
 **Purpose**: Detect which documentation framework (if any) a project uses by analyzing file structure.
 
 **Steps**:
+
 1. In `gap_analysis.py`, define framework enum:
+
    ```python
    class DocFramework(Enum):
        """Supported documentation frameworks."""
@@ -158,6 +170,7 @@ history:
    ```
 
 2. Implement detection function:
+
    ```python
    def detect_doc_framework(docs_dir: Path) -> DocFramework:
        """Detect documentation framework from file structure.
@@ -200,6 +213,7 @@ history:
 **Parallel?**: Yes (can develop alongside classification logic)
 
 **Notes**:
+
 - Detection is heuristic-based (checks for characteristic files)
 - Sphinx: conf.py
 - MkDocs: mkdocs.yml
@@ -210,6 +224,7 @@ history:
 - UNKNOWN: no docs found
 
 **Quality Validation**:
+
 - Does it detect common frameworks correctly?
 - Does it handle projects without frameworks?
 - Does it return UNKNOWN rather than crash?
@@ -219,7 +234,9 @@ history:
 **Purpose**: Classify documentation files into Divio types using frontmatter and content heuristics.
 
 **Steps**:
+
 1. In `gap_analysis.py`, define Divio type enum:
+
    ```python
    class DivioType(Enum):
        """Divio documentation types."""
@@ -231,6 +248,7 @@ history:
    ```
 
 2. Implement frontmatter parser:
+
    ```python
    def parse_frontmatter(content: str) -> Optional[Dict[str, Any]]:
        """Parse YAML frontmatter from markdown file.
@@ -266,6 +284,7 @@ history:
    ```
 
 3. Implement content heuristics:
+
    ```python
    def classify_by_content_heuristics(content: str) -> DivioType:
        """Classify document by analyzing content patterns.
@@ -327,6 +346,7 @@ history:
    ```
 
 4. Implement main classification function:
+
    ```python
    def classify_divio_type(content: str) -> Tuple[DivioType, float]:
        """Classify document into Divio type.
@@ -367,12 +387,14 @@ history:
 **Parallel?**: Yes (can develop alongside framework detection and coverage matrix)
 
 **Notes**:
+
 - Two-strategy approach: frontmatter (definitive) then heuristics (fallback)
 - Confidence score indicates certainty (1.0 = explicit, 0.7 = heuristic, 0.0 = unknown)
 - Heuristics use keyword scoring (count markers for each type)
 - Conservative approach (high threshold for classification)
 
 **Quality Validation**:
+
 - Does frontmatter parsing handle edge cases (missing closing ---, invalid YAML)?
 - Do heuristics correctly identify each Divio type?
 - Is confidence score appropriate for each strategy?
@@ -383,7 +405,9 @@ history:
 **Purpose**: Implement the coverage matrix data structure that shows which project areas have which Divio types.
 
 **Steps**:
+
 1. In `gap_analysis.py`, implement `CoverageMatrix`:
+
    ```python
    @dataclass
    class CoverageMatrix:
@@ -500,6 +524,7 @@ history:
 **Parallel?**: No (other functions use this class)
 
 **Notes**:
+
 - Matrix structure: rows = areas, columns = Divio types
 - Cells contain Path to doc file or None if missing
 - Methods for querying coverage by area or type
@@ -507,6 +532,7 @@ history:
 - Coverage percentage calculation
 
 **Quality Validation**:
+
 - Can matrix handle empty areas list?
 - Does get_gaps() return correct list?
 - Does coverage percentage calculate correctly?
@@ -517,7 +543,9 @@ history:
 **Purpose**: Prioritize identified gaps by user impact (high/medium/low).
 
 **Steps**:
+
 1. In `gap_analysis.py`, define gap priority enum:
+
    ```python
    class GapPriority(Enum):
        """Priority levels for documentation gaps."""
@@ -527,6 +555,7 @@ history:
    ```
 
 2. Define gap dataclass:
+
    ```python
    @dataclass
    class DocumentationGap:
@@ -548,6 +577,7 @@ history:
    ```
 
 3. Implement prioritization logic:
+
    ```python
    def prioritize_gaps(
        gaps: List[Tuple[str, str]],
@@ -625,6 +655,7 @@ history:
 **Parallel?**: No (uses CoverageMatrix)
 
 **Notes**:
+
 - Prioritization based on user impact (from research)
 - HIGH: Tutorials (new users) and Reference (API discovery)
 - MEDIUM: How-Tos (problem solving)
@@ -633,6 +664,7 @@ history:
 - Sorted by priority for reporting
 
 **Quality Validation**:
+
 - Does prioritization logic match spec requirements (FR-037)?
 - Are priorities assigned correctly for each type?
 - Is sorting working (high gaps first)?
@@ -643,7 +675,9 @@ history:
 **Purpose**: Detect when API reference documentation is outdated by comparing code APIs vs documented APIs.
 
 **Steps**:
+
 1. In `gap_analysis.py`, implement code API extraction:
+
    ```python
    def extract_public_api_from_python(source_dir: Path) -> List[str]:
        """Extract public API elements from Python source.
@@ -686,6 +720,7 @@ history:
    ```
 
 2. Implement documented API extraction:
+
    ```python
    def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
        """Extract documented API elements from Sphinx documentation.
@@ -717,6 +752,7 @@ history:
    ```
 
 3. Implement mismatch detection:
+
    ```python
    def detect_version_mismatch(
        code_dir: Path,
@@ -749,6 +785,7 @@ history:
 **Parallel?**: Yes (can develop alongside other gap analysis features)
 
 **Notes**:
+
 - Python-only initially (extensible to other languages)
 - Uses AST parsing to extract public APIs from code
 - Parses Sphinx HTML to extract documented APIs
@@ -756,6 +793,7 @@ history:
 - Conservative (only public APIs, not private)
 
 **Quality Validation**:
+
 - Does AST parsing correctly identify public APIs?
 - Does HTML parsing find documented APIs?
 - Are private APIs correctly excluded?
@@ -766,7 +804,9 @@ history:
 **Purpose**: Generate comprehensive gap analysis report with coverage matrix, prioritized gaps, and recommendations.
 
 **Steps**:
+
 1. In `gap_analysis.py`, define `GapAnalysis` dataclass:
+
    ```python
    @dataclass
    class GapAnalysis:
@@ -916,6 +956,7 @@ history:
    ```
 
 2. Implement main analysis function:
+
    ```python
    def analyze_documentation_gaps(
        docs_dir: Path,
@@ -980,6 +1021,7 @@ history:
    ```
 
 3. Implement helper functions:
+
    ```python
    def detect_project_areas(docs_dir: Path, project_root: Path) -> List[str]:
        """Detect project areas from directory structure.
@@ -1068,6 +1110,7 @@ history:
 **Parallel?**: Yes (can develop alongside other analysis features)
 
 **Notes**:
+
 - Python AST parsing to extract public APIs
 - HTML/RST parsing to extract documented APIs (simplified for MVP)
 - Comparison to find APIs in code but not in docs
@@ -1075,6 +1118,7 @@ history:
 - Conservative (only flags missing public APIs)
 
 **Quality Validation**:
+
 - Does AST parsing correctly identify public functions and classes?
 - Are private APIs (starting with _) correctly excluded?
 - Does comparison accurately find mismatches?
@@ -1085,7 +1129,9 @@ history:
 **Purpose**: Create the main entry point function that runs gap analysis and writes the report file.
 
 **Steps**:
+
 1. In `gap_analysis.py`, implement report generation:
+
    ```python
    def generate_gap_analysis_report(
        docs_dir: Path,
@@ -1131,6 +1177,7 @@ history:
    ```
 
 2. Add convenience function for integration with documentation mission:
+
    ```python
    def run_gap_analysis_for_feature(feature_dir: Path) -> GapAnalysis:
        """Run gap analysis for a documentation mission feature.
@@ -1163,6 +1210,7 @@ history:
 **Parallel?**: No (ties together all gap analysis functions)
 
 **Notes**:
+
 - Main entry point for gap analysis
 - Generates complete markdown report
 - Writes to gap-analysis.md in feature directory
@@ -1170,6 +1218,7 @@ history:
 - Convenience function for documentation mission integration
 
 **Quality Validation**:
+
 - Does report include all sections (coverage, gaps, existing, outdated, recommendations)?
 - Is markdown formatting correct (tables, lists, headings)?
 - Are gaps sorted by priority?
@@ -1180,6 +1229,7 @@ history:
 **Unit Tests** (to be implemented in WP09):
 
 1. Test framework detection:
+
    ```python
    def test_detect_sphinx_framework(tmp_path):
        (tmp_path / "conf.py").write_text("")
@@ -1193,6 +1243,7 @@ history:
    ```
 
 2. Test Divio classification:
+
    ```python
    def test_classify_tutorial_from_frontmatter():
        content = """---
@@ -1221,6 +1272,7 @@ history:
    ```
 
 3. Test coverage matrix:
+
    ```python
    def test_coverage_matrix_calculates_percentage():
        matrix = CoverageMatrix(
@@ -1240,6 +1292,7 @@ history:
    ```
 
 4. Test gap prioritization:
+
    ```python
    def test_prioritize_gaps():
        gaps = [
@@ -1259,6 +1312,7 @@ history:
    ```
 
 5. Test gap analysis report generation:
+
    ```python
    def test_generate_gap_analysis_report(tmp_path):
        # Create test docs directory
@@ -1284,6 +1338,7 @@ history:
 **Manual Validation**:
 
 1. Test on spec-kitty's own documentation:
+
    ```bash
    # Run gap analysis on spec-kitty
    python -c "
@@ -1384,6 +1439,7 @@ history:
 6. **Conservative Approach**: Avoids false positives (flags only obvious gaps)
 
 **Validation Commands**:
+
 ```bash
 # Test module imports
 python -c "from specify_cli.gap_analysis import GapAnalysis, CoverageMatrix, detect_doc_framework, classify_divio_type, analyze_documentation_gaps; print('✓ All imports successful')"
@@ -1438,6 +1494,7 @@ if docs.exists():
 ```
 
 **Review Focus Areas**:
+
 - Framework detection is accurate
 - Classification logic is sound (frontmatter over heuristics)
 - Heuristics correctly identify Divio types (test with sample docs)

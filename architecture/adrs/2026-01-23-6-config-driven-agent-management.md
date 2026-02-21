@@ -18,11 +18,13 @@ Spec-kitty supports 12 AI agents (Claude, Copilot, Gemini, Cursor, Qwen, OpenCod
    - These three sources often conflicted
 
 2. **Migrations Recreated Deleted Agents**
+
    ```python
    # OLD (broken) behavior:
    if not agent_dir.exists():
        agent_dir.mkdir(parents=True)  # Recreates deleted dirs
    ```
+
    Users deleted unwanted agent directories, but migrations recreated them on upgrade.
 
 3. **No Official Agent Management**
@@ -55,10 +57,12 @@ User reported: *"I only want opencode, but every upgrade recreates 11 agent dire
 #### 1. Single Source of Truth: config.yaml
 
 **Before:**
+
 - Filesystem presence = source of truth
 - config.yaml ignored by migrations
 
 **After:**
+
 - **config.yaml is canonical**
 - Filesystem is *derived* from config
 - Migrations read config, respect user's selection
@@ -66,6 +70,7 @@ User reported: *"I only want opencode, but every upgrade recreates 11 agent dire
 #### 2. Centralized AGENT_DIRS
 
 **Before:**
+
 ```python
 # Duplicated in 8 files:
 AGENT_DIRS = [
@@ -75,6 +80,7 @@ AGENT_DIRS = [
 ```
 
 **After:**
+
 ```python
 # m_0_9_1_complete_lane_migration.py (canonical source)
 AGENT_DIRS = [...]  # Defined once
@@ -112,6 +118,7 @@ spec-kitty agent config sync      # Sync filesystem with config
 ```
 
 **Implementation:**
+
 - Creates/deletes agent directories
 - Updates config.yaml atomically
 - Copies mission templates on add
@@ -120,6 +127,7 @@ spec-kitty agent config sync      # Sync filesystem with config
 #### 4. Config-Aware Migrations
 
 **Updated 8 migrations:**
+
 - `m_0_10_1_populate_slash_commands.py`
 - `m_0_10_2_update_slash_commands.py`
 - `m_0_10_6_workflow_simplification.py`
@@ -130,6 +138,7 @@ spec-kitty agent config sync      # Sync filesystem with config
 - `m_0_11_3_workflow_agent_flag.py`
 
 **Pattern:**
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False):
     # OLD:
@@ -203,10 +212,12 @@ def apply(self, project_path: Path, dry_run: bool = False):
 **Approach:** Keep filesystem presence as source of truth, ignore config.yaml.
 
 **Pros:**
+
 - Simple, no conditional logic
 - Self-documenting (directory exists = agent enabled)
 
 **Cons:**
+
 - No way to distinguish "never had" from "deleted"
 - Migrations must either recreate all or skip all
 - User deletions not respected
@@ -218,10 +229,12 @@ def apply(self, project_path: Path, dry_run: bool = False):
 **Approach:** Maintain both config.yaml and `.kittify/agents.json` manifest.
 
 **Pros:**
+
 - Explicit tracking of initialization state
 - Can distinguish "never added" from "removed"
 
 **Cons:**
+
 - Overengineering - config.yaml already exists
 - Two files to keep in sync
 - More failure modes (what if they diverge?)
@@ -233,10 +246,12 @@ def apply(self, project_path: Path, dry_run: bool = False):
 **Approach:** Detect user intent from directory names, gitignore patterns, etc.
 
 **Pros:**
+
 - No config file needed
 - Works without explicit tracking
 
 **Cons:**
+
 - Fragile (heuristics can be wrong)
 - Hard to debug when detection fails
 - User intent not explicit
@@ -256,6 +271,7 @@ Some agents have special directory mappings:
 | `q` | `.amazonq` | Amazon Q branding |
 
 **Mapping:**
+
 ```python
 AGENT_DIR_TO_KEY = {
     ".github": "copilot",
@@ -285,12 +301,14 @@ This ensures existing projects don't break on upgrade.
 ## Testing
 
 **Unit Tests (20 tests):**
+
 - `tests/specify_cli/cli/commands/test_agent_config.py`
 - Tests all CLI commands (list, add, remove, status, sync)
 - Tests special agent key mappings
 - Tests error handling
 
 **Integration Tests (11 tests):**
+
 - `tests/specify_cli/test_agent_config_migration.py`
 - Tests `get_agent_dirs_for_project()` helper
 - Tests migration respects config

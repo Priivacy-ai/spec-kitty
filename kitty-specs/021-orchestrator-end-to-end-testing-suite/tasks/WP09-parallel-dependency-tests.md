@@ -50,14 +50,17 @@ Test parallel execution and dependency ordering:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md` - User Story 3
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Dependency handling
 
 **Existing Code**:
+
 - `src/specify_cli/core/dependency_graph.py` - DependencyGraph class
 - `tests/fixtures/orchestrator/` - Checkpoint fixtures
 
 **Constraints**:
+
 - Use state timestamps for timing verification (not wall clock)
 - May need custom fixtures for specific dependency patterns
 - Mark with `@pytest.mark.orchestrator_parallel`
@@ -71,7 +74,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Verify independent WPs start approximately simultaneously.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/test_parallel_deps.py`:
+
    ```python
    """Parallel execution and dependency tests for orchestrator.
 
@@ -180,6 +185,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (~90 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -191,7 +197,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Verify WPs wait for dependencies before starting.
 
 **Steps**:
+
 1. Add to `test_parallel_deps.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_parallel
@@ -300,6 +308,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (add ~100 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -311,7 +320,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Verify circular dependencies are detected before execution.
 
 **Steps**:
+
 1. Add to `test_parallel_deps.py`:
+
    ```python
    import json
    import tempfile
@@ -428,6 +439,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (add ~100 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -439,7 +451,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Test complex diamond pattern: A→B, A→C, B→D, C→D.
 
 **Steps**:
+
 1. Add to `test_parallel_deps.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_parallel
@@ -603,6 +617,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (add ~150 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -614,7 +629,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Test simple linear dependency: WP01→WP02→WP03.
 
 **Steps**:
+
 1. Add to `test_parallel_deps.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_parallel
@@ -689,6 +706,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (add ~70 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -700,7 +718,9 @@ Test parallel execution and dependency ordering:
 **Purpose**: Test fan-out pattern: WP01→WP02, WP01→WP03, WP01→WP04.
 
 **Steps**:
+
 1. Add to `test_parallel_deps.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_parallel
@@ -864,6 +884,7 @@ Test parallel execution and dependency ordering:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_parallel_deps.py` (add ~150 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -882,6 +903,7 @@ Test parallel execution and dependency ordering:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] Independent WPs start within 30s of each other
 - [ ] Dependent WP waits for prerequisite completion
 - [ ] Circular dependency detected and reported clearly
@@ -889,6 +911,7 @@ Test parallel execution and dependency ordering:
 - [ ] Fan-out children start in parallel after parent
 
 **Code Quality**:
+
 - Proper cleanup of temp directories
 - Timestamp parsing handles timezone suffixes
 - Clear skip messages when fixtures don't match

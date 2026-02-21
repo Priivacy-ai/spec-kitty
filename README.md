@@ -534,6 +534,7 @@ Spec Kitty automatically protects you with multiple layers:
 
 **Hook Protection:**
 Installed hooks validate:
+
 - Markdown encoding (`pre-commit-encoding-check`)
 - Markdown style on staged files (`pre-commit-markdown-check`)
 - Agent directory leakage (`pre-commit-agent-check`)
@@ -1304,7 +1305,7 @@ The release workflow requires `PYPI_API_TOKEN` to be configured as a GitHub repo
 
 **To create/rotate the token**:
 
-1. Log in to https://pypi.org
+1. Log in to <https://pypi.org>
 2. Go to **Account Settings > API tokens**
 3. Click **"Add API token"**
 4. Name: "spec-kitty-cli GitHub Actions"

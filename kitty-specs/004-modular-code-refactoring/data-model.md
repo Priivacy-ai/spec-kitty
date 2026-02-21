@@ -1,4 +1,5 @@
 # Data Model: Modular Code Refactoring
+
 *Path: kitty-specs/004-modular-code-refactoring/data-model.md*
 
 **Feature**: 004-modular-code-refactoring
@@ -14,6 +15,7 @@ This document defines the module interfaces and data structures for the refactor
 ### Core Package (`specify_cli.core`)
 
 #### config.py
+
 ```python
 # Constants (no functions, just data)
 AI_CHOICES: dict[str, str]  # Agent key ’ Display name
@@ -27,6 +29,7 @@ BANNER: str  # ASCII art
 ```
 
 #### utils.py
+
 ```python
 def format_path(path: Path, relative_to: Path = None) -> str:
     """Format path for display."""
@@ -42,6 +45,7 @@ def get_platform() -> str:
 ```
 
 #### git_ops.py
+
 ```python
 def is_git_repo(path: Path) -> bool:
     """Check if path is inside a git repository."""
@@ -58,6 +62,7 @@ def run_command(cmd: list[str], cwd: Path = None,
 ```
 
 #### tool_checker.py
+
 ```python
 def check_tool(command: str) -> tuple[bool, str]:
     """Check if command-line tool is installed."""
@@ -70,6 +75,7 @@ def get_tool_version(command: str) -> str | None:
 ```
 
 #### project_resolver.py
+
 ```python
 def locate_project_root(start_path: Path = None) -> Path | None:
     """Find .kittify directory walking up from start_path."""
@@ -90,6 +96,7 @@ def get_active_mission_key(project_root: Path) -> str:
 ### CLI Package (`specify_cli.cli`)
 
 #### ui.py
+
 ```python
 class StepTracker:
     """Hierarchical progress tracker with live updates."""
@@ -127,6 +134,7 @@ def multi_select_with_arrows(prompt: str,
 ```
 
 #### helpers.py
+
 ```python
 class BannerGroup(TyperGroup):
     """Custom Typer group that shows banner."""
@@ -141,6 +149,7 @@ def callback(version: bool = False) -> None:
 ### Template Package (`specify_cli.template`)
 
 #### manager.py
+
 ```python
 def get_local_repo_root() -> Path | None:
     """Find local spec-kitty repository."""
@@ -156,6 +165,7 @@ def copy_specify_base_from_package(project_path: Path,
 ```
 
 #### renderer.py
+
 ```python
 def parse_frontmatter(content: str) -> tuple[dict, str]:
     """Extract YAML frontmatter from content."""
@@ -170,6 +180,7 @@ def rewrite_paths(content: str,
 ```
 
 #### github_client.py
+
 ```python
 def download_release(owner: str,
                     repo: str,
@@ -189,6 +200,7 @@ def parse_repo_slug(slug: str) -> tuple[str, str]:
 ```
 
 #### asset_generator.py
+
 ```python
 def generate_agent_assets(commands_dir: Path,
                          project_path: Path,
@@ -205,7 +217,8 @@ def render_command_template(template_path: Path,
 
 ### Dashboard Package (`specify_cli.dashboard`)
 
-#### Public API (__init__.py)
+#### Public API (**init**.py)
+
 ```python
 def ensure_dashboard_running(project_dir: Path,
                             verbose: bool = False,
@@ -222,6 +235,7 @@ def get_dashboard_status(project_dir: Path) -> dict | None:
 ```
 
 #### server.py
+
 ```python
 def start_dashboard(project_dir: Path,
                    port: int = None,
@@ -234,6 +248,7 @@ def find_free_port(start: int = 9240,
 ```
 
 #### scanner.py
+
 ```python
 def scan_all_features(project_root: Path) -> list[dict]:
     """Scan all features in project."""
@@ -249,6 +264,7 @@ def get_workflow_status(artifacts: dict) -> str:
 ```
 
 #### diagnostics.py
+
 ```python
 def run_diagnostics(project_dir: Path) -> dict:
     """Run comprehensive diagnostics."""
@@ -261,6 +277,7 @@ def verify_file_integrity(project_dir: Path) -> dict:
 ```
 
 #### lifecycle.py
+
 ```python
 def check_dashboard_health(url: str,
                           token: str,
@@ -285,6 +302,7 @@ def write_dashboard_file(project_dir: Path,
 ## Data Structures
 
 ### StepInfo
+
 ```python
 @dataclass
 class StepInfo:
@@ -295,6 +313,7 @@ class StepInfo:
 ```
 
 ### DashboardMetadata
+
 ```python
 @dataclass
 class DashboardMetadata:
@@ -305,6 +324,7 @@ class DashboardMetadata:
 ```
 
 ### FeatureInfo
+
 ```python
 @dataclass
 class FeatureInfo:
@@ -318,6 +338,7 @@ class FeatureInfo:
 ```
 
 ### DiagnosticResult
+
 ```python
 @dataclass
 class DiagnosticResult:
@@ -330,6 +351,7 @@ class DiagnosticResult:
 ## Command Registration
 
 ### CLI Commands
+
 Each command module exports a function decorated with `@app.command()`:
 
 ```python
@@ -367,6 +389,7 @@ def verify_setup(json_output: bool = False) -> None:
 ## Inter-Module Communication
 
 ### Event Flow
+
 1. User invokes CLI command
 2. Command validates input and resolves paths
 3. Command calls appropriate service functions
@@ -374,13 +397,16 @@ def verify_setup(json_output: bool = False) -> None:
 5. Results returned through console output or JSON
 
 ### Error Handling
+
 - All modules raise specific exceptions
 - CLI catches and formats for user display
 - Dashboard returns JSON errors with status codes
 - Subprocesses log to stderr
 
 ### Import Resolution
+
 Each module handles three contexts:
+
 1. **Package import**: Standard relative imports
 2. **Absolute import**: Fallback for subprocesses
 3. **Development import**: sys.path manipulation if needed
@@ -407,32 +433,38 @@ def captured_output():
 ## Migration Notes
 
 ### Backward Compatibility
+
 - All CLI commands maintain exact same interface
 - Configuration files remain compatible
 - Dashboard URLs unchanged
 - Git operations identical
 
 ### Breaking Changes
+
 - Direct imports of internal functions will break
-- Must use public API from package __init__.py
+- Must use public API from package **init**.py
 - Some internal constants renamed/reorganized
 
 ### Deprecations
+
 None - this is internal refactoring only.
 
 ## Performance Considerations
 
 ### Module Loading
+
 - Lazy imports for heavy dependencies (httpx, rich)
 - Conditional imports for platform-specific code
 - Precompiled regex patterns in config
 
 ### Caching
+
 - Template paths cached after first resolution
 - Git status cached for command duration
 - Dashboard metadata cached in .dashboard file
 
 ### Subprocess Optimization
+
 - Reuse subprocess.run() wrapper
 - Batch git operations where possible
 - Connection pooling for HTTP requests

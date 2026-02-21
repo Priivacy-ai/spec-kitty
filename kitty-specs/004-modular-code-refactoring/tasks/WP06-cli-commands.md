@@ -46,15 +46,18 @@ work_package_title: CLI Commands Extraction
 **Status**: ❌ **Needs Changes**
 
 **Key Issues**:
+
 1. `src/specify_cli/cli/commands/check.py:26-39` drops the `--json` flag that previously emitted machine-readable status, so `spec-kitty check --json` now exits with “No such option: --json”. This violates the Requirements/DoD bullets (“Preserve all command options and behavior”).
 2. `src/specify_cli/__init__.py:29-80` imports `root_callback` but never registers it with the Typer app, so running `spec-kitty` with no subcommand produces no banner or guidance (regression from pre-extraction behavior and T057’s goal for `callback()`).
 3. `src/specify_cli/cli/commands/__init__.py:7-30` re-exports each command function at the package level, which shadows the actual submodules. As a result `import specify_cli.cli.commands.dashboard` yields the function object instead of the module, so the newly added CLI tests cannot patch module-level helpers and `uv run pytest tests/specify_cli/test_cli/test_commands.py` currently fails 5/8 cases.
 
 **What Was Done Well**:
+
 - Command implementations are now much easier to read in their dedicated modules, each with clear docstrings.
 - The new Typer integration tests cover realistic CLI flows and will be valuable once the regressions above are addressed.
 
 **Action Items** (must complete before re-review):
+
 - [ ] Restore the `--json` option (and behavior) on the `check` command and add a regression test.
 - [ ] Register the extracted `callback()` with the root Typer app so `spec-kitty` without args shows the banner/help again.
 - [ ] Avoid shadowing submodules in `cli.commands` (or adjust registrations) so `import specify_cli.cli.commands.<name>` returns the module, and rerun `uv run pytest tests/specify_cli/test_cli`.
@@ -83,6 +86,7 @@ All CLI commands are currently in the monolithic `__init__.py` file. This work p
 ### T050: Extract check command to cli/commands/check.py
 
 From `__init__.py` lines 2041-2099:
+
 ```python
 """Dependency checking command."""
 
@@ -102,6 +106,7 @@ def check(json_output: bool = False) -> None:
 ### T051: Extract research command to cli/commands/research.py
 
 From lines 1880-2039:
+
 - Complex command with feature detection
 - Creates research artifacts
 - Uses acceptance module imports
@@ -109,6 +114,7 @@ From lines 1880-2039:
 ### T052: Extract accept command to cli/commands/accept.py
 
 From lines 2257-2383:
+
 - Feature acceptance workflow
 - Uses acceptance module heavily
 - JSON output option
@@ -116,6 +122,7 @@ From lines 2257-2383:
 ### T053: Extract merge command to cli/commands/merge.py
 
 From lines 2387-2626:
+
 - Most complex command (240 lines)
 - Git merge operations
 - Worktree cleanup
@@ -124,6 +131,7 @@ From lines 2387-2626:
 ### T054: Extract verify_setup to cli/commands/verify.py
 
 From lines 2629-2693:
+
 - Calls verify_enhanced module
 - JSON output for AI agents
 - ~65 lines
@@ -131,13 +139,15 @@ From lines 2629-2693:
 ### T055: Extract dashboard command to cli/commands/dashboard.py
 
 From lines 2103-2195:
+
 - Starts/manages dashboard server
 - Browser opening logic
 - ~95 lines
 
-### T056: Create cli/commands/__init__.py
+### T056: Create cli/commands/**init**.py
 
 Register all commands:
+
 ```python
 """CLI commands for spec-kitty."""
 
@@ -162,6 +172,7 @@ __all__ = [
 ### T057: Extract helpers to cli/helpers.py
 
 From `__init__.py`:
+
 - `BannerGroup` class (lines 802-817)
 - `show_banner()` function (lines 863-887)
 - `callback()` function (lines 889-896)
@@ -169,11 +180,13 @@ From `__init__.py`:
 ### T058-T059: Testing and integration
 
 **T058**: Write integration tests for each command
+
 - Test with various options
 - Verify output format
 - Check error handling
 
 **T059**: Verify command registration
+
 - Ensure all commands appear in CLI
 - Test help text
 - Verify options work
@@ -223,18 +236,21 @@ From `__init__.py`:
 ### Issues Fixed ✅
 
 **Issue #1: check.py missing --json flag**
+
 - ✅ Added `json: bool = typer.Option(False, "--json")` parameter
 - ✅ Implemented JSON output format matching original behavior
 - ✅ Verified: `spec-kitty check --json` now works correctly
 
 **Issue #2: root_callback not registered**
-- ✅ Added `app.callback()(root_callback)` in __init__.py:84
+
+- ✅ Added `app.callback()(root_callback)` in **init**.py:84
 - ✅ Verified: `spec-kitty` with no args now shows banner
 
-**Issue #3: Module shadowing in cli/commands/__init__.py**
+**Issue #3: Module shadowing in cli/commands/**init**.py**
+
 - ✅ Changed imports to use module references (e.g., `from . import check as check_module`)
 - ✅ Updated register_commands() to use module.function pattern
-- ✅ Removed function re-exports from __all__
+- ✅ Removed function re-exports from **all**
 - ✅ Verified: 5/7 CLI tests now passing (2 test implementation issues, not regressions)
 
 ## Activity Log

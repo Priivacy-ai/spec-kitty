@@ -78,6 +78,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - **Steps**:
   1. Create `src/specify_cli/sync/diagnose.py`
   2. Define the `DiagnoseResult` dataclass:
+
      ```python
      from dataclasses import dataclass, field
 
@@ -88,7 +89,9 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
          errors: list[str] = field(default_factory=list)
          event_type: str = ""
      ```
+
   3. Create the main validation function:
+
      ```python
      def diagnose_events(queue_entries: list[dict]) -> list[DiagnoseResult]:
          results = []
@@ -97,6 +100,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
              results.append(result)
          return results
      ```
+
   4. Import the queue module to read pending events
 - **Files**: `src/specify_cli/sync/diagnose.py` (new)
 - **Parallel?**: No — foundation for T016/T017
@@ -106,6 +110,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - **Purpose**: Check that each queued event has all required envelope fields with correct types.
 - **Steps**:
   1. In `diagnose.py`, implement `validate_event()`:
+
      ```python
      from specify_cli.spec_kitty_events.models import Event
      from pydantic import ValidationError
@@ -121,6 +126,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
              errors = [f"{err['loc']}: {err['msg']}" for err in e.errors()]
              return DiagnoseResult(event_id=event_id, valid=False, errors=errors, event_type=event_type)
      ```
+
   2. Handle edge cases:
      - Missing `event_id` field entirely
      - Invalid ULID format (26 chars)
@@ -135,6 +141,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - **Steps**:
   1. After envelope validation, check if `event_type == "WPStatusChanged"`
   2. If so, validate the `payload` dict against `StatusTransitionPayload`:
+
      ```python
      from specify_cli.spec_kitty_events.status import StatusTransitionPayload
 
@@ -145,6 +152,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
              result.errors.append(f"Payload validation: {e}")
              result.valid = False
      ```
+
   3. Check for common payload issues:
      - Missing `feature_slug` or `wp_id`
      - Invalid lane value (not in 7-lane enum)
@@ -159,10 +167,13 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - **Purpose**: Make `spec-kitty sync diagnose` available to users.
 - **Steps**:
   1. Find where sync CLI commands are registered on 2.x:
+
      ```bash
      grep -rn "sync" src/specify_cli/cli/commands/ --include="*.py" -l
      ```
+
   2. Add the diagnose command to the sync command group:
+
      ```python
      @sync_app.command()
      def diagnose():
@@ -190,6 +201,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
                  for err in r.errors:
                      console.print(f"  - {err}")
      ```
+
   3. Ensure the command is discoverable: `spec-kitty sync diagnose --help`
 - **Files**: CLI command file for sync (find on 2.x)
 - **Parallel?**: No — depends on T015/T016
@@ -199,6 +211,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - **Purpose**: Verify diagnose correctly identifies valid and malformed events.
 - **Steps**:
   1. Create `tests/sync/test_diagnose.py`:
+
      ```python
      def test_valid_event_passes():
          """A well-formed event passes validation."""
@@ -224,7 +237,9 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
      def test_mixed_batch():
          """Batch of valid + invalid events returns correct counts."""
      ```
+
   2. Use factory functions to create test events:
+
      ```python
      def make_valid_event(**overrides) -> dict:
          base = {
@@ -243,6 +258,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
          base.update(overrides)
          return base
      ```
+
   3. Run: `python -m pytest tests/sync/test_diagnose.py -x -v`
 - **Files**: `tests/sync/test_diagnose.py` (new)
 - **Parallel?**: No — depends on T015-T018

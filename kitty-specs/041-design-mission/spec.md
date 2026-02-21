@@ -12,6 +12,7 @@ Add a new "design" mission type to spec-kitty that guides teams through structur
 The design mission is repeatable — teams run it initially to establish shared understanding, then re-run it as the system evolves to capture new terminology, stakeholders, and decisions. The glossary serves as connective tissue: terms defined during design become the canonical vocabulary enforced across all subsequent spec-kitty activities.
 
 **Lifecycle position**:
+
 ```
 init → bootstrap → design → specify → plan → tasks → implement → review → accept
 ```

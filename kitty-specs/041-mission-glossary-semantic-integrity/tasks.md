@@ -26,6 +26,7 @@ This feature implements a glossary semantic integrity runtime system that enforc
 **MVP = WP01-WP05** (Foundation through Generation Gate)
 
 Delivers core glossary enforcement:
+
 - Term extraction (metadata hints + heuristics)
 - Scope resolution (4-tier hierarchy)
 - Conflict detection (4 types)
@@ -46,6 +47,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can create TermSurface, TermSense, SemanticConflict objects and verify serialization.
 
 **Included Subtasks**:
+
 - [x] **T001**: Create glossary package structure (`src/specify_cli/glossary/`)
 - [x] **T002**: Define core data models (TermSurface, TermSense, GlossaryScope, SemanticConflict)
 - [x] **T003**: Define exception hierarchy (BlockedByConflict, DeferredToAsync, AbortResume)
@@ -53,6 +55,7 @@ Delivers core glossary enforcement:
 - [x] **T005**: Implement GlossaryScope enum with resolution order
 
 **Implementation Notes**:
+
 1. Create `src/specify_cli/glossary/__init__.py` with public API exports
 2. Define dataclasses in `models.py` using Python 3.11+ features
 3. Create exception base class `GlossaryError` with specific subclasses
@@ -75,6 +78,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can load seed files, activate scopes, query glossary store for terms.
 
 **Included Subtasks**:
+
 - [x] **T006**: Implement seed file loader (YAML parsing for team_domain.yaml, audience_domain.yaml)
 - [x] **T007**: Implement scope activation (emit GlossaryScopeActivated events)
 - [x] **T008**: Implement glossary store (in-memory cache backed by event log)
@@ -82,6 +86,7 @@ Delivers core glossary enforcement:
 - [x] **T048**: Create spec_kitty_core.yaml seed file (canonical Spec Kitty terms)
 
 **Implementation Notes**:
+
 1. Seed files live in `.kittify/glossaries/{scope}.yaml`
 2. Use ruamel.yaml for parsing (preserve comments, order)
 3. Store uses LRU cache for performance (max 10,000 terms)
@@ -108,6 +113,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can extract terms from sample step inputs, verify confidence scores, validate normalization.
 
 **Included Subtasks**:
+
 - [x] **T010**: Implement metadata hints extraction (glossary_watch_terms, aliases, exclude, fields)
 - [x] **T011**: Implement deterministic heuristics (quoted phrases, acronyms, casing patterns, repeats)
 - [x] **T012**: Implement scope-aware normalization (lowercase, trim, stem-light)
@@ -116,6 +122,7 @@ Delivers core glossary enforcement:
 - [x] **T015**: Write extraction tests (unit + integration with mocked context)
 
 **Implementation Notes**:
+
 1. Extraction logic in `extraction.py` (pure functions, no side effects)
 2. Heuristic patterns: `r'"([^"]+)"'` (quoted), `r'\b[A-Z]{2,5}\b'` (acronyms), `r'\b[a-z]+_[a-z]+\b'` (snake_case)
 3. Stem-light: simple plural→singular (workspaces→workspace), no full stemming
@@ -142,6 +149,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can resolve terms, detect all 4 conflict types, score severity correctly.
 
 **Included Subtasks**:
+
 - [x] **T016**: Implement term resolution against scope hierarchy (mission_local → team_domain → audience_domain → spec_kitty_core)
 - [x] **T017**: Implement conflict classification (unknown, ambiguous, inconsistent, unresolved_critical)
 - [x] **T018**: Implement severity scoring (step criticality + confidence → low/medium/high)
@@ -149,6 +157,7 @@ Delivers core glossary enforcement:
 - [x] **T020**: Write semantic check tests (all conflict types, severity edge cases)
 
 **Implementation Notes**:
+
 1. Resolution logic in `resolution.py` (hierarchical lookup with fallback)
 2. Conflict types: no match (unknown), 2+ matches (ambiguous), contradictory usage (inconsistent), critical + low confidence (unresolved_critical)
 3. Severity: high (critical step + low confidence OR ambiguous), medium (non-critical + ambiguous), low (inconsistent OR unknown + high confidence)
@@ -175,12 +184,14 @@ Delivers core glossary enforcement:
 **Independent Test**: Can block generation in medium/max modes, pass in off mode, respect precedence.
 
 **Included Subtasks**:
+
 - [x] **T021**: Implement StrictnessPolicy (precedence resolution: global → mission → step → runtime)
 - [x] **T022**: Implement gate decision logic (off: pass, medium: block high-severity, max: block all)
 - [x] **T023**: Implement GenerationGateMiddleware
 - [x] **T024**: Write gate tests (strictness modes, blocking behavior, precedence)
 
 **Implementation Notes**:
+
 1. Strictness enum in `strictness.py`: off, medium, max
 2. Precedence: runtime override > step metadata > mission config > global default
 3. Gate raises BlockedByConflict exception if should block
@@ -207,6 +218,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can render conflicts with Rich, prompt for user input, handle all choices (candidate, custom, defer).
 
 **Included Subtasks**:
+
 - [x] **T025**: Implement conflict rendering with Rich (term, context, ranked candidates by confidence)
 - [x] **T026**: Implement Typer prompts (select candidate 1..N, C for custom, D for defer)
 - [x] **T027**: Implement non-interactive mode (auto-defer all conflicts)
@@ -214,6 +226,7 @@ Delivers core glossary enforcement:
 - [x] **T029**: Write clarification tests (interactive mocking, non-interactive mode)
 
 **Implementation Notes**:
+
 1. Rich tables for candidate display (term | scope | definition | confidence)
 2. typer.prompt() for choice input with validation
 3. Non-interactive detection: `sys.stdin.isatty()` or `CI` env var
@@ -240,6 +253,7 @@ Delivers core glossary enforcement:
 **Independent Test**: Can checkpoint before gate, resume after resolution, detect context changes.
 
 **Included Subtasks**:
+
 - [x] **T030**: Implement StepCheckpoint data model (mission/run/step IDs, strictness, scope refs, input hash, cursor, retry token)
 - [x] **T031**: Implement checkpoint emission (before generation gate, minimal payload)
 - [x] **T032**: Implement checkpoint loading from event log (latest for step_id)
@@ -248,6 +262,7 @@ Delivers core glossary enforcement:
 - [x] **T035**: Write checkpoint/resume tests (happy path, context changed, cross-session)
 
 **Implementation Notes**:
+
 1. Checkpoint emitted as StepCheckpointed event (may need to add to Feature 007 contracts)
 2. Input hash: SHA256 of sorted JSON dump of step inputs
 3. Resume flow: load checkpoint → verify hash → restore context → resume from cursor
@@ -274,12 +289,14 @@ Delivers core glossary enforcement:
 **Independent Test**: Can emit all 7 canonical events + StepCheckpointed, events serialize correctly, persist to JSONL.
 
 **Included Subtasks**:
+
 - [x] **T036**: Create event emission adapters (import from spec_kitty_events.glossary.events)
 - [x] **T037**: Implement event emission at middleware boundaries (extraction → check → gate → clarification → resume)
 - [x] **T038**: Implement event log persistence (JSONL via spec-kitty-events)
 - [x] **T039**: Write event emission tests (verify payloads, ordering, persistence)
 
 **Implementation Notes**:
+
 1. Events module: `src/specify_cli/glossary/events.py`
 2. Import canonical events: GlossaryScopeActivated, TermCandidateObserved, SemanticCheckEvaluated, etc.
 3. If StepCheckpointed not in package: stub adapter, document as pending Feature 007
@@ -306,12 +323,14 @@ Delivers core glossary enforcement:
 **Independent Test**: Can attach pipeline to primitive, execute full flow (extract → check → gate → clarify → resume), verify events.
 
 **Included Subtasks**:
+
 - [x] **T040**: Implement PrimitiveExecutionContext extension (add glossary fields: extracted_terms, conflicts, strictness)
 - [x] **T041**: Implement middleware pipeline composition (GlossaryMiddlewarePipeline class)
 - [x] **T042**: Implement middleware attachment to primitives (read glossary_check metadata from mission.yaml)
 - [x] **T043**: Write full pipeline integration tests (end-to-end: spec-kitty specify with conflict)
 
 **Implementation Notes**:
+
 1. Context extension: add `extracted_terms`, `conflicts`, `strictness`, `checkpoint` fields
 2. Pipeline: ordered list of middleware, execute sequentially, catch BlockedByConflict
 3. Attachment: mission primitive base class hook or decorator (depends on 2.x architecture)
@@ -338,12 +357,14 @@ Delivers core glossary enforcement:
 **Independent Test**: Can list terms, view conflicts, resolve conflicts via CLI.
 
 **Included Subtasks**:
+
 - [x] **T044**: Implement `spec-kitty glossary list --scope <scope>` command (table output with Rich)
 - [x] **T045**: Implement `spec-kitty glossary conflicts --mission <mission>` command (conflict history)
 - [x] **T046**: Implement `spec-kitty glossary resolve <conflict_id>` command (async resolution)
 - [x] **T047**: Write CLI command tests (mocked event log, Rich output verification)
 
 **Implementation Notes**:
+
 1. Commands in `src/specify_cli/cli/commands/glossary.py`
 2. Use Typer @app decorators
 3. Rich tables for output formatting
@@ -370,11 +391,13 @@ Delivers core glossary enforcement:
 **Independent Test**: mypy passes with no errors, pytest coverage >90%, quickstart examples work.
 
 **Included Subtasks**:
+
 - [x] **T049**: Update type annotations (mypy --strict compliance for all glossary modules)
 - [x] **T050**: Write integration tests (end-to-end workflows: specify with conflict, clarify, resume)
 - [x] **T051**: Update user documentation (quickstart examples, troubleshooting guide)
 
 **Implementation Notes**:
+
 1. Add type stubs for any untyped dependencies
 2. Use pytest-cov for coverage reporting
 3. Integration tests: simulate full mission runs with conflicts
@@ -413,14 +436,17 @@ WP01 (Foundation)
 ## Parallelization Strategy
 
 **Wave 1** (after WP01):
+
 - WP02 (Scope Management)
 - WP03 (Term Extraction) - can start after WP01
 
 **Wave 2** (after WP05):
+
 - WP06 (Clarification)
 - WP07 (Checkpoint) - can run in parallel
 
 **Wave 3** (after WP09):
+
 - WP10 (CLI)
 - WP11 (Polish) - must wait for all code
 
@@ -460,6 +486,7 @@ All acceptance criteria are covered across WP01-WP11.
 ## Next Steps
 
 **MVP Implementation**:
+
 ```bash
 spec-kitty implement WP01  # Foundation (no dependencies)
 spec-kitty implement WP02 --base WP01  # Scope Management
@@ -469,6 +496,7 @@ spec-kitty implement WP05 --base WP04  # Generation Gate [MVP COMPLETE]
 ```
 
 **Full Feature**:
+
 ```bash
 # After MVP:
 spec-kitty implement WP06 --base WP05  # Clarification (parallel with WP07)

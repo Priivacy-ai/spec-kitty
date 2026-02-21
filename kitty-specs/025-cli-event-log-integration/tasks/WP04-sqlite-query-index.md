@@ -46,11 +46,12 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-30
 
-**Issue 1 (critical): API regression in events __init__ exports**
+**Issue 1 (critical): API regression in events **init** exports**
 
 `src/specify_cli/events/__init__.py` dropped WP03 exports (`EventStore`, `with_event_store`, `generate_ulid`). This breaks public imports and any CLI commands using the decorator. Please restore the prior exports and add `EventIndex` without removing existing symbols.
 
 Expected pattern:
+
 ```python
 from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
 from .index import EventIndex
@@ -70,18 +71,19 @@ __all__ = [
 ```
 
 Please verify imports:
+
 ```python
 from specify_cli.events import EventStore, EventIndex, with_event_store, generate_ulid
 ```
 
-
-## Critical Issue: API Regression - Missing Exports in __init__.py
+## Critical Issue: API Regression - Missing Exports in **init**.py
 
 **Problem**: The WP04 commit (83ff47a1) modified `src/specify_cli/events/__init__.py` and **removed** the exports that were added in WP03, breaking the public API.
 
 **Evidence**:
 
 **Before WP04 (from WP03 - commit 438669af)**:
+
 ```python
 # src/specify_cli/events/__init__.py
 from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
@@ -100,6 +102,7 @@ __all__ = [
 ```
 
 **After WP04 (commit 83ff47a1)**:
+
 ```python
 # src/specify_cli/events/__init__.py
 from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock
@@ -109,18 +112,22 @@ __all__ = ["Event", "LamportClock", "EventAdapter", "EventIndex", "HAS_LIBRARY"]
 ```
 
 **What got removed**:
+
 - `EventStore` (core WP03 functionality!)
 - `generate_ulid` (needed for event creation)
 - `with_event_store` (decorator for CLI commands)
 
 **Impact**:
+
 1. Code that worked in WP03 will break in WP04
 2. The following imports will fail:
+
    ```python
    from specify_cli.events import EventStore  # ImportError!
    from specify_cli.events import with_event_store  # ImportError!
    from specify_cli.events import generate_ulid  # ImportError!
    ```
+
 3. CLI commands decorated with `@with_event_store` will fail
 4. Any code trying to create events using `generate_ulid()` will fail
 
@@ -159,6 +166,7 @@ __all__ = [
 The actual WP04 implementation is excellent:
 
 ✅ **EventIndex class** (`src/specify_cli/events/index.py`):
+
 - Proper SQLite schema with `events` table
 - Three indices: `idx_entity`, `idx_type`, `idx_date` (matches spec)
 - Idempotent `update()` with `INSERT OR IGNORE`
@@ -168,12 +176,14 @@ The actual WP04 implementation is excellent:
 - `check_integrity()` for health checks
 
 ✅ **EventStore integration** (`src/specify_cli/events/store.py`):
+
 - Index updates inline during `emit()` (synchronous as planned)
 - Automatic rebuild on corruption/missing
 - Graceful fallback to JSONL reading if index fails
 - `get_affected_dates()` optimization for targeted JSONL reads
 
 ✅ **Code quality**:
+
 - Clean separation of concerns
 - Good error handling
 - Helpful warning messages
@@ -191,6 +201,7 @@ The actual WP04 implementation is excellent:
 ## Root Cause
 
 This likely happened because:
+
 1. WP04 was branched from 2.x before WP03 was merged
 2. OR WP04 was based on an old commit and didn't properly merge WP03's changes
 3. The implementer only added their new export (`EventIndex`) without preserving existing ones
@@ -219,12 +230,12 @@ from specify_cli.events import (
 print("✓ All exports available")
 ```
 
-
 ## Objectives & Success Criteria
 
 **Primary Goal**: Implement SQLite index for fast event queries, enabling sub-500ms performance for 1000+ events.
 
 **Success Criteria**:
+
 - ✅ EventIndex class with SQLite schema (events table + 3 indices)
 - ✅ `update()` method inserts event metadata into index (idempotent)
 - ✅ `query()` method filters by entity_id, event_type, since_clock
@@ -238,6 +249,7 @@ print("✓ All exports available")
 **User Story**: US3 - SQLite Query Index for Fast Aggregates
 
 **Independent Test**:
+
 ```python
 # Generate 1000 events
 from specify_cli.events.store import EventStore
@@ -272,6 +284,7 @@ assert elapsed_ms < 500, f"Query too slow: {elapsed_ms}ms"
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -285,12 +298,14 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From data-model.md (EventIndex)**:
+
 - SQLite schema with columns: event_id (PK), lamport_clock, entity_id, entity_type, event_type, timestamp, date
 - Three indices: idx_entity (entity_id, lamport_clock), idx_type (event_type, lamport_clock), idx_date (date)
 - Index is derived state (JSONL files are source of truth)
 - Rebuild from JSONL on corruption/missing
 
 **From plan.md (Technical Context)**:
+
 - Synchronous index updates for MVP (inline during emit)
 - Query performance target: <500ms for 1000+ events
 - Index update latency budget: ~5ms (part of 15ms total emit latency)
@@ -312,6 +327,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create index module**:
+
    ```python
    # src/specify_cli/events/index.py (new file)
 
@@ -396,15 +412,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/index.py` (new file, ~80 lines)
 
 **Validation**:
+
 - [ ] `_ensure_schema()` creates events table with 7 columns
 - [ ] Three indices created: idx_entity, idx_type, idx_date
 - [ ] Idempotent: Safe to call _ensure_schema() multiple times
 - [ ] Schema matches data-model.md specification (lines 211-225)
 
 **Edge Cases**:
+
 - Database doesn't exist: Created automatically by sqlite3.connect()
 - Schema already exists: CREATE IF NOT EXISTS prevents errors
 - Parent directory missing: Parent dir should exist from WP02 directory initialization
@@ -420,6 +439,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add update() method to EventIndex**:
+
    ```python
    # In src/specify_cli/events/index.py (add to EventIndex class)
 
@@ -493,15 +513,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/index.py` (modify: add update() and update_batch() methods)
 
 **Validation**:
+
 - [ ] `update()` inserts event metadata into events table
 - [ ] Uses `INSERT OR IGNORE` for idempotency (duplicate event_id skipped)
 - [ ] Extracts date from timestamp (first 10 characters: YYYY-MM-DD)
 - [ ] `update_batch()` wraps multiple inserts in single transaction
 
 **Edge Cases**:
+
 - Duplicate event_id: Silently ignored (idempotent operation)
 - Database locked (concurrent access): sqlite3 retries automatically (default timeout: 5 seconds)
 - Invalid event data (missing fields): sqlite3 raises DatabaseError (propagated to caller)
@@ -517,6 +540,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add query() method to EventIndex**:
+
    ```python
    # In src/specify_cli/events/index.py (add to EventIndex class)
 
@@ -601,9 +625,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/index.py` (modify: add query() and get_affected_dates() methods)
 
 **Validation**:
+
 - [ ] `query()` builds WHERE clause dynamically based on filters
 - [ ] Returns results ordered by lamport_clock (causal order)
 - [ ] Uses sqlite3.Row for dict-like access
@@ -611,6 +637,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Query performance <500ms for 1000+ events (benchmark in independent test)
 
 **Edge Cases**:
+
 - No filters provided: Returns all events (ordered by lamport_clock)
 - No matching events: Returns empty list
 - Index database missing: Returns empty list (triggers rebuild in caller)
@@ -627,6 +654,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add rebuild() method to EventIndex**:
+
    ```python
    # In src/specify_cli/events/index.py (add to EventIndex class)
 
@@ -710,9 +738,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/index.py` (modify: add rebuild() and check_integrity() methods)
 
 **Validation**:
+
 - [ ] `rebuild()` drops existing tables and recreates schema
 - [ ] Scans all `*.jsonl` files in events_dir
 - [ ] Parses each JSON line, creates Event objects
@@ -722,6 +752,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] `check_integrity()` validates database is readable
 
 **Edge Cases**:
+
 - No JSONL files exist: Returns 0, index is empty (valid state)
 - All JSONL files corrupted: Returns 0, logs warnings
 - Partial corruption: Indexes valid events, skips corrupted lines
@@ -738,6 +769,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Modify EventStore to include EventIndex**:
+
    ```python
    # In src/specify_cli/events/store.py (modify __init__ and emit methods)
 
@@ -770,6 +802,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add index update after JSONL write** (important: order matters):
+
    ```python
    # Order in emit():
    # 1. Tick clock
@@ -783,15 +816,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (modify: add EventIndex initialization and update call)
 
 **Validation**:
-- [ ] EventIndex initialized in EventStore.__init__()
+
+- [ ] EventIndex initialized in EventStore.**init**()
 - [ ] `index.update(event)` called in emit() AFTER JSONL append
 - [ ] Index update wrapped in try/except (warning on failure, doesn't block emit)
 - [ ] Order preserved: JSONL write → index update → clock save
 
 **Edge Cases**:
+
 - Index update fails (database locked): Warning logged, JSONL remains valid
 - Index database corrupted: Warning logged, can be rebuilt later
 - Index update adds latency: Measured in T014 benchmark (should be ~2-5ms, within 15ms budget)
@@ -807,6 +843,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add rebuild trigger to EventStore.read()**:
+
    ```python
    # In src/specify_cli/events/store.py (add read method)
 
@@ -908,9 +945,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (modify: add read() method and helpers)
 
 **Validation**:
+
 - [ ] `read()` checks index integrity before use
 - [ ] Automatically triggers rebuild if index missing/corrupted
 - [ ] Falls back to direct JSONL reading if rebuild fails
@@ -919,6 +958,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Returns events sorted by lamport_clock
 
 **Edge Cases**:
+
 - Index missing: Rebuilds automatically
 - Index corrupted: Rebuilds automatically
 - Rebuild fails: Falls back to direct JSONL reading (slower but works)
@@ -933,6 +973,7 @@ git branch --show-current  # Must output: 2.x
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T019**: Schema test - Verify tables and indices created
 2. **T020**: Insert test - Verify event metadata inserted correctly
 3. **T021**: Query test - Verify filtered queries work with indices
@@ -941,6 +982,7 @@ git branch --show-current  # Must output: 2.x
 6. **T024**: Auto-rebuild test - Corrupt index, verify auto-rebuild on read
 
 **Performance benchmark** (US3 requirement):
+
 ```python
 from specify_cli.events.store import EventStore
 from pathlib import Path
@@ -983,6 +1025,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 **Impact**: Total emit latency exceeds 15ms target (violates performance goal)
 
 **Mitigation**:
+
 - T020 uses `INSERT OR IGNORE` (fast, single statement)
 - T023 wraps in try/except (warning on failure, doesn't block)
 - Benchmark in T014 validates total <15ms
@@ -992,6 +1035,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 **Impact**: Automatic rebuilds add latency to read operations
 
 **Mitigation**:
+
 - T024 checks integrity before rebuild (avoids unnecessary rebuilds)
 - Rebuild only triggers on actual corruption (not on every read)
 - Fallback to direct JSONL reading if rebuild fails
@@ -1001,6 +1045,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 **Impact**: Violates US3 acceptance criteria
 
 **Mitigation**:
+
 - T021 uses SQLite indices (idx_entity, idx_type for fast lookups)
 - T024 reads only affected dates (not all JSONL files)
 - Performance test validates target before merge
@@ -1017,7 +1062,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - [ ] T021: `get_affected_dates()` returns unique dates containing matching events
 - [ ] T022: `rebuild()` method drops tables, recreates schema, scans JSONL files
 - [ ] T022: Graceful degradation on invalid JSON lines
-- [ ] T023: EventIndex integrated into EventStore.__init__()
+- [ ] T023: EventIndex integrated into EventStore.**init**()
 - [ ] T023: `index.update()` called in emit() after JSONL write
 - [ ] T024: `read()` method checks index integrity before use
 - [ ] T024: Automatic rebuild triggers on missing/corrupted index
@@ -1060,6 +1105,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
    - ✓ Fallback to direct JSONL reading
 
 **Reviewers should**:
+
 - Run performance benchmark (verify <500ms)
 - Test corruption recovery (delete index.db, verify rebuild)
 - Check index file size (should be small, ~100KB for 1000 events)
@@ -1071,6 +1117,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T11:31:51Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: add SQLite index, JSONL query path, and EventStore integration
 - 2026-01-30T12:44:29Z – claude-wp04-reviewer – shell_pid=96881 – lane=doing – Started review via workflow command
 - 2026-01-30T12:46:42Z – claude-wp04-reviewer – shell_pid=96881 – lane=planned – Moved to planned
@@ -1079,7 +1126,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-30T13:06:15Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
 - 2026-01-30T13:06:56Z – codex – shell_pid=14744 – lane=for_review – Ready for review: restore events exports and include EventIndex
 - 2026-01-30T13:08:08Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=doing – Started review via workflow command
-- 2026-01-30T13:09:47Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=done – Review passed: EventIndex fully implemented with proper SQLite schema and 3 indices. __init__.py exports restored (all WP03 exports preserved + EventIndex added). EventStore.read() uses index with automatic rebuild and JSONL fallback. Clean architecture.
+- 2026-01-30T13:09:47Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=done – Review passed: EventIndex fully implemented with proper SQLite schema and 3 indices. **init**.py exports restored (all WP03 exports preserved + EventIndex added). EventStore.read() uses index with automatic rebuild and JSONL fallback. Clean architecture.
 
 ## Implementation Command
 

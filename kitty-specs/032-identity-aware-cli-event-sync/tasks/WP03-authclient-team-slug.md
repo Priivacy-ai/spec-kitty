@@ -44,6 +44,7 @@ No `--base` flag needed (can run in parallel with WP02).
 **Scope Note**: Post-MVP (only required once SaaS exposes team_slug in auth/user endpoints).
 
 **Success Criteria**:
+
 - [ ] `AuthClient().get_team_slug()` returns team slug after login
 - [ ] Team slug stored in credentials file
 - [ ] Returns "local" when not authenticated
@@ -56,10 +57,12 @@ No `--base` flag needed (can run in parallel with WP02).
 **Target Branch**: 2.x
 
 **Supporting Documents**:
+
 - [spec.md](../spec.md) - User Story 4 (Team Slug Resolution)
 - [data-model.md](../data-model.md) - EventEnvelope team_slug field
 
 **Key Constraints**:
+
 - Must not break existing auth flow
 - Credentials file format must remain backward compatible
 - Default to "local" for unauthenticated users
@@ -75,9 +78,11 @@ No `--base` flag needed (can run in parallel with WP02).
 **Purpose**: Provide method for EventEmitter to resolve team context.
 
 **Steps**:
+
 1. Open `src/specify_cli/sync/auth.py`
 2. Find the `AuthClient` class
 3. Add `get_team_slug()` method:
+
    ```python
    def get_team_slug(self) -> str | None:
        """Return stored team slug, or None if not authenticated."""
@@ -88,9 +93,11 @@ No `--base` flag needed (can run in parallel with WP02).
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/auth.py` (modify, ~10 lines added)
 
 **Notes**:
+
 - This method is already expected by `EventEmitter._get_team_slug()` (see emitter.py)
 - Returns `None` if not authenticated (caller converts to "local")
 
@@ -101,8 +108,10 @@ No `--base` flag needed (can run in parallel with WP02).
 **Purpose**: Persist team_slug received from SaaS during OAuth flow.
 
 **Steps**:
+
 1. Find the login flow in `AuthClient` (`obtain_tokens()` in 2.x)
 2. After successful authentication, store team_slug:
+
    ```python
    def login(self, ...) -> bool:
        # ... existing OAuth flow ...
@@ -123,14 +132,17 @@ No `--base` flag needed (can run in parallel with WP02).
        
        return True
    ```
+
 3. Extend `CredentialStore.save()`/`load()` to persist `user.team_slug` and add
    `get_team_slug()` helper for retrieval.
 4. If SaaS doesn't provide team_slug yet, set to `None` (graceful)
 
 **Files**:
+
 - `src/specify_cli/sync/auth.py` (modify, ~20 lines changed)
 
 **Notes**:
+
 - Team slug typically comes from `/api/v1/me` or similar endpoint
 - If SaaS doesn't have this endpoint yet, store `None` (will be added later)
 - Credentials are stored in TOML at `~/.spec-kitty/credentials`
@@ -142,7 +154,9 @@ No `--base` flag needed (can run in parallel with WP02).
 **Purpose**: Return sensible default when not authenticated.
 
 **Steps**:
+
 1. Update `EventEmitter._get_team_slug()` in emitter.py to handle `None`:
+
    ```python
    def _get_team_slug(self) -> str:
        """Get team_slug from AuthClient. Returns 'local' if unavailable."""
@@ -155,12 +169,15 @@ No `--base` flag needed (can run in parallel with WP02).
            _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
        return "local"  # Default for unauthenticated or missing team
    ```
+
 2. This code may already exist (check emitter.py); ensure it handles `None` properly
 
 **Files**:
+
 - `src/specify_cli/sync/emitter.py` (verify/modify, ~5 lines)
 
 **Notes**:
+
 - "local" is the default for offline/unauthenticated operation
 - Never raise exception - team_slug is optional context
 
@@ -171,8 +188,10 @@ No `--base` flag needed (can run in parallel with WP02).
 **Purpose**: Verify team slug resolution in all scenarios.
 
 **Steps**:
+
 1. Create or update `tests/sync/test_auth.py`
 2. Add tests:
+
    ```python
    class TestAuthClientTeamSlug:
        def test_get_team_slug_authenticated(self, mock_credentials):
@@ -196,9 +215,11 @@ No `--base` flag needed (can run in parallel with WP02).
    ```
 
 **Files**:
+
 - `tests/sync/test_auth.py` (modify, ~40 lines added)
 
 **Test Commands**:
+
 ```bash
 pytest tests/sync/test_auth.py -v
 ```
@@ -217,6 +238,7 @@ pytest tests/sync/test_auth.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. `get_team_slug()` never raises exception
 2. Credentials file format is backward compatible
 3. Default to "local" works correctly

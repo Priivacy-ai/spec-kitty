@@ -31,11 +31,13 @@ subtasks:
 ## Objectives & Success Criteria
 
 Create the foundation components that all other work packages depend on:
+
 1. Legacy format detection (`is_legacy_format()`) to identify old directory-based structure
 2. Shared utility (`get_lane_from_frontmatter()`) to read lane from YAML frontmatter
 3. Consolidated LANES constant documentation
 
 **Success Criteria**:
+
 - `is_legacy_format(feature_path)` returns `True` when `tasks/planned/`, `tasks/doing/`, etc. subdirectories contain .md files
 - `get_lane_from_frontmatter(wp_path)` correctly extracts `lane:` field from WP frontmatter
 - Missing `lane:` field defaults to "planned" with warning logged
@@ -44,12 +46,14 @@ Create the foundation components that all other work packages depend on:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Plan: `kitty-specs/007-frontmatter-only-lane/plan.md`
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md`
 - Research: `kitty-specs/007-frontmatter-only-lane/research.md`
 - Data Model: `kitty-specs/007-frontmatter-only-lane/data-model.md`
 
 **Key Decisions** (from research.md):
+
 - Clean break: No hybrid mode, new format only after migration
 - Default lane: "planned" when `lane:` field missing
 
@@ -62,8 +66,10 @@ Create the foundation components that all other work packages depend on:
 **Purpose**: Provide a clean function to detect whether a feature uses old directory-based lanes.
 
 **Steps**:
+
 1. Create file `src/specify_cli/legacy_detector.py`
 2. Implement `is_legacy_format(feature_path: Path) -> bool`:
+
    ```python
    def is_legacy_format(feature_path: Path) -> bool:
        """Check if feature uses legacy directory-based lanes.
@@ -84,6 +90,7 @@ Create the foundation components that all other work packages depend on:
                    return True
        return False
    ```
+
 3. Add docstring explaining detection criteria
 
 **Files**: `src/specify_cli/legacy_detector.py` (NEW)
@@ -95,8 +102,10 @@ Create the foundation components that all other work packages depend on:
 **Purpose**: Centralize lane extraction from WP frontmatter.
 
 **Steps**:
+
 1. Open `scripts/tasks/task_helpers.py`
 2. Add utility function:
+
    ```python
    def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
        """Extract lane from WP file frontmatter.
@@ -129,6 +138,7 @@ Create the foundation components that all other work packages depend on:
 
        return lane
    ```
+
 3. Ensure `split_frontmatter()` is available (already exists in file)
 
 **Files**: `scripts/tasks/task_helpers.py` (MODIFY)
@@ -140,6 +150,7 @@ Create the foundation components that all other work packages depend on:
 **Purpose**: Keep utility in sync between both helper files.
 
 **Steps**:
+
 1. Open `src/specify_cli/tasks_support.py`
 2. Add same `get_lane_from_frontmatter()` function as T002
 3. Ensure imports match (Path, LANES, split_frontmatter, console)
@@ -155,17 +166,21 @@ Create the foundation components that all other work packages depend on:
 **Purpose**: Ensure clear source of truth for valid lanes.
 
 **Steps**:
+
 1. Verify LANES is defined in both:
    - `scripts/tasks/task_helpers.py:14`
    - `src/specify_cli/tasks_support.py:14`
 2. Add comment to both indicating they must stay in sync:
+
    ```python
    # IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py (or task_helpers.py)
    LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
    ```
+
 3. Consider future consolidation (out of scope for this WP)
 
 **Files**:
+
 - `scripts/tasks/task_helpers.py` (MODIFY - add comment)
 - `src/specify_cli/tasks_support.py` (MODIFY - add comment)
 

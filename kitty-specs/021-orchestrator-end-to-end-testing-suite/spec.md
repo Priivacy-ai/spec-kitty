@@ -16,6 +16,7 @@
 This feature provides a comprehensive end-to-end testing infrastructure for the Autonomous Multi-Agent Orchestrator (feature 020). The testing suite validates that the orchestrator correctly executes work packages across multiple AI agents and maintains state through complex multi-turn workflows.
 
 **Key design decisions**:
+
 - **Tiered agent coverage**: Core agents (Claude Code, Codex, Copilot, Gemini, OpenCode) get full integration tests; extended agents get smoke tests
 - **Real agent execution**: Tests call actual agent CLIs, not mocks, to validate true end-to-end behavior
 - **Checkpoint-based fixtures**: Pre-created snapshots at known states enable faster test execution while maintaining realism

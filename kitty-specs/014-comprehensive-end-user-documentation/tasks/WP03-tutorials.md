@@ -53,6 +53,7 @@ history:
 - **Divio Type**: Tutorial = learning-oriented, step-by-step guides
 
 ### Tutorial Principles (from Divio)
+
 - Tutorials are **learning-oriented**
 - Allow users to learn by doing
 - Get the user started (not comprehensive)
@@ -63,10 +64,12 @@ history:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T008 – Create getting-started.md
+
 - **Purpose**: Get users from zero to first spec in 30 minutes
 - **Steps**:
   1. Create `docs/tutorials/getting-started.md`
   2. Structure:
+
      ```markdown
      # Getting Started with Spec Kitty
 
@@ -90,6 +93,7 @@ history:
      ## What's Next?
      [Links to your-first-feature.md, how-to guides]
      ```
+
   3. Include actual commands with expected output
   4. Add troubleshooting section for common errors
 - **Files**: `docs/tutorials/getting-started.md`
@@ -97,10 +101,12 @@ history:
 - **Notes**: Test the tutorial yourself to verify it works
 
 ### Subtask T009 – Create your-first-feature.md
+
 - **Purpose**: Walk through the complete 0.11.0 workflow
 - **Steps**:
   1. Create `docs/tutorials/your-first-feature.md`
   2. Structure:
+
      ```markdown
      # Your First Feature: Complete Workflow
 
@@ -133,6 +139,7 @@ history:
      ## What's Next?
      [Links to missions, parallel development]
      ```
+
   3. Use a concrete example (e.g., "Build a task list app")
   4. Emphasize the 0.11.0 model: planning in main, worktrees on-demand
 - **Files**: `docs/tutorials/your-first-feature.md`
@@ -140,10 +147,12 @@ history:
 - **Notes**: Critical for user onboarding - must be accurate
 
 ### Subtask T010 – Create missions-overview.md
+
 - **Purpose**: Help users understand the mission system
 - **Steps**:
   1. Create `docs/tutorials/missions-overview.md`
   2. Structure:
+
      ```markdown
      # Understanding Spec Kitty Missions
 
@@ -169,15 +178,18 @@ history:
      ## How Missions Affect Your Workflow
      [Different phases, templates, artifacts]
      ```
+
 - **Files**: `docs/tutorials/missions-overview.md`
 - **Parallel?**: Yes
 - **Notes**: Link to reference/missions.md for complete details
 
 ### Subtask T011 – Create multi-agent-workflow.md
+
 - **Purpose**: Teach users how to run multiple AI agents in parallel
 - **Steps**:
   1. Create `docs/tutorials/multi-agent-workflow.md`
   2. Structure:
+
      ```markdown
      # Multi-Agent Parallel Development
 
@@ -205,6 +217,7 @@ history:
      ```
 
      ### Terminal 2: Agent B on WP02
+
      ```bash
      spec-kitty implement WP02
      cd .worktrees/###-feature-WP02
@@ -212,15 +225,20 @@ history:
      ```
 
      ## Handling Dependencies with --base
+
      [When WP02 depends on WP01]
 
      ## Git Worktrees Explained
+
      [Brief explanation with link to explanation/git-worktrees.md]
 
      ## Tips for Coordinating Agents
+
      [Practical advice]
+
      ```
 - **Files**: `docs/tutorials/multi-agent-workflow.md`
+
 - **Parallel?**: Yes
 - **Notes**: This is key for advanced users - include concrete examples
 
@@ -252,11 +270,11 @@ history:
 ## Activity Log
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-16T16:30:42Z – __AGENT__ – shell_pid=26746 – lane=doing – Started implementation via workflow command
-- 2026-01-16T16:36:58Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added four tutorials with step-by-step workflows, troubleshooting, and cross-links.
-- 2026-01-16T17:42:21Z – __AGENT__ – shell_pid=26746 – lane=doing – Resume: added tutorials to toc navigation.
-- 2026-01-16T17:42:24Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added tutorials to toc navigation.
-- 2026-01-16T17:43:31Z – __AGENT__ – shell_pid=26746 – lane=doing – Resume: added tutorials links to docs index.
-- 2026-01-16T17:43:34Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added tutorial links to docs index and toc.
+- 2026-01-16T16:30:42Z – **AGENT** – shell_pid=26746 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:36:58Z – **AGENT** – shell_pid=26746 – lane=for_review – Ready for review: added four tutorials with step-by-step workflows, troubleshooting, and cross-links.
+- 2026-01-16T17:42:21Z – **AGENT** – shell_pid=26746 – lane=doing – Resume: added tutorials to toc navigation.
+- 2026-01-16T17:42:24Z – **AGENT** – shell_pid=26746 – lane=for_review – Ready for review: added tutorials to toc navigation.
+- 2026-01-16T17:43:31Z – **AGENT** – shell_pid=26746 – lane=doing – Resume: added tutorials links to docs index.
+- 2026-01-16T17:43:34Z – **AGENT** – shell_pid=26746 – lane=for_review – Ready for review: added tutorial links to docs index and toc.
 - 2026-01-16T17:49:30Z – claude – shell_pid=58186 – lane=doing – Started review via workflow command
 - 2026-01-16T17:49:41Z – claude – shell_pid=58186 – lane=done – Review passed: All 4 tutorials created (getting-started, your-first-feature, missions-overview, multi-agent-workflow)

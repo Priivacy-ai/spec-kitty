@@ -7,6 +7,7 @@
 ## Overview
 
 This document captures research findings for the four major goals of this feature:
+
 1. Template relocation strategy (`.kittify/` → `src/specify_cli/`)
 2. psutil patterns for cross-platform process management
 3. Migration repair patterns for graceful failure handling
@@ -17,6 +18,7 @@ This document captures research findings for the four major goals of this featur
 ### Decision: Move all template sources to src/specify_cli/
 
 **Rationale:**
+
 - **Clean separation**: Template source code (for packaging) vs project instances (for use)
 - **Safe dogfooding**: Spec-kitty developers can run `spec-kitty init` without contaminating package
 - **Root cause fix**: Eliminates packaging contamination at architectural level, not through .gitignore hacks
@@ -39,6 +41,7 @@ This document captures research findings for the four major goals of this featur
 ### Implementation Approach
 
 **File Moves Required:**
+
 ```
 .kittify/templates/          → src/specify_cli/templates/
 .kittify/missions/           → src/specify_cli/missions/
@@ -46,15 +49,18 @@ This document captures research findings for the four major goals of this featur
 ```
 
 **Code Updates Required:**
+
 1. `src/specify_cli/template/manager.py`:
    - `copy_specify_base_from_local()`: Update paths from `.kittify/*` to `src/specify_cli/*`
    - `copy_specify_base_from_package()`: Already uses `files("specify_cli")`, should work
    - Remove legacy fallback paths
 
 2. Search all Python files for `.kittify/` references:
+
    ```bash
    grep -r "\.kittify/" src/specify_cli/*.py
    ```
+
    Update to use package resource APIs (`importlib.resources.files()`)
 
 3. `pyproject.toml`:
@@ -68,6 +74,7 @@ This document captures research findings for the four major goals of this featur
    - Update `m_0_7_3_update_scripts.py`, `m_0_10_6_workflow_simplification.py` to reference new locations
 
 **Verification:**
+
 ```bash
 # Build package
 python -m build
@@ -79,6 +86,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 ```
 
 **Risk Mitigation:**
+
 - Grep entire codebase for hardcoded `.kittify/` paths before moving files
 - Test `spec-kitty init` from installed package (not editable install)
 - Verify worktree symlinks still work (they reference `.kittify/memory/` in project root, not package)
@@ -90,6 +98,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 ### Decision: Use psutil.Process() for all process operations
 
 **Rationale:**
+
 - **Cross-platform**: Works identically on Windows, macOS, Linux
 - **No signal compatibility issues**: psutil abstracts away POSIX vs Windows differences
 - **Better process control**: Can check if process exists, get children, graceful vs force termination
@@ -98,12 +107,14 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 **Alternatives Considered:**
 
 1. **Platform detection with signal module**
+
    ```python
    if platform.system() == 'Windows':
        # Use subprocess.terminate() or TerminateProcess
    else:
        os.kill(pid, signal.SIGKILL)
    ```
+
    - Rejected: Fragile, requires maintaining two code paths
    - Windows still has edge cases (services, permissions, process trees)
 
@@ -118,6 +129,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E '(\.kittify|memory/constitution\.md
 ### Implementation Pattern
 
 **Install psutil:**
+
 ```toml
 # pyproject.toml
 dependencies = [
@@ -129,6 +141,7 @@ dependencies = [
 **Replace signal.SIGKILL patterns:**
 
 **Before:**
+
 ```python
 import signal
 import os
@@ -141,6 +154,7 @@ os.kill(pid, signal.SIGKILL)
 ```
 
 **After:**
+
 ```python
 import psutil
 
@@ -163,6 +177,7 @@ except psutil.NoSuchProcess:
 ```
 
 **Key Benefits:**
+
 - `proc.is_running()` works on all platforms (no signal 0 trick)
 - `proc.terminate()` is cross-platform graceful shutdown
 - `proc.kill()` is cross-platform force kill
@@ -170,6 +185,7 @@ except psutil.NoSuchProcess:
 - Automatic handling of process-not-found errors
 
 **Files to Update:**
+
 - `src/specify_cli/dashboard/lifecycle.py`:
   - Line 188: `os.kill(pid, signal.SIGKILL)` → `psutil.Process(pid).kill()`
   - Line 289: Same replacement
@@ -181,6 +197,7 @@ except psutil.NoSuchProcess:
   - Line 100: `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
 
 **Testing:**
+
 - Unit tests: Mock psutil.Process, verify calls
 - Integration test: Start dashboard, verify terminate/kill work
 - Windows smoke test: Run on Windows 10/11, verify no ERR_EMPTY_RESPONSE
@@ -192,6 +209,7 @@ except psutil.NoSuchProcess:
 ### Decision: Graceful failure with skip logic for missing files
 
 **Rationale:**
+
 - **Idempotency**: Migrations should be safe to run multiple times
 - **Robustness**: Handle cases where files were manually deleted or never existed
 - **Forward compatibility**: Later migrations can clean up what earlier ones couldn't
@@ -221,6 +239,7 @@ except psutil.NoSuchProcess:
 ### Implementation Pattern
 
 **Graceful can_apply():**
+
 ```python
 def can_apply(self, project_path: Path) -> tuple[bool, str]:
     """Check if migration can be applied.
@@ -241,6 +260,7 @@ def can_apply(self, project_path: Path) -> tuple[bool, str]:
 ```
 
 **Robust apply():**
+
 ```python
 def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
     """Apply migration with graceful handling of missing files."""
@@ -336,6 +356,7 @@ class ConstitutionCleanupMigration(BaseMigration):
 ### Decision: Phase-based discovery with skip options
 
 **Rationale:**
+
 - **Flexibility**: Users can skip phases they don't need
 - **Guided workflow**: Phases group related questions logically
 - **Minimal vs comprehensive**: Natural distinction (skip most phases vs complete all)
@@ -344,26 +365,31 @@ class ConstitutionCleanupMigration(BaseMigration):
 **Phase Structure:**
 
 **Phase 1: Technical Standards**
+
 - Questions: Languages/frameworks, testing requirements, code quality tools
 - Skip option: "Skip technical standards phase"
 - Minimal path: Usually complete this phase (3-4 questions)
 
 **Phase 2: Code Quality**
+
 - Questions: PR requirements, review process, quality gates
 - Skip option: "Skip code quality phase"
 - Minimal path: Often skip this phase
 
 **Phase 3: Tribal Knowledge**
+
 - Questions: Team conventions, lessons learned, historical decisions
 - Skip option: "Skip tribal knowledge phase"
 - Minimal path: Often skip this phase
 
 **Phase 4: Governance**
+
 - Questions: Amendment process, compliance, versioning
 - Skip option: "Skip governance phase"
 - Minimal path: Use defaults (simple governance rules)
 
 **Workflow Pattern:**
+
 ```markdown
 ## Phase 1: Technical Standards
 
@@ -397,6 +423,7 @@ Current: `.kittify/templates/command-templates/constitution.md` (placeholder-fil
 New: `src/specify_cli/templates/command-templates/constitution.md` (phase-based discovery)
 
 Key changes:
+
 - Remove placeholder-filling approach (lines 64-127)
 - Add phase-based discovery workflow
 - Add skip logic for each phase
@@ -404,6 +431,7 @@ Key changes:
 - Present summary before writing
 
 **Implementation Notes:**
+
 - Constitution command runs from main repo (not worktree)
 - Writes to `.kittify/memory/constitution.md` at project root
 - Should work whether or not user has run `spec-kitty init` yet

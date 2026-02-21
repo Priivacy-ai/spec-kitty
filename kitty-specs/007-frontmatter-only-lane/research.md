@@ -15,11 +15,13 @@ Codebase exploration confirms the refactoring is well-scoped. Lane management fl
 **Decision**: Rename the `move` command to `update`
 
 **Rationale**:
+
 - "Move" implies file relocation, which no longer happens
 - "Update" accurately describes the operation: modifying frontmatter metadata
 - Clean semantic break reinforces the new paradigm
 
 **Alternatives Rejected**:
+
 - Keep "move" name: Confusing since no files move
 - "set-lane": Too verbose, breaks existing muscle memory partially
 
@@ -28,12 +30,14 @@ Codebase exploration confirms the refactoring is well-scoped. Lane management fl
 **Decision**: Clean break - new format only, require migration first
 
 **Rationale**:
+
 - Hybrid mode adds significant complexity
 - Two code paths = two sets of bugs
 - Clear migration path via `spec-kitty upgrade`
 - User preference for clean breaks
 
 **Alternatives Rejected**:
+
 - Support both formats: Complexity not worth transitional convenience
 - Auto-migrate on first command: Too surprising, could cause data issues
 
@@ -42,12 +46,14 @@ Codebase exploration confirms the refactoring is well-scoped. Lane management fl
 **Decision**: Single `spec-kitty upgrade` migrates main repo + all worktrees
 
 **Rationale**:
+
 - Consistent state across entire project
 - No confusion about which features are migrated
 - Single confirmation prompt for entire operation
 - Idempotent design allows safe re-runs
 
 **Alternatives Rejected**:
+
 - Per-feature migration: More prompts, inconsistent state possible
 - Per-worktree migration: Complex, worktrees should track main repo format
 
@@ -56,11 +62,13 @@ Codebase exploration confirms the refactoring is well-scoped. Lane management fl
 **Decision**: Default to "planned" with warning when `lane:` field missing
 
 **Rationale**:
+
 - "Planned" is the safest default (nothing lost, nothing in progress)
 - Warning ensures visibility of the issue
 - Matches current template behavior (new WPs start as planned)
 
 **Alternatives Rejected**:
+
 - Error and refuse: Too strict for minor data quality issues
 - Default to "doing": Could cause incorrect status assumptions
 
@@ -105,6 +113,7 @@ Lane management is implemented across these key locations:
 ### LANES Constant Locations
 
 The `LANES` tuple is defined in multiple places (sync required):
+
 - `scripts/tasks/task_helpers.py:14`
 - `src/specify_cli/tasks_support.py:14`
 
@@ -140,6 +149,7 @@ activity_log: |
 ## Open Questions
 
 All questions resolved during planning interrogation:
+
 - Command naming: Confirmed `update`
 - Backwards compatibility: Confirmed none (clean break)
 - Migration scope: Confirmed all-at-once

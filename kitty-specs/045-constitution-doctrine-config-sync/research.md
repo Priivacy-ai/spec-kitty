@@ -12,13 +12,15 @@
 **Rationale**: The constitution follows consistent markdown conventions (## headings, | tables |, ```yaml blocks). A lightweight regex-based parser is sufficient — no need for a full markdown AST library (markdown-it, mistune) which would add dependencies.
 
 **Implementation**:
-- Split on `## ` headings to get sections
+
+- Split on `##` headings to get sections
 - Parse markdown tables with regex: `\|.*\|` rows, strip header separator
 - Parse YAML code blocks: `` ```yaml ... ``` `` fenced blocks
 - Parse numbered lists: `^\d+\.\s+(.*)` for directive-style rules
 - Everything else → prose (AI fallback candidate)
 
 **Alternatives considered**:
+
 - **mistune/markdown-it-py**: Full AST parsing. Rejected — adds dependency, overkill for well-structured constitution
 - **frontmatter-only**: Only parse YAML frontmatter. Rejected — constitution is prose with embedded structure, not frontmatter-driven
 
@@ -29,12 +31,14 @@
 **Rationale**: The orchestrator already invokes agents via subprocess. Reusing this pattern ensures consistency and leverages existing agent configuration.
 
 **Implementation**:
+
 - Check if an agent is configured (from `.kittify/config.yaml`)
 - Build a structured prompt: "Extract the following from this text: [schema fields]. Input: [prose section]. Output: YAML."
 - Parse YAML from agent response
 - If agent unavailable: skip prose sections, log warning, mark in metadata
 
 **Alternatives considered**:
+
 - **Direct API call**: Would require API key management separate from agent config. Rejected — agents already handle auth.
 - **In-process LLM**: Requires model loading. Rejected — too heavy for a CLI tool.
 
@@ -45,6 +49,7 @@
 **Rationale**: SHA-256 is fast, collision-resistant, and standard. Normalizing whitespace prevents false positives from trailing newline changes.
 
 **Implementation**:
+
 ```python
 import hashlib
 

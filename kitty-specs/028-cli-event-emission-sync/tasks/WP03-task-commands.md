@@ -37,8 +37,9 @@ history:
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -53,17 +54,20 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - User Story 3
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Command integration patterns
 - **Data Model**: `kitty-specs/028-cli-event-emission-sync/data-model.md` - HistoryAdded payload
 
 ### Functional Requirements
+
 - FR-019: `move-task` MUST emit `WPStatusChanged` with correct status transition
 - FR-020: `mark-status` MUST emit `WPStatusChanged` with new status
 - FR-021: `add-history` MUST emit `HistoryAdded` event
 - FR-029: MUST NOT block CLI command execution when event emission fails
 
 ### Dependencies
+
 - WP01 (Event Factory) must be complete
 - Import from `specify_cli.sync.events`
 
@@ -80,6 +84,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   3. Add import: `from specify_cli.sync.events import emit_wp_status_changed`
   4. Determine previous status from current WP frontmatter before the move
   5. After successful lane update, emit event:
+
      ```python
      try:
          emit_wp_status_changed(
@@ -92,6 +97,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
   6. Extract agent name from context if running as part of orchestration
 - **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 - **Parallel?**: No (establishes pattern for T014, T015)
@@ -108,6 +114,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Locate the `mark_status` command function
   3. Read current status before update
   4. After successful status update, emit event:
+
      ```python
      try:
          emit_wp_status_changed(
@@ -120,6 +127,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
 - **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 - **Parallel?**: Yes (independent function from T015)
 - **Notes**:
@@ -134,6 +142,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Locate the `add_history` command function
   3. Add import: `from specify_cli.sync.events import emit_history_added`
   4. After successful history addition, emit event:
+
      ```python
      try:
          emit_history_added(
@@ -145,6 +154,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
 - **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 - **Parallel?**: Yes (independent function from T014)
 - **Notes**:
@@ -158,6 +168,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   1. Identify error handling points in task commands
   2. Add import: `from specify_cli.sync.events import emit_error_logged`
   3. When catching exceptions that indicate real errors (not just warnings):
+
      ```python
      try:
          # ... command logic ...
@@ -179,6 +190,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          )
          raise
      ```
+
   4. Map exception types to error_type enum: "validation", "runtime", "network", "auth", "unknown"
 - **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 - **Parallel?**: No (cross-cutting concern)
@@ -195,9 +207,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Inspect emitted events (via queue or logs) to verify clock values
   3. Verify clock is monotonically increasing: event1.clock < event2.clock < event3.clock
   4. Add logging (debug level) showing clock value at emission time:
+
      ```python
      logger.debug(f"Emitting event with Lamport clock: {clock_value}")
      ```
+
   5. Verify clock persists across CLI restarts (check `~/.spec-kitty/clock.json`)
 - **Files**: `src/specify_cli/sync/emitter.py` (logging), verification script
 - **Parallel?**: No (verification task)
@@ -211,6 +225,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but verify manually:
+
 ```bash
 # Test move-task
 spec-kitty agent tasks move-task WP01 --to doing
@@ -267,6 +282,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP03 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T11:37:22Z – claude-opus – shell_pid=36901 – lane=for_review – Ready for review: Event emission wired into move-task (WPStatusChanged), mark-status (HistoryAdded), add-history (HistoryAdded), and error handlers (ErrorLogged). Lamport clock verified monotonically increasing. All 140 existing tests pass.
 - 2026-02-04T12:10:37Z – claude-opus – shell_pid=49304 – lane=doing – Started review via workflow command
 - 2026-02-04T12:12:37Z – claude-opus – shell_pid=49304 – lane=done – Review passed: move-task emits WPStatusChanged (old_lane captured before change), add-history emits HistoryAdded, ErrorLogged added to all error handlers, Lamport clock debug logging in emitter. Minor note: mark_status WP ID derivation (T->WP[:4]) produces incorrect WP IDs in event payload but is non-blocking. No test regressions (13 pre-existing failures on 2.x confirmed).

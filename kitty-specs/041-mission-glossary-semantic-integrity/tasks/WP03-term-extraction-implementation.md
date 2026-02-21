@@ -30,6 +30,7 @@ Implement term extraction using metadata hints + deterministic heuristics, with 
 ## Context
 
 Extraction middleware is the first stage of the pipeline. It scans step inputs/outputs for domain terms using:
+
 - Metadata hints (glossary_watch_terms - highest confidence)
 - Deterministic heuristics (quoted phrases, acronyms, casing patterns)
 - Scope-aware normalization (lowercase, trim, stem-light)
@@ -54,6 +55,7 @@ Can run in parallel with WP02 after WP01 completes.
 Extract terms from `glossary_watch_terms`, `glossary_aliases`, `glossary_exclude_terms`, `glossary_fields` metadata.
 
 **Implementation** (extraction.py):
+
 ```python
 def extract_metadata_hints(metadata: dict) -> List[str]:
     """Extract terms from metadata hints (highest confidence)."""
@@ -80,6 +82,7 @@ def extract_metadata_hints(metadata: dict) -> List[str]:
 Implement pattern matching for quoted phrases, acronyms, snake_case, camelCase, repeated nouns.
 
 **Patterns**:
+
 - Quoted: `r'"([^"]+)"'`
 - Acronyms: `r'\b[A-Z]{2,5}\b'`
 - Snake_case: `r'\b[a-z]+_[a-z_]+\b'`
@@ -95,6 +98,7 @@ Implement pattern matching for quoted phrases, acronyms, snake_case, camelCase, 
 Normalize extracted terms: lowercase, trim, stem-light (plural → singular).
 
 **Implementation**:
+
 ```python
 def normalize_term(surface: str) -> str:
     """Normalize term surface."""
@@ -120,6 +124,7 @@ def normalize_term(surface: str) -> str:
 Score confidence: metadata (1.0) > explicit pattern (0.8) > weak heuristic (0.5).
 
 **Implementation**:
+
 ```python
 def score_confidence(term: str, source: str) -> float:
     """Score extraction confidence."""
@@ -142,6 +147,7 @@ def score_confidence(term: str, source: str) -> float:
 Middleware that orchestrates extraction logic and emits TermCandidateObserved events.
 
 **Implementation** (middleware.py):
+
 ```python
 class GlossaryCandidateExtractionMiddleware:
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
@@ -163,6 +169,7 @@ class GlossaryCandidateExtractionMiddleware:
 Unit tests for each extractor + integration test for middleware.
 
 **Test coverage**:
+
 - Metadata extraction
 - Each heuristic pattern
 - Normalization edge cases (acronyms, single-letter words)
@@ -207,11 +214,13 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 ## Reviewer Guidance
 
 **Focus**:
+
 1. Heuristic precision (check false positive rate)
 2. Performance (<100ms)
 3. Confidence scores align with accuracy
 
 **Acceptance**:
+
 - [ ] Extracts known terms correctly
 - [ ] No false positives on common words ("the", "and")
 - [ ] Performance <100ms

@@ -4,6 +4,7 @@
 the project environment.
 
 Use toolguides for operational syntax and platform nuances, for example:
+
 - PowerShell command and parameter conventions
 - Git usage conventions for this repo
 - CI/tool invocation patterns

@@ -15,6 +15,7 @@ This feature has clear requirements from the discovery phase. Minimal research n
 **Decision**: Lazy Singleton via `get_emitter()`
 
 **Alternatives Considered**:
+
 - (A) Typer Callback - Rejected: Adds 50-100ms overhead to every command
 - (C) Decorator - Rejected: Brittle, requires maintaining decorator list
 
@@ -25,6 +26,7 @@ This feature has clear requirements from the discovery phase. Minimal research n
 **Decision**: Graceful Backfill with atomic writes
 
 **Alternatives Considered**:
+
 - (B) Explicit Migration - Rejected: Adds friction for existing projects
 - (C) Init-Only Generation - Rejected: Poor UX, requires user action
 
@@ -32,7 +34,8 @@ This feature has clear requirements from the discovery phase. Minimal research n
 
 ### 3. Identity Scope
 
-**Decision**: 
+**Decision**:
+
 - `project_uuid`: Per project, stable, stored in config.yaml
 - `node_id`: Per machine, stable across sessions, stored in config.yaml
 - `project_slug`: Derived from repo directory name or git remote
@@ -67,6 +70,7 @@ Based on discovery, the following modules exist on 2.x:
 ## No Outstanding Clarifications
 
 All NEEDS CLARIFICATION items were resolved during discovery:
+
 - Runtime bootstrap: Lazy Singleton ✅
 - Config schema: Graceful Backfill ✅
 - Default behavior: Always-on with graceful degradation ✅

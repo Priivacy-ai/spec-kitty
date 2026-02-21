@@ -58,6 +58,7 @@ Every command must be fully operable via flags/env without prompting.
 ### Confirmation
 
 We will validate this decision by:
+
 * Ensuring every command has a complete CLI path with no required prompts.
 * Maintaining CI tests that run commands in non-interactive mode.
 * Auditing new commands for CLI completeness during review.

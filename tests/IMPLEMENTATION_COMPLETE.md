@@ -60,7 +60,8 @@ pytest tests/test_encoding*.py tests/test_plan*.py tests/test_dashboard*.py -v
 
 ## Files Created
 
-### In spec-kitty repository (upstream):
+### In spec-kitty repository (upstream)
+
 ```
 tests/test_encoding_validation_functional.py  (397 lines, 15 tests)
 tests/test_encoding_validation_cli.py         (256 lines, 10 tests)
@@ -68,7 +69,8 @@ tests/test_dashboard_encoding_resilience.py   (305 lines, 16 tests)
 tests/TESTING_PROGRESS.md                     (updated)
 ```
 
-### In spec-kitty-test repository (test framework):
+### In spec-kitty-test repository (test framework)
+
 ```
 findings/0.4.13/2025-11-13_17_encoding_dashboard_crash.md  (root cause)
 findings/0.4.13/2025-11-13_18_encoding_tests_status.md     (initial status)
@@ -79,7 +81,8 @@ tests/functional/test_encoding_issues.py      (1105 lines, parallel work)
 
 ## Commits
 
-### spec-kitty repository (main branch):
+### spec-kitty repository (main branch)
+
 ```
 ddee94c feat: Add dashboard resilience and CLI validation tests
 49a6796 docs: Update TESTING_PROGRESS to reflect completion
@@ -87,7 +90,8 @@ ddee94c feat: Add dashboard resilience and CLI validation tests
 a8e6407 Merge PR #30 (docs branch with earlier test commits)
 ```
 
-### spec-kitty-test repository (main branch):
+### spec-kitty-test repository (main branch)
+
 ```
 b7a06c2 docs: Document completion of test suites
 ddb5fb1 docs: Document completion of test suite 1
@@ -97,6 +101,7 @@ ddb5fb1 docs: Document completion of test suite 1
 ## Test Details
 
 ### Suite 1: Encoding Validation (15 tests)
+
 - ✅ All 17 problematic characters detected
 - ✅ Smart quotes: \u2018, \u2019, \u201c, \u201d
 - ✅ Dashes: \u2013, \u2014
@@ -109,6 +114,7 @@ ddb5fb1 docs: Document completion of test suite 1
 - ✅ Edge cases: binary, empty, large, permissions
 
 ### Suite 2: CLI Commands (10 tests)
+
 - ✅ Validate clean features
 - ✅ Detect issues (exit 1, shows --fix)
 - ✅ Fix with/without backup
@@ -117,6 +123,7 @@ ddb5fb1 docs: Document completion of test suite 1
 - ✅ Output formatting
 
 ### Suite 3: Dashboard Resilience (16 tests)
+
 - ✅ Auto-fix on read (creates backup, returns content)
 - ✅ Error messages without auto-fix
 - ✅ Kanban scanning with encoding errors
@@ -126,6 +133,7 @@ ddb5fb1 docs: Document completion of test suite 1
 - ✅ Unicode content handling
 
 ### Suite 4: Plan Validation (7 tests)
+
 - ✅ Detects template plans (5+ markers)
 - ✅ Allows filled plans (< 5 markers)
 - ✅ Threshold boundary testing (4 vs 5 markers)
@@ -144,6 +152,7 @@ These provide git integration and end-to-end workflow testing but aren't require
 ## How to Run
 
 **From spec-kitty repository:**
+
 ```bash
 cd /Users/robert/Code/spec-kitty
 source /Users/robert/Code/spec-kitty-test/venv/bin/activate
@@ -167,18 +176,21 @@ pytest tests/test_plan_validation.py -v
 ## Value Delivered
 
 ### For Maintainers
+
 - ✅ 48 regression tests lock in guardrail behavior
 - ✅ Performance benchmarks validate requirements  
 - ✅ Clear test names match specification
 - ✅ Easy to extend and maintain
 
 ### For Users
+
 - ✅ Dashboard won't crash from encoding errors
 - ✅ Clear error messages explain problems
 - ✅ Automatic fixes handle common issues
 - ✅ Plan validation prevents premature workflow progression
 
 ### For LLM Agents
+
 - ✅ All 17 problematic characters caught
 - ✅ Smart quotes automatically sanitized
 - ✅ Template plans blocked until filled
