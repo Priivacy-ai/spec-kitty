@@ -9,6 +9,7 @@
 This guide shows how to use the glossary semantic integrity runtime to enforce semantic consistency in mission execution.
 
 **What it does**:
+
 - Automatically extracts domain terms from mission step inputs/outputs
 - Resolves terms against a 4-tier scope hierarchy
 - Detects semantic conflicts (unknown, ambiguous, inconsistent, unresolved critical)
@@ -36,6 +37,7 @@ glossary:
 ```
 
 **Modes**:
+
 - `off`: No enforcement (skip all checks)
 - `medium` (default): Warn broadly, block only high-severity conflicts
 - `max`: Block any unresolved conflict
@@ -47,6 +49,7 @@ mkdir -p .kittify/glossaries
 ```
 
 **team_domain.yaml** (example):
+
 ```yaml
 # Team-specific terminology
 terms:
@@ -62,6 +65,7 @@ terms:
 ```
 
 **Supported scopes**:
+
 - `spec_kitty_core.yaml`: Spec Kitty canonical terms
 - `team_domain.yaml`: Team-specific terms
 - `audience_domain.yaml`: Audience-specific terms
@@ -74,6 +78,7 @@ spec-kitty specify "Add user authentication"
 ```
 
 **What happens**:
+
 1. Extraction middleware extracts terms from your input
 2. Semantic check resolves terms against scope hierarchy
 3. If conflict detected: generation gate blocks, clarification prompt appears
@@ -103,6 +108,7 @@ steps:
 ```
 
 **Metadata hints**:
+
 - `glossary_check`: `enabled` | `disabled` (default: enabled unless strictness=off)
 - `glossary_watch_terms`: Explicit terms to extract (highest confidence)
 - `glossary_aliases`: Synonyms (e.g., `{"WP": "work package"}`)
@@ -116,6 +122,7 @@ steps:
 **Scenario**: You run `/spec-kitty.plan` and encounter an ambiguous term.
 
 **CLI output**:
+
 ```
 🔴 High-severity conflict: "workspace"
 
@@ -132,11 +139,13 @@ Select: 1-2 (candidate), C (custom sense), D (defer to async)
 ```
 
 **Your choices**:
+
 - **1-2**: Select a candidate (resolves immediately, step resumes)
 - **C**: Provide custom definition (prompts for free text)
 - **D**: Defer to async (conflict logged, generation stays blocked, you can resolve later)
 
 **Example resolution**:
+
 ```
 > 1
 ✅ Resolved: workspace = Git worktree directory for a work package
@@ -150,16 +159,19 @@ Generation proceeding.
 ### Operator: Adjust strictness for different environments
 
 **Local development** (fast iteration, no blocking):
+
 ```bash
 spec-kitty --strictness off specify "Quick prototype"
 ```
 
 **CI pipeline** (warn broadly, block high-severity):
+
 ```bash
 spec-kitty --strictness medium plan  # Default mode
 ```
 
 **Production** (block any unresolved conflict):
+
 ```bash
 spec-kitty --strictness max specify "Critical feature"
 ```
@@ -173,6 +185,7 @@ spec-kitty --strictness max specify "Critical feature"
 ### Defer conflict resolution to async mode
 
 **Interactive**:
+
 ```
 Select: 1-2 (candidate), C (custom sense), D (defer to async)
 > D
@@ -188,6 +201,7 @@ You can resolve this conflict later:
 
 **Non-interactive mode** (CI):
 Conflicts auto-defer, exit with error code:
+
 ```bash
 spec-kitty plan  # Non-interactive
 # Exit code 1: Conflicts deferred
@@ -200,11 +214,13 @@ spec-kitty plan  # Non-interactive
 **Scenario**: You deferred a conflict, resolved it later, now want to resume.
 
 **CLI**:
+
 ```bash
 spec-kitty resume --retry-token uuid-1234-5678
 ```
 
 **What happens**:
+
 1. Resume middleware loads `StepCheckpointed` event
 2. Verifies input_hash matches current inputs
 3. If changed: prompts for confirmation ("Context may have changed. Proceed?")
@@ -217,11 +233,13 @@ spec-kitty resume --retry-token uuid-1234-5678
 ### View glossary state
 
 **List active terms in a scope**:
+
 ```bash
 spec-kitty glossary list --scope team_domain
 ```
 
 **Output**:
+
 ```
 Team Domain Glossary (v3)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -234,11 +252,13 @@ mission       Purpose-specific workflow         0.9         active
 ```
 
 **View conflict history**:
+
 ```bash
 spec-kitty glossary conflicts --mission 041-mission
 ```
 
 **Output**:
+
 ```
 Conflict History (041-mission)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -258,6 +278,7 @@ uuid-9999-0000     auth         unknown     medium    ⏳ pending
 **Cause**: Non-interactive mode (CI environment) auto-defers conflicts.
 
 **Solution**:
+
 1. Check conflict log: `spec-kitty glossary conflicts`
 2. Resolve manually: `spec-kitty glossary resolve <conflict_id>`
 3. Or: Run in interactive mode
@@ -269,6 +290,7 @@ uuid-9999-0000     auth         unknown     medium    ⏳ pending
 **Cause**: Step inputs changed between conflict and resolution.
 
 **Example**:
+
 ```
 ⚠️ Context may have changed since conflict.
    Input hash: abc123... (checkpoint)
@@ -279,6 +301,7 @@ Proceed with resolution? [y/N]
 ```
 
 **Options**:
+
 - **Y**: Resume anyway (risk: glossary may not match new context)
 - **N**: Abort resume, re-run step from scratch
 
@@ -289,11 +312,13 @@ Proceed with resolution? [y/N]
 **Cause**: Strictness too aggressive or too many unknown terms.
 
 **Solution 1**: Reduce strictness
+
 ```bash
 spec-kitty --strictness medium plan  # Instead of max
 ```
 
 **Solution 2**: Add seed file with known terms
+
 ```yaml
 # .kittify/glossaries/team_domain.yaml
 terms:
@@ -304,6 +329,7 @@ terms:
 ```
 
 **Solution 3**: Use metadata hints to pre-populate
+
 ```yaml
 # mission.yaml
 steps:
@@ -320,6 +346,7 @@ steps:
 **Cause**: Term extraction is heavyweight or LLM-based.
 
 **Check**: Current extraction uses deterministic heuristics (< 100ms per step). If slow:
+
 1. Verify no LLM extraction in hot path (should be async enrichment only)
 2. Check seed file size (large seed files slow loading)
 3. Profile with `--debug` flag
@@ -371,6 +398,7 @@ steps:
 **Why**: Balance quality (strict) vs velocity (lenient).
 
 **How**:
+
 - **Local dev**: `strictness: off` (fast iteration)
 - **CI**: `strictness: medium` (catch high-severity only)
 - **Production**: `strictness: max` (zero ambiguity)
@@ -382,6 +410,7 @@ steps:
 **Why**: Identifies frequently conflicting terms (candidates for seed file).
 
 **How**:
+
 ```bash
 spec-kitty glossary conflicts --mission 041-mission
 # Add frequently conflicting terms to seed file
@@ -506,21 +535,25 @@ context = PrimitiveExecutionContext(
 ## Troubleshooting
 
 **Problem: Pipeline blocks unexpectedly**
+
 - Check strictness mode: `grep strictness .kittify/config.yaml`
 - Use `--strictness off` to disable temporarily
 - Use `spec-kitty glossary conflicts --unresolved` to see blocking conflicts
 
 **Problem: Term not recognized**
+
 - Add to seed file in `.kittify/glossaries/<scope>.yaml`
 - Ensure `status: active` and `confidence: 1.0`
 - Restart mission for changes to take effect
 
 **Problem: Too many false positives**
+
 - Switch from `max` to `medium` strictness
 - Add explicit terms to seed files with high confidence
 - Defer non-critical conflicts with `D` during interactive prompts
 
 **Problem: Events not persisting**
+
 - Check that `.kittify/events/glossary/` directory is writable
 - Verify `spec-kitty-events` package is installed: `pip show spec-kitty-events`
 - Without the package, events are logged but not persisted to JSONL

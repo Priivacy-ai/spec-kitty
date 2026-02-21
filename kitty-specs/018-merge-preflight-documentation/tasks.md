@@ -19,6 +19,7 @@
 **Prompt**: `/tasks/WP01-merge-guide.md`
 
 ### Included Subtasks
+
 - [x] T001 [P] Extract CLI flags and help text from `src/specify_cli/cli/commands/merge.py`
 - [x] T002 [P] Extract pre-flight validation checks from `src/specify_cli/merge/preflight.py`
 - [x] T003 [P] Capture dry-run output example by running `spec-kitty merge --dry-run`
@@ -29,6 +30,7 @@
 - [x] T008 Add cleanup options section (--keep-branch, --keep-worktree)
 
 ### Implementation Notes
+
 1. Read merge.py to extract all CLI flags and their descriptions
 2. Read preflight.py to understand validation checks
 3. Run actual merge --dry-run to capture real output
@@ -36,13 +38,16 @@
 5. Include both agent command and terminal command for each action
 
 ### Parallel Opportunities
+
 - T001, T002, T003 can proceed in parallel (different source files)
 - T005-T008 can be written in parallel once T004 establishes structure
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - Stale examples if code changes → Use actual command output, not fabricated examples
 
 ---
@@ -54,6 +59,7 @@
 **Prompt**: `/tasks/WP02-troubleshooting-guide.md`
 
 ### Included Subtasks
+
 - [x] T009 [P] Extract error messages from merge.py and executor.py
 - [x] T010 [P] Document MergeState structure from `src/specify_cli/merge/state.py`
 - [x] T011 [P] Document status file auto-resolution from `src/specify_cli/merge/status_resolver.py`
@@ -65,19 +71,23 @@
 - [x] T017 Add error message reference table
 
 ### Implementation Notes
+
 1. Grep for console.print with "Error" or "red" in merge code
 2. Read state.py to understand JSON structure
 3. Create decision tree: "Merge failed?" → branches to different solutions
 4. Each error message gets: exact text, cause, solution steps
 
 ### Parallel Opportunities
+
 - T009, T010, T011 can proceed in parallel (different source files)
 - T013-T017 can be written in parallel once T012 establishes structure
 
 ### Dependencies
+
 - None (can proceed in parallel with WP01)
 
 ### Risks & Mitigations
+
 - Missing edge cases → Test each recovery scenario manually
 
 ---
@@ -89,6 +99,7 @@
 **Prompt**: `/tasks/WP03-claude-md-reference.md`
 
 ### Included Subtasks
+
 - [x] T018 [P] Extract MergeState dataclass fields and methods from state.py
 - [x] T019 [P] Extract PreflightResult structure from preflight.py
 - [x] T020 [P] Extract key function signatures from merge subpackage
@@ -98,19 +109,23 @@
 - [x] T024 Add programmatic access code examples
 
 ### Implementation Notes
+
 1. Location: After "Workspace-per-Work-Package Development" section in CLAUDE.md
 2. Include actual JSON example from merge-state.json format
 3. Code examples should be copy-pasteable Python snippets
 4. Reference actual function names and module paths
 
 ### Parallel Opportunities
+
 - T018, T019, T020 can proceed in parallel (different source files)
 - T022-T024 can be written in parallel once T021 establishes section
 
 ### Dependencies
+
 - None (can proceed in parallel with WP01 and WP02)
 
 ### Risks & Mitigations
+
 - Section placement ambiguity → Explicitly specify "after Workspace-per-WP" section
 
 ---
@@ -122,6 +137,7 @@
 **Prompt**: `/tasks/WP04-integration-cross-references.md`
 
 ### Included Subtasks
+
 - [x] T025 Update `docs/toc.yml` to add new pages in how-to section
 - [x] T026 Add cross-references to merge-feature.md (link to troubleshoot, accept-and-merge, etc.)
 - [x] T027 Add cross-references to troubleshoot-merge.md (link to merge-feature, workspace-per-wp)
@@ -130,19 +146,23 @@
 - [x] T030 Final style consistency check across all new docs
 
 ### Implementation Notes
+
 1. Follow toc.yml structure for adding new entries
 2. Cross-reference pattern: Command Reference, See Also, Background, Getting Started sections
 3. Test each command example in terminal
 4. Compare style against accept-and-merge.md
 
 ### Parallel Opportunities
+
 - T025-T028 can proceed in parallel (different files)
 - T029, T030 must wait for WP01-WP03 content
 
 ### Dependencies
+
 - Depends on WP01, WP02, WP03 (needs content to cross-reference and verify)
 
 ### Risks & Mitigations
+
 - Broken links → Verify with relative path resolution
 
 ---

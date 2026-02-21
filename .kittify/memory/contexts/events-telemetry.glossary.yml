@@ -1,0 +1,181 @@
+contexts:
+  - name: Events & Telemetry
+    domainVisionStatement: Terms for events & telemetry context.
+    meta:
+      Generated from: glossary/contexts/events-telemetry.md
+    terms:
+      - name: EventBridge
+        definition: An ABC for structured event emission at workflow points. All cross-cutting 
+          concerns (telemetry, work logs, cost tracking) register as consumers. `NullEventBridge` 
+          discards events (default). `CompositeEventBridge` fans out to registered listeners with 
+          error isolation.
+        meta:
+          Context: Events & Telemetry
+          Status: candidate
+          In code: Concept in architecture/specs; no canonical `core/events/bridge.py` 
+            implementation path in current tree
+          Related terms: Lane Transition Event, Validation Event, Execution Event
+          Architecture: Unified Event Spine — all lifecycle events flow through a single bridge
+      - name: Lane Transition Event
+        definition: Historical/conceptual name for lane-move events. In current implementation this 
+          concept is represented by Status Event.
+        meta:
+          Context: Events & Telemetry
+          Status: superseded
+          In code: Superseded by `StatusEvent` in `src/specify_cli/status/models.py`
+          Related terms: Lane, Status Event
+      - name: Validation Event
+        definition: Emitted when a governance check runs. Makes governance compliance auditable.
+        meta:
+          Context: Events & Telemetry
+          Status: candidate
+          In code: Governance event model is planned under governance features; no canonical model 
+            type in current tree
+          Fields: '`timestamp`, `validation_type`, `status`, `directive_refs`, `duration_ms`'
+          Related terms: Validation Result, EventBridge
+      - name: Execution Event
+        definition: Emitted when a tool executes work. Captures token usage, cost, duration, and 
+          success/failure.
+        meta:
+          Context: Events & Telemetry
+          Status: candidate
+          In code: Candidate telemetry concept; no canonical `ExecutionEvent` model in current tree
+          Fields: '`timestamp`, `work_package_id`, `agent`, `model`, `input_tokens`, `output_tokens`,
+            `cost_usd`, `duration_ms`, `success`, `error`'
+          Related terms: EventBridge, Invocation Result
+      - name: Status Event
+        definition: Immutable record of a single work-package lane transition in the canonical 
+          status model.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          In code: '`StatusEvent` in `src/specify_cli/status/models.py`'
+          Related terms: Status Event Log, Status Reducer, Lane
+          Fields: '`event_id`, `feature_slug`, `wp_id`, `from_lane`, `to_lane`, `at`, `actor`, `force`,
+            `execution_mode`, `reason`, `review_ref`, `evidence`'
+      - name: Mission Event Log
+        definition: Provisional per-feature mission workflow log (`mission-events.jsonl`) used by 
+          mission v1 runtime.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          In code: '`emit_event()` / `read_events()` in `src/specify_cli/mission_v1/events.py`'
+          Location: '`kitty-specs/<feature>/mission-events.jsonl`'
+          Related terms: Status Event Log
+          Distinction: Mission events are runtime diagnostics; they are not the authority for 
+            lane/status state
+      - name: Status Event Log
+        definition: The canonical append-only per-feature status history file 
+          (`status.events.jsonl`). Each lane transition is persisted as an immutable status event.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Location: '`kitty-specs/<feature>/status.events.jsonl`'
+          Source-of-truth role: Canonical authority for WP status history and state derivation
+          Related terms: Lane Transition Event, Status Reducer, Status Materialization
+          Distinction: Separate from Mission Event Log; both can exist and serve different purposes
+      - name: Status Reducer
+        definition: The deterministic reducer that folds the canonical Status Event Log into current
+          workflow state.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Status Event Log, Status Materialization, Materialization Drift
+      - name: Status Materialization
+        definition: The process of regenerating `status.json` from `status.events.jsonl` (for 
+          example via `spec-kitty agent status materialize`).
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Status Event Log, Status Reducer, Materialization Drift
+          Result: '`status.json` is a derived snapshot, not the canonical source'
+      - name: Materialization Drift
+        definition: A mismatch between persisted `status.json` and the reducer output computed from 
+          the canonical Status Event Log.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Status Materialization, Status Reducer, Derived-View Drift
+      - name: Derived-View Drift
+        definition: A mismatch between compatibility views (for example WP frontmatter `lane`) and 
+          canonical status state derived from the event log.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Materialization Drift, Lane, Status Event Log
+      - name: Status Reconciliation
+        definition: A cross-repository audit and alignment process that compares implementation 
+          evidence (branches, commits, merges) with canonical status state, and optionally emits 
+          corrective status events.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Status Event Log, Status Reducer, Work Package
+      - name: Rollback-Aware Precedence
+        definition: Merge/event conflict rule where explicit reviewer rollback (`for_review` -> 
+          `in_progress` with `review_ref`) outranks concurrent forward progression.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Authority: ADR `2026-02-09-3`
+          Related terms: Status Event Log, Status Reducer, Guard Condition
+          Historical contrast: Replaces naive "most-done-wins" conflict resolution
+      - name: Done Evidence
+        definition: Structured acceptance evidence required for a transition to `done` (unless a 
+          forced transition is explicitly used). Usually contains reviewer identity, verdict, and 
+          reference.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Lane, Guard Condition, Forced Transition
+      - name: Guard Condition
+        definition: A transition-specific invariant that must be satisfied before a status 
+          transition is accepted (for example actor identity, review reference, or evidence 
+          payload).
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Lane, Done Evidence, Forced Transition
+      - name: Forced Transition
+        definition: A status transition that bypasses normal Guard Condition checks and is accepted 
+          only with explicit actor identity and reason, preserving a full audit trail.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Guard Condition, Done Evidence, Status Event Log
+      - name: Status Rollout Phases
+        definition: 'The staged migration model for status authority: `hardening` (phase 0), `dual-write`
+          (phase 1), and `read-cutover` (phase 2).'
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Status Event Log, Status Materialization, Derived-View Drift
+      - name: Event Envelope
+        definition: The fixed schema contract for emitted events, combining core event metadata, 
+          identity metadata, and optional git-correlation metadata.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Location: '`docs/reference/event-envelope.md`'
+          Related terms: EventBridge, Lamport Clock, Causation ID, Git Correlation Fields
+      - name: Lamport Clock
+        definition: The monotonic logical clock value in the Event Envelope used for deterministic 
+          ordering of emitted events.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Event Envelope, Causation ID
+      - name: Causation ID
+        definition: Optional parent event identifier in the Event Envelope, used to correlate event 
+          chains and causality.
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Event Envelope, Lamport Clock
+      - name: Git Correlation Fields
+        definition: 'Optional event metadata that ties events to git context: `git_branch`, `head_commit_sha`,
+          and `repo_slug`.'
+        meta:
+          Context: Events & Telemetry
+          Status: canonical
+          Related terms: Event Envelope, Status Reconciliation

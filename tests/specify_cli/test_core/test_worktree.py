@@ -134,9 +134,7 @@ class TestCreateFeatureWorktree:
         )
 
         # Execute
-        worktree_path, feature_dir = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Verify
         assert worktree_path == tmp_path / ".worktrees" / "001-test-feature"
@@ -219,14 +217,10 @@ class TestCreateFeatureWorktree:
         )
 
         # Create first worktree
-        worktree_path1, feature_dir1 = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path1, feature_dir1 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Execute: Try to create same worktree again
-        worktree_path2, feature_dir2 = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path2, feature_dir2 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Verify: Should return same paths
         assert worktree_path1 == worktree_path2
@@ -329,28 +323,28 @@ class TestSetupFeatureDirectory:
         assert spec_file.exists()
         assert spec_file.read_text() == ""
 
-    def test_copies_memory_directory_when_symlinks_disabled(self, tmp_path: Path):
-        """Should copy memory/ directory when create_symlinks=False."""
+    def test_copies_constitution_directory_when_symlinks_disabled(self, tmp_path: Path):
+        """Should copy constitution/ directory when create_symlinks=False."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path / ".worktrees" / "001-test"
         worktree_path.mkdir(parents=True)  # Create worktree directory
         repo_root = tmp_path
 
-        # Create memory directory in main repo
-        memory_dir = repo_root / ".kittify" / "memory"
-        memory_dir.mkdir(parents=True)
-        (memory_dir / "constitution.md").write_text("Constitution content")
+        # Create constitution directory in main repo
+        constitution_dir = repo_root / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "constitution.md").write_text("Constitution content")
 
         # Execute
         setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        worktree_memory = worktree_path / ".kittify" / "memory"
-        assert worktree_memory.exists()
-        assert worktree_memory.is_dir()
-        assert not worktree_memory.is_symlink()
-        assert (worktree_memory / "constitution.md").read_text() == "Constitution content"
+        worktree_constitution = worktree_path / ".kittify" / "constitution"
+        assert worktree_constitution.exists()
+        assert worktree_constitution.is_dir()
+        assert not worktree_constitution.is_symlink()
+        assert (worktree_constitution / "constitution.md").read_text() == "Constitution content"
 
     @patch("platform.system")
     def test_uses_copy_on_windows(self, mock_system: Mock, tmp_path: Path):
@@ -362,18 +356,18 @@ class TestSetupFeatureDirectory:
         worktree_path.mkdir(parents=True)  # Create worktree directory
         repo_root = tmp_path
 
-        # Create memory directory
-        memory_dir = repo_root / ".kittify" / "memory"
-        memory_dir.mkdir(parents=True)
-        (memory_dir / "test.md").write_text("test")
+        # Create constitution directory
+        constitution_dir = repo_root / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "test.md").write_text("test")
 
         # Execute (with create_symlinks=True, but Windows should override)
         setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=True)
 
         # Verify
-        worktree_memory = worktree_path / ".kittify" / "memory"
-        assert worktree_memory.exists()
-        assert not worktree_memory.is_symlink()  # Should be copied, not symlinked
+        worktree_constitution = worktree_path / ".kittify" / "constitution"
+        assert worktree_constitution.exists()
+        assert not worktree_constitution.is_symlink()  # Should be copied, not symlinked
 
     def test_handles_existing_kittify_directory(self, tmp_path: Path):
         """Should handle existing .kittify directory and replace symlink."""
@@ -383,10 +377,10 @@ class TestSetupFeatureDirectory:
         worktree_path.mkdir(parents=True)
         repo_root = tmp_path
 
-        # Create memory directory in main repo
-        memory_dir = repo_root / ".kittify" / "memory"
-        memory_dir.mkdir(parents=True)
-        (memory_dir / "file.md").write_text("content")
+        # Create constitution directory in main repo
+        constitution_dir = repo_root / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "file.md").write_text("content")
 
         # Create AGENTS.md
         (repo_root / ".kittify" / "AGENTS.md").write_text("# Agents")
@@ -394,17 +388,17 @@ class TestSetupFeatureDirectory:
         # Pre-create worktree .kittify with a symlink that needs replacing
         worktree_kittify = worktree_path / ".kittify"
         worktree_kittify.mkdir()
-        worktree_memory = worktree_kittify / "memory"
-        worktree_memory.mkdir()  # Create as directory first
-        (worktree_memory / "old.md").write_text("old")
+        worktree_constitution = worktree_kittify / "constitution"
+        worktree_constitution.mkdir()  # Create as directory first
+        (worktree_constitution / "old.md").write_text("old")
 
         # Execute - should replace the directory with symlink/copy
         setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
 
-        # Verify memory was replaced
-        assert worktree_memory.exists()
-        assert (worktree_memory / "file.md").exists()
-        assert not (worktree_memory / "old.md").exists()
+        # Verify constitution was replaced
+        assert worktree_constitution.exists()
+        assert (worktree_constitution / "file.md").exists()
+        assert not (worktree_constitution / "old.md").exists()
 
 
 class TestValidateFeatureStructure:
@@ -542,9 +536,7 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = False
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_path, feature_dir = create_feature_worktree(
-                tmp_path, "test-feature", feature_number=1
-            )
+            worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
             # Verify VCS abstraction was called
             mock_vcs.create_workspace.assert_called_once()
@@ -582,9 +574,7 @@ class TestVCSAbstraction:
             # Capture deprecation warning
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                worktree_path, feature_dir = create_feature_worktree(
-                    tmp_path, "fallback-test", feature_number=99
-                )
+                worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", feature_number=99)
 
                 # Verify deprecation warning was raised
                 assert len(w) == 1
@@ -626,9 +616,7 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = True
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_result, feature_dir = create_feature_worktree(
-                tmp_path, "test-feature", feature_number=1
-            )
+            worktree_result, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
             # Should return the existing path
             assert worktree_result == worktree_path

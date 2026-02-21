@@ -195,6 +195,7 @@ This feature addresses **technical debt** from recent architectural changes:
 ### Validation Strategy
 
 Code-first validation means:
+
 - No manual command testing - rely on source code inspection
 - Cross-reference all docs against implementation files
 - Use grep/ast parsing to validate command signatures

@@ -1,4 +1,5 @@
 # Feature Specification: Lightweight PyPI Release Workflow
+
 *Path: [kitty-specs/002-lightweight-pypi-release/spec.md](kitty-specs/002-lightweight-pypi-release/spec.md)*
 
 **Feature Branch**: `002-lightweight-pypi-release`  

@@ -46,7 +46,7 @@ class MissionProtocol(Protocol):
     @property
     def state(self) -> str: ...
 
-    def trigger(self, trigger_name: str, **kwargs) -> bool: ...
+    def trigger(self, trigger_name: str, **kwargs: object) -> bool: ...
 
     def get_triggers(self, state: str | None = None) -> list[str]: ...
 
@@ -93,9 +93,7 @@ def load_mission(
         # Lazy import to avoid circular deps (mission.py must NOT import mission_v1)
         from specify_cli.mission import MissionNotFoundError
 
-        raise MissionNotFoundError(
-            f"Mission config not found: {config_file}"
-        )
+        raise MissionNotFoundError(f"Mission config not found: {config_file}")
 
     with open(config_file, "r", encoding="utf-8") as fh:
         raw_config = yaml.safe_load(fh) or {}

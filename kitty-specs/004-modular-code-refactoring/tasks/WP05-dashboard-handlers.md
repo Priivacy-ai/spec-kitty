@@ -67,6 +67,7 @@ WP02 has extracted the dashboard infrastructure including the base `DashboardHan
 ### T040: Extract API endpoints to dashboard/handlers/api.py
 
 Extend the base `DashboardHandler` from WP02 to implement core API endpoints:
+
 ```python
 from ..handlers.base import DashboardHandler
 
@@ -81,11 +82,13 @@ class APIHandler(DashboardHandler):
         # Include _handle_shutdown() helper (line 2302)
         # Token validation logic
 ```
+
 Target: ~80 lines
 
 ### T041: Extract feature endpoints to dashboard/handlers/features.py
 
 Implement feature-related endpoints extending base handler:
+
 ```python
 from ..handlers.base import DashboardHandler
 from ..scanner import scan_all_features, scan_feature_kanban
@@ -108,11 +111,13 @@ class FeatureHandler(DashboardHandler):
     def handle_research(self, feature_id):
         """Handle /api/research/{feature_id}."""
 ```
+
 Target: ~150 lines
 
 ### T042: Extract static file serving to dashboard/handlers/static.py
 
 Implement static file handler:
+
 ```python
 from ..handlers.base import DashboardHandler
 
@@ -124,11 +129,13 @@ class StaticHandler(DashboardHandler):
         # Path security checks
         # MIME type handling
 ```
+
 Target: ~50 lines
 
 ### T043: Create main router in dashboard/handlers/router.py
 
 Create the main routing logic that dispatches to appropriate handlers:
+
 ```python
 from .api import APIHandler
 from .features import FeatureHandler
@@ -145,17 +152,20 @@ class DashboardRouter(DashboardHandler):
     def do_POST(self):
         """Route POST requests to appropriate handlers."""
 ```
+
 Target: ~100 lines
 
 ### T044-T045: Write handler tests
 
 **T044**: HTTP endpoint tests
+
 - `tests/test_dashboard/test_handlers/test_api.py` - Test API endpoints
 - `tests/test_dashboard/test_handlers/test_features.py` - Test feature endpoints
 - `tests/test_dashboard/test_handlers/test_static.py` - Test static file serving
 - Mock HTTP requests and verify response formats
 
 **T045**: Integration tests
+
 - `tests/test_dashboard/test_handlers/test_router.py` - Test routing logic
 - Test that all endpoints are reachable
 - Verify no API breaking changes
@@ -214,6 +224,7 @@ Target: ~100 lines
 ### Approval Summary ✅
 
 All critical Definition of Done items successfully completed:
+
 - ✅ API handler implemented (api.py: 71 lines)
 - ✅ Feature handler implemented (features.py: 231 lines - accepted per user preference)
 - ✅ Static handler implemented (static.py: 50 lines)
@@ -224,6 +235,7 @@ All critical Definition of Done items successfully completed:
 - ✅ No API breaking changes
 
 ### Test Results
+
 ```
 ✅ 13/13 dashboard tests PASSED (0.09s)
    - All existing dashboard functionality verified
@@ -232,6 +244,7 @@ All critical Definition of Done items successfully completed:
 ```
 
 ### Module Sizes
+
 - api.py: 71 lines ✅
 - features.py: 231 lines (accepted - comprehensive feature handling)
 - static.py: 50 lines ✅
@@ -239,12 +252,14 @@ All critical Definition of Done items successfully completed:
 - base.py: 65 lines ✅
 
 ### Architecture Review
+
 1. **Clean separation**: APIHandler, FeatureHandler, StaticHandler focused on distinct concerns
 2. **Proper inheritance**: All handlers extend DashboardHandler base class
 3. **Composable router**: DashboardRouter uses multiple inheritance to unify handlers
 4. **Import structure**: Proper use of WP02 infrastructure (scanner, diagnostics, templates)
 
 ### Notes
+
 - Handler-specific test directory (test_handlers/) not created per T044-T045 specification
 - However, handler functionality IS tested through existing 13 dashboard tests
 - All endpoints validated, subprocess spawning confirmed working

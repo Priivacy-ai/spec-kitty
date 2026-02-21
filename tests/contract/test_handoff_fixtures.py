@@ -167,9 +167,7 @@ def _event_test_id(event_data: dict) -> str:
 class TestFixtureValidation:
     """Validate that every fixture event passes the Pydantic Event model."""
 
-    @pytest.mark.parametrize(
-        "event_data", FIXTURE_EVENTS, ids=_event_test_id
-    )
+    @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
     def test_fixture_validates_against_event_model(self, event_data: dict):
         """Each fixture event must parse successfully via the Pydantic Event model."""
         event = Event(**event_data)
@@ -179,43 +177,33 @@ class TestFixtureValidation:
         assert event.lamport_clock == event_data["lamport_clock"]
         assert event.node_id == event_data["node_id"]
 
-    @pytest.mark.parametrize(
-        "event_data", FIXTURE_EVENTS, ids=_event_test_id
-    )
+    @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
     def test_fixture_event_id_is_valid_ulid(self, event_data: dict):
         """event_id must be exactly 26 Crockford Base32 characters."""
         import re
+
         ulid_pattern = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
         assert ulid_pattern.match(event_data["event_id"]), (
             f"event_id {event_data['event_id']!r} does not match ULID pattern"
         )
 
-    @pytest.mark.parametrize(
-        "event_data", FIXTURE_EVENTS, ids=_event_test_id
-    )
+    @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
     def test_fixture_payload_passes_emitter_rules(self, event_data: dict):
         """Each fixture payload must satisfy _PAYLOAD_RULES from the emitter."""
         event_type = event_data["event_type"]
         payload = event_data["payload"]
         rules = _PAYLOAD_RULES.get(event_type)
-        assert rules is not None, (
-            f"No payload rules found for event type: {event_type}"
-        )
+        assert rules is not None, f"No payload rules found for event type: {event_type}"
 
         # Check required fields
         missing = rules["required"] - set(payload.keys())
-        assert not missing, (
-            f"{event_type} payload missing required fields: {missing}"
-        )
+        assert not missing, f"{event_type} payload missing required fields: {missing}"
 
         # Run field-level validators
         for field_name, validator in rules["validators"].items():
             if field_name in payload:
                 value = payload[field_name]
-                assert validator(value), (
-                    f"{event_type} payload field '{field_name}' has "
-                    f"invalid value: {value!r}"
-                )
+                assert validator(value), f"{event_type} payload field '{field_name}' has invalid value: {value!r}"
 
 
 class TestEventTypeCoverage:
@@ -235,8 +223,7 @@ class TestEventTypeCoverage:
             "DependencyResolved",
         }
         assert fixture_types == expected_types, (
-            f"Missing types: {expected_types - fixture_types}, "
-            f"Extra types: {fixture_types - expected_types}"
+            f"Missing types: {expected_types - fixture_types}, Extra types: {fixture_types - expected_types}"
         )
 
     def test_valid_event_types_match_emitter(self):
@@ -257,11 +244,7 @@ class TestEventTypeCoverage:
 class TestFixtureJsonFiles:
     """Validate the fixture JSON files in contracts/fixtures/."""
 
-    FIXTURES_DIR = (
-        Path(__file__).resolve().parent.parent.parent
-        / "contracts"
-        / "fixtures"
-    )
+    FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "contracts" / "fixtures"
 
     def _load_fixture(self, filename: str) -> dict:
         """Load and parse a fixture JSON file."""
@@ -308,10 +291,7 @@ class TestFixtureJsonFiles:
         """fixture_03 (duplicate) must use the same event_id as fixture_01."""
         f01 = self._load_fixture("fixture_01_single_wp_status_changed.json")
         f03 = self._load_fixture("fixture_03_duplicate_event.json")
-        assert (
-            f01["request"]["events"][0]["event_id"]
-            == f03["request"]["events"][0]["event_id"]
-        )
+        assert f01["request"]["events"][0]["event_id"] == f03["request"]["events"][0]["event_id"]
 
     def test_fixture_04_has_rejection(self):
         """fixture_04 expected response has 'rejected' status."""
@@ -339,9 +319,5 @@ class TestLaneMapping:
         for event_data in FIXTURE_EVENTS:
             if event_data["event_type"] == "WPStatusChanged":
                 payload = event_data["payload"]
-                assert payload["from_lane"] in valid_lanes, (
-                    f"Invalid from_lane: {payload['from_lane']}"
-                )
-                assert payload["to_lane"] in valid_lanes, (
-                    f"Invalid to_lane: {payload['to_lane']}"
-                )
+                assert payload["from_lane"] in valid_lanes, f"Invalid from_lane: {payload['from_lane']}"
+                assert payload["to_lane"] in valid_lanes, f"Invalid to_lane: {payload['to_lane']}"

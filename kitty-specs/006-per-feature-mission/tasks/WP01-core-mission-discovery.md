@@ -38,6 +38,7 @@ subtasks:
 - Unit tests pass for all new functions
 
 **Success Metrics**:
+
 - `get_mission_for_feature(feature_dir)` returns correct Mission object
 - Features without `mission` field return software-dev Mission
 - `discover_missions()` returns dict with "project" and "built-in" sources
@@ -45,16 +46,19 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (FR-001, FR-004)
 - Plan: `kitty-specs/006-per-feature-mission/plan.md` (Phase 1)
 - Data Model: `kitty-specs/006-per-feature-mission/data-model.md` (Function Signatures)
 
 **Existing Code**:
+
 - `src/specify_cli/mission.py` contains `Mission` class, `MissionConfig` Pydantic model
 - `get_active_mission()` at line ~378 reads from `.kittify/active-mission` (to be deprecated later)
 - `get_mission_by_name()` at line ~464 loads mission by key
 
 **Constraints**:
+
 - Do NOT modify `get_active_mission()` yet (other code depends on it)
 - New functions should follow existing patterns in mission.py
 
@@ -66,10 +70,13 @@ subtasks:
 - **Files**: `src/specify_cli/mission.py`
 - **Steps**:
   1. Add function signature matching data-model.md:
+
      ```python
      def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = None) -> Mission:
      ```
+
   2. Load `meta.json` from `feature_dir`:
+
      ```python
      meta_file = feature_dir / "meta.json"
      if not meta_file.exists():
@@ -77,18 +84,23 @@ subtasks:
      with open(meta_file, 'r') as f:
          meta = json.load(f)
      ```
+
   3. Extract mission field with default:
+
      ```python
      mission_key = meta.get("mission", "software-dev")
      ```
+
   4. Find project root if not provided (look for `.kittify`)
   5. Call `get_mission_by_name(mission_key, kittify_dir)` to load mission
   6. If mission not found, warn and return software-dev:
+
      ```python
      except MissionNotFoundError:
          warnings.warn(f"Mission '{mission_key}' not found, using software-dev")
          return get_mission_by_name("software-dev", kittify_dir)
      ```
+
 - **Parallel?**: No (foundational)
 
 ### Subtask T002 – Add `discover_missions()` function
@@ -97,11 +109,14 @@ subtasks:
 - **Files**: `src/specify_cli/mission.py`
 - **Steps**:
   1. Add function signature:
+
      ```python
      def discover_missions(project_root: Optional[Path] = None) -> Dict[str, Tuple[Mission, str]]:
      ```
+
   2. Find project root / `.kittify` directory
   3. Scan `.kittify/missions/` for valid mission directories:
+
      ```python
      missions = {}
      missions_dir = kittify_dir / "missions"
@@ -115,6 +130,7 @@ subtasks:
              except MissionError as e:
                  warnings.warn(f"Skipping invalid mission {mission_dir.name}: {e}")
      ```
+
   4. Return the dict
 - **Parallel?**: No (foundational)
 
@@ -124,6 +140,7 @@ subtasks:
 - **Files**: `src/specify_cli/mission.py`
 - **Steps**:
   1. Add helper function:
+
      ```python
      def get_feature_mission_key(feature_dir: Path) -> str:
          """Extract mission key from feature's meta.json, defaulting to software-dev."""
@@ -137,6 +154,7 @@ subtasks:
          except (json.JSONDecodeError, OSError):
              return "software-dev"
      ```
+
   2. Import `json` at top of file if not already imported
 - **Parallel?**: No (used by T001)
 
@@ -146,6 +164,7 @@ subtasks:
 - **Files**: `tests/unit/test_mission.py`
 - **Steps**:
   1. Add test fixture creating temp feature directory with meta.json:
+
      ```python
      @pytest.fixture
      def feature_with_mission(tmp_path, sample_kittify_dir):
@@ -159,12 +178,15 @@ subtasks:
          (feature_dir / "meta.json").write_text(json.dumps(meta))
          return feature_dir
      ```
+
   2. Add test for valid mission:
+
      ```python
      def test_get_mission_for_feature_valid(feature_with_mission, sample_kittify_dir):
          mission = get_mission_for_feature(feature_with_mission, sample_kittify_dir.parent)
          assert mission.name == "Software Dev Kitty"
      ```
+
   3. Add test for research mission
   4. Add test for invalid mission (should warn and return software-dev)
 - **Parallel?**: Yes (once T001-T003 done)
@@ -175,6 +197,7 @@ subtasks:
 - **Files**: `tests/unit/test_mission.py`
 - **Steps**:
   1. Add fixture for feature WITHOUT mission field:
+
      ```python
      @pytest.fixture
      def legacy_feature(tmp_path, sample_kittify_dir):
@@ -188,13 +211,16 @@ subtasks:
          (feature_dir / "meta.json").write_text(json.dumps(meta))
          return feature_dir
      ```
+
   2. Add test:
+
      ```python
      def test_get_mission_for_feature_legacy_defaults_to_software_dev(legacy_feature, sample_kittify_dir):
          mission = get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
          assert mission.domain == "software"
          assert "software" in mission.name.lower()
      ```
+
   3. Add test for missing meta.json (should raise or return default based on design)
 - **Parallel?**: Yes (once T001-T003 done)
 

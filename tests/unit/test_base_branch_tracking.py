@@ -10,10 +10,8 @@ Verifies Phase 1 implementation:
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.workspace_context import (
@@ -21,7 +19,6 @@ from specify_cli.workspace_context import (
     cleanup_orphaned_contexts,
     delete_context,
     find_orphaned_contexts,
-    get_context_path,
     list_contexts,
     load_context,
     save_context,
@@ -188,9 +185,9 @@ class TestWorkspaceContextPersistence:
                 feature_slug="010-feature",
                 worktree_path=f".worktrees/010-feature-WP0{i}",
                 branch_name=f"010-feature-WP0{i}",
-                base_branch="main" if i == 1 else f"010-feature-WP0{i-1}",
+                base_branch="main" if i == 1 else f"010-feature-WP0{i - 1}",
                 base_commit=f"commit{i}",
-                dependencies=[] if i == 1 else [f"WP0{i-1}"],
+                dependencies=[] if i == 1 else [f"WP0{i - 1}"],
                 created_at="2026-01-23T10:00:00Z",
                 created_by="implement-command",
                 vcs_backend="git",
@@ -334,11 +331,14 @@ class TestBaseBranchInFrontmatter:
         write_frontmatter(wp_file, frontmatter, body)
 
         # Update with base tracking
-        update_fields(wp_file, {
-            "base_branch": "010-feature-WP01",
-            "base_commit": "abc123def456",
-            "created_at": "2026-01-23T10:00:00Z",
-        })
+        update_fields(
+            wp_file,
+            {
+                "base_branch": "010-feature-WP01",
+                "base_commit": "abc123def456",
+                "created_at": "2026-01-23T10:00:00Z",
+            },
+        )
 
         # Read and verify
         updated_frontmatter, _ = read_frontmatter(wp_file)

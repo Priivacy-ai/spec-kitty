@@ -1,0 +1,30 @@
+id: "imp-zombies-tdd-001"
+source:
+  title: "ZOMBIES TDD"
+  type: "article"
+  publisher: "James Grenning"
+  url: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
+  accessed_on: "2026-02-17"
+classification:
+  target_concepts:
+    - "tactic"
+    - "directive"
+  rationale: "Defines practical behavioral steps and guardrails for implementation flow."
+adaptation:
+  summary: "Adopt ZOMBIES as a tactic set for implementation agents."
+  notes:
+    - "Map to Spec Kitty doctrine naming."
+    - "Keep constitution as activation authority."
+source_references:
+  - kind: "external"
+    path: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
+    lines: "n/a"
+    note: "Primary source article."
+external_references:
+  - url: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
+    attribution_reason: "Original author and conceptual source for ZOMBIES guidance."
+    extraction_action: "none"
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/zombies-tdd.tactic.yaml"
+  - "src/doctrine/directives/test-first.directive.yaml"

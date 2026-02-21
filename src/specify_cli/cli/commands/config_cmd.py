@@ -6,7 +6,6 @@ resolved asset comes from in the 4-tier resolution chain.
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -32,9 +31,7 @@ def config(
 ) -> None:
     """Display project configuration and asset resolution information."""
     if not show_origin:
-        console.print(
-            "[yellow]Use --show-origin to display asset resolution details.[/yellow]"
-        )
+        console.print("[yellow]Use --show-origin to display asset resolution details.[/yellow]")
         raise typer.Exit(0)
 
     try:

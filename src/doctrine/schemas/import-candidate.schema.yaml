@@ -1,0 +1,150 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.dev/schemas/doctrine/import-candidate.schema.yaml"
+title: Import Candidate
+description: Compatibility schema for curated external practice candidates.
+type: object
+oneOf:
+  - title: Legacy import-candidate (WP01 baseline)
+    type: object
+    additionalProperties: false
+    required:
+      - schema_version
+      - id
+      - source
+      - target
+      - adaptation_notes
+      - status
+    properties:
+      schema_version:
+        type: string
+        pattern: '^1\.0$'
+      id:
+        type: string
+        pattern: '^[A-Z]{2,}-[0-9]{3,}$'
+      source:
+        type: object
+        additionalProperties: false
+        required:
+          - title
+          - reference
+        properties:
+          title:
+            type: string
+            minLength: 1
+          reference:
+            type: string
+            minLength: 1
+      target:
+        type: object
+        additionalProperties: false
+        required:
+          - paradigm
+          - directive
+        properties:
+          paradigm:
+            type: string
+            minLength: 1
+          directive:
+            type: string
+            minLength: 1
+          tactic:
+            type: string
+      adaptation_notes:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        enum:
+          - proposed
+          - accepted
+          - rejected
+  - title: Doctrine curation import-candidate (WP03 scaffold)
+    type: object
+    required:
+      - id
+      - source
+      - classification
+      - adaptation
+      - status
+    properties:
+      id:
+        type: string
+        minLength: 1
+      source:
+        type: object
+        required: [title, type, url, accessed_on]
+        properties:
+          title:
+            type: string
+          type:
+            type: string
+          publisher:
+            type: string
+          url:
+            type: string
+          accessed_on:
+            type: string
+      classification:
+        type: object
+        required: [target_concepts]
+        properties:
+          target_concepts:
+            type: array
+            items:
+              type: string
+            minItems: 1
+          rationale:
+            type: string
+      adaptation:
+        type: object
+        required: [summary]
+        properties:
+          summary:
+            type: string
+          notes:
+            type: array
+            items:
+              type: string
+      status:
+        type: string
+        enum: [proposed, reviewing, adopted, rejected]
+      resulting_artifacts:
+        type: array
+        items:
+          type: string
+      source_references:
+        type: array
+        items:
+          type: object
+          required: [kind, path, lines, note]
+          properties:
+            kind:
+              type: string
+            path:
+              type: string
+            lines:
+              type: string
+            note:
+              type: string
+      external_references:
+        type: array
+        items:
+          type: object
+          required: [url, attribution_reason, extraction_action]
+          properties:
+            url:
+              type: string
+            attribution_reason:
+              type: string
+            extraction_action:
+              type: string
+    allOf:
+      - if:
+          properties:
+            status:
+              const: adopted
+        then:
+          required: [resulting_artifacts]
+          properties:
+            resulting_artifacts:
+              minItems: 1

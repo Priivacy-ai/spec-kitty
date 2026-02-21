@@ -1,14 +1,16 @@
 # Agent: Windsurf (Codeium)
 
 ## Basic Info
+
 - **Directory**: `.windsurf/workflows/`
 - **Primary Interface**: IDE (VS Code fork) with AI-first design
 - **Vendor**: Codeium (formerly Exafunction)
-- **Documentation**: https://docs.windsurf.com
+- **Documentation**: <https://docs.windsurf.com>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # Windsurf IDE (macOS)
 brew install --cask windsurf
@@ -19,11 +21,13 @@ windsurf --locate-shell-integration-path zsh
 ```
 
 ### Verification
+
 ```bash
 which windsurf && windsurf --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ windsurf --version
 Windsurf 1.106.0
@@ -46,12 +50,14 @@ Options:
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument - `windsurf chat "Your prompt"` (opens GUI)
 - [x] File context - `windsurf chat -a file.js "Review this"`
 - [ ] Stdin - Not supported
 - [ ] Non-interactive/headless - **NOT AVAILABLE**
 
 ### Example Invocation
+
 ```bash
 # Opens IDE with chat session (NOT headless)
 windsurf chat "Write a hello world function"
@@ -66,6 +72,7 @@ windsurf chat -a src/main.js "Review this file"
 ```
 
 ### Context Handling
+
 - Opens in workspace directory (cwd or specified path)
 - File context via `-a, --add-file` flag
 - Requires GUI environment - cannot run headlessly
@@ -75,6 +82,7 @@ windsurf chat -a src/main.js "Review this file"
 **Not applicable for automation** - Windsurf `chat` command opens GUI and does not return until the user closes the session.
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | IDE launched successfully |
@@ -83,17 +91,20 @@ windsurf chat -a src/main.js "Review this file"
 **Note**: Exit code indicates launch success, not task completion.
 
 ### Output Format
+
 - No stdout output (GUI-based interaction)
 - Results visible only in IDE interface
 
 ## Parallel Execution
 
 ### Concurrent Sessions
+
 - Multiple Windsurf windows can run simultaneously
 - Each window is independent
 - No programmatic session management
 
 ### Resource Requirements
+
 - Memory: High (full Electron IDE)
 - CPU: Moderate (GUI rendering)
 - Display: Required (X11/Wayland or macOS GUI)
@@ -102,6 +113,7 @@ windsurf chat -a src/main.js "Review this file"
 ## Authentication
 
 ### Methods
+
 1. **Codeium Account**: Sign in via GUI
 2. **API Token**: Can be obtained from Codeium dashboard
 
@@ -124,12 +136,14 @@ docker run -e CODEIUM_TOKEN=<token> \
 ```
 
 **How it works**:
+
 - Uses Xvfb to create virtual X11 display
 - Uses xdotool to simulate keyboard/mouse input
 - Reads task from `windsurf-instructions.txt` file
 - Executes preconfigured workflow automatically
 
 **Limitations**:
+
 - Requires Docker
 - Fragile (depends on GUI automation)
 - Limited control over execution
@@ -148,16 +162,19 @@ curl -L https://github.com/Exafunction/codeium/releases/download/termium-v0.2.0/
 ### 3. Codeium API (Limited)
 
 Direct API access may be possible but undocumented:
-- Register at https://api.codeium.com/register_user/
+
+- Register at <https://api.codeium.com/register_user/>
 - Uses Firebase authentication
 - Primarily for autocomplete, not agentic tasks
 
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [ ] No - GUI-only, no native headless mode
 
 ### Capabilities for Orchestration
+
 - **Non-interactive mode**: Not available
 - **Task input**: GUI only (chat subcommand opens window)
 - **Completion detection**: Not possible programmatically
@@ -165,6 +182,7 @@ Direct API access may be possible but undocumented:
 - **Structured output**: Not available
 
 ### Unique Features (IDE, not CLI)
+
 - **Cascade AI**: Sophisticated multi-step agentic capabilities
 - **Memory**: Persistent context across sessions
 - **Flows**: Automated multi-step workflows
@@ -172,6 +190,7 @@ Direct API access may be possible but undocumented:
 - **Wave 13**: Multi-agent parallel sessions, git worktrees support
 
 ### Limitations
+
 - **No native headless CLI** - Primary limitation for orchestration
 - Requires GUI environment
 - Docker workaround is fragile
@@ -179,6 +198,7 @@ Direct API access may be possible but undocumented:
 - No completion detection mechanism
 
 ### Integration Complexity
+
 **High** - No native headless support. Docker workaround (windsurfinabox) is the only option and is fragile.
 
 ## Recommended Orchestration Pattern
@@ -186,6 +206,7 @@ Direct API access may be possible but undocumented:
 **Not recommended for autonomous orchestration** due to lack of headless support.
 
 If headless operation is required, consider alternatives:
+
 1. Use Claude Code, Codex, or Copilot CLI instead
 2. Use windsurfinabox Docker image (fragile workaround)
 3. Wait for potential future CLI from Codeium
@@ -220,6 +241,7 @@ docker run \
 | Installation | Shell script | Application bundle |
 
 ## Sources
+
 - [Windsurf Documentation](https://docs.windsurf.com)
 - [Windsurf Terminal Docs](https://docs.windsurf.com/windsurf/terminal)
 - [windsurfinabox GitHub](https://github.com/pfcoperez/windsurfinabox)

@@ -77,12 +77,15 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - **Purpose**: Set up the E2E test directory with proper Python package structure.
 - **Steps**:
   1. Create the directory structure:
+
      ```
      tests/e2e/
      ├── __init__.py
      └── conftest.py
      ```
+
   2. In `conftest.py`, add shared fixtures:
+
      ```python
      import pytest
      import subprocess
@@ -115,6 +118,7 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 
          # Cleanup is handled by tmp_path
      ```
+
   3. Make the fixture robust: handle cases where spec-kitty is not on PATH
 - **Files**: `tests/e2e/__init__.py` (new), `tests/e2e/conftest.py` (new)
 - **Parallel?**: No — foundation for T041/T042
@@ -124,6 +128,7 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - **Purpose**: The fixture from T040 provides basic git + spec-kitty. This subtask ensures the repo has enough structure for the full workflow.
 - **Steps**:
   1. Extend the `temp_repo` fixture or create a more specific one:
+
      ```python
      @pytest.fixture
      def smoke_test_repo(temp_repo):
@@ -145,6 +150,7 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 
          return repo_dir
      ```
+
   2. Verify the fixture creates a valid project state
 - **Files**: `tests/e2e/conftest.py` (extend)
 - **Parallel?**: No — depends on T040
@@ -154,6 +160,7 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - **Purpose**: Exercise the complete CLI workflow end-to-end.
 - **Steps**:
   1. Create `tests/e2e/test_cli_smoke.py`:
+
      ```python
      import pytest
      import subprocess
@@ -231,6 +238,7 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
          assert (feature_dir / "tasks.md").exists()
          assert (feature_dir / "tasks" / "WP01-hello-world.md").exists()
      ```
+
   2. Handle edge cases:
      - If `spec-kitty` is not on PATH, skip the test with `pytest.mark.skipif`
      - If workspace creation fails (may need specific git version), log details
@@ -245,12 +253,14 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - **Steps**:
   1. Read `pyproject.toml` to find the `[tool.pytest.ini_options]` section
   2. Add the `e2e` marker:
+
      ```toml
      [tool.pytest.ini_options]
      markers = [
          "e2e: End-to-end tests that exercise the full CLI workflow (may be slow)",
      ]
      ```
+
   3. If markers already exist, append to the list
   4. This enables: `python -m pytest tests/ -m "not e2e"` to skip E2E in fast test runs
 - **Files**: `pyproject.toml` (edit)
@@ -261,17 +271,21 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - **Purpose**: Confirm the E2E test works on the 2.x branch before marking as complete.
 - **Steps**:
   1. Run the E2E test:
+
      ```bash
      python -m pytest tests/e2e/test_cli_smoke.py -v -s
      ```
+
   2. If it fails:
      - Check the failure output carefully
      - Common issues: spec-kitty not on PATH, git version incompatibility, missing worktree support
      - Fix the test or add appropriate `pytest.mark.skipif` conditions
   3. Run the full test suite (excluding E2E) to verify no regressions:
+
      ```bash
      python -m pytest tests/ -m "not e2e" -x -q
      ```
+
   4. Document any CI-specific considerations (environment variables, git config, PATH requirements)
 - **Files**: No changes expected (verification only)
 - **Parallel?**: No — depends on T040-T043

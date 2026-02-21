@@ -114,13 +114,27 @@ def _detect_inconsistent_usage(
     # Extract key concepts from definition (simple noun extraction)
     # Split definition into words, filter stop words
     stop_words = {
-        "a", "an", "the", "is", "are", "of", "for", "to", "in", "on",
-        "at", "by", "with", "from", "as", "and", "or", "but",
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "of",
+        "for",
+        "to",
+        "in",
+        "on",
+        "at",
+        "by",
+        "with",
+        "from",
+        "as",
+        "and",
+        "or",
+        "but",
     }
     definition_words = set(
-        word.strip(".,;:!?")
-        for word in definition_lower.split()
-        if len(word) > 3 and word not in stop_words
+        word.strip(".,;:!?") for word in definition_lower.split() if len(word) > 3 and word not in stop_words
     )
 
     # Find term occurrences in output with context window
@@ -139,9 +153,7 @@ def _detect_inconsistent_usage(
         # Example: definition has "unit of work", output says "not a unit of work"
         for def_word in definition_words:
             # Pattern: "is not a {def_word}", "isn't a {def_word}", "{term} not a {def_word}"
-            negation_of_concept = (
-                rf"\b(is\s+not|isn['']t|not\s+a|not\s+an)\s+({def_word}|[a-z]+\s+{def_word})"
-            )
+            negation_of_concept = rf"\b(is\s+not|isn['']t|not\s+a|not\s+an)\s+({def_word}|[a-z]+\s+{def_word})"
             if re.search(negation_of_concept, context):
                 return True  # Negation of key concept = contradiction
 
@@ -167,9 +179,7 @@ def _detect_inconsistent_usage(
             if re.search(alt_pattern, context):
                 # Check if the alternative definition contradicts key concepts
                 context_words = set(
-                    word.strip(".,;:!?")
-                    for word in context.split()
-                    if len(word) > 3 and word not in stop_words
+                    word.strip(".,;:!?") for word in context.split() if len(word) > 3 and word not in stop_words
                 )
 
                 # If less than 30% overlap with definition key concepts, flag inconsistency

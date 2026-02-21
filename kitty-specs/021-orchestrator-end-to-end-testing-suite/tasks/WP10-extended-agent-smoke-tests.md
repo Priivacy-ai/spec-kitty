@@ -49,14 +49,17 @@ Basic validation that extended agents can be invoked:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md` - User Story 4
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Smoke test design
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/testing/availability.py` - Agent detection
 - `src/specify_cli/orchestrator/agents/` - Agent invokers
 
 **Constraints**:
+
 - Skip gracefully when agent not available (no fail)
 - Use existing agent invokers for invocation
 - Mark with `@pytest.mark.orchestrator_smoke` and `@pytest.mark.extended_agent`
@@ -70,7 +73,9 @@ Basic validation that extended agents can be invoked:
 **Purpose**: Create base class and helpers for smoke tests.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/test_smoke.py`:
+
    ```python
    """Smoke tests for extended agent invocation.
 
@@ -147,6 +152,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 2. Add agent availability helper:
+
    ```python
    def is_agent_available(
        available_agents: dict[str, "AgentAvailability"],
@@ -166,6 +172,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_smoke.py` (~80 lines)
 
 **Parallel?**: No - must complete before T048-T051
@@ -177,7 +184,9 @@ Basic validation that extended agents can be invoked:
 **Purpose**: Create the actual smoke test task execution.
 
 **Steps**:
+
 1. Add to `test_smoke.py`:
+
    ```python
    import asyncio
    from specify_cli.orchestrator.agents import get_invoker_registry
@@ -263,6 +272,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_smoke.py` (add ~70 lines)
 
 **Parallel?**: No - depends on T047
@@ -274,7 +284,9 @@ Basic validation that extended agents can be invoked:
 **Purpose**: Parametrized tests covering all 7 extended agents.
 
 **Steps**:
+
 1. Add to `test_smoke.py`:
+
    ```python
    # List of extended agents for parametrization
    EXTENDED_AGENT_LIST = sorted(EXTENDED_AGENTS)
@@ -361,6 +373,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_smoke.py` (add ~80 lines)
 
 **Parallel?**: Yes - once T047-T048 complete
@@ -372,7 +385,9 @@ Basic validation that extended agents can be invoked:
 **Purpose**: Ensure unavailable extended agents skip gracefully.
 
 **Steps**:
+
 1. Add to `test_smoke.py`:
+
    ```python
    @pytest.mark.orchestrator_smoke
    class TestExtendedAgentSkipBehavior:
@@ -429,6 +444,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_smoke.py` (add ~55 lines)
 
 **Parallel?**: Yes - once T047-T048 complete
@@ -440,7 +456,9 @@ Basic validation that extended agents can be invoked:
 **Purpose**: Validate each smoke test completes within time limit.
 
 **Steps**:
+
 1. Add to `test_smoke.py`:
+
    ```python
    import os
 
@@ -525,6 +543,7 @@ Basic validation that extended agents can be invoked:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_smoke.py` (add ~80 lines)
 
 **Parallel?**: Yes - once T047-T048 complete
@@ -543,6 +562,7 @@ Basic validation that extended agents can be invoked:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] Running `pytest -m extended_agent` shows all 7 agents
 - [ ] Unavailable agents show skip (not fail) in results
 - [ ] Available agents complete within 60s
@@ -550,6 +570,7 @@ Basic validation that extended agents can be invoked:
 - [ ] Temp files cleaned up after tests
 
 **Code Quality**:
+
 - Parametrized tests cover all extended agents
 - Skip reasons are informative
 - Timeout is configurable

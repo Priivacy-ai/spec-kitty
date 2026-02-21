@@ -315,6 +315,4 @@ def ensure_identity(repo_root: Path) -> ProjectIdentity:
 def _warn_in_memory() -> None:
     """Log warning about using in-memory identity."""
     console = Console(stderr=True)
-    console.print(
-        "[yellow]Warning: Config not writable; using in-memory identity[/yellow]"
-    )
+    console.print("[yellow]Warning: Config not writable; using in-memory identity[/yellow]")

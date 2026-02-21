@@ -55,7 +55,8 @@ subtasks:
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T016 – Import GitignoreManager in __init__.py
+### Subtask T016 – Import GitignoreManager in **init**.py
+
 - **Purpose**: Make GitignoreManager available in the main module
 - **Steps**:
   1. Open `src/specify_cli/__init__.py`
@@ -67,14 +68,17 @@ subtasks:
 - **Notes**: Place with other internal imports
 
 ### Subtask T017 – Replace handle_codex_security call
+
 - **Purpose**: Use GitignoreManager instead of old function
 - **Steps**:
   1. Find where `handle_codex_security` is called (around line 1700-1900)
   2. Replace with:
+
      ```python
      manager = GitignoreManager(project_path)
      result = manager.protect_all_agents()  # Note: ALL agents, not just selected
      ```
+
   3. Remove the `selected_agents` parameter usage (we protect all)
   4. Keep the console variable for output
 - **Files**: `src/specify_cli/__init__.py`
@@ -82,6 +86,7 @@ subtasks:
 - **Notes**: Critical change - protect ALL directories per User Story 3
 
 ### Subtask T018 – Update console output
+
 - **Purpose**: Show user which directories were protected
 - **Steps**:
   1. After GitignoreManager call, check result.modified
@@ -95,6 +100,7 @@ subtasks:
 - **Notes**: Use Rich console formatting consistently
 
 ### Subtask T019 – Remove handle_codex_security function
+
 - **Purpose**: Clean up obsolete code
 - **Steps**:
   1. Locate `handle_codex_security` function definition (line 729)
@@ -106,6 +112,7 @@ subtasks:
 - **Notes**: Only remove after testing new implementation
 
 ### Subtask T020 – Remove ensure_gitignore_entries function
+
 - **Purpose**: Remove migrated functionality
 - **Steps**:
   1. Locate `ensure_gitignore_entries` function (line 689)
@@ -117,6 +124,7 @@ subtasks:
 - **Notes**: This code now lives in GitignoreManager
 
 ### Subtask T021 – Update remaining references
+
 - **Purpose**: Ensure no broken references remain
 - **Steps**:
   1. Search entire codebase for "handle_codex_security"
@@ -129,6 +137,7 @@ subtasks:
 - **Notes**: Use grep -r or IDE global search
 
 ### Subtask T022 – Verify init flow end-to-end
+
 - **Purpose**: Ensure everything works correctly
 - **Steps**:
   1. Create a test directory without .gitignore

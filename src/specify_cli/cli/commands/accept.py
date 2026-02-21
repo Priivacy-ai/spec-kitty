@@ -20,7 +20,7 @@ from specify_cli.acceptance import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
-from specify_cli.sync.events import emit_wp_status_changed
+from specify_cli.sync import events as sync_events
 
 
 def _safe_emit_error_logged(message: str) -> None:
@@ -55,10 +55,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
 
     if summary.optional_missing:
-        console.print(
-            "\n[yellow]Optional artifacts missing:[/yellow] "
-            + ", ".join(summary.optional_missing)
-        )
+        console.print("\n[yellow]Optional artifacts missing:[/yellow] " + ", ".join(summary.optional_missing))
         console.print()
 
 
@@ -97,7 +94,7 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
         return
     for wp_id in wp_ids:
         try:
-            emit_wp_status_changed(
+            sync_events.emit_wp_status_changed(
                 wp_id=wp_id,
                 from_lane="for_review",
                 to_lane="done",
@@ -105,14 +102,14 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
                 feature_slug=feature_slug,
             )
         except Exception as exc:
-            console.print(
-                f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}")
 
 
 def accept(
     feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to accept (auto-detected by default)"),
-    mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
+    mode: str = typer.Option(
+        "auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"
+    ),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),

@@ -41,6 +41,7 @@ spec-kitty implement WP02 --base WP01
 **Goal**: Inject `project_uuid` and `project_slug` into every event envelope in `EventEmitter._emit()`.
 
 **Success Criteria**:
+
 - [ ] All emitted events contain `project_uuid` field
 - [ ] Events missing identity are queued locally (not sent via WebSocket)
 - [ ] Warning logged when identity is missing
@@ -54,6 +55,7 @@ spec-kitty implement WP02 --base WP01
 **Target Branch**: 2.x
 
 **Supporting Documents**:
+
 - [plan.md](../plan.md) - Architecture decision AD-3 (Identity Injection)
 - [data-model.md](../data-model.md) - EventEnvelope schema
 - [contracts/event-envelope.md](../contracts/event-envelope.md) - Updated schema
@@ -61,6 +63,7 @@ spec-kitty implement WP02 --base WP01
 **Prerequisite**: WP01 (ProjectIdentity module) must be complete.
 
 **Key Constraints**:
+
 - Single injection point in `_emit()` (not in each emit_* method)
 - Identity resolution happens once per emitter lifetime
 - Must not break existing event flow
@@ -75,12 +78,16 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Make identity functions available in emitter module.
 
 **Steps**:
+
 1. Open `src/specify_cli/sync/emitter.py`
 2. Add import at top (after existing imports):
+
    ```python
    from specify_cli.sync.project_identity import ensure_identity, ProjectIdentity
    ```
+
 3. If circular import issues, use lazy import pattern:
+
    ```python
    def _get_project_identity() -> ProjectIdentity:
        from specify_cli.sync.project_identity import ensure_identity, ProjectIdentity
@@ -94,9 +101,11 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/emitter.py` (modify, ~10 lines added)
 
 **Notes**:
+
 - Lazy import prevents circular dependency issues
 - Cache identity in module-level variable for performance
 
@@ -107,8 +116,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Add project_uuid and project_slug to every event envelope.
 
 **Steps**:
+
 1. Find the `_emit()` method in `EventEmitter` class
 2. Add identity resolution at the start of the method:
+
    ```python
    def _emit(
        self,
@@ -133,7 +144,9 @@ spec-kitty implement WP02 --base WP01
                "project_slug": identity.project_slug,
            }
    ```
+
 3. Add `_identity` instance variable to cache resolved identity:
+
    ```python
    @dataclass
    class EventEmitter:
@@ -145,14 +158,17 @@ spec-kitty implement WP02 --base WP01
                self._identity = _get_project_identity()
            return self._identity
    ```
+
 4. Update `_validate_event()` to pass `project_uuid`/`project_slug` into the
    EventModel (once spec-kitty-events is updated), and ensure missing
    `project_uuid` does NOT hard-fail validation (since queue-only is allowed).
 
 **Files**:
+
 - `src/specify_cli/sync/emitter.py` (modify, ~30 lines changed)
 
 **Notes**:
+
 - Cache identity in instance to avoid repeated file I/O
 - Convert UUID to string for JSON serialization
 - project_slug can be None (optional field)
@@ -164,7 +180,9 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Warn and queue-only when project_uuid is missing.
 
 **Steps**:
+
 1. In `_emit()`, after building the event dict, add validation:
+
    ```python
    # Validate: if project_uuid missing, warn and queue only
    if not event.get("project_uuid"):
@@ -175,13 +193,16 @@ spec-kitty implement WP02 --base WP01
        self.queue.queue_event(event)
        return event
    ```
+
 2. This check should come BEFORE the WebSocket send logic
 3. Ensure the event is still queued (for later batch sync)
 
 **Files**:
+
 - `src/specify_cli/sync/emitter.py` (modify, ~15 lines added)
 
 **Notes**:
+
 - Events without identity can still be queued for batch sync
 - Warning helps users understand why real-time sync isn't working
 - This is a graceful degradation, not a hard failure
@@ -193,8 +214,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Ensure identity is resolved when emitter is first accessed.
 
 **Steps**:
+
 1. Find `get_emitter()` function in `sync/events.py`
 2. Ensure `ensure_identity()` is called early in the flow:
+
    ```python
    def get_emitter() -> EventEmitter:
        global _emitter
@@ -211,12 +234,15 @@ spec-kitty implement WP02 --base WP01
            _emitter = EventEmitter()
        return _emitter
    ```
+
 3. Handle case where repo_root can't be found (non-project context)
 
 **Files**:
+
 - `src/specify_cli/sync/events.py` (modify, ~15 lines)
 
 **Notes**:
+
 - Identity resolution failures should warn, not crash
 - Emitter should still work without identity (graceful degradation)
 
@@ -227,8 +253,10 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Verify all emitted events contain project_uuid.
 
 **Steps**:
+
 1. Open `tests/sync/test_event_emission.py`
 2. Update existing tests to verify identity fields:
+
    ```python
    def test_planned_to_doing_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
        """implement: WP event includes project_uuid."""
@@ -242,7 +270,9 @@ spec-kitty implement WP02 --base WP01
        assert event["project_uuid"] is not None  # Should be valid UUID string
        # project_slug may be None if derived from dir name
    ```
+
 3. Add test for missing identity warning:
+
    ```python
    def test_missing_identity_queues_only(self, temp_queue: OfflineQueue):
        """Events without identity are queued but not sent via WebSocket."""
@@ -252,9 +282,11 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files**:
+
 - `tests/sync/test_event_emission.py` (modify, ~50 lines added)
 
 **Test Commands**:
+
 ```bash
 pytest tests/sync/test_event_emission.py -v
 ```
@@ -274,6 +306,7 @@ pytest tests/sync/test_event_emission.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. Identity injection is in `_emit()` only (not duplicated in emit_* methods)
 2. Identity is cached (check `_identity` field usage)
 3. Warning is user-visible when identity missing
@@ -287,4 +320,4 @@ pytest tests/sync/test_event_emission.py -v
 - 2026-02-07T07:29:43Z – claude-opus – shell_pid=37166 – lane=doing – Assigned agent via workflow command
 - 2026-02-07T07:34:39Z – claude-opus – shell_pid=37166 – lane=for_review – Ready for review: Added identity injection in _emit(), queue-only for missing identity, all tests pass
 - 2026-02-07T07:35:11Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
-- 2026-02-07T07:36:30Z – codex – shell_pid=25757 – lane=done – Review passed: Identity injection in _emit, queue-only on missing project_uuid, tests updated/passing
+- 2026-02-07T07:36:30Z – codex – shell_pid=25757 – lane=done – Review passed: Identity injection in_emit, queue-only on missing project_uuid, tests updated/passing

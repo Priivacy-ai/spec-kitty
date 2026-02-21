@@ -31,6 +31,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -44,6 +45,7 @@ history:
 **Primary Objective**: Create the `spec-kitty agent status` CLI command group with `emit` and `materialize` subcommands, providing direct CLI access to the canonical status pipeline.
 
 **Success Criteria**:
+
 1. `spec-kitty agent status emit WP01 --to claimed --actor claude` works end-to-end from CLI.
 2. `spec-kitty agent status materialize` rebuilds `status.json` and views from the event log.
 3. `--json` flag on both commands produces machine-readable output suitable for scripting.
@@ -54,16 +56,19 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` AD-6 shows the fan-out pipeline that `status emit` triggers.
 - Existing CLI pattern: `src/specify_cli/cli/commands/agent/tasks.py` defines the `tasks` typer app.
 - Agent CLI registration: `src/specify_cli/cli/commands/agent/__init__.py` registers sub-apps.
 - Feature detection: `src/specify_cli/core/feature_detection.py` provides `detect_feature_slug()`.
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP07 provides `emit_status_transition()` from `status/emit.py`.
 - WP03 provides `reducer.materialize()` from `status/reducer.py`.
 
 **Constraints**:
+
 - Follow the exact same typer patterns used in `tasks.py` -- same Console usage, same error handling style.
 - Use `typer.Option()` for optional flags and `typer.Argument()` for positional arguments.
 - Evidence must be passed as a JSON string via `--evidence-json` (CLI cannot accept nested objects directly).
@@ -78,8 +83,10 @@ history:
 **Purpose**: Create the typer app for the `status` command group.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/agent/status.py`.
 2. Define the module structure following the `tasks.py` pattern:
+
    ```python
    """Canonical status management commands for AI agents."""
 
@@ -110,6 +117,7 @@ history:
 
    console = Console()
    ```
+
 3. Keep imports minimal at module level. Import status engine modules inside command functions to avoid circular imports.
 
 **Files**: `src/specify_cli/cli/commands/agent/status.py`
@@ -117,6 +125,7 @@ history:
 **Validation**: Module imports without error. `app` is a valid typer.Typer instance.
 
 **Edge Cases**:
+
 - Module must not import `status.emit` at module level (could cause circular import with sync).
 
 ### T039: `status emit` Command
@@ -124,7 +133,9 @@ history:
 **Purpose**: Expose the `emit_status_transition()` pipeline as a CLI command.
 
 **Steps**:
+
 1. Define the command in `status.py`:
+
    ```python
    @app.command()
    def emit(
@@ -140,6 +151,7 @@ history:
        json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
    ) -> None:
    ```
+
 2. Implementation body:
    - Resolve `repo_root` via `get_main_repo_root()`.
    - If `feature` is None, call `detect_feature_slug()` to auto-detect.
@@ -149,10 +161,13 @@ history:
    - On success: print event summary (event_id, from_lane, to_lane, actor) using Rich or JSON.
    - On `TransitionError`: print error with Rich formatting and `raise typer.Exit(1)`.
 3. Output format (non-JSON):
+
    ```
    [green]OK[/green] WP01: planned -> claimed (event: 01HXYZ...)
    ```
+
 4. Output format (JSON):
+
    ```json
    {"event_id": "01HXYZ...", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "actor": "claude"}
    ```
@@ -160,11 +175,13 @@ history:
 **Files**: `src/specify_cli/cli/commands/agent/status.py`
 
 **Validation**:
+
 - Test with valid args: prints success message and exits 0.
 - Test with invalid transition: prints error and exits 1.
 - Test `--json` output: is valid JSON parseable by `json.loads()`.
 
 **Edge Cases**:
+
 - `--evidence-json` with invalid JSON: clear error message before calling emit.
 - Feature auto-detection fails: clear error suggesting `--feature` flag.
 - `wp_id` format validation: should match `WP\d{2}` pattern.
@@ -174,7 +191,9 @@ history:
 **Purpose**: Rebuild `status.json` and all derived views from the canonical event log.
 
 **Steps**:
+
 1. Define the command:
+
    ```python
    @app.command()
    def materialize(
@@ -182,6 +201,7 @@ history:
        json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
    ) -> None:
    ```
+
 2. Implementation body:
    - Resolve `repo_root` and `feature_slug` (same pattern as emit).
    - Construct `feature_dir`.
@@ -191,20 +211,24 @@ history:
    - Call `update_all_views(feature_dir, snapshot)`.
    - On success: print snapshot summary (total events, WP count, lane distribution).
 3. Output format (non-JSON):
+
    ```
    [green]Materialized[/green] 034-test-feature: 15 events -> 5 WPs
      planned: 1  in_progress: 2  for_review: 1  done: 1
    ```
+
 4. Output format (JSON): serialize the full snapshot dict.
 
 **Files**: `src/specify_cli/cli/commands/agent/status.py`
 
 **Validation**:
+
 - Test with valid event log: snapshot written and summary printed.
 - Test with empty/missing event log: clear error message.
 - Test `--json`: full snapshot as JSON.
 
 **Edge Cases**:
+
 - No `status.events.jsonl` exists: error message guiding user to emit first or run migration.
 - Corrupted JSONL: error from store propagates with line number.
 
@@ -213,26 +237,31 @@ history:
 **Purpose**: Wire the status command group into the existing agent CLI hierarchy.
 
 **Steps**:
+
 1. Edit `src/specify_cli/cli/commands/agent/__init__.py`.
 2. Add import: `from . import status` (alongside existing imports of config, feature, tasks, etc.).
 3. Add registration: `app.add_typer(status.app, name="status")`.
 4. The final file should look like:
+
    ```python
    from . import config, feature, tasks, context, release, workflow, status
 
    # ... existing registrations ...
    app.add_typer(status.app, name="status")
    ```
+
 5. Verify the command appears in help output: `spec-kitty agent --help` should list `status`.
 
 **Files**: `src/specify_cli/cli/commands/agent/__init__.py`
 
 **Validation**:
+
 - `spec-kitty agent status --help` shows emit and materialize subcommands.
 - `spec-kitty agent status emit --help` shows all options.
 - Existing commands (tasks, feature, etc.) still work.
 
 **Edge Cases**:
+
 - Name collision: verify no existing subcommand named "status" in agent app.
 - Import order: status module imports must not trigger circular dependencies at registration time.
 
@@ -241,14 +270,17 @@ history:
 **Purpose**: Verify CLI commands work end-to-end using typer's CliRunner.
 
 **Steps**:
+
 1. Create `tests/specify_cli/cli/commands/test_status_cli.py`.
 2. Import and configure the test runner:
+
    ```python
    from typer.testing import CliRunner
    from specify_cli.cli.commands.agent.status import app
 
    runner = CliRunner()
    ```
+
 3. Test cases:
 
    **test_emit_valid_transition**:
@@ -298,21 +330,26 @@ history:
 **Validation**: All tests pass. CLI command coverage reaches 85%+.
 
 **Edge Cases**:
+
 - Runner captures both stdout and stderr. Verify error messages go to stderr (via Rich console).
 - Feature auto-detection in test context: may need to mock `detect_feature_slug()`.
 
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/cli/commands/test_status_cli.py`):
+
 - Use `typer.testing.CliRunner` to invoke commands programmatically.
 - Mock the status engine for pure CLI layer tests (argument parsing, output formatting).
 
 **Integration Tests** (also in `test_status_cli.py` or separate `tests/integration/test_status_cli_integration.py`):
+
 - Use real filesystem with tmp_path.
 - Verify end-to-end from CLI invocation through to file artifacts.
 
 **Smoke Test**:
+
 - After implementation, manually run:
+
   ```bash
   spec-kitty agent status --help
   spec-kitty agent status emit --help
@@ -320,6 +357,7 @@ history:
   ```
 
 **Running Tests**:
+
 ```bash
 python -m pytest tests/specify_cli/cli/commands/test_status_cli.py -x -q
 ```
@@ -328,7 +366,7 @@ python -m pytest tests/specify_cli/cli/commands/test_status_cli.py -x -q
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Circular import at agent/__init__.py registration | CLI fails to start | Use lazy imports inside command functions, not at module level |
+| Circular import at agent/**init**.py registration | CLI fails to start | Use lazy imports inside command functions, not at module level |
 | Feature auto-detection fails in worktree context | User must always pass --feature | Reuse existing `detect_feature_slug()` which handles worktrees |
 | JSON evidence parsing errors are opaque | User cannot debug evidence format | Catch JSONDecodeError explicitly and print the parsing error with guidance |
 | typer CliRunner does not capture Rich output correctly | Test assertions fail on output format | Use `rich_markup=False` in test runner or assert on plain text content |
@@ -337,6 +375,7 @@ python -m pytest tests/specify_cli/cli/commands/test_status_cli.py -x -q
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **CLI registration**: `spec-kitty agent status --help` works and lists both subcommands.
 2. **Argument handling**: All required arguments are validated before calling emit_status_transition.
 3. **Error output**: TransitionErrors produce user-friendly messages with exit code 1, not tracebacks.

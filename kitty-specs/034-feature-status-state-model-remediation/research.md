@@ -8,14 +8,17 @@
 **Decision**: Use existing `ulid` package already in the project dependency tree.
 
 **Rationale**: The `sync/emitter.py` module already imports `ulid` and uses `_generate_ulid()` with the pattern:
+
 ```python
 if hasattr(ulid, "new"):
     return ulid.new().str
 return str(ulid.ULID())
 ```
+
 The `status/models.py` module can reuse this same generation pattern. No new dependency needed.
 
 **Alternatives considered**:
+
 - `uuid4` — not lexicographically sortable, loses time-ordering property
 - Custom timestamp-based IDs — reinventing ULID poorly
 
@@ -24,6 +27,7 @@ The `status/models.py` module can reuse this same generation pattern. No new dep
 **Decision**: Current codebase uses exactly 4 lanes: `planned`, `doing`, `for_review`, `done`.
 
 **Evidence**:
+
 - `tasks_support.py:28`: `LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")`
 - `frontmatter.py:288`: `valid_lanes = ["planned", "doing", "for_review", "done"]`
 - `merge/status_resolver.py:123-135`: `LANE_PRIORITY = {"done": 4, "for_review": 3, "doing": 2, "planned": 1}`
@@ -37,6 +41,7 @@ All three locations must be updated to the 7-lane canonical set. The `doing` →
 **Decision**: The existing `move_task()` in `cli/commands/agent/tasks.py` has a well-defined flow that can be cleanly refactored to delegate to `status.emit`.
 
 **Current flow** (lines 592-898):
+
 1. `ensure_lane(to)` — validates target lane
 2. Feature detection and branch checkout
 3. Locate WP file
@@ -55,6 +60,7 @@ All three locations must be updated to the 7-lane canonical set. The `doing` →
 **Decision**: Replace monotonic "most done wins" with rollback-aware resolution.
 
 **Current bug** (identified in PRD):
+
 ```python
 # status_resolver.py — resolve_lane_conflict()
 LANE_PRIORITY = {"done": 4, "for_review": 3, "doing": 2, "planned": 1}
@@ -64,6 +70,7 @@ LANE_PRIORITY = {"done": 4, "for_review": 3, "doing": 2, "planned": 1}
 **Problem scenario**: Branch A merges `for_review → done`. Branch B has `for_review → in_progress` (reviewer requested changes with `review_ref`). Current resolver picks `done` because it has higher priority. This silently overrides a legitimate review rejection.
 
 **Solution**: In the event log model, rollback detection is natural:
+
 1. Events with `review_ref` are marked as reviewer rollbacks
 2. During merge (concatenate + deduplicate + sort), rollback events override concurrent forward events for the same WP
 3. The reducer applies this precedence during state computation
@@ -95,15 +102,19 @@ LANE_PRIORITY = {"done": 4, "for_review": 3, "doing": 2, "planned": 1}
 **Decision**: Three-tier precedence with explicit source tracking.
 
 **Resolution**:
+
 1. `meta.json.status_phase` (per-feature override) — highest
 2. `config.yaml.status.phase` (global default) — middle
 3. Built-in default: `1` (dual-write) — lowest
 
 **`status validate` output**:
+
 ```
 Phase: 2 (source: meta.json override for 034-feature-status-state-model-remediation)
 ```
+
 or
+
 ```
 Phase: 1 (source: global default from .kittify/config.yaml)
 ```
@@ -115,6 +126,7 @@ Phase: 1 (source: global default from .kittify/config.yaml)
 **Decision**: The vendored `spec_kitty_events/` library provides Lamport clocks and event models that complement (but do not replace) the new `status/` package.
 
 **Relationship**:
+
 - `spec_kitty_events/models.py` defines `Event` for SaaS sync events (ULID, Lamport clock, node_id)
 - `status/models.py` defines `StatusEvent` for canonical local events (ULID, feature_slug, wp_id, lanes)
 - These are different concerns: SaaS events are telemetry, canonical events are state authority

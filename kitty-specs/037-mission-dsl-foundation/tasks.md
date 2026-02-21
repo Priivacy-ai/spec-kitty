@@ -16,6 +16,7 @@
 **Prompt**: `/tasks/WP01-transitions-dep-and-schema.md`
 
 ### Included Subtasks
+
 - [x] T001 Add `transitions>=0.9.2` to pyproject.toml dependencies
 - [x] T002 Add `jsonschema` to pyproject.toml dependencies (if not already present)
 - [x] T003 Create `src/specify_cli/mission_v1/__init__.py` subpackage
@@ -23,14 +24,17 @@
 - [x] T005 Create `tests/unit/mission_v1/test_schema.py` with validation tests
 
 ### Implementation Notes
+
 - The JSON Schema must cover: `mission` (name, version, description), `initial`, `states`, `transitions`, `inputs`, `outputs`, `guards`
 - Guard expression patterns: `artifact_exists("...")`, `gate_passed("...")`, etc.
 - Schema should validate guard expression syntax (known function names only)
 
 ### Dependencies
+
 - None (starting package).
 
 ### Risks & Mitigations
+
 - `transitions` version compatibility: Pin `>=0.9.2` to ensure MarkupMachine support.
 
 ---
@@ -42,20 +46,24 @@
 **Prompt**: `/tasks/WP02-mission-runner.md`
 
 ### Included Subtasks
+
 - [x] T006 Create `src/specify_cli/mission_v1/runner.py` with MissionRunner class
 - [x] T007 Create MissionModel class with callback method stubs
 - [x] T008 Implement MarkupMachine construction from validated config
 - [x] T009 [P] Create `tests/unit/mission_v1/test_runner.py` with runner tests
 
 ### Implementation Notes
+
 - `MarkupMachine(model=model, auto_transitions=False, send_event=True, **config)`
 - MissionModel holds feature_dir, event_log_path, inputs as context
 - All callbacks on the model receive `EventData` (due to `send_event=True`)
 
 ### Dependencies
+
 - Depends on WP01 (schema validation runs before machine construction).
 
 ### Risks & Mitigations
+
 - MarkupMachine dict format quirks: Test with minimal configs first, then full missions.
 
 ---
@@ -67,6 +75,7 @@
 **Prompt**: `/tasks/WP03-guard-compiler.md`
 
 ### Included Subtasks
+
 - [x] T010 Create `src/specify_cli/mission_v1/guards.py` with expression parser
 - [x] T011 Implement 6 guard primitives: artifact_exists, gate_passed, all_wp_status, any_wp_status, input_provided, event_count
 - [x] T012 Implement guard compilation: string → bound method on model
@@ -74,18 +83,22 @@
 - [x] T014 [P] Create `tests/unit/mission_v1/test_guards.py` with guard tests
 
 ### Implementation Notes
+
 - Guard expressions are strings like `artifact_exists("spec.md")` parsed via regex
 - Registry maps function names → factory callables that return guard methods
 - Each guard method receives `EventData` and returns bool
 - Guards access feature context through the model (feature_dir, event_log, etc.)
 
 ### Parallel Opportunities
+
 - Can be developed in parallel with WP02 (runner) since guards are composed into the machine later.
 
 ### Dependencies
+
 - Depends on WP01 (subpackage structure).
 
 ### Risks & Mitigations
+
 - Guard expression parsing edge cases: Test with quoted paths, integers, nested quotes.
 
 ---
@@ -97,24 +110,29 @@
 **Prompt**: `/tasks/WP04-phase-mission-compat.md`
 
 ### Included Subtasks
+
 - [x] T015 Create `src/specify_cli/mission_v1/compat.py` with PhaseMission class
 - [x] T016 Generate synthetic linear state machine from phase list
 - [x] T017 Implement API compatibility with StateMachineMission
 - [x] T018 [P] Create `tests/unit/mission_v1/test_compat.py` with v0 wrapper tests
 
 ### Implementation Notes
+
 - PhaseMission reads `workflow.phases` from existing v0 config
 - Generates states: [phase1, phase2, ..., phaseN, done] with linear transitions
 - No guards on v0 transitions
 - Must expose same API surface as StateMachineMission (state, trigger, get_triggers, etc.)
 
 ### Parallel Opportunities
+
 - Independent of WP02/WP03 (uses Machine directly, not MarkupMachine).
 
 ### Dependencies
+
 - Depends on WP01 (subpackage structure).
 
 ### Risks & Mitigations
+
 - API surface mismatch: Define a Protocol/ABC that both classes implement.
 
 ---
@@ -126,24 +144,29 @@
 **Prompt**: `/tasks/WP05-emit-event.md`
 
 ### Included Subtasks
+
 - [x] T019 Create `src/specify_cli/mission_v1/events.py` with emit_event function
 - [x] T020 Implement JSONL file writer with atomic append
 - [x] T021 Wire emit_event into MissionModel callbacks (on_enter, on_exit, guard failures)
 - [x] T022 [P] Create `tests/unit/mission_v1/test_events.py` with event emission tests
 
 ### Implementation Notes
+
 - Event format: `{"type": str, "timestamp": str, "mission": str, "payload": dict}`
 - JSONL file at `<feature_dir>/mission-events.jsonl` (distinct from status events.jsonl)
 - emit_event failures log warning but never block state transitions
 - This is a Phase 2 boundary — keep it simple, no event store
 
 ### Parallel Opportunities
+
 - Can be developed in parallel with WP03 (guards) and WP04 (compat).
 
 ### Dependencies
+
 - Depends on WP02 (MissionRunner model for callback wiring).
 
 ### Risks & Mitigations
+
 - File locking: Use append mode, no locking needed for single-process CLI.
 
 ---
@@ -155,6 +178,7 @@
 **Prompt**: `/tasks/WP06-software-dev-mission.md`
 
 ### Included Subtasks
+
 - [x] T023 Write v1 software-dev mission.yaml with states and transitions
 - [x] T024 Define guards for key transitions (artifact_exists for spec.md, plan.md, tasks.md)
 - [x] T025 Define rollback transitions (review → implement rework)
@@ -162,6 +186,7 @@
 - [x] T027 [P] Create integration test for software-dev mission loading
 
 ### Implementation Notes
+
 - States: discovery, specify, plan, implement, review, done
 - Forward transitions: advance trigger for each step
 - Rollback: rework trigger from review → implement
@@ -169,9 +194,11 @@
 - Keep existing v0 fields (workflow, artifacts, paths, etc.) for backward compat
 
 ### Dependencies
+
 - Depends on WP01 (schema), WP02 (runner), WP03 (guards).
 
 ### Risks & Mitigations
+
 - Schema validation strictness: Ensure v1 fields coexist with v0 fields in same YAML.
 
 ---
@@ -183,6 +210,7 @@
 **Prompt**: `/tasks/WP07-research-plan-missions.md`
 
 ### Included Subtasks
+
 - [x] T028 Write v1 research mission.yaml with evidence-gated transitions
 - [x] T029 Write v1 plan mission.yaml with rollback transitions
 - [x] T030 Create plan mission directory structure (new mission)
@@ -190,17 +218,21 @@
 - [x] T032 [P] Create integration tests for research and plan mission loading
 
 ### Implementation Notes
+
 - Research: scoping → gathering → synthesis → output → done, with `event_count("source_documented", 3)` guard
 - Plan: goals → research → structure → draft → review → done, with rollback from draft → structure
 - Plan is a NEW mission — create `src/specify_cli/missions/plan/` directory
 
 ### Parallel Opportunities
+
 - Can be developed in parallel with WP06 (different YAML files).
 
 ### Dependencies
+
 - Depends on WP01 (schema), WP02 (runner), WP03 (guards).
 
 ### Risks & Mitigations
+
 - New plan mission needs command-templates and templates directories.
 
 ---
@@ -212,6 +244,7 @@
 **Prompt**: `/tasks/WP08-load-mission-dispatch.md`
 
 ### Included Subtasks
+
 - [x] T033 Implement `load_mission()` in `mission_v1/__init__.py` with v0/v1 dispatch
 - [x] T034 Define Mission Protocol/ABC that both types satisfy
 - [x] T035 Wire load_mission into existing `get_mission_by_name()` call path
@@ -219,15 +252,18 @@
 - [x] T037 [P] Create `tests/integration/test_mission_loading.py`
 
 ### Implementation Notes
+
 - Detection: if `states` AND `transitions` keys present → v1, else v0
 - v1: validate schema → construct MarkupMachine → return StateMachineMission
 - v0: wrap existing Mission in PhaseMission → return
 - Must not break existing `Mission` class consumers
 
 ### Dependencies
+
 - Depends on WP02 (runner), WP03 (guards), WP04 (compat).
 
 ### Risks & Mitigations
+
 - Circular imports: `mission_v1` imports from `mission.py` for v0 wrapping, `mission.py` calls `load_mission` for dispatch. Use lazy imports.
 
 ---
@@ -239,6 +275,7 @@
 **Prompt**: `/tasks/WP09-integration-tests.md`
 
 ### Included Subtasks
+
 - [x] T038 Create `tests/integration/test_mission_guards.py` with guard evaluation tests
 - [x] T039 E2E test: load v1 mission → trigger transitions → verify guards block/allow
 - [x] T040 E2E test: load v0 mission → PhaseMission linear progression
@@ -247,14 +284,17 @@
 - [x] T043 Verify existing mission tests still pass
 
 ### Implementation Notes
+
 - Guards need feature context (feature_dir, event log) — create temp fixtures
 - Verify documentation mission (v0) loads unchanged alongside v1 missions
 - Known baseline: ~81 failures on 2.x (pre-existing cross-test pollution)
 
 ### Dependencies
+
 - Depends on WP06, WP07, WP08 (all missions defined and dispatch working).
 
 ### Risks & Mitigations
+
 - Cross-test pollution from new transitions import: Use isolated tmp_path fixtures.
 
 ---
@@ -336,6 +376,7 @@ Phase 4 - Validation:                              │
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 - WP03: done

@@ -42,6 +42,7 @@ spec-kitty implement WP04 --base WP02
 **Goal**: Create SyncRuntime with lazy startup on first `get_emitter()` call.
 
 **Success Criteria**:
+
 - [ ] `get_emitter()` auto-starts BackgroundSyncService
 - [ ] Runtime starts only once (idempotent)
 - [ ] WebSocket connects only if authenticated
@@ -56,12 +57,14 @@ spec-kitty implement WP04 --base WP02
 **Target Branch**: 2.x
 
 **Supporting Documents**:
+
 - [plan.md](../plan.md) - Architecture decision AD-1 (Lazy Singleton)
 - [data-model.md](../data-model.md) - SyncRuntime entity
 
 **Prerequisites**: WP02 (emitter identity injection) must be complete.
 
 **Key Constraints**:
+
 - Zero startup overhead for non-event commands
 - Must be idempotent (safe to call get_emitter multiple times)
 - Graceful shutdown on process exit
@@ -75,8 +78,10 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Define the runtime state container.
 
 **Steps**:
+
 1. Create new file `src/specify_cli/sync/runtime.py`
 2. Define `SyncRuntime` dataclass:
+
    ```python
    from dataclasses import dataclass, field
    from typing import TYPE_CHECKING
@@ -111,6 +116,7 @@ spec-kitty implement WP04 --base WP02
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/runtime.py` (NEW, ~40 lines initial)
 
 ---
@@ -120,7 +126,9 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Provide module-level singleton access to runtime.
 
 **Steps**:
+
 1. Add module-level singleton in `sync/runtime.py`:
+
    ```python
    _runtime: SyncRuntime | None = None
    
@@ -134,6 +142,7 @@ spec-kitty implement WP04 --base WP02
    ```
 
 2. Wire into `get_emitter()`:
+
    ```python
    # In sync/events.py
    def get_emitter() -> EventEmitter:
@@ -149,10 +158,12 @@ spec-kitty implement WP04 --base WP02
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/runtime.py` (append, ~15 lines)
 - `src/specify_cli/sync/events.py` (modify, ~5 lines)
 
 **Notes**:
+
 - `get_runtime()` is idempotent - safe to call multiple times
 - Runtime starts on first access, not at module import
 
@@ -163,7 +174,9 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Always start the background service for queue processing.
 
 **Steps**:
+
 1. Implement `SyncRuntime.start()`:
+
    ```python
    def start(self) -> None:
        """Start background services (idempotent)."""
@@ -190,6 +203,7 @@ spec-kitty implement WP04 --base WP02
    - Read `sync.auto_start` if present
 
 **Files**:
+
 - `src/specify_cli/sync/runtime.py` (modify start(), ~25 lines)
 
 ---
@@ -199,7 +213,9 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Attempt WebSocket connection only when user is logged in.
 
 **Steps**:
+
 1. Extend `SyncRuntime.start()` to check authentication:
+
    ```python
    def start(self) -> None:
        # ... existing code from T018 ...
@@ -239,9 +255,11 @@ spec-kitty implement WP04 --base WP02
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/runtime.py` (extend start(), ~30 lines)
 
 **Notes**:
+
 - WebSocket failure is not fatal - queue still works
 - Log helpful message when not authenticated
 
@@ -252,7 +270,9 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Clean up background services on process exit.
 
 **Steps**:
+
 1. Add `stop()` method:
+
    ```python
    def stop(self) -> None:
        """Stop background services."""
@@ -282,6 +302,7 @@ spec-kitty implement WP04 --base WP02
 2. Register atexit handler:
    - Note: `get_sync_service()` already registers its own atexit; this handler
      ensures WS disconnect and is safe to call even if background_service stops itself.
+
    ```python
    import atexit
    
@@ -294,6 +315,7 @@ spec-kitty implement WP04 --base WP02
    ```
 
 **Files**:
+
 - `src/specify_cli/sync/runtime.py` (add stop() and atexit, ~30 lines)
 
 ---
@@ -303,8 +325,10 @@ spec-kitty implement WP04 --base WP02
 **Purpose**: Verify runtime lifecycle and singleton behavior.
 
 **Steps**:
+
 1. Create `tests/sync/test_runtime.py`
 2. Add tests:
+
    ```python
    class TestSyncRuntime:
        def test_get_runtime_singleton(self):
@@ -336,9 +360,11 @@ spec-kitty implement WP04 --base WP02
    ```
 
 **Files**:
+
 - `tests/sync/test_runtime.py` (NEW, ~80 lines)
 
 **Test Commands**:
+
 ```bash
 pytest tests/sync/test_runtime.py -v
 ```
@@ -358,6 +384,7 @@ pytest tests/sync/test_runtime.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. Singleton pattern is correct (module-level `_runtime`)
 2. start() is truly idempotent
 3. Async code handles both loop states

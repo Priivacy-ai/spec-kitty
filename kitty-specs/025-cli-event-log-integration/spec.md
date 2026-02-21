@@ -8,6 +8,7 @@
 ## Overview
 
 Spec-kitty currently uses primitive YAML activity logs for tracking workflow state. This feature integrates the completed spec-kitty-events library (Feature 003) to provide:
+
 - Causal ordering via Lamport clocks (eliminates wall-clock dependency)
 - Conflict detection for concurrent CLI operations
 - Deterministic merge rules (CRDT for tags/counters, state-machine for workflows)
@@ -20,6 +21,7 @@ Spec-kitty currently uses primitive YAML activity logs for tracking workflow sta
 ⚠️ **This feature requires creating a NEW `2.x` branch. Do NOT implement on `main` branch.**
 
 **Before any implementation**:
+
 ```bash
 # Create 2.x branch from current main (v0.13.7)
 git checkout main
@@ -29,6 +31,7 @@ git push origin 2.x
 ```
 
 **Branch responsibilities**:
+
 - **main branch** (v0.13.x): Will become 1.x maintenance branch (YAML activity logs, stable CLI)
   - ❌ **DO NOT modify for this feature**
   - ✅ Maintenance-only: security fixes, critical bugs
@@ -43,6 +46,7 @@ git push origin 2.x
 **Dependency Management**: Git dependency with commit pinning per ADR-11 (Dual-Repository Pattern). SSH deploy key for CI/CD autonomy.
 
 **Out of Scope for This Feature**:
+
 - Vendoring script for PyPI releases (deferred to "2.x Release Preparation" feature)
 - Migration from 1.x YAML logs (deferred until 2.x nears completion)
 - Creating 1.x branch from main (will happen when first v1.0.0 release is cut)
@@ -182,47 +186,55 @@ An agent attempts to transition WP from "planned" to "done" (invalid state trans
 ### Functional Requirements
 
 #### Git Dependency Integration
+
 - **FR-001**: System MUST declare spec-kitty-events as Git dependency in pyproject.toml with commit hash pinning
 - **FR-002**: System MUST use SSH Git URL for private repository access
 - **FR-003**: System MUST document deploy key setup instructions for CI/CD in development docs
 - **FR-004**: System MUST fail gracefully with clear error message if spec-kitty-events cannot be installed
 
 #### Event Storage
+
 - **FR-005**: System MUST emit events to `.kittify/events/YYYY-MM-DD.jsonl` in append-only mode
 - **FR-006**: System MUST create daily JSONL files with ISO date format (YYYY-MM-DD)
 - **FR-007**: System MUST persist Lamport clock state in `.kittify/clock.json` after each event emission
 - **FR-008**: System MUST ensure atomic appends to JSONL files using POSIX file locking
 
 #### Event Types
+
 - **FR-009**: System MUST emit `WPStatusChanged` events when work package moves between lanes
 - **FR-010**: System MUST emit `SpecCreated` events when new feature specification is created
 - **FR-011**: System MUST emit `WPCreated` events when work packages are generated
 - **FR-012**: System MUST emit `WorkspaceCreated` events when workspace is initialized for WP
 
 #### Event Reading
+
 - **FR-013**: System MUST read events from JSONL files sorted by Lamport clock (causal ordering)
 - **FR-014**: System MUST apply CRDT merge rules for concurrent tag/counter events
 - **FR-015**: System MUST apply state-machine merge rules for concurrent workflow transitions
 - **FR-016**: System MUST skip invalid JSON lines with warning (graceful degradation)
 
 #### SQLite Query Index
+
 - **FR-017**: System MUST maintain SQLite index at `.kittify/events/index.db` with columns: event_id, lamport_clock, entity_id, event_type, date
 - **FR-018**: System MUST update index automatically when new events are appended to JSONL
 - **FR-019**: System MUST rebuild index from JSONL files if index is missing or corrupted
 - **FR-020**: System MUST use index for filtering queries (by feature, by WP, by date range)
 
 #### Conflict Detection
+
 - **FR-021**: System MUST detect concurrent events using `is_concurrent()` from spec-kitty-events library
 - **FR-022**: System MUST resolve conflicts using deterministic merge rules (no user prompts)
 - **FR-023**: System MUST log conflict resolutions to stderr with explanation of merge rule applied
 - **FR-024**: System MUST surface conflict warnings in `spec-kitty status` output
 
 #### Error Logging
+
 - **FR-025**: System MUST log validation errors to `.kittify/errors/YYYY-MM-DD.jsonl`
 - **FR-026**: System MUST include error context: error_type, entity_id, attempted_operation, reason
 - **FR-027**: System MUST not block operations when error logging fails (best-effort)
 
 #### Migration (Deferred)
+
 - **FR-028**: System MUST NOT implement 1.x → 2.x migration in this feature (deferred to future feature when 2.x nears completion)
 
 ### Key Entities

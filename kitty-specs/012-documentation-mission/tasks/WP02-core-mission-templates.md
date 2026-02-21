@@ -52,11 +52,13 @@ Please address the following before re-review:
 **This WP depends on**: WP01 (Mission Infrastructure)
 
 **Before starting work**:
+
 1. Ensure WP01 is complete and merged
 2. Mission directory structure exists at `src/specify_cli/missions/documentation/`
 3. `mission.yaml` file exists and is valid
 
 **If WP01 changes during your work**:
+
 - No rebase needed (WP02 doesn't branch from WP01 in workspace-per-WP model)
 - WP01 changes to main will be visible immediately since we're working in main repo for planning artifacts
 
@@ -67,6 +69,7 @@ Please address the following before re-review:
 **Goal**: Create the core mission templates (spec, plan, tasks, task-prompt) that are used during documentation mission workflows. These templates should follow existing patterns from software-dev and research missions but be tailored for documentation-specific content.
 
 **Success Criteria**:
+
 - Four template files created in `src/specify_cli/missions/documentation/templates/`
 - Templates load successfully via `Mission.get_template()`
 - Each template has appropriate sections for documentation missions
@@ -77,12 +80,14 @@ Please address the following before re-review:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - WP01 complete: Mission directory structure and mission.yaml exist
 - Existing mission templates as reference:
   - `src/specify_cli/missions/software-dev/templates/*.md`
   - `src/specify_cli/missions/research/templates/*.md`
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Template hierarchy design (lines 192-199)
 - [data-model.md](../data-model.md) - Documentation Template entity (lines 207-243)
 - Existing templates:
@@ -90,6 +95,7 @@ Please address the following before re-review:
   - Software-dev and research mission templates
 
 **Constraints**:
+
 - Must maintain compatibility with existing template loading system
 - Must follow markdown format with YAML frontmatter where appropriate
 - Must not break existing missions' template loading
@@ -102,6 +108,7 @@ Please address the following before re-review:
 **Purpose**: Provide template for documentation mission specifications generated during `/spec-kitty.specify`.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/spec-template.md`
 2. Copy structure from `src/specify_cli/templates/spec-template.md` as base
 3. Adapt sections for documentation missions:
@@ -112,6 +119,7 @@ Please address the following before re-review:
    - **Success Criteria**: Documentation-specific metrics (coverage, accessibility, completeness)
    - **Key Entities**: Documentation Mission, Divio Types, Generators, Gap Analysis
 4. Add documentation-specific placeholders:
+
    ```markdown
    ## Documentation Scope
 
@@ -137,11 +145,13 @@ Please address the following before re-review:
 **Parallel?**: Yes (can be done alongside T009-T011)
 
 **Notes**:
+
 - Keep mandatory sections from base template (User Scenarios, Requirements, Success Criteria)
 - Add documentation-specific sections for scope and gap analysis
 - Include examples of good documentation requirements
 
 **Example Content Snippet**:
+
 ```markdown
 # Feature Specification: [DOCUMENTATION PROJECT NAME]
 
@@ -232,9 +242,11 @@ The following are explicitly NOT included in this documentation project:
 **Purpose**: Provide template for documentation mission implementation plans generated during `/spec-kitty.plan`.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/plan-template.md`
 2. Copy structure from `src/specify_cli/templates/plan-template.md` as base
 3. Adapt Technical Context section for documentation missions:
+
    ```markdown
    ## Technical Context
 
@@ -245,7 +257,9 @@ The following are explicitly NOT included in this documentation project:
    **Build Tools**: [sphinx-build, npx jsdoc, cargo doc]
    **Theme**: [sphinx_rtd_theme | custom theme]
    ```
+
 4. Add Phase 0: Research section specific to documentation:
+
    ```markdown
    ## Phase 0: Research
 
@@ -263,7 +277,9 @@ The following are explicitly NOT included in this documentation project:
    3. Research configuration options for detected generators
    4. Plan generator output integration with manual docs
    ```
+
 5. Adapt Phase 1: Design for documentation structure:
+
    ```markdown
    ## Phase 1: Design
 
@@ -271,11 +287,13 @@ The following are explicitly NOT included in this documentation project:
 
    **Divio Organization**:
    ```
+
    docs/
    ├── tutorials/          # Learning-oriented
    ├── how-to/            # Problem-solving
    ├── reference/         # Technical specs (generated + manual)
    └── explanation/       # Understanding concepts
+
    ```
 
    ### Generator Configurations
@@ -296,12 +314,14 @@ The following are explicitly NOT included in this documentation project:
 **Parallel?**: Yes (can be done alongside T008, T010, T011)
 
 **Notes**:
+
 - Planning for documentation is about structure and tooling, not code architecture
 - Include sections for generator setup
 - Add gap analysis workflow if iterating
 - Reference existing project structure
 
 **Example Content Snippet**:
+
 ```markdown
 # Implementation Plan: [DOCUMENTATION PROJECT]
 
@@ -370,6 +390,7 @@ Define documentation structure, configure generators, plan content outline.
 
 **Directory Layout**:
 ```
+
 docs/
 ├── index.md                    # Landing page
 ├── tutorials/
@@ -385,6 +406,7 @@ docs/
 └── explanation/
     ├── architecture.md        # Design decisions
     └── concepts.md            # Core concepts
+
 ```
 
 **Divio Type Mapping**:
@@ -408,6 +430,7 @@ html_theme = 'sphinx_rtd_theme'
 ```
 
 **JSDoc Configuration** (JavaScript):
+
 ```json
 {
   "source": {
@@ -422,6 +445,7 @@ html_theme = 'sphinx_rtd_theme'
 ```
 
 **rustdoc Configuration** (Rust):
+
 ```toml
 [package.metadata.docs.rs]
 all-features = true
@@ -451,6 +475,7 @@ Validating against spec.md success criteria:
 - **SC-002** (accessibility): Templates include accessibility prompts
 - **SC-003** (API completeness): Generators ensure coverage
 - **SC-004** (task completion): Tutorials and how-tos guide users to success
+
 ```
 
 ### Subtask T010 – Create tasks-template.md
@@ -478,7 +503,9 @@ Validating against spec.md success criteria:
    - [ ] T007 Validate accessibility (heading hierarchy, alt text)
    - [ ] T008 Build documentation site and verify links
    ```
+
 5. Adapt MVP scope guidance:
+
    ```markdown
    ## MVP Scope
 
@@ -496,12 +523,14 @@ Validating against spec.md success criteria:
 **Parallel?**: Yes (can be done alongside T008, T009, T011)
 
 **Notes**:
+
 - Work packages should align with Divio types (one WP per type often makes sense)
 - Include generator invocation as specific subtasks
 - Add quality validation as final work package
 - Emphasize that reference can be MVP, other types add value
 
 **Example Content Snippet**:
+
 ```markdown
 # Work Packages: [DOCUMENTATION PROJECT]
 
@@ -712,11 +741,13 @@ Validating against spec.md success criteria:
 **Purpose**: Provide template for individual work package prompt files generated during `/spec-kitty.tasks`.
 
 **Steps**:
+
 1. Create `src/specify_cli/missions/documentation/templates/task-prompt-template.md`
 2. Copy structure from `src/specify_cli/templates/task-prompt-template.md` as base
 3. Adapt sections for documentation work packages:
    - Keep standard sections (Objectives, Context, Subtasks, Risks, Definition of Done)
    - Adapt Test Strategy section for documentation quality checks:
+
      ```markdown
      ## Quality Validation Strategy
 
@@ -733,7 +764,9 @@ Validating against spec.md success criteria:
      - Alt text: `grep -E '!\[.*\]\(' docs/**/*.md | grep -v '\[.*\]'` (should be empty)
      - Spelling: `aspell check docs/**/*.md`
      ```
+
 4. Add documentation-specific Definition of Done items:
+
    ```markdown
    ## Definition of Done Checklist
 
@@ -754,12 +787,14 @@ Validating against spec.md success criteria:
 **Parallel?**: Yes (can be done alongside T008-T010)
 
 **Notes**:
+
 - Prompt files guide implementation of specific documentation work packages
 - Should emphasize quality over quantity
 - Include validation steps appropriate to documentation (not code tests)
 - Reference Write the Docs and Divio principles
 
 **Example Content Snippet**:
+
 ```markdown
 ---
 work_package_id: "WPxx"
@@ -902,6 +937,7 @@ aspell check docs/**/*.md
 ```
 
 **Peer Review**:
+
 - Have someone from target audience read and follow the documentation
 - Ask: Did you accomplish the goal? What was confusing?
 - Revise based on feedback
@@ -965,6 +1001,7 @@ aspell check docs/**/*.md
 ## Activity Log
 
 - {{TIMESTAMP}} – system – lane=planned – Prompt created.
+
 ```
 - 2026-01-12T17:53:20Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T18:38:18Z – unknown – lane=planned – Changes requested
@@ -992,6 +1029,7 @@ aspell check docs/**/*.md
    ```
 
 2. Test template structure:
+
    ```python
    def test_spec_template_has_required_sections():
        mission = get_mission_by_name("documentation")
@@ -1006,6 +1044,7 @@ aspell check docs/**/*.md
    ```
 
 3. Test plan template references documentation phases:
+
    ```python
    def test_plan_template_references_doc_phases():
        mission = get_mission_by_name("documentation")
@@ -1018,6 +1057,7 @@ aspell check docs/**/*.md
    ```
 
 **Manual Validation**:
+
 1. Load each template and verify it renders correctly
 2. Check that placeholders are appropriate for documentation missions
 3. Verify templates don't reference code/implementation concepts inappropriately
@@ -1058,6 +1098,7 @@ aspell check docs/**/*.md
 6. **Quality**: Clear guidance, good examples, references to research
 
 **Validation Commands**:
+
 ```bash
 # Check templates exist
 ls -la src/specify_cli/missions/documentation/templates/
@@ -1078,6 +1119,7 @@ for template in templates:
 ```
 
 **Review Focus Areas**:
+
 - Templates adapted appropriately for documentation (not just copied)
 - Documentation-specific sections present (Divio types, generators, gap analysis)
 - Placeholders help users understand what to fill in

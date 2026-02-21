@@ -84,6 +84,7 @@ No dependencies — branches directly from the 2.x branch.
   3. After receiving an HTTP 200 response, parse the JSON body for `results[]` array
   4. Each result has: `{"event_id": "...", "status": "success|duplicate|rejected", "error": "..."}`
   5. Create a `BatchResult` dataclass (or named tuple) to hold per-event results:
+
      ```python
      @dataclass
      class BatchResult:
@@ -92,6 +93,7 @@ No dependencies — branches directly from the 2.x branch.
          error: Optional[str] = None
          error_category: Optional[str] = None
      ```
+
   6. Return a list of `BatchResult` from the batch send function
 - **Files**: `src/specify_cli/sync/batch.py` (edit)
 - **Parallel?**: No — foundation for T005-T009
@@ -102,11 +104,13 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Surface the `details` field from 400 error responses, which contains per-event failure reasons.
 - **Steps**:
   1. In the error handling path of `batch.py`, parse both `error` and `details` from 400 response body:
+
      ```python
      body = response.json()
      error_msg = body.get("error", "Unknown error")
      details_msg = body.get("details", "")
      ```
+
   2. Include `details` in the error message surfaced to the user
   3. If `details` contains structured information (JSON string with per-event reasons), parse it
   4. Format the combined error for display: `Error: {error_msg}\nDetails: {details_msg}`
@@ -119,6 +123,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Group rejected events by failure reason so users see patterns instead of individual errors.
 - **Steps**:
   1. Define error categories as constants:
+
      ```python
      ERROR_CATEGORIES = {
          "schema_mismatch": ["invalid", "schema", "field", "missing", "type"],
@@ -126,6 +131,7 @@ No dependencies — branches directly from the 2.x branch.
          "server_error": ["internal", "500", "timeout", "unavailable"],
      }
      ```
+
   2. Create a `categorize_error(error_string: str) -> str` function that inspects the error message for keywords
   3. Default to `"unknown"` if no category matches
   4. Apply categorization to each rejected `BatchResult` from T004
@@ -139,23 +145,29 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Replace bare "Synced: 0 Errors: 105" with a grouped, actionable summary.
 - **Steps**:
   1. After processing all `BatchResult` entries, group by status and error_category:
+
      ```python
      synced = sum(1 for r in results if r.status == "success")
      duplicates = sum(1 for r in results if r.status == "duplicate")
      failed = [r for r in results if r.status == "rejected"]
      ```
+
   2. Group failures by category:
+
      ```python
      from collections import Counter
      category_counts = Counter(r.error_category for r in failed)
      ```
+
   3. Format and print:
+
      ```
      Synced: 42, Duplicates: 3, Failed: 60
        schema_mismatch: 45
        auth_expired: 10
        unknown: 5
      ```
+
   4. Add actionable next steps per category:
      - `schema_mismatch`: "Run `spec-kitty sync diagnose` to inspect invalid events"
      - `auth_expired`: "Run `spec-kitty auth login` to refresh credentials"
@@ -170,6 +182,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Steps**:
   1. Read `src/specify_cli/sync/queue.py` to understand the current queue operations
   2. Add a method to process batch results:
+
      ```python
      def process_batch_results(self, results: list[BatchResult]) -> None:
          synced_or_duplicate = []
@@ -182,6 +195,7 @@ No dependencies — branches directly from the 2.x branch.
          self.mark_synced(synced_or_duplicate)
          self.increment_retry(rejected)
      ```
+
   3. Use existing `mark_synced(event_ids)` for success/duplicate rows
   4. Use existing `increment_retry(event_ids)` for rejected rows (`retry_count = retry_count + 1`)
   5. Wrap in a transaction for atomicity
@@ -194,17 +208,21 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: For large failure sets (50+ events), allow exporting per-event details to a JSON file for offline analysis.
 - **Steps**:
   1. Add `--report` option to the `sync now` CLI command:
+
      ```python
      @app.command()
      def now(report: Optional[Path] = typer.Option(None, help="Export failure details to JSON file")):
      ```
+
   2. After batch processing, if `--report` is specified and there are failures:
+
      ```python
      if report and failed_results:
          report_data = [{"event_id": r.event_id, "error": r.error, "category": r.error_category} for r in failed_results]
          report.write_text(json.dumps(report_data, indent=2))
          console.print(f"Failure report written to {report}")
      ```
+
   3. Include timestamp and summary metadata in the report
 - **Files**: CLI command file for `sync now` (find on 2.x), `src/specify_cli/sync/batch.py` (report generation)
 - **Parallel?**: Yes — independent flag, can be added after T004 is stable
@@ -229,9 +247,11 @@ No dependencies — branches directly from the 2.x branch.
      - Verify JSON file is written with correct structure
      - Verify no file is written when no failures
   4. Run existing sync tests to verify no regressions:
+
      ```bash
      python -m pytest tests/sync/ -x -v
      ```
+
 - **Files**: `tests/sync/test_batch_sync.py`, `tests/sync/test_offline_queue.py`
 - **Parallel?**: No — depends on all prior subtasks
 

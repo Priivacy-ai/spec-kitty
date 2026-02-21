@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -45,18 +46,40 @@ def get_venv_python() -> Path:
 def get_installed_version() -> str | None:
     """Get installed spec-kitty-cli version from test venv if configured."""
     python = get_venv_python()
+    venv_dir = os.getenv("SPEC_KITTY_TEST_VENV")
+    if venv_dir:
+        if (Path(venv_dir) / ".offline-fallback").exists():
+            return None
+
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     try:
         result = subprocess.run(
-            [str(python), "-c", "from importlib.metadata import version; print(version('spec-kitty-cli'))"],
+            [
+                str(python),
+                "-c",
+                (
+                    "from importlib.metadata import distribution;"
+                    "d=distribution('spec-kitty-cli');"
+                    "print(f'{d.version}\\t{d.locate_file(\"\")}')"
+                ),
+            ],
             capture_output=True,
             text=True,
             check=False,
             env=env,
         )
         if result.returncode == 0:
-            return result.stdout.strip()
+            raw = result.stdout.strip()
+            if not raw:
+                return None
+            version, _, location = raw.partition("\t")
+            if venv_dir and location:
+                venv_path = Path(venv_dir).resolve()
+                location_path = Path(location).resolve()
+                if not location_path.is_relative_to(venv_path):
+                    return None
+            return version
     except Exception:
         return None
 
@@ -82,16 +105,11 @@ def assert_test_isolation() -> None:
 
     if installed != source:
         pytest.fail(
-            f"Test isolation broken! Source: {source}, Installed: {installed}. "
-            f"Run: pip uninstall spec-kitty-cli -y"
+            f"Test isolation broken! Source: {source}, Installed: {installed}. Run: pip uninstall spec-kitty-cli -y"
         )
 
 
-def run_cli_subprocess(
-    project_path: Path,
-    *args: str,
-    check: bool = False
-) -> subprocess.CompletedProcess[str]:
+def run_cli_subprocess(project_path: Path, *args: str, check: bool = False) -> subprocess.CompletedProcess[str]:
     """Run CLI in subprocess with guaranteed source version.
 
     This is a lower-level helper for tests that need full control.
@@ -110,8 +128,9 @@ def run_cli_subprocess(
     # Force isolation
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
     env["SPEC_KITTY_CLI_VERSION"] = get_source_version()
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT / "src" / "doctrine" / "missions")
     env["SPEC_KITTY_TEST_MODE"] = "1"
+    env["SPEC_KITTY_HOME"] = str(Path(tempfile.gettempdir()) / "spec-kitty-runtime-home")
 
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
 

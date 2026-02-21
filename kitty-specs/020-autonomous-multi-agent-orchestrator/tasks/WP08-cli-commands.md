@@ -33,6 +33,7 @@ history:
 Implement the `spec-kitty orchestrate` CLI command with all options.
 
 **Success Criteria**:
+
 - `spec-kitty orchestrate --feature <slug>` starts orchestration
 - `spec-kitty orchestrate --status` shows progress
 - `spec-kitty orchestrate --resume` continues paused orchestration
@@ -42,15 +43,18 @@ Implement the `spec-kitty orchestrate` CLI command with all options.
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - CLI commands section
 - [quickstart.md](../quickstart.md) - Usage examples
 - [spec.md](../spec.md) - User Story 1, 3, 5 (CLI requirements)
 
 **Existing Patterns**:
+
 - `src/specify_cli/cli/commands/` - Existing command structure
 - Uses `typer` for CLI framework
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP08 --base WP07
 ```
@@ -62,8 +66,10 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Start new orchestration for a feature.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/orchestrate.py`
 2. Implement main command:
+
    ```python
    import typer
    from rich.console import Console
@@ -99,6 +105,7 @@ spec-kitty implement WP08 --base WP07
    ```
 
 3. Implement start function:
+
    ```python
    async def start_orchestration(feature_slug: str):
        """Start new orchestration for feature."""
@@ -136,6 +143,7 @@ spec-kitty implement WP08 --base WP07
    ```
 
 **Notes**:
+
 - Auto-detect feature from current directory if not specified
 - Validate feature exists before starting
 - Check no other orchestration in progress
@@ -147,7 +155,9 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Show current orchestration progress.
 
 **Steps**:
+
 1. Implement status display:
+
    ```python
    def show_status():
        """Display current orchestration status."""
@@ -204,7 +214,9 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Resume paused orchestration.
 
 **Steps**:
+
 1. Implement resume:
+
    ```python
    async def resume_orchestration():
        """Resume paused orchestration."""
@@ -244,7 +256,9 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Stop orchestration and clean up.
 
 **Steps**:
+
 1. Implement abort:
+
    ```python
    async def abort_orchestration():
        """Abort orchestration and cleanup."""
@@ -285,7 +299,9 @@ spec-kitty implement WP08 --base WP07
 **Purpose**: Ensure CLI is well-documented.
 
 **Steps**:
+
 1. Add comprehensive help text:
+
    ```python
    app = typer.Typer(
        name="orchestrate",
@@ -305,6 +321,7 @@ spec-kitty implement WP08 --base WP07
    ```
 
 2. Register command in main CLI:
+
    ```python
    # In src/specify_cli/cli/__init__.py or main.py
    from .commands.orchestrate import app as orchestrate_app
@@ -314,6 +331,7 @@ spec-kitty implement WP08 --base WP07
 3. Add `--help` examples for each option
 
 **Notes**:
+
 - Help should show common workflows
 - Include example feature slug
 

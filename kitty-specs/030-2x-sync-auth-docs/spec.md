@@ -17,6 +17,7 @@
 ### Gap Analysis Results
 
 **Existing Documentation**:
+
 - `docs/how-to/sync-workspaces.md` — how-to for worktree rebasing (0.12.x local sync only, not 2.x server sync)
 - `docs/reference/cli-commands.md` — reference for all CLI commands (does not include `auth` or new `sync` subcommands)
 - `docs/reference/configuration.md` — reference for config files (does not cover server URL or credential storage)
@@ -24,6 +25,7 @@
 - `docs/how-to/install-spec-kitty.md` — how-to for installation (does not cover 2.x auth setup)
 
 **Identified Gaps**:
+
 1. No tutorial for connecting to a spec-kitty server and authenticating
 2. No how-to for `spec-kitty auth login/logout/status` commands
 3. No how-to for `spec-kitty sync now` (batch push/pull to server)

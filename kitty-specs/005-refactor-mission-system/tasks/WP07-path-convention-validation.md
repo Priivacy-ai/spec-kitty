@@ -32,6 +32,7 @@ subtasks:
 **Goal**: Implement path convention validation that ensures project structure matches mission-declared paths, with progressive enforcement (warnings at switch, errors at acceptance).
 
 **Success Criteria**:
+
 - Path validation module exists at `src/specify_cli/validators/paths.py`
 - Validates mission.yaml paths section against actual project directories
 - Progressive enforcement: warnings (non-blocking) at mission switch, errors (blocking) at acceptance
@@ -44,6 +45,7 @@ subtasks:
 **Problem Statement**: Mission.yaml declares path conventions but nothing enforces them:
 
 **Current State** (documentation-only):
+
 ```yaml
 # software-dev mission.yaml
 paths:
@@ -56,16 +58,19 @@ paths:
 Projects can violate these conventions without detection. Commands reference paths that may not exist.
 
 **Desired State** (enforced):
+
 - Mission switch checks paths, warns if missing (non-blocking)
 - Acceptance checks paths, errors if missing (blocking)
 - Clear suggestions: "Create directory: mkdir -p src/"
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 5, FR-020 through FR-023)
 - Plan: `kitty-specs/005-refactor-mission-system/plan.md` (Architecture Decision #4: Progressive enforcement)
 - Data Model: `kitty-specs/005-refactor-mission-system/data-model.md` (PathValidationResult model)
 
 **Design Decisions**:
+
 - **Timing**: Option D - Progressive (warn at switch, error at acceptance)
 - **Rationale**: User-friendly (supports incremental setup), catches issues early
 - **Implementation**: strict parameter toggles warning vs error behavior
@@ -73,12 +78,14 @@ Projects can violate these conventions without detection. Commands reference pat
 **Path Conventions by Mission**:
 
 **Software-Dev**:
+
 - workspace: `src/`
 - tests: `tests/`
 - deliverables: `contracts/`
 - documentation: `docs/`
 
 **Research**:
+
 - workspace: `research/`
 - data: `data/`
 - deliverables: `findings/`
@@ -91,8 +98,10 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Establish path validation module.
 
 **Steps**:
+
 1. Create file: `src/specify_cli/validators/paths.py`
 2. Add module docstring and imports:
+
    ```python
    """Path convention validation for spec-kitty missions.
 
@@ -114,6 +123,7 @@ Projects can violate these conventions without detection. Commands reference pat
    ```
 
 3. Define exception:
+
    ```python
    class PathValidationError(Exception):
        """Raised when path validation fails in strict mode."""
@@ -133,7 +143,9 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Create typed result object for path validation.
 
 **Steps**:
+
 1. Add dataclass to paths.py (from data-model.md):
+
    ```python
    @dataclass
    class PathValidationResult:
@@ -199,7 +211,9 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Core path validation logic.
 
 **Steps**:
+
 1. Add validation function:
+
    ```python
    def validate_mission_paths(
        mission: Mission,
@@ -281,7 +295,9 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Generate helpful fix suggestions.
 
 **Steps**:
+
 1. Add helper function:
+
    ```python
    def suggest_directory_creation(missing_paths: List[str]) -> List[str]:
        """Generate suggestions for creating missing directories.
@@ -319,6 +335,7 @@ Projects can violate these conventions without detection. Commands reference pat
    ```
 
 2. Test suggestion generation:
+
    ```python
    def test_suggest_directory_creation():
        suggestions = suggest_directory_creation(["src/", "tests/", "docs/"])
@@ -339,7 +356,9 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Comprehensive test coverage for path validators.
 
 **Steps**:
+
 1. Add tests to `tests/unit/test_validators.py`:
+
    ```python
    from specify_cli.validators.paths import (
        validate_mission_paths,
@@ -403,8 +422,10 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Add path validation to mission switch command (non-blocking warnings).
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/mission.py` (from WP03)
 2. Add path validation to switch_cmd() (after validation, before confirmation):
+
    ```python
    # After existing validation (worktrees, git clean, target exists)
    # Before confirmation
@@ -439,9 +460,11 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Add path validation to acceptance workflow (blocking errors).
 
 **Steps**:
+
 1. Open `src/specify_cli/acceptance.py`
 2. Locate `check_feature_acceptance()` or similar function that performs 7-point check
 3. Add path validation as 8th check:
+
    ```python
    from specify_cli.validators.paths import validate_mission_paths, PathValidationError
    from specify_cli.mission import get_active_mission
@@ -483,8 +506,10 @@ Projects can violate these conventions without detection. Commands reference pat
 **Purpose**: Ensure path validation appears in 7-point (now 8-point) readiness check.
 
 **Steps**:
+
 1. Locate AcceptanceSummary class in acceptance.py
 2. Update `ok` property to include path validation:
+
    ```python
    @property
    def ok(self) -> bool:
@@ -501,6 +526,7 @@ Projects can violate these conventions without detection. Commands reference pat
    ```
 
 3. Add path_violations field to AcceptanceSummary dataclass:
+
    ```python
    @dataclass
    class AcceptanceSummary:
@@ -525,6 +551,7 @@ Projects can violate these conventions without detection. Commands reference pat
 **Unit Testing (T053)**:
 
 1. **Validation Function Tests**:
+
    ```python
    def test_all_paths_exist(tmp_path):
        # Create all required directories
@@ -555,6 +582,7 @@ Projects can violate these conventions without detection. Commands reference pat
    ```
 
 2. **Integration Point Tests**:
+
    ```python
    def test_mission_switch_shows_path_warnings():
        # Switch to mission
@@ -568,10 +596,12 @@ Projects can violate these conventions without detection. Commands reference pat
    ```
 
 **Integration Testing** (in WP10):
+
 - End-to-end path validation in mission switch
 - End-to-end path validation in acceptance workflow
 
 **Manual Testing**:
+
 ```bash
 # Test non-strict (mission switch)
 spec-kitty init test-project --mission software-dev
@@ -591,18 +621,23 @@ spec-kitty mission switch research
 ## Risks & Mitigations
 
 **Risk 1**: False positives on case-insensitive filesystems
+
 - **Mitigation**: Use Path.resolve() for canonical comparison, test on macOS (case-insensitive)
 
 **Risk 2**: Validation too strict, blocks legitimate workflows
+
 - **Mitigation**: Non-strict at switch gives users time to create directories
 
 **Risk 3**: Mission defines unusual paths, validation fails
+
 - **Mitigation**: Support arbitrary paths in mission.yaml, just check existence
 
 **Risk 4**: Performance impact on acceptance (many path checks)
+
 - **Mitigation**: Path.exists() is fast, minimal overhead
 
 **Risk 5**: Acceptance becomes too complex (8 checks instead of 7)
+
 - **Mitigation**: Keep path check simple, follow existing check pattern
 
 ---
@@ -626,6 +661,7 @@ spec-kitty mission switch research
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Progressive enforcement must work (warnings at switch, errors at acceptance)
 2. Suggestions must be actionable shell commands
 3. Path validation must not break existing workflows
@@ -633,6 +669,7 @@ spec-kitty mission switch research
 5. Error messages must be clear and helpful
 
 **What Reviewers Should Verify**:
+
 - Create project without src/ → switch missions → verify warnings shown
 - Same project → run acceptance → verify blocked with errors
 - Follow suggestions → create directories → run acceptance → should pass
@@ -640,6 +677,7 @@ spec-kitty mission switch research
 - Test with software-dev paths (src/, tests/) and research paths (research/, data/)
 
 **Acceptance Criteria from Spec**:
+
 - User Story 5, Scenarios 1-5 satisfied
 - FR-020 through FR-023 implemented
 - SC-012, SC-013 achieved

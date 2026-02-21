@@ -1,0 +1,112 @@
+@startuml
+title Spec Kitty Doctrine v2 - Domain Concepts (Minimal)
+top to bottom direction
+
+skinparam defaultFontName "Verdana"
+skinparam defaultFontSize 14
+skinparam wrapWidth 260
+skinparam shadowing false
+
+skinparam class {
+    BackgroundColor #E1F5FF
+    BorderColor #1565C0
+    FontColor Black
+}
+
+package "Orchestration" {
+  class Mission {
+    +Versioned orchestration recipe.
+    +Defines states, transitions, guards,
+    +and required artifacts.
+  }
+
+  class Tool {
+    +CLI/runtime execution surface.
+    +Runs assigned work for agents.
+  }
+}
+
+'together {
+'  Mission
+'  Tool
+'}
+
+package "Governance" {
+
+    package "Governance::Doctrine" {
+      class Paradigm {
+        +Shared worldview for framing work.
+        +Defines how to think/see.
+      }
+
+      class Directive {
+        +Cross-cutting mandatory constraints.
+        +Defines what must/must not happen.
+      }
+
+      class Tactic {
+        +Step-by-step execution procedure.
+        +Defines how work is carried out.
+      }
+
+      class TemplateSet {
+        +Artifact output contract bundle.
+        +Defines expected structure/shape.
+      }
+
+      class AgentProfile {
+        +Role definition + default governance.
+        +Binds paradigms/directives/tactics.
+      }
+    }
+
+    package "Governance::Constitution" {
+      class Constitution {
+        +Project-level governance profile.
+        +Narrows doctrine rules per repository.
+        +Selects active doctrine configuration.
+      }
+
+      class SelectedAgentProfiles {
+        +Configured subset of agent profiles.
+        +Active for this project/repository.
+      }
+
+      class AvailableTools {
+        +Configured set of execution tools.
+        +Available for orchestration assignments.
+      }
+    }
+
+    package "Governance::Curation" {
+      class ImportCandidate {
+        +Pull-based curation record.
+        +Tracks source, mapping, adaptation.
+      }
+
+      class Schema {
+        +YAML contract for doctrine artifacts.
+        +Used for CI validation in tests.
+      }
+    }
+}
+
+Mission --> Constitution : constrained by
+Mission --> Tool : runs on
+
+Constitution --> Paradigm : selects
+Constitution --> Directive : activates
+Constitution --> TemplateSet : chooses
+Constitution --> SelectedAgentProfiles : defines
+Constitution --> AvailableTools : defines
+
+SelectedAgentProfiles --> AgentProfile : includes
+AvailableTools --> Tool : includes
+
+Directive --> Tactic : invokes
+
+ImportCandidate --> Paradigm : curates into
+
+Schema --> ImportCandidate : validates
+
+@enduml

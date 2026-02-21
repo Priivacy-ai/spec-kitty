@@ -37,11 +37,13 @@ spec-kitty mission switch research
 ```
 
 **Requirements for switching:**
+
 - No active worktrees (`.worktrees/` is empty or all features merged)
 - No uncommitted changes (git status clean)
 - Target mission exists
 
 **Example workflow:**
+
 ```bash
 # 1. Start with software-dev (default)
 spec-kitty init my-project
@@ -113,6 +115,7 @@ timestamp,source_type,citation,key_finding,confidence,notes
 ```
 
 **Columns**:
+
 - `timestamp`: ISO format (YYYY-MM-DDTHH:MM:SS)
 - `source_type`: journal|conference|book|web|preprint
 - `citation`: BibTeX, APA, or Simple format
@@ -121,6 +124,7 @@ timestamp,source_type,citation,key_finding,confidence,notes
 - `notes`: Additional context
 
 **Validation**:
+
 - Citation required (non-empty)
 - Source type must be valid
 - Format warning if doesn't match BibTeX/APA/Simple
@@ -132,6 +136,7 @@ timestamp,source_type,citation,key_finding,confidence,notes
 Each mission defines expected directory structure:
 
 **Software-Dev Mission:**
+
 ```yaml
 paths:
   workspace: "src/"
@@ -141,6 +146,7 @@ paths:
 ```
 
 **Research Mission:**
+
 ```yaml
 paths:
   workspace: "research/"
@@ -150,6 +156,7 @@ paths:
 ```
 
 **Validation Behavior:**
+
 - **At mission switch**: Warnings if paths missing (non-blocking)
 - **At acceptance**: Errors if paths missing (blocking)
 - **Suggestions provided**: "Create directory: mkdir -p src/"
@@ -165,6 +172,7 @@ paths:
 **Purpose**: Shared validation logic for worktree location checks
 
 **Usage in Commands**:
+
 ```python
 # Before: Inline bash in command prompts (duplicated 8+ times)
 git branch --show-current
@@ -179,6 +187,7 @@ def command_handler():
 ```
 
 **Implementation Checklist**:
+
 - [ ] Create `src/specify_cli/guards.py`
 - [ ] Implement `validate_worktree_location()` with clear errors
 - [ ] Implement `validate_git_clean()` for mission switching
@@ -195,6 +204,7 @@ def command_handler():
 **Purpose**: Pydantic models for mission.yaml validation
 
 **Usage**:
+
 ```python
 # Before: Silent failures with .get()
 validation_checks = self.config.get("validation", {}).get("checks", [])
@@ -204,9 +214,10 @@ validation_checks = self.config.validation.checks  # Type-safe, validated
 ```
 
 **Implementation Checklist**:
+
 - [ ] Add `pydantic>=2.0` dependency
 - [ ] Define Pydantic models (MissionConfig, WorkflowConfig, etc.)
-- [ ] Update Mission.__init__ to use Pydantic validation
+- [ ] Update Mission.**init** to use Pydantic validation
 - [ ] Add helpful error formatting
 - [ ] Write unit tests for valid/invalid configs
 - [ ] Test with intentional typos
@@ -220,6 +231,7 @@ validation_checks = self.config.validation.checks  # Type-safe, validated
 **Purpose**: Top-level mission management commands
 
 **Usage**:
+
 ```bash
 spec-kitty mission list
 spec-kitty mission current
@@ -228,6 +240,7 @@ spec-kitty mission info software-dev
 ```
 
 **Implementation Checklist**:
+
 - [ ] Create Typer command group
 - [ ] Implement `list_cmd()` - show all missions
 - [ ] Implement `current_cmd()` - show active mission details
@@ -245,6 +258,7 @@ spec-kitty mission info software-dev
 **Purpose**: Citation and bibliography validation
 
 **Usage in Review Workflow**:
+
 ```python
 from specify_cli.validators.research import validate_research_citations
 
@@ -255,6 +269,7 @@ if result.has_errors:
 ```
 
 **Implementation Checklist**:
+
 - [ ] Create validators/research.py module
 - [ ] Implement citation format patterns (BibTeX, APA, Simple)
 - [ ] Implement progressive validation (completeness → format → quality)
@@ -271,6 +286,7 @@ if result.has_errors:
 **Purpose**: Validate mission path conventions
 
 **Usage**:
+
 ```python
 from specify_cli.validators.paths import validate_mission_paths
 
@@ -286,6 +302,7 @@ if not result.is_valid:
 ```
 
 **Implementation Checklist**:
+
 - [ ] Create validators/paths.py module
 - [ ] Implement path existence checking
 - [ ] Generate helpful suggestions
@@ -302,11 +319,13 @@ if not result.is_valid:
 **Purpose**: Clarify Project/Feature/Mission terminology
 
 **Terminology**:
+
 - **Project**: The entire codebase (e.g., "spec-kitty project", "priivacy_rust project")
 - **Feature**: A single unit of work (e.g., "001-mission-system-architecture feature")
 - **Mission**: The domain mode/adapter (e.g., "software-dev mission", "research mission")
 
 **Implementation Checklist**:
+
 - [ ] Add glossary section to README
 - [ ] Search/replace inconsistent terminology
 - [ ] Update error messages
@@ -322,6 +341,7 @@ if not result.is_valid:
 **Purpose**: Show active mission in dashboard
 
 **Implementation Checklist**:
+
 - [ ] Add mission to server context
 - [ ] Update dashboard template with mission display
 - [ ] Add refresh button (optional)
@@ -335,12 +355,14 @@ if not result.is_valid:
 ### Unit Tests
 
 **Test Files**:
+
 - `tests/unit/test_guards.py` - Pre-flight validation
 - `tests/unit/test_mission_schema.py` - Pydantic validation
 - `tests/unit/test_mission_cli.py` - CLI commands
 - `tests/unit/test_validators.py` - Citation & path validation
 
 **Coverage Goals**:
+
 - Guards module: 100% (critical path)
 - Schema validation: 100% (all field types)
 - Validators: 90%+ (edge cases)
@@ -349,10 +371,12 @@ if not result.is_valid:
 ### Integration Tests
 
 **Test Files**:
+
 - `tests/integration/test_mission_switching.py` - Full switch workflow
 - `tests/integration/test_research_workflow.py` - Research mission end-to-end
 
 **Scenarios**:
+
 1. **Mission Switch Happy Path**: Clean project → switch → verify templates
 2. **Mission Switch Blocked**: Active worktree → switch → error
 3. **Research Workflow**: Init research → specify → plan → tasks → implement → review → accept
@@ -380,6 +404,7 @@ tests/unit/test_guards.py
 ### Phase 1: Parallel Streams
 
 **Stream A - Schema & CLI** (can start after research):
+
 ```bash
 # 1. Add Pydantic models to mission.py
 # 2. Create mission CLI commands
@@ -388,6 +413,7 @@ tests/unit/test_guards.py
 ```
 
 **Stream B - Research Mission** (can start after research):
+
 ```bash
 # 1. Update research templates
 # 2. Create citation validators
@@ -396,6 +422,7 @@ tests/unit/test_guards.py
 ```
 
 **Stream C - Command Prompts** (requires guards.py):
+
 ```bash
 # 1. Update plan.md prompt
 # 2. Update implement.md prompt
@@ -405,6 +432,7 @@ tests/unit/test_guards.py
 ```
 
 **Stream D - Docs** (can start immediately):
+
 ```bash
 # 1. Add glossary to README
 # 2. Update terminology throughout
@@ -458,15 +486,18 @@ if not result.is_valid:
 ```bash
 git branch --show-current
 ```
+
 [... 15 more lines ...]
 
 <!-- After: Call Python (2 lines) -->
 ## Location Pre-flight Check
 
 Run pre-flight validation:
+
 ```bash
 python -m specify_cli.guards validate_worktree
 ```
+
 ```
 
 ---

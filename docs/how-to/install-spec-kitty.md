@@ -19,11 +19,13 @@
 #### From PyPI (Recommended - Stable Releases)
 
 **Using pip:**
+
 ```bash
 pip install spec-kitty-cli
 ```
 
 **Using uv:**
+
 ```bash
 uv tool install spec-kitty-cli
 ```
@@ -31,11 +33,13 @@ uv tool install spec-kitty-cli
 #### From GitHub (Latest Development)
 
 **Using pip:**
+
 ```bash
 pip install git+https://github.com/Priivacy-ai/spec-kitty.git
 ```
 
 **Using uv:**
+
 ```bash
 uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
 ```
@@ -45,6 +49,7 @@ uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-ki
 After installation, initialize a new project:
 
 **If installed globally:**
+
 ```bash
 spec-kitty init <PROJECT_NAME>
 ```
@@ -52,11 +57,13 @@ spec-kitty init <PROJECT_NAME>
 **One-time usage (without installing):**
 
 **Using pipx:**
+
 ```bash
 pipx run spec-kitty-cli init <PROJECT_NAME>
 ```
 
 **Using uvx:**
+
 ```bash
 uvx spec-kitty-cli init <PROJECT_NAME>
 ```
@@ -76,6 +83,7 @@ spec-kitty init --here
 ```
 
 When adding to an existing project:
+
 - Spec Kitty will **merge** its templates with your existing files
 - You'll be prompted to confirm if the directory is not empty
 - Use `--force` to skip confirmation: `spec-kitty init --here --force`
@@ -83,6 +91,7 @@ When adding to an existing project:
 - Your existing source code and dependencies are preserved
 
 **Best Practices for Existing Projects:**
+
 1. **Backup first**: Commit your current work to git before adding Spec Kitty
 2. **Review .gitignore**: Spec Kitty automatically protects agent directories in `.gitignore`
 3. **Team alignment**: Add Spec Kitty to a feature branch before merging to main if you're in a team
@@ -103,6 +112,7 @@ spec-kitty init <project_name> --ai copilot
 After running `spec-kitty init`, you can add or remove agents at any time using the `spec-kitty agent config` command family.
 
 To manage agents post-init:
+
 - **Add agents**: `spec-kitty agent config add <agents>`
 - **Remove agents**: `spec-kitty agent config remove <agents>`
 - **Check status**: `spec-kitty agent config status`
@@ -128,6 +138,7 @@ spec-kitty init <project_name> --ai claude --ignore-agent-tools
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
+
 - `/spec-kitty.specify` - Create specifications
 - `/spec-kitty.plan` - Generate implementation plans  
 - `/spec-kitty.research` - Scaffold mission-specific research artifacts (Phase 0)
@@ -155,14 +166,17 @@ rm gcm-linux_amd64.2.6.1.deb
 ```
 
 ## Command Reference
+
 - [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
 - [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
 
 ## See Also
+
 - [Non-Interactive Init](non-interactive-init.md)
 - [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
 - [Use the Dashboard](use-dashboard.md)
 
 ## Background
+
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [Mission System](../explanation/mission-system.md)

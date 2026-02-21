@@ -124,9 +124,7 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP02-mismatch.md").write_text(
-            "---\nwork_package_id: WP03\ndependencies: []\n---"
-        )
+        (tasks_dir / "WP02-mismatch.md").write_text("---\nwork_package_id: WP03\ndependencies: []\n---")
 
         with pytest.raises(ValueError, match="WP ID mismatch"):
             build_dependency_graph(feature_dir)
@@ -156,12 +154,7 @@ class TestBuildDependencyGraph:
         (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP01]\n---")
 
         graph = build_dependency_graph(feature_dir)
-        assert graph == {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP01"]
-        }
+        assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP01"]}
 
     def test_build_graph_complex_dag(self, tmp_path: Path):
         """Test graph building with complex DAG (diamond pattern)."""
@@ -175,12 +168,7 @@ class TestBuildDependencyGraph:
         (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP02, WP03]\n---")
 
         graph = build_dependency_graph(feature_dir)
-        assert graph == {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP02", "WP03"]
-        }
+        assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}
 
 
 # T003: Tests for cycle detection
@@ -214,11 +202,7 @@ class TestDetectCycles:
 
     def test_detect_cycles_complex(self):
         """Test detection of complex cycle (WP01 → WP02 → WP03 → WP01)."""
-        graph = {
-            "WP01": ["WP02"],
-            "WP02": ["WP03"],
-            "WP03": ["WP01"]
-        }
+        graph = {"WP01": ["WP02"], "WP02": ["WP03"], "WP03": ["WP01"]}
         cycles = detect_cycles(graph)
 
         assert cycles is not None
@@ -229,12 +213,7 @@ class TestDetectCycles:
 
     def test_detect_cycles_complex_dag_no_cycles(self):
         """Test complex DAG (diamond) has no cycles."""
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP02", "WP03"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}
         cycles = detect_cycles(graph)
         assert cycles is None
 
@@ -303,12 +282,7 @@ class TestGetDependents:
 
     def test_get_dependents_fan_out(self):
         """Test finding dependents in fan-out pattern."""
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP01"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP01"]}
         dependents = get_dependents("WP01", graph)
         assert set(dependents) == {"WP02", "WP03", "WP04"}
 
@@ -323,7 +297,7 @@ class TestGetDependents:
         graph = {
             "WP01": [],
             "WP02": ["WP01"],
-            "WP03": ["WP02"]  # WP03 depends on WP02, not directly on WP01
+            "WP03": ["WP02"],  # WP03 depends on WP02, not directly on WP01
         }
         dependents = get_dependents("WP01", graph)
         assert dependents == ["WP02"]  # Only direct dependent

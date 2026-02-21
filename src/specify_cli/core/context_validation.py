@@ -29,7 +29,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast
 
 import typer
 from rich.console import Console
@@ -75,6 +75,8 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
     else:
         cwd = cwd.resolve()
 
+    repo_root: Path | None = None
+
     # Check if .worktrees is in path
     if ".worktrees" in cwd.parts:
         # Extract worktree information
@@ -96,7 +98,6 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
 
     # Not in worktree - assume main repo
     # Try to find repo root (directory containing .kittify or .git)
-    repo_root = None
     search_path = cwd
     for _ in range(10):  # Limit depth
         if (search_path / ".kittify").exists() or (search_path / ".git").exists():
@@ -186,7 +187,7 @@ def format_location_error(
 
 
 # Type variable for function decoration
-F = TypeVar("F", bound=Callable)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def require_main_repo(func: F) -> F:
@@ -209,7 +210,7 @@ def require_main_repo(func: F) -> F:
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: object, **kwargs: object) -> Any:
         ctx = get_current_context()
 
         if ctx.location == ExecutionContext.WORKTREE:
@@ -224,7 +225,7 @@ def require_main_repo(func: F) -> F:
 
         return func(*args, **kwargs)
 
-    return wrapper  # type: ignore
+    return cast(F, wrapper)
 
 
 def require_worktree(func: F) -> F:
@@ -246,7 +247,7 @@ def require_worktree(func: F) -> F:
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: object, **kwargs: object) -> Any:
         ctx = get_current_context()
 
         if ctx.location == ExecutionContext.MAIN_REPO:
@@ -261,7 +262,7 @@ def require_worktree(func: F) -> F:
 
         return func(*args, **kwargs)
 
-    return wrapper  # type: ignore
+    return cast(F, wrapper)
 
 
 def require_either(func: F) -> F:

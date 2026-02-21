@@ -182,39 +182,46 @@ As a user with custom agent configuration, migrations and commands must handle c
 ### Functional Requirements
 
 **Distribution Tests (tests/distribution/)**
+
 - **FR-001**: Test suite MUST include distribution tests that run WITHOUT `SPEC_KITTY_TEMPLATE_ROOT` environment variable
 - **FR-002**: Distribution tests MUST install spec-kitty from wheel (not editable install)
 - **FR-003**: Distribution tests MUST validate template bundling for all mission types
 
 **Path Validation Tests**
+
 - **FR-004**: Tests MUST verify directory traversal attacks are blocked (`../`, symlinks)
 - **FR-005**: Tests MUST verify case-sensitivity bypass is blocked on case-insensitive filesystems
 - **FR-006**: Tests MUST verify empty/whitespace paths are rejected
 - **FR-007**: Tests MUST verify paths outside project root are rejected
 
 **CSV Schema Tests**
+
 - **FR-008**: Tests MUST verify CSV injection payloads don't execute
 - **FR-009**: Tests MUST verify invalid encodings produce clear errors
 - **FR-010**: Tests MUST verify duplicate columns are detected
 - **FR-011**: Tests MUST verify empty files are handled distinctly from schema mismatches
 
 **Git State Tests**
+
 - **FR-012**: Tests MUST verify detached HEAD detection
 - **FR-013**: Tests MUST verify merge/rebase state detection
 - **FR-014**: Tests MUST verify staged-but-uncommitted detection with clear messages
 - **FR-015**: Tests MUST verify main branch divergence detection
 
 **Migration Tests**
+
 - **FR-016**: Tests MUST verify atomic metadata writes (interrupt simulation)
 - **FR-017**: Tests MUST verify concurrent migration handling
 - **FR-018**: Tests MUST verify permission error handling with actionable messages
 
 **Multi-Parent Merge Tests**
+
 - **FR-019**: Tests MUST verify merge conflict detection and cleanup
 - **FR-020**: Tests MUST verify deterministic merge ordering
 - **FR-021**: Tests MUST verify orphaned merge-base branch cleanup
 
 **Context and Config Tests**
+
 - **FR-022**: Tests MUST verify orphaned context detection
 - **FR-023**: Tests MUST verify context validation cannot be bypassed via env vars
 - **FR-024**: Tests MUST verify corrupt config.yaml produces clear errors (not silent fallback)

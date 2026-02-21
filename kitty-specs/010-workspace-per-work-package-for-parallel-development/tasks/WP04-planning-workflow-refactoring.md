@@ -30,6 +30,7 @@ subtasks:
 # Work Package Prompt: WP04 – Planning Workflow Refactoring
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP04 --base WP03
 ```
@@ -80,6 +81,7 @@ spec-kitty implement WP04 --base WP03
 **Primary Goal**: Modify `/spec-kitty.specify`, `/spec-kitty.plan`, and `/spec-kitty.tasks` commands to work in main repository and commit artifacts directly, WITHOUT creating any worktrees.
 
 **Success Criteria**:
+
 - ✅ `/spec-kitty.specify` creates `kitty-specs/###-feature/spec.md` in main repo
 - ✅ Spec creation auto-commits to main branch
 - ✅ NO worktree created during specify
@@ -98,11 +100,13 @@ spec-kitty implement WP04 --base WP03
 **Why this change**: Workspace-per-WP model requires planning artifacts in main so all WP workspaces can branch from a common base containing spec, plan, and task definitions.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.6: Workflow Changes
 - [spec.md](../spec.md) - User Story 3 (Planning Artifacts in Main Repository)
 - [quickstart.md](../quickstart.md) - Planning workflow comparison
 
 **Current Behavior** (0.10.x):
+
 ```
 /spec-kitty.specify "My Feature"
 → Creates .worktrees/011-my-feature/
@@ -111,6 +115,7 @@ spec-kitty implement WP04 --base WP03
 ```
 
 **Target Behavior** (0.11.0):
+
 ```
 /spec-kitty.specify "My Feature"
 → NO worktree created
@@ -119,6 +124,7 @@ spec-kitty implement WP04 --base WP03
 ```
 
 **Git Commands**:
+
 ```bash
 # After creating spec.md in main
 git add kitty-specs/011-my-feature/spec.md
@@ -142,6 +148,7 @@ git commit -m "Add tasks for feature 011-my-feature"
 **Purpose**: Remove worktree creation logic from `create-feature` command so `/spec-kitty.specify` works in main.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/agent/feature.py`
 2. Locate `create_feature()` function or similar
 3. Find call to `create_feature_worktree()` (from worktree.py)
@@ -152,6 +159,7 @@ git commit -m "Add tasks for feature 011-my-feature"
 **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 
 **Before** (0.10.x):
+
 ```python
 def create_feature(...):
     feature_number = get_next_feature_number(repo_root)
@@ -166,6 +174,7 @@ def create_feature(...):
 ```
 
 **After** (0.11.0):
+
 ```python
 def create_feature(...):
     feature_number = get_next_feature_number(repo_root)
@@ -192,6 +201,7 @@ def create_feature(...):
 **Purpose**: Ensure feature directory is created directly in `kitty-specs/` in main repository, not in worktree.
 
 **Steps**:
+
 1. Verify feature directory creation happens in main repo
 2. Path should be: `<repo_root>/kitty-specs/###-feature-name/`
 3. Create subdirectories: `checklists/`, `research/`, `tasks/`
@@ -201,6 +211,7 @@ def create_feature(...):
 **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 
 **Notes**:
+
 - Remove worktree-specific logic (no worktree symlinks needed)
 - Main repo already has `.kittify/memory/` and `.kittify/AGENTS.md` available directly
 - Feature directory in main means all subsequent WP workspaces will have access to these files when they branch from main
@@ -214,6 +225,7 @@ def create_feature(...):
 **Purpose**: Automatically commit spec.md to main branch after `/spec-kitty.specify` completes.
 
 **Steps**:
+
 1. After spec.md is written to `kitty-specs/###-feature/spec.md`
 2. Run git add: `subprocess.run(["git", "add", spec_file_path])`
 3. Run git commit: `subprocess.run(["git", "commit", "-m", f"Add spec for feature {feature_slug}"])`
@@ -223,6 +235,7 @@ def create_feature(...):
 **Files**: `src/specify_cli/cli/commands/agent/feature.py` (or wherever specify logic lives)
 
 **Git Commands**:
+
 ```python
 import subprocess
 
@@ -259,6 +272,7 @@ def commit_spec_to_main(spec_file: Path, feature_slug: str):
 **Purpose**: Ensure `/spec-kitty.plan` command can execute without worktree context.
 
 **Steps**:
+
 1. Review plan command implementation (likely in same file or agent/feature.py)
 2. Verify plan.md is created in `kitty-specs/###-feature/plan.md` (main repo)
 3. Remove any assumptions about being in worktree
@@ -267,6 +281,7 @@ def commit_spec_to_main(spec_file: Path, feature_slug: str):
 **Files**: Check plan command location (may be agent/feature.py or separate plan.py)
 
 **Validation**:
+
 - Command should work when run from main repository root
 - No errors like "not in worktree" or "feature branch not found"
 - Plan.md path resolves correctly in main
@@ -280,6 +295,7 @@ def commit_spec_to_main(spec_file: Path, feature_slug: str):
 **Purpose**: Automatically commit plan.md to main branch after `/spec-kitty.plan` completes.
 
 **Steps**:
+
 1. After plan.md is written to `kitty-specs/###-feature/plan.md`
 2. Run git add and commit (same pattern as T024)
 3. Commit message: `"Add plan for feature {feature_slug}"`
@@ -298,6 +314,7 @@ def commit_spec_to_main(spec_file: Path, feature_slug: str):
 **Purpose**: Update `/spec-kitty.tasks` command to parse dependency structure from tasks.md and extract dependency relationships between WPs.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/agent/tasks.py`
 2. After tasks.md is parsed/generated (LLM creates tasks.md)
 3. Parse tasks.md content to detect dependencies using **explicit algorithm**:
@@ -305,6 +322,7 @@ def commit_spec_to_main(spec_file: Path, feature_slug: str):
 **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 
 **Parsing Algorithm** (explicit specification):
+
 ```python
 def parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
     """Parse WP dependencies from tasks.md prose.
@@ -371,6 +389,7 @@ def parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]
 ```
 
 **Validation After Parsing**:
+
 ```python
 # After parsing dependencies, validate before writing to frontmatter
 from specify_cli.core.dependency_graph import validate_dependencies, detect_cycles
@@ -397,6 +416,7 @@ for wp_id, deps in graph.items():
 ```
 
 **Fallback Behavior**: If parsing fails or is ambiguous:
+
 - Default to empty dependencies: `dependencies: []`
 - Log warning: "Could not detect dependencies for WP##. Defaulting to empty list."
 - Agents can manually edit frontmatter to add dependencies if needed
@@ -411,18 +431,22 @@ for wp_id, deps in graph.items():
 **Purpose**: Write `dependencies: [...]` field to each WP prompt file's frontmatter during tasks generation.
 
 **Steps**:
+
 1. After parsing dependencies from tasks.md (T027)
 2. When generating each `WP##.md` file in `tasks/` directory
 3. Include dependencies field in frontmatter YAML:
+
    ```yaml
    dependencies: []  # or ["WP01", "WP02"] based on parsed deps
    ```
+
 4. Use WP_FIELD_ORDER from frontmatter.py to ensure correct field ordering
 5. Validate dependencies before writing (use dependency_graph.validate_dependencies)
 
 **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 
 **Implementation**:
+
 ```python
 from specify_cli.core.dependency_graph import validate_dependencies
 
@@ -456,6 +480,7 @@ def generate_wp_prompt(wp_id: str, dependencies: list[str], ...):
 **Purpose**: Automatically commit all tasks/*.md files to main branch after `/spec-kitty.tasks` completes.
 
 **Steps**:
+
 1. After all WP prompt files are generated in `kitty-specs/###-feature/tasks/`
 2. Run git add: `git add kitty-specs/###-feature/tasks/`
 3. Run git commit: `git commit -m "Add tasks for feature {feature_slug}"`
@@ -465,6 +490,7 @@ def generate_wp_prompt(wp_id: str, dependencies: list[str], ...):
 **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 
 **Implementation**:
+
 ```python
 def commit_tasks_to_main(tasks_dir: Path, feature_slug: str, wp_count: int):
     """Commit all task files to main branch."""
@@ -489,8 +515,10 @@ def commit_tasks_to_main(tasks_dir: Path, feature_slug: str, wp_count: int):
 **Purpose**: Validate complete planning workflow (specify → plan → tasks) works in main with no worktrees created.
 
 **Steps**:
+
 1. Create test in `tests/specify_cli/test_integration/` (or append to integration test file)
 2. Test scenario:
+
    ```python
    def test_planning_workflow_no_worktrees(tmp_path):
        # Setup test project
@@ -524,6 +552,7 @@ def commit_tasks_to_main(tasks_dir: Path, feature_slug: str, wp_count: int):
 **Parallel?**: Can be written in parallel with implementation (T022-T029) but runs after implementation complete
 
 **Assertions**:
+
 - spec.md exists in main repo: `kitty-specs/###-feature/spec.md`
 - plan.md exists in main repo: `kitty-specs/###-feature/plan.md`
 - tasks/*.md exist in main repo: `kitty-specs/###-feature/tasks/WP01.md`, etc.
@@ -539,11 +568,13 @@ def commit_tasks_to_main(tasks_dir: Path, feature_slug: str, wp_count: int):
 **Test File**: `tests/specify_cli/test_integration/test_planning_workflow.py`
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 ```
 
 **What it validates**:
+
 - Planning commands work without worktree context
 - Artifacts created in correct locations (main repo)
 - Git commits happen automatically
@@ -554,18 +585,22 @@ pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 ## Risks & Mitigations
 
 **Risk 1: Auto-commit fails in non-git environment**
+
 - Impact: Planning artifacts created but not versioned
 - Mitigation: Check if in git repo before committing, clear error if not in repo
 
 **Risk 2: Committing to wrong branch**
+
 - Impact: Planning artifacts committed to feature branch instead of main
 - Mitigation: Validate current branch is main, error if on wrong branch
 
 **Risk 3: Merge conflicts in main**
+
 - Impact: Multiple features' planning artifacts conflict (both modify same file)
 - Mitigation: Document as expected behavior, users resolve conflicts in main (rare case)
 
 **Risk 4: Dependency parsing misses dependencies**
+
 - Impact: Wrong dependencies in WP frontmatter → wrong --base flags in prompts
 - Mitigation: Conservative parsing (explicit markers), validation during generation, clear error messages
 
@@ -588,6 +623,7 @@ pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. **Breaking change is clean**: No worktree creation code remains in planning commands
 2. **Git commits are atomic**: Each planning phase commits its artifacts separately
 3. **Dependency parsing is robust**: Handles various tasks.md formats, doesn't break on unexpected structure
@@ -595,6 +631,7 @@ pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 5. **Integration test coverage**: Test actually validates no worktrees created (not just that artifacts exist)
 
 **Key Acceptance Checkpoints**:
+
 - Run integration test, verify passes
 - Manually test: create new feature, verify planning artifacts in main
 - Check git log shows three commits (spec, plan, tasks)
@@ -611,11 +648,13 @@ pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP04
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T10:05:14Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T10:12:24Z – unknown – lane=for_review – Implementation complete and all tests passing
 - 2026-01-08T10:15:00Z – agent – lane=doing – Started review via workflow command

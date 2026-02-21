@@ -50,12 +50,14 @@ history:
 WP10 (Validation & Polish) is based on an outdated branch that lacks the content created by WP03-WP09. The branch needs to be rebased/merged to include:
 
 **Missing from tutorials/ (WP03/WP04 content):**
+
 - `getting-started.md`
 - `your-first-feature.md`
 - `multi-agent-workflow.md`
 - `missions-overview.md`
 
 **Missing from how-to/ (WP05 content):**
+
 - `create-specification.md`
 - `implement-work-package.md`
 - `review-work-package.md`
@@ -63,10 +65,12 @@ WP10 (Validation & Polish) is based on an outdated branch that lacks the content
 - `parallel-development.md`
 
 **Missing from reference/ (WP07 content):**
+
 - Entire reference/ directory is empty
 - All CLI and slash command references missing
 
 **Missing from explanation/ (WP08 content):**
+
 - `spec-driven-development.md`
 - `git-worktrees.md`
 - `mission-system.md`
@@ -77,6 +81,7 @@ WP10 (Validation & Polish) is based on an outdated branch that lacks the content
 ## Root Cause
 
 WP10 was created from WP02's branch but was not updated to include content from:
+
 - WP03: Tutorials content
 - WP04: More tutorials  
 - WP05: How-to guides
@@ -88,11 +93,13 @@ WP10 was created from WP02's branch but was not updated to include content from:
 ## Required Actions
 
 1. **Rebase WP10 branch** to include changes from all dependent WPs:
+
    ```bash
    cd .worktrees/014-comprehensive-end-user-documentation-WP10
    git fetch origin
    git rebase 014-comprehensive-end-user-documentation-WP09
    ```
+
    (Or merge from WP09 which should have all prior work)
 
 2. **Re-run validation** after rebase:
@@ -102,7 +109,6 @@ WP10 was created from WP02's branch but was not updated to include content from:
    - Verify success criteria
 
 The current state cannot be approved because validation was performed on incomplete documentation.
-
 
 ## Objectives & Success Criteria
 
@@ -118,6 +124,7 @@ The current state cannot be approved because validation was performed on incompl
 - **Dependencies**: All content and cross-reference WPs must be complete (WP01-WP09)
 
 ### Success Criteria from Spec
+
 - SC-001: New user can complete Getting Started tutorial in 30 minutes
 - SC-002: Find answers within 3 clicks from landing page
 - SC-003: 100% of slash commands documented
@@ -128,29 +135,37 @@ The current state cannot be approved because validation was performed on incompl
 ## Subtasks & Detailed Guidance
 
 ### Subtask T043 – Test DocFX Build
+
 - **Purpose**: Ensure documentation builds without errors
 - **Steps**:
   1. Install DocFX if needed:
+
      ```bash
      dotnet tool install -g docfx
      ```
+
   2. Run DocFX build:
+
      ```bash
      cd /Users/robert/Code/spec-kitty
      docfx docs/docfx.json
      ```
+
   3. Check for errors (not just warnings)
   4. Review build output for issues
   5. Preview locally:
+
      ```bash
      docfx serve docs/_site
      ```
+
   6. Navigate through all sections in browser
 - **Files**: `docs/docfx.json`, `docs/_site/`
 - **Parallel?**: No - must complete first
 - **Notes**: Do NOT commit _site/ directory
 
 ### Subtask T044 – Verify All Links Work
+
 - **Purpose**: Final link verification
 - **Steps**:
   1. Internal links: Already checked in WP09, but verify again
@@ -163,6 +178,7 @@ The current state cannot be approved because validation was performed on incompl
 - **Notes**: Pay attention to relative path issues
 
 ### Subtask T045 – Review Consistency
+
 - **Purpose**: Ensure consistent tone, formatting, terminology
 - **Steps**:
   1. **Terminology check**:
@@ -183,6 +199,7 @@ The current state cannot be approved because validation was performed on incompl
 - **Notes**: Create a style guide if patterns emerge
 
 ### Subtask T046 – Update docfx.json
+
 - **Purpose**: Ensure DocFX config is correct for new structure
 - **Steps**:
   1. Review `docs/docfx.json`:
@@ -190,6 +207,7 @@ The current state cannot be approved because validation was performed on incompl
      - Check template settings
      - Verify metadata is correct
   2. Update if needed:
+
      ```json
      {
        "build": {
@@ -208,12 +226,14 @@ The current state cannot be approved because validation was performed on incompl
        }
      }
      ```
+
   3. Test build after any changes
 - **Files**: `docs/docfx.json`
 - **Parallel?**: No - must be done carefully
 - **Notes**: Backup before changes
 
 ### Subtask T047 – Final Review Against Spec
+
 - **Purpose**: Verify all success criteria from spec.md are met
 - **Steps**:
   1. Review each success criterion:

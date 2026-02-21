@@ -31,21 +31,21 @@ python scripts/release/validate_release.py \
 - **Branch Mode** (`--mode branch`):
   - Used during development and in PR readiness checks
   - Validates:
-    * Version in `pyproject.toml` is valid semantic version (X.Y.Z)
-    * CHANGELOG.md contains a populated section for the current version
-    * New version > latest git tag (monotonic progression)
+    - Version in `pyproject.toml` is valid semantic version (X.Y.Z)
+    - CHANGELOG.md contains a populated section for the current version
+    - New version > latest git tag (monotonic progression)
   - Does NOT require a tag to be present
   - Exit code: 0 (success) or 1 (validation failed)
 
 - **Tag Mode** (`--mode tag`):
   - Used during release workflow when tag is pushed
   - Validates everything from branch mode, plus:
-    * Tag matches version in `pyproject.toml` (e.g., `v0.2.4` matches `0.2.4`)
-    * Tag is properly formatted (`v*.*.*`)
+    - Tag matches version in `pyproject.toml` (e.g., `v0.2.4` matches `0.2.4`)
+    - Tag is properly formatted (`v*.*.*`)
   - Tag can be specified via:
-    * `--tag` flag: `--tag v0.2.4`
-    * `GITHUB_REF_NAME` environment variable (automatic in CI)
-    * `GITHUB_REF` environment variable (fallback)
+    - `--tag` flag: `--tag v0.2.4`
+    - `GITHUB_REF_NAME` environment variable (automatic in CI)
+    - `GITHUB_REF` environment variable (fallback)
   - Exit code: 0 (success) or 1 (validation failed)
 
 **Options**:
@@ -100,6 +100,7 @@ python scripts/release/extract_changelog.py 0.2.4
 **Example**:
 
 Given `CHANGELOG.md`:
+
 ```markdown
 ## [0.2.4] - 2025-11-02
 
@@ -114,6 +115,7 @@ Given `CHANGELOG.md`:
 Command: `python scripts/release/extract_changelog.py 0.2.4`
 
 Output:
+
 ```markdown
 ### Added
 - Automated PyPI release workflow
@@ -130,6 +132,7 @@ Output:
 ### Release Readiness (PR Checks)
 
 `.github/workflows/release-readiness.yml`:
+
 ```yaml
 - name: Validate release metadata
   run: python scripts/release/validate_release.py --mode branch
@@ -138,6 +141,7 @@ Output:
 ### Release Publication (Tag Push)
 
 `.github/workflows/release.yml`:
+
 ```yaml
 - name: Validate release metadata
   run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}"
@@ -192,6 +196,7 @@ python scripts/release/extract_changelog.py 0.2.4
 **Problem**: Your version is equal to or less than an existing tag.
 
 **Solution**:
+
 1. Check latest tag: `git tag --list 'v*' --sort=-version:refname | head -1`
 2. Bump version in `pyproject.toml` to be higher
 3. Re-run validator
@@ -201,13 +206,16 @@ python scripts/release/extract_changelog.py 0.2.4
 **Problem**: No changelog entry for your version, or the entry is empty.
 
 **Solution**:
+
 1. Add section to `CHANGELOG.md`:
+
    ```markdown
    ## [0.2.4] - 2025-11-02
 
    ### Added
    - Your changes here
    ```
+
 2. Ensure the section has content (not just whitespace)
 3. Re-run validator
 
@@ -216,8 +224,10 @@ python scripts/release/extract_changelog.py 0.2.4
 **Problem**: Tag is `v0.2.4` but `pyproject.toml` has `0.2.5`.
 
 **Solution**:
+
 1. Either update `pyproject.toml` to match the tag
 2. Or delete and recreate the tag:
+
    ```bash
    git tag -d v0.2.4
    git push origin :refs/tags/v0.2.4
@@ -230,6 +240,7 @@ python scripts/release/extract_changelog.py 0.2.4
 **Problem**: Running in tag mode but no tag was provided or detected.
 
 **Solution**:
+
 - Use `--tag` flag: `--tag v0.2.4`
 - Or set environment variable: `export GITHUB_REF_NAME=v0.2.4`
 
@@ -251,6 +262,7 @@ python -m pytest tests/release/test_validate_release.py -v
 ```
 
 Test coverage includes:
+
 - Branch mode success with version bump
 - Branch mode failure without changelog entry
 - Tag mode validation with tag alignment

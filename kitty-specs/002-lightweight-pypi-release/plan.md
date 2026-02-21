@@ -44,6 +44,7 @@ kitty-specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+
 ```
 .github/workflows/
 └── release.yml              # Tag-triggered build-and-publish pipeline
@@ -65,4 +66,4 @@ docs/
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| _None_ | — | — |
+| *None* | — | — |

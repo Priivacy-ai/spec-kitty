@@ -10,10 +10,11 @@ from typing import Any, Dict
 import yaml
 
 DEFAULT_PATH_PATTERNS: dict[str, str] = {
+    r"\.kittify/constitution/templates/": ".kittify/memory/templates/",
     r"(?<!\.kittify/)scripts/": ".kittify/scripts/",
     # Rewrite plain template references (e.g., `templates/foo.md`) but do not
     # rewrite embedded source paths like `src/.../templates/foo.md`.
-    r"(?<![\w.-]/)templates/": ".kittify/templates/",
+    r"(?<![\w.-]/)(?<!constitution/)(?<!memory/)templates/": ".kittify/templates/",
     r"(?<!\.kittify/)memory/": ".kittify/memory/",
 }
 
@@ -74,9 +75,7 @@ def render_template(
     return metadata, rendered, raw_frontmatter
 
 
-def _resolve_variables(
-    variables: VariablesResolver | None, metadata: Dict[str, Any]
-) -> Mapping[str, str]:
+def _resolve_variables(variables: VariablesResolver | None, metadata: Dict[str, Any]) -> Mapping[str, str]:
     if variables is None:
         return {}
     if callable(variables):

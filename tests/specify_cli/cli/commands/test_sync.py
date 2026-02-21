@@ -48,10 +48,7 @@ class TestDetectWorkspaceContext:
         """Test detection from git branch name."""
         with patch("pathlib.Path.cwd", return_value=tmp_path):
             with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0,
-                    stdout="015-vcs-integration-WP03\n"
-                )
+                mock_run.return_value = MagicMock(returncode=0, stdout="015-vcs-integration-WP03\n")
 
                 workspace_path, feature_slug = _detect_workspace_context()
 
@@ -189,10 +186,13 @@ class TestRepairFunctions:
             assert mock_run.call_count == 2
 
 
-@pytest.mark.parametrize("backend", [
-    "git",
-    pytest.param("jj", marks=pytest.mark.jj),
-])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "git",
+        pytest.param("jj", marks=pytest.mark.jj),
+    ],
+)
 class TestSyncCommand:
     """Tests for sync command."""
 
@@ -328,10 +328,13 @@ class TestSyncWithConflicts:
 class TestSyncRepair:
     """Tests for --repair flag."""
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_success(self, tmp_path, backend):
         """Test successful repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -351,10 +354,13 @@ class TestSyncRepair:
 
                     mock_repair.assert_called_once()
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_failure(self, tmp_path, backend):
         """Test failed repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -413,9 +419,7 @@ class TestSyncServerCommand:
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
             sync_server(url="https://spec-kitty-dev.fly.dev/")
 
-        mock_config.set_server_url.assert_called_once_with(
-            "https://spec-kitty-dev.fly.dev"
-        )
+        mock_config.set_server_url.assert_called_once_with("https://spec-kitty-dev.fly.dev")
 
     def test_set_server_url_rejects_non_https(self):
         """Non-HTTPS URL is rejected."""

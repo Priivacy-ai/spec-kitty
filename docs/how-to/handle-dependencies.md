@@ -55,7 +55,6 @@ cd .worktrees/###-feature-WP04
 git merge ###-feature-WP02
 ```
 
-
 ## Keeping Dependencies Updated
 
 When a dependency changes after you've started work, use `spec-kitty sync` to update your workspace:
@@ -114,6 +113,7 @@ WP01 -> WP02 -> WP03 -> WP04
 ## Common Errors and Fixes
 
 **Error:**
+
 ```
 WP02 has dependencies. Use: spec-kitty implement WP02 --base WP01
 ```

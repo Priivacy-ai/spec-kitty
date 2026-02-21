@@ -17,14 +17,17 @@ This document defines the core entities, value objects, and relationships for th
 Raw string representation of a term as observed in mission inputs/outputs.
 
 **Attributes**:
+
 - `surface_text` (str): The actual text (e.g., "workspace", "mission", "WP")
 
 **Invariants**:
+
 - Normalized form: lowercase, trimmed whitespace
 - Stem-light applied: "workspaces" → "workspace" (plural → singular)
 - Unique per scope (no duplicate surfaces in active glossary)
 
 **Example**:
+
 ```python
 TermSurface(surface_text="workspace")
 ```
@@ -36,6 +39,7 @@ TermSurface(surface_text="workspace")
 Meaning of a TermSurface within a specific GlossaryScope.
 
 **Attributes**:
+
 - `surface` (TermSurface): The term this sense defines
 - `scope` (GlossaryScope): Which scope this sense belongs to
 - `definition` (str): Human-readable meaning
@@ -44,16 +48,19 @@ Meaning of a TermSurface within a specific GlossaryScope.
 - `status` (SenseStatus): active | deprecated | draft
 
 **Invariants**:
+
 - One sense can exist per (surface, scope) pair
 - Deprecated senses remain in history but not in active resolution
 - Draft senses auto-created by extraction (low confidence) until promoted
 
 **Provenance fields**:
+
 - `actor_id` (str): User ID or LLM actor who created this sense
 - `timestamp` (datetime): When created
 - `source` (str): Where it came from (e.g., "user_clarification", "metadata_hint", "auto_extraction")
 
 **Example**:
+
 ```python
 TermSense(
     surface=TermSurface("workspace"),
@@ -76,6 +83,7 @@ TermSense(
 Enumeration of scope levels in the glossary hierarchy.
 
 **Values**:
+
 - `mission_local`: Mission-specific temporary/working semantics (highest precedence)
 - `team_domain`: Language used by mission participants/contributors
 - `audience_domain`: Language for intended recipients (customers/stakeholders/users)
@@ -84,10 +92,12 @@ Enumeration of scope levels in the glossary hierarchy.
 **Resolution order**: mission_local → team_domain → audience_domain → spec_kitty_core
 
 **Scope activation**:
+
 - Mission start emits `GlossaryScopeActivated` for each active scope
 - Scopes without seed files are skipped cleanly (no error)
 
 **Example**:
+
 ```python
 # Scope resolution for term "workspace"
 # 1. Check mission_local (no match)
@@ -102,6 +112,7 @@ Enumeration of scope levels in the glossary hierarchy.
 Classification of a term conflict detected during semantic check.
 
 **Attributes**:
+
 - `term` (TermSurface): The conflicting term
 - `conflict_type` (ConflictType): Type of conflict (see below)
 - `severity` (Severity): low | medium | high
@@ -110,17 +121,20 @@ Classification of a term conflict detected during semantic check.
 - `context` (str): Usage location (e.g., "step input: description field")
 
 **ConflictType values**:
+
 - `UNKNOWN`: Term not found in any scope (no match in scope stack)
 - `AMBIGUOUS`: Multiple active senses in current scope stack, usage unqualified
 - `INCONSISTENT`: LLM output uses sense contradicting active glossary
 - `UNRESOLVED_CRITICAL`: Unknown/new critical term with low confidence, no resolved sense before generation
 
 **Severity scoring**:
+
 - **High**: Ambiguous in critical step + low confidence OR unresolved critical term
 - **Medium**: Ambiguous in non-critical step OR unknown term with medium confidence
 - **Low**: Inconsistent usage in non-critical step OR unknown term with high confidence (likely safe)
 
 **Example**:
+
 ```python
 SemanticConflict(
     term=TermSurface("workspace"),
@@ -142,6 +156,7 @@ SemanticConflict(
 Minimal state for resuming step execution after conflict resolution.
 
 **Attributes**:
+
 - `mission_id` (str): Which mission
 - `run_id` (str): Which run instance
 - `step_id` (str): Which step
@@ -153,10 +168,12 @@ Minimal state for resuming step execution after conflict resolution.
 - `timestamp` (datetime): When checkpoint created
 
 **ScopeRef structure**:
+
 - `scope` (GlossaryScope): Which scope
 - `version_id` (str): Glossary version ID (for deterministic replay)
 
 **Usage**:
+
 1. Emit `StepCheckpointed` before generation gate
 2. User resolves conflict
 3. Resume loads checkpoint, verifies input_hash
@@ -164,6 +181,7 @@ Minimal state for resuming step execution after conflict resolution.
 5. If hash differs: prompt for confirmation
 
 **Example**:
+
 ```python
 StepCheckpoint(
     mission_id="041-mission",
@@ -190,19 +208,23 @@ StepCheckpoint(
 Extracts candidate terms from step inputs/outputs.
 
 **Inputs**:
+
 - `context` (PrimitiveExecutionContext): Step inputs, metadata, config
 
 **Outputs**:
+
 - `context` (modified): Adds `extracted_terms` field
 - **Events**: `TermCandidateObserved` (for each extracted term)
 
 **Extraction logic** (see research.md Finding 3):
+
 1. Load metadata hints (glossary_watch_terms, glossary_aliases, etc.)
 2. Apply deterministic heuristics (quoted phrases, acronyms, casing, repeats)
 3. Normalize (lowercase, trim, stem-light)
 4. Score confidence (metadata > pattern > weak heuristic)
 
 **Example**:
+
 ```python
 # Input context
 context.inputs = {"description": "The workspace contains implementation files"}
@@ -225,14 +247,17 @@ context.extracted_terms = [
 Resolves extracted terms against scope hierarchy, detects conflicts.
 
 **Inputs**:
+
 - `context.extracted_terms` (from extraction middleware)
 - Active glossary scopes (loaded from seed files + event log)
 
 **Outputs**:
+
 - `context.conflicts` (List[SemanticConflict]): Detected conflicts
 - **Events**: `SemanticCheckEvaluated` (with findings, severity, recommended action)
 
 **Resolution logic**:
+
 1. For each extracted term:
    - Resolve against scope order (mission_local → team_domain → audience_domain → spec_kitty_core)
    - If no match: conflict type = UNKNOWN
@@ -243,6 +268,7 @@ Resolves extracted terms against scope hierarchy, detects conflicts.
 3. Emit `SemanticCheckEvaluated` with overall severity and recommended action
 
 **Example**:
+
 ```python
 # Input
 context.extracted_terms = [TermSurface("workspace")]
@@ -266,20 +292,24 @@ context.conflicts = [
 Blocks LLM generation on unresolved high-severity conflicts.
 
 **Inputs**:
+
 - `context.conflicts` (from semantic check middleware)
 - `context.strictness` (resolved strictness mode)
 
 **Outputs**:
+
 - If pass: continue to next middleware
 - If block: raise `BlockedByConflict` exception
 - **Events**: `GenerationBlockedBySemanticConflict` (if blocked)
 
 **Gate logic**:
+
 - Strictness = `off`: always pass (no blocking)
 - Strictness = `medium`: block only if high-severity conflicts exist
 - Strictness = `max`: block if any unresolved conflicts exist
 
 **Example**:
+
 ```python
 # Input
 context.strictness = Strictness.MEDIUM
@@ -297,14 +327,17 @@ raise BlockedByConflict(conflicts=context.conflicts)
 Renders ranked candidate senses, prompts user for resolution.
 
 **Inputs**:
+
 - `context.conflicts` (from generation gate)
 - Interactive mode flag (CLI vs non-interactive)
 
 **Outputs**:
+
 - User selection or async defer
 - **Events**: `GlossaryClarificationRequested`, `GlossaryClarificationResolved`, `GlossarySenseUpdated`
 
 **Clarification logic**:
+
 1. Sort conflicts by severity (high → medium → low), cap to 3
 2. Render each conflict with Rich:
    - Term, context, scope, ranked candidate senses (by confidence)
@@ -318,11 +351,13 @@ Renders ranked candidate senses, prompts user for resolution.
    - Defer: emit `GlossaryClarificationRequested`, exit with blocked status
 
 **Non-interactive mode**:
+
 - Auto-defer all conflicts
 - Emit `GlossaryClarificationRequested` for all high-severity
 - Exit with error code (generation still blocked)
 
 **Example**:
+
 ```python
 # Interactive prompt
 """
@@ -350,14 +385,17 @@ Select: 1-2 (candidate), C (custom sense), D (defer to async)
 Loads checkpoint from events, restores step execution context.
 
 **Inputs**:
+
 - `retry_token` (from user retry request)
 - Event log (to load `StepCheckpointed` event)
 
 **Outputs**:
+
 - Restored `context` (from checkpoint)
 - Resume from cursor (skip already-completed stages)
 
 **Resume logic**:
+
 1. Load latest `StepCheckpointed` event for this step_id
 2. Verify input_hash matches current inputs
    - If changed: prompt user for confirmation
@@ -367,6 +405,7 @@ Loads checkpoint from events, restores step execution context.
 5. Re-run generation gate with updated state
 
 **Example**:
+
 ```python
 # Load checkpoint
 checkpoint = load_checkpoint(step_id="step-specify-001")
@@ -458,20 +497,24 @@ Generation unblocked (continue execution)
 ## Validation Rules
 
 ### TermSurface
+
 - Must not be empty
 - Must be normalized (lowercase, trimmed)
 - Must be unique per scope
 
 ### TermSense
+
 - Definition must not be empty
 - Confidence must be 0.0-1.0
 - Provenance must have actor_id and timestamp
 
 ### SemanticConflict
+
 - Must have at least 1 candidate sense (for AMBIGUOUS type)
 - Severity must align with confidence (high severity → low confidence)
 
 ### StepCheckpoint
+
 - mission_id, run_id, step_id must not be empty
 - input_hash must be valid SHA256 (64 hex chars)
 - retry_token must be valid UUID

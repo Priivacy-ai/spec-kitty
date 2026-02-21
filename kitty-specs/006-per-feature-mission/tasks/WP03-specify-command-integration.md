@@ -39,6 +39,7 @@ subtasks:
 - Script invocation includes `--mission` flag with selected mission
 
 **Success Metrics** (from spec User Story 1):
+
 - Given description "build a REST API", LLM suggests "software-dev" mission
 - Given description "research best practices", LLM suggests "research" mission
 - Given explicit "use research mission" in description, system uses research without confirmation
@@ -47,16 +48,19 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (User Story 1, FR-008)
 - Plan: `kitty-specs/006-per-feature-mission/plan.md` (Phase 2)
 - Quickstart: `kitty-specs/006-per-feature-mission/quickstart.md` (User workflow)
 
 **Existing Code**:
+
 - `.kittify/missions/software-dev/command-templates/specify.md` - Main prompt template
 - Lines 63-66: Script invocation section
 - Discovery flow ends around line 60 with intent summary confirmation
 
 **Constraints**:
+
 - Mission selection happens AFTER discovery questions, BEFORE script invocation
 - LLM should always confirm mission choice with user (except explicit override)
 - Mission selection is conversational, not a rigid form
@@ -70,6 +74,7 @@ subtasks:
 - **Steps**:
   1. Find the section after Intent Summary confirmation (around line 60-62)
   2. Add new section before script invocation:
+
      ```markdown
      ## Mission Selection
 
@@ -99,6 +104,7 @@ subtasks:
      - `research`: For investigations, literature reviews, analysis
        - Phases: question → methodology → gather → analyze → synthesize → publish
      ```
+
   3. Ensure this section comes AFTER discovery but BEFORE script execution
 - **Parallel?**: No (foundational for T012-T015)
 
@@ -120,16 +126,20 @@ subtasks:
 - **Files**: `.kittify/missions/software-dev/command-templates/specify.md`
 - **Steps**:
   1. The confirmation is part of T011, but clarify the flow:
+
      ```
      Discovery Questions → Intent Summary → [USER CONFIRMS] → Mission Selection → [USER CONFIRMS] → Script Execution
      ```
+
   2. If user doesn't confirm mission, prompt:
+
      ```markdown
      If the user disagrees:
      > "Which mission would you prefer? Available options are:
      > - **software-dev** - for building software features
      > - **research** - for investigations and analysis"
      ```
+
   3. Wait for user response before proceeding
 - **Parallel?**: No (part of T011)
 
@@ -139,16 +149,20 @@ subtasks:
 - **Files**: `.kittify/missions/software-dev/command-templates/specify.md`
 - **Steps**:
   1. Find the script invocation section (lines 63-66):
+
      ```markdown
      2. When discovery is complete..., run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` ...
      ```
+
   2. Update to include mission:
+
      ```markdown
      2. When discovery is complete and the intent summary **and title and mission** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` and `--mission "<selected-mission>"` immediately before the feature description argument. For example:
 
         - **bash/zsh**: `.kittify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" --mission "software-dev" "$ARGUMENTS"`
         - **PowerShell**: `.kittify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" -Mission "software-dev" "$ARGUMENTS"`
      ```
+
   3. Update the variable capture section to include MISSION from the confirmation
 - **Parallel?**: No (depends on T011)
 
@@ -158,11 +172,14 @@ subtasks:
 - **Files**: `.kittify/missions/software-dev/command-templates/specify.md`
 - **Steps**:
   1. Check the frontmatter scripts section:
+
      ```yaml
      scripts:
        sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
      ```
+
   2. Add handling for `--mission` in ARGS:
+
      ```markdown
      ### Mission Override
 
@@ -174,6 +191,7 @@ subtasks:
 
      Example: `/spec-kitty.specify --mission research I want to investigate caching strategies`
      ```
+
   3. The prompt should detect `--mission` in `$ARGUMENTS` and handle accordingly
 - **Parallel?**: No (depends on T011, T014)
 
@@ -183,9 +201,11 @@ subtasks:
 - **Files**: `.kittify/missions/research/command-templates/specify.md`
 - **Steps**:
   1. Check if research mission has its own specify.md:
+
      ```bash
      ls -la .kittify/missions/research/command-templates/
      ```
+
   2. If it exists and differs from software-dev, add the same mission selection section
   3. If it doesn't exist or symlinks to software-dev, no action needed
   4. The mission selection should work the same regardless of which mission's specify.md is used

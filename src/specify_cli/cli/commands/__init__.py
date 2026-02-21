@@ -8,6 +8,7 @@ from . import accept as accept_module
 from . import agent as agent_module
 from . import auth as auth_module
 from . import config_cmd as config_cmd_module
+from . import constitution as constitution_module
 from . import context as context_module
 from . import dashboard as dashboard_module
 from . import glossary as glossary_module
@@ -34,6 +35,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(agent_module.app, name="agent")
     app.command()(config_cmd_module.config)
     app.add_typer(auth_module.app, name="auth", help="Authentication commands")
+    app.add_typer(constitution_module.app, name="constitution")
     app.add_typer(context_module.app, name="context")
     app.command()(dashboard_module.dashboard)
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")

@@ -117,7 +117,8 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Write tests for new functionality.
 - Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
-- Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
+- Use conventional commit messages (`type(scope): summary`), for example `feat(doctrine): add glossary synchronization checks`.
+- Ensure local git hooks pass before pushing (encoding, markdown style, agent-directory guard, commit message linting).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 
 ## Development workflow
@@ -176,6 +177,7 @@ pip install spec-kitty-cli==X.Y.Z
 For larger releases with multiple changes:
 
 1. **Create a release branch**
+
    ```bash
    git checkout -b release/X.Y.Z main
    ```
@@ -188,6 +190,7 @@ For larger releases with multiple changes:
 
 3. **Update CHANGELOG.md**
    - Add a new version section immediately after `## [Unreleased]`:
+
      ```markdown
      ## [X.Y.Z] - YYYY-MM-DD
 
@@ -196,6 +199,7 @@ For larger releases with multiple changes:
      **Short bold summary**:
      - Bullet point details
      ```
+
    - Categories used in this project (with emoji headings):
      - `### ✨ Added` — New features
      - `### 🔧 Improved` — Enhancements to existing features
@@ -206,6 +210,7 @@ For larger releases with multiple changes:
    - Use ISO date format: `YYYY-MM-DD`
 
 4. **Create a pull request**
+
    ```bash
    git push origin release/X.Y.Z
    gh pr create --title "Release X.Y.Z: Brief description" --base main
@@ -217,6 +222,7 @@ For larger releases with multiple changes:
    - Merge the PR (use "Merge commit" strategy, not squash)
 
 6. **Create and push the release tag**
+
    ```bash
    git checkout main && git pull origin main
    git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
@@ -224,19 +230,23 @@ For larger releases with multiple changes:
    ```
 
 7. **Monitor the workflow**
+
    ```bash
    unset GITHUB_TOKEN && gh run list --workflow=release.yml --limit=1
    unset GITHUB_TOKEN && gh run watch <run-id>
    ```
+
    Note: `unset GITHUB_TOKEN` is needed because the env var token may have limited scopes (e.g., only `copilot`). The keyring token has full `repo` scope.
 
 8. **Verify the release**
+
    ```bash
    unset GITHUB_TOKEN && gh release view vX.Y.Z
    pip install spec-kitty-cli==X.Y.Z
    ```
 
 9. **Clean up**
+
    ```bash
    git branch -d release/X.Y.Z
    git push origin --delete release/X.Y.Z
@@ -314,10 +324,12 @@ git push origin vX.Y.Z
 ```
 
 #### Version already exists on PyPI
+
 - You attempted to release a version that's already published
 - Bump to the next version number and retry
 
 #### Changelog validation fails
+
 - Ensure CHANGELOG.md has a section matching the version in pyproject.toml
 - Check the date format is `YYYY-MM-DD`
 - Verify the version number is monotonically increasing

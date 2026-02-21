@@ -48,10 +48,12 @@ Create the first set of checkpoint fixtures for testing:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Fixture structure
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - Standard checkpoints table
 
 **Constraints**:
+
 - Fixtures go in `tests/fixtures/orchestrator/`
 - Each fixture is a directory with state.json, feature/, worktrees.json
 - Keep features minimal (2 WPs, no actual implementation code)
@@ -65,12 +67,15 @@ Create the first set of checkpoint fixtures for testing:
 **Purpose**: Create a reusable minimal feature that all checkpoints will use.
 
 **Steps**:
+
 1. Create base directory:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/base_feature
    ```
 
 2. Create `tests/fixtures/orchestrator/base_feature/spec.md`:
+
    ```markdown
    # Feature Specification: Test Feature
 
@@ -102,6 +107,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 3. Create `tests/fixtures/orchestrator/base_feature/plan.md`:
+
    ```markdown
    # Implementation Plan: Test Feature
 
@@ -113,13 +119,16 @@ Create the first set of checkpoint fixtures for testing:
    ## Project Structure
 
    ```
+
    test_output/
    ├── wp01_output.txt
    └── wp02_output.txt
+
    ```
    ```
 
 4. Create `tests/fixtures/orchestrator/base_feature/meta.json`:
+
    ```json
    {
      "feature_number": "test",
@@ -133,6 +142,7 @@ Create the first set of checkpoint fixtures for testing:
 5. Create task files - see T022 for WP task content
 
 **Files**:
+
 - `tests/fixtures/orchestrator/base_feature/spec.md` (~30 lines)
 - `tests/fixtures/orchestrator/base_feature/plan.md` (~20 lines)
 - `tests/fixtures/orchestrator/base_feature/meta.json`
@@ -146,18 +156,22 @@ Create the first set of checkpoint fixtures for testing:
 **Purpose**: Fixture representing initial state with WPs in planned lane.
 
 **Steps**:
+
 1. Create directory structure:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/checkpoint_wp_created/feature/tasks
    ```
 
 2. Copy base feature files:
+
    ```bash
    cp tests/fixtures/orchestrator/base_feature/* \
       tests/fixtures/orchestrator/checkpoint_wp_created/feature/
    ```
 
 3. Create `tests/fixtures/orchestrator/checkpoint_wp_created/feature/tasks/WP01.md`:
+
    ```markdown
    ---
    work_package_id: "WP01"
@@ -181,6 +195,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 4. Create `tests/fixtures/orchestrator/checkpoint_wp_created/feature/tasks/WP02.md`:
+
    ```markdown
    ---
    work_package_id: "WP02"
@@ -204,6 +219,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 5. Create `tests/fixtures/orchestrator/checkpoint_wp_created/state.json`:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -229,6 +245,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 6. Create `tests/fixtures/orchestrator/checkpoint_wp_created/worktrees.json`:
+
    ```json
    {
      "worktrees": []
@@ -236,6 +253,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_wp_created/feature/tasks/WP01.md`
 - `tests/fixtures/orchestrator/checkpoint_wp_created/feature/tasks/WP02.md`
 - `tests/fixtures/orchestrator/checkpoint_wp_created/state.json`
@@ -250,7 +268,9 @@ Create the first set of checkpoint fixtures for testing:
 **Purpose**: Fixture representing WP01 implemented, awaiting review.
 
 **Steps**:
+
 1. Create directory:
+
    ```bash
    mkdir -p tests/fixtures/orchestrator/checkpoint_wp_implemented/feature/tasks
    ```
@@ -258,6 +278,7 @@ Create the first set of checkpoint fixtures for testing:
 2. Copy base files and update WP01 task to lane: "doing"
 
 3. Create `tests/fixtures/orchestrator/checkpoint_wp_implemented/state.json`:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -286,6 +307,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 4. Create worktrees.json with WP01 worktree:
+
    ```json
    {
      "worktrees": [
@@ -300,6 +322,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_wp_implemented/` (complete directory)
 
 **Parallel?**: Yes - once T021 complete
@@ -311,9 +334,11 @@ Create the first set of checkpoint fixtures for testing:
 **Purpose**: Fixture representing WP01 submitted for review.
 
 **Steps**:
+
 1. Create directory structure similar to T023
 
 2. Update state to show review pending:
+
    ```json
    {
      "run_id": "test-run-001",
@@ -346,6 +371,7 @@ Create the first set of checkpoint fixtures for testing:
 3. Update WP01.md frontmatter to `lane: "for_review"`
 
 **Files**:
+
 - `tests/fixtures/orchestrator/checkpoint_review_pending/` (complete directory)
 
 **Parallel?**: Yes - once T021 complete
@@ -357,7 +383,9 @@ Create the first set of checkpoint fixtures for testing:
 **Purpose**: Allow programmatic discovery of available fixtures.
 
 **Steps**:
+
 1. Create `tests/fixtures/orchestrator/__init__.py`:
+
    ```python
    """Orchestrator test fixtures.
 
@@ -422,6 +450,7 @@ Create the first set of checkpoint fixtures for testing:
    ```
 
 **Files**:
+
 - `tests/fixtures/orchestrator/__init__.py` (~60 lines)
 
 **Parallel?**: No - should be last (references all checkpoints)
@@ -439,6 +468,7 @@ Create the first set of checkpoint fixtures for testing:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] All checkpoint directories exist with required files
 - [ ] state.json matches OrchestrationRun schema
 - [ ] worktrees.json is valid (even if empty)
@@ -447,6 +477,7 @@ Create the first set of checkpoint fixtures for testing:
 - [ ] `list_checkpoints()` returns all available names
 
 **Code Quality**:
+
 - Minimal features (no unnecessary complexity)
 - Consistent structure across checkpoints
 - Clear documentation in manifest

@@ -1,4 +1,5 @@
 """CRDT merge functions for conflict resolution."""
+
 from typing import List, Set, Any
 from .models import Event
 

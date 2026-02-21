@@ -50,10 +50,12 @@ history:
 **This WP depends on WP01** (check frontmatter `dependencies:` field).
 
 Before starting, ensure WP01 is complete and review research findings. This WP requires:
+
 - Command signatures from WP01 research (T001)
 - Exact syntax, flags, defaults, error messages
 
 **Check if WP01 is complete**:
+
 ```bash
 spec-kitty agent tasks status --feature 023-documentation-sprint-agent-management-cleanup
 ```
@@ -63,8 +65,9 @@ Look for WP01 in "done" lane. If not complete, wait for WP01 or coordinate with 
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -73,6 +76,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Document `spec-kitty agent config` command group with all 5 subcommands in CLI reference format.
 
 **Success Criteria**:
+
 - [ ] `docs/reference/cli-commands.md` updated with new `spec-kitty agent config` section
 - [ ] Main command section includes overview and subcommand list
 - [ ] All 5 subcommands documented: `list`, `add`, `remove`, `status`, `sync`
@@ -89,14 +93,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Provide reference documentation for developers and scripters who need precise command syntax. This addresses User Story 3 (FR-006, FR-007).
 
 **Reference Documents**:
+
 - WP01 research findings (T001 - command signatures, flags, defaults, error handling)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-006, FR-007)
 - Existing `docs/reference/cli-commands.md` (for style and format)
 
 **Source Files for Validation** (read-only):
+
 - `src/specify_cli/cli/commands/agent/config.py` (command implementations)
 
 **Writing Style**:
+
 - **Reference format**: Formal, structured, comprehensive
 - **Synopsis**: Exact command syntax with placeholders
 - **Description**: What the command does (brief, 1-2 sentences)
@@ -107,6 +114,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Consistent structure**: Match existing cli-commands.md format
 
 **Constraints**:
+
 - Must match existing CLI reference style exactly
 - T019 sets up main section, T020-T024 can be parallelized (different subcommands)
 - Extract exact syntax from WP01 research (don't invent or summarize)
@@ -125,6 +133,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Insert after existing agent subcommands (or at end of agent section)
 
 2. **Add main command header**:
+
    ```markdown
    ### spec-kitty agent config
 
@@ -136,9 +145,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml` and controls which agent directories are present on the filesystem.
+
    ```
 
 3. **Add subcommand index**:
+
    ```markdown
    **Subcommands**:
 
@@ -152,11 +163,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add cross-reference to how-to guide**:
+
    ```markdown
    **See also**: [Managing AI Agents](../how-to/manage-agents.md) for task-oriented guidance on agent management workflows.
    ```
 
 5. **Add note about config-driven model**:
+
    ```markdown
    > **Note**: Starting in 0.12.0, agent configuration is config-driven. `.kittify/config.yaml` is the single source of truth, and migrations respect your configuration choices. See [Upgrading to 0.12.0](../how-to/upgrade-to-0-11-0.md#upgrading-to-0120) for migration details.
    ```
@@ -166,12 +179,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (must complete before T020-T024)
 
 **Notes**:
+
 - Extract exact usage and description from WP01 research T001
 - Subcommand table provides quick reference
 - Cross-reference establishes link to how-to guide
 - Note about config-driven model provides context
 
 **Validation**:
+
 - [ ] Main section inserted at correct location in cli-commands.md
 - [ ] Usage syntax matches WP01 research
 - [ ] Subcommand table lists all 5 commands
@@ -187,6 +202,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add subcommand header** (use existing CLI reference format):
+
    ```markdown
    #### spec-kitty agent config list
 
@@ -194,14 +210,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Add synopsis**:
+
    ```markdown
    **Synopsis**:
    ```bash
    spec-kitty agent config list
    ```
+
    ```
 
 3. **Add description**:
+
    ```markdown
    **Description**:
 
@@ -209,16 +228,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add arguments** (none for list):
+
    ```markdown
    **Arguments**: None
    ```
 
 5. **Add options** (none for list):
+
    ```markdown
    **Options**: None
    ```
 
 6. **Add output format** (extract from WP01 research T001):
+
    ```markdown
    **Output**:
 
@@ -230,6 +252,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add examples**:
+
    ```markdown
    **Examples**:
 
@@ -239,6 +262,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Example output:
+
    ```
    Configured agents:
      ✓ opencode (.opencode/command/)
@@ -250,6 +274,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - cursor
      ...
    ```
+
    ```
 
 **Files**: `docs/reference/cli-commands.md`
@@ -257,12 +282,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T019, parallel with T021-T024)
 
 **Notes**:
+
 - Extract exact output format from WP01 research T001 (lines 39-76)
 - Follow existing CLI reference structure precisely
 - Include realistic example output
 - Keep under 75 lines
 
 **Validation**:
+
 - [ ] Subcommand documented with header
 - [ ] Synopsis shows exact command
 - [ ] Description explains purpose briefly
@@ -280,6 +307,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add subcommand header**:
+
    ```markdown
    #### spec-kitty agent config add
 
@@ -287,14 +315,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Add synopsis**:
+
    ```markdown
    **Synopsis**:
    ```bash
    spec-kitty agent config add <agent1> [agent2] [agent3] ...
    ```
+
    ```
 
 3. **Add description**:
+
    ```markdown
    **Description**:
 
@@ -302,6 +333,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add arguments**:
+
    ```markdown
    **Arguments**:
 
@@ -309,11 +341,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Add options** (none for add):
+
    ```markdown
    **Options**: None
    ```
 
 6. **Add output format** (extract from WP01 research T001):
+
    ```markdown
    **Output**:
 
@@ -323,6 +357,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add side effects**:
+
    ```markdown
    **Side Effects**:
 
@@ -332,6 +367,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 8. **Add examples**:
+
    ```markdown
    **Examples**:
 
@@ -341,11 +377,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Add multiple agents:
+
    ```bash
    spec-kitty agent config add codex gemini cursor
    ```
 
    Example output:
+
    ```
    ✓ Added .codex/prompts/
    ✓ Added .gemini/commands/
@@ -354,10 +392,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Error handling (invalid key):
+
    ```bash
    spec-kitty agent config add cluade
    ```
+
    Output:
+
    ```
    Error: Invalid agent keys: cluade
 
@@ -365,6 +406,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      claude, codex, gemini, cursor, qwen, opencode,
      windsurf, kilocode, roo, copilot, auggie, q
    ```
+
    ```
 
 **Files**: `docs/reference/cli-commands.md`
@@ -372,12 +414,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T019, parallel with T020, T022-T024)
 
 **Notes**:
+
 - Extract exact behavior from WP01 research T001 (lines 78-157)
 - Document error handling explicitly
 - Show side effects (what changes on filesystem)
 - Include both success and error examples
 
 **Validation**:
+
 - [ ] Synopsis shows command with arguments placeholder
 - [ ] Description explains purpose
 - [ ] Arguments documented with valid keys list
@@ -395,6 +439,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add subcommand header**:
+
    ```markdown
    #### spec-kitty agent config remove
 
@@ -402,14 +447,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Add synopsis**:
+
    ```markdown
    **Synopsis**:
    ```bash
    spec-kitty agent config remove [OPTIONS] <agent1> [agent2] [agent3] ...
    ```
+
    ```
 
 3. **Add description**:
+
    ```markdown
    **Description**:
 
@@ -417,6 +465,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add arguments**:
+
    ```markdown
    **Arguments**:
 
@@ -424,6 +473,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Add options** (extract from WP01 research T001):
+
    ```markdown
    **Options**:
 
@@ -431,6 +481,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Add output format**:
+
    ```markdown
    **Output**:
 
@@ -440,6 +491,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add side effects**:
+
    ```markdown
    **Side Effects**:
 
@@ -450,6 +502,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 8. **Add examples**:
+
    ```markdown
    **Examples**:
 
@@ -459,11 +512,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Remove multiple agents:
+
    ```bash
    spec-kitty agent config remove cursor qwen windsurf
    ```
 
    Example output:
+
    ```
    ✓ Removed .cursor/
    ✓ Removed .qwen/
@@ -472,14 +527,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Keep in config but remove directory:
+
    ```bash
    spec-kitty agent config remove gemini --keep-config
    ```
 
    Restore later with:
+
    ```bash
    spec-kitty agent config sync --create-missing
    ```
+
    ```
 
 **Files**: `docs/reference/cli-commands.md`
@@ -487,12 +545,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T019, parallel with T020-T021, T023-T024)
 
 **Notes**:
+
 - Extract exact behavior from WP01 research T001 (lines 159-228)
 - Emphasize destructive nature (directory deletion)
 - Document `--keep-config` flag use case
 - Show restoration workflow for `--keep-config` case
 
 **Validation**:
+
 - [ ] Synopsis shows OPTIONS placeholder
 - [ ] Description explains purpose
 - [ ] Arguments documented
@@ -510,6 +570,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add subcommand header**:
+
    ```markdown
    #### spec-kitty agent config status
 
@@ -517,14 +578,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Add synopsis**:
+
    ```markdown
    **Synopsis**:
    ```bash
    spec-kitty agent config status
    ```
+
    ```
 
 3. **Add description**:
+
    ```markdown
    **Description**:
 
@@ -532,16 +596,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add arguments** (none):
+
    ```markdown
    **Arguments**: None
    ```
 
 5. **Add options** (none):
+
    ```markdown
    **Options**: None
    ```
 
 6. **Add output format** (extract from WP01 research T001):
+
    ```markdown
    **Output**:
 
@@ -562,6 +629,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add examples**:
+
    ```markdown
    **Examples**:
 
@@ -571,6 +639,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Example output:
+
    ```
    Agent Key  Directory                Configured  Exists  Status
    ──────────────────────────────────────────────────────────────────
@@ -584,6 +653,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ⚠ Found 1 orphaned directory
    Run 'spec-kitty agent config sync --remove-orphaned' to clean up
    ```
+
    ```
 
 **Files**: `docs/reference/cli-commands.md`
@@ -591,12 +661,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T019, parallel with T020-T022, T024)
 
 **Notes**:
+
 - Extract exact table structure from WP01 research T001 (lines 230-295)
 - Document all 4 status values with color indicators
 - Show actionable message for orphaned directories
 - Include realistic table example
 
 **Validation**:
+
 - [ ] Synopsis shows command
 - [ ] Description explains purpose
 - [ ] Arguments section (none)
@@ -615,6 +687,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add subcommand header**:
+
    ```markdown
    #### spec-kitty agent config sync
 
@@ -622,14 +695,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Add synopsis**:
+
    ```markdown
    **Synopsis**:
    ```bash
    spec-kitty agent config sync [OPTIONS]
    ```
+
    ```
 
 3. **Add description**:
+
    ```markdown
    **Description**:
 
@@ -637,11 +713,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Add arguments** (none):
+
    ```markdown
    **Arguments**: None
    ```
 
 5. **Add options** (extract from WP01 research T001):
+
    ```markdown
    **Options**:
 
@@ -652,6 +730,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Add output format**:
+
    ```markdown
    **Output**:
 
@@ -661,6 +740,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add side effects**:
+
    ```markdown
    **Side Effects**:
 
@@ -669,6 +749,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 8. **Add examples**:
+
    ```markdown
    **Examples**:
 
@@ -678,30 +759,36 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Create missing configured agents:
+
    ```bash
    spec-kitty agent config sync --create-missing
    ```
 
    Complete sync (both directions):
+
    ```bash
    spec-kitty agent config sync --create-missing --remove-orphaned
    ```
 
    Keep orphaned directories:
+
    ```bash
    spec-kitty agent config sync --keep-orphaned
    ```
 
    Example output:
+
    ```
    ✓ Created .claude/commands/
    ✓ Removed orphaned .gemini/
    ```
 
    No changes needed:
+
    ```
    No changes needed - filesystem matches config
    ```
+
    ```
 
 **Files**: `docs/reference/cli-commands.md`
@@ -709,12 +796,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T019, parallel with T020-T023)
 
 **Notes**:
+
 - Extract exact behavior from WP01 research T001 (lines 297-380)
 - Clarify default behavior (remove orphaned, NOT create missing)
 - Show flag combinations
 - Include "no changes needed" scenario
 
 **Validation**:
+
 - [ ] Synopsis shows OPTIONS placeholder
 - [ ] Description explains purpose
 - [ ] Arguments section (none)
@@ -754,24 +843,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Format doesn't match existing CLI reference style
+
 - **Mitigation**: Review existing cli-commands.md before writing; copy structure exactly
 - **Detection**: Side-by-side comparison during review
 
 **Risk**: Documented syntax doesn't match actual CLI behavior
+
 - **Mitigation**: Extract exact syntax from WP01 research T001; verify against `--help` output
 - **Validation**: Run commands manually to confirm
 
 **Risk**: Examples too abstract or don't demonstrate key features
+
 - **Mitigation**: Use realistic agent selections (claude, codex common); show error handling
 - **Validation**: Test each example to ensure it works
 
 **Risk**: Content exceeds 500 lines (too verbose for reference)
+
 - **Mitigation**: Keep examples concise; use tables for structured information
 - **Detection**: Check line count after completion
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] All six subtasks (T019-T024) completed
 - [ ] Main section inserted into cli-commands.md
 - [ ] All 5 subcommands documented: list, add, remove, status, sync
@@ -782,6 +876,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Approximately 450 lines total (75 per subcommand + main section)
 
 **Review Focus**:
+
 - **Accuracy**: Does documented syntax match WP01 research and actual CLI behavior?
 - **Completeness**: Are all flags, options, and error conditions documented?
 - **Consistency**: Does format match existing cli-commands.md entries?
@@ -792,6 +887,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -808,6 +904,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T11:06:32Z – claude – shell_pid=28306 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:08:19Z – claude – shell_pid=28306 – lane=for_review – Ready for review: Added complete CLI reference documentation for spec-kitty agent config command group. Documented all 5 subcommands (list, add, remove, status, sync) with synopsis, description, arguments, options, output format, and examples. Added main section with subcommand index and cross-reference to manage-agents how-to guide. 324 lines added following existing CLI reference format.
 - 2026-01-23T11:15:46Z – Claude – shell_pid=38505 – lane=doing – Started review via workflow command

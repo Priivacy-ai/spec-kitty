@@ -1,4 +1,5 @@
 """Core data models for spec-kitty-events library."""
+
 import re
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
@@ -38,25 +39,17 @@ def normalize_event_id(v: object) -> str:
             accepted format.
     """
     if not isinstance(v, str):
-        raise ValueError(
-            f"event_id must be a string; got {type(v).__name__}"
-        )
+        raise ValueError(f"event_id must be a string; got {type(v).__name__}")
     if len(v) == 26:
         if not _CROCKFORD_B32_RE.match(v):
-            raise ValueError(
-                f"26-char event_id must be Crockford base32 (ULID); "
-                f"got invalid characters in {v!r}"
-            )
+            raise ValueError(f"26-char event_id must be Crockford base32 (ULID); got invalid characters in {v!r}")
         return v.upper()
     if len(v) == 36 and _UUID_HYPHEN_RE.match(v):
         return v.lower()
     if len(v) == 32 and _UUID_BARE_RE.match(v):
         h = v.lower()
         return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
-    raise ValueError(
-        f"event_id must be 26 chars (ULID), 36-char UUID, "
-        f"or 32-char hex UUID; got {len(v)} chars"
-    )
+    raise ValueError(f"event_id must be 26 chars (ULID), 36-char UUID, or 32-char hex UUID; got {len(v)} chars")
 
 
 class Event(BaseModel):
@@ -72,33 +65,13 @@ class Event(BaseModel):
         json_schema_extra={"pattern": _EVENT_ID_PATTERN},
     )
     event_type: str = Field(
-        ...,
-        min_length=1,
-        description="Event type identifier (e.g., 'WPStatusChanged', 'TagAdded')"
+        ..., min_length=1, description="Event type identifier (e.g., 'WPStatusChanged', 'TagAdded')"
     )
-    aggregate_id: str = Field(
-        ...,
-        min_length=1,
-        description="Identifier of the entity this event modifies"
-    )
-    payload: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Event-specific data (opaque to library)"
-    )
-    timestamp: datetime = Field(
-        ...,
-        description="Wall-clock timestamp (human-readable, not used for ordering)"
-    )
-    node_id: str = Field(
-        ...,
-        min_length=1,
-        description="Identifier of the node that emitted this event"
-    )
-    lamport_clock: int = Field(
-        ...,
-        ge=0,
-        description="Lamport logical clock value (monotonically increasing)"
-    )
+    aggregate_id: str = Field(..., min_length=1, description="Identifier of the entity this event modifies")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Event-specific data (opaque to library)")
+    timestamp: datetime = Field(..., description="Wall-clock timestamp (human-readable, not used for ordering)")
+    node_id: str = Field(..., min_length=1, description="Identifier of the node that emitted this event")
+    lamport_clock: int = Field(..., ge=0, description="Lamport logical clock value (monotonically increasing)")
     causation_id: Optional[str] = Field(
         None,
         min_length=26,
@@ -136,28 +109,11 @@ class Event(BaseModel):
 class ErrorEntry(BaseModel):
     """Record of a failed action for agent learning."""
 
-    timestamp: datetime = Field(
-        ...,
-        description="When the error occurred (ISO 8601 format)"
-    )
-    action_attempted: str = Field(
-        ...,
-        min_length=1,
-        description="What the agent/user tried to do"
-    )
-    error_message: str = Field(
-        ...,
-        min_length=1,
-        description="Error output or exception message"
-    )
-    resolution: str = Field(
-        default="",
-        description="How the error was resolved (empty if unresolved)"
-    )
-    agent: str = Field(
-        default="unknown",
-        description="Which agent encountered the error"
-    )
+    timestamp: datetime = Field(..., description="When the error occurred (ISO 8601 format)")
+    action_attempted: str = Field(..., min_length=1, description="What the agent/user tried to do")
+    error_message: str = Field(..., min_length=1, description="Error output or exception message")
+    resolution: str = Field(default="", description="How the error was resolved (empty if unresolved)")
+    agent: str = Field(default="unknown", description="Which agent encountered the error")
 
     def __repr__(self) -> str:
         """Human-readable representation."""
@@ -189,19 +145,23 @@ class ConflictResolution:
 # Custom Exceptions
 class SpecKittyEventsError(Exception):
     """Base exception for all library errors."""
+
     pass
 
 
 class StorageError(SpecKittyEventsError):
     """Storage adapter failure."""
+
     pass
 
 
 class ValidationError(SpecKittyEventsError):
     """Event or ErrorEntry validation failed."""
+
     pass
 
 
 class CyclicDependencyError(SpecKittyEventsError):
     """Events form cycle in causation graph."""
+
     pass

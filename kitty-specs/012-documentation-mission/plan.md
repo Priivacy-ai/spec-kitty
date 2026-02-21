@@ -13,6 +13,7 @@ The implementation extends spec-kitty's existing mission architecture by creatin
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase requirement)
 **Primary Dependencies**:
+
 - ruamel.yaml (YAML frontmatter parsing)
 - typer (CLI framework)
 - Rich (console output)
@@ -24,17 +25,20 @@ The implementation extends spec-kitty's existing mission architecture by creatin
 **Target Platform**: macOS, Linux, Windows (CLI tool, cross-platform)
 **Project Type**: Single project (Python library + CLI)
 **Performance Goals**:
+
 - Mission discovery < 100ms
 - Template generation < 2 seconds for 4 Divio types
 - Gap analysis < 5 seconds for typical documentation structures
 
 **Constraints**:
+
 - Must not break existing software-dev and research missions
 - Must follow existing mission architecture patterns
 - Template changes must be version-controlled and testable
 - No external API calls (offline-capable)
 
 **Scale/Scope**:
+
 - 1 new mission type (documentation)
 - 4 Divio type templates (tutorial, how-to, reference, explanation)
 - 3 generator integrations (JSDoc, Sphinx, rustdoc)
@@ -50,6 +54,7 @@ The implementation extends spec-kitty's existing mission architecture by creatin
 **Gate Evaluation**: N/A - This is spec-kitty itself, which is the tool that creates and enforces constitutions for other projects. No constitution checks required.
 
 **Architectural Principles** (from spec-kitty's existing patterns):
+
 - ✅ **Library-First**: New mission logic implemented as library modules, exposed via CLI
 - ✅ **Test-First**: All mission loading, template generation, and validation will have unit tests
 - ✅ **CLI Interface**: Mission management via `spec-kitty` CLI commands
@@ -173,6 +178,7 @@ Define the documentation mission configuration, template structure, and data mod
 ### Data Model
 
 See [data-model.md](data-model.md) for entity definitions including:
+
 - Documentation Mission entity
 - Divio Documentation Type entity
 - Gap Analysis entity
@@ -182,6 +188,7 @@ See [data-model.md](data-model.md) for entity definitions including:
 ### Mission Configuration Design
 
 **mission.yaml structure**:
+
 - name: "Documentation Kitty"
 - domain: "other" (documentation is a new domain)
 - workflow phases: discover → audit → design → generate → validate → publish
@@ -190,6 +197,7 @@ See [data-model.md](data-model.md) for entity definitions including:
 - validation checks: all_divio_types_valid, no_conflicting_generators, templates_populated
 
 **Template hierarchy**:
+
 - Standard templates (spec, plan, tasks) follow software-dev patterns
 - New divio/ subdirectory contains 4 Divio type templates
 - Each Divio template includes:
@@ -199,6 +207,7 @@ See [data-model.md](data-model.md) for entity definitions including:
   - Write the Docs best practice reminders
 
 **Generator configuration templates**:
+
 - `sphinx-conf.py.template` - Parametrized Sphinx configuration
 - `jsdoc.json.template` - JSDoc configuration
 - `rustdoc-config.toml.template` - Cargo.toml snippet for rustdoc
@@ -206,11 +215,13 @@ See [data-model.md](data-model.md) for entity definitions including:
 ### Contracts
 
 **Mission API** (interfaces for mission system):
+
 - Mission loading: Existing `get_mission_by_name()` works unchanged
 - Template access: Use existing `Mission.get_template()` method
 - Phase validation: Implement custom validators.py if needed
 
 **Generator Interfaces** (abstraction for doc generators):
+
 ```python
 class DocGenerator(Protocol):
     def detect(self, project_root: Path) -> bool: ...
@@ -265,6 +276,7 @@ Will be detailed in Phase 2 (tasks.md). High-level work packages:
 **Note**: Phase 2 (work package generation) is handled by the `/spec-kitty.tasks` command, which must be run explicitly after this planning phase completes.
 
 The tasks command will:
+
 1. Read this plan and the specification
 2. Break the work breakdown above into detailed work packages
 3. Generate individual WP prompt files in `tasks/WP*.md`
@@ -278,6 +290,7 @@ The tasks command will:
 After Phase 1 design completes, the following agent context files will be updated:
 
 **Files to update**:
+
 - `.claude/` - Add documentation mission to known missions
 - `.github/prompts/` - Add documentation mission patterns
 - `.gemini/` - Add documentation mission context

@@ -155,25 +155,17 @@ def prompt_conflict_resolution(
                 else:
                     if num_candidates > 0:
                         typer.echo(
-                            f"Error: Please enter a number between 1 and "
-                            f"{num_candidates}, C for custom, or D to defer."
+                            f"Error: Please enter a number between 1 and {num_candidates}, C for custom, or D to defer."
                         )
                     else:
-                        typer.echo(
-                            "Error: No candidates available. Enter C for custom or D to defer."
-                        )
+                        typer.echo("Error: No candidates available. Enter C for custom or D to defer.")
                     continue
 
             # Invalid input
             if num_candidates > 0:
-                typer.echo(
-                    f"Error: Invalid choice '{response}'. "
-                    f"Enter 1-{num_candidates}, C, or D."
-                )
+                typer.echo(f"Error: Invalid choice '{response}'. Enter 1-{num_candidates}, C, or D.")
             else:
-                typer.echo(
-                    f"Error: Invalid choice '{response}'. Enter C or D."
-                )
+                typer.echo(f"Error: Invalid choice '{response}'. Enter C or D.")
 
         except typer.Abort:
             typer.echo("\nAborted by user.")
@@ -192,10 +184,7 @@ def prompt_conflict_resolution_safe(
         (DEFER, None) if non-interactive, otherwise delegates to interactive prompt
     """
     if not is_interactive():
-        typer.echo(
-            f"Non-interactive mode detected: "
-            f"Auto-deferring conflict for '{conflict.term.surface_text}'"
-        )
+        typer.echo(f"Non-interactive mode detected: Auto-deferring conflict for '{conflict.term.surface_text}'")
         return (PromptChoice.DEFER, None)
 
     return prompt_conflict_resolution(conflict)

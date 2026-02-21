@@ -1,4 +1,5 @@
 # Implementation Plan: GitHub Observability Event Metadata
+
 *Path: kitty-specs/033-github-observability-event-metadata/plan.md*
 
 **Branch**: `033-github-observability-event-metadata` | **Date**: 2026-02-07 | **Spec**: [spec.md](spec.md)
@@ -77,6 +78,7 @@ tests/sync/
 **Decision**: Create new `git_metadata.py` in `src/specify_cli/sync/`.
 
 **Rationale**: Separation of concerns:
+
 - `project_identity.py` manages **stable, persisted** identity (UUID, slug, node_id, repo_slug override). Resolved once per session.
 - `git_metadata.py` manages **volatile, per-event** git state (branch, SHA). Resolved per-event with TTL cache.
 
@@ -95,6 +97,7 @@ tests/sync/
 **Decision**: Extract `owner/repo` from `git remote get-url origin`. Parse both SSH and HTTPS formats. Persist override in `ProjectIdentity.repo_slug`.
 
 **Derivation precedence**:
+
 1. Explicit override in `.kittify/config.yaml` → `project.repo_slug`
 2. Auto-derived from `origin` remote URL
 3. `None` (no remote, no override)
@@ -106,6 +109,7 @@ tests/sync/
 **Decision**: Single injection point in `emitter.py::_emit()` at line ~467, right after identity resolution.
 
 **Implementation**:
+
 ```python
 # In _emit(), after identity/team_slug resolution:
 git_meta = self._get_git_metadata()

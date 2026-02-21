@@ -31,7 +31,6 @@ history:
 
 **Issue 3 (medium)**: Runtime strictness override is not exposed on the CLI. The T042 guidance called for a `--strictness` flag on the primitive commands, but no Typer command or CLI entrypoint defines or plumbs such a flag (search for `--strictness` shows only docstrings). Users cannot override strictness at runtime, so the pipeline only honors overrides in tests. Add the flag to the relevant CLI command(s) and pass it through to `execute_with_glossary` / `GlossaryAwarePrimitiveRunner`.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -41,6 +40,7 @@ history:
 **Primary Objective**: Integrate all glossary middleware components into a unified pipeline that attaches to mission primitives via metadata-driven configuration, executes in correct order (extraction → semantic check → generation gate → clarification → resume), handles exceptions gracefully, and emits events at appropriate boundaries.
 
 **Success Criteria**:
+
 1. `GlossaryMiddlewarePipeline` class orchestrates all 5 middleware components in correct order.
 2. Pipeline attaches to mission primitives automatically when `glossary_check: enabled` metadata is present.
 3. Pipeline executes sequentially with proper context passing between middleware layers.
@@ -52,6 +52,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` middleware pipeline architecture: 5-layer sequential execution model
 - `contracts/middleware.md` defines GlossaryMiddleware protocol and pipeline composition
 - `spec.md` FR-015: System MUST attach glossary checks via metadata in mission config files
@@ -59,6 +60,7 @@ history:
 - `data-model.md` defines PrimitiveExecutionContext extensions
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01 provides `glossary/models.py` with base entity classes
 - WP02 provides `glossary/scope.py` with scope management and seed file loading
 - WP03 provides `glossary/extraction.py` with term extraction middleware
@@ -69,6 +71,7 @@ history:
 - WP08 provides `glossary/events.py` with event emission for all canonical events
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - No new external dependencies (all middleware already implemented)
 - Pipeline must be composable and testable in isolation
@@ -85,9 +88,11 @@ history:
 **Purpose**: Add glossary-specific fields to the primitive execution context to enable middleware communication and state tracking.
 
 **Steps**:
+
 1. Locate or create `src/specify_cli/missions/primitives.py`.
 
 2. Extend `PrimitiveExecutionContext` dataclass:
+
    ```python
    from dataclasses import dataclass, field
    from typing import Optional, List
@@ -133,6 +138,7 @@ history:
    ```
 
 3. Add helper method for glossary check enablement:
+
    ```python
    @dataclass
    class PrimitiveExecutionContext:
@@ -163,10 +169,12 @@ history:
 4. Export from `missions/__init__.py`: `PrimitiveExecutionContext`.
 
 **Files**:
+
 - `src/specify_cli/missions/primitives.py` (extend PrimitiveExecutionContext, ~40 lines added)
 - `src/specify_cli/missions/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] `PrimitiveExecutionContext` has all 5 new glossary fields
 - [ ] `extracted_terms` defaults to empty list
 - [ ] `conflicts` defaults to empty list
@@ -176,6 +184,7 @@ history:
 - [ ] `is_glossary_enabled()` returns False when metadata has `glossary_check: disabled`
 
 **Edge Cases**:
+
 - `config` dict is empty: `mission_strictness` returns None
 - `metadata` dict is empty: `step_strictness` returns None, `is_glossary_enabled()` returns True
 - Invalid strictness value in config/metadata: catch ValueError, return None
@@ -189,9 +198,11 @@ history:
 **Purpose**: Create the pipeline orchestrator that composes all middleware components, executes them in order, and handles exception propagation.
 
 **Steps**:
+
 1. Create `src/specify_cli/glossary/pipeline.py`:
 
 2. Implement the base GlossaryMiddleware protocol:
+
    ```python
    from typing import Protocol
    from specify_cli.missions.primitives import PrimitiveExecutionContext
@@ -217,6 +228,7 @@ history:
    ```
 
 3. Implement the pipeline orchestrator:
+
    ```python
    from typing import List
    from specify_cli.glossary.extraction import GlossaryCandidateExtractionMiddleware
@@ -279,6 +291,7 @@ history:
    ```
 
 4. Add factory function for standard pipeline:
+
    ```python
    from pathlib import Path
 
@@ -333,10 +346,12 @@ history:
 5. Export from `glossary/__init__.py`: `GlossaryMiddlewarePipeline`, `create_standard_pipeline`.
 
 **Files**:
+
 - `src/specify_cli/glossary/pipeline.py` (new file, ~120 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] `GlossaryMiddlewarePipeline` accepts list of middleware
 - [ ] Pipeline executes middleware in order (test with 3 mock middleware)
 - [ ] Pipeline skips execution when `is_glossary_enabled()` returns False
@@ -346,6 +361,7 @@ history:
 - [ ] Standard pipeline has correct order: extraction → check → gate → clarification → resume
 
 **Edge Cases**:
+
 - Empty middleware list: pipeline returns context unchanged
 - Middleware raises unexpected exception: wrapped with context, includes middleware class name
 - Context is None: pipeline should validate and raise clear error
@@ -359,9 +375,11 @@ history:
 **Purpose**: Implement the mechanism to attach the glossary pipeline to mission primitives automatically when `glossary_check` metadata is enabled.
 
 **Steps**:
+
 1. Locate mission primitive execution hook in `src/specify_cli/missions/` (exact location depends on mission framework architecture).
 
 2. Create `src/specify_cli/glossary/attachment.py`:
+
    ```python
    from pathlib import Path
    from typing import Callable, Optional
@@ -408,6 +426,7 @@ history:
    ```
 
 3. Integrate with mission primitive executor (location depends on mission framework):
+
    ```python
    # Example integration (adapt to actual mission framework):
    # In src/specify_cli/missions/executor.py or similar
@@ -455,6 +474,7 @@ history:
    ```
 
 4. Add CLI flag for runtime strictness override in primitive commands:
+
    ```python
    # Example: In src/specify_cli/cli/commands/specify.py
 
@@ -481,11 +501,13 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/attachment.py` (new file, ~60 lines)
 - `src/specify_cli/missions/executor.py` (modify to integrate glossary pipeline, ~30 lines)
 - `src/specify_cli/cli/commands/specify.py` (add --strictness flag, ~10 lines per command)
 
 **Validation**:
+
 - [ ] `attach_glossary_pipeline()` returns callable that processes context
 - [ ] When `glossary_check: enabled`, pipeline executes before primitive
 - [ ] When `glossary_check: disabled`, pipeline is skipped
@@ -495,6 +517,7 @@ history:
 - [ ] Pipeline execution time is logged (performance monitoring)
 
 **Edge Cases**:
+
 - Mission config missing glossary section: use defaults (enabled, medium strictness)
 - Invalid --strictness value: typer should reject with validation error
 - Primitive has no metadata: treated as enabled (default behavior)
@@ -508,11 +531,13 @@ history:
 **Purpose**: Write comprehensive integration tests that verify the full end-to-end glossary workflow from term extraction through conflict resolution and resume.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_pipeline_integration.py`:
 
 2. Implement comprehensive integration test scenarios:
 
    **Test: Full happy path (no conflicts)**:
+
    ```python
    import pytest
    from pathlib import Path
@@ -546,6 +571,7 @@ history:
    ```
 
    **Test: Conflict detected and blocked**:
+
    ```python
    def test_pipeline_blocks_on_high_severity_conflict(tmp_path, monkeypatch):
        """Verify generation gate blocks on high-severity unresolved conflict."""
@@ -593,6 +619,7 @@ history:
    ```
 
    **Test: Clarification and resume flow**:
+
    ```python
    def test_pipeline_clarification_and_resume(tmp_path, monkeypatch):
        """Verify full flow: conflict → clarification → resolution → resume."""
@@ -634,6 +661,7 @@ history:
    ```
 
    **Test: Strictness precedence (runtime override)**:
+
    ```python
    def test_pipeline_strictness_precedence(tmp_path):
        """Verify runtime --strictness override takes precedence."""
@@ -668,6 +696,7 @@ history:
    ```
 
    **Test: Pipeline skips when disabled**:
+
    ```python
    def test_pipeline_skips_when_disabled(tmp_path):
        """Verify pipeline skips execution when glossary_check: disabled."""
@@ -693,6 +722,7 @@ history:
    ```
 
 3. Add performance test:
+
    ```python
    import time
 
@@ -721,9 +751,11 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_pipeline_integration.py` (new file, ~400 lines)
 
 **Validation**:
+
 - [ ] Happy path test passes (no conflicts, pipeline executes fully)
 - [ ] Conflict detection test raises BlockedByConflict with correct details
 - [ ] Clarification/resume test verifies full resolution flow
@@ -733,6 +765,7 @@ history:
 - [ ] All tests pass with `pytest tests/specify_cli/glossary/test_pipeline_integration.py -v`
 
 **Edge Cases**:
+
 - Context with 100+ terms: should still execute < 200ms (deterministic extraction)
 - Seed file is malformed YAML: should log warning, skip that scope
 - Event log write fails: should not halt pipeline (log error, continue)
@@ -744,11 +777,13 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in existing test files):
+
 - `test_primitives.py`: Test PrimitiveExecutionContext extensions (properties, helpers)
 - `test_pipeline.py`: Test GlossaryMiddlewarePipeline orchestration (mock middleware)
 - `test_attachment.py`: Test metadata-driven attachment logic
 
 **Integration Tests** (in `test_pipeline_integration.py`):
+
 - Full pipeline: extraction → check → gate → clarification → resume
 - Conflict scenarios: no conflicts, low/medium/high severity, multiple conflicts
 - Strictness modes: off, medium, max with various conflict types
@@ -756,6 +791,7 @@ history:
 - Performance: < 200ms for typical step
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/glossary/test_pipeline.py -v
@@ -795,6 +831,7 @@ python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary/p
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Pipeline orchestration is correct**:
    - Middleware executes in order: extraction → check → gate → clarification → resume
    - Context flows correctly between layers (each middleware receives output of previous)

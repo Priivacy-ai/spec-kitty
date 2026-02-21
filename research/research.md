@@ -13,6 +13,7 @@ This research investigated the headless CLI capabilities of 12 AI coding agents 
 **Key Finding**: **9 of 12 agents (75%)** have native CLI support suitable for autonomous orchestration. This significantly exceeds the quality gate requirement of 6+ agents (QG-001) and provides substantial redundancy and choice for users.
 
 **Primary Recommendation**: **Autonomous multi-agent orchestration is fully feasible.** The research identified 8 Tier-1 agents that can be used immediately without workarounds, plus 1 Tier-2 agent (Cursor) with a documented workaround. This provides a robust foundation for implementing an orchestrator that can:
+
 - Assign work packages to agents based on user preferences
 - Execute implementation and review tasks in parallel
 - Detect completion via exit codes and JSON output
@@ -191,18 +192,21 @@ The orchestrator should be implemented as a Python component within spec-kitty u
 ### Minimal Implementation Path
 
 Phase 1 (MVP):
+
 - Single-threaded sequential execution
 - One agent for implementation, one for review
 - Exit code completion detection only
 - `fail` fallback strategy
 
 Phase 2 (Enhanced):
+
 - Parallel execution for independent WPs
 - JSON output parsing
 - Rate limit tracking
 - `next_in_list` fallback strategy
 
 Phase 3 (Production):
+
 - Full agent health tracking
 - Queue strategy for rate limits
 - Metrics and reporting
@@ -363,6 +367,7 @@ timeout 300 cursor agent -p --force --output-format json "$(cat tasks/WP01.md)"
 ## Source Index
 
 ### Official Documentation
+
 - [Claude Code CLI](https://code.claude.com/docs/en/headless)
 - [GitHub Copilot CLI](https://github.com/github/copilot-cli)
 - [Google Gemini CLI](https://developers.google.com/gemini-code-assist/docs/gemini-cli)
@@ -377,6 +382,7 @@ timeout 300 cursor agent -p --force --output-format json "$(cat tasks/WP01.md)"
 - [Windsurf](https://docs.windsurf.com)
 
 ### GitHub Repositories
+
 - [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
 - [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code)
 - [opencode-ai/opencode](https://github.com/opencode-ai/opencode)
@@ -385,6 +391,7 @@ timeout 300 cursor agent -p --force --output-format json "$(cat tasks/WP01.md)"
 - [RooCodeInc/Roo-Code](https://github.com/RooCodeInc/Roo-Code)
 
 ### Package Registries
+
 - npm: `@anthropic-ai/claude-code`
 - npm: `@github/copilot-cli`
 - npm: `@google/gemini-cli`

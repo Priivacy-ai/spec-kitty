@@ -3,6 +3,7 @@
 This directory contains information-oriented reference documentation for Spec Kitty.
 
 Reference docs are:
+
 - Technical descriptions of the system
 - Accurate and complete
 - Structured consistently

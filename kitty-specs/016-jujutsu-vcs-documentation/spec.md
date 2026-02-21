@@ -131,6 +131,7 @@ The documentation team needs the GitHub Pages deployment to work correctly with 
 ### Functional Requirements
 
 **Integration into Existing Docs**
+
 - **FR-001**: Getting Started tutorial MUST mention jj preference and installation recommendation
 - **FR-002**: `spec-kitty init` how-to MUST document jj detection and `--vcs` flag
 - **FR-003**: `spec-kitty implement` reference MUST explain VCS abstraction (jj workspace vs git worktree)
@@ -138,6 +139,7 @@ The documentation team needs the GitHub Pages deployment to work correctly with 
 - **FR-005**: File structure reference MUST document `.jj/` alongside `.git/` in colocated mode
 
 **New Dedicated Content**
+
 - **FR-006**: Documentation MUST include a jj workflow tutorial (getting started with jj in spec-kitty)
 - **FR-007**: Documentation MUST include how-to for syncing workspaces (`spec-kitty sync`)
 - **FR-008**: Documentation MUST include how-to for handling non-blocking conflicts
@@ -148,6 +150,7 @@ The documentation team needs the GitHub Pages deployment to work correctly with 
 - **FR-013**: Documentation MUST include explanation of auto-rebase and non-blocking conflicts
 
 **Technical Requirements**
+
 - **FR-014**: All new pages MUST follow Divio 4-type classification
 - **FR-015**: All new pages MUST have appropriate cross-references to related content
 - **FR-016**: DocFX build MUST complete without errors
@@ -155,6 +158,7 @@ The documentation team needs the GitHub Pages deployment to work correctly with 
 - **FR-018**: Table of contents (toc.yml) MUST include all new pages
 
 **Accuracy Requirements**
+
 - **FR-019**: All command documentation MUST match actual CLI behavior (verified against `--help`)
 - **FR-020**: All jj-specific behavior MUST be accurate for jj 0.20+
 - **FR-021**: Examples MUST be tested and working

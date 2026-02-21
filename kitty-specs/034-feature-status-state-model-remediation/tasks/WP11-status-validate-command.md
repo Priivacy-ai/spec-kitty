@@ -33,6 +33,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -48,6 +49,7 @@ history:
 **Without validation, the canonical model is advisory only.** Validation turns it into an enforceable contract that CI can gate on.
 
 **Success Criteria**:
+
 1. `status validate` detects ALL categories of violations: schema errors, illegal transitions, missing evidence, materialization drift, and derived-view drift.
 2. Each violation includes the specific event_id and human-readable context.
 3. Exit code 0 for pass, exit code 1 for failures (CI-friendly).
@@ -58,6 +60,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` User Story 6 defines the validation scenarios.
 - `plan.md` AD-5 specifies phase behavior: Phase 1 drift is warning, Phase 2 drift is error.
 - `data-model.md` StatusEvent validation rules define the schema checks.
@@ -65,11 +68,13 @@ history:
 - `contracts/transition-matrix.json` defines legal transitions (reference for T054).
 
 **Dependency Artifacts Available**:
+
 - WP03 provides `status/reducer.py` with `reduce()` and `materialize()` for drift detection.
 - WP06 provides `status/legacy_bridge.py` for view comparison.
 - WP04 provides `status/phase.py` with `resolve_phase()` for phase-aware behavior.
 
 **Constraints**:
+
 - The validation engine should be a library module (`status/validate.py`), not tightly coupled to the CLI.
 - Each validation check is a separate function returning a list of findings.
 - The CLI command aggregates all findings and formats the output.
@@ -84,8 +89,10 @@ history:
 **Purpose**: Build the foundational validation framework with the `ValidationResult` dataclass and event schema validator.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/validate.py`.
 2. Define the result dataclass:
+
    ```python
    from dataclasses import dataclass, field
 
@@ -100,7 +107,9 @@ history:
        def passed(self) -> bool:
            return len(self.errors) == 0
    ```
+
 3. Implement `validate_event_schema(event: dict) -> list[str]`:
+
    ```python
    def validate_event_schema(event: dict) -> list[str]:
        """Validate a single event dict against the StatusEvent schema.
@@ -149,7 +158,9 @@ history:
 
        return findings
    ```
+
 4. Implement the ULID format helper:
+
    ```python
    import re
    _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
@@ -157,6 +168,7 @@ history:
    def _is_valid_ulid(value: str) -> bool:
        return bool(_ULID_PATTERN.match(value))
    ```
+
 5. Export from `status/__init__.py`: `validate_event_schema`, `ValidationResult`.
 
 **Files**: `src/specify_cli/status/validate.py`
@@ -164,6 +176,7 @@ history:
 **Validation**: Test with valid event dicts and various malformed events.
 
 **Edge Cases**:
+
 - Event with extra unknown fields: should NOT be flagged (forward-compatible).
 - Event with `from_lane: "doing"` (alias): SHOULD be flagged as non-canonical.
 - Event with `null` event_id: caught by required field check.
@@ -173,7 +186,9 @@ history:
 **Purpose**: Replay all events and check that each transition is legal according to the transition matrix.
 
 **Steps**:
+
 1. Implement `validate_transition_legality(events: list[dict]) -> list[str]`:
+
    ```python
    def validate_transition_legality(events: list[dict]) -> list[str]:
        """Replay events in order and check each transition is legal.
@@ -201,17 +216,20 @@ history:
 
        return findings
    ```
+
 2. Sort events by (at, event_id) before checking, to ensure correct replay order.
 3. Do NOT check state consistency (i.e., whether the from_lane matches the expected current state). That is the reducer's job. This function checks each event independently against the matrix.
 
 **Files**: `src/specify_cli/status/validate.py`
 
 **Validation**:
+
 - Test: all legal transitions produce zero findings.
 - Test: `planned -> done` (illegal without force) produces a finding.
 - Test: forced `planned -> done` does NOT produce a finding.
 
 **Edge Cases**:
+
 - Events out of timestamp order: sort before checking.
 - Missing from_lane or to_lane: caught by schema validator (T053), not duplicated here.
 
@@ -220,7 +238,9 @@ history:
 **Purpose**: Check that every event transitioning to `done` has proper evidence or is force-flagged.
 
 **Steps**:
+
 1. Implement `validate_done_evidence(events: list[dict]) -> list[str]`:
+
    ```python
    def validate_done_evidence(events: list[dict]) -> list[str]:
        """Check all done-transitions have evidence or force flag."""
@@ -261,12 +281,14 @@ history:
 **Files**: `src/specify_cli/status/validate.py`
 
 **Validation**:
+
 - Test: event to done with full evidence -> no findings.
 - Test: event to done without evidence, not forced -> finding reported.
 - Test: event to done with force, no evidence -> no findings.
 - Test: event to done with evidence missing reviewer -> finding reported.
 
 **Edge Cases**:
+
 - Evidence is present but has unexpected structure (e.g., `evidence: "string"` instead of dict): caught by isinstance check.
 - Evidence with extra fields: no finding (forward-compatible).
 
@@ -275,7 +297,9 @@ history:
 **Purpose**: Compare the `status.json` file on disk with what the reducer would produce from the event log.
 
 **Steps**:
+
 1. Implement `validate_materialization_drift(feature_dir: Path) -> list[str]`:
+
    ```python
    def validate_materialization_drift(feature_dir: Path) -> list[str]:
        """Compare status.json on disk vs reducer output."""
@@ -325,12 +349,14 @@ history:
 **Files**: `src/specify_cli/status/validate.py`
 
 **Validation**:
+
 - Test: status.json matches reducer output -> no findings.
 - Test: status.json differs from reducer output -> drift reported.
 - Test: events exist but no status.json -> finding reported.
 - Test: status.json exists but no events -> finding reported.
 
 **Edge Cases**:
+
 - status.json has different indentation but same content: the deterministic serialization (sort_keys, indent=2) normalizes this.
 - Empty event log (zero events): reducer should produce an empty snapshot; status.json should match.
 
@@ -339,7 +365,9 @@ history:
 **Purpose**: Compare WP frontmatter lane values against the canonical status snapshot.
 
 **Steps**:
+
 1. Implement `validate_derived_views(feature_dir: Path, snapshot: dict, phase: int) -> list[str]`:
+
    ```python
    def validate_derived_views(
        feature_dir: Path,
@@ -396,11 +424,13 @@ history:
 
        return findings
    ```
+
 2. The `phase` parameter determines severity: Phase 1 warnings are informational; Phase 2 errors are blocking.
 
 **Files**: `src/specify_cli/status/validate.py`
 
 **Validation**:
+
 - Test: frontmatter matches snapshot -> no findings.
 - Test: frontmatter diverges from snapshot, Phase 1 -> WARNING finding.
 - Test: frontmatter diverges from snapshot, Phase 2 -> ERROR finding.
@@ -408,6 +438,7 @@ history:
 - Test: WP file missing -> finding about missing file.
 
 **Edge Cases**:
+
 - WP file with malformed frontmatter (no YAML block): lane_match returns None, finding reported.
 - Snapshot has WPs not in tasks/ directory: these are reported as missing.
 - tasks/ has WPs not in snapshot: not checked here (that would be an orphan check for doctor).
@@ -417,7 +448,9 @@ history:
 **Purpose**: Create the CLI command that runs all validation checks and reports results.
 
 **Steps**:
+
 1. Add the `validate` command to `src/specify_cli/cli/commands/agent/status.py`:
+
    ```python
    @app.command()
    def validate(
@@ -475,7 +508,9 @@ history:
 
        raise typer.Exit(0 if result.passed else 1)
    ```
+
 2. Output format (non-JSON):
+
    ```
    Status Validation: 034-test-feature (Phase 1)
    -----------------------------------------------
@@ -486,7 +521,9 @@ history:
      - Materialization drift: status.json does not match reducer output
    Result: FAIL
    ```
+
 3. Output format (JSON):
+
    ```json
    {
      "feature_slug": "034-test-feature",
@@ -499,6 +536,7 @@ history:
      "warning_count": 1
    }
    ```
+
 4. Create tests in `tests/specify_cli/cli/commands/test_status_validate.py` or extend `test_status_cli.py`:
 
    **test_validate_clean_feature**: valid log, matching snapshot -> exit 0, no errors.
@@ -514,23 +552,28 @@ history:
 **Validation**: All tests pass. Validation engine coverage reaches 90%+.
 
 **Edge Cases**:
+
 - Feature with no events file: should not error (nothing to validate), exit 0.
 - Feature with events but no WP files: schema validation runs, derived view drift reports missing files.
 
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/status/test_validate.py`):
+
 - Test each validation function independently with crafted event dicts.
 - Test ValidationResult.passed property.
 
 **CLI Tests** (in `tests/specify_cli/cli/commands/test_status_validate.py`):
+
 - Use CliRunner to invoke the validate command.
 - Verify exit codes and output format.
 
 **Integration Tests** (in `tests/integration/`):
+
 - Full pipeline: emit events, introduce violations, run validate, verify detection.
 
 **Running Tests**:
+
 ```bash
 python -m pytest tests/specify_cli/status/test_validate.py -x -q
 python -m pytest tests/specify_cli/cli/commands/test_status_validate.py -x -q
@@ -549,6 +592,7 @@ python -m pytest tests/specify_cli/cli/commands/test_status_validate.py -x -q
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **All violation categories covered**: schema, transitions, evidence, materialization drift, derived-view drift.
 2. **Phase-aware severity**: Phase 1 drift is WARNING, Phase 2 is ERROR. Verify the conditional logic.
 3. **Exit codes**: 0 for pass (no errors), 1 for fail (any errors). Warnings do not cause failure.

@@ -1,4 +1,5 @@
 # Implementation Plan: ~/.kittify Runtime Centralization
+
 *Path: kitty-specs/036-kittify-runtime-centralization/plan.md*
 
 **Branch**: `2.x` (backport to `main`) | **Date**: 2026-02-09 | **Spec**: [spec.md](spec.md)
@@ -101,6 +102,7 @@ tests/
 ### D1: New `runtime/` Subpackage (not modifying existing modules)
 
 The global runtime logic lives in a new `src/specify_cli/runtime/` subpackage rather than being scattered across existing modules. This provides:
+
 - Clean import boundary: `from specify_cli.runtime import get_kittify_home, ensure_runtime`
 - Single responsibility: all global runtime concerns in one place
 - Testable in isolation without mocking CLI commands
@@ -111,6 +113,7 @@ Unix: `fcntl.flock(fd, LOCK_EX)` — advisory lock on `~/.kittify/cache/.update.
 Windows: `msvcrt.locking(fd, LK_LOCK, 1)` — mandatory lock
 
 Lock acquisition behavior:
+
 - Try non-blocking first (`LOCK_NB`)
 - If blocked: wait for exclusive lock (another process is updating)
 - After acquiring lock: double-check `version.lock` (another process may have completed)
@@ -123,6 +126,7 @@ The existing `Mission.get_command_template()` in `mission.py` and template resol
 ### D4: Migration Command Architecture
 
 `spec-kitty migrate` uses the existing `MigrationRegistry` pattern but is a separate CLI command (not an auto-migration). It:
+
 1. Scans `.kittify/` for shared asset files
 2. Compares each against `~/.kittify/` global version (byte comparison via `filecmp.cmp`)
 3. Classifies: identical (remove), customized (move to overrides), project-specific (keep)
@@ -132,6 +136,7 @@ The existing `Mission.get_command_template()` in `mission.py` and template resol
 ### D5: Init Refactor Scope
 
 The existing `init.py` is ~900 lines. Phase 1A modifies the template copying section only:
+
 - Skip copying missions, templates, commands, scripts, AGENTS.md
 - Create only: `.kittify/config.yaml`, `.kittify/metadata.yaml`, `.kittify/memory/constitution.md`
 - Agent directory generation still happens (via `generate_agent_assets`)

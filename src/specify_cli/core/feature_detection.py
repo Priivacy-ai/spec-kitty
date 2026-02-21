@@ -37,6 +37,7 @@ from typing import Literal, Mapping, Optional
 
 class FeatureDetectionError(Exception):
     """Base exception for feature detection failures."""
+
     pass
 
 
@@ -50,6 +51,7 @@ class MultipleFeaturesError(FeatureDetectionError):
 
 class NoFeatureFoundError(FeatureDetectionError):
     """Raised when no feature can be detected."""
+
     pass
 
 
@@ -69,6 +71,7 @@ class FeatureContext:
         directory: Path to feature directory (e.g., Path("kitty-specs/020-my-feature"))
         detection_method: How feature was detected (e.g., "git_branch", "env_var", "explicit")
     """
+
     slug: str
     number: str
     name: str
@@ -90,11 +93,10 @@ class FeatureContext:
         Raises:
             FeatureDetectionError: If slug format is invalid
         """
-        match = re.match(r'^(\d{3})-(.+)$', slug)
+        match = re.match(r"^(\d{3})-(.+)$", slug)
         if not match:
             raise FeatureDetectionError(
-                f"Invalid feature slug format: {slug}\n"
-                f"Expected format: ###-feature-name (e.g., 020-my-feature)"
+                f"Invalid feature slug format: {slug}\nExpected format: ###-feature-name (e.g., 020-my-feature)"
             )
 
         number = match.group(1)
@@ -156,7 +158,7 @@ def _list_all_features(repo_root: Path) -> list[str]:
 
     features = []
     for path in kitty_specs_dir.iterdir():
-        if path.is_dir() and re.match(r'^\d{3}-', path.name):
+        if path.is_dir() and re.match(r"^\d{3}-", path.name):
             features.append(path.name)
 
     return sorted(features)
@@ -186,13 +188,13 @@ def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
         # Pattern 1: Worktree branch (###-feature-name-WP##)
         # Check this FIRST - more specific pattern
         # Extract feature slug by removing -WP## suffix
-        match = re.match(r'^((\d{3})-.+)-WP\d{2}$', branch)
+        match = re.match(r"^((\d{3})-.+)-WP\d{2}$", branch)
         if match:
             feature_slug = match.group(1)
             return feature_slug
 
         # Pattern 2: Feature branch (###-feature-name)
-        match = re.match(r'^(\d{3})-.+$', branch)
+        match = re.match(r"^(\d{3})-.+$", branch)
         if match:
             return branch
 
@@ -229,8 +231,8 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> Optional[str]:
                 idx = parts.index(".worktrees")
                 candidate = parts[idx + 1]
                 # Strip -WP## suffix if present
-                candidate = re.sub(r'-WP\d{2}$', '', candidate)
-                if re.match(r'^\d{3}-.+$', candidate):
+                candidate = re.sub(r"-WP\d{2}$", "", candidate)
+                if re.match(r"^\d{3}-.+$", candidate):
                     return candidate
             except (ValueError, IndexError):
                 pass
@@ -243,13 +245,13 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> Optional[str]:
             try:
                 idx = parts.index("kitty-specs")
                 candidate = parts[idx + 1]
-                if re.match(r'^\d{3}-.+$', candidate):
+                if re.match(r"^\d{3}-.+$", candidate):
                     return candidate
             except (ValueError, IndexError):
                 pass
 
         # Check if current directory itself matches pattern
-        if re.match(r'^\d{3}-.+$', parent.name):
+        if re.match(r"^\d{3}-.+$", parent.name):
             return parent.name
 
     return None
@@ -334,7 +336,7 @@ def find_latest_incomplete_feature(repo_root: Path) -> Optional[str]:
 
     # Extract numbers and find highest
     def extract_num(s: str) -> int:
-        m = re.match(r'^(\d{3})-', s)
+        m = re.match(r"^(\d{3})-", s)
         return int(m.group(1)) if m else 0
 
     return max(incomplete, key=extract_num)
@@ -417,12 +419,12 @@ def detect_feature(
         detection_method = "env_var"
 
     # Priority 3: Git branch name
-    elif (branch_slug := _detect_from_git_branch(repo_root)):
+    elif branch_slug := _detect_from_git_branch(repo_root):
         detected_slug = branch_slug
         detection_method = "git_branch"
 
     # Priority 4: Current directory path
-    elif (cwd_slug := _detect_from_cwd(cwd, repo_root)):
+    elif cwd_slug := _detect_from_cwd(cwd, repo_root):
         detected_slug = cwd_slug
         detection_method = "cwd_path"
 
@@ -442,6 +444,7 @@ def detect_feature(
                     if announce_fallback:
                         try:
                             from rich.console import Console
+
                             console = Console()
                             console.print(f"[yellow]ℹ️  Auto-selected latest incomplete: {latest}[/yellow]")
                         except ImportError:
@@ -455,10 +458,7 @@ def detect_feature(
                 # Check if all features are complete
                 main_repo_root = _get_main_repo_root(repo_root)
                 kitty_specs_dir = main_repo_root / "kitty-specs"
-                all_complete = all(
-                    is_feature_complete(kitty_specs_dir / slug)
-                    for slug in all_features
-                )
+                all_complete = all(is_feature_complete(kitty_specs_dir / slug) for slug in all_features)
 
                 if all_complete:
                     error_msg = (
@@ -510,10 +510,9 @@ def detect_feature(
         return None
 
     # Validate slug format FIRST (before checking if directory exists)
-    if not re.match(r'^\d{3}-.+$', detected_slug):
+    if not re.match(r"^\d{3}-.+$", detected_slug):
         error_msg = (
-            f"Invalid feature slug format: {detected_slug}\n"
-            f"Expected format: ###-feature-name (e.g., 020-my-feature)"
+            f"Invalid feature slug format: {detected_slug}\nExpected format: ###-feature-name (e.g., 020-my-feature)"
         )
         if mode == "strict":
             raise FeatureDetectionError(error_msg)

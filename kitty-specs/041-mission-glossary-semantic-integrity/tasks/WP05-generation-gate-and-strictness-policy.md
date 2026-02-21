@@ -29,7 +29,6 @@ history:
 
 **Issue 2**: Unknown severities are not treated as HIGH and can crash categorization. In `src/specify_cli/glossary/strictness.py:149-159` and `:162-207`, the code assumes all conflicts use `Severity` enum. A conflict with an unexpected/unknown severity would be treated as non-blocking in MEDIUM mode and would raise `KeyError` in `categorize_conflicts`, contrary to the spec's edge-case guidance to treat unknown severities as HIGH for safety. Add a fallback that maps unrecognized severities to `Severity.HIGH` (and buckets them accordingly) so MEDIUM blocks and categorization stays stable.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -39,6 +38,7 @@ history:
 **Primary Objective**: Implement the generation gate middleware that blocks LLM generation on unresolved high-severity semantic conflicts, with a configurable strictness policy system supporting three modes (off/medium/max) and four-tier precedence resolution (global → mission → step → runtime override).
 
 **Success Criteria**:
+
 1. `off` strictness mode allows all generation to proceed without any glossary checks or blocking.
 2. `medium` strictness mode warns on low/medium conflicts but ONLY blocks on high-severity unresolved conflicts.
 3. `max` strictness mode blocks generation on ANY unresolved conflict regardless of severity.
@@ -50,6 +50,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` FR-004: System MUST block LLM generation on unresolved high-severity conflicts in medium and max strictness modes
 - `spec.md` FR-005: System MUST support 3 strictness modes (off/medium/max)
 - `spec.md` FR-006: System MUST apply strictness precedence: global → mission → primitive/step → runtime
@@ -58,11 +59,13 @@ history:
 - `contracts/events.md` GenerationBlockedBySemanticConflict event schema
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01 provides `glossary/models.py` with SemanticConflict, Severity enums
 - WP04 provides `glossary/conflict.py` with conflict detection and severity scoring
 - WP04 provides `glossary/middleware.py` with SemanticCheckMiddleware that populates `context.conflicts`
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - No new external dependencies (strictness is pure Python enum + precedence logic)
 - Gate must raise `BlockedByConflict` exception to halt the middleware pipeline
@@ -79,9 +82,11 @@ history:
 **Purpose**: Build the core strictness policy system with enum definitions and four-tier precedence resolution logic.
 
 **Steps**:
+
 1. Create `src/specify_cli/glossary/strictness.py`.
 
 2. Define the Strictness enum:
+
    ```python
    from enum import StrEnum
 
@@ -93,6 +98,7 @@ history:
    ```
 
 3. Implement precedence resolution function:
+
    ```python
    def resolve_strictness(
        global_default: Strictness = Strictness.MEDIUM,
@@ -122,6 +128,7 @@ history:
    ```
 
 4. Add helper for loading strictness from config:
+
    ```python
    from pathlib import Path
    import ruamel.yaml
@@ -151,10 +158,12 @@ history:
 5. Export from `glossary/__init__.py`: `Strictness`, `resolve_strictness`, `load_global_strictness`.
 
 **Files**:
+
 - `src/specify_cli/glossary/strictness.py` (new file, ~80 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] `Strictness` enum has exactly 3 values: OFF, MEDIUM, MAX
 - [ ] `resolve_strictness()` with all None returns `Strictness.MEDIUM`
 - [ ] Runtime override takes precedence over all others
@@ -164,6 +173,7 @@ history:
 - [ ] `load_global_strictness()` correctly parses valid config value
 
 **Edge Cases**:
+
 - All overrides are None: returns global_default
 - Config file is malformed YAML: catch exception, return MEDIUM (fail-safe)
 - Config has glossary section but no strictness key: return MEDIUM
@@ -177,7 +187,9 @@ history:
 **Purpose**: Implement the core blocking logic that determines whether generation should proceed based on strictness mode and conflict severity.
 
 **Steps**:
+
 1. Add the `should_block()` function to `strictness.py`:
+
    ```python
    from specify_cli.glossary.models import SemanticConflict, Severity
 
@@ -210,6 +222,7 @@ history:
    ```
 
 2. Add helper to categorize conflicts by severity:
+
    ```python
    def categorize_conflicts(
        conflicts: list[SemanticConflict],
@@ -238,10 +251,12 @@ history:
    - Test precedence resolution with all 16 combinations (4 levels × 4 options)
 
 **Files**:
+
 - `src/specify_cli/glossary/strictness.py` (add ~50 lines)
 - `tests/specify_cli/glossary/test_strictness.py` (new file, ~200 lines)
 
 **Validation**:
+
 - [ ] OFF mode never blocks (0 conflicts → False, high-severity conflicts → False)
 - [ ] MEDIUM mode blocks only on high-severity (low → False, medium → False, high → True)
 - [ ] MAX mode blocks on any conflict (low → True, medium → True, high → True)
@@ -251,6 +266,7 @@ history:
 - [ ] All tests pass with >90% coverage on strictness.py
 
 **Edge Cases**:
+
 - Single high-severity conflict in MEDIUM: blocks
 - 100 low-severity conflicts in MEDIUM: does not block
 - Single low-severity conflict in MAX: blocks
@@ -264,7 +280,9 @@ history:
 **Purpose**: Create the middleware component that integrates strictness policy, conflict evaluation, and event emission into the mission primitive pipeline.
 
 **Steps**:
+
 1. Add `GenerationGateMiddleware` class to `src/specify_cli/glossary/middleware.py`:
+
    ```python
    from specify_cli.glossary.strictness import (
        resolve_strictness,
@@ -367,6 +385,7 @@ history:
    ```
 
 2. Add `BlockedByConflict` exception to `models.py`:
+
    ```python
    class BlockedByConflict(Exception):
        """Raised when generation gate blocks due to unresolved conflicts."""
@@ -383,6 +402,7 @@ history:
    ```
 
 3. Add `emit_generation_blocked_event()` stub to `events.py`:
+
    ```python
    def emit_generation_blocked_event(
        step_id: str,
@@ -405,11 +425,13 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/middleware.py` (add ~100 lines)
 - `src/specify_cli/glossary/models.py` (add BlockedByConflict exception, ~15 lines)
 - `src/specify_cli/glossary/events.py` (add stub, ~15 lines)
 
 **Validation**:
+
 - [ ] Middleware initializes with repo_root and runtime_override
 - [ ] `process()` correctly resolves effective strictness from all four precedence levels
 - [ ] `process()` stores `effective_strictness` in context for downstream observability
@@ -419,6 +441,7 @@ history:
 - [ ] Error message includes conflict count and severity breakdown
 
 **Edge Cases**:
+
 - `repo_root` is None: use MEDIUM as global default (no config loading)
 - Context has no conflicts: always returns context (never blocks)
 - Context has conflicts but strictness is OFF: returns context (never blocks)
@@ -432,9 +455,11 @@ history:
 **Purpose**: Write comprehensive integration tests that verify the full generation gate pipeline with realistic primitive execution contexts.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_generation_gate.py`:
 
 2. Implement test fixtures:
+
    ```python
    import pytest
    from pathlib import Path
@@ -487,6 +512,7 @@ history:
 3. Write comprehensive test cases covering all combinations:
 
    **Test: OFF mode never blocks**:
+
    ```python
    def test_off_mode_never_blocks(mock_context, high_severity_conflict):
        """OFF strictness allows generation even with high-severity conflicts."""
@@ -501,6 +527,7 @@ history:
    ```
 
    **Test: MEDIUM blocks only high-severity**:
+
    ```python
    def test_medium_blocks_high_severity(mock_context, high_severity_conflict):
        """MEDIUM strictness blocks on high-severity conflicts."""
@@ -525,6 +552,7 @@ history:
    ```
 
    **Test: MAX blocks any conflict**:
+
    ```python
    def test_max_blocks_any_conflict(mock_context, low_severity_conflict):
        """MAX strictness blocks even on low-severity conflicts."""
@@ -536,6 +564,7 @@ history:
    ```
 
    **Test: Precedence resolution**:
+
    ```python
    def test_runtime_override_takes_precedence(mock_context):
        """Runtime override beats all other strictness settings."""
@@ -560,6 +589,7 @@ history:
    ```
 
    **Test: Event emission before blocking**:
+
    ```python
    def test_event_emitted_before_blocking(mock_context, high_severity_conflict, monkeypatch):
        """Verify event is emitted BEFORE exception is raised."""
@@ -592,9 +622,11 @@ history:
    - All precedence levels are None (uses MEDIUM default)
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_generation_gate.py` (new file, ~350 lines)
 
 **Validation**:
+
 - [ ] All strictness modes tested with all severity levels (9 combinations)
 - [ ] All 4 precedence levels tested (runtime, step, mission, global)
 - [ ] Event emission ordering verified (before exception)
@@ -603,6 +635,7 @@ history:
 - [ ] All tests pass with `pytest tests/specify_cli/glossary/test_generation_gate.py -v`
 
 **Edge Cases**:
+
 - No repo_root provided: global_default stays MEDIUM
 - Config file is YAML but has no glossary section: MEDIUM
 - Conflicts list has 0 items: never blocks (all modes)
@@ -614,18 +647,21 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/glossary/test_strictness.py`):
+
 - Test `resolve_strictness()` with all 16 precedence combinations
 - Test `should_block()` with 9 mode×severity combinations
 - Test `categorize_conflicts()` with mixed-severity lists
 - Test `load_global_strictness()` with various config states
 
 **Integration Tests** (in `tests/specify_cli/glossary/test_generation_gate.py`):
+
 - Test `GenerationGateMiddleware.process()` with realistic contexts
 - Verify event emission ordering (event before exception)
 - Test precedence resolution with full middleware
 - Test all strictness modes with conflicts
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/glossary/test_strictness.py -v
@@ -664,6 +700,7 @@ python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary/s
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Strictness modes are correct**:
    - OFF: Never blocks (0 conflicts → pass, high conflicts → pass)
    - MEDIUM: Only blocks high-severity (low → pass, medium → pass, high → block)

@@ -65,10 +65,12 @@
 | `repo_slug` | `string\|null` | No | GitMetadataResolver | `owner/repo` format. From config override or auto-derived from origin. `null` if no remote. |
 
 **Resolution timing**:
+
 - `git_branch` and `head_commit_sha`: Resolved **per-event** (2s TTL cache for performance)
 - `repo_slug`: Resolved **once per session** (stable — remote URL doesn't change mid-session)
 
 **Derivation precedence for `repo_slug`**:
+
 1. Explicit override: `.kittify/config.yaml` → `project.repo_slug`
 2. Auto-derived: `git remote get-url origin` → extract `owner/repo`
 3. `null` (no override, no remote)

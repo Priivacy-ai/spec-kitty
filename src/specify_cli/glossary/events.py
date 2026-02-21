@@ -25,6 +25,7 @@ Event log format: .kittify/events/glossary/{mission_id}.events.jsonl
 from __future__ import annotations
 
 import json
+import importlib
 import logging
 import re
 import uuid
@@ -50,17 +51,17 @@ _CanonicStepCheckpointed: Any = None
 _pkg_append_event: Any = None
 
 try:
-    from spec_kitty_events.glossary.events import (  # type: ignore[import-not-found]
-        GlossaryScopeActivated as _CanonicGlossaryScopeActivated,
-        TermCandidateObserved as _CanonicTermCandidateObserved,
-        SemanticCheckEvaluated as _CanonicSemanticCheckEvaluated,
-        GlossaryClarificationRequested as _CanonicGlossaryClarificationRequested,
-        GlossaryClarificationResolved as _CanonicGlossaryClarificationResolved,
-        GlossarySenseUpdated as _CanonicGlossarySenseUpdated,
-        GenerationBlockedBySemanticConflict as _CanonicGenerationBlockedBySemanticConflict,
-        StepCheckpointed as _CanonicStepCheckpointed,
-    )
-    from spec_kitty_events.persistence import append_event as _pkg_append_event  # type: ignore[import-not-found]
+    _canon_events = importlib.import_module("spec_kitty_events.glossary.events")
+    _pkg_append_event = importlib.import_module("spec_kitty_events.persistence").append_event
+
+    _CanonicGlossaryScopeActivated = _canon_events.GlossaryScopeActivated
+    _CanonicTermCandidateObserved = _canon_events.TermCandidateObserved
+    _CanonicSemanticCheckEvaluated = _canon_events.SemanticCheckEvaluated
+    _CanonicGlossaryClarificationRequested = _canon_events.GlossaryClarificationRequested
+    _CanonicGlossaryClarificationResolved = _canon_events.GlossaryClarificationResolved
+    _CanonicGlossarySenseUpdated = _canon_events.GlossarySenseUpdated
+    _CanonicGenerationBlockedBySemanticConflict = _canon_events.GenerationBlockedBySemanticConflict
+    _CanonicStepCheckpointed = _canon_events.StepCheckpointed
 
     EVENTS_AVAILABLE = True
     logger.info("spec-kitty-events canonical glossary adapter available")
@@ -202,6 +203,7 @@ def read_events(
 # ---------------------------------------------------------------------------
 # Event payload builders (plain dicts -- always used for return values)
 # ---------------------------------------------------------------------------
+
 
 def _now_iso() -> str:
     """Return current UTC timestamp as ISO string."""
@@ -578,6 +580,7 @@ def _persist_event(
 # High-level emission functions used by middleware
 # ---------------------------------------------------------------------------
 
+
 def _serialize_conflicts(
     conflicts: list[Any],
 ) -> list[dict[str, Any]]:
@@ -635,8 +638,7 @@ def emit_term_candidate_observed(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicTermCandidateObserved)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicTermCandidateObserved)
         else:
             logger.info("glossary.TermCandidateObserved: term=%s", term.surface)
     except Exception as exc:
@@ -675,6 +677,7 @@ def emit_semantic_check_evaluated(
     # Compute overall severity
     if conflicts:
         from .models import Severity
+
         severities = [c.severity for c in conflicts]
         if Severity.HIGH in severities:
             overall = "high"
@@ -715,8 +718,7 @@ def emit_semantic_check_evaluated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicSemanticCheckEvaluated)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicSemanticCheckEvaluated)
         else:
             logger.info("glossary.SemanticCheckEvaluated: findings=%d", len(conflicts))
     except Exception as exc:
@@ -770,13 +772,14 @@ def emit_generation_blocked_event(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicGenerationBlockedBySemanticConflict)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGenerationBlockedBySemanticConflict)
         else:
             logger.info(
-                "glossary.GenerationBlockedBySemanticConflict: "
-                "conflicts=%d, strictness=%s, step=%s, mission=%s",
-                len(conflicts), mode_str, step_id, mission_id,
+                "glossary.GenerationBlockedBySemanticConflict: conflicts=%d, strictness=%s, step=%s, mission=%s",
+                len(conflicts),
+                mode_str,
+                step_id,
+                mission_id,
             )
     except Exception as exc:
         logger.error("Failed to emit GenerationBlockedBySemanticConflict: %s", exc)
@@ -829,12 +832,12 @@ def emit_step_checkpointed(
 
     try:
         if project_root is not None:
-            _persist_event(event, project_root, checkpoint.mission_id,
-                           canonical_cls=_CanonicStepCheckpointed)
+            _persist_event(event, project_root, checkpoint.mission_id, canonical_cls=_CanonicStepCheckpointed)
         else:
             logger.info(
                 "glossary.StepCheckpointed: step=%s, cursor=%s (no repo_root)",
-                checkpoint.step_id, checkpoint.cursor,
+                checkpoint.step_id,
+                checkpoint.cursor,
             )
     except Exception as exc:
         logger.error("Failed to persist StepCheckpointed event: %s", exc)
@@ -887,8 +890,7 @@ def emit_clarification_requested(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicGlossaryClarificationRequested)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryClarificationRequested)
         else:
             logger.info("glossary.GlossaryClarificationRequested: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -953,8 +955,7 @@ def emit_clarification_resolved(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicGlossaryClarificationResolved)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryClarificationResolved)
         else:
             logger.info("glossary.GlossaryClarificationResolved: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -1020,8 +1021,7 @@ def emit_sense_updated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicGlossarySenseUpdated)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossarySenseUpdated)
         else:
             logger.info("glossary.GlossarySenseUpdated: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -1064,8 +1064,7 @@ def emit_scope_activated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id,
-                           canonical_cls=_CanonicGlossaryScopeActivated)
+            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryScopeActivated)
         else:
             logger.info("glossary.GlossaryScopeActivated: scope=%s", scope_id)
     except Exception as exc:

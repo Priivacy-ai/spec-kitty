@@ -58,6 +58,8 @@ class VCSProtocol(Protocol):
         workspace_name: str,
         base_branch: str | None = None,
         base_commit: str | None = None,
+        repo_root: Path | None = None,
+        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new workspace for a work package.
@@ -67,6 +69,8 @@ class VCSProtocol(Protocol):
             workspace_name: Name for the workspace (e.g., "015-feature-WP01")
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
+            repo_root: Explicit repository root for backend commands
+            sparse_exclude: Backend-specific sparse checkout exclusions
 
         Returns:
             WorkspaceCreateResult with workspace info or error

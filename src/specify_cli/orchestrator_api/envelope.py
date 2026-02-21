@@ -29,9 +29,7 @@ BANNED_FLAGS: frozenset[str] = frozenset(
     ]
 )
 
-SECRET_PATTERN = re.compile(
-    r"(token|secret|key|password|credential)", re.IGNORECASE
-)
+SECRET_PATTERN = re.compile(r"(token|secret|key|password|credential)", re.IGNORECASE)
 
 _REQUIRED_POLICY_FIELDS = (
     "orchestrator_id",

@@ -78,6 +78,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 - **Contracts**: `kitty-specs/034-feature-status-state-model-remediation/contracts/snapshot-schema.json` -- output format
 
 **Key constraints**:
+
 - Sorting key: primary = `event.at` (ISO 8601 timestamp string), secondary = `event.event_id` (ULID string). Both sort lexicographically
 - Deduplication: keep first occurrence by `event_id`
 - Byte-identical output: `json.dumps(snapshot.to_dict(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"`
@@ -94,7 +95,9 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: Core reducer implementing the dedupe/sort/reduce algorithm per AD-2 in the plan.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/reducer.py` with imports:
+
    ```python
    from __future__ import annotations
 
@@ -109,6 +112,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
    ```
 
 2. Implement `reduce()`:
+
    ```python
    def reduce(events: list[StatusEvent]) -> StatusSnapshot:
        """Reduce a list of StatusEvents to a StatusSnapshot.
@@ -175,6 +179,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
    ```
 
 3. Implement helper functions:
+
    ```python
    def _now_utc() -> str:
        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -200,11 +205,13 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Files**: `src/specify_cli/status/reducer.py` (new file)
 
 **Validation**:
+
 - `reduce([])` returns an empty snapshot with zero counts
 - `reduce([event1, event2])` where event2 is chronologically later produces WP state matching event2
 - `reduce([event2, event1])` (out of order) produces identical result to above (sorted by timestamp)
 
 **Edge Cases**:
+
 - Empty event list: returns snapshot with no WPs, all summary counts zero, feature_slug empty, last_event_id None
 - Single event: snapshot has one WP in the target lane
 - Multiple WPs: each WP tracks its own state independently
@@ -217,7 +224,9 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: When two events for the same WP are concurrent (originate from the same `from_lane`), a reviewer rollback (`for_review -> in_progress` with `review_ref`) takes precedence over concurrent forward progression.
 
 **Steps**:
+
 1. Implement `_is_rollback_event()`:
+
    ```python
    def _is_rollback_event(event: StatusEvent) -> bool:
        """Check if an event represents a reviewer rollback."""
@@ -229,6 +238,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
    ```
 
 2. Implement `_should_apply_event()`:
+
    ```python
    def _should_apply_event(
        current_state: dict[str, Any],
@@ -291,11 +301,13 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Files**: `src/specify_cli/status/reducer.py` (same file)
 
 **Validation**:
+
 - Branch A: `for_review -> done` (forward). Branch B: `for_review -> in_progress` with review_ref (rollback). After merge and reduce, WP state is `in_progress` (rollback wins).
 - Two non-conflicting events for different WPs: both applied correctly.
 - Two concurrent forward events (no rollback): later timestamp wins.
 
 **Edge Cases**:
+
 - Both events are rollbacks: later timestamp wins (both have review_ref)
 - Rollback event has earlier timestamp but still wins over forward event
 - Events from different from_lanes are not concurrent -- standard ordering applies
@@ -307,7 +319,9 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: Guarantee that running the reducer on the same event log always produces the exact same bytes in `status.json`.
 
 **Steps**:
+
 1. Implement `materialize_to_json()`:
+
    ```python
    def materialize_to_json(snapshot: StatusSnapshot) -> str:
        """Serialize a StatusSnapshot to deterministic JSON string.
@@ -331,11 +345,13 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Files**: `src/specify_cli/status/reducer.py` (same file)
 
 **Validation**:
+
 - Create a StatusSnapshot with fixed `materialized_at`, call `materialize_to_json()` twice, compare bytes -- must be identical
 - Output must have trailing newline
 - Keys in output must be alphabetically sorted at every nesting level
 
 **Edge Cases**:
+
 - Unicode characters in actor names: `ensure_ascii=False` preserves them as-is
 - Numeric values (event_count, force_count): serialized as integers, not strings
 - Null values: serialized as JSON `null`
@@ -347,12 +363,15 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: High-level function that reads events from the store, reduces them, and writes `status.json` atomically.
 
 **Steps**:
+
 1. Define output filename constant:
+
    ```python
    SNAPSHOT_FILENAME = "status.json"
    ```
 
 2. Implement `materialize()`:
+
    ```python
    def materialize(feature_dir: Path) -> StatusSnapshot:
        """Read events, reduce to snapshot, write status.json atomically.
@@ -379,11 +398,13 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Files**: `src/specify_cli/status/reducer.py` (same file)
 
 **Validation**:
+
 - Append 3 events via store, call `materialize()`, verify `status.json` exists and contains correct WP states
 - Call `materialize()` again (no new events), verify `status.json` is updated (new `materialized_at` timestamp)
 - Verify no `.json.tmp` file remains after successful materialization
 
 **Edge Cases**:
+
 - Empty event log: produces snapshot with empty work_packages, status.json still written
 - Feature directory does not exist: `read_events()` returns empty list (from store.py), snapshot is empty
 - Interrupted write: if crash occurs between tmp write and replace, `.json.tmp` file may remain -- next materialize overwrites it
@@ -396,6 +417,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: Verify the core determinism contract: same input always produces same output.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_reducer.py`
 2. Test cases:
 
@@ -424,6 +446,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Purpose**: Verify the rollback precedence rule in concurrent event scenarios.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_conflict_resolution.py`
 2. Test cases:
 
@@ -445,6 +468,7 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 **Validation**: `python -m pytest tests/specify_cli/status/test_conflict_resolution.py -v` -- all pass
 
 **Edge Cases**:
+
 - Both branches produce events with same timestamp but different event_ids: ULID secondary sort resolves deterministically
 - One branch has no events for a WP while the other does: non-conflicting, both applied
 

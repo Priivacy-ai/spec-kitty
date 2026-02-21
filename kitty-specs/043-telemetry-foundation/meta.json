@@ -1,0 +1,10 @@
+{
+  "feature_number": "043",
+  "slug": "043-telemetry-foundation",
+  "friendly_name": "Telemetry Foundation",
+  "mission": "software-dev",
+  "source_description": "Extend the 2.x event system with execution events for agent telemetry, a query layer for filtered reads, LLM cost tracking with pricing table, and a CLI cost command. Builds on spec_kitty_events with a new SimpleJsonStore adapter for JSONL-backed per-feature event storage.",
+  "created_at": "2026-02-15T19:43:00+00:00",
+  "target_branch": "feature/doctrine-kitty-2x",
+  "vcs": "git"
+}

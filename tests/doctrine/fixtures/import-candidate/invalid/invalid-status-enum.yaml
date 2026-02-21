@@ -1,0 +1,10 @@
+schema_version: "1.0"
+id: AAD-001
+source:
+  title: ZOMBIES TDD
+  reference: https://example.com/zombies-tdd
+target:
+  paradigm: test-first
+  directive: DEFENSIVE_REVIEW
+adaptation_notes: Adapted to Spec Kitty doctrine taxonomy.
+status: queued

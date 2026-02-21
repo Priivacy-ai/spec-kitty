@@ -46,10 +46,10 @@ The system needs a single canonical, auditable source of truth for WP and featur
 
 ### Implementation
 
-- **Canonical state**: `kitty-specs/<feature>/status.events.jsonl` — per-feature append-only log
-- **Derived state**: `kitty-specs/<feature>/status.json` — materialized snapshot (regeneratable)
-- **Generated views**: `tasks.md` status sections and WP front-matter `lane` field are generated from the snapshot, never edited as authority
-- **Read/write contract**: All state changes append to the event log; a deterministic reducer materializes `status.json`
+* **Canonical state**: `kitty-specs/<feature>/status.events.jsonl` — per-feature append-only log
+* **Derived state**: `kitty-specs/<feature>/status.json` — materialized snapshot (regeneratable)
+* **Generated views**: `tasks.md` status sections and WP front-matter `lane` field are generated from the snapshot, never edited as authority
+* **Read/write contract**: All state changes append to the event log; a deterministic reducer materializes `status.json`
 
 ### Consequences
 
@@ -145,11 +145,11 @@ Store status in the SaaS platform's Postgres instance.
 ## More Information
 
 **Related ADRs:**
-- ADR 2026-02-09-2 (WP Lifecycle State Machine) — consumes events from this log
-- ADR 2026-02-09-3 (Event-Log Merge Semantics) — operates on this log
-- ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — extends this log with evidence payloads
+* ADR 2026-02-09-2 (WP Lifecycle State Machine) — consumes events from this log
+* ADR 2026-02-09-3 (Event-Log Merge Semantics) — operates on this log
+* ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — extends this log with evidence payloads
 
 **References:**
-- Martin Fowler: Event Sourcing — https://martinfowler.com/eaaDev/EventSourcing.html
-- JSONL Specification — https://jsonlines.org/
-- PRD: Feature Status State Model Remediation (Sections 2, 3, 5, 6, 15)
+* Martin Fowler: Event Sourcing — <https://martinfowler.com/eaaDev/EventSourcing.html>
+* JSONL Specification — <https://jsonlines.org/>
+* PRD: Feature Status State Model Remediation (Sections 2, 3, 5, 6, 15)

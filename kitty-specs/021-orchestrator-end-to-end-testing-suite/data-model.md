@@ -112,6 +112,7 @@ class WorktreeMetadata:
 ```
 
 **worktrees.json format**:
+
 ```json
 {
   "worktrees": [

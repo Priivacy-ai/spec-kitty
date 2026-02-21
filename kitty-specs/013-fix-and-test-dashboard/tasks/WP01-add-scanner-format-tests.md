@@ -47,6 +47,7 @@ history:
 Add test coverage for the dashboard scanner to verify both legacy (directory-based) and new (frontmatter-based) lane formats work correctly.
 
 **Success Criteria:**
+
 - All new tests pass
 - Existing legacy format tests continue passing
 - Scanner correctly parses frontmatter `lane:` field for new format
@@ -56,15 +57,18 @@ Add test coverage for the dashboard scanner to verify both legacy (directory-bas
 ## Context & Constraints
 
 **Background**: The v0.11.0 release changed task organization:
+
 - **New format**: Tasks in flat `tasks/` directory, lane in YAML frontmatter
 - **Legacy format**: Tasks in lane subdirectories (`tasks/planned/`, `tasks/doing/`, etc.)
 
 **Key Files**:
+
 - `tests/test_dashboard/test_scanner.py` - ADD tests here
 - `src/specify_cli/dashboard/scanner.py` - READ ONLY (already working)
 - `src/specify_cli/legacy_detector.py` - READ ONLY (already working)
 
 **Reference Docs**:
+
 - `kitty-specs/013-fix-and-test-dashboard/spec.md` - Requirements
 - `kitty-specs/013-fix-and-test-dashboard/plan.md` - Implementation plan
 - `kitty-specs/013-fix-and-test-dashboard/quickstart.md` - Test patterns
@@ -83,6 +87,7 @@ Add test coverage for the dashboard scanner to verify both legacy (directory-bas
 - **Parallel?**: No - must complete before other tests
 
 **Example fixture structure:**
+
 ```python
 def _create_new_format_feature(tmp_path: Path) -> Path:
     """Creates NEW format with flat tasks/ directory (lane in frontmatter)."""
@@ -146,6 +151,7 @@ Body content here
 - **Parallel?**: Yes (after T001)
 
 **Import needed:**
+
 ```python
 from specify_cli.legacy_detector import is_legacy_format
 ```
@@ -173,6 +179,7 @@ from specify_cli.legacy_detector import is_legacy_format
 ## Test Strategy
 
 **Commands:**
+
 ```bash
 # Run scanner tests only
 pytest tests/test_dashboard/test_scanner.py -v
@@ -185,6 +192,7 @@ pytest tests/test_dashboard/test_scanner.py -v --cov=src/specify_cli/dashboard/s
 ```
 
 **Expected Results:**
+
 - All existing tests pass unchanged
 - 5+ new tests pass
 - No import errors or fixture failures
@@ -208,6 +216,7 @@ pytest tests/test_dashboard/test_scanner.py -v --cov=src/specify_cli/dashboard/s
 ## Review Guidance
 
 **Acceptance checkpoints:**
+
 1. New fixture creates flat `tasks/` directory (no subdirectories)
 2. Tests cover: lane detection, default lane, multiple lanes, format detection
 3. Existing tests unmodified and still passing
@@ -229,10 +238,14 @@ To change this work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP01 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-16T13:45:57Z – claude – shell_pid=85594 – lane=doing – Started implementation via workflow command
 - 2026-01-16T13:47:42Z – claude – shell_pid=85594 – lane=for_review – All 7 tests pass. Added fixture and 5 new test functions for new format coverage.
+
 # test
+
 # test change
+
 - 2026-01-16T13:53:17Z – claude – shell_pid=85594 – lane=done – Review passed: mission.yaml and directory structure match requirements
 - 2026-01-16T13:56:29Z – claude – shell_pid=85594 – lane=done – Testing auto-commit fix
 - 2026-01-16T13:58:24Z – claude – shell_pid=85594 – lane=for_review – Testing without gitignore

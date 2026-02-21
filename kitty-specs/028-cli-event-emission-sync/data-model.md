@@ -53,6 +53,7 @@ class Event:
 ```
 
 **Validation Rules**:
+
 - `event_id`: Must be valid ULID (26 chars, base32)
 - `event_type`: Must be one of defined types (see below)
 - `aggregate_id`: Non-empty string
@@ -82,6 +83,7 @@ class LamportClock:
 ```
 
 **Persistence**: `~/.spec-kitty/clock.json`
+
 ```json
 {
   "value": 42,
@@ -108,6 +110,7 @@ class EventEmitter:
 ```
 
 **Responsibilities**:
+
 - Manage Lamport clock lifecycle
 - Check authentication status
 - Build event with all metadata
@@ -131,6 +134,7 @@ class WPStatusChangedPayload:
 ```
 
 **State Transitions**:
+
 ```
 planned → doing         (implement command)
 doing → for_review      (merge command)
@@ -249,6 +253,7 @@ CREATE INDEX idx_retry ON queue(retry_count);
 ```
 
 **Constraints**:
+
 - Maximum 10,000 events
 - Events removed after successful sync
 - Retry count incremented on failure (max 5)
@@ -281,6 +286,7 @@ def generate_node_id() -> str:
 ```
 
 **Properties**:
+
 - Same value across CLI restarts
 - Different per user on shared machines
 - Not PII (hashed)

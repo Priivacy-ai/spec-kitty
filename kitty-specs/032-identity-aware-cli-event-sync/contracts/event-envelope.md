@@ -56,6 +56,7 @@ This document describes the changes to the event envelope schema.
 - **Persistence**: Stored in `.kittify/config.yaml`
 
 **Validation**:
+
 - MUST be present for WebSocket transmission
 - If missing, event is queued locally only (not sent via WebSocket)
 - Warning logged when event lacks project_uuid
@@ -68,6 +69,7 @@ This document describes the changes to the event envelope schema.
 - **Example**: `"my-awesome-project"`, `"spec-kitty"`
 
 **Derivation Logic**:
+
 1. If git remote `origin` exists: Extract repo name from URL
 2. Otherwise: Use directory name, converted to kebab-case
 
@@ -95,6 +97,7 @@ else:
 ## Migration
 
 No migration needed. New fields are:
+
 - Generated on first CLI access (graceful backfill)
 - Optional in existing events (backward compatible)
 - Required only for new WebSocket transmissions

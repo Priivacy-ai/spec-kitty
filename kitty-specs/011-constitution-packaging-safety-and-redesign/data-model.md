@@ -155,18 +155,22 @@ class MigrationResult:
 ### Modified Migrations
 
 **m_0_7_3_update_scripts.py**
+
 - **Change**: `can_apply()` returns `(True, "")` even if bash scripts missing in package
 - **Rationale**: Scripts may have been removed in later version, migration should skip gracefully
 
 **m_0_10_2_update_slash_commands.py**
+
 - **Change**: `apply()` explicitly removes legacy .toml command files
 - **Rationale**: Ensure complete cleanup of old format
 
 **m_0_10_6_workflow_simplification.py**
+
 - **Change**: `can_apply()` returns `(True, "")` without checking mission templates first
 - **Rationale**: Templates are copied during `apply()`, not before
 
 **m_0_10_0_python_only.py**
+
 - **Change**: Verify `.kittify/scripts/tasks/` directory removal is explicit
 - **Rationale**: Ensure obsolete Python task helpers are cleaned up
 
@@ -191,6 +195,7 @@ class MigrationResult:
 ```
 
 **Behavior:**
+
 - **detect()**: Returns True if any mission has a `constitution/` subdirectory
 - **can_apply()**: Always returns `(True, "")` - removal is always safe
 - **apply()**: Recursively removes `constitution/` directories from all missions, adds warning message
@@ -337,6 +342,7 @@ class DashboardState(Enum):
 ### Process Management Operations
 
 **Before (POSIX-only):**
+
 ```python
 import os
 import signal
@@ -356,6 +362,7 @@ os.kill(pid, signal.SIGKILL)  # FAILS ON WINDOWS
 ```
 
 **After (Cross-platform with psutil):**
+
 ```python
 import psutil
 
@@ -391,6 +398,7 @@ Location: `.kittify/.dashboard`
 ```
 
 **Usage:**
+
 - Created when dashboard starts
 - Read by `spec-kitty dashboard` to check if already running
 - Deleted when dashboard stops cleanly
@@ -472,11 +480,13 @@ dependencies = [
 ## Validation Rules
 
 ### Template Files
+
 - All files under `src/specify_cli/templates/` must be valid markdown
 - Command templates must have YAML frontmatter with `description` field
 - Template placeholders must use `[ALL_CAPS]` format
 
 ### Migrations
+
 - `migration_id` must follow pattern `X.Y.Z_description`
 - `target_version` must be valid semver
 - `detect()` must be idempotent (safe to call multiple times)
@@ -484,12 +494,14 @@ dependencies = [
 - `apply()` must succeed even if files already cleaned up (idempotency)
 
 ### Constitution
+
 - Version must follow semver (MAJOR.MINOR.PATCH)
 - Dates must be ISO format (YYYY-MM-DD)
 - Must have at least one Core Principle
 - Must have Governance section
 
 ### Package Configuration
+
 - No paths outside `src/` in force-includes
 - No `.kittify/memory/` in include patterns
 - All dependencies must specify minimum version

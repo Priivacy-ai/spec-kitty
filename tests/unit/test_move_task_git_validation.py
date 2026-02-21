@@ -130,7 +130,7 @@ class TestMoveTaskGitValidation:
         # Verify failure
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
@@ -179,9 +179,7 @@ class TestMoveTaskGitValidation:
         (worktree / "uncommitted.txt").write_text("Uncommitted work\n")
 
         # Move to done with --force (should succeed)
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "done", "--force", "--json"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--force", "--json"])
 
         # Verify success despite uncommitted changes
         assert result.exit_code == 0
@@ -208,7 +206,7 @@ class TestMoveTaskGitValidation:
         # Verify failure (existing behavior preserved)
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
@@ -233,7 +231,7 @@ class TestMoveTaskGitValidation:
         # Verify failure
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()

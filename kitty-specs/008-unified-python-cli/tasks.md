@@ -12,10 +12,12 @@
 **Parallelization Strategy**: Phase 1 (WP01) is sequential foundation. Phases 2-5 (WP02-WP05) can execute in parallel across 4 independent streams. Phase 6 (WP06) requires all streams complete. Phase 7 (WP07) is final validation.
 
 ## Subtask Format: `[Txxx] [P?] Description`
+
 - **[P]** indicates the subtask can proceed in parallel (different files/components).
 - Include precise file paths or modules.
 
 ## Path Conventions
+
 - Python package: `src/specify_cli/`, `tests/`
 - Agent commands: `src/specify_cli/cli/commands/agent/`
 - Core utilities: `src/specify_cli/core/`
@@ -32,6 +34,7 @@
 **Stream**: Foundation (must complete before any parallel work)
 
 ### Included Subtasks
+
 - [ ] T001 Create agent command directory structure `src/specify_cli/cli/commands/agent/`
 - [ ] T002 Create `src/specify_cli/cli/commands/agent/__init__.py` with Typer sub-app registration
 - [ ] T003 [P] Create stub module `src/specify_cli/cli/commands/agent/feature.py`
@@ -51,19 +54,23 @@
 - [ ] T017 Unit test: Broken symlink handling
 
 ### Implementation Notes
+
 - Phase 1 is SEQUENTIAL - blocks all parallel work (WP02-WP05)
 - Focus on minimal stubs to unblock parallel streams
 - Path resolution enhancement is critical for all agent commands
 - Test infrastructure must support both main repo and worktree execution
 
 ### Parallel Opportunities
+
 - Stub modules (T003-T006) can be created in parallel
 - Test directories (T011-T012) can be created concurrently
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - **Risk**: Foundation delays block all parallel work
 - **Mitigation**: Prioritize completion, keep scope minimal (stubs only, deep implementation in parallel phases)
 
@@ -78,6 +85,7 @@
 **Stream**: Stream A (can run in parallel with WP03, WP04, WP05 after WP01 complete)
 
 ### Included Subtasks
+
 - [ ] T018 Create `src/specify_cli/core/worktree.py` module
 - [ ] T019 Implement `create_feature_worktree(repo_root, feature_slug)` in `worktree.py`
 - [ ] T020 Implement `get_next_feature_number(repo_root)` in `worktree.py`
@@ -96,20 +104,24 @@
 - [ ] T033 Verify 90%+ test coverage for `feature.py` and `worktree.py`
 
 ### Implementation Notes
+
 - Read bash scripts being replaced: `.kittify/scripts/bash/create-new-feature.sh`, `check-prerequisites.sh`, `setup-plan.sh`
 - Follow Python migration patterns in `quickstart.md` (pathlib, subprocess)
 - All commands must detect execution location automatically
 - JSON output must be parseable by agents for workflow orchestration
 
 ### Parallel Opportunities
+
 - Unit tests (T027-T030) can run concurrently with implementation
 - Integration tests (T031-T032) can run after command implementation complete
 
 ### Dependencies
+
 - **Requires**: WP01 complete (foundation infrastructure)
 - **No conflicts with**: WP03, WP04, WP05 (different modules)
 
 ### Risks & Mitigations
+
 - **Risk**: Worktree symlink handling varies by platform
 - **Mitigation**: Use existing Windows fallback pattern (file copy), test on all platforms in Phase 7
 
@@ -124,6 +136,7 @@ spec-kitty agent workflow implement WP01
 **Stream**: Stream B (can run in parallel with WP02, WP04, WP05 after WP01 complete)
 
 ### Included Subtasks
+
 - [ ] T034 Analyze existing `src/specify_cli/tasks_support.py` (850 lines argparse CLI)
 - [ ] T035 Convert argparse structure to Typer decorators in `src/specify_cli/cli/commands/agent/tasks.py`
 - [ ] T036 Implement `move-task` command with `--to`, `--json` flags (later evolved to `workflow implement/review`)
@@ -146,20 +159,24 @@ spec-kitty agent workflow implement WP01
 - [ ] T053 Deprecate or remove old `tasks_support.py` after migration
 
 ### Implementation Notes
+
 - Read bash script being replaced: Thin wrappers that call `tasks_cli.py`
 - Preserve argparse logic but convert to cleaner Typer decorator syntax
 - Task commands are high-frequency operations for agents - robustness critical
 - Frontmatter YAML parsing must handle edge cases (malformed, missing fields)
 
 ### Parallel Opportunities
+
 - Unit tests (T044-T049) can run concurrently with command implementation
 - Integration tests (T050-T051) can run after all commands implemented
 
 ### Dependencies
+
 - **Requires**: WP01 complete (foundation infrastructure)
 - **No conflicts with**: WP02, WP04, WP05 (different modules)
 
 ### Risks & Mitigations
+
 - **Risk**: YAML frontmatter parsing edge cases (ruamel.yaml behavior)
 - **Mitigation**: Comprehensive unit tests for malformed input, graceful error messages
 
@@ -174,6 +191,7 @@ spec-kitty agent workflow implement WP01
 **Stream**: Stream C (can run in parallel with WP02, WP03, WP05 after WP01 complete)
 
 ### Included Subtasks
+
 - [ ] T054 Create `src/specify_cli/core/agent_context.py` module
 - [ ] T055 Implement `parse_plan_for_tech_stack(plan_path)` to extract tech stack from plan.md
 - [ ] T056 Implement `update_agent_context(agent_type, tech_stack, feature_dir)` for updating context files
@@ -192,20 +210,24 @@ spec-kitty agent workflow implement WP01
 - [ ] T069 Verify 90%+ test coverage for `context.py` and `agent_context.py`
 
 ### Implementation Notes
+
 - Read bash script being replaced: `.kittify/scripts/bash/update-agent-context.sh` (600 lines)
 - Template processing must preserve user customizations between markers
 - Tech stack extraction from plan.md uses markdown parsing (find "## Technical Context" section)
 - Agent type detection should default to current agent if not specified
 
 ### Parallel Opportunities
+
 - Unit tests (T063-T066) can run concurrently with implementation
 - Integration tests (T067-T068) can run after command complete
 
 ### Dependencies
+
 - **Requires**: WP01 complete (foundation infrastructure)
 - **No conflicts with**: WP02, WP03, WP05 (different modules)
 
 ### Risks & Mitigations
+
 - **Risk**: Manual additions marker format changes break preservation logic
 - **Mitigation**: Strict marker format validation, warn if markers not found
 
@@ -220,6 +242,7 @@ spec-kitty agent workflow implement WP01
 **Stream**: Stream D (can run in parallel with WP03, WP04 after WP01-WP02 complete)
 
 ### Included Subtasks
+
 - [ ] T070 Analyze existing `tasks_cli.py accept` and `merge` implementations
 - [ ] T071 Implement `accept` command in `src/specify_cli/cli/commands/agent/feature.py`
 - [ ] T072 Implement `merge` command with auto-retry logic from `merge-feature.sh`
@@ -228,20 +251,24 @@ spec-kitty agent workflow implement WP01
 - [ ] T075 Verify 90%+ test coverage for new commands
 
 ### Implementation Notes
+
 - Bash wrappers to replace: `accept-feature.sh`, `merge-feature.sh` (thin wrappers around `tasks_cli.py`)
 - Leverage existing Python implementation in `scripts/tasks/tasks_cli.py`
 - Migrate auto-retry logic from `merge-feature.sh` (auto-navigate to latest worktree if in wrong location)
 - Extract `find_latest_feature_worktree()` utility from `common.sh`
 
 ### Parallel Opportunities
+
 - Unit tests (T073) can run concurrently with implementation
 - Integration test (T074) can run after both commands implemented
 
 ### Dependencies
+
 - **Requires**: WP01-WP02 complete (foundation + feature.py exists)
 - **No conflicts with**: WP03, WP04 (different commands within feature.py)
 
 ### Risks & Mitigations
+
 - **Risk**: Auto-retry logic may not work correctly across platforms
 - **Mitigation**: Test on all platforms, preserve SPEC_KITTY_AUTORETRY env var behavior
 
@@ -256,6 +283,7 @@ spec-kitty agent workflow implement WP01
 **Dependencies**: Requires WP01-WP05 ALL complete (all command streams finished)
 
 ### Included Subtasks
+
 - [ ] T092 Create `src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py` migration script
 - [ ] T093 Implement bash script detection in `.kittify/scripts/bash/`
 - [ ] T094 Implement slash command template scanning in `.claude/commands/*.md`
@@ -281,20 +309,24 @@ spec-kitty agent workflow implement WP01
 - [ ] T114 Verify all slash commands updated to reference `spec-kitty agent` commands
 
 ### Implementation Notes
+
 - Follow precedent from `m_0_9_0_frontmatter_only.py` migration
 - Migration version must be tracked in `.kittify/metadata.yaml` for idempotency
 - Custom modification detection uses git diff or file hash comparison
 - Template updates must preserve user customizations outside bash script calls
 
 ### Parallel Opportunities
+
 - Documentation updates (T105-T107) can run in parallel with migration implementation
 - Unit tests (T108-T110) can run concurrently
 
 ### Dependencies
+
 - **Requires**: WP01-WP05 ALL complete (cannot delete bash scripts until Python equivalents working)
 - **Blocks**: WP07 (validation phase)
 
 ### Risks & Mitigations
+
 - **Risk**: Custom bash modifications break automated migration
 - **Mitigation**: Detect modifications, warn user, provide manual migration guide
 - **Risk**: Breaking changes during migration period disrupt active users
@@ -311,6 +343,7 @@ spec-kitty agent workflow implement WP01
 **Dependencies**: Requires WP06 complete (all implementation finished)
 
 ### Included Subtasks
+
 - [ ] T115 Test full feature workflow: `/spec-kitty.specify` → creates feature
 - [ ] T116 Test plan workflow: `/spec-kitty.plan` → creates plan, updates context
 - [ ] T117 Test tasks workflow: `/spec-kitty.tasks` → generates tasks
@@ -335,21 +368,25 @@ spec-kitty agent workflow implement WP01
 - [ ] T136 Document any edge cases discovered during validation
 
 ### Implementation Notes
+
 - This is the final validation gate before merge
 - All workflows must complete without manual intervention
 - Cross-platform testing validates Windows symlink fallback works
 - Performance measurement establishes baseline for future regressions
 
 ### Parallel Opportunities
+
 - Workflow tests (T115-T121) can run in parallel after infrastructure ready
 - Platform tests (T127-T129) can run concurrently
 - Performance tests (T130-T132) can run in parallel with coverage analysis
 
 ### Dependencies
+
 - **Requires**: WP06 complete (everything implemented, bash scripts deleted, migration created)
 - **Blocks**: None (final phase before merge)
 
 ### Risks & Mitigations
+
 - **Risk**: Edge cases discovered late require significant rework
 - **Mitigation**: Comprehensive unit/integration testing in WP02-WP05 reduces risk
 - **Risk**: Cross-platform issues on Windows
@@ -360,6 +397,7 @@ spec-kitty agent workflow implement WP01
 ## Dependency & Execution Summary
 
 **Execution Order**:
+
 1. **WP01** (Foundation) - SEQUENTIAL, must complete first
 2. **WP02-WP05** (Commands) - PARALLEL after WP01 complete
    - WP02 (Feature: create, check, setup) - Stream A
@@ -376,6 +414,7 @@ spec-kitty agent workflow implement WP01
 **MVP Scope**: WP01 + WP02 + WP03 (Foundation + Feature + Tasks) = Minimum viable for agent workflows
 
 **Coordination Sync Points**:
+
 - **Sync 1 (Day 2)**: WP01 complete → Parallel streams begin
 - **Sync 2 (Day 6)**: WP02+WP03 complete → Verify basic workflows
 - **Sync 3 (Day 8)**: WP02-WP05 complete → Begin cleanup
@@ -388,7 +427,7 @@ spec-kitty agent workflow implement WP01
 | Subtask ID | Summary | Work Package | Priority | Parallel? |
 |------------|---------|--------------|----------|-----------|
 | T001 | Create agent directory structure | WP01 | P0 | No |
-| T002 | Create agent __init__.py | WP01 | P0 | No |
+| T002 | Create agent **init**.py | WP01 | P0 | No |
 | T003 | Create feature.py stub | WP01 | P0 | Yes |
 | T004 | Create tasks.py stub | WP01 | P0 | Yes |
 | T005 | Create context.py stub | WP01 | P0 | Yes |

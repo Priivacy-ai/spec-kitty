@@ -19,6 +19,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T001 Create `GitMetadata` dataclass in `src/specify_cli/sync/git_metadata.py`
 - [x] T002 Create `GitMetadataResolver` class with constructor (`repo_root`, `ttl`, `repo_slug_override`)
 - [x] T003 Implement `_resolve_branch_and_sha()` — subprocess calls to `git rev-parse`
@@ -28,18 +29,22 @@
 - [x] T007 Extend `ProjectIdentity` with `repo_slug` field (`to_dict`, `from_dict`, persistence)
 
 ### Implementation Notes
+
 - Single new file `src/specify_cli/sync/git_metadata.py` (~200 lines)
 - Small modification to `src/specify_cli/sync/project_identity.py` (~20 lines delta)
 - Follow existing patterns: `@dataclass`, `subprocess.run()`, `logging.getLogger(__name__)`
 - Repo slug parsing: strip `.git`, handle SSH (`@`+`:`) vs HTTPS, extract path after host
 
 ### Parallel Opportunities
+
 - T001-T006 (git_metadata.py) and T007 (project_identity.py) touch different files — can be written in parallel
 
 ### Dependencies
+
 - None (foundation work package)
 
 ### Risks & Mitigations
+
 - SSH URL edge cases (GitLab subgroups): research.md R1 documents parsing algorithm with test matrix
 - subprocess hangs: use `timeout=5` on all subprocess calls
 
@@ -53,24 +58,29 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
+
 - [x] T008 Add `_git_resolver` field to `EventEmitter` dataclass
 - [x] T009 Add `_get_git_metadata()` lazy-loading method to `EventEmitter`
 - [x] T010 Inject `git_branch`, `head_commit_sha`, `repo_slug` into `_emit()` event dict
 - [x] T011 Update test fixtures in `tests/sync/conftest.py` for git resolver mock
 
 ### Implementation Notes
+
 - Modify `src/specify_cli/sync/emitter.py` (~30 lines delta)
 - Follow existing pattern: `_identity` field → `_get_identity()` → used in `_emit()`
 - New fields go right after `project_slug` in the event dict
 - conftest.py gets new `mock_git_resolver` fixture + updated `emitter` fixture
 
 ### Parallel Opportunities
+
 - None within this WP (sequential: field → method → injection → fixtures)
 
 ### Dependencies
+
 - Depends on WP01 (requires `GitMetadataResolver` and `GitMetadata` classes)
 
 ### Risks & Mitigations
+
 - Circular import: use lazy import in `_get_git_metadata()` (same pattern as `_get_identity()`)
 - Existing tests break: update emitter fixture with mock resolver so existing tests pass unchanged
 
@@ -84,6 +94,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T012 [P] Test `GitMetadata` dataclass and `GitMetadataResolver` construction
 - [x] T013 [P] Test branch/SHA resolution from subprocess (normal branch, detached HEAD, worktree)
 - [x] T014 [P] Test TTL cache behavior (cache hit within 2s, cache miss after 2s, cache refresh)
@@ -92,19 +103,23 @@
 - [x] T017 [P] Test graceful degradation (no git binary, not in repo, subprocess timeout, permission error)
 
 ### Implementation Notes
+
 - New file `tests/sync/test_git_metadata.py` (~300 lines)
 - Use `unittest.mock.patch` for subprocess calls (don't actually call git in tests)
 - Use `time.monotonic()` mocking for TTL cache tests
 - Follow existing test patterns from `tests/sync/test_events.py`
 
 ### Parallel Opportunities
+
 - All subtasks test independent aspects — can be written in any order
 
 ### Dependencies
+
 - Depends on WP01 (requires `git_metadata.py` to exist)
 - Can run in parallel with WP02
 
 ### Risks & Mitigations
+
 - Subprocess mocking: patch at `specify_cli.sync.git_metadata.subprocess.run` (module-level import)
 - time.monotonic mocking: patch at `specify_cli.sync.git_metadata.time.monotonic`
 
@@ -118,6 +133,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [x] T018 [P] Test new envelope fields present in emitted events (`tests/sync/test_events.py`)
 - [x] T019 [P] Test fields are `null` when git is unavailable (`tests/sync/test_events.py`)
 - [x] T020 Integration tests for git metadata in CLI command emissions (`tests/sync/test_event_emission.py` or `tests/specify_cli/cli/commands/test_event_emission.py`)
@@ -125,17 +141,21 @@
 - [x] T022 Update event envelope documentation in `docs/` or `architecture/`
 
 ### Implementation Notes
+
 - Modify existing test files: `tests/sync/test_events.py` (~50 lines added), `tests/sync/test_event_emission.py` (~40 lines added)
 - New tests follow existing `TestEventEnvelope` class patterns
 - Documentation: add event envelope reference to `docs/event-envelope.md` (new file, ~80 lines)
 
 ### Parallel Opportunities
+
 - T018-T021 (test files) and T022 (docs) touch different files — parallel-safe
 
 ### Dependencies
+
 - Depends on WP01 + WP02 (requires resolver module AND emitter integration)
 
 ### Risks & Mitigations
+
 - Existing test regressions: run full sync test suite after changes
 - Documentation drift: reference contracts/event-envelope.md as canonical source
 

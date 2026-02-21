@@ -250,6 +250,7 @@ dependencies: ["WP01", "WP02"]
 ```
 
 The merge command reads these dependencies and ensures:
+
 - WP01 merges first (no dependencies)
 - WP02 merges second (depends on WP01)
 - WP03 merges last (depends on WP01 and WP02)

@@ -14,6 +14,7 @@ Cut a release for spec-kitty-cli. If a version is provided as `$ARGUMENTS`, use 
 1. Confirm you are on the `main` branch. **Tags MUST be created from `main`** — the `2.x` branch has pre-existing test failures that will cause the release workflow to fail.
 2. If changes were made on `2.x`, cherry-pick them to `main` first.
 3. Run the test that previously caused release failures to verify it passes:
+
    ```bash
    python -m pytest tests/specify_cli/cli/commands/test_sync.py -v --tb=short
    ```
@@ -23,11 +24,13 @@ Cut a release for spec-kitty-cli. If a version is provided as `$ARGUMENTS`, use 
 ### 1. Version bump
 
 Edit `pyproject.toml` — update the `version` field:
+
 ```
 version = "X.Y.Z"
 ```
 
 Use semantic versioning:
+
 - **Patch** (0.13.X): Bug fixes, small improvements
 - **Minor** (0.X.0): New features, backward compatible
 - **Major** (X.0.0): Breaking changes
@@ -46,6 +49,7 @@ Add a new section **immediately after** `## [Unreleased]`:
 ```
 
 **CHANGELOG categories used in this project** (with emoji headings):
+
 - `### ✨ Added` — New features
 - `### 🔧 Improved` — Enhancements to existing features
 - `### 🐛 Fixed` — Bug fixes
@@ -71,6 +75,7 @@ git push origin main
 ```
 
 If changes also need to be on `2.x`, cherry-pick:
+
 ```bash
 git checkout 2.x
 git cherry-pick <commit-hash>
@@ -115,15 +120,18 @@ pip install spec-kitty-cli==X.Y.Z
 ### Release workflow fails — tests
 
 Check the failed run logs:
+
 ```bash
 unset GITHUB_TOKEN && gh run view <run-id> --log-failed | head -80
 ```
 
 Common causes:
+
 - **Import errors in tests**: Fix the test, commit, delete the tag, re-tag, push.
 - **Pre-existing failures on wrong branch**: The tag was created from `2.x` instead of `main`. Delete tag, switch to main, re-tag.
 
 To delete and re-tag:
+
 ```bash
 git tag -d vX.Y.Z
 git push origin :refs/tags/vX.Y.Z
@@ -135,6 +143,7 @@ git push origin vX.Y.Z
 ### Version/changelog mismatch
 
 The `scripts/release/validate_release.py` script validates that:
+
 - `pyproject.toml` version matches the tag (minus the `v` prefix)
 - `CHANGELOG.md` has a populated section for the version
 - Version is monotonically increasing vs existing tags
@@ -146,6 +155,7 @@ This is a generic error message that prints whenever ANY step fails. Check the a
 ### PyPI shows old version after `pip install --upgrade`
 
 PyPI CDN caching can lag. Install the specific version:
+
 ```bash
 pip install spec-kitty-cli==X.Y.Z
 ```

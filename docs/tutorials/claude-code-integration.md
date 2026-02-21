@@ -5,6 +5,7 @@
 ## Why Claude Code + Spec Kitty?
 
 **The Problem with Ad-Hoc AI Coding:**
+
 - Claude loses context across long sessions
 - Requirements get missed or misunderstood
 - No systematic way to track what's been built
@@ -59,6 +60,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 ```
 
 **What Claude Does:**
+
 1. Asks discovery questions (What auth? What database? What validation?)
 2. Creates `kitty-specs/001-todo-api/spec.md` with:
    - User stories
@@ -79,6 +81,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 ```
 
 **What Claude Does:**
+
 1. Asks planning questions (error handling? migrations? testing?)
 2. Creates:
    - `plan.md` - System architecture
@@ -99,6 +102,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 ```
 
 **What Claude Does:**
+
 1. Reads your spec + plan
 2. Creates 5-10 work packages (WP01, WP02, etc.)
 3. Each WP is a focused prompt file with:
@@ -108,6 +112,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 4. Work packages organized in kanban lanes (planned → doing → review → done)
 
 **Why This Matters**:
+
 - Claude focuses on ONE thing at a time
 - Progress is visible (dashboard shows 3/10 tasks done)
 - You can pause/resume without losing context
@@ -131,11 +136,13 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 ```
 
 **What You See:**
+
 - Dashboard updates in real-time as tasks move through lanes
 - Activity log shows: "WP01 moved planned → doing (by Claude Code)"
 - Clear visibility into progress (3 done, 2 in review, 5 planned)
 
 **Why This Matters**:
+
 - Systematic completion (no orphaned code)
 - Built-in review process
 - You can hand off to different agents (Cursor takes over WP05)
@@ -167,6 +174,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 **How Enforced**: `/spec-kitty.plan` and `/spec-kitty.tasks` REQUIRE `spec.md` to exist first.
 
 **Real Example:**
+
 ```
 ❌ Without Spec Kitty:
 You: "Add authentication"
@@ -188,6 +196,7 @@ Claude: [implements exactly what's in spec]
 **Rationale**: Feature branches in place = context confusion. Worktrees = physical isolation.
 
 **How It Works:**
+
 ```bash
 # Spec Kitty automatically creates:
 .worktrees/001-auth-system/     # Separate directory
@@ -197,6 +206,7 @@ Claude: [implements exactly what's in spec]
 ```
 
 **Why This Matters for Claude:**
+
 - Clear context: "You're in 001-auth-system worktree = work on auth"
 - No branch switching = no lost context
 - Parallel work: You can have 3 features active, each in separate worktree
@@ -208,6 +218,7 @@ Claude: [implements exactly what's in spec]
 **Rationale**: "Are we done?" is impossible to answer without systematic tracking.
 
 **The Four Lanes:**
+
 1. **planned** - Ready to implement (backlog)
 2. **doing** - Currently being worked on
 3. **for_review** - Code complete, needs review
@@ -216,6 +227,7 @@ Claude: [implements exactly what's in spec]
 **How Enforced**: Every WP has `lane:` in frontmatter. Commands auto-update lanes.
 
 **Why This Matters:**
+
 - Dashboard shows 3 in "doing" = too many parallel tasks, focus!
 - Agent A does implementation, Agent B does review (clean handoff)
 - Historical record: "WP03 took 3 transitions (sent back to planned twice)"
@@ -227,6 +239,7 @@ Claude: [implements exactly what's in spec]
 ### Scenario: "Build a Markdown Preview Feature"
 
 **Step 1: Initialize (1 minute)**
+
 ```bash
 spec-kitty init markdown-preview --ai claude
 cd markdown-preview
@@ -234,6 +247,7 @@ claude
 ```
 
 **Step 2: Create Specification (5 minutes)**
+
 ```
 # Inside Claude Code:
 /spec-kitty.specify Build a markdown preview feature with live reload and syntax highlighting
@@ -247,6 +261,7 @@ claude
 ```
 
 **Step 3: Navigate to Worktree (CRITICAL!)**
+
 ```
 # Claude Code shows you the path:
 ✓ Feature created at: .worktrees/001-markdown-preview/
@@ -257,6 +272,7 @@ cd .worktrees/001-markdown-preview
 ```
 
 **Step 4: Create Plan (5 minutes)**
+
 ```
 /spec-kitty.plan Use React with marked.js for parsing, highlight.js for syntax,
 and WebSocket for live reload. Dark mode toggle.
@@ -268,6 +284,7 @@ and WebSocket for live reload. Dark mode toggle.
 ```
 
 **Step 5: Generate Tasks (2 minutes)**
+
 ```
 /spec-kitty.tasks
 
@@ -282,6 +299,7 @@ and WebSocket for live reload. Dark mode toggle.
 ```
 
 **Step 6: Implement (variable time)**
+
 ```
 /spec-kitty.implement
 # Claude picks WP01, moves to "doing", implements
@@ -294,6 +312,7 @@ and WebSocket for live reload. Dark mode toggle.
 ```
 
 **Step 7: Accept and Merge (2 minutes)**
+
 ```
 /spec-kitty.accept
 # Validates all tasks complete
@@ -315,6 +334,7 @@ When you run `spec-kitty init`, the dashboard automatically starts on `http://lo
 ### What You See in Real-Time
 
 **Kanban Board:**
+
 ```
 ┌─ Planned ──┬─ Doing ────┬─ For Review ┬─ Done ─────┐
 │ WP04       │ WP01       │ WP03        │ WP05       │
@@ -324,6 +344,7 @@ When you run `spec-kitty init`, the dashboard automatically starts on `http://lo
 ```
 
 **Activity Log:**
+
 ```
 15:23 - WP01 moved planned → doing (Claude Code, shell 12345)
 15:31 - WP01 moved doing → for_review (Claude Code)
@@ -331,6 +352,7 @@ When you run `spec-kitty init`, the dashboard automatically starts on `http://lo
 ```
 
 **Agent Tracking:**
+
 - See which shell PID each agent is using
 - Identify who's working on what
 - Historical record of all transitions
@@ -342,6 +364,7 @@ When you run `spec-kitty init`, the dashboard automatically starts on `http://lo
 ### Scenario: Claude Implements, Cursor Reviews
 
 **Terminal 1: Claude Code**
+
 ```bash
 cd .worktrees/001-auth-system
 claude
@@ -350,6 +373,7 @@ claude
 ```
 
 **Terminal 2: Cursor**
+
 ```bash
 cd .worktrees/001-auth-system  # Same worktree!
 cursor
@@ -358,6 +382,7 @@ cursor
 ```
 
 **Why This Works:**
+
 - Both agents see same `tasks/*.md` files
 - Frontmatter `lane:` field coordinates them
 - Dashboard shows both agents' activity
@@ -411,6 +436,7 @@ cursor
 
 **Cause**: Not in the project root or worktree
 **Fix**:
+
 ```bash
 cd myproject  # or cd .worktrees/001-feature
 claude
@@ -423,6 +449,7 @@ claude
 
 **Cause**: Installed v0.10.0-0.10.8 which had bundling bug
 **Fix**:
+
 ```bash
 pip install --upgrade spec-kitty-cli  # Get v0.10.9+
 cd myproject
@@ -434,6 +461,7 @@ spec-kitty upgrade  # Auto-repairs templates
 
 **Cause**: Commands might not be visible to Claude
 **Fix**:
+
 ```bash
 ls .claude/commands/
 # Should show: spec-kitty.specify.md, spec-kitty.plan.md, etc.
@@ -446,6 +474,7 @@ spec-kitty upgrade  # Regenerates commands
 
 **Cause**: Port 33333 in use
 **Fix**:
+
 ```bash
 spec-kitty dashboard --kill  # Stop existing dashboard
 spec-kitty dashboard         # Restart
@@ -516,7 +545,7 @@ Encode your team's quality standards once:
 
 ## Tips for Maximum Effectiveness
 
-### ✅ DO:
+### ✅ DO
 
 1. **Answer discovery questions thoroughly**
    - Claude needs good requirements to succeed
@@ -534,7 +563,7 @@ Encode your team's quality standards once:
    - `/spec-kitty.accept` is your quality gate
    - Better to catch issues before main branch
 
-### ❌ DON'T:
+### ❌ DON'T
 
 1. **Skip specification**
    - "Just build it" = context loss + rework
@@ -559,6 +588,7 @@ Encode your team's quality standards once:
 ### With Git
 
 Spec Kitty uses standard git operations:
+
 ```bash
 # Commits work in feature branch
 cd .worktrees/001-feature
@@ -610,14 +640,16 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 
 ## Getting Help
 
-**Issues**: https://github.com/Priivacy-ai/spec-kitty/issues
+**Issues**: <https://github.com/Priivacy-ai/spec-kitty/issues>
 
 **Common Issues**:
+
 - Template bundling bug → Upgrade to v0.10.9+
 - Slash commands not found → Check you're in project/worktree
 - Dashboard won't open → Kill existing instance first
 
 **Documentation**:
+
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
@@ -629,6 +661,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 **The Pattern Recognition Problem:**
 
 AI coding agents are pattern-matching machines. Without specs:
+
 - They match patterns from training data (may not fit your needs)
 - They make assumptions (may conflict with your requirements)
 - They lose context (session length limits)
@@ -645,16 +678,19 @@ AI coding agents are pattern-matching machines. Without specs:
 The opinionated workflow isn't arbitrary - it's specifically designed around how AI agents work (and fail) in practice.
 
 ## Related How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [Slash Commands](../reference/slash-commands.md)
 - [Supported Agents](../reference/supported-agents.md)
 
 ## Learn More
+
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)
 - [Kanban Workflow](../explanation/kanban-workflow.md)

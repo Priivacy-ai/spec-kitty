@@ -28,6 +28,7 @@ subtasks:
 # Work Package Prompt: WP01 – Dependency Graph Utilities (TDD Foundation)
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP01
 ```
@@ -55,6 +56,7 @@ spec-kitty implement WP01
 **Primary Goal**: Create `src/specify_cli/core/dependency_graph.py` module with utilities for parsing WP dependencies, detecting circular dependencies, and validating dependency graphs.
 
 **Success Criteria**:
+
 - ✅ All unit tests pass (T001-T005)
 - ✅ dependency_graph.py module implements all required functions
 - ✅ Cycle detection works correctly for various graph shapes (no cycles, simple cycles, complex DAGs)
@@ -69,15 +71,18 @@ spec-kitty implement WP01
 **Why this WP matters**: Dependency graph utilities are foundational for the entire workspace-per-WP feature. Without correct cycle detection and validation, we could generate invalid task structures or allow users to create dependent workspaces in wrong order.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.3: Dependency Graph Utilities (function signatures)
 - [data-model.md](../data-model.md) - DependencyGraph entity definition, cycle detection algorithm
 - [spec.md](../spec.md) - FR-012 through FR-015 (dependency validation requirements)
 
 **Constitutional Alignment**:
+
 - Principle V (File-Based Everything): Dependencies stored in WP frontmatter, parsed from files
 - Technical Standards: Python 3.11+, type hints required, pytest for testing
 
 **Constraints**:
+
 - Must work with YAML frontmatter (ruamel.yaml parser)
 - Performance: <100ms for 50 WPs, <500ms cycle detection for complex graphs
 - No external dependencies beyond existing Spec Kitty stack
@@ -91,6 +96,7 @@ spec-kitty implement WP01
 **Purpose**: Validate parse_wp_dependencies() reads dependencies from WP frontmatter correctly.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_dependency_graph.py`
 2. Write test cases for parse_wp_dependencies():
    - Test parsing WP with no dependencies (empty list)
@@ -104,6 +110,7 @@ spec-kitty implement WP01
 **Parallel?**: Can run in parallel with T002-T005 (different test functions)
 
 **Example Test**:
+
 ```python
 def test_parse_wp_dependencies_single():
     """Test parsing WP with single dependency."""
@@ -127,6 +134,7 @@ dependencies: ["WP01"]
 **Purpose**: Validate build_dependency_graph() scans all WPs and creates correct adjacency list.
 
 **Steps**:
+
 1. In `tests/specify_cli/test_dependency_graph.py`, add test cases for build_dependency_graph()
 2. Test cases:
    - Empty feature (no WPs) → empty graph
@@ -140,6 +148,7 @@ dependencies: ["WP01"]
 **Parallel?**: Yes, can write in parallel with T001, T003-T005
 
 **Example Test**:
+
 ```python
 def test_build_graph_linear_chain(tmp_path):
     """Test graph building with linear dependency chain."""
@@ -163,6 +172,7 @@ def test_build_graph_linear_chain(tmp_path):
 **Purpose**: Validate detect_cycles() correctly identifies circular dependencies using DFS algorithm.
 
 **Steps**:
+
 1. Add test cases for detect_cycles() to test_dependency_graph.py
 2. Test cases:
    - Acyclic graph (no cycles) → returns None
@@ -176,6 +186,7 @@ def test_build_graph_linear_chain(tmp_path):
 **Parallel?**: Yes, independent test function
 
 **Example Test**:
+
 ```python
 def test_detect_cycles_simple():
     """Test detection of simple circular dependency."""
@@ -201,6 +212,7 @@ def test_detect_cycles_none():
 **Purpose**: Validate validate_dependencies() catches invalid dependencies (missing WPs, self-deps, etc.).
 
 **Steps**:
+
 1. Add test cases for validate_dependencies()
 2. Test cases:
    - Valid dependencies → (True, [])
@@ -214,6 +226,7 @@ def test_detect_cycles_none():
 **Parallel?**: Yes, independent test function
 
 **Example Test**:
+
 ```python
 def test_validate_dependencies_missing():
     """Test validation catches missing dependencies."""
@@ -231,6 +244,7 @@ def test_validate_dependencies_missing():
 **Purpose**: Validate get_dependents() correctly finds WPs that depend on a given WP (inverse graph query).
 
 **Steps**:
+
 1. Add test cases for get_dependents()
 2. Test cases:
    - WP with no dependents → []
@@ -243,6 +257,7 @@ def test_validate_dependencies_missing():
 **Parallel?**: Yes, independent test function
 
 **Example Test**:
+
 ```python
 def test_get_dependents_fan_out():
     """Test finding dependents in fan-out pattern."""
@@ -263,6 +278,7 @@ def test_get_dependents_fan_out():
 **Purpose**: Create the actual implementation to make all tests (T001-T005) pass.
 
 **Steps**:
+
 1. Create `src/specify_cli/core/dependency_graph.py`
 2. Implement functions in order:
    - `parse_wp_dependencies(wp_file: Path) -> list[str]`
@@ -280,6 +296,7 @@ def test_get_dependents_fan_out():
 **Implementation Details**:
 
 **parse_wp_dependencies**:
+
 ```python
 def parse_wp_dependencies(wp_file: Path) -> list[str]:
     """Parse dependencies from WP frontmatter."""
@@ -301,6 +318,7 @@ def parse_wp_dependencies(wp_file: Path) -> list[str]:
 ```
 
 **detect_cycles (DFS)**:
+
 ```python
 def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
     """Detect circular dependencies using DFS with coloring."""
@@ -341,6 +359,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
 **Purpose**: Ensure dependency_graph.py has >90% test coverage.
 
 **Steps**:
+
 1. Run pytest with coverage: `pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dependency_graph.py --cov-report=term-missing`
 2. Review coverage report, identify untested lines
 3. Add tests for uncovered branches (error paths, edge cases)
@@ -357,6 +376,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
 **All tests in**: `tests/specify_cli/test_dependency_graph.py`
 
 **Test execution**:
+
 ```bash
 # Run from current worktree (where new code lives)
 pytest tests/specify_cli/test_dependency_graph.py -v
@@ -369,6 +389,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 **Note**: Do NOT cd to main repo - tests must run against code in this worktree.
 
 **Test categories**:
+
 - Parsing tests (T001): 5 test cases
 - Graph building tests (T002): 5 test cases
 - Cycle detection tests (T003): 5 test cases
@@ -382,14 +403,17 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 ## Risks & Mitigations
 
 **Risk 1: Cycle detection algorithm incorrect**
+
 - Impact: Invalid dependency graphs allowed → runtime errors during implement
 - Mitigation: Comprehensive test cases covering all graph topologies, reference DFS algorithm from data-model.md
 
 **Risk 2: Frontmatter parsing inconsistent with existing code**
+
 - Impact: Can't parse WP files → dependency tracking broken
 - Mitigation: Use same ruamel.yaml approach as existing frontmatter.py module, test with real WP file examples
 
 **Risk 3: Performance degradation with large graphs**
+
 - Impact: Slow cycle detection for features with many WPs
 - Mitigation: DFS is O(V+E), test with 50 WPs, verify <500ms constraint
 
@@ -410,6 +434,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. Tests were written FIRST (check git history - test file committed before implementation)
 2. Test coverage is comprehensive (no obvious edge cases missing)
 3. Cycle detection algorithm matches data-model.md specification (DFS with coloring)
@@ -429,11 +454,13 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP01
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T09:07:58Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T09:20:16Z – unknown – lane=for_review – All tests passing (25/25). Module complete with comprehensive docstrings and type hints. TDD approach validated - tests written first, implementation made them pass.
 - 2026-01-08T09:23:53Z – agent – lane=doing – Started review via workflow command

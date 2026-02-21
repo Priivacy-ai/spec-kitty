@@ -7,11 +7,9 @@ human-readable output, and JSON output.
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.status import app
@@ -77,13 +75,12 @@ def _setup_feature(
     # Write events file
     if events:
         lines = [json.dumps(e, sort_keys=True) for e in events]
-        (feature_dir / "status.events.jsonl").write_text(
-            "\n".join(lines) + "\n", encoding="utf-8"
-        )
+        (feature_dir / "status.events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         # Materialize snapshot
         if materialize:
             from specify_cli.status.reducer import materialize as do_materialize
+
             do_materialize(feature_dir)
 
     # Write WP files
@@ -133,7 +130,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -170,7 +167,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -207,7 +204,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -254,9 +251,7 @@ class TestValidateCommand:
         snapshot_path = feature_dir / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
@@ -300,9 +295,7 @@ class TestValidateCommand:
         snapshot_path = feature_dir / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
@@ -336,7 +329,7 @@ class TestValidateCommand:
             ),
         ]
         # WP file says "done" but canonical state is "claimed"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -372,7 +365,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -384,9 +377,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(
-            app, ["validate", "--feature", feature_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--feature", feature_slug, "--json"])
         assert result.exit_code == 0
 
         data = json.loads(result.output)
@@ -420,7 +411,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -432,9 +423,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(
-            app, ["validate", "--feature", feature_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--feature", feature_slug, "--json"])
         assert result.exit_code == 1
 
         data = json.loads(result.output)
@@ -456,7 +445,7 @@ class TestValidateCommand:
     ):
         """No event log: no errors, exit 0."""
         feature_slug = "034-test-feature"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=None,
@@ -485,7 +474,7 @@ class TestValidateCommand:
     ):
         """No events + JSON output -> valid JSON, passed=true."""
         feature_slug = "034-test-feature"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=None,
@@ -497,9 +486,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(
-            app, ["validate", "--feature", feature_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--feature", feature_slug, "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["passed"] is True

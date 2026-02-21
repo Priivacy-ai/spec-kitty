@@ -53,6 +53,7 @@ history:
 ## ⚠️ Dependency Rebase Guidance
 
 **This WP depends on**:
+
 - WP01 (Mission Infrastructure) - mission.yaml must exist
 - WP02 (Core Templates) - Templates must exist
 - WP03 (Divio Templates) - Divio templates must exist
@@ -60,8 +61,10 @@ history:
 - WP05 (Generators) - Not strictly required but should be included
 
 **Before starting work**:
+
 1. Ensure WP01-04 are complete (all mission files created)
 2. Verify mission structure is complete:
+
    ```
    src/specify_cli/missions/documentation/
    ├── mission.yaml
@@ -70,6 +73,7 @@ history:
    │   └── divio/*.md
    └── command-templates/*.md
    ```
+
 3. Optionally: WP05 complete (doc_generators.py exists)
 
 **Critical**: This migration copies the entire documentation mission to user projects. All mission files must be finalized before migration is written.
@@ -81,6 +85,7 @@ history:
 **Goal**: Create a migration that installs the documentation mission to existing spec-kitty projects, copying the mission directory from `src/specify_cli/missions/documentation/` to `.kittify/missions/documentation/`.
 
 **Success Criteria**:
+
 - Migration file created at `src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py`
 - Migration detects when documentation mission is missing from user projects
 - Migration copies entire documentation mission directory (mission.yaml, templates/, command-templates/)
@@ -92,11 +97,13 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - Understanding of spec-kitty migration system
 - Existing migration examples as reference
 - Complete documentation mission in src/specify_cli/missions/documentation/
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Migration design (lines 226-236)
 - [spec.md](../spec.md) - Migration requirements (implied by mission installation)
 - Existing migrations:
@@ -106,6 +113,7 @@ history:
 - Migration registry: `src/specify_cli/upgrade/registry.py`
 
 **Constraints**:
+
 - Must not break existing missions
 - Must not overwrite user customizations (if they customized documentation mission)
 - Must be idempotent (detect already-installed mission)
@@ -114,6 +122,7 @@ history:
 - Must have tests
 
 **Migration System Overview**:
+
 - Migrations live in `src/specify_cli/upgrade/migrations/`
 - Each migration is a class inheriting from `BaseMigration`
 - Must implement: `migration_id`, `description`, `target_version`, `detect()`, `apply()`
@@ -127,8 +136,10 @@ history:
 **Purpose**: Create the migration file with proper structure and boilerplate.
 
 **Steps**:
+
 1. Create `src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py`
 2. Add imports:
+
    ```python
    """Migration: Install documentation mission to user projects (v0.12.0)."""
 
@@ -140,7 +151,9 @@ history:
    from ..registry import MigrationRegistry
    from .base import BaseMigration, MigrationResult
    ```
+
 3. Define migration class:
+
    ```python
    @MigrationRegistry.register
    class InstallDocumentationMission(BaseMigration):
@@ -174,12 +187,14 @@ history:
 **Parallel?**: No (foundation for other subtasks)
 
 **Notes**:
+
 - Migration naming: `m_0_12_0_<description>.py`
 - Version: "0.12.0" (documentation mission release)
 - Decorator: `@MigrationRegistry.register` for auto-registration
 - Inherits from `BaseMigration`
 
 **Quality Validation**:
+
 - Does file follow naming convention?
 - Is class properly decorated for registration?
 - Are required methods defined (detect, apply)?
@@ -189,7 +204,9 @@ history:
 **Purpose**: Implement logic to detect when documentation mission is missing from a user project.
 
 **Steps**:
+
 1. Implement `detect()` method:
+
    ```python
    def detect(self, project_path: Path) -> bool:
        """Detect if documentation mission needs to be installed.
@@ -229,6 +246,7 @@ history:
 **Parallel?**: No (must be implemented before apply)
 
 **Notes**:
+
 - Checks for .kittify/missions/documentation/ directory
 - Checks for mission.yaml file (confirms complete installation)
 - Returns False if already installed (idempotency)
@@ -236,6 +254,7 @@ history:
 - Returns True if documentation mission missing
 
 **Quality Validation**:
+
 - Does it correctly detect missing mission?
 - Does it return False when already installed?
 - Does it handle projects without .kittify directory?
@@ -246,7 +265,9 @@ history:
 **Purpose**: Implement logic to copy documentation mission to user project.
 
 **Steps**:
+
 1. Implement `apply()` method:
+
    ```python
    def apply(self, project_path: Path) -> MigrationResult:
        """Copy documentation mission to user project.
@@ -326,6 +347,7 @@ history:
 **Parallel?**: No (core migration logic)
 
 **Notes**:
+
 - Uses shutil.copytree() to copy entire directory
 - Finds source mission relative to migration file location
 - Creates missions/ directory if needed
@@ -334,6 +356,7 @@ history:
 - Counts copied files for informative message
 
 **Quality Validation**:
+
 - Does it find source mission correctly?
 - Does it copy all files (mission.yaml, templates/, command-templates/)?
 - Does it handle already-installed case?
@@ -345,7 +368,9 @@ history:
 **Purpose**: Ensure migration doesn't break or modify existing missions (software-dev, research).
 
 **Steps**:
+
 1. Add test to verify software-dev mission unchanged:
+
    ```python
    def test_migration_preserves_software_dev_mission(tmp_path):
        """Verify migration doesn't touch software-dev mission."""
@@ -371,6 +396,7 @@ history:
    ```
 
 2. Add test to verify research mission unchanged:
+
    ```python
    def test_migration_preserves_research_mission(tmp_path):
        """Verify migration doesn't touch research mission."""
@@ -379,6 +405,7 @@ history:
    ```
 
 3. Add test to verify no other files touched:
+
    ```python
    def test_migration_only_touches_documentation_mission(tmp_path):
        """Verify migration only modifies .kittify/missions/documentation/."""
@@ -411,12 +438,14 @@ history:
 **Parallel?**: Part of testing (WP09)
 
 **Notes**:
+
 - Critical safety check
 - Ensures migration is surgical (only adds documentation mission)
 - Verifies existing missions untouched
 - Verifies no other project files modified
 
 **Quality Validation**:
+
 - Do tests actually verify no changes to software-dev?
 - Do tests check research mission too?
 - Do tests verify only documentation mission directory created?
@@ -426,7 +455,9 @@ history:
 **Purpose**: Ensure migration can run multiple times safely without duplicating or corrupting data.
 
 **Steps**:
+
 1. Add idempotency test:
+
    ```python
    def test_migration_is_idempotent(tmp_path):
        """Verify migration can run multiple times safely."""
@@ -461,6 +492,7 @@ history:
    ```
 
 2. Add test for detect() idempotency:
+
    ```python
    def test_migration_detect_after_apply(tmp_path):
        """Verify detect() returns False after apply()."""
@@ -489,12 +521,14 @@ history:
 **Parallel?**: Part of testing (WP09)
 
 **Notes**:
+
 - Idempotency is critical for upgrade system
 - Users may run migrations multiple times
 - Second run should be no-op (or very minimal)
 - detect() should return False after successful apply()
 
 **Quality Validation**:
+
 - Does second run succeed?
 - Does second run change anything?
 - Does detect() return False after apply()?
@@ -505,7 +539,9 @@ history:
 **Purpose**: Ensure migration is registered and will run during `spec-kitty upgrade`.
 
 **Steps**:
+
 1. Verify `@MigrationRegistry.register` decorator is present on class (should be from T047):
+
    ```python
    @MigrationRegistry.register
    class InstallDocumentationMission(BaseMigration):
@@ -513,6 +549,7 @@ history:
    ```
 
 2. Test migration registration:
+
    ```python
    def test_migration_is_registered():
        """Verify migration is registered and discoverable."""
@@ -527,6 +564,7 @@ history:
    ```
 
 3. Test migration can be loaded:
+
    ```python
    def test_migration_can_be_loaded():
        """Verify migration can be instantiated and has required attributes."""
@@ -542,24 +580,28 @@ history:
    ```
 
 4. Verify migration appears in `spec-kitty upgrade --dry-run`:
+
    ```bash
    spec-kitty upgrade --dry-run
    # Should list "0.12.0_documentation_mission" migration
    ```
 
 **Files**:
+
 - `src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py` (verified)
 - `tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py` (modified)
 
 **Parallel?**: Part of testing (WP09)
 
 **Notes**:
+
 - Registration happens via decorator (automatic)
 - Migration must be importable (no syntax errors)
 - Registry scans migrations/ directory for decorated classes
 - Migration appears in `spec-kitty upgrade` command
 
 **Quality Validation**:
+
 - Is decorator present?
 - Does migration appear in registry?
 - Can migration be instantiated?
@@ -570,6 +612,7 @@ history:
 ### Source Mission Location
 
 The documentation mission source lives in spec-kitty's installation:
+
 ```
 <spec-kitty-installation>/src/specify_cli/missions/documentation/
 ├── mission.yaml
@@ -594,6 +637,7 @@ The documentation mission source lives in spec-kitty's installation:
 ### Destination (User Project)
 
 Copied to user's project:
+
 ```
 <user-project>/.kittify/missions/documentation/
 ├── mission.yaml
@@ -628,6 +672,7 @@ Copied to user's project:
 **Unit Tests** (to be implemented in WP09):
 
 1. Test detection logic:
+
    ```python
    def test_detect_missing_mission(tmp_path):
        """Migration detects when documentation mission is missing."""
@@ -654,6 +699,7 @@ Copied to user's project:
    ```
 
 2. Test apply logic:
+
    ```python
    def test_apply_installs_mission(tmp_path):
        """Migration successfully installs documentation mission."""
@@ -701,6 +747,7 @@ Copied to user's project:
 5. Test registration (from T052)
 
 **Integration Test**:
+
 ```python
 @pytest.mark.integration
 def test_migration_end_to_end(tmp_path):
@@ -736,6 +783,7 @@ def test_migration_end_to_end(tmp_path):
 **Manual Validation**:
 
 1. Test migration on a real project:
+
    ```bash
    # Create test spec-kitty project
    mkdir -p /tmp/test-project
@@ -758,6 +806,7 @@ def test_migration_end_to_end(tmp_path):
    ```
 
 2. Test idempotency:
+
    ```bash
    # Run upgrade again
    spec-kitty upgrade
@@ -767,6 +816,7 @@ def test_migration_end_to_end(tmp_path):
    ```
 
 3. Test migration doesn't break existing missions:
+
    ```bash
    # Create feature with software-dev mission
    spec-kitty agent feature create-feature "test-feature" --mission software-dev --json
@@ -841,6 +891,7 @@ def test_migration_end_to_end(tmp_path):
 6. **Error Handling**: Clear messages when source not found or copy fails
 
 **Validation Commands**:
+
 ```bash
 # Check migration file exists
 ls -la src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py
@@ -864,6 +915,7 @@ pytest tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.
 ```
 
 **Review Focus Areas**:
+
 - Migration class correctly structured (inherits BaseMigration, decorated)
 - detect() logic is sound (correct conditions)
 - apply() logic is complete (copies all files)
@@ -884,6 +936,6 @@ pytest tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.
 - 2026-01-13T10:48:54Z – claude – shell_pid=59296 – lane=doing – Started implementation via workflow command
 - 2026-01-13T10:54:43Z – claude – shell_pid=59296 – lane=for_review – Ready for review: Documentation mission migration implemented with comprehensive tests. All subtasks (T047-T052) complete. Migration includes detect(), can_apply(), apply() methods with idempotency, existing mission preservation, and full test coverage (19 tests passing).
 - 2026-01-13T11:08:49Z – claude – shell_pid=69618 – lane=doing – Started review via workflow command
-- 2026-01-13T11:10:18Z – claude – shell_pid=69618 – lane=done – Review passed: ✅ Migration properly structured with @MigrationRegistry.register decorator ✅ detect() correctly identifies missing documentation missions ✅ can_apply() validates source exists ✅ apply() handles dry_run, idempotency, and error cases ✅ _find_source_mission() uses correct relative path ✅ 19/19 tests passing (detection, apply, preservation, idempotency, registration) ✅ Existing missions (software-dev, research) preserved ✅ Backward compatible and idempotent ✅ Clear error messages ✅ All subtasks T047-T052 complete
+- 2026-01-13T11:10:18Z – claude – shell_pid=69618 – lane=done – Review passed: ✅ Migration properly structured with @MigrationRegistry.register decorator ✅ detect() correctly identifies missing documentation missions ✅ can_apply() validates source exists ✅ apply() handles dry_run, idempotency, and error cases ✅_find_source_mission() uses correct relative path ✅ 19/19 tests passing (detection, apply, preservation, idempotency, registration) ✅ Existing missions (software-dev, research) preserved ✅ Backward compatible and idempotent ✅ Clear error messages ✅ All subtasks T047-T052 complete
 - 2026-01-13T14:14:10Z – claude – shell_pid=94285 – lane=doing – Started review via workflow command
 - 2026-01-13T14:14:46Z – claude – shell_pid=94285 – lane=done – Review passed: Migration implemented correctly with 19 comprehensive tests (all passing), proper idempotency, and preservation of existing missions

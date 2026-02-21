@@ -46,7 +46,7 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
 
 
 @app.command(name="list")
-def list_agents():
+def list_agents() -> None:
     """List configured agents and their status."""
     try:
         repo_root = find_repo_root()
@@ -87,7 +87,7 @@ def list_agents():
 @app.command(name="add")
 def add_agents(
     agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
-):
+) -> None:
     """Add agents to the project.
 
     Creates agent directories and updates config.yaml.
@@ -173,7 +173,7 @@ def remove_agents(
         "--keep-config",
         help="Keep in config.yaml but delete directory",
     ),
-):
+) -> None:
     """Remove agents from the project.
 
     Deletes agent directories and updates config.yaml.
@@ -237,7 +237,7 @@ def remove_agents(
 
 
 @app.command(name="status")
-def agent_status():
+def agent_status() -> None:
     """Show which agents are configured vs present on filesystem.
 
     Identifies:
@@ -290,17 +290,12 @@ def agent_status():
 
     # Summary
     orphaned = [
-        key
-        for key in all_agent_keys
-        if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
+        key for key in all_agent_keys if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
     ]
 
     if orphaned:
-        console.print(
-            f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
-            f"(present but not configured)"
-        )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print(f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] (present but not configured)")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")
@@ -315,7 +310,7 @@ def sync_agents(
         "--remove-orphaned/--keep-orphaned",
         help="Remove directories for agents not in config",
     ),
-):
+) -> None:
     """Sync filesystem with config.yaml.
 
     By default, removes orphaned directories (present but not configured).

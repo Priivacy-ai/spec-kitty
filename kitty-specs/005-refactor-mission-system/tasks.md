@@ -16,6 +16,7 @@
 **Prompt**: `/tasks/planned/phase-1-foundation/WP01-guards-module-preflight-validation.md`
 
 ### Included Subtasks
+
 - [X] T001 Create `src/specify_cli/guards.py` module with docstring and imports
 - [X] T002 Define `WorktreeValidationResult` dataclass in guards.py
 - [X] T003 [P] Write unit tests in `tests/unit/test_guards.py` (TDD - write first)
@@ -25,18 +26,22 @@
 - [X] T007 Run unit tests and verify 100% coverage for guards module
 
 ### Implementation Notes
+
 1. Start with TDD: write test_guards.py first with expected behavior
 2. Implement validation logic: check current branch, detect main vs feature, provide worktree suggestions
 3. Error messages must be actionable: show exact commands to fix
 4. This work package BLOCKS WP05 (command prompt updates) - prioritize completion
 
 ### Parallel Opportunities
+
 - T003 (writing tests) can happen in parallel with T001-T002 (module structure)
 
 ### Dependencies
+
 - None (foundational work package)
 
 ### Risks & Mitigations
+
 - Risk: Breaks existing command execution if validation too strict
 - Mitigation: Match existing bash check behavior exactly, extensive testing from both valid and invalid locations
 
@@ -49,17 +54,19 @@
 **Prompt**: `/tasks/planned/phase-1-foundation/WP02-pydantic-mission-schema.md`
 
 ### Included Subtasks
+
 - [X] T008 Add `pydantic>=2.0` to pyproject.toml or requirements.txt
 - [X] T009 Create Pydantic models in mission.py: PhaseConfig, ArtifactsConfig, ValidationConfig
 - [X] T010 Create Pydantic models: WorkflowConfig, MCPToolsConfig, CommandConfig, TaskMetadataConfig
 - [X] T011 Create root MissionConfig model with all required/optional fields
 - [X] T012 [P] Write unit tests in `tests/unit/test_mission_schema.py` covering valid configs
 - [X] T013 [P] Write unit tests for invalid configs (typos, missing fields, wrong types)
-- [X] T014 Update Mission.__init__ to use Pydantic validation instead of raw YAML
+- [X] T014 Update Mission.**init** to use Pydantic validation instead of raw YAML
 - [X] T015 Add error formatting for ValidationError with helpful messages
 - [X] T016 Test with existing software-dev and research mission.yaml files
 
 ### Implementation Notes
+
 1. Install Pydantic first
 2. Define models incrementally (start with simple PhaseConfig, build up to MissionConfig)
 3. Use `extra="forbid"` to catch typos in field names
@@ -67,13 +74,16 @@
 5. Maintain backwards compatibility - valid missions should still load
 
 ### Parallel Opportunities
+
 - T012 (valid config tests) and T013 (invalid config tests) can be written in parallel
 - T009-T011 (model definitions) can be drafted in parallel then integrated
 
 ### Dependencies
+
 - None (can start immediately)
 
 ### Risks & Mitigations
+
 - Risk: Breaking changes to existing custom missions
 - Mitigation: Test with both built-in missions, document migration guide for custom missions
 - Risk: Pydantic dependency rejected
@@ -88,6 +98,7 @@
 **Prompt**: `/tasks/planned/phase-2-mission-cli/WP03-mission-cli-commands.md`
 
 ### Included Subtasks
+
 - [X] T017 Create `src/specify_cli/cli/commands/mission.py` with Typer app
 - [X] T018 Implement `list_cmd()` - display all available missions
 - [X] T019 Implement `current_cmd()` - show active mission details
@@ -98,20 +109,24 @@
 - [X] T024 Test all CLI commands with rich output formatting
 
 ### Implementation Notes
+
 1. Reuse existing `mission.py` functions (get_active_mission, set_active_mission, list_available_missions)
 2. Add new validation logic for switch command (check worktrees, git status)
 3. Use Rich console for formatted output
 4. Follow existing CLI patterns from init command
 
 ### Parallel Opportunities
+
 - T018-T020 (list/current/info commands) can be implemented in parallel
 - T023 (integration tests) can be written in parallel with T017-T022
 
 ### Dependencies
+
 - Depends on WP02 (Pydantic schema validation)
 - Depends on WP01 (guards module for git-clean validation)
 
 ### Risks & Mitigations
+
 - Risk: Switch validation too strict or too loose
 - Mitigation: Follow spec requirements exactly (block on worktrees, git dirty, missing mission)
 
@@ -124,6 +139,7 @@
 **Prompt**: `/tasks/planned/phase-3-research-mission/WP04-research-mission-templates.md`
 
 ### Included Subtasks
+
 - [X] T025 [P] Update `.kittify/missions/research/templates/spec-template.md` with research question format
 - [X] T026 [P] Update `.kittify/missions/research/templates/plan-template.md` with methodology sections
 - [X] T027 [P] Update `.kittify/missions/research/templates/tasks-template.md` for research work packages
@@ -132,19 +148,23 @@
 - [X] T030 Update research mission.yaml with complete validation rules and artifact list
 
 ### Implementation Notes
+
 1. Templates must guide researchers clearly (research question, hypothesis, methodology, findings)
 2. Remove any software-dev terminology (no "user stories", "TDD", "contracts")
 3. Add inline guidance for populating CSV files
 4. Ensure consistency across all research templates
 
 ### Parallel Opportunities
+
 - All template updates (T025-T029) can proceed in parallel
 - Different agents can own different templates
 
 ### Dependencies
+
 - None (can start immediately)
 
 ### Risks & Mitigations
+
 - Risk: Templates don't match actual research workflows
 - Mitigation: Reference academic research methodology standards
 
@@ -157,6 +177,7 @@
 **Prompt**: `/tasks/planned/phase-3-research-mission/WP05-research-citation-validators.md`
 
 ### Included Subtasks
+
 - [X] T031 Create `src/specify_cli/validators/` directory
 - [X] T032 Create `src/specify_cli/validators/research.py` module
 - [X] T033 Define CitationValidationResult and CitationIssue dataclasses
@@ -169,19 +190,23 @@
 - [X] T040 Integrate citation validation into research mission review workflow
 
 ### Implementation Notes
+
 1. Progressive validation: errors for completeness, warnings for format
 2. Support multiple formats (BibTeX, APA, Simple) - don't enforce single style
 3. Use Python stdlib only (csv + re)
 4. Clear error messages: line number, field name, specific issue, suggestion
 
 ### Parallel Opportunities
+
 - T034-T036 (pattern development) can proceed in parallel
 - T037-T038 (validation functions) can be implemented independently
 
 ### Dependencies
+
 - None (can start immediately)
 
 ### Risks & Mitigations
+
 - Risk: Regex patterns too strict, reject valid citations
 - Mitigation: Test with real-world citation examples, make warnings not errors
 
@@ -194,6 +219,7 @@
 **Prompt**: `/tasks/planned/phase-4-integration/WP06-update-command-prompts.md`
 
 ### Included Subtasks
+
 - [X] T041 Update `.kittify/missions/software-dev/commands/plan.md` - replace inline checks with Python call
 - [X] T042 Update `.kittify/missions/software-dev/commands/implement.md` - replace inline checks
 - [X] T043 Update `.kittify/missions/software-dev/commands/review.md` - replace inline checks
@@ -204,6 +230,7 @@
 - [X] T048 Update `.kittify/missions/research/commands/merge.md` - replace inline checks
 
 ### Implementation Notes
+
 1. **CRITICAL**: This work package MUST wait for WP01 (guards.py) to complete
 2. Find "Location Pre-flight Check" sections in each command prompt
 3. Replace with: "Run pre-flight validation: `python -m specify_cli.guards validate_worktree`"
@@ -211,13 +238,16 @@
 5. Test each command from correct and incorrect locations
 
 ### Parallel Opportunities
+
 - Software-dev commands (T041-T044) and research commands (T045-T048) can be updated in parallel
 - Each command can be updated independently
 
 ### Dependencies
+
 - **BLOCKS**: Depends on WP01 (guards.py must exist)
 
 ### Risks & Mitigations
+
 - Risk: Commands fail if guards.py has bugs
 - Mitigation: Extensive testing of guards.py before updating prompts
 
@@ -230,6 +260,7 @@
 **Prompt**: `/tasks/planned/phase-4-integration/WP07-path-convention-validation.md`
 
 ### Included Subtasks
+
 - [X] T049 Create `src/specify_cli/validators/paths.py` module
 - [X] T050 Define PathValidationResult dataclass
 - [X] T051 Implement `validate_mission_paths()` with strict/non-strict modes
@@ -240,20 +271,24 @@
 - [X] T056 Update acceptance.py to include path validation in 7-point readiness check
 
 ### Implementation Notes
+
 1. Read mission.paths from MissionConfig
 2. Check each path exists relative to project root
 3. strict=False: return warnings, strict=True: raise errors
 4. Generate helpful suggestions: "Create directory: mkdir -p src/"
 
 ### Parallel Opportunities
+
 - T049-T052 (implementation) and T053 (tests) can proceed in parallel
 - T054-T055 (integration points) can be done independently
 
 ### Dependencies
+
 - Depends on WP02 (Pydantic schema for accessing mission.paths)
 - Depends on WP03 (mission switch command to integrate warnings)
 
 ### Risks & Mitigations
+
 - Risk: False positives (path exists but with different case on case-insensitive filesystem)
 - Mitigation: Use Path.resolve() for canonical path comparison
 
@@ -266,6 +301,7 @@
 **Prompt**: `/tasks/planned/phase-5-polish/WP08-documentation-terminology.md`
 
 ### Included Subtasks
+
 - [X] T057 [P] Add glossary section to README.md with Project/Feature/Mission definitions
 - [X] T058 [P] Review and update README.md for consistent terminology
 - [X] T059 [P] Update CLI help text for consistent terminology
@@ -273,6 +309,7 @@
 - [X] T061 [P] Update command prompt files for consistent terminology
 
 ### Implementation Notes
+
 1. Define clear, concise definitions with examples
 2. Search/replace inconsistent usage
 3. Terminology:
@@ -281,13 +318,16 @@
    - **Mission**: Domain adapter (e.g., "software-dev mission", "research mission")
 
 ### Parallel Opportunities
+
 - All subtasks can proceed in parallel (different files)
 - Multiple agents can own different documentation sections
 
 ### Dependencies
+
 - None (can start immediately)
 
 ### Risks & Mitigations
+
 - Risk: Inconsistencies slip through
 - Mitigation: Automated terminology checking (grep for patterns)
 
@@ -300,6 +340,7 @@
 **Prompt**: `/tasks/planned/phase-5-polish/WP09-dashboard-mission-display.md`
 
 ### Included Subtasks
+
 - [X] T062 Update `src/specify_cli/dashboard/server.py` to include mission in context
 - [X] T063 [P] Update dashboard HTML template to display mission name
 - [X] T064 [P] Add refresh button to dashboard header (optional enhancement)
@@ -308,19 +349,23 @@
 - [X] T067 Switch to research mission, refresh dashboard, verify update
 
 ### Implementation Notes
+
 1. Add mission to template context in index route
 2. Display format: "Current Mission: Software Dev Kitty" in header
 3. Refresh button is optional enhancement (nice-to-have)
 4. Avoid mission-specific UI changes (keep dashboard generic)
 
 ### Parallel Opportunities
+
 - T063-T064 (frontend changes) can proceed in parallel
 - T062 (backend) must complete first
 
 ### Dependencies
+
 - Depends on WP03 (mission switch command to test updates)
 
 ### Risks & Mitigations
+
 - Risk: Dashboard becomes cluttered
 - Mitigation: Minimal, clean design - resist complication per user guidance
 
@@ -333,6 +378,7 @@
 **Prompt**: `/tasks/planned/phase-6-testing/WP10-integration-testing.md`
 
 ### Included Subtasks
+
 - [X] T068 Create `tests/integration/test_mission_switching.py`
 - [X] T069 Test: Clean project → mission switch → verify success
 - [X] T070 Test: Active worktrees → mission switch → verify blocked
@@ -344,18 +390,22 @@
 - [X] T076 Test: Path validation warnings at switch, errors at acceptance
 
 ### Implementation Notes
+
 1. Use pytest fixtures for project setup/teardown
 2. Create temporary test projects for isolation
 3. Test both happy paths and error scenarios
 4. Verify error messages are actionable
 
 ### Parallel Opportunities
+
 - T068-T072 (switching tests) and T073-T076 (research tests) can be developed in parallel
 
 ### Dependencies
+
 - Depends on WP01, WP02, WP03, WP04, WP05, WP06, WP07 (integration tests run after all modules complete)
 
 ### Risks & Mitigations
+
 - Risk: Integration tests brittle, break with unrelated changes
 - Mitigation: Focus on contract validation, not implementation details
 
@@ -364,12 +414,14 @@
 ## Dependency & Execution Summary
 
 **Critical Path**:
+
 ```
 WP01 (Guards) → WP06 (Command Prompts) → WP10 (Integration Tests)
   └─ 1 day   →    1 day                →    1 day
 ```
 
 **Parallel Execution Strategy**:
+
 ```
 Phase 1 - Foundation (Days 1-2, Sequential):
   WP01: Guards Module [BLOCKS WP06]
@@ -385,16 +437,19 @@ Phase 3 - Integration (Days 6-7):
 ```
 
 **Parallelization Opportunities**:
+
 - After WP01 completes: WP02, WP04, WP08, WP09 can run in parallel
 - WP03, WP05 can start after their dependencies (WP02, WP04) complete
 - WP06 waits for WP01 but can overlap with other streams
 
 **MVP Scope** (minimum viable refactoring):
+
 - WP01: Guards Module (eliminates duplication)
 - WP02: Pydantic Schema (fixes silent failures)
 - WP06: Command Prompts (applies DRY fix)
 
 **Full Scope** (all improvements):
+
 - MVP + WP03 (Mission CLI) + WP04 (Research Templates) + WP05 (Citation Validators) + WP07 (Path Validation) + WP08 (Docs) + WP09 (Dashboard) + WP10 (Integration Tests)
 
 ---
@@ -418,7 +473,7 @@ Phase 3 - Integration (Days 6-7):
 | T011 | Create root MissionConfig model | WP02 | P1 | No |
 | T012 | Write tests for valid configs | WP02 | P1 | Yes |
 | T013 | Write tests for invalid configs | WP02 | P1 | Yes |
-| T014 | Update Mission.__init__ with validation | WP02 | P1 | No |
+| T014 | Update Mission.**init** with validation | WP02 | P1 | No |
 | T015 | Add error formatting | WP02 | P1 | No |
 | T016 | Test with existing missions | WP02 | P1 | No |
 | **Mission CLI** |

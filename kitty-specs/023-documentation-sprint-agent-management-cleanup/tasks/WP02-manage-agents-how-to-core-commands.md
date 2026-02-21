@@ -54,17 +54,18 @@ history:
 
 **Issue 5 (placeholder URL)**: “spec-kitty GitHub Issues” link uses `https://github.com/yourusername/spec-kitty/issues` (line ~602). Replace with the real repo URL (e.g., `https://github.com/Priivacy-ai/spec-kitty/issues`, consistent with other docs).
 
-
 ## ⚠️ Dependency Rebase Guidance
 
 **This WP depends on WP01** (check frontmatter `dependencies:` field).
 
 Before starting, ensure WP01 is complete and review research findings. This WP requires:
+
 - Command signatures from WP01 research
 - Config schema from WP01 research
 - Error handling details from WP01 research
 
 **Check if WP01 is complete**:
+
 ```bash
 spec-kitty agent tasks status --feature 023-documentation-sprint-agent-management-cleanup
 ```
@@ -74,8 +75,9 @@ Look for WP01 in "done" lane. If not complete, wait for WP01 or coordinate with 
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -84,6 +86,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Create comprehensive how-to guide `docs/how-to/manage-agents.md` documenting all 5 agent config commands with task-oriented, actionable guidance.
 
 **Success Criteria**:
+
 - [ ] File created at `docs/how-to/manage-agents.md` (approximately 500 lines)
 - [ ] Overview section establishes prerequisites and context
 - [ ] "Agent Configuration Model" section explains config-driven approach (config.yaml as single source)
@@ -100,16 +103,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: This is the primary how-to guide for agent management post-initialization. It addresses User Story 1 (FR-001, FR-002, FR-003).
 
 **Reference Documents**:
+
 - WP01 research findings (command signatures, config schema, agent mappings)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-001 through FR-003)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/plan.md` (validation strategy)
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md` (architectural context for config-driven model)
 
 **Source Files for Validation** (read-only, for cross-reference if needed):
+
 - `src/specify_cli/cli/commands/agent/config.py` (command implementations)
 - `src/specify_cli/orchestrator/agent_config.py` (AgentConfig dataclass)
 
 **Writing Style**:
+
 - **Task-oriented**: Focus on what user wants to accomplish (add agent, remove agent, check status)
 - **Imperative tone**: Use commands like "Run `spec-kitty agent config list`" not "You can run..."
 - **Concrete examples**: Real commands with realistic agent selections (claude, codex, opencode)
@@ -117,6 +123,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **No implementation details**: Don't explain internal dataclasses, functions, or code structure
 
 **Constraints**:
+
 - Must be complete in single WP (WP03 adds supplementary content)
 - Sequential subtasks (build document section by section)
 - Extract exact syntax from WP01 research findings
@@ -133,6 +140,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 1. **Create file** at `docs/how-to/manage-agents.md`
 
 2. **Write title and frontmatter** (if your docs use frontmatter):
+
    ```markdown
    # Managing AI Agents
 
@@ -147,6 +155,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Preview the 5 commands briefly: `list`, `add`, `remove`, `status`, `sync`
 
 4. **Write Prerequisites section**:
+
    ```markdown
    ## Prerequisites
 
@@ -158,6 +167,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Add "Quick Reference" table** (optional but helpful):
+
    | Command | Purpose |
    |---------|---------|
    | `spec-kitty agent config list` | View configured agents and available options |
@@ -171,11 +181,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (must complete before other subtasks)
 
 **Notes**:
+
 - Keep overview focused on user goals (not technical implementation)
 - Prerequisites should be minimal (most users will have these)
 - Quick reference table helps users navigate long document
 
 **Validation**:
+
 - [ ] File created at correct path
 - [ ] Overview explains when/why to use this guide
 - [ ] Prerequisites are clear and minimal
@@ -190,6 +202,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Understanding Agent Configuration
    ```
@@ -201,6 +214,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Explain benefits: Migrations respect your choices, no unexpected directory recreation
 
 3. **Show config.yaml structure** (extract from WP01 research):
+
    ```yaml
    agents:
      available:
@@ -220,11 +234,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Directories are created/removed automatically by CLI commands
 
 5. **Add "Why This Matters" callout**:
+
    ```markdown
    > **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](upgrade-to-0-11-0.md#upgrading-to-0120) for details.
    ```
 
 6. **Link to ADR #6** (optional architectural reference):
+
    ```markdown
    For architectural details, see [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md).
    ```
@@ -234,11 +250,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T004)
 
 **Notes**:
+
 - Focus on user-facing behavior (not internal dataclasses)
 - Explain benefits of config-driven approach (migrations respect choices)
 - Link to migration guide for 0.11.x users
 
 **Validation**:
+
 - [ ] Config-driven model explained clearly
 - [ ] config.yaml structure shown with example
 - [ ] Benefits of model stated (migration behavior)
@@ -253,6 +271,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Listing Agents
 
@@ -262,6 +281,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Show command**:
+
    ```bash
    spec-kitty agent config list
    ```
@@ -274,6 +294,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Available section shows agents you can add
 
 4. **Show example output** (create realistic example):
+
    ```
    Configured agents:
      ✓ opencode (.opencode/command/)
@@ -293,6 +314,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Explain use case**:
+
    ```markdown
    Use `list` to:
    - See which agents are active in your project
@@ -301,6 +323,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Add troubleshooting note**:
+
    ```markdown
    **Troubleshooting**: If you see ⚠ next to a configured agent, the directory is missing from filesystem. Run `spec-kitty agent config sync --create-missing` to restore it.
    ```
@@ -310,11 +333,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T005)
 
 **Notes**:
+
 - Extract exact output format from WP01 research
 - Use realistic example (not all 12 agents configured)
 - Include use case summary
 
 **Validation**:
+
 - [ ] Command syntax shown
 - [ ] Output format explained with status indicators
 - [ ] Example output demonstrates typical scenario
@@ -330,6 +355,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Adding Agents
 
@@ -339,11 +365,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Show command syntax**:
+
    ```bash
    spec-kitty agent config add <agent1> <agent2> ...
    ```
 
 3. **Provide concrete examples**:
+
    ```bash
    # Add a single agent
    spec-kitty agent config add claude
@@ -359,6 +387,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Success message: "✓ Added .claude/commands/"
 
 5. **Show example output**:
+
    ```
    ✓ Added .claude/commands/
    ✓ Added .codex/prompts/
@@ -366,6 +395,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Document error handling** (extract from WP01 research T001):
+
    ```markdown
    ### Error Handling
 
@@ -376,6 +406,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    Output:
+
    ```
    Error: Invalid agent keys: cluade
 
@@ -385,12 +416,15 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Already configured**: If an agent is already configured, it's skipped with a message:
+
    ```
    Already configured: claude
    ```
+
    ```
 
 7. **Add use case examples**:
+
    ```markdown
    ### Common Scenarios
 
@@ -402,6 +436,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Enabling cross-review**:
+
    ```bash
    # Add a reviewer agent different from your implementer
    spec-kitty agent config add codex
@@ -411,6 +446,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    #     preferred_implementer: claude
    #     preferred_reviewer: codex
    ```
+
    ```
 
 **Files**: `docs/how-to/manage-agents.md`
@@ -418,12 +454,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T006)
 
 **Notes**:
+
 - Extract exact error messages from WP01 research
 - Show realistic examples (not contrived)
 - Explain what files/directories are modified
 - Include common use cases
 
 **Validation**:
+
 - [ ] Command syntax documented
 - [ ] Examples show single and multiple agents
 - [ ] Side effects explained (directories, config.yaml)
@@ -439,6 +477,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Removing Agents
 
@@ -448,11 +487,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Show command syntax**:
+
    ```bash
    spec-kitty agent config remove <agent1> <agent2> ...
    ```
 
 3. **Provide concrete examples**:
+
    ```bash
    # Remove a single agent
    spec-kitty agent config remove gemini
@@ -467,6 +508,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Success message: "✓ Removed .gemini/"
 
 5. **Show example output**:
+
    ```
    ✓ Removed .gemini/
    ✓ Removed .cursor/
@@ -474,6 +516,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Document `--keep-config` flag** (extract from WP01 research T001):
+
    ```markdown
    ### Keep in Configuration but Remove Directory
 
@@ -489,9 +532,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Useful for temporary cleanup without losing configuration
 
    **Restore later**: Run `spec-kitty agent config sync --create-missing` to restore the directory.
+
    ```
 
 7. **Document error handling**:
+
    ```markdown
    ### Error Handling
 
@@ -499,18 +544,22 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
    **Already removed**: If agent is already removed, you'll see:
    ```
+
    • .gemini/ already removed
+
    ```
 
    This is informational, not an error - command continues processing other agents.
    ```
 
 8. **Add warning callout**:
+
    ```markdown
    > **Warning**: Removing an agent deletes its entire directory and all slash command templates. This is safe if you're not using the agent, but ensure you don't have custom modifications in those template files before removing.
    ```
 
 9. **Add use case examples**:
+
    ```markdown
    ### Common Scenarios
 
@@ -522,11 +571,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Preparing for upgrade** (0.11.x → 0.12.0):
+
    ```bash
    # Before upgrading, remove unwanted agents properly
    spec-kitty agent config remove gemini cursor qwen
    # Migrations will now respect your choices
    ```
+
    ```
 
 **Files**: `docs/how-to/manage-agents.md`
@@ -534,12 +585,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T007)
 
 **Notes**:
+
 - Extract exact behavior from WP01 research
 - Emphasize directory deletion (destructive operation)
 - Document `--keep-config` flag clearly
 - Include migration use case (relevant for 0.11.x users)
 
 **Validation**:
+
 - [ ] Command syntax documented
 - [ ] Examples show single and multiple agents
 - [ ] Side effects explained (directory deletion, config.yaml update)
@@ -557,6 +610,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Checking Agent Status
 
@@ -566,6 +620,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Show command**:
+
    ```bash
    spec-kitty agent config status
    ```
@@ -579,6 +634,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - Status (colored)
 
 4. **Document status values** (extract from WP01 research T001):
+
    ```markdown
    **Status values**:
    - **OK** (green): Agent is configured and directory exists - normal state
@@ -588,6 +644,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 5. **Show example output** (create realistic table):
+
    ```
    Agent Key  Directory                Configured  Exists  Status
    ──────────────────────────────────────────────────────────────────
@@ -602,6 +659,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 6. **Explain use cases**:
+
    ```markdown
    Use `status` to:
    - Audit your agent configuration for inconsistencies
@@ -611,6 +669,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 7. **Add actionable guidance**:
+
    ```markdown
    ### Taking Action Based on Status
 
@@ -621,16 +680,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Missing directories** (yellow "Missing" status):
+
    ```bash
    # Restore missing configured agents
    spec-kitty agent config sync --create-missing
    ```
 
    **Not used** (dim "Not used" status):
+
    ```bash
    # Add to your project if you want to use them
    spec-kitty agent config add <agent>
    ```
+
    ```
 
 **Files**: `docs/how-to/manage-agents.md`
@@ -638,12 +700,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T008)
 
 **Notes**:
+
 - Extract exact table format and status values from WP01 research
 - Show realistic example with mixed statuses
 - Provide actionable guidance for each status
 - Link to `sync` command for remediation
 
 **Validation**:
+
 - [ ] Command syntax documented
 - [ ] Output format explained with table structure
 - [ ] All 4 status values documented (OK, Missing, Orphaned, Not used)
@@ -660,6 +724,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Add section header**:
+
    ```markdown
    ## Synchronizing Filesystem
 
@@ -669,11 +734,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 2. **Show command**:
+
    ```bash
    spec-kitty agent config sync
    ```
 
 3. **Explain default behavior** (extract from WP01 research T001):
+
    ```markdown
    **Default behavior** (no flags):
    - Removes orphaned directories (present but not configured)
@@ -682,6 +749,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 4. **Document `--create-missing` flag**:
+
    ```markdown
    ### Create Missing Configured Agents
 
@@ -697,13 +765,16 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Also removes orphaned directories (default behavior)
 
    **Example output**:
+
    ```
    ✓ Created .claude/commands/
    ✓ Removed orphaned .gemini/
    ```
+
    ```
 
 5. **Document `--keep-orphaned` flag**:
+
    ```markdown
    ### Keep Orphaned Directories
 
@@ -718,9 +789,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - Still creates missing directories if `--create-missing` is used
 
    **Use case**: You have agent directories not in config.yaml but want to keep them (rare).
+
    ```
 
 6. **Document `--remove-orphaned` flag** (explicit version of default):
+
    ```markdown
    ### Explicitly Remove Orphaned Directories
 
@@ -731,9 +804,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    This is equivalent to running `sync` with no flags.
+
    ```
 
 7. **Show combined flag usage**:
+
    ```markdown
    ### Complete Sync (Both Directions)
 
@@ -744,20 +819,25 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    This ensures filesystem exactly matches `config.yaml`.
+
    ```
 
 8. **Add "No Changes Needed" scenario**:
+
    ```markdown
    ### When Filesystem Matches Config
 
    If your filesystem already matches `config.yaml`:
 
    ```
+
    No changes needed - filesystem matches config
+
    ```
    ```
 
 9. **Add use case examples**:
+
    ```markdown
    ### Common Scenarios
 
@@ -775,6 +855,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **After git checkout** (switched branches with different agent configs):
+
    ```bash
    # Branch A has claude, Branch B has codex
    git checkout branch-b
@@ -784,10 +865,12 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
    **Cleanup after testing** (removed agents manually):
+
    ```bash
    # Default sync removes orphaned directories
    spec-kitty agent config sync
    ```
+
    ```
 
 **Files**: `docs/how-to/manage-agents.md`
@@ -795,12 +878,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T009)
 
 **Notes**:
+
 - Extract exact flag behavior from WP01 research
 - Clarify default behavior (removes orphaned, does NOT create missing)
 - Show flag combinations
 - Provide realistic use cases
 
 **Validation**:
+
 - [ ] Command syntax documented
 - [ ] Default behavior explained (remove orphaned only)
 - [ ] `--create-missing` flag documented
@@ -838,24 +923,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Commands documented don't match actual CLI behavior
+
 - **Mitigation**: Extract exact syntax from WP01 research; cross-reference against `spec-kitty agent config --help` output
 - **Detection**: Manual command execution during validation
 
 **Risk**: Examples too abstract or contrived
+
 - **Mitigation**: Use realistic scenarios (claude, codex, opencode are common agents)
 - **Validation**: Test examples in a real project
 
 **Risk**: Missing edge cases or error conditions
+
 - **Mitigation**: Review WP01 research T001 thoroughly for error handling details
 - **Cross-check**: Run commands with invalid inputs to confirm error messages
 
 **Risk**: Guide too technical (implementation-focused)
+
 - **Mitigation**: Stay at user/task level; avoid mentioning dataclasses, functions, internal logic
 - **Validation**: Read guide as a non-developer user persona
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] File created at `docs/how-to/manage-agents.md`
 - [ ] Document is approximately 500 lines (target size)
 - [ ] All 7 subtasks (T004-T010) completed
@@ -870,6 +960,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Cross-references to migration guide included where relevant
 
 **Review Focus**:
+
 - **Completeness**: Are all 5 commands fully documented?
 - **Accuracy**: Do documented commands match WP01 research findings?
 - **Usability**: Can a user follow guide without additional resources?
@@ -880,6 +971,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -896,6 +988,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T10:56:39Z – claude – shell_pid=15781 – lane=doing – Started implementation via workflow command
 - 2026-01-23T10:58:56Z – claude – shell_pid=15781 – lane=for_review – Ready for review: Comprehensive 461-line how-to guide covering all 5 agent config commands (list, add, remove, status, sync) with concrete examples, error handling, and common scenarios. Includes config-driven model explanation and cross-references to migration guide and ADR #6.
 - 2026-01-23T10:59:40Z – Claude – shell_pid=19176 – lane=doing – Started review via workflow command

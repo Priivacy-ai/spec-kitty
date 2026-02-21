@@ -24,6 +24,7 @@ non-interactive with those flags.
 
 TODO: File issue about non-interactive init mode and remove xfail markers once fixed.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,6 +41,18 @@ pytestmark = [
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _is_offline_build_failure(stderr: str) -> bool:
+    """Return True when wheel build failed due to missing network/deps."""
+    markers = [
+        "No matching distribution found for hatchling",
+        "Could not find a version that satisfies the requirement hatchling",
+        "Failed to establish a new connection",
+        "Temporary failure in name resolution",
+        "Name or service not known",
+    ]
+    return any(marker in stderr for marker in markers)
 
 
 def _venv_python(venv_dir: Path) -> Path:
@@ -88,6 +101,8 @@ def wheel_path(tmp_path_factory) -> Path:
     )
 
     if result.returncode != 0:
+        if _is_offline_build_failure(result.stderr):
+            pytest.skip("Skipping distribution wheel tests: offline build dependencies unavailable")
         pytest.fail(f"Wheel build failed: {result.stderr}")
 
     wheels = list(dist_dir.glob("*.whl"))
@@ -188,7 +203,18 @@ class TestInitWithoutTemplateRoot:
         assert "SPEC_KITTY_TEMPLATE_ROOT" not in env
 
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -215,7 +241,18 @@ class TestInitWithoutTemplateRoot:
         spec_kitty = _venv_spec_kitty(installed_venv)
 
         subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -249,7 +286,18 @@ class TestResearchFeatureCreation:
 
         # Initialize spec-kitty (will create directory)
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "research", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "research",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -260,7 +308,9 @@ class TestResearchFeatureCreation:
 
         # Initialize git after init (required for features)
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Verify research templates are available
@@ -294,7 +344,17 @@ class TestUpgradeWithAllMissions:
 
         # Initialize project (will create directory)
         init_result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -304,7 +364,9 @@ class TestUpgradeWithAllMissions:
 
         # Initialize git after init
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Initial commit

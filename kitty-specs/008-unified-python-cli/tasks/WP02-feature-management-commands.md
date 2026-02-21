@@ -64,6 +64,7 @@ history:
 **Goal**: Migrate feature lifecycle bash scripts to Python agent commands, enabling agents to create features, check prerequisites, and setup plans without path confusion.
 
 **Success Criteria**:
+
 - `spec-kitty agent create-feature "test-feature" --json` creates worktree and returns parseable JSON
 - `spec-kitty agent check-prerequisites --json` validates feature structure and returns JSON
 - `spec-kitty agent setup-plan --json` scaffolds plan template and returns JSON
@@ -78,6 +79,7 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - **WP01 complete** ✅ (foundation infrastructure, agent namespace registered, path resolution working)
 - Bash scripts to replace:
   - `.kittify/scripts/bash/create-new-feature.sh`
@@ -85,6 +87,7 @@ history:
   - `.kittify/scripts/bash/setup-plan.sh`
 
 **Related Documents**:
+
 - Spec: `kitty-specs/008-unified-python-cli/spec.md` (FR-022, User Story 1)
 - Plan: `kitty-specs/008-unified-python-cli/plan.md` (Phase 2 section, parallel work)
 - Quickstart: `kitty-specs/008-unified-python-cli/quickstart.md` (bash → Python migration patterns)
@@ -92,11 +95,13 @@ history:
 **Stream Assignment**: **Stream A (Agent Alpha)** - Can run in parallel with WP03, WP04, WP05
 
 **Files Owned by This Stream**:
+
 - `src/specify_cli/cli/commands/agent/feature.py` ✅ (no conflicts)
 - `src/specify_cli/core/worktree.py` ✅ (no conflicts)
 - `tests/unit/agent/test_feature.py` ✅ (no conflicts)
 
 **Constraints**:
+
 - Must preserve all existing bash script functionality
 - JSON output must be parseable by agents (valid JSON, no extra output)
 - Must detect next feature number automatically
@@ -112,8 +117,10 @@ history:
 **Purpose**: Establish core utilities module for worktree management operations.
 
 **Steps**:
+
 1. Create `src/specify_cli/core/worktree.py`
 2. Add module docstring:
+
    ```python
    """Worktree management utilities for spec-kitty feature development.
 
@@ -122,7 +129,9 @@ history:
    work correctly whether called from main repository or existing worktree.
    """
    ```
+
 3. Import dependencies:
+
    ```python
    from pathlib import Path
    import subprocess
@@ -141,8 +150,10 @@ history:
 **Purpose**: Migrate bash worktree creation logic to Python.
 
 **Steps**:
+
 1. Read `.kittify/scripts/bash/create-new-feature.sh` to understand current logic
 2. Implement function:
+
    ```python
    def create_feature_worktree(
        repo_root: Path,
@@ -182,6 +193,7 @@ history:
 
        return (worktree_path, feature_dir)
    ```
+
 3. Handle errors gracefully (branch exists, worktree exists)
 
 **Files**: `src/specify_cli/core/worktree.py`
@@ -195,7 +207,9 @@ history:
 **Purpose**: Auto-detect next sequential feature number by scanning existing features.
 
 **Steps**:
+
 1. Implement function:
+
    ```python
    def get_next_feature_number(repo_root: Path) -> int:
        """Determine next sequential feature number.
@@ -222,6 +236,7 @@ history:
 
        return max_number + 1
    ```
+
 2. Test edge cases (no features yet, gaps in numbering)
 
 **Files**: `src/specify_cli/core/worktree.py`
@@ -235,7 +250,9 @@ history:
 **Purpose**: Create standard feature directory structure with necessary files/symlinks.
 
 **Steps**:
+
 1. Implement function:
+
    ```python
    def setup_feature_directory(
        feature_dir: Path,
@@ -262,6 +279,7 @@ history:
        # Create or symlink templates (if needed)
        # Note: Bash script may have specific template handling
    ```
+
 2. Handle Windows symlink fallback (file copy)
 3. Check if running on Windows: `import platform; platform.system() == "Windows"`
 
@@ -276,8 +294,10 @@ history:
 **Purpose**: Migrate `check-prerequisites.sh` validation logic to Python.
 
 **Steps**:
+
 1. Read `.kittify/scripts/bash/check-prerequisites.sh` for validation rules
 2. Implement function:
+
    ```python
    def validate_feature_structure(
        feature_dir: Path,
@@ -340,8 +360,10 @@ history:
 **Purpose**: Create CLI command wrapper for `create_feature_worktree()`.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/agent/feature.py` (stub from WP01)
 2. Add command:
+
    ```python
    import json
    import typer
@@ -398,7 +420,9 @@ history:
 **Purpose**: Create CLI command for feature structure validation.
 
 **Steps**:
+
 1. In `feature.py`, add command:
+
    ```python
    @app.command(name="check-prerequisites")
    def check_prerequisites(
@@ -454,8 +478,10 @@ history:
 **Purpose**: Scaffold plan.md template (replaces `setup-plan.sh`).
 
 **Steps**:
+
 1. Read `.kittify/scripts/bash/setup-plan.sh` for template logic
 2. In `feature.py`, add command:
+
    ```python
    @app.command(name="setup-plan")
    def setup_plan(
@@ -508,6 +534,7 @@ history:
 **Purpose**: Verify all commands support both JSON (agents) and Rich (humans) output modes.
 
 **Steps**:
+
 1. Review T023-T025 implementations
 2. Verify pattern:
    - `--json` flag present on all commands ✅
@@ -515,6 +542,7 @@ history:
    - Rich mode uses `console.print()` with colors ✅
    - Errors handled in both modes ✅
 3. Test manually:
+
    ```bash
    spec-kitty agent create-feature "test" --json | python -m json.tool
    spec-kitty agent create-feature "test"  # Should show colors
@@ -531,8 +559,10 @@ history:
 **Purpose**: Test core worktree management functions in isolation.
 
 **Steps**:
+
 1. Create `tests/unit/agent/test_feature.py`
 2. Test `get_next_feature_number()`:
+
    ```python
    def test_get_next_feature_number(tmp_path):
        from specify_cli.core.worktree import get_next_feature_number
@@ -545,6 +575,7 @@ history:
 
        assert get_next_feature_number(tmp_path) == 3
    ```
+
 3. Test `create_feature_worktree()` (mocked git)
 4. Test `setup_feature_directory()`
 5. Test `validate_feature_structure()`
@@ -562,7 +593,9 @@ history:
 **Purpose**: Test CLI command logic for feature creation.
 
 **Steps**:
+
 1. In `test_feature.py`, test command:
+
    ```python
    from typer.testing import CliRunner
    from specify_cli.cli.commands.agent.feature import app
@@ -579,6 +612,7 @@ history:
        assert output["result"] == "success"
        assert "test" in output["feature"]
    ```
+
 2. Test human output mode
 3. Test error cases (invalid slug, git failure)
 
@@ -595,10 +629,12 @@ history:
 **Purpose**: Test validation command with all flag combinations.
 
 **Steps**:
+
 1. Test `--json` flag
 2. Test `--paths-only` flag
 3. Test `--include-tasks` flag
 4. Test combinations:
+
    ```python
    def test_check_prerequisites_all_flags(mock_worktree):
        result = runner.invoke(app, [
@@ -625,7 +661,9 @@ history:
 **Purpose**: Test plan scaffolding command.
 
 **Steps**:
+
 1. Test command creates plan.md:
+
    ```python
    def test_setup_plan_creates_file(mock_worktree):
        result = runner.invoke(app, ["setup-plan", "--json"])
@@ -634,6 +672,7 @@ history:
        output = json.loads(result.stdout)
        assert Path(output["plan_file"]).exists()
    ```
+
 2. Test JSON output format
 3. Test error case (template missing)
 
@@ -648,8 +687,10 @@ history:
 **Purpose**: End-to-end test of feature creation workflow from main repository.
 
 **Steps**:
+
 1. Create `tests/integration/test_agent_workflows.py`
 2. Test full workflow:
+
    ```python
    def test_create_feature_from_main_repo(tmp_path):
        # Setup mock main repo with git
@@ -687,7 +728,9 @@ history:
 **Purpose**: Verify feature commands work when executed from existing worktree.
 
 **Steps**:
+
 1. In `test_agent_workflows.py`, test worktree context:
+
    ```python
    def test_create_feature_from_worktree(tmp_path):
        # Setup main repo with existing worktree
@@ -720,13 +763,16 @@ history:
 **Purpose**: Ensure test coverage meets quality requirement.
 
 **Steps**:
+
 1. Run coverage tool:
+
    ```bash
    pytest tests/unit/agent/test_feature.py \
      --cov=src/specify_cli/cli/commands/agent/feature \
      --cov=src/specify_cli/core/worktree \
      --cov-report=term-missing
    ```
+
 2. Review coverage report
 3. Add tests for uncovered branches if below 90%
 4. Document any intentionally uncovered code (with justification)
@@ -740,15 +786,18 @@ history:
 ## Test Strategy
 
 **Unit Tests**:
+
 - `worktree.py` utilities (T027): All 4 functions covered
 - CLI commands (T028-T030): All 3 commands with flag combinations
 - Coverage target: 90%+ for `feature.py` and `worktree.py`
 
 **Integration Tests**:
+
 - Create feature from main repo (T031)
 - Create feature from worktree (T032)
 
 **Commands to Run**:
+
 ```bash
 # Unit tests
 pytest tests/unit/agent/test_feature.py -v
@@ -768,12 +817,15 @@ pytest tests/unit/agent/test_feature.py \
 ## Risks & Mitigations
 
 **Risk 1: Git worktree edge cases**
+
 - **Mitigation**: Comprehensive error handling, test with broken worktrees
 
 **Risk 2: Windows symlink fallback**
+
 - **Mitigation**: Detect platform, use file copy on Windows (existing pattern)
 
 **Risk 3: JSON parsing failures for agents**
+
 - **Mitigation**: Validate JSON output with `python -m json.tool` in tests
 
 ---
@@ -795,11 +847,13 @@ pytest tests/unit/agent/test_feature.py \
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. `spec-kitty agent create-feature "test" --json` returns valid JSON ✅
 2. Integration tests pass from both contexts ✅
 3. Coverage report shows 90%+ for feature.py and worktree.py ✅
 
 **Context to Revisit**:
+
 - Bash scripts being replaced (understand current logic)
 - Quickstart guide (migration patterns)
 

@@ -83,6 +83,7 @@ src/specify_cli/
 ## Risk Assessment
 
 **Low risk feature:**
+
 - Only modifying test files, not production code
 - Dashboard already verified working via Playwright
 - Existing tests provide regression protection for legacy format

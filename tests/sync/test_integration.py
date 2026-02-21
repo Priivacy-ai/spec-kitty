@@ -14,9 +14,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
-from specify_cli.sync.batch import batch_sync, BatchSyncResult
+from specify_cli.sync.batch import batch_sync
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.clock import LamportClock
@@ -40,10 +39,7 @@ class TestFullFlow:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": e["event_id"], "status": "success"}
-                    for e in events
-                ]
+                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
             }
             mock_post.return_value = mock_response
 
@@ -68,10 +64,7 @@ class TestFullFlow:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": f"id{i}", "status": "success"}
-                    for i in range(3)
-                ]
+                "results": [{"event_id": f"id{i}", "status": "success"} for i in range(3)]
             }
             mock_post.return_value = mock_response
 
@@ -220,10 +213,7 @@ class TestMultiEventBatch:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": e["event_id"], "status": "success"}
-                    for e in events
-                ]
+                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
             }
             mock_post.return_value = mock_response
 

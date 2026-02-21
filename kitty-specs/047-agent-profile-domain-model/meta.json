@@ -1,0 +1,10 @@
+{
+  "feature_number": "047",
+  "slug": "047-agent-profile-domain-model",
+  "friendly_name": "Agent Profile Domain Model",
+  "mission": "software-dev",
+  "source_description": "Create a rich Agent Profile model as a first-class entity in spec-kitty 2.x. Agent profiles define WHO an agent IS — not just what model it uses or what role it fills, but its full behavioral identity: purpose, specialization boundaries, collaboration contracts, reasoning modes, directive adherence, and specialization hierarchy (parent-child inheritance). The design source is the doctrine reference repository (doctrine_ref/).",
+  "created_at": "2026-02-16T10:00:00+00:00",
+  "target_branch": "develop",
+  "vcs": "git"
+}

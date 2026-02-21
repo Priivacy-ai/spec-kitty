@@ -32,6 +32,7 @@ history:
 Cursor is a popular AI-native IDE (VS Code fork). The user believes it has a CLI tool - find it and document it.
 
 **Success Criteria**:
+
 - Cursor CLI documented with working invocation example OR confirmed as IDE-only
 - If CLI exists: Full capability documentation (task input, completion detection, parallel support)
 - If no CLI: Document any API alternatives or workarounds
@@ -43,6 +44,7 @@ Cursor is a popular AI-native IDE (VS Code fork). The user believes it has a CLI
 - **Scope**: Headless/CLI only (not interested in IDE features)
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - RQ-6 specifically about Cursor
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/plan.md` - Research template
 
@@ -53,7 +55,8 @@ Reference documents:
 **Purpose**: Find official documentation about Cursor's CLI capabilities.
 
 **Steps**:
-1. Visit https://cursor.com/docs (or current documentation site)
+
+1. Visit <https://cursor.com/docs> (or current documentation site)
 2. Search for "CLI", "command line", "terminal", "headless"
 3. Check Cursor GitHub/Discord for CLI announcements
 4. Search npm/pip for `cursor` or `cursor-cli` packages
@@ -63,6 +66,7 @@ Reference documents:
 **Files**: Note findings in `research/04-cursor.md`
 
 **Key Questions**:
+
 - Is there official CLI documentation?
 - Any community tools or wrappers?
 - Is CLI a paid/enterprise feature?
@@ -74,27 +78,34 @@ Reference documents:
 **Purpose**: Inspect Cursor application bundle for CLI binaries.
 
 **Steps** (macOS):
+
 1. Check if Cursor is installed: `ls /Applications/Cursor.app`
 2. Explore app bundle:
+
    ```bash
    ls -la /Applications/Cursor.app/Contents/Resources/
    ls -la /Applications/Cursor.app/Contents/Resources/app/bin/
    ls -la /Applications/Cursor.app/Contents/MacOS/
    ```
+
 3. Look for binaries: `cursor`, `cursor-cli`, `agent`, similar
 4. Check shell integration:
+
    ```bash
    cat /usr/local/bin/cursor 2>/dev/null || cat ~/.local/bin/cursor 2>/dev/null
    ```
+
 5. Check PATH for cursor command: `which cursor`
 
 **Steps** (Linux):
+
 1. Check common install locations
 2. Look for shell commands in `/usr/bin/`, `/usr/local/bin/`
 
 **Files**: Document findings in `research/04-cursor.md`
 
 **Key Questions**:
+
 - Does Cursor install a shell command like VS Code's `code` command?
 - Is there an agent mode binary?
 
@@ -105,6 +116,7 @@ Reference documents:
 **Purpose**: If CLI exists, test its capabilities.
 
 **Steps** (if `cursor` command found):
+
 1. Run `cursor --help` and capture full output
 2. Run `cursor --version`
 3. Test opening a folder: `cursor /path/to/project`
@@ -113,6 +125,7 @@ Reference documents:
 6. Test with simple prompt if available
 
 **If no CLI found**:
+
 - Document as "No CLI available"
 - Note any alternative approaches discovered
 
@@ -125,6 +138,7 @@ Reference documents:
 **Purpose**: If CLI has AI capabilities, document how to use it for automation.
 
 **Steps** (if agent CLI exists):
+
 1. Document exact command to invoke AI agent
 2. Test task input methods:
    - Command line argument: `cursor agent "Do something"`
@@ -136,6 +150,7 @@ Reference documents:
 6. Document authentication requirements
 
 **If no headless AI mode**:
+
 - Check for API access
 - Check for Extension Host CLI
 - Document limitations
@@ -149,6 +164,7 @@ Reference documents:
 **Purpose**: Complete the research file following template.
 
 **Steps**:
+
 1. Ensure all sections from plan.md template are filled
 2. Add source links (documentation URLs, forum posts)
 3. Write orchestration assessment:

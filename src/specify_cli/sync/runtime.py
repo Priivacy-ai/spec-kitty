@@ -19,11 +19,12 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import atexit
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 import yaml
 
@@ -76,7 +77,15 @@ class SyncRuntime:
     background_service: BackgroundSyncService | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     emitter: EventEmitter | None = field(default=None, repr=False)
+    _background_tasks: set[asyncio.Task[object]] = field(default_factory=set, repr=False)
     started: bool = False
+
+    def _track_task(self, task: asyncio.Task[object] | None) -> None:
+        """Retain task references until completion to prevent GC warnings."""
+        if task is None:
+            return
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def start(self) -> None:
         """Start background services (idempotent).
@@ -95,6 +104,7 @@ class SyncRuntime:
 
         # Start background service (use existing singleton)
         from .background import get_sync_service
+
         self.background_service = get_sync_service()
 
         # Connect WebSocket if authenticated
@@ -105,33 +115,32 @@ class SyncRuntime:
 
     def _connect_websocket_if_authenticated(self) -> None:
         """Attempt WebSocket connection if user is authenticated."""
-        from .auth import AuthClient
-        from .config import SyncConfig
+        from .auth import AuthClient as _AuthClient
+        from .config import SyncConfig as _SyncConfig
 
-        auth = AuthClient()
-        config = SyncConfig()
+        auth = cast(type[Any], _AuthClient)()
+        config = cast(type[Any], _SyncConfig)()
 
         if auth.is_authenticated():
             try:
-                from .client import WebSocketClient
-                self.ws_client = WebSocketClient(
+                from .client import WebSocketClient as _WebSocketClient
+
+                self.ws_client = cast(type[Any], _WebSocketClient)(
                     server_url=config.get_server_url(),
                     auth_client=auth,
                 )
-                import asyncio
                 try:
                     asyncio.get_running_loop()
                     # Running event loop available: connect non-blocking.
-                    asyncio.ensure_future(self.ws_client.connect())
+                    connect = cast(Callable[[], Awaitable[object]], self.ws_client.connect)
+                    connect_task = cast(asyncio.Task[object], asyncio.ensure_future(connect()))
+                    self._track_task(connect_task)
                 except RuntimeError:
                     # Synchronous CLI context: skip auto WebSocket connect.
                     # Creating a temporary event loop here spawns a background
                     # listener task that outlives the loop and triggers noisy
                     # "Task was destroyed but it is pending!" warnings.
-                    logger.debug(
-                        "No running event loop; skipping auto WebSocket connect "
-                        "in sync context"
-                    )
+                    logger.debug("No running event loop; skipping auto WebSocket connect in sync context")
                     logger.info("Events will be queued for batch sync")
                     return
 
@@ -167,14 +176,18 @@ class SyncRuntime:
 
         if self.ws_client:
             try:
-                import asyncio
+                disconnect = cast(
+                    Callable[[], Awaitable[object]],
+                    self.ws_client.disconnect,
+                )
                 try:
                     loop = asyncio.get_running_loop()
-                    asyncio.ensure_future(self.ws_client.disconnect())
+                    disconnect_task = cast(asyncio.Task[object], asyncio.ensure_future(disconnect()))
+                    self._track_task(disconnect_task)
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     try:
-                        loop.run_until_complete(self.ws_client.disconnect())
+                        loop.run_until_complete(disconnect())
                     finally:
                         loop.close()
             except Exception:

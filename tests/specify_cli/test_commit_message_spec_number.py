@@ -1,12 +1,7 @@
 """Test that commit messages include spec numbers."""
 
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
-
-from specify_cli.cli.commands.agent.tasks import move_task
 
 
 def test_spec_number_extraction():
@@ -20,7 +15,7 @@ def test_spec_number_extraction():
     ]
 
     for feature_slug, expected_spec in test_cases:
-        spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+        spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
         assert spec_number == expected_spec, f"Failed for {feature_slug}"
 
 
@@ -78,7 +73,7 @@ Test content.
                     # This would normally call move_task, but we can't easily test the CLI
                     # Instead, verify the logic directly
                     feature_slug = "014-test-feature"
-                    spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+                    spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
                     task_id = "WP01"
                     target_lane = "doing"
                     agent_name = "test-agent"
@@ -91,7 +86,7 @@ Test content.
 def test_mark_status_includes_spec_number():
     """Verify mark-status commit messages include spec number."""
     feature_slug = "014-test-feature"
-    spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+    spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
 
     # Single task
     task_id = "T001"

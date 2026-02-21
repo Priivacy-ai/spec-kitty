@@ -83,6 +83,7 @@ The `.github/` directory is used by both GitHub Actions and GitHub Copilot. The 
 ### Multiple Runs
 
 Running `spec-kitty init` multiple times is safe:
+
 - Duplicate entries are automatically detected and skipped
 - Existing `.gitignore` content is preserved
 - Only missing directories are added
@@ -90,6 +91,7 @@ Running `spec-kitty init` multiple times is safe:
 ### Error Handling
 
 If `.gitignore` cannot be modified:
+
 ```
 ⚠️ Cannot update .gitignore: Permission denied
    Run: chmod u+w .gitignore
@@ -138,12 +140,15 @@ class ProtectionResult:
 ## Troubleshooting
 
 ### Q: Directories not being added to .gitignore?
+
 **A:** Check file permissions and ensure you're in a git repository root.
 
 ### Q: Can I exclude certain directories from protection?
+
 **A:** Currently, all directories are protected. Future versions will support exclusion.
 
 ### Q: What about custom agent directories?
+
 **A:** Currently supports known agents only. Custom directories can be added manually.
 
 ## Next Steps

@@ -3,11 +3,13 @@
 This scenario demonstrates how a lead architect can orchestrate a multi-agent team to deliver a complex feature with Spec Kitty.
 
 ## Context
+
 - Feature: `001-cross-platform-chat-upgrade`
 - Agents: Claude (spec/plan), Gemini (data modeling), Cursor (implementation), Human reviewer
 - Goal: Deliver a cross-platform chat upgrade (web + mobile) with improved reliability in two weeks
 
 ## Playbook
+
 1. **Specify the feature**  
    Lead runs `/spec-kitty.specify` with the stakeholder brief. Discovery gates confirm scope, users, and success metrics.
 
@@ -31,12 +33,14 @@ This scenario demonstrates how a lead architect can orchestrate a multi-agent te
 
 7. **Acceptance & merge**
    Once all work packages are in `done/`:
+
    ```text
    /spec-kitty.accept  # Validates feature readiness, records metadata
    /spec-kitty.merge --push  # Merges to main, cleans up worktree
    ```
 
 ## Outcome
+
 - Web and mobile chat surfaces upgraded with consistent reliability guarantees
 - Zero merge conflicts (agents respected prompt file boundaries)
 - Dashboard snapshot exported for the sprint report

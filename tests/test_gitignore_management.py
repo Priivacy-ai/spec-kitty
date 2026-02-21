@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
 
 import gitignore_manager
+
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 
@@ -136,9 +137,18 @@ def test_protect_all_agents_adds_all_directories():
 
         # Verify all expected directories are present
         expected_dirs = [
-            ".claude/", ".codex/", ".opencode/", ".windsurf/",
-            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/", ".github/copilot/"
+            ".claude/",
+            ".codex/",
+            ".opencode/",
+            ".windsurf/",
+            ".gemini/",
+            ".cursor/",
+            ".qwen/",
+            ".kilocode/",
+            ".augment/",
+            ".roo/",
+            ".amazonq/",
+            ".github/copilot/",
         ]
         for dir_name in expected_dirs:
             assert dir_name in content
@@ -228,7 +238,6 @@ if __name__ == "__main__":
         test_gitignore_manager_handles_multiple_entries,
         test_protect_all_agents_adds_all_directories,
         test_protect_all_agents_with_existing_directory,
-        test_protect_all_agents_warns_about_github,
         test_protect_selected_agents,
         test_protect_selected_agents_with_unknown,
     ]

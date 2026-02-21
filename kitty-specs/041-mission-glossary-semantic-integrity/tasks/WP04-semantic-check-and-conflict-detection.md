@@ -30,6 +30,7 @@ Implement term resolution against scope hierarchy, conflict classification (4 ty
 ## Context
 
 Semantic check middleware resolves extracted terms against the 4-tier scope hierarchy (mission_local → team_domain → audience_domain → spec_kitty_core) and detects conflicts:
+
 - **Unknown**: No match in any scope
 - **Ambiguous**: 2+ active senses, unqualified usage
 - **Inconsistent**: LLM output contradicts active glossary
@@ -52,6 +53,7 @@ spec-kitty implement WP04 --base WP03
 ### T016: Term resolution against scope hierarchy
 
 **Implementation** (resolution.py):
+
 ```python
 def resolve_term(
     surface: str,
@@ -72,6 +74,7 @@ def resolve_term(
 Classify resolution results into 4 conflict types.
 
 **Logic**:
+
 ```python
 def classify_conflict(
     term: TermSurface,
@@ -97,6 +100,7 @@ def classify_conflict(
 Score severity based on step criticality + confidence.
 
 **Scoring matrix**:
+
 - High: (critical step + low confidence) OR ambiguous
 - Medium: (non-critical + ambiguous) OR (unknown + medium confidence)
 - Low: (inconsistent) OR (unknown + high confidence)
@@ -110,6 +114,7 @@ Score severity based on step criticality + confidence.
 Middleware that orchestrates resolution, classification, scoring, and emits SemanticCheckEvaluated.
 
 **Implementation**:
+
 ```python
 class SemanticCheckMiddleware:
     def __init__(self, glossary_store: GlossaryStore):
@@ -141,6 +146,7 @@ class SemanticCheckMiddleware:
 Unit + integration tests for resolution, classification, scoring, middleware.
 
 **Coverage**:
+
 - All 4 conflict types
 - Severity edge cases
 - Multi-scope resolution
@@ -172,11 +178,13 @@ pytest tests/specify_cli/glossary/test_middleware.py::test_semantic_check -v
 ## Reviewer Guidance
 
 **Focus**:
+
 1. Conflict classification accuracy
 2. Severity scoring calibration
 3. Scope resolution correctness
 
 **Acceptance**:
+
 - [ ] All 4 conflict types detected
 - [ ] Severity scores align with risk
 
@@ -186,6 +194,7 @@ pytest tests/specify_cli/glossary/test_middleware.py::test_semantic_check -v
 - 2026-02-16T15:14:21Z – coordinator – shell_pid=84395 – lane=for_review – Ready for review: semantic check implementation complete
 
 Implementation details:
+
 - T016: Term resolution - resolve_term() resolves terms across 4-tier scope hierarchy
 - T017: Conflict classification - classify_conflict() detects UNKNOWN and AMBIGUOUS conflicts
 - T018: Severity scoring - score_severity() implements scoring matrix (high/medium/low)
@@ -196,6 +205,7 @@ Coverage: >90% for all WP04 files
 Type safety: mypy --strict compliance
 Performance: <100ms for typical inputs
 All definition of done criteria met
+
 - 2026-02-16T15:15:21Z – codex – shell_pid=89622 – lane=doing – Started review via workflow command
 - 2026-02-16T15:17:12Z – codex – shell_pid=89622 – lane=planned – Moved to planned
 - 2026-02-16T15:17:52Z – coordinator – shell_pid=91407 – lane=doing – Started implementation via workflow command

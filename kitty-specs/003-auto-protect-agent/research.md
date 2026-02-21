@@ -15,18 +15,21 @@ This research documents the technical decisions for implementing comprehensive g
 **Decision**: Refactor into comprehensive GitignoreManager system
 
 **Rationale**:
+
 - Current implementation has fragmented gitignore handling (separate functions for Codex vs other agents)
 - A unified system provides better maintainability and extensibility
 - Allows for future gitignore-related features (patterns, exclusions, etc.)
 
 **Alternatives Considered**:
+
 - A) Extend existing `handle_codex_security` function - Rejected: Would create monolithic function with mixed responsibilities
 - B) Keep separate functions for each agent - Rejected: Would lead to code duplication and maintenance burden
 
 **Evidence**:
-- Current codebase analysis shows `ensure_gitignore_entries()` at src/specify_cli/__init__.py:689
-- Existing `handle_codex_security()` at src/specify_cli/__init__.py:729 only handles .codex/
-- Agent directory map at src/specify_cli/__init__.py:1835-1848 lists all known agents
+
+- Current codebase analysis shows `ensure_gitignore_entries()` at src/specify_cli/**init**.py:689
+- Existing `handle_codex_security()` at src/specify_cli/**init**.py:729 only handles .codex/
+- Agent directory map at src/specify_cli/**init**.py:1835-1848 lists all known agents
 
 ### 2. Implementation Strategy
 
@@ -44,6 +47,7 @@ This research documents the technical decisions for implementing comprehensive g
    - Maintain comment marker system ("# Added by Spec Kitty CLI")
 
 **Rationale**:
+
 - Centralizes all gitignore logic in one place
 - Makes testing easier with clear boundaries
 - Allows for future enhancements (custom patterns, exclusions)
@@ -53,6 +57,7 @@ This research documents the technical decisions for implementing comprehensive g
 **Decision**: Maintain centralized registry of all agent directories
 
 **Current Agent Directories** (from codebase analysis):
+
 ```python
 agent_folders = {
     ".claude/",     # Claude Code
@@ -71,6 +76,7 @@ agent_folders = {
 ```
 
 **Special Considerations**:
+
 - `.github/` is used by GitHub Actions as well as Copilot - may need selective patterns
 - All directories use trailing slash to indicate directory (not file)
 - Dot prefix is consistent across all agents
@@ -80,11 +86,13 @@ agent_folders = {
 **Decision**: Direct replacement without backward compatibility
 
 **Implementation**:
+
 - Remove `handle_codex_security()` function entirely
 - Replace with direct GitignoreManager calls
 - Update all internal references
 
 **Rationale**:
+
 - This is an internal function, not a public API
 - No external consumers to break
 - Cleaner codebase without deprecation overhead
@@ -95,12 +103,14 @@ agent_folders = {
 **Decision**: Graceful degradation with informative warnings
 
 **Scenarios**:
+
 1. **Read-only .gitignore**: Warn user with instructions to fix permissions
 2. **File system errors**: Log error, continue with other operations
 3. **Invalid patterns**: Skip invalid entries, log warning
 4. **Git repository detection**: Work even if not a git repository
 
 **Rationale**:
+
 - Tool should not fail completely if gitignore operations fail
 - Users need clear guidance on how to fix issues
 - Security is important but shouldn't block entire init process
@@ -163,15 +173,18 @@ agent_folders = {
 ## Risk Assessment
 
 **Low Risk**:
+
 - Well-understood problem domain
 - Existing code provides good foundation
 - Clear test scenarios
 
 **Medium Risk**:
+
 - .github/ directory dual use may cause confusion
 - Line ending handling across platforms
 
 **Mitigation**:
+
 - Comprehensive testing on multiple platforms
 - Clear documentation about .github/ handling
 - Conservative approach to line endings (preserve existing)

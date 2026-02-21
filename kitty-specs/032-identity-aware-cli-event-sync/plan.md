@@ -9,6 +9,7 @@
 Add project identity (`project_uuid`, `project_slug`, `node_id`) to all CLI-emitted events and enable automatic background sync on CLI startup. This enables the SaaS to correctly attribute events to specific projects and removes the friction of manual sync startup.
 
 **Technical Approach**:
+
 - **Lazy Singleton** pattern for runtime bootstrap via `get_emitter()`
 - **Graceful Backfill** for config schema (auto-generate missing identity fields)
 - **Atomic writes** for config.yaml (temp file + rename)
@@ -95,11 +96,13 @@ tests/
 **Decision**: Start `BackgroundSyncService` lazily on first `get_emitter()` call.
 
 **Rationale**:
+
 - Zero overhead for non-event commands (most planning commands)
 - Centralized startup logic in one place
 - Idempotent (safe to call get_emitter() multiple times)
 
 **Implementation**:
+
 ```python
 # sync/runtime.py
 _runtime: SyncRuntime | None = None
@@ -117,11 +120,13 @@ def get_runtime() -> SyncRuntime:
 **Decision**: Auto-generate missing identity fields on first access.
 
 **Rationale**:
+
 - Seamless UX for existing projects
 - No migration required
 - Handles read-only repos gracefully
 
 **Implementation**:
+
 ```python
 # sync/project_identity.py
 def ensure_identity(config_path: Path) -> ProjectIdentity:
@@ -147,11 +152,13 @@ def ensure_identity(config_path: Path) -> ProjectIdentity:
 **Decision**: Inject `project_uuid` and `project_slug` in `EventEmitter._emit()`.
 
 **Rationale**:
-- Single point of injection (all emit_* methods go through _emit)
+
+- Single point of injection (all emit_* methods go through_emit)
 - Validation before WebSocket send (queue-only if missing)
 - Consistent across all event types
 
 **Implementation**:
+
 ```python
 # In EventEmitter._emit()
 identity = get_project_identity()

@@ -20,6 +20,7 @@ The CLI authentication system manages three types of tokens and stores credentia
 - **Permissions**: 600 (owner read/write only)
 
 **Schema**:
+
 ```toml
 [tokens]
 access = "eyJ..."           # JWT access token
@@ -35,6 +36,7 @@ url = "https://spec-kitty-dev.fly.dev"  # Server URL at time of auth
 ```
 
 **Lifecycle**:
+
 - Created: On successful `auth login`
 - Updated: On token refresh
 - Deleted: On `auth logout` or credential clear
@@ -48,12 +50,14 @@ url = "https://spec-kitty-dev.fly.dev"  # Server URL at time of auth
 - **Source**: SaaS `/api/v1/token/` or `/api/v1/token/refresh/`
 
 **Attributes**:
+
 | Field | Type | Description |
 |-------|------|-------------|
 | value | string | JWT token string |
 | expires_at | datetime | Expiration timestamp |
 
 **State Transitions**:
+
 ```
 [Not Exists] --obtain_tokens()--> [Valid]
 [Valid] --time passes--> [Expired]
@@ -71,12 +75,14 @@ url = "https://spec-kitty-dev.fly.dev"  # Server URL at time of auth
 - **Rotation**: New refresh token issued on each use (old one invalidated)
 
 **Attributes**:
+
 | Field | Type | Description |
 |-------|------|-------------|
 | value | string | JWT token string |
 | expires_at | datetime | Expiration timestamp |
 
 **State Transitions**:
+
 ```
 [Not Exists] --obtain_tokens()--> [Valid]
 [Valid] --refresh_tokens()--> [New Valid] (rotated)
@@ -94,6 +100,7 @@ url = "https://spec-kitty-dev.fly.dev"  # Server URL at time of auth
 - **Storage**: NOT stored locally (obtained on-demand)
 
 **Attributes**:
+
 | Field | Type | Description |
 |-------|------|-------------|
 | ws_token | string | UUID token string |
@@ -101,6 +108,7 @@ url = "https://spec-kitty-dev.fly.dev"  # Server URL at time of auth
 | expires_in | integer | Seconds until expiry |
 
 **Lifecycle**:
+
 - Obtained when WebSocket connection is needed
 - Used immediately in WebSocket Authorization header
 - Discarded after use (not persisted)

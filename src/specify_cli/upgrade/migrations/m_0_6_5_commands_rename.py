@@ -135,19 +135,13 @@ class CommandsRenameMigration(BaseMigration):
                     wt_templates_commands = worktree / ".kittify" / "templates" / "commands"
                     if wt_templates_commands.exists():
                         if dry_run:
-                            changes.append(
-                                f"Would remove old commands/ from worktree {worktree.name}"
-                            )
+                            changes.append(f"Would remove old commands/ from worktree {worktree.name}")
                         else:
                             try:
                                 shutil.rmtree(wt_templates_commands)
-                                changes.append(
-                                    f"Removed old commands/ from worktree {worktree.name}"
-                                )
+                                changes.append(f"Removed old commands/ from worktree {worktree.name}")
                             except OSError as e:
-                                warnings.append(
-                                    f"Could not remove old commands/ from worktree {worktree.name}: {e}"
-                                )
+                                warnings.append(f"Could not remove old commands/ from worktree {worktree.name}: {e}")
 
                     # Rename missions/*/commands/ in worktree
                     wt_missions = worktree / ".kittify" / "missions"

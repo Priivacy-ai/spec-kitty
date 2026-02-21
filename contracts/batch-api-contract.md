@@ -37,6 +37,7 @@ Content-Type: application/json
 ```
 
 **Success Response (HTTP 200)**:
+
 ```json
 {
   "access": "<jwt_access_token>",
@@ -56,6 +57,7 @@ Content-Type: application/json
 | `team_slug` | string | No | Team identifier for the authenticated user |
 
 **Error Response (HTTP 401)**:
+
 ```json
 {
   "error": "Invalid username or password"
@@ -74,6 +76,7 @@ Content-Type: application/json
 ```
 
 **Success Response (HTTP 200)**:
+
 ```json
 {
   "access": "<new_jwt_access_token>",
@@ -90,6 +93,7 @@ The CLI clears stored credentials and prompts the user to re-authenticate.
 ### 1.3 Authorization Header
 
 All authenticated requests (including batch ingest) include:
+
 ```
 Authorization: Bearer <jwt_access_token>
 ```
@@ -97,6 +101,7 @@ Authorization: Bearer <jwt_access_token>
 ### 1.4 Automatic Token Refresh Behavior
 
 The CLI checks the access token expiry before each request:
+
 1. If the access token is valid, use it directly.
 2. If the access token is expired but the refresh token is valid, silently refresh via `/api/v1/token/refresh/`.
 3. If the refresh also fails (401), clear credentials and return `None` (caller handles re-auth prompting).
@@ -188,6 +193,7 @@ Content-Encoding: gzip
 ```
 
 **Body** (before gzip compression):
+
 ```json
 {
   "events": [
@@ -206,6 +212,7 @@ Content-Encoding: gzip
 | Timeout | 60 seconds |
 
 The CLI constructs the payload as follows (from `batch.py`):
+
 ```python
 payload = json.dumps({"events": events}).encode("utf-8")
 compressed = gzip.compress(payload)
@@ -257,6 +264,7 @@ Note: The CLI accepts both `error_message` and `error` fields for the rejection 
 | `details` | string or list | Yes | Per-event failure reasons. Can be a JSON string containing a list, a JSON list directly, or a plain description string. |
 
 **Structured `details` format** (preferred -- enables per-event error categorization):
+
 ```json
 {
   "error": "Batch processing failed",
@@ -268,6 +276,7 @@ Note: The CLI accepts both `error_message` and `error` fields for the rejection 
 ```
 
 The CLI parses `details` as follows:
+
 1. If `details` is a list: treat each item as `{"event_id": ..., "error"|"reason": ...}`
 2. If `details` is a JSON string encoding a list: parse and treat as above
 3. If `details` is a plain string: apply the top-level `error` to all events in the batch
@@ -529,6 +538,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ### Fixture 1: Single WPStatusChanged (Happy Path)
 
 **Request Body**:
+
 ```json
 {
   "events": [
@@ -560,6 +570,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ```
 
 **Expected Response (HTTP 200)**:
+
 ```json
 {
   "results": [
@@ -578,6 +589,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ### Fixture 2: Mixed Batch (3 Event Types)
 
 **Request Body**:
+
 ```json
 {
   "events": [
@@ -654,6 +666,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ```
 
 **Expected Response (HTTP 200)**:
+
 ```json
 {
   "results": [
@@ -671,6 +684,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ### Fixture 3: Duplicate Event
 
 **Request Body** (same `event_id` as Fixture 1, sent a second time):
+
 ```json
 {
   "events": [
@@ -702,6 +716,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ```
 
 **Expected Response (HTTP 200)**:
+
 ```json
 {
   "results": [
@@ -720,6 +735,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ### Fixture 4: Rejected Event (Missing Required Field)
 
 **Request Body** (missing `error_type` in ErrorLogged payload):
+
 ```json
 {
   "events": [
@@ -747,6 +763,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ```
 
 **Expected Response (HTTP 200 with per-event rejection)**:
+
 ```json
 {
   "results": [
@@ -766,6 +783,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ### Fixture 5: HTTP 400 Error Response
 
 **Request Body** (entire batch fails validation):
+
 ```json
 {
   "events": [
@@ -797,6 +815,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 ```
 
 **Expected Response (HTTP 400)**:
+
 ```json
 {
   "error": "Batch validation failed",

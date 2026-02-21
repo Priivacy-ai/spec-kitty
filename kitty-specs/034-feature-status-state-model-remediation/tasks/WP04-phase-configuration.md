@@ -77,6 +77,7 @@ Create the three-tier phase resolution system that controls how the status model
 - **Data Model**: `kitty-specs/034-feature-status-state-model-remediation/data-model.md` -- Phase Configuration section, Resolution Logic pseudocode
 
 **Key constraints**:
+
 - Phase values: 0 (hardening), 1 (dual-write), 2 (read-cutover)
 - Built-in default: Phase 1 (dual-write)
 - Resolution order: `meta.json.status_phase` > `config.yaml.status.phase` > built-in default (1)
@@ -86,6 +87,7 @@ Create the three-tier phase resolution system that controls how the status model
 - Phase must be an integer (0, 1, or 2) -- reject non-integer values
 
 **Existing code references**:
+
 - Config loading pattern: see `src/specify_cli/agent_config.py` for how `.kittify/config.yaml` is read
 - Meta.json loading: see `src/specify_cli/core/feature_detection.py` for how `meta.json` is read
 - Git branch detection: `subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], ...)`
@@ -99,7 +101,9 @@ Create the three-tier phase resolution system that controls how the status model
 **Purpose**: Main module for phase resolution with the three-tier precedence chain.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/phase.py` with imports:
+
    ```python
    from __future__ import annotations
 
@@ -112,6 +116,7 @@ Create the three-tier phase resolution system that controls how the status model
    ```
 
 2. Define constants:
+
    ```python
    VALID_PHASES = (0, 1, 2)
    DEFAULT_PHASE = 1
@@ -120,6 +125,7 @@ Create the three-tier phase resolution system that controls how the status model
    ```
 
 3. Implement `resolve_phase()`:
+
    ```python
    def resolve_phase(repo_root: Path, feature_slug: str) -> tuple[int, str]:
        """Resolve the active status phase.
@@ -163,6 +169,7 @@ Create the three-tier phase resolution system that controls how the status model
    ```
 
 4. Implement private helper `_read_meta_phase()`:
+
    ```python
    def _read_meta_phase(repo_root: Path, feature_slug: str) -> int | None:
        """Read status_phase from feature's meta.json. Returns None if not set."""
@@ -188,6 +195,7 @@ Create the three-tier phase resolution system that controls how the status model
    ```
 
 5. Implement private helper `_read_config_phase()`:
+
    ```python
    def _read_config_phase(repo_root: Path) -> int | None:
        """Read status.phase from .kittify/config.yaml. Returns None if not set."""
@@ -222,11 +230,13 @@ Create the three-tier phase resolution system that controls how the status model
 **Files**: `src/specify_cli/status/phase.py` (new file)
 
 **Validation**:
+
 - With meta.json containing `status_phase: 2` and config.yaml containing `status.phase: 1`, `resolve_phase()` returns `(2, "meta.json override for ...")`
 - With no meta.json override and config.yaml containing `status.phase: 0`, returns `(0, "global default from .kittify/config.yaml")`
 - With neither set, returns `(1, "built-in default (Phase 1: dual-write)")`
 
 **Edge Cases**:
+
 - meta.json does not exist: skip to config.yaml
 - config.yaml does not exist: skip to default
 - meta.json has `status_phase: "invalid"`: log warning, skip to config.yaml
@@ -240,11 +250,13 @@ Create the three-tier phase resolution system that controls how the status model
 **Purpose**: Ensure the `status.phase` key is recognized in `.kittify/config.yaml`.
 
 **Steps**:
+
 1. This is already handled within `_read_config_phase()` in T017 -- the function reads the key independently without modifying the existing config loader
 2. Verify that adding `status:\n  phase: 1` to an existing config.yaml does not break other config loading
 3. The `status` key is a new top-level section in config.yaml, sitting alongside existing sections like `agents`
 
 **Expected config.yaml format**:
+
 ```yaml
 # Existing keys...
 agents:
@@ -260,10 +272,12 @@ status:
 **Files**: `src/specify_cli/status/phase.py` (same file -- reading logic is self-contained)
 
 **Validation**:
+
 - Load a config.yaml with both `agents` and `status.phase` sections -- both are read correctly by their respective loaders
 - Load a config.yaml WITHOUT the `status` section -- existing behavior unchanged
 
 **Edge Cases**:
+
 - `status` key exists but is not a dict (e.g., `status: "enabled"`) -- treated as phase not set
 - `status.phase` is a float (e.g., `1.5`) -- `int()` conversion truncates, but validation rejects if not in VALID_PHASES
 
@@ -274,11 +288,13 @@ status:
 **Purpose**: Ensure the `status_phase` field is recognized in feature `meta.json`.
 
 **Steps**:
+
 1. This is already handled within `_read_meta_phase()` in T017 -- the function reads the key independently without modifying the existing meta.json loader
 2. Verify that adding `"status_phase": 2` to an existing meta.json does not break other meta.json loading
 3. The `status_phase` key is a new top-level field in meta.json, sitting alongside existing fields
 
 **Expected meta.json format**:
+
 ```json
 {
   "feature_slug": "034-feature-status-state-model-remediation",
@@ -290,10 +306,12 @@ status:
 **Files**: `src/specify_cli/status/phase.py` (same file -- reading logic is self-contained)
 
 **Validation**:
+
 - Load a meta.json with and without `status_phase` -- both work correctly
 - Existing code that reads meta.json for other fields is unaffected
 
 **Edge Cases**:
+
 - meta.json is valid JSON but not a dict (e.g., `["array"]`) -- handled by `data.get("status_phase")` failing gracefully
 - meta.json has `"status_phase": null` -- treated as not set (returns None)
 
@@ -304,7 +322,9 @@ status:
 **Purpose**: When running on a 0.1x branch line (e.g., `main`, `release/0.13.x`), cap the maximum phase at 2.
 
 **Steps**:
+
 1. Implement `is_01x_branch()`:
+
    ```python
    def is_01x_branch(repo_root: Path) -> bool:
        """Check if the current git branch is on the 0.1x line.
@@ -353,11 +373,13 @@ status:
 **Files**: `src/specify_cli/status/phase.py` (same file)
 
 **Validation**:
+
 - On a 2.x branch with phase=3 (hypothetical): no cap applied, returns 3 (but validation elsewhere rejects)
 - On main branch with meta.json phase=3 (hypothetical): capped to 2 with amended source
 - On main branch with default phase=1: no cap needed, returns 1 unchanged
 
 **Edge Cases**:
+
 - Detached HEAD (`branch == "HEAD"`): not matched as 2.x, so treated as 0.1x (cap applied) -- conservative default
 - Git not available (no git installed): `is_01x_branch()` returns False (no cap) -- fails open
 - Branch name contains "2." but is not 2.x line (e.g., "feature-v2.0-compat"): starts with "feature", not "2.", so treated as 0.1x
@@ -369,6 +391,7 @@ status:
 **Purpose**: Verify the complete precedence chain, cap enforcement, and source descriptions.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_phase.py`
 2. Use `tmp_path` fixture to create test config files
 3. Mock `subprocess.run` for git branch detection in cap tests
@@ -397,6 +420,7 @@ status:
 **Validation**: `python -m pytest tests/specify_cli/status/test_phase.py -v` -- all pass
 
 **Edge Cases**:
+
 - Test with corrupted meta.json (invalid JSON): warning logged, falls through to config
 - Test with empty config.yaml file: parsed as None, falls through to default
 - Test the amended source description when cap is applied

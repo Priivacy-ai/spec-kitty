@@ -12,6 +12,7 @@
 **Delivery Branch**: All work targets the **2.x branch** (588 commits diverged from main). Do NOT merge to main.
 
 ## Subtask Format: `[Txxx] [P?] Description`
+
 - **[P]** indicates the subtask can proceed in parallel (different files/components).
 - Include precise file paths or modules.
 
@@ -28,22 +29,27 @@
 **Prompt**: `/tasks/WP01-fix-setup-plan-nameerror.md`
 
 ### Included Subtasks
+
 - [x] T001 Apply missing `get_feature_mission_key` import to `src/specify_cli/cli/commands/agent/feature.py` on 2.x
 - [x] T002 Investigate `test_full_planning_workflow_no_worktrees` xfail — fix or re-document
 - [x] T003 Verify all planning workflow tests pass (`test_planning_workflow.py`, `test_task_workflow.py`)
 
 ### Implementation Notes
+
 - The fix is already on main at commit 5332408f — cherry-pick or manually apply the same import
 - On 2.x, `feature.py` may have diverged from main — check the actual file before applying
 - The xfail test may be related to typer availability in the test environment
 
 ### Parallel Opportunities
+
 - Entirely independent of all other Wave 1 WPs
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - 2.x `feature.py` may differ significantly from main → diff both versions before applying fix
 
 ---
@@ -55,6 +61,7 @@
 **Prompt**: `/tasks/WP02-fix-batch-error-surfacing.md`
 
 ### Included Subtasks
+
 - [x] T004 Parse per-event `results[]` array from HTTP 200 batch responses in `src/specify_cli/sync/batch.py`
 - [x] T005 Parse `details` field from HTTP 400 error responses (not just `error`)
 - [x] T006 [P] Implement error categorization: `schema_mismatch`, `auth_expired`, `server_error`, `unknown`
@@ -64,17 +71,21 @@
 - [x] T010 Write tests for batch response parsing, categorization, and queue operations
 
 ### Implementation Notes
+
 - `batch.py:135` currently only reads top-level `error` field, discarding `details`
 - Batch response format per contract: `{"results": [{"event_id": "...", "status": "success|duplicate|rejected", "error": "..."}]}`
 - Error categorization should inspect the `error` string in rejected results for keywords
 
 ### Parallel Opportunities
+
 - T006 (categorization) and T009 (report flag) can run alongside T004/T005
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - Server response format may not match documented contract → test with mock responses, document delta in handoff doc
 
 ---
@@ -86,23 +97,28 @@
 **Prompt**: `/tasks/WP03-fix-sync-status-check.md`
 
 ### Included Subtasks
+
 - [x] T011 Load real access token from `~/.spec-kitty/credentials` in the status check path
 - [x] T012 Attempt token refresh if expired; handle missing credentials with clear "run `spec-kitty auth login`" message
 - [x] T013 Probe actual batch endpoint with real token instead of hardcoded test token
 - [x] T014 Write tests for auth-aware status check (valid token, expired token, no credentials)
 
 ### Implementation Notes
+
 - Current hardcoded test token is at approximately `sync.py:531` on 2.x (may be in sync CLI commands or sync/runtime.py)
 - Use existing `auth.py` credential loading functions
 - Token refresh logic already exists in `auth.py` — reuse it
 
 ### Parallel Opportunities
+
 - Entirely independent of other Wave 1 WPs
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - Test token location may have moved on 2.x → search for hardcoded Bearer/token strings
 
 ---
@@ -114,6 +130,7 @@
 **Prompt**: `/tasks/WP05-extend-sync-status.md`
 
 ### Included Subtasks
+
 - [x] T020 Add aggregate query methods to `src/specify_cli/sync/queue.py`: total queued, oldest event age, retry-count distribution
 - [x] T021 [P] Group pending events by `event_type` for top-failing-types display
 - [x] T022 [P] Format extended status output with Rich tables/panels
@@ -121,17 +138,21 @@
 - [x] T024 Write tests for aggregate queries and formatted output
 
 ### Implementation Notes
+
 - SQLite queries should target the actual `queue` table: `SELECT COUNT(*) FROM queue`, `SELECT MIN(timestamp) FROM queue`
 - Retry histogram buckets: `0 retries`, `1-3 retries`, `4+ retries`
 - Use Rich Table for formatted output to match existing CLI style
 
 ### Parallel Opportunities
+
 - T021 and T022 can proceed in parallel (data query vs. formatting)
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - Queue table schema on 2.x may differ from documented model → inspect actual schema first
 
 ---
@@ -143,22 +164,27 @@
 **Prompt**: `/tasks/WP06-lane-mapping-tests.md`
 
 ### Included Subtasks
+
 - [x] T025 Add parametrized tests in `tests/specify_cli/status/test_sync_lane_mapping.py` covering all 7 lanes with expected 4-lane outputs
 - [x] T026 Test invalid target lane handling via `emit_status_transition(...)` raises `TransitionError`
 - [x] T027 Verify lane collapse mapping remains centralized in `src/specify_cli/status/emit.py` (`_SYNC_LANE_MAP`)
 - [x] T028 Verify `contracts/lane-mapping.md` matches `_SYNC_LANE_MAP` in `status/emit.py` — flag any discrepancies
 
 ### Implementation Notes
+
 - Current mapping at `status/emit.py:46` on 2.x: planned→planned, claimed→planned, in_progress→doing, for_review→for_review, done→done, blocked→doing, canceled→planned
 - `LANE_ALIASES = {"doing": "in_progress"}` in `status/transitions.py` — test alias resolution separately
 
 ### Parallel Opportunities
+
 - Entirely independent of other WPs
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - Mapping in `status/emit.py` may have changed since last inspection → read actual 2.x source first
 
 ---
@@ -170,6 +196,7 @@
 **Prompt**: `/tasks/WP08-global-runtime-convergence.md`
 
 ### Included Subtasks
+
 - [x] T034 Audit current resolution chain in `src/specify_cli/core/project_resolver.py` on 2.x
 - [x] T035 Add `~/.kittify/` to resolution chain: project → global → package defaults
 - [x] T036 Eliminate legacy fallback warnings when `~/.kittify/` exists
@@ -178,17 +205,21 @@
 - [x] T039 Write tests for resolution chain with `~/.kittify/` (exists, doesn't exist, idempotent migrate)
 
 ### Implementation Notes
+
 - 2.x has partial global runtime bootstrap — audit what already exists before adding
 - Resolution order: project `.kittify/missions/{key}/templates/` → project `.kittify/templates/` → `~/.kittify/missions/{key}/templates/` → `~/.kittify/templates/` → package defaults
 - Credential path: `~/.spec-kitty/credentials` stays separate from `~/.kittify/` — document this decision
 
 ### Parallel Opportunities
+
 - Entirely independent of sync WPs
 
 ### Dependencies
+
 - None
 
 ### Risks & Mitigations
+
 - `~/.kittify` migration may break existing 2.x alpha users → make migrate idempotent
 
 ---
@@ -204,6 +235,7 @@
 **Prompt**: `/tasks/WP04-sync-diagnose-command.md`
 
 ### Included Subtasks
+
 - [x] T015 Create `src/specify_cli/sync/diagnose.py` with event validation logic
 - [x] T016 Validate events against Pydantic `Event` model from `spec_kitty_events.models`
 - [x] T017 [P] Validate WPStatusChanged payloads against `StatusTransitionPayload`
@@ -211,17 +243,21 @@
 - [x] T019 Write tests: valid events pass, malformed events report specific field errors
 
 ### Implementation Notes
+
 - Reuse error categorization from WP02 (T006) for consistent error grouping
 - Read events from SQLite queue using existing `queue.py` read methods
 - Output format: per-event validation (event_id, valid/invalid, error list)
 
 ### Parallel Opportunities
+
 - T017 can proceed alongside T016 (different payload types)
 
 ### Dependencies
+
 - Depends on WP02 (error categorization in T006)
 
 ### Risks & Mitigations
+
 - Pydantic model validation may be strict in unexpected ways → test with real queue data from 2.x
 
 ---
@@ -233,6 +269,7 @@
 **Prompt**: `/tasks/WP07-saas-handoff-contract.md`
 
 ### Included Subtasks
+
 - [x] T029 Document complete event envelope fields with types, constraints, and examples
 - [x] T030 [P] Document batch request/response format: headers, compression, URL, body structure
 - [x] T031 [P] Document authentication flow: JWT login, refresh, authorization header
@@ -240,17 +277,21 @@
 - [x] T033 Write contract test: validate fixtures against Pydantic `Event` model
 
 ### Implementation Notes
+
 - `contracts/batch-ingest.md` and `contracts/lane-mapping.md` already exist from Phase 1 planning — extend them with fixtures
 - Cross-reference lane mapping from WP06 testing (T025-T028)
 - Fixture data must include emitted event types: WPStatusChanged, WPCreated, WPAssigned, FeatureCreated, FeatureCompleted, HistoryAdded, ErrorLogged, DependencyResolved
 
 ### Parallel Opportunities
+
 - T030 and T031 can proceed in parallel (request format vs. auth flow)
 
 ### Dependencies
+
 - Depends on WP02 (error format from T006/T007)
 
 ### Risks & Mitigations
+
 - SaaS endpoint may not match documented contract → fixtures enable the SaaS team to test independently
 
 ---
@@ -266,6 +307,7 @@
 **Prompt**: `/tasks/WP09-e2e-smoke-test.md`
 
 ### Included Subtasks
+
 - [x] T040 Create `tests/e2e/` directory with `__init__.py` and `conftest.py`
 - [x] T041 Write temp repo fixture: git init, spec-kitty init, .kittify setup
 - [x] T042 Implement full test sequence: create-feature → setup-plan → finalize-tasks → implement → move-task
@@ -273,18 +315,22 @@
 - [x] T044 Verify test passes locally and document CI considerations
 
 ### Implementation Notes
+
 - Use `typer.testing.CliRunner` or `subprocess.run` for CLI invocations
 - Test must verify intermediate artifacts exist: spec.md, plan.md, tasks/, worktree
 - Mark with `pytest.mark.e2e` for optional CI separation
 - Final state: WP01 in `for_review` lane, all artifacts exist
 
 ### Parallel Opportunities
+
 - T043 is independent file edit, can proceed alongside T040-T042
 
 ### Dependencies
+
 - Depends on WP01 (setup-plan must work)
 
 ### Risks & Mitigations
+
 - E2E test may be flaky in CI → ensure robust cleanup; use `pytest.mark.e2e` for separation
 
 ---

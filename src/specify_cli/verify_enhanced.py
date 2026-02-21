@@ -2,13 +2,11 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
-import json
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
 
@@ -20,7 +18,7 @@ def run_enhanced_verify(
     feature: Optional[str],
     json_output: bool,
     check_files: bool,
-    console: Console
+    console: Console,
 ) -> Dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
@@ -33,7 +31,7 @@ def run_enhanced_verify(
         "worktree_status": {},
         "file_integrity": {},
         "feature_analysis": {},
-        "recommendations": []
+        "recommendations": [],
     }
 
     # Initialize helpers
@@ -42,7 +40,7 @@ def run_enhanced_verify(
     worktree_status = WorktreeStatus(repo_root)
 
     # 1. Environment Information
-    in_worktree = '.worktrees' in str(cwd)
+    in_worktree = ".worktrees" in str(cwd)
 
     try:
         current_branch = subprocess.run(
@@ -52,7 +50,7 @@ def run_enhanced_verify(
             text=True,
             encoding="utf-8",
             errors="replace",
-            check=True
+            check=True,
         ).stdout.strip()
     except subprocess.CalledProcessError:
         current_branch = None
@@ -63,7 +61,7 @@ def run_enhanced_verify(
         "project_root": str(project_root),
         "in_worktree": in_worktree,
         "current_branch": current_branch,
-        "active_mission": manifest.active_mission
+        "active_mission": manifest.active_mission,
     }
 
     if not json_output:
@@ -75,16 +73,16 @@ def run_enhanced_verify(
         console.print(f"   Repository root: {repo_root}")
 
         if in_worktree:
-            console.print(f"   [green]✓[/green] In worktree")
+            console.print("   [green]✓[/green] In worktree")
         else:
-            console.print(f"   [dim]○[/dim] Not in worktree")
+            console.print("   [dim]○[/dim] Not in worktree")
 
         if current_branch:
             console.print(f"   Current branch: {current_branch}")
             if current_branch in ("main", "master"):
                 console.print(f"   [yellow]⚠[/yellow] On {current_branch} branch")
         else:
-            console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
+            console.print("   [yellow]⚠[/yellow] Could not detect branch")
 
     # 2. File Integrity Check
     if check_files:
@@ -101,7 +99,7 @@ def run_enhanced_verify(
             "total_present": total_present,
             "total_missing": total_missing,
             "missing_files": file_check["missing"],
-            "categories": {}
+            "categories": {},
         }
 
         # Count by category
@@ -110,7 +108,7 @@ def run_enhanced_verify(
             output_data["file_integrity"]["categories"][category] = {
                 "expected": len(files),
                 "present": present_in_category,
-                "missing": len(files) - present_in_category
+                "missing": len(files) - present_in_category,
             }
 
         if not json_output:
@@ -146,12 +144,10 @@ def run_enhanced_verify(
     # 4. Feature Detection and Analysis
     try:
         from .acceptance import detect_feature_slug, AcceptanceError
+
         feature_slug = (feature or detect_feature_slug(repo_root, cwd=cwd)).strip()
 
-        output_data["feature_detection"] = {
-            "detected": True,
-            "feature": feature_slug
-        }
+        output_data["feature_detection"] = {"detected": True, "feature": feature_slug}
 
         # Get detailed status for this feature
         feature_status = worktree_status.get_feature_status(feature_slug)
@@ -167,12 +163,12 @@ def run_enhanced_verify(
                 status_text = "merged" if feature_status["branch_merged"] else "active"
                 console.print(f"   [green]✓[/green] Branch exists ({status_text})")
             else:
-                console.print(f"   [dim]○[/dim] No branch")
+                console.print("   [dim]○[/dim] No branch")
 
             if feature_status["worktree_exists"]:
                 console.print(f"   [green]✓[/green] Worktree at: {feature_status['worktree_path']}")
             else:
-                console.print(f"   [dim]○[/dim] No worktree")
+                console.print("   [dim]○[/dim] No worktree")
 
             # Artifacts
             if feature_status["artifacts_in_main"]:
@@ -189,10 +185,7 @@ def run_enhanced_verify(
                 console.print("   [dim]○[/dim] Feature not yet started")
 
     except AcceptanceError as exc:
-        output_data["feature_detection"] = {
-            "detected": False,
-            "error": str(exc)
-        }
+        output_data["feature_detection"] = {"detected": False, "error": str(exc)}
 
         if not json_output:
             console.print("\n[cyan]4. Feature Detection[/cyan]")
@@ -220,7 +213,7 @@ def run_enhanced_verify(
                 "in_development": "[yellow]ACTIVE[/yellow]",
                 "ready_to_merge": "[blue]READY[/blue]",
                 "not_started": "[dim]NOT STARTED[/dim]",
-                "unknown": "[dim]?[/dim]"
+                "unknown": "[dim]?[/dim]",
             }.get(feat_status["state"], feat_status["state"])
 
             branch_display = "✓" if feat_status["branch_exists"] else "-"
@@ -232,13 +225,7 @@ def run_enhanced_verify(
             artifact_count = len(feat_status["artifacts_in_main"]) + len(feat_status["artifacts_in_worktree"])
             artifacts_display = str(artifact_count) if artifact_count > 0 else "-"
 
-            table.add_row(
-                feat,
-                state_display,
-                branch_display,
-                worktree_display,
-                artifacts_display
-            )
+            table.add_row(feat, state_display, branch_display, worktree_display, artifacts_display)
 
         console.print(table)
 

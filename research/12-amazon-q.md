@@ -1,10 +1,11 @@
 # Agent: Amazon Q Developer CLI
 
 ## Basic Info
+
 - **Directory**: `.amazonq/`
 - **Primary Interface**: CLI
 - **Vendor**: Amazon Web Services (AWS)
-- **Documentation**: https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html
+- **Documentation**: <https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html>
 
 ## Important Notice
 
@@ -17,6 +18,7 @@
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # macOS via Homebrew
 brew install --cask amazon-q
@@ -30,6 +32,7 @@ brew install --cask amazon-q
 ```
 
 ### Verification
+
 ```bash
 which q && q --version
 # Or for Kiro:
@@ -37,6 +40,7 @@ which kiro && kiro --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ which q
 q not found
@@ -50,6 +54,7 @@ kiro not found
 ## Task Specification (Based on Documentation)
 
 ### How to Pass Instructions
+
 - [x] Command line argument - Chat subcommand accepts prompts
 - [ ] Stdin - Not documented
 - [ ] File path (--file, -f) - Not documented
@@ -57,6 +62,7 @@ kiro not found
 - [ ] Environment variable - Not supported
 
 ### Example Invocation (Theoretical)
+
 ```bash
 # Based on documentation, the CLI provides:
 # - Agentic chat in terminal
@@ -73,6 +79,7 @@ kiro chat "Fix the bug"
 ```
 
 ### Context Handling
+
 - Operates within current directory
 - Can interact with Git repositories
 - Agentic capabilities for file editing
@@ -80,6 +87,7 @@ kiro chat "Fix the bug"
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success (assumed) |
@@ -88,6 +96,7 @@ kiro chat "Fix the bug"
 Note: Exit codes not documented in available sources.
 
 ### Output Format
+
 - [ ] Stdout (plain text) - Likely supported
 - [ ] Stdout (JSON) - Not documented
 - [ ] File output - Not documented
@@ -96,14 +105,17 @@ Note: Exit codes not documented in available sources.
 ## Parallel Execution
 
 ### Rate Limits
+
 - AWS service limits apply
 - IAM permissions required
 - May have per-account quotas
 
 ### Concurrent Sessions
+
 - Unknown - not documented
 
 ### Resource Requirements
+
 - Memory: Unknown
 - CPU: Unknown
 - Network: Required (AWS cloud)
@@ -112,11 +124,13 @@ Note: Exit codes not documented in available sources.
 ## Authentication
 
 ### Methods
+
 1. **AWS IAM Identity Center** (recommended for enterprise)
 2. **IAM Roles** (for CI/CD pipelines)
 3. **Builder ID** (for individual developers)
 
 ### Headless Login for CI/CD
+
 For headless environments (CI/CD), use IAM roles with Amazon Q policy instead of browser-based login.
 
 ```bash
@@ -130,15 +144,18 @@ export AWS_SECRET_ACCESS_KEY=...
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [ ] Partial - Requires further investigation
 
 ### Capabilities for Orchestration
+
 - **Non-interactive mode**: Unclear if fully supported
 - **Task input**: Chat-based, method unclear for automation
 - **Completion detection**: Not documented
 - **Agentic execution**: Supported with permission
 
 ### Limitations
+
 - CLI is undergoing transition (Amazon Q → Kiro)
 - Open-source version deprecated
 - Limited headless automation documentation
@@ -146,6 +163,7 @@ export AWS_SECRET_ACCESS_KEY=...
 - Not installed on test system - cannot verify
 
 ### Integration Complexity
+
 **High** - AWS authentication complexity, unclear headless automation story, transitioning product.
 
 ## Recommended Action
@@ -157,10 +175,12 @@ export AWS_SECRET_ACCESS_KEY=...
 ## Alternative for Orchestration
 
 Given the complexity and transition state, consider:
+
 - Using other CLI agents (Claude, Codex, OpenCode) for autonomous orchestration
 - Amazon Q may be better suited for IDE integration than headless automation
 
 ## Sources
+
 - [Amazon Q Command Line Documentation](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html)
 - [Amazon Q CLI GitHub (Deprecated)](https://github.com/aws/amazon-q-developer-cli)
 - [Amazon Q CLI Command Reference](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-reference.html)

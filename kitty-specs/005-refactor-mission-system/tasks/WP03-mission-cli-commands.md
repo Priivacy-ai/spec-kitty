@@ -30,6 +30,7 @@ subtasks:
 **Goal**: Implement complete `spec-kitty mission` command group enabling users to list, view, and switch between missions from the command line.
 
 **Success Criteria**:
+
 - `spec-kitty mission list` displays all available missions with descriptions
 - `spec-kitty mission current` shows active mission details (name, domain, workflow, validation)
 - `spec-kitty mission info <name>` displays specific mission configuration without switching
@@ -42,6 +43,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Mission switching was spec'd in original mission system design but never implemented:
+
 - `set_active_mission()` function exists in mission.py:339-367
 - README mentions "planned for a future release" (line 797)
 - Spec-code divergence creates confusion
@@ -52,17 +54,20 @@ subtasks:
 **Use Case**: Research security → implement fixes → research performance → optimize
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 4, FR-013 through FR-019)
 - Plan: `kitty-specs/005-refactor-mission-system/plan.md` (Architecture Decision #3: Python API-first with CLI wrappers)
 - Data Model: `kitty-specs/005-refactor-mission-system/data-model.md` (MissionSwitchValidation model)
 
 **Design Decisions**:
+
 - **Architecture**: Python API-first, Typer CLI as thin wrappers
 - **Validation**: Reuse WP01 guards module for git-clean checks
 - **Integration**: Extend existing `set_active_mission()` function
 - **Output**: Rich console formatting for user-friendly display
 
 **Existing Code to Leverage**:
+
 ```python
 # src/specify_cli/mission.py - Already exists
 def get_active_mission(project_root: Optional[Path] = None) -> Mission
@@ -72,6 +77,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 ```
 
 **Validation Requirements** (from spec FR-017):
+
 - No active worktrees exist
 - No uncommitted git changes
 - Target mission exists
@@ -84,8 +90,10 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Establish Typer command group structure for mission management commands.
 
 **Steps**:
+
 1. Create file: `src/specify_cli/cli/commands/mission.py`
 2. Add imports:
+
    ```python
    """Mission management CLI commands."""
    from pathlib import Path
@@ -108,6 +116,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
    ```
 
 3. Create Typer app:
+
    ```python
    app = typer.Typer(
        name="mission",
@@ -119,6 +128,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
    ```
 
 4. Add stub functions for each subcommand (implementation in T018-T021):
+
    ```python
    @app.command("list")
    def list_cmd():
@@ -157,7 +167,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Display all available missions in formatted table.
 
 **Steps**:
+
 1. Implement list_cmd():
+
    ```python
    @app.command("list")
    def list_cmd():
@@ -225,7 +237,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Display currently active mission with full configuration details.
 
 **Steps**:
+
 1. Implement current_cmd():
+
    ```python
    @app.command("current")
    def current_cmd():
@@ -286,7 +300,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Display specific mission details without switching to it.
 
 **Steps**:
+
 1. Implement info_cmd():
+
    ```python
    @app.command("info")
    def info_cmd(mission_name: str = typer.Argument(..., help="Mission name to display")):
@@ -366,7 +382,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Core mission switching logic with comprehensive pre-flight validation.
 
 **Steps**:
+
 1. Implement switch_cmd():
+
    ```python
    @app.command("switch")
    def switch_cmd(
@@ -490,13 +508,16 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Make mission commands available in main CLI.
 
 **Steps**:
+
 1. Locate main CLI entry point: `src/specify_cli/cli/__init__.py` or `src/specify_cli/__init__.py`
 2. Import mission command group:
+
    ```python
    from specify_cli.cli.commands.mission import app as mission_app
    ```
 
 3. Register with main CLI app:
+
    ```python
    # Add to main typer app
    app.add_typer(mission_app, name="mission")
@@ -518,8 +539,10 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Validate all mission commands work end-to-end.
 
 **Steps**:
+
 1. Create file: `tests/integration/test_mission_cli.py`
 2. Setup test fixtures:
+
    ```python
    import pytest
    import subprocess
@@ -550,6 +573,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
    ```
 
 3. Write integration tests:
+
    ```python
    def test_mission_list(clean_project):
        """spec-kitty mission list should display missions."""
@@ -627,7 +651,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
 **Purpose**: Verify Rich output looks good and is readable.
 
 **Steps**:
+
 1. Run all commands manually and verify output:
+
    ```bash
    spec-kitty mission list
    # Check: Table formatted, active mission marked, descriptions readable
@@ -643,6 +669,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
    ```
 
 2. Test error formatting:
+
    ```bash
    spec-kitty mission switch invalid-mission
    # Check: Error clear, available missions listed
@@ -690,6 +717,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
    - Broken active-mission symlink → defaults to software-dev
 
 **Test Execution**:
+
 ```bash
 # Run integration tests
 pytest tests/integration/test_mission_cli.py -v
@@ -706,18 +734,23 @@ pytest tests/integration/test_mission_cli.py --cov=src/specify_cli/cli/commands/
 ## Risks & Mitigations
 
 **Risk 1**: Mission switching breaks in-progress work
+
 - **Mitigation**: Strict validation - block if any worktrees exist or git dirty
 
 **Risk 2**: Users confused by switch errors
+
 - **Mitigation**: Clear error messages with step-by-step fix instructions
 
 **Risk 3**: Switch validation too strict (false positives)
+
 - **Mitigation**: Test extensively, allow --force flag for edge cases
 
 **Risk 4**: Performance degradation from validation
+
 - **Mitigation**: Keep validation lightweight, measure <2 second target for switch
 
 **Risk 5**: Cross-platform compatibility issues
+
 - **Mitigation**: Test on Windows, macOS, Linux; use cross-platform Path operations
 
 ---
@@ -742,12 +775,14 @@ pytest tests/integration/test_mission_cli.py --cov=src/specify_cli/cli/commands/
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Switch validation must prevent data loss (no switching with active work)
 2. Error messages must be actionable (show exact fix steps)
 3. Output must be professionally formatted (Rich tables/panels)
 4. All commands must handle errors gracefully
 
 **What Reviewers Should Verify**:
+
 - Run `spec-kitty mission list` → see all missions
 - Run `spec-kitty mission current` → see active mission
 - Run `spec-kitty mission switch <name>` → verify validation works
@@ -757,6 +792,7 @@ pytest tests/integration/test_mission_cli.py --cov=src/specify_cli/cli/commands/
 - Verify error messages are helpful
 
 **Acceptance Criteria from Spec**:
+
 - User Story 4, Acceptance Scenarios 1-6 all pass
 - FR-013 through FR-019 all satisfied
 

@@ -15,7 +15,7 @@ class InstallDocumentationMission(BaseMigration):
     """Install the documentation mission to user projects.
 
     This migration copies the documentation mission from the spec-kitty
-    installation (src/specify_cli/missions/documentation/) to the user's
+    installation (src/doctrine/missions/documentation/) to the user's
     project (.kittify/missions/documentation/).
 
     The documentation mission enables users to create and maintain software
@@ -106,10 +106,7 @@ class InstallDocumentationMission(BaseMigration):
 
         # Check if destination already exists
         if dest_mission.exists() and (dest_mission / "mission.yaml").exists():
-            return MigrationResult(
-                success=True,
-                changes_made=["Documentation mission already installed (skipped)"]
-            )
+            return MigrationResult(success=True, changes_made=["Documentation mission already installed (skipped)"])
 
         # Ensure missions directory exists
         if not missions_dir.exists():

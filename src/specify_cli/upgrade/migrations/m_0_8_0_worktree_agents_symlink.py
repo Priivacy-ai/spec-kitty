@@ -39,7 +39,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
             return False
 
         for worktree in worktrees_dir.iterdir():
-            if worktree.is_dir() and not worktree.name.startswith('.'):
+            if worktree.is_dir() and not worktree.name.startswith("."):
                 wt_agents = worktree / ".kittify" / "AGENTS.md"
                 # Check if missing or broken symlink
                 if not wt_agents.exists() and not wt_agents.is_symlink():
@@ -55,10 +55,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
         main_agents = project_path / ".kittify" / "AGENTS.md"
 
         if not main_agents.exists():
-            return (
-                False,
-                "Main repo .kittify/AGENTS.md must exist before creating symlinks"
-            )
+            return (False, "Main repo .kittify/AGENTS.md must exist before creating symlinks")
 
         return True, ""
 
@@ -82,15 +79,13 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
 
         if worktrees_dir.exists():
             for worktree in worktrees_dir.iterdir():
-                if worktree.is_dir() and not worktree.name.startswith('.'):
+                if worktree.is_dir() and not worktree.name.startswith("."):
                     wt_kittify = worktree / ".kittify"
                     wt_agents = wt_kittify / "AGENTS.md"
 
                     # Skip if already exists and is valid
                     if wt_agents.exists() and not wt_agents.is_symlink():
-                        warnings.append(
-                            f"Worktree {worktree.name} has non-symlink AGENTS.md, skipping"
-                        )
+                        warnings.append(f"Worktree {worktree.name} has non-symlink AGENTS.md, skipping")
                         continue
 
                     if wt_agents.is_symlink() and wt_agents.exists():
@@ -103,9 +98,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
                     relative_path = "../../../.kittify/AGENTS.md"
 
                     if dry_run:
-                        changes.append(
-                            f"Would create .kittify/AGENTS.md symlink in worktree {worktree.name}"
-                        )
+                        changes.append(f"Would create .kittify/AGENTS.md symlink in worktree {worktree.name}")
                     else:
                         try:
                             # Ensure .kittify directory exists
@@ -124,9 +117,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
                             finally:
                                 os.chdir(original_cwd)
 
-                            changes.append(
-                                f"Created .kittify/AGENTS.md symlink in worktree {worktree.name}"
-                            )
+                            changes.append(f"Created .kittify/AGENTS.md symlink in worktree {worktree.name}")
                         except OSError as e:
                             # Symlink failed (Windows?), try copying instead
                             try:

@@ -53,8 +53,9 @@ This is an independent cleanup work package that can start immediately.
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -63,6 +64,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Remove all jujutsu/jj references from documentation and fix broken links to deleted jj files.
 
 **Success Criteria**:
+
 - [ ] Zero jujutsu/jj references in `docs/` directory (SC-005 requirement)
 - [ ] All internal links resolve to existing files (SC-003 requirement)
 - [ ] VCS detection documentation reflects git-only behavior
@@ -76,10 +78,12 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: Clean up documentation after jujutsu support removal (commit 99b0d84). This addresses FR-010, FR-011, FR-012, and success criteria SC-003, SC-005.
 
 **Reference Documents**:
+
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md` (requirements FR-010 through FR-012)
 - Git commit 99b0d84 (jujutsu removal commit)
 
 **Background**:
+
 - Jujutsu (jj) support was removed in commit 99b0d84
 - Five jj-specific documentation files were deleted:
   - `docs/explanation/auto-rebase-and-conflicts.md`
@@ -90,12 +94,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - Remaining documentation may still reference jj or link to deleted files
 
 **Writing Style**:
+
 - Surgical removals (don't rewrite large sections)
 - Update VCS references to git-only
 - Remove or replace broken links to deleted jj files
 - Don't introduce new git-specific content unless necessary for clarity
 
 **Constraints**:
+
 - T029 sequential (audit first)
 - T030 sequential after T029 (CLI commands update)
 - T031-T033 can be parallelized (different doc sections)
@@ -110,6 +116,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Run comprehensive grep command**:
+
    ```bash
    cd /Users/robert/Code/spec-kitty
    grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"
@@ -146,11 +153,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (must complete first to inform T030-T033)
 
 **Notes**:
+
 - If zero matches found, T030-T033 are no-ops (verify and document)
 - If matches found, provide specific file/line/context for each fix
 - Use grep exit code to determine if any matches exist
 
 **Validation**:
+
 - [ ] Grep command run with correct pattern
 - [ ] All matches documented (file, line, context)
 - [ ] Matches categorized by fix type
@@ -177,11 +186,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 4. **Update VCS detection explanation**:
 
    **Before** (example):
+
    ```markdown
    VCS detection order: jj (preferred), git (fallback)
    ```
 
    **After**:
+
    ```markdown
    VCS: Initializes git repository if not already present
    ```
@@ -189,12 +200,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 5. **Remove jj-specific examples**:
 
    **Before** (example):
+
    ```bash
    # Initialize with jj VCS
    spec-kitty init --ai claude
    ```
 
    **After**:
+
    ```bash
    # Initialize with git VCS
    spec-kitty init --ai claude
@@ -203,11 +216,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 6. **Update VCS option documentation** (if present):
 
    **Before** (example):
+
    ```markdown
    --vcs [git|jj]: Specify version control system (default: jj if available, otherwise git)
    ```
 
    **After**:
+
    ```markdown
    --vcs git: Specify version control system (default: git)
    ```
@@ -221,12 +236,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: No (sequential after T029)
 
 **Notes**:
+
 - Update to reflect git-only behavior
 - Remove any jj priority or preference language
 - Keep changes minimal (surgical removals)
 - If no jj references found in T029, this is a verification-only task
 
 **Validation**:
+
 - [ ] VCS detection order updated to git-only
 - [ ] jj examples removed or updated to git
 - [ ] VCS option documentation updated (if present)
@@ -248,6 +265,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - `docs/how-to/getting-started.md` (might reference jj workflow)
 
 2. **Search for links to deleted jj files**:
+
    ```bash
    cd docs/how-to
    grep -r "handle-conflicts-jj\|use-operation-history\|jujutsu-workflow" .
@@ -256,18 +274,21 @@ Use language identifiers in code blocks: ````python`, ````bash`
 3. **For each broken link found**:
 
    **Option 1: Remove link and reference** (if jj-specific content):
+
    ```markdown
    Before: See [Handling Conflicts in Jujutsu](handle-conflicts-jj.md) for jj-specific workflow.
    After: (entire sentence removed)
    ```
 
    **Option 2: Replace with git equivalent** (if parallel git content exists):
+
    ```markdown
    Before: See [Handling Conflicts](handle-conflicts-jj.md) for conflict resolution.
    After: See [Handling Conflicts](handle-conflicts.md) for conflict resolution.
    ```
 
    **Option 3: Generalize reference** (if concept applies to git):
+
    ```markdown
    Before: Use jj's operation history to undo changes. See [Operation History](use-operation-history.md).
    After: Use git reflog to undo changes.
@@ -288,11 +309,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T030, parallel with T032-T033)
 
 **Notes**:
+
 - Prioritize removal over replacement (jj is gone, don't force git substitutes)
 - If parallel git content doesn't exist, remove reference entirely
 - Ensure remaining paragraphs flow naturally after deletions
 
 **Validation**:
+
 - [ ] All how-to guides checked for jj links
 - [ ] Broken links to deleted jj files removed or replaced
 - [ ] No orphaned jj workflow sections remain
@@ -314,6 +337,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - `docs/tutorials/first-feature.md` (might link to jj conflict handling)
 
 2. **Search for links to deleted jj files**:
+
    ```bash
    cd docs/tutorials
    grep -r "jujutsu-workflow\|jujutsu-for-multi-agent\|auto-rebase-and-conflicts" .
@@ -322,6 +346,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 3. **For each broken link found**:
 
    **Remove tutorial references to jj**:
+
    ```markdown
    Before: For advanced workflows, see the [Jujutsu Workflow Tutorial](jujutsu-workflow.md).
    After: (sentence removed, or replaced with git-specific tutorial if available)
@@ -340,11 +365,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T030, parallel with T031, T033)
 
 **Notes**:
+
 - Tutorials are learning-oriented, so removal is usually better than awkward substitution
 - If tutorial assumes jj features (auto-rebase), entire section may need removal
 - Check for tutorial index pages that list jj tutorials
 
 **Validation**:
+
 - [ ] All tutorials checked for jj links
 - [ ] Broken links to deleted jj files removed
 - [ ] jj-specific tutorial steps removed
@@ -366,6 +393,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - `docs/explanation/conflict-resolution.md` (might link to auto-rebase-and-conflicts.md)
 
 2. **Search for links to deleted jj files**:
+
    ```bash
    cd docs/explanation
    grep -r "jujutsu-for-multi-agent\|auto-rebase-and-conflicts" .
@@ -374,6 +402,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 3. **For each broken link found**:
 
    **Remove jj-specific explanations**:
+
    ```markdown
    Before: Jujutsu's automatic rebasing simplifies multi-agent workflows. See [Jujutsu for Multi-Agent](jujutsu-for-multi-agent.md) for details.
    After: (sentence removed, or replaced with git-based explanation if relevant)
@@ -393,11 +422,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (after T030, parallel with T031-T032)
 
 **Notes**:
+
 - Explanation articles are understanding-oriented, focus on concepts
 - If jj concept doesn't translate to git, remove rather than force analogy
 - Check for diagrams or visuals referencing jj
 
 **Validation**:
+
 - [ ] All explanation articles checked for jj links
 - [ ] Broken links to deleted jj files removed
 - [ ] jj-specific explanations removed or updated to git
@@ -411,10 +442,12 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Manual Validation**:
 
 1. **Grep Validation** (SC-005):
+
    ```bash
    cd /Users/robert/Code/spec-kitty
    grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"
    ```
+
    Expected: Zero matches
 
 2. **Link Resolution** (SC-003):
@@ -439,24 +472,29 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Grep audit finds zero matches (cleanup already complete)
+
 - **Mitigation**: Verify and document as no-op; T030-T033 become verification-only
 - **Action**: Confirm commit 99b0d84 removed all jj references; update WP status
 
 **Risk**: Removing jj references leaves awkward or incomplete content
+
 - **Mitigation**: Read surrounding paragraphs; ensure natural flow after edits
 - **Validation**: Manual review of modified files
 
 **Risk**: Missing broken links (grep doesn't catch all link formats)
+
 - **Mitigation**: Manual inspection of common link locations (See Also, Next Steps sections)
 - **Detection**: Use link checker tool if available
 
 **Risk**: Removing jj explanations makes multi-agent workflow docs less clear
+
 - **Mitigation**: Only remove jj-specific content; preserve VCS-agnostic concepts
 - **Validation**: Ensure remaining explanations are understandable
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] All five subtasks (T029-T033) completed
 - [ ] Grep audit run and findings documented
 - [ ] CLI commands init section updated (VCS detection git-only)
@@ -468,6 +506,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Modified files read for natural content flow
 
 **Review Focus**:
+
 - **Completeness**: Are all jj references removed?
 - **Accuracy**: Does VCS documentation reflect git-only behavior?
 - **Link Resolution**: Do all internal links work?
@@ -478,6 +517,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -494,6 +534,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T11:10:55Z – claude – shell_pid=33676 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:27:10Z – claude – shell_pid=33676 – lane=for_review – Completed comprehensive jujutsu cleanup: Removed all jj/jujutsu references from 15+ documentation files including reference docs (cli-commands.md, configuration.md, file-structure.md), how-to guides (install-spec-kitty.md, handle-dependencies.md, sync-workspaces.md, toc.yml), tutorials (getting-started.md, multi-agent-workflow.md, your-first-feature.md, toc.yml), and explanations (multi-agent-orchestration.md, git-worktrees.md, workspace-per-wp.md, kanban-workflow.md, toc.yml). All broken links to deleted jj documentation removed.
 - 2026-01-23T11:27:57Z – Claude – shell_pid=51011 – lane=doing – Started review via workflow command

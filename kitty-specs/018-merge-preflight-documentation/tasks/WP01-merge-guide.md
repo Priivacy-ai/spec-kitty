@@ -47,12 +47,12 @@ history:
 
 **Issue 2**: Dry-run example output does not match actual `spec-kitty merge --dry-run` output. The generated command includes `-m 'Merge WP## from <feature_slug>'` (see `src/specify_cli/cli/commands/merge.py`), but the example shows `-m 'Merge WP01'` etc. Replace the example with real captured output so it matches the command format exactly.
 
-
 ## Objectives & Success Criteria
 
 Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completing workspace-per-WP features.
 
 **Success Criteria:**
+
 - A new user can follow the guide to successfully merge a multi-WP feature
 - All CLI flags are documented with examples
 - Pre-flight validation is explained with interpretation guidance
@@ -62,6 +62,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 ## Context & Constraints
 
 **Source Files:**
+
 - `src/specify_cli/cli/commands/merge.py` - CLI interface, flags, help text
 - `src/specify_cli/merge/preflight.py` - Validation checks
 - `src/specify_cli/merge/executor.py` - Merge workflow steps
@@ -74,6 +75,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 ## Subtasks & Detailed Guidance
 
 ### Subtask T001 – Extract CLI flags from merge.py
+
 - **Purpose**: Gather all command-line options for documentation
 - **Steps**:
   1. Read `src/specify_cli/cli/commands/merge.py`
@@ -84,6 +86,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Expected flags**: --strategy, --delete-branch/--keep-branch, --remove-worktree/--keep-worktree, --push, --target, --dry-run, --feature, --resume, --abort
 
 ### Subtask T002 – Extract pre-flight validation checks
+
 - **Purpose**: Document what pre-flight validates
 - **Steps**:
   1. Read `src/specify_cli/merge/preflight.py`
@@ -93,6 +96,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Parallel?**: Yes
 
 ### Subtask T003 – Capture dry-run output example
+
 - **Purpose**: Show users what dry-run looks like
 - **Steps**:
   1. Find a feature with multiple WPs (or create test scenario)
@@ -103,6 +107,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Note**: If no suitable feature exists, show the format based on executor.py
 
 ### Subtask T004 – Write merge-feature.md structure
+
 - **Purpose**: Establish document skeleton
 - **Steps**:
   1. Create `docs/how-to/merge-feature.md`
@@ -116,6 +121,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Parallel?**: No (must complete before T005-T008)
 
 ### Subtask T005 – Merge strategies section
+
 - **Purpose**: Explain merge/squash/rebase options
 - **Steps**:
   1. Add "Merge Strategies" section
@@ -128,6 +134,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Parallel?**: Yes (after T004)
 
 ### Subtask T006 – Pre-flight validation section
+
 - **Purpose**: Help users understand automatic checks
 - **Steps**:
   1. Add "Pre-flight Validation" section
@@ -139,6 +146,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Parallel?**: Yes (after T004)
 
 ### Subtask T007 – Dry-run and conflict forecasting section
+
 - **Purpose**: Show users how to preview merge
 - **Steps**:
   1. Add "Preview with Dry-Run" section
@@ -150,6 +158,7 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - **Parallel?**: Yes (after T004)
 
 ### Subtask T008 – Cleanup options section
+
 - **Purpose**: Document post-merge cleanup behavior
 - **Steps**:
   1. Add "Cleanup Options" section

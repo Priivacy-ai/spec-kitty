@@ -54,8 +54,10 @@ history:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T026 – Create configuration.md
+
 - **Purpose**: Document all configuration files and options
 - **Structure**:
+
   ```markdown
   # Configuration Reference
 
@@ -78,22 +80,28 @@ history:
   ```
 
   ## .kittify/active-mission (Legacy)
+
   [Note: Deprecated in 0.8.0+]
 
   ## WP Frontmatter
+
   ```yaml
   work_package_id: "WP01"
   lane: "planned"
   dependencies: ["WP00"]
   # ...
   ```
+
   ```
 - **Files**: `docs/reference/configuration.md`
+
 - **Parallel?**: Yes
 
 ### Subtask T027 – Create environment-variables.md
+
 - **Purpose**: Document all environment variables
 - **Structure**:
+
   ```markdown
   # Environment Variables Reference
 
@@ -116,27 +124,33 @@ history:
   ## GH_TOKEN / GITHUB_TOKEN
   **Purpose**: GitHub API authentication
   ```
+
 - **Files**: `docs/reference/environment-variables.md`
 - **Parallel?**: Yes
 
 ### Subtask T028 – Create file-structure.md
+
 - **Purpose**: Document the complete directory structure
 - **Structure**:
+
   ```markdown
   # File Structure Reference
 
   ## Project Root
   ```
+
   my-project/
   ├── .kittify/              # Spec Kitty configuration
   ├── kitty-specs/           # Feature specifications
   ├── .worktrees/            # Git worktrees (0.11.0+)
   ├── docs/                  # Documentation
   └── src/                   # Your source code
+
   ```
 
   ## .kittify/ Directory
   ```
+
   .kittify/
   ├── templates/             # Document templates
   │   ├── spec-template.md
@@ -149,10 +163,12 @@ history:
   │   └── documentation/
   └── memory/                # Project memory
       └── constitution.md
+
   ```
 
   ## kitty-specs/ Directory
   ```
+
   kitty-specs/
   └── 014-feature-name/
       ├── spec.md
@@ -164,24 +180,30 @@ history:
       └── tasks/
           ├── WP01-xxx.md
           └── WP02-xxx.md
+
   ```
 
   ## .worktrees/ Directory (0.11.0+)
   ```
+
   .worktrees/
   ├── 014-feature-name-WP01/  # WP01 workspace
   └── 014-feature-name-WP02/  # WP02 workspace
+
   ```
 
   [Explain: One worktree per WP, not per feature]
   ```
+
 - **Files**: `docs/reference/file-structure.md`
 - **Parallel?**: Yes
 - **Notes**: Critical for understanding the 0.11.0 model
 
 ### Subtask T029 – Create missions.md
+
 - **Purpose**: Complete reference for all three missions
 - **Structure**:
+
   ```markdown
   # Missions Reference
 
@@ -206,12 +228,15 @@ history:
   ## Per-Feature Mission Selection
   [Selected during /spec-kitty.specify, stored in meta.json]
   ```
+
 - **Files**: `docs/reference/missions.md`
 - **Parallel?**: Yes
 
 ### Subtask T030 – Create supported-agents.md
+
 - **Purpose**: Document all 12 supported AI agents
 - **Structure**:
+
   ```markdown
   # Supported AI Agents Reference
 
@@ -244,8 +269,10 @@ history:
   ```bash
   spec-kitty init my-project --ai claude,codex
   ```
+
   ```
 - **Files**: `docs/reference/supported-agents.md`
+
 - **Parallel?**: Yes
 
 ## Risks & Mitigations

@@ -32,6 +32,7 @@ subtasks:
 ## Objectives & Success Criteria
 
 Refactor the tasks CLI from directory-based to frontmatter-only lane management:
+
 1. Rename `move` command to `update` (semantic clarity - no files move)
 2. Remove all file movement operations from lane transitions
 3. Update `locate_work_package()` to search flat `tasks/` directory
@@ -39,6 +40,7 @@ Refactor the tasks CLI from directory-based to frontmatter-only lane management:
 
 **Success Criteria** (from spec FR-001 to FR-005):
 spec-kitty agent workflow implement WP01
+
 - File stays in `tasks/` directory after lane transition
 - Activity log is appended on lane change
 - Direct editing of `lane:` field is valid and recognized by system
@@ -46,11 +48,13 @@ spec-kitty agent workflow implement WP01
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Plan: `kitty-specs/007-frontmatter-only-lane/plan.md` (Files to Modify section)
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md` (User Story 1)
 - Research: `kitty-specs/007-frontmatter-only-lane/research.md` (Codebase Analysis)
 
 **Key Files** (from research):
+
 - `scripts/tasks/tasks_cli.py` - Main CLI, ~897 lines
 - `scripts/tasks/task_helpers.py` - WP location, frontmatter utilities
 - `src/specify_cli/tasks_support.py` - Duplicate helper functions
@@ -65,10 +69,12 @@ spec-kitty agent workflow implement WP01
 **Purpose**: Semantic clarity - command updates metadata, doesn't move files.
 
 **Steps**:
+
 1. Open `scripts/tasks/tasks_cli.py`
 2. Find `move_command()` function (around line 142-301)
 3. Rename function to `update_command()`
 4. Update CLI registration:
+
    ```python
    # Change from:
    @app.command("move")
@@ -77,6 +83,7 @@ spec-kitty agent workflow implement WP01
    @app.command("update")
    def update_command(...):
    ```
+
 5. Update all internal references to `move_command` → `update_command`
 6. Update docstring and help text to reflect metadata-only change
 
@@ -89,9 +96,11 @@ spec-kitty agent workflow implement WP01
 **Purpose**: Remove file movement, keep only frontmatter updates.
 
 **Steps**:
+
 1. Find `stage_move()` function (around line 51-87)
 2. Rename to `stage_update()`
 3. Remove file movement logic:
+
    ```python
    # REMOVE these lines:
    target_dir = repo_root / "kitty-specs" / wp.feature / "tasks" / target_lane
@@ -99,16 +108,21 @@ spec-kitty agent workflow implement WP01
    target = target_dir / wp.path.name
    shutil.move(str(wp.path), str(target))
    ```
+
 4. Keep frontmatter update logic:
+
    ```python
    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
    ```
+
 5. Keep activity log append
 6. Update git staging to stage modified file (not moved file):
+
    ```python
    # Change from staging old and new paths to just current path
    subprocess.run(["git", "add", str(wp.path)], cwd=repo_root, check=True)
    ```
+
 7. Update function signature and docstring
 
 **Files**: `scripts/tasks/tasks_cli.py` (MODIFY)
@@ -120,9 +134,11 @@ spec-kitty agent workflow implement WP01
 **Purpose**: Search flat `tasks/` directory instead of lane subdirectories.
 
 **Steps**:
+
 1. Open `scripts/tasks/task_helpers.py`
 2. Find `locate_work_package()` function (around line 289-328)
 3. Replace directory iteration logic:
+
    ```python
    # OLD (remove):
    for subdir in tasks_root.iterdir():
@@ -153,6 +169,7 @@ spec-kitty agent workflow implement WP01
                )
        return None
    ```
+
 4. Use `get_lane_from_frontmatter()` from WP01 to get lane
 
 **Files**: `scripts/tasks/task_helpers.py` (MODIFY)
@@ -164,6 +181,7 @@ spec-kitty agent workflow implement WP01
 **Purpose**: Keep duplicate function in sync.
 
 **Steps**:
+
 1. Open `src/specify_cli/tasks_support.py`
 2. Find `locate_work_package()` function (around line 246-281)
 3. Apply same changes as T007
@@ -177,6 +195,7 @@ spec-kitty agent workflow implement WP01
 **Purpose**: This function detects directory/frontmatter mismatch, which won't exist in new system.
 
 **Steps**:
+
 1. Open `src/specify_cli/task_metadata_validation.py`
 2. Find `detect_lane_mismatch()` function (around line 34-76)
 3. Options:
@@ -195,8 +214,10 @@ spec-kitty agent workflow implement WP01
 **Purpose**: List command should scan flat `tasks/` and group by frontmatter lane.
 
 **Steps**:
+
 1. Find `list_command()` function (around line 338-403)
 2. Update scanning logic:
+
    ```python
    # OLD: Iterate through lane directories
    # NEW: Scan flat tasks/ and group by frontmatter
@@ -229,8 +250,10 @@ spec-kitty agent workflow implement WP01
 **Purpose**: Warn users when running commands on old-format projects.
 
 **Steps**:
+
 1. Import `is_legacy_format` from `src/specify_cli/legacy_detector.py`
 2. Add check at start of main commands:
+
    ```python
    def _check_legacy_format(feature: str, repo_root: Path):
        """Warn if feature uses legacy directory-based lanes."""
@@ -241,6 +264,7 @@ spec-kitty agent workflow implement WP01
                "[yellow]Run `spec-kitty upgrade` to migrate to frontmatter-only lanes.[/yellow]"
            )
    ```
+
 3. Call at start of `update_command()`, `list_command()`, `status_command()`
 4. Warning should not block execution
 

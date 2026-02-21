@@ -78,17 +78,20 @@ The `dashboard.py` file contains 1,782 lines of embedded HTML/CSS/JS as Python s
 These can be done in parallel as they're independent files.
 
 **T010**: Extract HTML from `get_dashboard_html()` function (around line 501-2200+)
+
 - Create `dashboard/templates/index.html`
 - Remove `<!DOCTYPE html>` through `</html>` from Python string
 - Save as proper HTML file with correct indentation
 
 **T011**: Extract CSS to `dashboard/static/dashboard.css`
+
 - Find the `<style>` section in the HTML
 - Extract all CSS rules (approximately 1000 lines)
 - Create separate CSS file
 - Update HTML to link to external stylesheet
 
 **T012**: Extract JavaScript to `dashboard/static/dashboard.js`
+
 - Find `<script>` sections in HTML
 - Extract all JavaScript code
 - Create separate JS file
@@ -97,20 +100,24 @@ These can be done in parallel as they're independent files.
 ### T013-T016: Extract scanner and diagnostic functions
 
 **T013**: Extract `scan_all_features()` to `dashboard/scanner.py`
+
 - Lines 381-441 from dashboard.py
 - Imports: Path, json, mission module
 - Include helper: `resolve_feature_dir()`
 
 **T014**: Extract `scan_feature_kanban()` to `dashboard/scanner.py`
+
 - Lines 444-498 from dashboard.py
 - Uses parse_frontmatter() - may need to import or include
 
 **T015**: Extract artifact functions to `dashboard/scanner.py`
+
 - `get_feature_artifacts()` (lines 131-144)
 - `get_workflow_status()` (lines 147-190)
 - `work_package_sort_key()` (lines 118-128)
 
 **T016**: Extract `run_diagnostics()` to `dashboard/diagnostics.py`
+
 - Lines 221-371 from dashboard.py
 - Complex function with git operations
 - Needs imports from manifest, acceptance modules
@@ -118,6 +125,7 @@ These can be done in parallel as they're independent files.
 ### T017: Create handlers directory structure
 
 Create the handlers subdirectory structure:
+
 ```
 dashboard/handlers/
 ├── __init__.py
@@ -129,6 +137,7 @@ This establishes the structure that WP05 will populate with handler implementati
 ### T018: Extract base DashboardHandler class to `dashboard/handlers/base.py`
 
 From dashboard.py line 2284, extract the base `DashboardHandler` class:
+
 ```python
 """Base handler class for dashboard HTTP endpoints."""
 
@@ -154,6 +163,7 @@ This provides the foundation that WP05 handlers will inherit from.
 Extract server management functions:
 
 **`find_free_port()`** (lines 57-91):
+
 ```python
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
     """Find an available port using dual verification."""
@@ -163,6 +173,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
 ```
 
 **`start_dashboard()`** (lines 2760-2829):
+
 ```python
 def start_dashboard(project_dir: Path, port: int = None,
                    background_process: bool = False,
@@ -188,11 +199,12 @@ These functions manage the dashboard process lifecycle and state persistence.
 ### T021: Extract static assets
 
 Extract any embedded logo or image assets:
+
 - Check for embedded base64 images in HTML
 - Extract to `dashboard/static/spec-kitty.png`
 - Update HTML references to use static file path
 
-### T022: Update dashboard package __init__.py with proper exports
+### T022: Update dashboard package **init**.py with proper exports
 
 ```python
 """Dashboard package public API."""
@@ -231,17 +243,20 @@ __all__ = [
 ### T023-T025: Write comprehensive tests
 
 **T023**: Test static file extraction
+
 - `tests/test_dashboard/test_static.py`
 - Verify HTML/CSS/JS files render correctly
 - Check that all embedded content was extracted
 
 **T024**: Test infrastructure modules
+
 - `tests/test_dashboard/test_server.py` - Test server initialization
 - `tests/test_dashboard/test_lifecycle.py` - Test lifecycle management
 - `tests/test_dashboard/test_scanner.py` - Test feature scanning with mock project
 - `tests/test_dashboard/test_diagnostics.py` - Test diagnostics with mock git repo
 
 **T025**: Test import resolution
+
 - Verify all modules import correctly
 - Test subprocess import contexts
 - Ensure no circular dependencies
@@ -263,7 +278,7 @@ __all__ = [
 - [ ] Server functions in dashboard/server.py (<200 lines)
 - [ ] Lifecycle functions in dashboard/lifecycle.py (<200 lines)
 - [ ] Static assets (logo) extracted
-- [ ] Dashboard __init__.py with proper exports
+- [ ] Dashboard **init**.py with proper exports
 - [ ] All tests written and passing
 - [ ] Dashboard still loads and displays correctly
 - [ ] No embedded HTML/CSS/JS strings remain
@@ -297,16 +312,18 @@ __all__ = [
 ### Critical Issues (Must Fix)
 
 **1. Missing test_diagnostics.py** (T024 requirement)
+
 - The DoD explicitly requires `tests/test_dashboard/test_diagnostics.py` with "Test diagnostics with mock git repo"
 - Currently only 5 test files exist; diagnostics testing is missing
 - **Action Required**: Create `tests/test_dashboard/test_diagnostics.py` with tests for `run_diagnostics()` function
 
 **2. handlers/base.py exceeds size guidelines** (T018 scope creep)
+
 - Current file is 423 lines (17 code lines, heavily documented but still oversized)
 - T018 specified extracting only the base DashboardHandler class with `_send_json()` and `log_message()` helpers
 - The current base.py includes full API endpoint implementations that belong in WP05
 - **Action Required**: Move API endpoint handlers (do_GET, do_POST route handling) out of base.py
-  - Keep only: DashboardHandler base class, _send_json(), log_message(), _handle_shutdown()
+  - Keep only: DashboardHandler base class, _send_json(), log_message(),_handle_shutdown()
   - Move route handlers to separate files per WP05 design (api.py, features.py, etc.)
   - Target: base.py should be <100 lines total
 
@@ -318,7 +335,7 @@ __all__ = [
 4. Server and lifecycle functions properly separated (T019-T020)
 5. Handlers directory structure created (T017)
 6. Static assets extracted (T021)
-7. Dashboard __init__.py with proper exports (T022)
+7. Dashboard **init**.py with proper exports (T022)
 8. Import resolution tests pass (T025)
 9. Static file tests pass (T023)
 10. Infrastructure tests pass for server, lifecycle, scanner (partial T024)
@@ -328,12 +345,14 @@ __all__ = [
 ## Final Review - Changes Verified ✅
 
 ### Issues Resolved
+
 1. ✅ **test_diagnostics.py created** - 2 comprehensive tests with mock git repo
 2. ✅ **handlers/base.py refactored** - Reduced from 423 to 65 lines
-   - Kept only: DashboardHandler, _send_json(), log_message(), _handle_shutdown()
+   - Kept only: DashboardHandler, _send_json(), log_message(),_handle_shutdown()
    - Moved route handling to separate modules: api.py, features.py, router.py, static.py
 
 ### Final Test Results
+
 ```
 ✅ 13/13 dashboard tests PASSED (0.08s)
    - test_diagnostics.py: 2 tests (NEW)
@@ -345,6 +364,7 @@ __all__ = [
 ```
 
 ### Module Sizes (All Compliant)
+
 - handlers/base.py: 65 lines ✅
 - handlers/api.py: 71 lines ✅
 - handlers/features.py: 231 lines (57 code lines) ✅
@@ -356,6 +376,7 @@ __all__ = [
 - server.py: 113 lines ✅
 
 ### Validation
+
 - ✅ All imports work correctly
 - ✅ All DoD items complete
 - ✅ Code quality excellent (proper types, docs, tests)

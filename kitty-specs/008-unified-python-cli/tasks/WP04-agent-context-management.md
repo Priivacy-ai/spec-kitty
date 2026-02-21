@@ -29,6 +29,7 @@ history:
 **Goal**: Migrate agent context update bash script (600 lines) to Python for updating CLAUDE.md, GEMINI.md, etc. with tech stack from plan.md.
 
 **Success Criteria**:
+
 - `spec-kitty agent update-context --json` updates agent context files
 - Tech stack extracted from plan.md Technical Context section
 - Manual additions between `<!-- MANUAL ADDITIONS -->` markers preserved
@@ -53,6 +54,7 @@ history:
 **T054**: Create `src/specify_cli/core/agent_context.py` module
 
 **T055**: Implement `parse_plan_for_tech_stack(plan_path)`:
+
 ```python
 def parse_plan_for_tech_stack(plan_path: Path) -> dict:
     """Extract tech stack from plan.md ## Technical Context section."""
@@ -72,12 +74,14 @@ def parse_plan_for_tech_stack(plan_path: Path) -> dict:
 ```
 
 **T056**: Implement `update_agent_context(agent_type, tech_stack, feature_dir)`:
+
 - Read agent context file (e.g., `CLAUDE.md`)
 - Update Active Technologies section
 - Update Recent Changes section
 - Call `preserve_manual_additions()` before writing
 
 **T057**: Implement `preserve_manual_additions(content, markers)`:
+
 ```python
 def preserve_manual_additions(old_content: str, new_content: str) -> str:
     """Preserve content between <!-- MANUAL ADDITIONS START/END --> markers."""
@@ -87,6 +91,7 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 ```
 
 **T058**: Support all 12 agent types:
+
 - Claude (CLAUDE.md)
 - Gemini (GEMINI.md)
 - Copilot (COPILOT.md)
@@ -99,6 +104,7 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 ### T059-T062 – Implement update-context command
 
 **T059**: Create command in `src/specify_cli/cli/commands/agent/context.py`:
+
 ```python
 @app.command(name="update-context")
 def update_context(
@@ -130,12 +136,14 @@ def update_context(
 ### T063-T069 – Testing
 
 **T063-T066**: Unit tests for all utilities:
+
 - Test tech stack parsing from various plan.md formats
 - Test manual additions preservation (edge cases: missing markers, nested content)
 - Test context updates for all 12 agent types
 - Test command with all flags
 
 **T067-T068**: Integration tests:
+
 - Update context for multiple agent types
 - Preserve manual additions across multiple updates
 

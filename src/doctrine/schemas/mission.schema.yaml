@@ -1,0 +1,66 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.dev/schemas/doctrine/mission.schema.yaml"
+title: Mission
+description: Minimal schema for doctrine mission definitions.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - key
+  - name
+  - orchestration
+properties:
+  schema_version:
+    type: string
+    pattern: '^1\.0$'
+  key:
+    type: string
+    pattern: '^[a-z][a-z0-9-]*$'
+  name:
+    type: string
+    minLength: 1
+  description:
+    type: string
+  orchestration:
+    type: object
+    additionalProperties: false
+    required:
+      - states
+      - transitions
+      - guards
+      - required_artifacts
+    properties:
+      states:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+      transitions:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - from
+            - to
+          properties:
+            from:
+              type: string
+              minLength: 1
+            to:
+              type: string
+              minLength: 1
+            on:
+              type: string
+      guards:
+        type: array
+        items:
+          type: string
+      required_artifacts:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1

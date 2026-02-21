@@ -57,6 +57,7 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 ```
 
 **Why This Matters:**
+
 - Without validation, WPs with dependencies branch from wrong base (main instead of WP01)
 - Results in silent correctness bugs - workspace created but missing dependency code
 - User discovers error only during implementation when imports fail
@@ -66,6 +67,7 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 ### Agent Workflow Implement
 
 **Responsibilities:**
+
 - Auto-detect first planned WP (if not specified)
 - Normalize WP ID formats (wp01 → WP01)
 - **Validate dependencies** (error if single dep and no --base)
@@ -74,6 +76,7 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 - Update WP lane to "doing" with agent/PID tracking
 
 **Implementation:**
+
 ```python
 @app.command(name="implement")
 def implement(wp_id: str | None, base: str | None, agent: str | None):
@@ -101,11 +104,13 @@ def implement(wp_id: str | None, base: str | None, agent: str | None):
 ### Agent Feature Accept
 
 **Responsibilities:**
+
 - Auto-detect feature from context
 - Delegate to top-level accept command
 - Map parameter names (lenient, no_commit, json_output)
 
 **Implementation:**
+
 ```python
 from specify_cli.cli.commands.accept import accept as top_level_accept
 
@@ -127,11 +132,13 @@ def accept_feature(feature: str | None, mode: str, lenient: bool, json_output: b
 ### Agent Feature Merge
 
 **Responsibilities:**
+
 - Auto-retry logic (navigate to latest worktree if in wrong location)
 - Parameter name mapping (keep_branch → delete_branch inversion)
 - Delegate to top-level merge command
 
 **Implementation:**
+
 ```python
 from specify_cli.cli.commands.merge import merge as top_level_merge
 
@@ -182,14 +189,16 @@ When wrapping top-level commands, carefully map parameters:
 
 **Always document inversions in code comments!**
 
-## DO NOT:
+## DO NOT
+
 - Duplicate business logic from top-level commands
 - Call legacy `scripts/` code (tasks_cli.py is removed!)
 - Re-implement validation/orchestration logic
 - Skip dependency validation before workspace creation
 - Use subprocess to call top-level commands (import and call directly!)
 
-## DO:
+## DO
+
 - Import and call top-level commands directly
 - Add agent-specific UX (prompts, auto-detection, status tracking)
 - Map parameter names if needed (document differences and inversions!)

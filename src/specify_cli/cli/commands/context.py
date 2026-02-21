@@ -138,10 +138,7 @@ def list_command(
     if show_orphaned:
         orphaned = find_orphaned_contexts(repo_root)
         if json_output:
-            print(json.dumps([
-                {"workspace": name, "context": ctx.to_dict()}
-                for name, ctx in orphaned
-            ], indent=2))
+            print(json.dumps([{"workspace": name, "context": ctx.to_dict()} for name, ctx in orphaned], indent=2))
         else:
             if not orphaned:
                 console.print("[green]✓[/green] No orphaned contexts found")
@@ -236,7 +233,7 @@ def cleanup_command(
 
 # Default command when no subcommand specified
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(ctx: typer.Context) -> None:
     """Query workspace context information."""
     if ctx.invoked_subcommand is None:
         # No subcommand - default to "info"

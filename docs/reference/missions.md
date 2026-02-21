@@ -19,9 +19,11 @@ Spec Kitty supports three mission types, each tailored to a different kind of wo
 The default mission for building software features.
 
 ### Domain
+
 Software development: building new features, APIs, user interfaces, and system components.
 
 ### Phases
+
 1. **research** — Understand requirements and constraints
 2. **design** — Plan architecture and data models
 3. **implement** — Build the solution
@@ -40,6 +42,7 @@ Software development: building new features, APIs, user interfaces, and system c
 | `tasks/*.md` | `/spec-kitty.tasks` | Individual WP prompt files |
 
 ### When to Use
+
 - Adding new features to an application
 - Building APIs or services
 - Creating user interfaces
@@ -53,9 +56,11 @@ Software development: building new features, APIs, user interfaces, and system c
 Mission for research and analysis work.
 
 ### Domain
+
 Research and analysis: investigating technologies, competitive analysis, feasibility studies, and technical deep-dives.
 
 ### Phases
+
 1. **question** — Define research questions
 2. **methodology** — Plan research approach
 3. **gather** — Collect data and evidence
@@ -75,6 +80,7 @@ Research and analysis: investigating technologies, competitive analysis, feasibi
 | `sources/` | Implementation | Source materials and references |
 
 ### When to Use
+
 - Technology evaluation
 - Competitive analysis
 - Feasibility studies
@@ -89,9 +95,11 @@ Research and analysis: investigating technologies, competitive analysis, feasibi
 Mission for creating documentation.
 
 ### Domain
+
 Documentation creation: user guides, API documentation, tutorials, and reference materials.
 
 ### Phases
+
 1. **discover** — Understand documentation needs
 2. **audit** — Assess existing documentation
 3. **design** — Plan documentation structure
@@ -122,6 +130,7 @@ The documentation mission uses the Divio 4-type system:
 | **Explanation** | Understanding | Explain concepts and "why" |
 
 ### When to Use
+
 - Creating user documentation
 - Writing API references
 - Building tutorial content
@@ -162,6 +171,7 @@ The mission cannot be changed after feature creation. If you need a different mi
 Advanced users can customize missions via configuration files.
 
 ### Location
+
 ```
 .kittify/missions/<mission-key>/mission.yaml
 ```
@@ -226,11 +236,14 @@ Custom missions appear as options during `/spec-kitty.specify`.
 - [Mission System](../explanation/mission-system.md) — Why missions exist
 
 ## Getting Started
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 
 ## Background
+
 - [Mission System](../explanation/mission-system.md)

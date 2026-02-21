@@ -22,6 +22,7 @@
 | Self-hosted HTTPS | `https://git.internal.co/acme/repo.git` | `acme/repo` |
 
 **Parsing Algorithm**:
+
 1. Strip trailing `.git` if present
 2. If URL contains `@` and `:` (SSH format): extract path after `:`
 3. Otherwise (HTTPS): extract path after host (strip leading `/`)
@@ -30,6 +31,7 @@
 **Note on subgroups**: GitLab allows nested groups (e.g., `org/team/repo`). The `owner/repo` format validation (exactly one `/`) would reject these. Decision: relax validation to "at least one `/`" rather than "exactly one `/`". This handles GitHub, GitLab, Bitbucket, and self-hosted scenarios.
 
 **Alternatives considered**:
+
 - Use `git remote -v` instead of `get-url origin`: More complex parsing, shows fetch/push separately. Rejected — `get-url` is cleaner.
 - Use `urllib.parse` for HTTPS URLs: Would handle HTTPS but not SSH. Rejected — custom parsing handles both uniformly.
 
@@ -40,11 +42,13 @@
 **Rationale**: `time.monotonic()` cannot go backward (immune to NTP adjustments, DST, manual clock changes). `time.time()` can jump backward, causing cache to serve stale data indefinitely.
 
 **Cache invalidation scenarios**:
+
 - Normal development: commits every few minutes → cache misses correctly after 2s
 - Burst events (finalize-tasks emits 7+ WPCreated events in <1s): all hit cache → single subprocess call
 - Branch switch: takes >2s to switch + start new command → cache naturally expires
 
 **Performance measurement** (from subprocess benchmarks):
+
 - `git rev-parse HEAD`: ~5-15ms typical (local repo)
 - `git rev-parse --abbrev-ref HEAD`: ~5-15ms typical
 - Combined (two subprocess calls): ~10-30ms per cache miss
@@ -53,6 +57,7 @@
 **Implementation detail**: Use a single `subprocess.run()` call with `git rev-parse --abbrev-ref HEAD` and a second for `git rev-parse HEAD`. These could be combined into one call using `git rev-parse --abbrev-ref HEAD HEAD` which outputs both values (branch name, then full SHA) on separate lines — reducing to a single subprocess.
 
 **Alternatives considered**:
+
 - No cache (subprocess per event): Rejected — finalize-tasks emits 7+ events in rapid succession
 - Session-level cache (once per process): Rejected — stale metadata after branch switch
 - File-watch cache (inotify on `.git/HEAD`): Over-engineered for 2-field resolution
@@ -74,6 +79,7 @@
 **Implementation**: Wrap subprocess calls in try/except. Use `subprocess.run(..., timeout=5)` to prevent hangs. Store warning-seen flags to avoid log spam.
 
 **Alternatives considered**:
+
 - Raise exceptions on failure: Rejected — violates non-blocking emission principle (FR-010)
 - Return empty strings instead of None: Rejected — None is semantically correct (field not available) and distinguishes from empty string (which would be invalid)
 
@@ -82,6 +88,7 @@
 **Decision**: Place new fields at the top level of the event dict, alongside `project_uuid` and `project_slug`.
 
 **Current envelope** (from `emitter.py::_emit()` line 468-481):
+
 ```python
 event = {
     "event_id": ...,
@@ -106,5 +113,6 @@ event = {
 **Rationale**: Consistent with `project_uuid`/`project_slug` placement (top-level envelope metadata). Not inside `payload` because these are correlation fields, not event-type-specific data.
 
 **Alternatives considered**:
+
 - Nest under `"git": {"branch": ..., "sha": ..., "repo_slug": ...}`: Rejected — adds nesting complexity for 3 fields; inconsistent with flat `project_uuid`/`project_slug` pattern
 - Put in `payload`: Rejected — payload is event-type-specific; these are universal envelope fields

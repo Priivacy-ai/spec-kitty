@@ -20,6 +20,7 @@ Canonical 7-lane state machine for work package lifecycle.
 | `canceled` | Permanently abandoned | Yes |
 
 **Aliases**:
+
 - `doing` → `in_progress` (accepted at input boundaries, never persisted)
 
 ### StatusEvent
@@ -42,6 +43,7 @@ Immutable record of a single lane transition. One JSON object per line in `statu
 | `evidence` | DoneEvidence | When `to_lane = done` (unless forced) | Completion evidence |
 
 **Validation rules**:
+
 - `event_id` must be valid ULID (26 chars, Crockford base32)
 - `from_lane` and `to_lane` must be canonical Lane values (never aliases)
 - `(from_lane, to_lane)` must be in `ALLOWED_TRANSITIONS` unless `force=true`
@@ -204,6 +206,7 @@ kitty-specs/<feature>/
 ```
 
 **Authority hierarchy**:
+
 1. `status.events.jsonl` — canonical truth (append-only)
 2. `status.json` — derived snapshot (regenerable via `status materialize`)
 3. WP frontmatter `lane` — compatibility view (regenerable via legacy bridge)

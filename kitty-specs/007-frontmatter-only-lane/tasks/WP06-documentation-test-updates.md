@@ -38,11 +38,13 @@ subtasks:
 ## Objectives & Success Criteria
 
 Update documentation and tests to reflect the new frontmatter-only lane system:
+
 1. Update AGENTS.md to explain direct lane editing is now correct
 2. Update task prompt template to remove directory-based instructions
 3. Update tests to use new flat structure and update command
 
 **Success Criteria** (from spec FR-017 to FR-019, SC-005):
+
 - AGENTS.md no longer warns against editing lane field
 - Task prompt template explains flat structure
 - All existing tests pass (or are updated for new behavior)
@@ -50,6 +52,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md` (FR-017 to FR-019)
 - Current templates in `.kittify/templates/`
 
@@ -62,6 +65,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Inform AI agents about the new lane management approach.
 
 **Steps**:
+
 1. Open `.kittify/AGENTS.md`
 2. Find sections about lane management
 3. Update to reflect new behavior:
@@ -72,6 +76,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    - References to moving files between directories
 
    **Add**:
+
    ```markdown
    ## Lane Management
 
@@ -86,6 +91,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 
    **Option 2: Edit frontmatter directly**
    You can directly edit the `lane:` field in the WP file:
+
    ```yaml
    ---
    lane: "done"  # Valid: planned, doing, for_review, done
@@ -97,6 +103,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    ### File Structure
 
    All WP files live in a flat `tasks/` directory:
+
    ```
    kitty-specs/<feature>/tasks/
    ├── WP01-setup.md
@@ -105,6 +112,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    ```
 
    The lane is stored in frontmatter, NOT determined by subdirectory.
+
    ```
 
 **Files**: `.kittify/AGENTS.md` (MODIFY)
@@ -116,8 +124,10 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: New WP files should have correct instructions.
 
 **Steps**:
+
 1. Open `.kittify/templates/task-prompt-template.md`
 2. Update frontmatter comment:
+
    ```yaml
    # Change from:
    spec-kitty agent workflow review WP##
@@ -125,6 +135,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    # To:
    spec-kitty agent workflow review WP##
    ```
+
 3. Remove/update the "Updating Metadata When Changing Lanes" section:
 
    **Remove**:
@@ -133,6 +144,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    - References to file movement
 
    **Replace with**:
+
    ```markdown
    ### Updating Lane Status
 
@@ -155,8 +167,10 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Explain flat structure in tasks directories.
 
 **Steps**:
+
 1. Check if `.kittify/templates/tasks-readme-template.md` exists
 2. Create or update to explain new structure:
+
    ```markdown
    # Tasks Directory
 
@@ -166,10 +180,12 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 
    All WP files live in this flat directory:
    ```
+
    tasks/
    ├── WP01-description.md
    ├── WP02-description.md
    └── README.md
+
    ```
 
    ## Lane Management
@@ -192,6 +208,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    ```bash
    tasks_cli.py status <feature>
    ```
+
    ```
 3. Update any feature setup scripts that create tasks/README.md
 
@@ -204,6 +221,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Tests must work with new `update` command and flat structure.
 
 **Steps**:
+
 1. Open `tests/test_tasks_cli_commands.py`
 2. Find and update tests:
 
@@ -214,6 +232,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    - Add assertions about frontmatter `lane:` field
 
    **Example update**:
+
    ```python
    def test_update_and_rollback():
        """Test updating WP lane and rolling back."""
@@ -258,8 +277,10 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Test the upgrade command.
 
 **Steps**:
+
 1. Create `tests/test_migration.py`
 2. Add tests:
+
    ```python
    import pytest
    from pathlib import Path
@@ -326,8 +347,10 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Scanner tests must use frontmatter-based assertions.
 
 **Steps**:
+
 1. Open `tests/test_dashboard/test_scanner.py`
 2. Update test fixtures to use flat structure:
+
    ```python
    @pytest.fixture
    def feature_with_tasks(tmp_path):
@@ -345,7 +368,9 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
        )
        return feature
    ```
+
 3. Update assertions to check frontmatter-based grouping:
+
    ```python
    def test_scan_feature_kanban(feature_with_tasks):
        result = scan_feature_kanban(feature_with_tasks)
@@ -365,10 +390,13 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 **Purpose**: Ensure all tests pass after changes.
 
 **Steps**:
+
 1. Run full test suite:
+
    ```bash
    pytest tests/ -v
    ```
+
 2. Identify and fix any failing tests
 3. Check for tests that reference:
    - `tasks/planned/`, `tasks/doing/`, etc. directories

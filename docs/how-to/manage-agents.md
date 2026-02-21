@@ -13,6 +13,7 @@ Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitt
 This guide shows you how to add agents to enable multi-agent workflows, remove agents you don't use, list configured agents, check sync status, and synchronize your filesystem with the config file.
 
 The five core commands covered in this guide are:
+
 - `list` - View configured agents and available options
 - `add` - Add one or more agents to your project
 - `remove` - Remove agents you no longer need
@@ -64,6 +65,7 @@ agents:
 ```
 
 The `available` field contains a list of active agent keys. Each key corresponds to a specific directory:
+
 - `claude` → `.claude/commands/`
 - `codex` → `.codex/prompts/`
 - `opencode` → `.opencode/command/`
@@ -89,6 +91,7 @@ spec-kitty agent config list
 The output shows two sections: configured agents and available agents you can add.
 
 Configured agents display a status indicator:
+
 - ✓ = Agent directory exists on filesystem
 - ⚠ = Configured in config.yaml but directory is missing (rare, indicates sync issue)
 
@@ -115,6 +118,7 @@ Available but not configured:
 ```
 
 Use `list` to:
+
 - See which agents are active in your project
 - Check if configured agents have directories on filesystem
 - Discover available agents you can add
@@ -142,6 +146,7 @@ spec-kitty agent config add codex gemini cursor
 ```
 
 When you add an agent, spec-kitty:
+
 1. Creates the agent directory (e.g., `.claude/commands/`)
 2. Copies slash command templates to the directory
 3. Adds the agent key to `.kittify/config.yaml` under `agents.available`
@@ -222,6 +227,7 @@ spec-kitty agent config remove cursor qwen windsurf
 ```
 
 When you remove an agent, spec-kitty:
+
 1. Deletes the agent directory (e.g., `.gemini/` and all contents)
 2. Removes the agent key from `.kittify/config.yaml`
 3. Displays success message for each agent removed
@@ -243,6 +249,7 @@ spec-kitty agent config remove gemini --keep-config
 ```
 
 **What this does**:
+
 - Deletes `.gemini/` directory
 - Leaves `gemini` in `config.yaml` under `available`
 - Useful for temporary cleanup without losing configuration
@@ -292,6 +299,7 @@ spec-kitty agent config status
 ```
 
 The output displays a rich table with five columns:
+
 - **Agent Key** (cyan) - The agent identifier used in commands
 - **Directory** (dim) - The filesystem path
 - **Configured** (✓/✗) - Whether the agent is in config.yaml
@@ -299,6 +307,7 @@ The output displays a rich table with five columns:
 - **Status** (colored) - Combined sync status
 
 **Status values**:
+
 - **OK** (green): Agent is configured and directory exists - normal state
 - **Missing** (yellow): Agent is configured but directory doesn't exist - needs sync
 - **Orphaned** (red): Agent directory exists but not configured - should be cleaned up
@@ -327,6 +336,7 @@ Run 'spec-kitty agent config sync --remove-orphaned' to clean up
 ```
 
 Use `status` to:
+
 - Audit your agent configuration for inconsistencies
 - Detect orphaned directories (present but not configured)
 - Identify missing directories (configured but not present)
@@ -366,6 +376,7 @@ spec-kitty agent config sync
 ```
 
 **Default behavior** (no flags):
+
 - Removes orphaned directories (present but not configured)
 - Does NOT create missing directories
 - Reports actions taken or "No changes needed"
@@ -379,6 +390,7 @@ spec-kitty agent config sync --create-missing
 ```
 
 **What this does**:
+
 - Creates directories for agents in `config.yaml` but missing from filesystem
 - Copies slash command templates to each created directory
 - Also removes orphaned directories (default behavior)
@@ -399,6 +411,7 @@ spec-kitty agent config sync --keep-orphaned
 ```
 
 **What this does**:
+
 - Does NOT remove orphaned directories
 - Still creates missing directories if `--create-missing` is used
 

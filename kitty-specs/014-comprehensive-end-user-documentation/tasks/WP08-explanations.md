@@ -55,6 +55,7 @@ history:
 - **Divio Type**: Explanation = understanding-oriented
 
 ### Explanation Principles (from Divio)
+
 - Explanations are **understanding-oriented**
 - Explain background and context
 - Discuss alternatives and why choices were made
@@ -64,8 +65,10 @@ history:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T031 – Create spec-driven-development.md
+
 - **Purpose**: Explain the philosophy and methodology
 - **Structure**:
+
   ```markdown
   # Spec-Driven Development Explained
 
@@ -86,12 +89,15 @@ history:
   ## When to Use Spec-Driven Development
   [Good fit vs. poor fit scenarios]
   ```
+
 - **Files**: `docs/explanation/spec-driven-development.md`
 - **Parallel?**: Yes
 
 ### Subtask T032 – Create divio-documentation.md
+
 - **Purpose**: Explain why we use Divio 4-type documentation
 - **Structure**:
+
   ```markdown
   # Why Divio Documentation System?
 
@@ -113,10 +119,12 @@ history:
   ## Further Reading
   [Link to Divio documentation site]
   ```
+
 - **Files**: `docs/explanation/divio-documentation.md`
 - **Parallel?**: Yes
 
 ### Subtask T033 – Migrate/update workspace-per-wp.md
+
 - **Purpose**: Move existing workspace-per-wp.md to explanation/
 - **Steps**:
   1. Move `docs/workspace-per-wp.md` → `docs/explanation/workspace-per-wp.md`
@@ -128,8 +136,10 @@ history:
 - **Notes**: Content already exists - just needs migration and linking
 
 ### Subtask T034 – Create git-worktrees.md
+
 - **Purpose**: Explain git worktrees for spec-kitty users
 - **Structure**:
+
   ```markdown
   # Git Worktrees Explained
 
@@ -143,10 +153,12 @@ history:
 
   ## How Worktrees Work
   ```
+
   main-repo/           ← main branch
   .worktrees/
     ├── feature-WP01/  ← WP01 branch
     └── feature-WP02/  ← WP02 branch
+
   ```
   [All share same .git, but different working directories]
 
@@ -161,24 +173,31 @@ history:
   ```
 
   ## Sparse Checkouts
+
   [What they are, when spec-kitty might use them]
 
   ## Common Issues
+
   - "Worktree already exists"
   - "Branch is already checked out"
   - Cleanup after crashes
 
   ## Further Reading
+
   - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree)
   - [Workspace-per-WP Model](workspace-per-wp.md)
+
   ```
 - **Files**: `docs/explanation/git-worktrees.md`
+
 - **Parallel?**: Yes
 - **Notes**: **CRITICAL** - Users need to understand this for parallel development
 
 ### Subtask T035 – Create mission-system.md
+
 - **Purpose**: Explain why missions exist and how they shape workflow
 - **Structure**:
+
   ```markdown
   # The Mission System Explained
 
@@ -207,12 +226,15 @@ history:
   ## Per-Feature vs. Global
   [0.8.0+ change: missions are per-feature, not project-wide]
   ```
+
 - **Files**: `docs/explanation/mission-system.md`
 - **Parallel?**: Yes
 
 ### Subtask T036 – Create kanban-workflow.md
+
 - **Purpose**: Explain the lane-based workflow
 - **Structure**:
+
   ```markdown
   # Kanban Workflow Explained
 
@@ -229,22 +251,29 @@ history:
   ```yaml
   lane: "doing"
   ```
+
   [Not directories - just a field in the WP file]
 
   ## Who Moves Work?
+
   - Agent moves to doing when starting
   - Agent moves to for_review when complete
   - Reviewer moves to done or back to planned
 
   ## Activity Log
+
   [Why we track lane transitions]
+
   ```
 - **Files**: `docs/explanation/kanban-workflow.md`
+
 - **Parallel?**: Yes
 
 ### Subtask T037 – Create ai-agent-architecture.md
+
 - **Purpose**: Explain how slash commands work across agents
 - **Structure**:
+
   ```markdown
   # AI Agent Architecture Explained
 
@@ -266,6 +295,7 @@ history:
   ## Why Agent-Agnostic?
   [Users choose their preferred agent]
   ```
+
 - **Files**: `docs/explanation/ai-agent-architecture.md`
 - **Parallel?**: Yes
 - 2026-01-16T16:31:39Z – claude – shell_pid=29947 – lane=doing – Started implementation via workflow command

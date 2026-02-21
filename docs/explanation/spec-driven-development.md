@@ -7,12 +7,14 @@ Spec-driven development is the methodology at the heart of Spec Kitty. This docu
 Spec-driven development is an approach where you write a detailed specification *before* writing any code. The specification becomes the source of truth that guides implementation.
 
 **Traditional development**:
+
 1. Developer has an idea
 2. Developer writes code
 3. Developer writes documentation (maybe)
 4. Requirements drift as understanding evolves
 
 **Spec-driven development**:
+
 1. Developer writes specification
 2. Specification is reviewed and refined
 3. Implementation follows specification
@@ -44,6 +46,7 @@ The specification is the contract that all agents follow.
 ### Reduces Rework and Misunderstanding
 
 When multiple agents (or humans) work on a feature:
+
 - Without spec: Each person interprets requirements differently
 - With spec: Everyone references the same document
 
@@ -104,16 +107,19 @@ Each phase produces artifacts that feed into the next phase.
 ### Good Fit
 
 **Features with clear boundaries**:
+
 - "Add user authentication with OAuth"
 - "Implement shopping cart functionality"
 - "Create admin dashboard"
 
 **Multi-agent or team projects**:
+
 - Multiple AI agents working in parallel
 - Human + AI collaboration
 - Distributed teams
 
 **Non-trivial features**:
+
 - More than one work package
 - Requires architectural decisions
 - Has integration points with existing code
@@ -121,16 +127,19 @@ Each phase produces artifacts that feed into the next phase.
 ### Poor Fit
 
 **Exploratory work**:
+
 - Prototyping where requirements are unknown
 - Research tasks (use Deep Research Kitty instead)
 - "Try different approaches and see what works"
 
 **Simple one-off changes**:
+
 - Fix a typo
 - Update a single constant
 - Minor refactoring
 
 **Emergency fixes**:
+
 - Production is down
 - Security patch needed immediately
 - (Write the spec after, for documentation)
@@ -142,6 +151,7 @@ Each phase produces artifacts that feed into the next phase.
 The specification answers: **What are we building and why?**
 
 A good spec includes:
+
 - **Problem statement**: What problem does this solve?
 - **User stories**: Who benefits and how?
 - **Requirements**: What must the solution do?
@@ -153,6 +163,7 @@ A good spec includes:
 The plan answers: **How will we build it?**
 
 A good plan includes:
+
 - **Technical approach**: Architecture and design decisions
 - **Work package breakdown**: Discrete units of work
 - **Dependencies**: What must be built first?
@@ -163,6 +174,7 @@ A good plan includes:
 Implementation answers: **Building the actual solution.**
 
 Each work package:
+
 - References the spec and plan
 - Has clear acceptance criteria
 - Can be implemented independently
@@ -171,18 +183,21 @@ Each work package:
 ## Why Specifications Enable Parallelization
 
 Traditional development often becomes serial:
+
 1. Developer A implements feature foundation
 2. Developer B waits for A to finish
 3. Developer B implements dependent feature
 4. (Repeat)
 
 Spec-driven development with Spec Kitty enables parallel work:
+
 1. Specification defines all work packages upfront
 2. Dependencies between WPs are explicit
 3. Independent WPs can be implemented simultaneously
 4. Each agent has clear scope boundaries
 
 **Example**: A feature with 5 work packages:
+
 - Sequential: 5 time units
 - With Spec Kitty (2 parallel, 3 sequential): 3 time units
 
@@ -197,13 +212,16 @@ Spec-driven development with Spec Kitty enables parallel work:
 *This document explains the "why" behind spec-driven development. For "how" to create specifications, see the tutorials and how-to guides.*
 
 ## Try It
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [Slash Commands](../reference/slash-commands.md)

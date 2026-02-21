@@ -36,10 +36,10 @@ history:
 
 **Issue 1**: Dependency check failed. WP02 depends on WP01, but the WP01 base commit `9803132cccfd6602b0c5e16c535bb105439b00ce` is not contained in `2.x` (only in branch `028-cli-event-emission-sync-WP01`). Please merge WP01 to `2.x` and rebase WP02 onto `2.x` (or the merged WP01) before resubmitting for review.
 
-
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -54,11 +54,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - User stories 1, 3
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Command integration patterns
 - **Quickstart**: `kitty-specs/028-cli-event-emission-sync/quickstart.md` - Usage examples
 
 ### Functional Requirements
+
 - FR-016: `implement` MUST emit `WPStatusChanged(planned->doing)` after workspace creation
 - FR-017: `merge` MUST emit `WPStatusChanged(doing->for_review)` when WP moves to review
 - FR-018: `accept` MUST emit `WPStatusChanged(for_review->done)` when WP is accepted
@@ -66,6 +68,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - FR-030: MUST log event emission failures as warnings
 
 ### Dependencies
+
 - WP01 (Event Factory) must be complete
 - Import `emit_wp_status_changed` from `specify_cli.sync.events`
 
@@ -81,6 +84,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Add import: `from specify_cli.sync.events import emit_wp_status_changed`
   3. Locate the point AFTER workspace creation succeeds
   4. Add event emission call wrapped in try/except:
+
      ```python
      try:
          emit_wp_status_changed(
@@ -93,6 +97,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
   5. Ensure the try/except does NOT affect the return value or flow of the command
 - **Files**: `src/specify_cli/cli/commands/implement.py`
 - **Parallel?**: No (establishes pattern for T009, T010)
@@ -109,6 +114,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Add import: `from specify_cli.sync.events import emit_wp_status_changed`
   3. Locate the point AFTER successful merge operation
   4. Add event emission using same pattern as T008:
+
      ```python
      try:
          emit_wp_status_changed(
@@ -121,6 +127,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
   5. Handle case where merge affects multiple WPs (emit for each)
 - **Files**: `src/specify_cli/cli/commands/merge.py`
 - **Parallel?**: Yes (independent file from T010)
@@ -136,6 +143,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. Add import: `from specify_cli.sync.events import emit_wp_status_changed`
   3. Locate the point AFTER successful acceptance
   4. Add event emission using same pattern:
+
      ```python
      try:
          emit_wp_status_changed(
@@ -148,6 +156,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
      ```
+
 - **Files**: `src/specify_cli/cli/commands/accept.py`
 - **Parallel?**: Yes (independent file from T009)
 - **Notes**:
@@ -164,6 +173,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   4. Verify except block does NOT re-raise
   5. Verify except block logs a warning but allows command to continue
   6. Consider extracting a helper function if pattern is repeated:
+
      ```python
      def safe_emit(emit_fn: Callable, *args, **kwargs) -> bool:
          """Emit event safely, logging failures as warnings."""
@@ -174,6 +184,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
              return False
      ```
+
 - **Files**: All three command files, optionally `src/specify_cli/sync/events.py`
 - **Parallel?**: No (integration task)
 - **Notes**:
@@ -189,11 +200,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
   3. Include enough context to debug (event type, WP ID)
   4. Consider adding `--verbose` flag to show full stack trace
   5. Example enhanced warning:
+
      ```python
      console.print(f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {e}")
      if verbose:
          console.print_exception()
      ```
+
 - **Files**: All three command files
 - **Parallel?**: No (polish task)
 - **Notes**:
@@ -205,6 +218,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but verify manually:
+
 ```bash
 # Test implement command
 spec-kitty implement WP01 --feature 028-cli-event-emission-sync
@@ -256,6 +270,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP02 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T08:29:05Z – test-reviewer – shell_pid=13661 – lane=doing – Started review via workflow command
 - 2026-02-04T11:14:31Z – test-reviewer – shell_pid=13661 – lane=for_review – Ready for review: emit WPStatusChanged in implement/merge/accept with safe warnings
 - 2026-02-04T11:27:11Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command

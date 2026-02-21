@@ -9,7 +9,7 @@ It replaces the fragmented approach where only .codex/ was protected.
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List
 
 
 @dataclass
@@ -100,7 +100,7 @@ class GitignoreManager:
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
-        self._line_ending = None
+        self._line_ending: str = os.linesep
 
     def ensure_entries(self, entries: List[str]) -> bool:
         """
@@ -171,10 +171,10 @@ class GitignoreManager:
         Returns:
             Line ending string ('\r\n' for Windows, '\n' for Unix/Mac)
         """
-        if '\r\n' in content:
-            return '\r\n'
+        if "\r\n" in content:
+            return "\r\n"
         else:
-            return '\n'
+            return "\n"
 
     @classmethod
     def get_agent_directories(cls) -> List[AgentDirectory]:
@@ -214,7 +214,6 @@ class GitignoreManager:
                 content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_before = set(content.splitlines())
 
-
             # Attempt to add all directories
             modified = self.ensure_entries(all_directories)
             result.modified = modified
@@ -231,11 +230,9 @@ class GitignoreManager:
                         else:
                             result.entries_skipped.append(directory)
 
-        except PermissionError as e:
+        except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as e:
             result.success = False
             result.errors.append(f"Error protecting agent directories: {str(e)}")
@@ -294,11 +291,9 @@ class GitignoreManager:
                         else:
                             result.entries_skipped.append(directory)
 
-        except PermissionError as e:
+        except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as e:
             result.success = False
             result.errors.append(f"Error protecting selected agents: {str(e)}")

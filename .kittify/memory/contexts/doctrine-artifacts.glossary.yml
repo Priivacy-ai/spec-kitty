@@ -1,0 +1,42 @@
+contexts:
+  - name: Doctrine Artifacts
+    domainVisionStatement: Terms extracted from doctrine directives and tactics.
+    meta:
+      Generated from: src/doctrine/**/*
+    terms:
+      - name: Test-First Development
+        definition: Require test-first behavior across acceptance and implementation layers, 
+          selecting tactics based on scope and risk.
+        meta:
+          id: TEST_FIRST
+          description: Require test-first behavior across acceptance and implementation layers, 
+            selecting tactics based on scope and risk.
+          artifact_type: directive
+          source: src/doctrine/directives/test-first.directive.yaml
+      - name: Acceptance Test Driven Development (ATDD)
+        definition: Anchor implementation work in externally observable behavior before internal 
+          coding begins.
+        meta:
+          id: acceptance-test-first
+          description: Anchor implementation work in externally observable behavior before internal 
+            coding begins.
+          artifact_type: tactic
+          source: src/doctrine/tactics/acceptance-test-first.tactic.yaml
+      - name: Test Driven Development (TDD)
+        definition: Enforce short, verifiable coding loops that improve design while keeping 
+          behavior safe.
+        meta:
+          id: tdd-red-green-refactor
+          description: Enforce short, verifiable coding loops that improve design while keeping 
+            behavior safe.
+          artifact_type: tactic
+          source: src/doctrine/tactics/tdd-red-green-refactor.tactic.yaml
+      - name: ZOMBIES TDD
+        definition: Drive implementation through tiny behavior increments using failing tests to 
+          control complexity.
+        meta:
+          id: zombies-tdd
+          description: Drive implementation through tiny behavior increments using failing tests to 
+            control complexity.
+          artifact_type: tactic
+          source: src/doctrine/tactics/zombies-tdd.tactic.yaml

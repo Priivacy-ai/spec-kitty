@@ -32,6 +32,7 @@ history:
 Implement completion detection, failure handling, and lane status updates.
 
 **Success Criteria**:
+
 - Exit codes correctly determine success/failure
 - JSON output parsed when available
 - Retry logic respects configurable limits
@@ -42,15 +43,18 @@ Implement completion detection, failure handling, and lane status updates.
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - FR-013, FR-014, FR-015, FR-020, FR-021 (failure handling requirements)
 - [plan.md](../plan.md) - Monitoring data flow
 - [data-model.md](../data-model.md) - FallbackStrategy enum
 
 **Existing Commands**:
+
 - `spec-kitty agent tasks move-task <WPID> --to <lane>` - Lane updates
 - `spec-kitty agent tasks mark-status <TID> --status done` - Subtask updates
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP07 --base WP06
 ```
@@ -62,8 +66,10 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Determine success/failure from agent exit codes.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/monitor.py`
 2. Implement exit code handling:
+
    ```python
    def is_success(result: InvocationResult) -> bool:
        """Determine if invocation was successful."""
@@ -99,7 +105,9 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Extract structured data from agent JSON output.
 
 **Steps**:
+
 1. Implement JSON parsing for agents that support it:
+
    ```python
    import json
 
@@ -136,6 +144,7 @@ spec-kitty implement WP07 --base WP06
    ```
 
 **Notes**:
+
 - Claude outputs JSON with conversation turns
 - Codex outputs structured result JSON
 - Auggie doesn't output JSON (rely on exit code)
@@ -149,7 +158,9 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Retry failed invocations up to configurable limit.
 
 **Steps**:
+
 1. Implement retry wrapper:
+
    ```python
    async def execute_with_retry(
        executor_fn: Callable,
@@ -193,6 +204,7 @@ spec-kitty implement WP07 --base WP06
    ```
 
 **Notes**:
+
 - Retry same agent first (may be transient failure)
 - Small delay between retries
 - Update WP execution state with retry count
@@ -204,7 +216,9 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Apply fallback strategy when retries exhausted.
 
 **Steps**:
+
 1. Implement fallback strategies:
+
    ```python
    async def apply_fallback(
        wp_id: str,
@@ -248,6 +262,7 @@ spec-kitty implement WP07 --base WP06
    ```
 
 2. Integration with monitor loop:
+
    ```python
    async def handle_failure(wp_id: str, role: str, failed_agent: str, ...):
        next_agent = await apply_fallback(wp_id, role, failed_agent, config, state)
@@ -266,7 +281,9 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Update WP lane via existing spec-kitty commands.
 
 **Steps**:
+
 1. Implement lane update wrapper:
+
    ```python
    import subprocess
 
@@ -318,7 +335,9 @@ spec-kitty implement WP07 --base WP06
 **Purpose**: Pause orchestration and alert user when all agents fail.
 
 **Steps**:
+
 1. Implement escalation:
+
    ```python
    from rich.console import Console
    from rich.panel import Panel
@@ -356,6 +375,7 @@ spec-kitty implement WP07 --base WP06
    ```
 
 **Notes**:
+
 - State saved so user can resume after fixing
 - Clear instructions on how to proceed
 - Log file path shown for debugging

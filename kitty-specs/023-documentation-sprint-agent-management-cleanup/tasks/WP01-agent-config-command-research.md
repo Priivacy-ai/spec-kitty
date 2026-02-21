@@ -43,8 +43,9 @@ history:
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -53,6 +54,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Goal**: Extract command signatures, config schema, and agent mappings from source code to establish validation baseline for documentation work.
 
 **Success Criteria**:
+
 - [ ] All 5 agent config subcommand signatures documented (command name, arguments, flags, defaults)
 - [ ] AgentConfig and AgentSelectionConfig dataclass schemas extracted with field names and types
 - [ ] All 12 agent keys and directory mappings documented (including 3 special cases)
@@ -66,11 +68,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Purpose**: This is a research work package - gathering information from source code to validate documentation accuracy. No documentation files are written in this WP; findings feed into WP02-WP08.
 
 **Source Files** (read-only inspection):
+
 - `src/specify_cli/cli/commands/agent/config.py` (382 lines) - Command implementations
 - `src/specify_cli/orchestrator/agent_config.py` (lines 46-108) - Config dataclasses
 - `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` - Agent mappings
 
 **Reference Documents**:
+
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/research.md` (R1-R3 sections provide expected findings)
 - `/kitty-specs/023-documentation-sprint-agent-management-cleanup/plan.md` (validation strategy)
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md` (ADR #6 - architectural context)
@@ -78,6 +82,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Validation Strategy**: Code-first - manually inspect source files and extract exact syntax. No automation scripts created.
 
 **Constraints**:
+
 - Read-only source inspection (no code modifications)
 - Document findings in working notes (not formal documentation yet)
 - Extract EXACT syntax (don't paraphrase or summarize)
@@ -91,9 +96,11 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Open source file**:
+
    ```bash
    code src/specify_cli/cli/commands/agent/config.py
    ```
+
    Or use `cat -n` to view with line numbers
 
 2. **Extract command structure** (lines 24-28):
@@ -110,6 +117,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - Available but not configured agents
    - Implementation: Loads `AgentConfig`, checks filesystem with `agent_path.exists()`, displays with `rich.console.Console`
    - Example output (approximate):
+
      ```
      Configured agents:
        ✓ opencode (.opencode/command/)
@@ -199,12 +207,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T002 and T003)
 
 **Notes**:
+
 - Extract EXACT strings from source (e.g., help text, success messages)
 - Note line numbers for future reference
 - Pay attention to default values for flags
 - Document error handling behavior (what user sees when invalid input)
 
 **Validation**:
+
 - [ ] All 5 subcommands documented with complete syntax
 - [ ] All flags documented with defaults
 - [ ] Error handling behavior captured
@@ -219,11 +229,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Open source file**:
+
    ```bash
    code src/specify_cli/orchestrator/agent_config.py
    ```
 
 2. **Extract AgentSelectionConfig dataclass** (lines 30-42):
+
    ```python
    @dataclass
    class AgentSelectionConfig:
@@ -238,6 +250,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - `preferred_reviewer`: Optional string (agent ID for review)
 
 3. **Extract AgentConfig dataclass** (lines 45-55):
+
    ```python
    @dataclass
    class AgentConfig:
@@ -250,6 +263,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    - `selection`: Nested `AgentSelectionConfig` object
 
 4. **Document YAML structure**:
+
    ```yaml
    agents:
      available:
@@ -279,12 +293,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T001 and T003)
 
 **Notes**:
+
 - Config schema is simple (just 2 dataclasses)
 - Focus on YAML structure users will see in `.kittify/config.yaml`
 - Fallback behavior is important for migration guide
 - Selection strategy details are out of scope (orchestrator feature, not documented in this sprint)
 
 **Validation**:
+
 - [ ] AgentConfig and AgentSelectionConfig fields documented
 - [ ] YAML structure with example values
 - [ ] Fallback behavior for empty/missing/corrupt config
@@ -299,11 +315,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Steps**:
 
 1. **Open source file**:
+
    ```bash
    code src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py
    ```
 
 2. **Extract AGENT_DIRS constant** (lines ~50-65):
+
    ```python
    AGENT_DIRS = [
        (".claude", "commands"),
@@ -322,6 +340,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
    ```
 
 3. **Extract AGENT_DIR_TO_KEY mapping** (lines ~70-85):
+
    ```python
    AGENT_DIR_TO_KEY = {
        ".claude": "claude",
@@ -368,6 +387,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Parallel**: Yes (independent from T001 and T002)
 
 **Notes**:
+
 - 12 agents total (as of 0.12.0)
 - 3 special cases where agent key ≠ directory name
 - Standard pattern: agent key matches directory (e.g., `claude` → `.claude`)
@@ -375,6 +395,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - This mapping is used by `agent config add/remove/status/sync` commands
 
 **Validation**:
+
 - [ ] All 12 agents listed with keys, directories, and subdirectories
 - [ ] Special cases clearly identified (copilot, auggie, q)
 - [ ] Mapping table formatted for easy documentation reference
@@ -386,6 +407,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 **Not applicable** - This is a research work package. Validation is confirmation that findings are comprehensive and accurate.
 
 **Validation approach**:
+
 - Cross-reference extracted information against actual CLI help output: `spec-kitty agent config --help`
 - Verify agent mappings match directory structure in an initialized project
 - Confirm config schema matches `.kittify/config.yaml` in an example project
@@ -393,20 +415,24 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Risks & Mitigations
 
 **Risk**: Source code changes between research and documentation writing
+
 - **Mitigation**: Use git commit hash (b74536b) as reference point; if code updated, re-run research
 - **Detection**: Documentation validation will catch mismatches
 
 **Risk**: Incomplete extraction (missing flags, options, edge cases)
+
 - **Mitigation**: Review research.md R1-R3 sections for expected findings checklist
 - **Validation**: WP02-WP06 should not require re-reading source files
 
 **Risk**: Misinterpreting source code behavior
+
 - **Mitigation**: Test commands manually if behavior unclear (e.g., `spec-kitty agent config list`)
 - **Cross-reference**: ADR #6 provides architectural context
 
 ## Review Guidance
 
 **Acceptance Checkpoints**:
+
 - [ ] All 5 agent config subcommands fully documented (command, args, flags, defaults, output)
 - [ ] AgentConfig and AgentSelectionConfig schemas extracted with YAML structure
 - [ ] All 12 agent mappings documented in table format with special cases highlighted
@@ -415,6 +441,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - [ ] Findings organized for easy reference in WP02-WP08
 
 **Review Focus**:
+
 - Completeness: Are findings comprehensive enough for doc writing?
 - Accuracy: Do extracted details match source code?
 - Clarity: Can WP02-WP08 implementers use these findings without re-reading source?
@@ -424,6 +451,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 **Initial entry**:
+
 - 2026-01-23T10:23:45Z – system – lane=planned – Prompt generated.
 
 ---
@@ -440,6 +468,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+
 - 2026-01-23T10:30:42Z – claude – shell_pid=97630 – lane=doing – Started implementation via workflow command
 - 2026-01-23T10:34:10Z – claude – shell_pid=97630 – lane=for_review – Ready for review: Complete command signatures, config schema, and agent mappings extracted from source code. All 5 subcommands documented with exact syntax, error handling, and output formatting. 12 agent mappings documented with 3 special cases highlighted. 802-line research document ready for WP02-WP08 documentation writers.
 - 2026-01-23T10:59:28Z – Claude – shell_pid=18985 – lane=doing – Started review via workflow command

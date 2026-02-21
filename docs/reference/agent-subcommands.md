@@ -9,6 +9,7 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 **Description**: Commands for AI agents to execute spec-kitty workflows programmatically.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -22,6 +23,7 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 **Description**: Feature lifecycle commands for AI agents.
 
 **Subcommands**:
+
 - `create-feature`
 - `check-prerequisites`
 - `setup-plan`
@@ -36,15 +38,18 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 **Description**: Create new feature directory structure in main repository.
 
 **Arguments**:
+
 - `FEATURE_SLUG`: Feature slug (e.g., `user-auth`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
 **Example**:
+
 ```bash
 spec-kitty agent feature create-feature "new-dashboard" --json
 ```
@@ -56,6 +61,7 @@ spec-kitty agent feature create-feature "new-dashboard" --json
 **Description**: Validate feature structure and prerequisites.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON format |
@@ -64,6 +70,7 @@ spec-kitty agent feature create-feature "new-dashboard" --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent feature check-prerequisites --json
 spec-kitty agent feature check-prerequisites --paths-only --json
@@ -76,12 +83,14 @@ spec-kitty agent feature check-prerequisites --paths-only --json
 **Description**: Scaffold implementation plan template in main repository.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
 **Example**:
+
 ```bash
 spec-kitty agent feature setup-plan --json
 ```
@@ -93,6 +102,7 @@ spec-kitty agent feature setup-plan --json
 **Description**: Perform feature acceptance workflow.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature directory slug (auto-detected if not specified) |
@@ -103,6 +113,7 @@ spec-kitty agent feature setup-plan --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent feature accept
 spec-kitty agent feature accept --json
@@ -116,6 +127,7 @@ spec-kitty agent feature accept --lenient --json
 **Description**: Merge feature branch into target branch.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature directory slug (auto-detected if not specified) |
@@ -129,6 +141,7 @@ spec-kitty agent feature accept --lenient --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent feature merge
 spec-kitty agent feature merge --target develop --push
@@ -143,12 +156,14 @@ spec-kitty agent feature merge --keep-worktree --keep-branch
 **Description**: Parse dependencies from tasks.md and update WP frontmatter, then commit to main.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
 **Example**:
+
 ```bash
 spec-kitty agent feature finalize-tasks --json
 ```
@@ -162,6 +177,7 @@ spec-kitty agent feature finalize-tasks --json
 **Description**: Task workflow commands for AI agents.
 
 **Subcommands**:
+
 - `move-task`
 - `mark-status`
 - `list-tasks`
@@ -177,9 +193,11 @@ spec-kitty agent feature finalize-tasks --json
 **Description**: Move task between lanes (planned -> doing -> for_review -> done).
 
 **Arguments**:
+
 - `TASK_ID`: Task ID (e.g., `WP01`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--to TEXT` | Target lane (planned/doing/for_review/done) [required] |
@@ -196,6 +214,7 @@ spec-kitty agent feature finalize-tasks --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
 spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
@@ -209,9 +228,11 @@ spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
 **Description**: Update task checkbox status in tasks.md for one or more tasks.
 
 **Arguments**:
+
 - `TASK_IDS...`: Task ID(s) - space-separated (e.g., `T001 T002 T003`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--status TEXT` | Status: `done` or `pending` [required] |
@@ -221,6 +242,7 @@ spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent tasks mark-status T001 --status done
 spec-kitty agent tasks mark-status T001 T002 T003 --status done --json
@@ -233,6 +255,7 @@ spec-kitty agent tasks mark-status T001 T002 T003 --status done --json
 **Description**: List tasks with optional lane filtering.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--lane TEXT` | Filter by lane |
@@ -241,6 +264,7 @@ spec-kitty agent tasks mark-status T001 T002 T003 --status done --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent tasks list-tasks --json
 spec-kitty agent tasks list-tasks --lane doing --json
@@ -253,9 +277,11 @@ spec-kitty agent tasks list-tasks --lane doing --json
 **Description**: Append history entry to task activity log.
 
 **Arguments**:
+
 - `TASK_ID`: Task ID (e.g., `WP01`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--note TEXT` | History note [required] |
@@ -266,6 +292,7 @@ spec-kitty agent tasks list-tasks --lane doing --json
 | `--help` | Show this message and exit |
 
 **Example**:
+
 ```bash
 spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 ```
@@ -277,6 +304,7 @@ spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 **Description**: Parse tasks.md and inject dependencies into WP frontmatter.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug (auto-detected if omitted) |
@@ -284,6 +312,7 @@ spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent tasks finalize-tasks --json
 spec-kitty agent tasks finalize-tasks --feature 001-my-feature
@@ -296,9 +325,11 @@ spec-kitty agent tasks finalize-tasks --feature 001-my-feature
 **Description**: Validate task metadata structure and workflow consistency.
 
 **Arguments**:
+
 - `TASK_ID`: Task ID (e.g., `WP01`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug (auto-detected if omitted) |
@@ -306,6 +337,7 @@ spec-kitty agent tasks finalize-tasks --feature 001-my-feature
 | `--help` | Show this message and exit |
 
 **Example**:
+
 ```bash
 spec-kitty agent tasks validate-workflow WP01 --json
 ```
@@ -317,6 +349,7 @@ spec-kitty agent tasks validate-workflow WP01 --json
 **Description**: Display kanban status board for all work packages in a feature.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT`, `-f` | Feature slug (auto-detected if omitted) |
@@ -324,6 +357,7 @@ spec-kitty agent tasks validate-workflow WP01 --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent tasks status
 spec-kitty agent tasks status --feature 012-documentation-mission
@@ -349,6 +383,7 @@ spec-kitty agent tasks status --json
 | `sync` | Synchronize filesystem with config.yaml |
 
 **See**:
+
 - [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Complete command syntax and options
 - [Managing AI Agents](../how-to/manage-agents.md) - Task-oriented guide for agent management workflows
 
@@ -361,6 +396,7 @@ spec-kitty agent tasks status --json
 **Description**: Agent context management commands.
 
 **Subcommands**:
+
 - `update-context`
 
 ### spec-kitty agent context update-context
@@ -370,6 +406,7 @@ spec-kitty agent tasks status --json
 **Description**: Update agent context file with tech stack from plan.md.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--agent-type TEXT`, `-a` | Agent type to update (default: claude) |
@@ -377,6 +414,7 @@ spec-kitty agent tasks status --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent context update-context
 spec-kitty agent context update-context --agent-type gemini --json
@@ -391,6 +429,7 @@ spec-kitty agent context update-context --agent-type gemini --json
 **Description**: Workflow commands that display prompts and instructions for agents.
 
 **Subcommands**:
+
 - `implement`
 - `review`
 
@@ -401,9 +440,11 @@ spec-kitty agent context update-context --agent-type gemini --json
 **Description**: Display work package prompt with implementation instructions.
 
 **Arguments**:
+
 - `WP_ID`: Work package ID (e.g., `WP01`) - auto-detects first planned if omitted
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug (auto-detected if omitted) |
@@ -411,6 +452,7 @@ spec-kitty agent context update-context --agent-type gemini --json
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent workflow implement WP01 --agent claude
 spec-kitty agent workflow implement --agent gemini
@@ -423,9 +465,11 @@ spec-kitty agent workflow implement --agent gemini
 **Description**: Display work package prompt with review instructions.
 
 **Arguments**:
+
 - `WP_ID`: Work package ID (e.g., `WP01`) - auto-detects first for_review if omitted
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--feature TEXT` | Feature slug (auto-detected if omitted) |
@@ -433,6 +477,7 @@ spec-kitty agent workflow implement --agent gemini
 | `--help` | Show this message and exit |
 
 **Examples**:
+
 ```bash
 spec-kitty agent workflow review WP01 --agent claude
 spec-kitty agent workflow review --agent gemini
@@ -447,16 +492,20 @@ spec-kitty agent workflow review --agent gemini
 **Description**: Release packaging commands for AI agents.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
 
 **Notes**:
+
 - No subcommands are currently exposed in v0.11.0.
 
 ## Getting Started
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)

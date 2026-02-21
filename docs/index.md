@@ -72,7 +72,6 @@ Spec Kitty includes a **live dashboard** for real-time progress tracking:
   <p><em>Feature overview with completion metrics</em></p>
 </div>
 
-
 ## Quick Start
 
 ```bash

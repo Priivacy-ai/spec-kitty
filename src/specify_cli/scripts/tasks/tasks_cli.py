@@ -23,15 +23,12 @@ from task_helpers import (  # noqa: E402
     append_activity_log,
     activity_entries,
     build_document,
-    detect_conflicting_wp_status,
     ensure_lane,
     find_repo_root,
     get_lane_from_frontmatter,
-    git_status_lines,
     is_legacy_format,
     normalize_note,
     now_utc,
-    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -39,7 +36,6 @@ from task_helpers import (  # noqa: E402
 )
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
-    AcceptanceResult,
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
@@ -96,7 +92,7 @@ def _collect_summary_with_encoding(
             feature,
             strict_metadata=strict_metadata,
         )
-    except ArtifactEncodingError as exc:
+    except ArtifactEncodingError:
         if not normalize_encoding:
             raise
         cleaned = normalize_feature_encoding(repo_root, feature)
@@ -207,9 +203,7 @@ def update_command(args: argparse.Namespace) -> None:
 
     print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
-    print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}"
-    )
+    print(f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}")
 
 
 def history_command(args: argparse.Namespace) -> None:
@@ -331,9 +325,7 @@ def list_command(args: argparse.Namespace) -> None:
     width_id = max(len(row["id"]) for row in rows)
     width_lane = max(len(row["lane"]) for row in rows)
     width_agent = max(len(row["agent"]) for row in rows) if any(row["agent"] for row in rows) else 5
-    width_assignee = (
-        max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
-    )
+    width_assignee = max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
 
     header = (
         f"{'Lane'.ljust(width_lane)}  "
@@ -591,6 +583,7 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
 
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+
 def merge_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
@@ -598,18 +591,21 @@ def merge_command(args: argparse.Namespace) -> None:
     # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
+
         args.target = resolve_primary_branch(repo_root)
 
-    current_branch = run_git([
-        "rev-parse",
-        "--abbrev-ref",
-        "HEAD",
-    ], cwd=repo_root, check=True).stdout.strip()
+    current_branch = run_git(
+        [
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+        ],
+        cwd=repo_root,
+        check=True,
+    ).stdout.strip()
 
     if current_branch == args.target:
-        raise TaskCliError(
-            f"Already on target branch '{args.target}'. Switch to the feature branch before merging."
-        )
+        raise TaskCliError(f"Already on target branch '{args.target}'. Switch to the feature branch before merging.")
 
     if current_branch != feature:
         raise TaskCliError(
@@ -630,9 +626,7 @@ def merge_command(args: argparse.Namespace) -> None:
     def ensure_clean(cwd: Path) -> None:
         status = run_git(["status", "--porcelain"], cwd=cwd, check=True).stdout.strip()
         if status:
-            raise TaskCliError(
-                f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging."
-            )
+            raise TaskCliError(f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging.")
 
     ensure_clean(repo_root)
     if in_worktree:
@@ -645,9 +639,7 @@ def merge_command(args: argparse.Namespace) -> None:
         if args.strategy == "squash":
             steps.append(f"  - Merge {feature} with --squash and commit")
         elif args.strategy == "rebase":
-            steps.append(
-                f"  - Rebase {feature} onto {args.target} manually (command exits before merge)"
-            )
+            steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
         else:
             steps.append(f"  - Merge {feature} with --no-ff")
         if args.push:
@@ -670,9 +662,7 @@ def merge_command(args: argparse.Namespace) -> None:
         git(["fetch"], check=False)
         pull = git(["pull", "--ff-only"], check=False)
         if pull.returncode != 0:
-            raise TaskCliError(
-                "Failed to fast-forward target branch. Resolve upstream changes and retry."
-            )
+            raise TaskCliError("Failed to fast-forward target branch. Resolve upstream changes and retry.")
 
     if args.strategy == "rebase":
         raise TaskCliError(
@@ -729,6 +719,8 @@ def merge_command(args: argparse.Namespace) -> None:
             git(["branch", "-D", feature])
 
     print(f"Merge complete: {feature} -> {args.target}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)

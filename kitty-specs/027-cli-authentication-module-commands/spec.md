@@ -84,21 +84,27 @@ A developer needs to verify their current authentication status to troubleshoot 
 ### Edge Cases
 
 **Network Failure During Login:**
+
 - **Given** developer enters valid credentials but network fails during token request, **When** request times out, **Then** CLI displays network error and suggests checking connectivity
 
 **Credential File Permissions:**
+
 - **Given** credentials file exists with wrong permissions, **When** CLI attempts to read/write credentials, **Then** CLI displays permission error and suggests fix (chmod 600)
 
 **Corrupted Credential File:**
+
 - **Given** credentials file is corrupted or malformed, **When** CLI attempts to load credentials, **Then** CLI treats as logged out and suggests re-authenticating
 
 **Server Unavailable:**
+
 - **Given** SaaS server is down or unreachable, **When** developer attempts login, **Then** CLI displays server unavailable error with retry suggestion
 
 **Token Refresh Race Condition:**
+
 - **Given** multiple CLI processes attempt token refresh simultaneously, **When** refreshes overlap, **Then** only one refresh succeeds, others use updated token (file locking)
 
 **Account Disabled/Deleted:**
+
 - **Given** user account is disabled on server, **When** CLI attempts token refresh, **Then** CLI receives 401, clears stored credentials, and prompts re-authentication
 
 ---

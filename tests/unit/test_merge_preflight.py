@@ -11,12 +11,9 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 from specify_cli.merge.preflight import (
-    PreflightResult,
     WPStatus,
     check_target_divergence,
     check_worktree_status,
@@ -314,7 +311,6 @@ class TestCheckTargetDivergence:
         assert "behind origin" in msg
         assert "git pull" in msg
 
-    @pytest.mark.xfail(reason="CI git environment does not have user configured for commits")
     def test_target_ahead_of_origin(self, tmp_path: Path):
         """Test target branch that is ahead of origin (should not be diverged)."""
         # Create origin and clone
@@ -738,7 +734,6 @@ dependencies: []
         assert "Uncommitted changes" in result.wp_statuses[0].error
         assert len(result.errors) >= 1
 
-    @pytest.mark.xfail(reason="CI git environment does not have user configured for commits")
     def test_detects_target_divergence(self, tmp_path: Path):
         """Test preflight detects target branch divergence."""
         # Create origin

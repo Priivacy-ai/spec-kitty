@@ -11,17 +11,22 @@ import pytest
 def test_no_bash_script_references_in_bundled_templates():
     """Ensure bundled templates don't reference deleted bash scripts."""
     spec_kitty_root = Path(__file__).parent.parent
-    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
-
-    if not templates_dir.exists():
-        pytest.skip(f"Templates directory not found: {templates_dir}")
+    template_dirs = [
+        spec_kitty_root / "src" / "doctrine" / "templates" / "command-templates",
+        *sorted((spec_kitty_root / "src" / "doctrine" / "missions").glob("*/command-templates")),
+        *sorted((spec_kitty_root / "src" / "specify_cli" / "missions").glob("*/command-templates")),
+    ]
+    template_dirs = [p for p in template_dirs if p.exists()]
+    if not template_dirs:
+        pytest.skip("No command template directories found")
 
     bash_references = []
 
-    for template in templates_dir.glob("*.md"):
-        content = template.read_text(encoding="utf-8")
-        if "scripts/bash/" in content or ".kittify/scripts/bash/" in content:
-            bash_references.append(template.name)
+    for template_dir in template_dirs:
+        for template in template_dir.glob("*.md"):
+            content = template.read_text(encoding="utf-8")
+            if "scripts/bash/" in content or ".kittify/scripts/bash/" in content:
+                bash_references.append(str(template.relative_to(spec_kitty_root)))
 
     assert len(bash_references) == 0, (
         f"Bash script references found in templates to be bundled: {bash_references}. "
@@ -38,7 +43,7 @@ def test_sdist_bundles_templates():
         [sys.executable, "-m", "build", "--sdist", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -57,15 +62,12 @@ def test_sdist_bundles_templates():
     with tarfile.open(latest, "r:gz") as tar:
         members = tar.getnames()
 
-        # Should have templates under src/specify_cli/
-        templates = [m for m in members if "/src/specify_cli/templates/" in m]
-        assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
+        # Should have templates under src/doctrine/
+        templates = [m for m in members if "/src/doctrine/templates/" in m]
+        assert len(templates) > 0, "doctrine/templates/ not found in sdist"
 
         # Should have command templates
-        cmd_templates = [
-            m for m in members
-            if "command-templates" in m and m.endswith(".md")
-        ]
+        cmd_templates = [m for m in members if "command-templates" in m and m.endswith(".md")]
         assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
 
         # Should have git hooks
@@ -81,7 +83,7 @@ def test_wheel_bundles_templates_correctly():
         [sys.executable, "-m", "build", "--wheel", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -99,11 +101,7 @@ def test_wheel_bundles_templates_correctly():
         venv_dir = Path(tmpdir) / "venv"
 
         # Create venv
-        result = subprocess.run(
-            [sys.executable, "-m", "venv", str(venv_dir)],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], capture_output=True, text=True)
         if result.returncode != 0:
             pytest.skip(f"Failed to create venv: {result.stderr}")
 
@@ -114,11 +112,7 @@ def test_wheel_bundles_templates_correctly():
                 pytest.skip("pip not found in venv")
 
         # Install wheel
-        result = subprocess.run(
-            [str(pip), "install", str(wheel_path)],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([str(pip), "install", str(wheel_path)], capture_output=True, text=True)
         if result.returncode != 0:
             pytest.skip(f"Failed to install wheel: {result.stderr}")
 
@@ -130,12 +124,15 @@ def test_wheel_bundles_templates_correctly():
                 pytest.skip("python not found in venv")
 
         result = subprocess.run(
-            [str(python), "-c",
-             "from importlib.resources import files; "
-             "t = files('specify_cli').joinpath('templates'); "
-             "print(list(t.iterdir()))"],
+            [
+                str(python),
+                "-c",
+                "from importlib.resources import files; "
+                "t = files('doctrine').joinpath('templates'); "
+                "print([p.name for p in t.iterdir()])",
+            ],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0, f"Failed to check templates: {result.stderr}"

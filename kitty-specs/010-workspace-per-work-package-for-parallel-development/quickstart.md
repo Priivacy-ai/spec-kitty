@@ -5,6 +5,7 @@
 ## What Changed in 0.11.0?
 
 **OLD (0.10.x)**: One worktree per feature
+
 ```
 /spec-kitty.specify → Creates .worktrees/010-feature/
 All WPs work in same worktree
@@ -12,6 +13,7 @@ spec-kitty merge → Merges feature branch
 ```
 
 **NEW (0.11.0)**: One worktree per work package
+
 ```
 /spec-kitty.specify → Works in main, NO worktree
 spec-kitty implement WP01 → Creates .worktrees/010-feature-WP01/
@@ -59,6 +61,7 @@ spec-kitty agent feature finalize-tasks
 ### 2. Implementation (creates worktrees on-demand)
 
 **Independent WPs (no dependencies):**
+
 ```bash
 # Agent A implements WP01
 spec-kitty implement WP01
@@ -73,6 +76,7 @@ spec-kitty implement WP03
 ```
 
 **Dependent WPs:**
+
 ```bash
 # Agent C implements WP02 (depends on WP01)
 # Must wait until WP01 workspace exists
@@ -99,6 +103,7 @@ spec-kitty merge 011-my-feature
 ### How Dependencies Work
 
 **Declared in WP frontmatter:**
+
 ```yaml
 ---
 work_package_id: "WP02"
@@ -108,6 +113,7 @@ dependencies: ["WP01"]  # ← This WP needs WP01's code
 ```
 
 **Generated during `/spec-kitty.tasks` and finalized by `finalize-tasks`:**
+
 - LLM creates tasks.md with dependency descriptions
 - `finalize-tasks` parses dependencies from tasks.md
 - Writes `dependencies: []` field to each WP frontmatter
@@ -115,6 +121,7 @@ dependencies: ["WP01"]  # ← This WP needs WP01's code
 - Includes correct `spec-kitty implement` command in WP prompt
 
 **Used during implementation:**
+
 - `spec-kitty implement WP02 --base WP01` validates WP01 workspace exists
 - Creates WP02 worktree branching from WP01's branch
 - WP02 gets WP01's code changes automatically
@@ -122,9 +129,11 @@ dependencies: ["WP01"]  # ← This WP needs WP01's code
 ### Common Patterns
 
 **Pattern 1: Linear Chain**
+
 ```
 WP01 → WP02 → WP03
 ```
+
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02 --base WP01
@@ -132,11 +141,13 @@ spec-kitty implement WP03 --base WP02
 ```
 
 **Pattern 2: Fan-Out (Parallel)**
+
 ```
      WP01
     /  |  \
   WP02 WP03 WP04
 ```
+
 ```bash
 spec-kitty implement WP01
 # After WP01 done, run in parallel:
@@ -146,6 +157,7 @@ spec-kitty implement WP04 --base WP01 &
 ```
 
 **Pattern 3: Diamond (Complex)**
+
 ```
     WP01
     /  \
@@ -153,6 +165,7 @@ spec-kitty implement WP04 --base WP01 &
     \  /
     WP04
 ```
+
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02 --base WP01 &  # Parallel
@@ -171,6 +184,7 @@ git merge 011-my-feature-WP02
 ### The Problem
 
 **Scenario:**
+
 1. Agent A creates WP01 workspace, implements, moves to `for_review`
 2. Agent B creates WP02 workspace from WP01 (`--base WP01`), starts implementing
 3. Reviewer requests changes to WP01
@@ -180,6 +194,7 @@ git merge 011-my-feature-WP02
 ### The Solution (Manual Rebase)
 
 **Agent B must manually rebase:**
+
 ```bash
 cd .worktrees/011-my-feature-WP02
 git rebase 011-my-feature-WP01
@@ -191,6 +206,7 @@ git rebase --continue
 ### Warnings You'll See
 
 **When WP01 enters review (and WP02 depends on it):**
+
 ```
 ⚠️ Warning: WP02 depends on WP01
 If changes are requested, WP02 will need manual rebase:
@@ -198,6 +214,7 @@ If changes are requested, WP02 will need manual rebase:
 ```
 
 **When resuming WP02 after WP01 changed:**
+
 ```
 ⚠️ Warning: Base WP01 has changed since WP02 was created
 Consider rebasing to get latest changes:
@@ -217,12 +234,14 @@ When Spec Kitty adds jj support (future feature), jj will **automatically rebase
 **Before running `pip install --upgrade spec-kitty-cli`:**
 
 1. **Check for in-progress features:**
+
    ```bash
    ls .worktrees/
    # Look for directories: ###-feature (without -WP## suffix)
    ```
 
 2. **Complete or delete legacy features:**
+
    ```bash
    # Option A: Merge feature to main
    spec-kitty merge 009-jujutsu-vcs
@@ -233,12 +252,14 @@ When Spec Kitty adds jj support (future feature), jj will **automatically rebase
    ```
 
 3. **Verify clean state:**
+
    ```bash
    ls .worktrees/
    # Should be empty or only have ###-feature-WP## patterns
    ```
 
 4. **Upgrade:**
+
    ```bash
    pip install --upgrade spec-kitty-cli
    spec-kitty --version  # Should show 0.11.0
@@ -247,6 +268,7 @@ When Spec Kitty adds jj support (future feature), jj will **automatically rebase
 ### If Upgrade Blocked
 
 **Error message:**
+
 ```
 ❌ Cannot upgrade to 0.11.0
 Legacy worktrees detected:
@@ -258,6 +280,7 @@ Action required:
 ```
 
 **Resolution:**
+
 - Complete features: `spec-kitty merge <feature>`
 - Abandon features: `git worktree remove .worktrees/<feature>` + `git branch -D <branch>`
 - Retry upgrade
@@ -265,6 +288,7 @@ Action required:
 ### Post-Upgrade
 
 **First new feature:**
+
 ```bash
 /spec-kitty.specify
 # Notice: No worktree created!
@@ -445,10 +469,12 @@ spec-kitty implement WP10 --base WP09
 ### Timeline Comparison
 
 **If built with legacy model (0.10.x)**:
+
 - Sequential: ~10 time units (one WP per unit)
 - All agents wait for shared worktree access
 
 **Built with workspace-per-WP (0.11.0)**:
+
 - ~6 time units (thanks to parallel waves)
 - 40% faster due to parallelization
 
@@ -470,6 +496,7 @@ WP06 (Merge Command) [independent]
 ```
 
 **Parallel waves**:
+
 - Wave 1: WP01
 - Wave 2: WP02, WP03, WP06 (3 agents)
 - Wave 3: WP04, WP05 (2 agents, WP05 could have been parallel but wasn't)

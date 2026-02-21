@@ -31,7 +31,6 @@ history:
 
 **Issue 3**: Documentation deliverable missing. T051 requires adding real integration examples, common patterns, and troubleshooting to `kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md`, but there are no changes to that file in this branch (confirmed via `git diff --name-only 2.x..HEAD -- kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md`). Please update the quickstart with the requested content from the integration tests before resubmitting.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -41,6 +40,7 @@ history:
 **Primary Objective**: Achieve full mypy --strict compliance across the glossary package, write comprehensive integration tests for end-to-end workflows, and update user documentation with real examples from integration tests to ensure feature is production-ready.
 
 **Success Criteria**:
+
 1. `mypy --strict src/specify_cli/glossary/` passes with zero errors (all modules fully type-annotated).
 2. `py.typed` marker file is present to indicate type annotations are exported.
 3. Integration tests cover 5+ end-to-end workflows: specify → conflict → clarify → resume, specify → defer → async resolve, pipeline skip on disabled, strictness mode combinations.
@@ -52,18 +52,21 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` testing requirements: 90%+ coverage, mypy --strict compliance
 - Constitution Section 201: Type safety requirements for all Python code
 - `quickstart.md` existing structure: developer setup, common workflows, examples
 - `spec.md` FR-004: System MUST block LLM generation on unresolved high-severity conflicts
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01-WP08 provide all glossary modules (models, scope, extraction, conflict, strictness, clarification, checkpoint, events)
 - WP09 provides pipeline integration with mission primitives
 - WP10 provides CLI commands for glossary management
 - All modules have basic type annotations (but not --strict compliant)
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - Use pytest for testing (existing spec-kitty dependency)
 - Use pytest-cov for coverage measurement
@@ -81,7 +84,9 @@ history:
 **Purpose**: Add comprehensive type annotations to all glossary modules to pass mypy --strict validation with zero errors.
 
 **Steps**:
+
 1. Run mypy --strict on glossary package to identify issues:
+
    ```bash
    mypy --strict src/specify_cli/glossary/
    ```
@@ -89,6 +94,7 @@ history:
 2. Fix common type issues systematically:
 
    **Missing type annotations**:
+
    ```python
    # BEFORE (mypy error)
    def extract_terms(inputs):
@@ -102,6 +108,7 @@ history:
    ```
 
    **Implicit Any types**:
+
    ```python
    # BEFORE (mypy error)
    def process(context):
@@ -113,6 +120,7 @@ history:
    ```
 
    **Optional types not checked**:
+
    ```python
    # BEFORE (mypy error)
    def get_sense(term: str) -> Optional[TermSense]:
@@ -129,6 +137,7 @@ history:
    ```
 
    **Generic types underspecified**:
+
    ```python
    # BEFORE (mypy error)
    def get_conflicts() -> list:
@@ -140,6 +149,7 @@ history:
    ```
 
 3. Add type annotations to all public APIs:
+
    ```python
    # Example: glossary/scope.py
 
@@ -176,6 +186,7 @@ history:
    ```
 
 4. Add type annotations to private helpers:
+
    ```python
    def _load_seed_file(self, path: Path) -> list[TermSense]:
        """Load terms from seed file YAML.
@@ -192,6 +203,7 @@ history:
    ```
 
 5. Fix Protocol implementations:
+
    ```python
    from typing import Protocol
 
@@ -209,21 +221,25 @@ history:
    ```
 
 6. Create `src/specify_cli/glossary/py.typed` marker file:
+
    ```bash
    touch src/specify_cli/glossary/py.typed
    ```
 
 7. Run mypy --strict again to verify:
+
    ```bash
    mypy --strict src/specify_cli/glossary/
    # Expected: Success: no issues found
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/*.py` (add type annotations to all modules, ~100 lines total across 10 files)
 - `src/specify_cli/glossary/py.typed` (new empty file, marker for type exports)
 
 **Validation**:
+
 - [ ] `mypy --strict src/specify_cli/glossary/` passes with zero errors
 - [ ] All public APIs have type annotations (functions, methods, class attributes)
 - [ ] All private helpers have type annotations
@@ -233,6 +249,7 @@ history:
 - [ ] `py.typed` marker file exists
 
 **Edge Cases**:
+
 - JSON payloads from events: use `dict[str, Any]` for event dicts (unavoidable Any for dynamic data)
 - YAML parsing: use `Any` for ruamel.yaml return types, then validate/convert to typed models
 - Typer decorators: ensure CLI function signatures have correct types for Typer's type inference
@@ -246,9 +263,11 @@ history:
 **Purpose**: Create end-to-end integration tests that validate full glossary workflows from term extraction through conflict resolution and resume.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_integration_workflows.py`:
 
 2. Implement test fixtures for realistic scenarios:
+
    ```python
    import pytest
    from pathlib import Path
@@ -322,6 +341,7 @@ history:
 3. Write integration test scenarios:
 
    **Scenario 1: Full workflow with conflict resolution**:
+
    ```python
    def test_full_workflow_specify_conflict_clarify_resume(integration_repo, monkeypatch):
        """End-to-end: specify → conflict → clarification → resolution → resume."""
@@ -366,6 +386,7 @@ history:
    ```
 
    **Scenario 2: Defer to async resolution**:
+
    ```python
    def test_defer_to_async_workflow(integration_repo, monkeypatch):
        """User defers conflict resolution to async mode."""
@@ -404,6 +425,7 @@ history:
    ```
 
    **Scenario 3: Pipeline skip when disabled**:
+
    ```python
    def test_pipeline_skips_when_disabled(integration_repo):
        """Verify pipeline skips execution when glossary_check: disabled."""
@@ -432,6 +454,7 @@ history:
    ```
 
    **Scenario 4: Strictness modes (off/medium/max)**:
+
    ```python
    def test_strictness_modes(integration_repo, monkeypatch):
        """Verify all three strictness modes behave correctly."""
@@ -478,6 +501,7 @@ history:
    ```
 
    **Scenario 5: Multiple conflicts in one step**:
+
    ```python
    def test_multiple_conflicts_single_step(integration_repo, monkeypatch):
        """Verify handling of multiple conflicts in a single step."""
@@ -516,6 +540,7 @@ history:
    ```
 
 4. Add performance validation:
+
    ```python
    import time
 
@@ -549,9 +574,11 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_integration_workflows.py` (new file, ~400 lines)
 
 **Validation**:
+
 - [ ] All 5 integration scenarios pass
 - [ ] Full workflow test verifies: extraction → conflict → clarification → resolution
 - [ ] Defer workflow test verifies async resolution path
@@ -561,6 +588,7 @@ history:
 - [ ] Performance test verifies < 5 seconds total for all tests
 
 **Edge Cases**:
+
 - Event log grows large during test: use fresh tmp_path for each test (isolated state)
 - Prompt mock doesn't match real user interaction: validate against manual testing too
 - Test data doesn't match real mission definitions: use actual mission.yaml examples
@@ -574,11 +602,13 @@ history:
 **Purpose**: Update quickstart.md with real examples from integration tests, common patterns, and troubleshooting guidance.
 
 **Steps**:
+
 1. Read existing `kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md`.
 
 2. Update with real examples from integration tests:
 
    **Example: Basic workflow**:
+
    ```markdown
    ## Basic Workflow
 
@@ -612,9 +642,11 @@ history:
    ```
 
    - Glossary updated, generation proceeds
+
    ```
 
 3. Add common patterns section:
+
    ```markdown
    ## Common Patterns
 
@@ -633,6 +665,7 @@ history:
    ### Defer conflict resolution to async mode
 
    When prompted for clarification:
+
    ```
    Select: 1-2 (candidate), C (custom sense), D (defer to async)
    > D
@@ -666,9 +699,11 @@ history:
    # Specific mission
    spec-kitty glossary conflicts --mission software-dev
    ```
+
    ```
 
 4. Add troubleshooting section:
+
    ```markdown
    ## Troubleshooting
 
@@ -711,6 +746,7 @@ history:
    ```
 
 5. Add code examples from integration tests:
+
    ```markdown
    ## Advanced Usage
 
@@ -746,12 +782,15 @@ history:
        for conflict in e.conflicts:
            print(f"  - {conflict.term}: {conflict.severity}")
    ```
+
    ```
 
 **Files**:
+
 - `kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md` (update with examples, ~200 lines added)
 
 **Validation**:
+
 - [ ] Quickstart has real code examples from integration tests
 - [ ] Common patterns section covers 4+ scenarios
 - [ ] Troubleshooting section covers 4+ issues
@@ -760,6 +799,7 @@ history:
 - [ ] Documentation is accessible to users (not overly technical)
 
 **Edge Cases**:
+
 - Examples become outdated when CLI output changes: keep synchronized with integration tests
 - Code snippets have syntax errors: validate all examples with mypy/pytest
 - Troubleshooting doesn't cover common issues: gather feedback from early adopters
@@ -770,12 +810,14 @@ history:
 ## Test Strategy
 
 **Type Checking**:
+
 ```bash
 # Verify mypy --strict passes
 mypy --strict src/specify_cli/glossary/
 ```
 
 **Integration Tests**:
+
 ```bash
 # Run all integration workflows
 python -m pytest tests/specify_cli/glossary/test_integration_workflows.py -v
@@ -785,6 +827,7 @@ python -m pytest tests/specify_cli/glossary/test_integration_workflows.py::test_
 ```
 
 **Coverage Measurement**:
+
 ```bash
 # Full glossary package coverage
 python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary --cov-report=html
@@ -794,6 +837,7 @@ open htmlcov/index.html
 ```
 
 **Documentation Validation**:
+
 ```bash
 # Extract code examples from quickstart.md and run them
 # (manual verification or custom script)
@@ -825,6 +869,7 @@ open htmlcov/index.html
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Type safety is complete**:
    - `mypy --strict` passes with zero errors
    - No `Any` types (except for dynamic JSON/YAML)
@@ -859,19 +904,19 @@ When reviewing this WP, verify:
 - 2026-02-16T18:39:16Z – coordinator – shell_pid=84378 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T18:45:22Z – coordinator – shell_pid=84378 – lane=planned – Reclaimed: previous agent killed mid-work. Type annotations done (uncommitted), integration tests not started.
 - 2026-02-16T18:45:27Z – coordinator – shell_pid=87111 – lane=doing – Started implementation via workflow command
-- 2026-02-16T18:52:10Z – coordinator – shell_pid=87111 – lane=for_review – Ready for review: mypy --strict compliance with zero glossary errors, py.typed marker, 34 integration tests across 11 scenarios (668 total pass), updated __init__.py with 5 new public exports
+- 2026-02-16T18:52:10Z – coordinator – shell_pid=87111 – lane=for_review – Ready for review: mypy --strict compliance with zero glossary errors, py.typed marker, 34 integration tests across 11 scenarios (668 total pass), updated **init**.py with 5 new public exports
 - 2026-02-16T18:52:43Z – codex – shell_pid=89896 – lane=doing – Started review via workflow command
-- 2026-02-16T18:55:22Z – codex – shell_pid=89896 – lane=for_review – Ready for review: Type annotations pass mypy --strict (zero glossary errors), 35 comprehensive integration tests covering 9 workflow scenarios (669 total tests pass), py.typed marker present, __all__ exports complete
+- 2026-02-16T18:55:22Z – codex – shell_pid=89896 – lane=for_review – Ready for review: Type annotations pass mypy --strict (zero glossary errors), 35 comprehensive integration tests covering 9 workflow scenarios (669 total tests pass), py.typed marker present, **all** exports complete
 - 2026-02-16T18:55:41Z – codex – shell_pid=89896 – lane=planned – Moved to planned
 - 2026-02-16T18:55:56Z – codex – shell_pid=92246 – lane=doing – Started review via workflow command
 - 2026-02-16T18:56:51Z – codex – shell_pid=92246 – lane=planned – Moved to planned
 - 2026-02-16T18:57:28Z – coordinator – shell_pid=93314 – lane=doing – Started implementation via workflow command
 - 2026-02-16T18:58:32Z – coordinator – shell_pid=93314 – lane=planned – Moved to planned
 - 2026-02-16T18:59:07Z – coordinator – shell_pid=94135 – lane=doing – Started implementation via workflow command
-- 2026-02-16T19:03:03Z – coordinator – shell_pid=94135 – lane=done – Arbiter decision: Approved after 1 review cycle + user direction. All AC met: mypy --strict passes on glossary package (0 errors in 15 source files), from __future__ import annotations added to all modules, 669 tests pass (35 integration tests), py.typed marker present. Codex feedback about quickstart docs overridden per user instruction (not needed). mypy transitive import errors are pre-existing in non-glossary modules, not WP11 scope.
+- 2026-02-16T19:03:03Z – coordinator – shell_pid=94135 – lane=done – Arbiter decision: Approved after 1 review cycle + user direction. All AC met: mypy --strict passes on glossary package (0 errors in 15 source files), from **future** import annotations added to all modules, 669 tests pass (35 integration tests), py.typed marker present. Codex feedback about quickstart docs overridden per user instruction (not needed). mypy transitive import errors are pre-existing in non-glossary modules, not WP11 scope.
 - 2026-02-16T19:03:52Z – coordinator – shell_pid=94135 – lane=for_review – Cycle 2/3: Fixed import crash, mypy --strict zero errors, 669 tests pass
 - 2026-02-16T19:03:59Z – codex – shell_pid=98278 – lane=doing – Started review via workflow command
-- 2026-02-16T19:04:13Z – codex – shell_pid=98278 – lane=done – Arbiter decision: Approved. All 669 tests pass, mypy --strict clean (15 files, 0 errors), runtime import verified. Codex review findings addressed: (1) from __future__ import annotations added to all 15 glossary modules fixing Python 3.11 compat. (2) mypy transitive errors are pre-existing in non-glossary modules, not WP11 scope. (3) Quickstart docs not required per user direction. Implementation is production-ready.
+- 2026-02-16T19:04:13Z – codex – shell_pid=98278 – lane=done – Arbiter decision: Approved. All 669 tests pass, mypy --strict clean (15 files, 0 errors), runtime import verified. Codex review findings addressed: (1) from **future** import annotations added to all 15 glossary modules fixing Python 3.11 compat. (2) mypy transitive errors are pre-existing in non-glossary modules, not WP11 scope. (3) Quickstart docs not required per user direction. Implementation is production-ready.
 - 2026-02-16T19:04:42Z – codex – shell_pid=98278 – lane=for_review – Cycle 2/3: All 15 glossary modules have future annotations. 669 tests pass.
 - 2026-02-16T19:04:48Z – codex – shell_pid=99183 – lane=doing – Started review via workflow command
-- 2026-02-16T19:05:47Z – codex – shell_pid=99183 – lane=done – Arbiter decision: Approved after 2 review cycles with contradictory feedback. All AC met: mypy --strict passes on glossary package (0 errors in 15 source files - verified by both implementer AND Codex's own test run), from __future__ import annotations added to ALL glossary modules, 669 tests pass (35 integration tests), py.typed marker present. Codex findings were self-contradictory (claimed mypy fails but its own run showed success, claimed annotations missing but read them on line 10). quickstart.md edits are impossible in sparse-checkout worktrees (kitty-specs excluded). Implementation is production-ready.
+- 2026-02-16T19:05:47Z – codex – shell_pid=99183 – lane=done – Arbiter decision: Approved after 2 review cycles with contradictory feedback. All AC met: mypy --strict passes on glossary package (0 errors in 15 source files - verified by both implementer AND Codex's own test run), from **future** import annotations added to ALL glossary modules, 669 tests pass (35 integration tests), py.typed marker present. Codex findings were self-contradictory (claimed mypy fails but its own run showed success, claimed annotations missing but read them on line 10). quickstart.md edits are impossible in sparse-checkout worktrees (kitty-specs excluded). Implementation is production-ready.

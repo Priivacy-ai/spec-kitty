@@ -26,6 +26,7 @@ As AI agents write more code in production systems, enterprises need clear attri
 Currently, Spec Kitty tracks WP-level metadata (which agent executed WP03), but NOT line-level attribution. Users cannot answer "which specific lines in main.py were written by Claude vs human edits?"
 
 **Industry Context**:
+
 * **Entire.io** tracks line-level attribution (agent vs human %) - competitive parity required
 * **GitHub Copilot** adds comments marking AI-generated code - transparency precedent
 * **The Register (2026-02-03)**: GitHub considering kill switches for low-quality AI PRs - attribution enables quality tracking
@@ -91,6 +92,7 @@ Currently, Spec Kitty tracks WP-level metadata (which agent executed WP03), but 
 ### Confirmation
 
 **Success Metrics**:
+
 * **Accuracy**: >95% correct detection of agent vs human attribution (validated against known ground truth)
 * **Compliance value**: 3+ enterprise customers cite attribution as key requirement (validate market need)
 * **Adoption**: 50%+ of users enable attribution tracking (Tier 3+)
@@ -98,12 +100,14 @@ Currently, Spec Kitty tracks WP-level metadata (which agent executed WP03), but 
 * **Quality insights**: Identify correlation between agent type and bug rate (validates learning use case)
 
 **Validation Timeline**:
+
 * **Month 1**: Implement AttributionTracker, test with mixed agent/human repos
 * **Month 2**: Dashboard visualization (color-coded file views)
 * **Month 3**: CLI command (`spec-kitty attribution <file>`) for text summary
 * **Month 4-6**: Monitor adoption, accuracy, performance; iterate on detection logic
 
 **Confidence Level**: **HIGH** (8/10)
+
 * Clear enterprise need (compliance, governance, transparency)
 * Proven by Entire.io's implementation (validates technical feasibility)
 * Foundation exists (Git blame, Co-Authored-By markers)
@@ -113,7 +117,7 @@ Currently, Spec Kitty tracks WP-level metadata (which agent executed WP03), but 
 
 ### Line-Level Attribution (Chosen)
 
-**Description**: Track attribution at line granularity (line 47 = claude-sonnet-4, line 48 = user@example.com).
+**Description**: Track attribution at line granularity (line 47 = claude-sonnet-4, line 48 = <user@example.com>).
 
 **Pros:**
 
@@ -182,36 +186,43 @@ Currently, Spec Kitty tracks WP-level metadata (which agent executed WP03), but 
 ## More Information
 
 **References**:
+
 * Competitive analysis: `competitive/tier-1-threats/entire-io/THREAT-ASSESSMENT.md` (Entire's attribution model)
-* Entire.io codebase: https://github.com/entireio/cli (see attribution tracking implementation)
+* Entire.io codebase: <https://github.com/entireio/cli> (see attribution tracking implementation)
 * Product requirements: `product-ideas/prd-agent-orchestration-integration-v1.md` (AD-004)
 * Integration spec: `competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 1.2)
 
 **Implementation Files**:
+
 * `events/attribution.py` - AttributionTracker class
 * `specify_cli/commands/attribution.py` - CLI command for text summary
 * Dashboard: Color-coded file views (green=human, blue=agent)
 
 **Related ADRs**:
+
 * ADR-2026-02-09-4: Cross-Repo Evidence Completion (attribution metadata extends evidence payloads)
 * ADR-2026-02-11-3: Entire.io Checkpoint Import (Entire checkpoints provide attribution data)
 
 **Detection Strategy**:
 
 **Method 1: Git Blame + Co-Authored-By Markers** (primary)
+
 * Run `git blame --line-porcelain` on file
 * Check commit message for "Co-Authored-By: Claude" or "Co-Authored-By: Codex"
 * Extract agent ID from Co-Authored-By (e.g., "Claude Sonnet 4.5" → "claude-sonnet-4.5")
 
 **Method 2: Agent Execution Logs** (secondary)
+
 * Track file modifications in agent execution logs (tool calls, file writes)
 * Cross-reference with Git commits to confirm attribution
 
 **Method 3: Entire Checkpoint Import** (optional)
+
 * If user imports Entire checkpoints, extract attribution from file_changes diffs
 * Merge with Git blame data for comprehensive view
 
 **CLI Usage Example**:
+
 ```bash
 $ spec-kitty attribution src/main.py
 
@@ -238,22 +249,26 @@ Line-by-line (first 20 lines):
 ```
 
 **Dashboard Visualization**:
+
 * File view: Color-coded lines (green = human, blue = agent, yellow = mixed)
 * Hover tooltip: "Line 47: claude-sonnet-4 (2026-02-10 14:32)"
 * File summary: "73.5% agent, 26.5% human"
 
 **Privacy Tier Integration**:
+
 * **Tier 1 (local-only)**: Attribution stored locally, never synced
 * **Tier 2 (workflow metadata)**: Attribution metadata synced (no code content)
 * **Tier 3 (activity logs)**: Full attribution visible in dashboard
 * **Tier 4 (telemetry)**: Aggregate attribution stats (% AI code across all users)
 
 **Compliance Use Cases**:
+
 * **SOC2**: Audit trail showing who modified security-sensitive code
 * **HIPAA**: Track AI contribution to healthcare data processing logic
 * **Financial regulations**: Demonstrate compliance with code review policies
 
 **Rollback Plan**:
+
 * If storage overhead unacceptable: Make attribution opt-in (Tier 3+ only)
 * If performance cost too high: Lazy attribution (compute on-demand, not stored)
 * If privacy concerns: Allow disabling attribution tracking (configuration flag)

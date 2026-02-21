@@ -40,6 +40,7 @@ subtasks:
 - Maintain backward compatibility: features without mission field use software-dev
 
 **Success Metrics** (from spec FR-011):
+
 - `/spec-kitty.plan` on feature with `"mission": "research"` uses research templates
 - `/spec-kitty.tasks` uses mission from feature context
 - All slash commands work correctly with per-feature missions
@@ -48,15 +49,18 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (FR-011, User Story 4)
 - Plan: `kitty-specs/006-per-feature-mission/plan.md` (Phase 3)
 
 **Files to Audit**:
+
 - All bash scripts in `.kittify/scripts/bash/`
 - All prompt templates in `.kittify/missions/*/command-templates/`
 - Python code in `src/specify_cli/` that references missions
 
 **Constraints**:
+
 - Some commands run from worktrees, some from main repo
 - Feature directory path varies based on context
 - Must handle missing mission field gracefully
@@ -69,13 +73,17 @@ subtasks:
 - **Files**: Repository-wide search
 - **Steps**:
   1. Search for `get_active_mission` references:
+
      ```bash
      grep -r "get_active_mission" --include="*.py" --include="*.sh" .
      ```
+
   2. Search for `active-mission` references:
+
      ```bash
      grep -r "active-mission" --include="*.py" --include="*.sh" --include="*.md" .
      ```
+
   3. Create list of files to update with line numbers
   4. Categorize by type:
      - Python files → update to use `get_mission_for_feature()`
@@ -91,6 +99,7 @@ subtasks:
 - **Steps**:
   1. Find where script determines feature directory (likely uses check-prerequisites.sh)
   2. Add mission reading from meta.json:
+
      ```bash
      # Read mission from feature's meta.json
      META_FILE="$FEATURE_DIR/meta.json"
@@ -100,11 +109,14 @@ subtasks:
          MISSION="software-dev"
      fi
      ```
+
   3. Use MISSION variable to find correct template paths:
+
      ```bash
      MISSION_DIR=".kittify/missions/$MISSION"
      PLAN_TEMPLATE="$MISSION_DIR/templates/plan-template.md"
      ```
+
   4. Update template copying logic to use mission-specific templates
 - **Parallel?**: No (establishes pattern for T019)
 
@@ -125,10 +137,12 @@ subtasks:
 - **Steps**:
   1. Check if template hardcodes mission assumptions
   2. If template loads other templates, ensure it uses feature's mission:
+
      ```markdown
      Load templates from the feature's mission directory, determined by reading
      `mission` field from the feature's `meta.json` (default: software-dev).
      ```
+
   3. Update any paths that reference `.kittify/missions/software-dev/` to be dynamic
 - **Parallel?**: Yes (once T018 pattern established)
 
@@ -172,10 +186,13 @@ subtasks:
      - Use `get_mission_for_feature()` (when feature context available)
      - Keep `get_active_mission()` (when no feature context, e.g., init)
   3. Update imports:
+
      ```python
      from specify_cli.mission import get_mission_for_feature, MissionNotFoundError
      ```
+
   4. Update function calls, passing feature directory:
+
      ```python
      # Before
      mission = get_active_mission()
@@ -183,6 +200,7 @@ subtasks:
      # After
      mission = get_mission_for_feature(feature_dir)
      ```
+
   5. Handle cases where feature_dir is not available (fall back to get_active_mission or default)
 - **Parallel?**: No (needs careful coordination)
 

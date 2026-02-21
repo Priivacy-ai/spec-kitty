@@ -50,6 +50,7 @@ history:
 **Primary Goal**: Implement error event logging for agent learning and debugging (Manus pattern - learning from failures).
 
 **Success Criteria**:
+
 - ✅ ErrorEvent dataclass with error_id ULID, error_type, entity_id, reason, context
 - ✅ ErrorStorage class with daily JSONL logging (parallel structure to EventStore)
 - ✅ `@with_error_storage` AOP decorator for dependency injection
@@ -62,6 +63,7 @@ history:
 **User Story**: US7 - Error Logging with Manus Pattern
 
 **Independent Test**:
+
 ```bash
 # Trigger invalid state transition
 cd /tmp/test-error-logging
@@ -92,6 +94,7 @@ cat .kittify/errors/$(date +%Y-%m-%d).jsonl | jq .
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -106,11 +109,13 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From data-model.md (ErrorStorage)**:
+
 - Daily JSONL files (`.kittify/errors/YYYY-MM-DD.jsonl`)
 - Parallel structure to EventStore (same file rotation, append pattern)
 - ErrorEvent schema: error_id, error_type, entity_id, attempted_operation, reason, timestamp, context
 
 **From spec.md (FR-025 to FR-027)**:
+
 - Must log validation errors (state transitions, gate failures)
 - Must include error context (error_type, entity_id, operation, reason)
 - Must NOT block operations if error logging fails (best-effort)
@@ -132,6 +137,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add ErrorEvent to types module**:
+
    ```python
    # In src/specify_cli/events/types.py (add after Event and LamportClock)
 
@@ -176,15 +182,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/types.py` (modify: add ErrorEvent dataclass, ~40 lines)
 
 **Validation**:
+
 - [ ] ErrorEvent has all 7 fields from data-model.md
 - [ ] `to_json()` and `from_json()` methods for serialization
 - [ ] `__post_init__` validates required fields
 - [ ] Import succeeds: `from specify_cli.events.types import ErrorEvent`
 
 **Edge Cases**:
+
 - Empty error_id: Raises ValueError
 - Missing context keys: Tolerated (context is flexible dict)
 - Large context (>1KB): Tolerated (JSON serialization handles)
@@ -200,6 +209,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create error_storage module**:
+
    ```python
    # src/specify_cli/events/error_storage.py (new file)
 
@@ -328,9 +338,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/error_storage.py` (new file, ~120 lines)
 
 **Validation**:
+
 - [ ] `log()` creates `.kittify/errors/YYYY-MM-DD.jsonl`
 - [ ] Uses daily file rotation (same pattern as EventStore)
 - [ ] Best-effort: Returns None on failure (doesn't raise exception)
@@ -338,6 +350,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Graceful degradation (skips invalid JSON lines)
 
 **Edge Cases**:
+
 - Errors directory missing: Created automatically (mkdir parents=True)
 - Log write fails: Warning logged, returns None (doesn't crash operation)
 - No errors logged yet: read() returns empty list
@@ -353,6 +366,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add decorator to middleware module**:
+
    ```python
    # In src/specify_cli/events/middleware.py (modify)
 
@@ -417,15 +431,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/middleware.py` (modify: add @with_error_storage and combined decorator)
 
 **Validation**:
+
 - [ ] `@with_error_storage` injects ErrorStorage parameter
 - [ ] `@with_event_and_error_storage` injects both EventStore and ErrorStorage
 - [ ] Mirrors @with_event_store pattern (consistent API)
 - [ ] Test: Decorate function, verify error_storage parameter injected
 
 **Edge Cases**:
+
 - ErrorStorage initialization fails: RuntimeError propagated (expected)
 - Multiple decorators: Combined decorator preferred (cleaner)
 
@@ -440,6 +457,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Modify move_task to log transition errors**:
+
    ```python
    # In src/specify_cli/cli/commands/agent/tasks.py (modify)
 
@@ -482,6 +500,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add error logging to dependency validation**:
+
    ```python
    # If dependency validation exists in move_task or elsewhere
 
@@ -507,15 +526,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/tasks.py` (modify: add error logging to validation)
 
 **Validation**:
+
 - [ ] `move_task` uses `@with_event_and_error_storage` decorator
 - [ ] Error logged BEFORE raising ValidationError (capture attempted operation)
 - [ ] Error context includes: current_status, requested_status, valid_transitions
 - [ ] Test: Trigger invalid transition, verify error in `.kittify/errors/*.jsonl`
 
 **Edge Cases**:
+
 - Error logging fails: Warning logged, operation still raises ValidationError
 - Multiple validation failures: Each logs separate error event
 - Error storage not available: Best-effort wrapper catches, continues
@@ -531,6 +553,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify best-effort in ErrorStorage.log()**:
+
    ```python
    # In src/specify_cli/events/error_storage.py
    # Should already wrap in try/except from T037
@@ -548,6 +571,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add defensive error handling in decorator**:
+
    ```python
    # In src/specify_cli/events/middleware.py
    # Modify @with_error_storage decorator
@@ -570,6 +594,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 3. **Handle None error_storage in move_task**:
+
    ```python
    # In src/specify_cli/cli/commands/agent/tasks.py
    # Modify validation error logging from T039
@@ -581,17 +606,20 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/error_storage.py` (verify: best-effort exists from T037)
 - `src/specify_cli/events/middleware.py` (modify: defensive error handling)
 - `src/specify_cli/cli/commands/agent/tasks.py` (modify: check if error_storage is None)
 
 **Validation**:
+
 - [ ] `ErrorStorage.log()` returns None on failure (doesn't raise)
 - [ ] Decorator injects None if ErrorStorage init fails
 - [ ] Commands check if error_storage is None before logging
 - [ ] Operations complete successfully even if error logging fails
 
 **Edge Cases**:
+
 - Errors directory not writable: log() returns None, operation continues
 - Disk full: log() returns None, operation continues
 - Concurrent error writes: No file locking (best-effort, race conditions tolerated)
@@ -605,6 +633,7 @@ git branch --show-current  # Must output: 2.x
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T036**: Unit test - Create ErrorEvent, serialize/deserialize
 2. **T037**: Unit test - Log error, verify JSONL file created
 3. **T038**: Decorator test - Verify error_storage injected
@@ -612,6 +641,7 @@ git branch --show-current  # Must output: 2.x
 5. **T040**: Best-effort test - Simulate error log failure, verify operation continues
 
 **Error logging test**:
+
 ```bash
 # Setup project
 cd /tmp/test-error-logging
@@ -647,6 +677,7 @@ echo "✓ Error logging test passed"
 ```
 
 **Best-effort test**:
+
 ```bash
 # Make errors directory read-only (simulate failure)
 chmod 444 /tmp/test-error-logging/.kittify/errors
@@ -672,6 +703,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
 **Impact**: Validation failures take longer to report
 
 **Mitigation**:
+
 - Best-effort pattern (T040) doesn't block on error write
 - Error logging is fast (single JSONL append, no index update)
 - Validation errors are rare (users learn valid transitions quickly)
@@ -681,6 +713,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
 **Impact**: `.kittify/errors/` directory becomes large over time
 
 **Mitigation**:
+
 - Daily rotation keeps individual files manageable
 - Users can delete old error logs (not used for state reconstruction)
 - Future enhancement: Auto-archive errors >90 days old
@@ -690,6 +723,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
 **Impact**: Error log has invalid JSON lines
 
 **Mitigation**:
+
 - Best-effort (no file locking) tolerates corruption
 - Error log is not critical path (used for debugging only)
 - Graceful degradation (skip invalid lines) in read()
@@ -721,7 +755,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
 
 1. **T036 - ErrorEvent Schema**:
    - ✓ All 7 fields match data-model.md
-   - ✓ Validation in __post_init__
+   - ✓ Validation in **post_init**
 
 2. **T037 - ErrorStorage**:
    - ✓ Daily file rotation (YYYY-MM-DD.jsonl)
@@ -741,6 +775,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
    - ✓ Warning logged (not silent failure)
 
 **Reviewers should**:
+
 - Test invalid transition (verify error logged)
 - Test best-effort (make errors dir read-only, verify operation continues)
 - Check error context (verify useful debugging info)
@@ -752,6 +787,7 @@ echo "✓ Best-effort test passed (operation continued despite log failure)"
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T16:10:55Z – unknown – shell_pid=22633 – lane=for_review – Ready for review: Implemented error logging with Manus pattern. All 5 subtasks complete (T036-T040). ErrorEvent dataclass, ErrorStorage with daily JSONL files, AOP decorators, and error logging integrated into move_task validation failures. Best-effort pattern ensures operations not blocked if logging fails.
 - 2026-01-30T16:31:06Z – claude-wp07-final-reviewer – shell_pid=27285 – lane=doing – Started review via workflow command
 - 2026-01-30T16:31:49Z – claude-wp07-final-reviewer – shell_pid=27285 – lane=done – Review passed: ErrorEvent dataclass implemented, ErrorStorage with daily JSONL logging, AOP decorators for error storage, validation error logging integrated into move-task. Manus pattern complete. Final WP approved!

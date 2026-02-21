@@ -27,7 +27,6 @@ history:
 
 **Issue 1**: Resolved conflicts stay in `context.conflicts` whenever only a subset is deferred. In `ClarificationMiddleware.process` (src/specify_cli/glossary/middleware.py:546-596) the list is only cleared when *all* conflicts are resolved; otherwise the original list (including already-resolved items) is returned. The spec says that after mixed outcomes, `context.conflicts` must contain only the remaining deferred conflicts. Keeping resolved conflicts means they will be re-rendered/re-prompted and double-counted in later middleware passes, and the deferred count no longer mirrors the actual pending set. **Fix**: Build an explicit `deferred_conflicts` list (includes beyond `max_questions` and any user-deferred) and set `context.conflicts = deferred_conflicts`; update `deferred_conflicts_count` to `len(deferred_conflicts)`, and adjust the mixed-resolution tests in `tests/specify_cli/glossary/test_clarification.py` to expect only deferred conflicts to remain.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -37,6 +36,7 @@ history:
 **Primary Objective**: Implement the interactive clarification UI that renders ranked candidate senses with Rich formatting, prompts users with Typer for conflict resolution (select candidate, custom sense, or defer), supports non-interactive mode for CI environments, and orchestrates the full clarification flow via ClarificationMiddleware.
 
 **Success Criteria**:
+
 1. Conflicts are rendered as Rich tables with color-coded severity (red=high, yellow=medium, blue=low).
 2. Ranked candidates are displayed in scope precedence order (mission_local → team_domain → audience_domain → spec_kitty_core), then by confidence.
 3. Typer prompts accept 1-N (select candidate), C (custom sense), D (defer to async) with input validation.
@@ -48,6 +48,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` FR-008: System MUST show interactive clarification prompts with 1-3 questions maximum, prioritized by severity
 - `spec.md` FR-009: System MUST allow users to defer conflict resolution to async mode
 - `spec.md` FR-017: System MUST present ranked candidate senses during clarification (ordered by scope precedence, then confidence)
@@ -57,11 +58,13 @@ history:
 - `contracts/events.md` GlossaryClarificationRequested, GlossaryClarificationResolved, GlossarySenseUpdated event schemas
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01 provides `glossary/models.py` with SemanticConflict, TermSense, TermSurface, Severity enums
 - WP04 provides `glossary/conflict.py` with conflict detection and candidate scoring
 - WP05 provides `glossary/middleware.py` with GenerationGateMiddleware that raises `BlockedByConflict` exception
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - Existing dependencies only: typer (CLI), rich (console output) - no new packages
 - Prompts must be limited to 3 questions maximum per burst (spec.md SC-008)
@@ -78,9 +81,11 @@ history:
 **Purpose**: Build the Rich-based rendering system that displays semantic conflicts as formatted tables with color-coded severity, ranked candidate senses, and contextual usage information.
 
 **Steps**:
+
 1. Create `src/specify_cli/glossary/rendering.py`.
 
 2. Define severity color mapping:
+
    ```python
    from rich.console import Console
    from rich.table import Table
@@ -101,6 +106,7 @@ history:
    ```
 
 3. Implement conflict rendering function:
+
    ```python
    def render_conflict(
        console: Console,
@@ -158,6 +164,7 @@ history:
    ```
 
 4. Implement batch rendering with question limit:
+
    ```python
    def render_conflict_batch(
        console: Console,
@@ -203,10 +210,12 @@ history:
 5. Export from `glossary/__init__.py`: `render_conflict`, `render_conflict_batch`.
 
 **Files**:
+
 - `src/specify_cli/glossary/rendering.py` (new file, ~120 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] `render_conflict()` displays severity icon, color, term, context, and candidates
 - [ ] Candidate table shows scope, definition, confidence in ranked order
 - [ ] Panel border color matches severity (red=high, yellow=medium, blue=low)
@@ -216,6 +225,7 @@ history:
 - [ ] Rich output renders correctly in terminal (no formatting errors)
 
 **Edge Cases**:
+
 - Conflict has 0 candidates: render panel with "(No candidates available)" message
 - Conflict has 1 candidate: render table with single row (valid for auto-resolution)
 - Conflict has 10+ candidates: all are shown in table (no truncation at candidate level, only at conflict level)
@@ -230,9 +240,11 @@ history:
 **Purpose**: Implement the Typer-based prompt system that collects user clarification choices (select 1-N, custom sense, defer) with input validation and error handling.
 
 **Steps**:
+
 1. Create `src/specify_cli/glossary/prompts.py`.
 
 2. Define prompt choice enum:
+
    ```python
    from enum import StrEnum
    import typer
@@ -245,6 +257,7 @@ history:
    ```
 
 3. Implement candidate selection prompt:
+
    ```python
    def prompt_conflict_resolution(
        conflict: SemanticConflict,
@@ -333,6 +346,7 @@ history:
    ```
 
 4. Add confirmation prompt for context changes:
+
    ```python
    def prompt_context_change_confirmation(
        old_hash: str,
@@ -362,10 +376,12 @@ history:
 5. Export from `glossary/__init__.py`: `prompt_conflict_resolution`, `prompt_context_change_confirmation`.
 
 **Files**:
+
 - `src/specify_cli/glossary/prompts.py` (new file, ~100 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] Prompt displays all options (1-N, C, D) based on candidate count
 - [ ] Selecting 1-N returns (SELECT_CANDIDATE, 0-indexed candidate index)
 - [ ] Selecting C prompts for custom definition and returns (CUSTOM_SENSE, definition)
@@ -376,6 +392,7 @@ history:
 - [ ] Context change confirmation shows hash comparison and prompts for yes/no
 
 **Edge Cases**:
+
 - User enters lowercase ("c", "d"): converted to uppercase before processing
 - User enters whitespace around input ("  2  "): stripped before validation
 - User enters "0" when candidates exist: rejected as out of range
@@ -390,7 +407,9 @@ history:
 **Purpose**: Implement detection for non-interactive environments (CI pipelines, automated scripts) and provide auto-defer behavior to prevent blocking.
 
 **Steps**:
+
 1. Add non-interactive detection to `prompts.py`:
+
    ```python
    import sys
    import os
@@ -429,6 +448,7 @@ history:
    ```
 
 2. Add auto-defer function:
+
    ```python
    def auto_defer_conflicts(
        conflicts: list[SemanticConflict],
@@ -448,6 +468,7 @@ history:
    ```
 
 3. Update prompt function to check interactive mode:
+
    ```python
    def prompt_conflict_resolution_safe(
        conflict: SemanticConflict,
@@ -471,6 +492,7 @@ history:
    ```
 
 4. Add logging for non-interactive detection:
+
    ```python
    import logging
 
@@ -485,9 +507,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/prompts.py` (add ~60 lines)
 
 **Validation**:
+
 - [ ] `is_interactive()` returns False when stdin is not a TTY
 - [ ] `is_interactive()` returns False when CI=true env var is set
 - [ ] `is_interactive()` returns False when GITHUB_ACTIONS=true
@@ -498,6 +522,7 @@ history:
 - [ ] Non-interactive message is displayed when auto-deferring
 
 **Edge Cases**:
+
 - Running in pytest (stdin is not a TTY): auto-defers (correct behavior)
 - Running in Docker container with -it flags: interactive (stdin is TTY)
 - Running in cron job: auto-defers (no TTY)
@@ -512,7 +537,9 @@ history:
 **Purpose**: Create the ClarificationMiddleware component that orchestrates conflict rendering, user prompting, glossary updates, and event emission for the full clarification workflow.
 
 **Steps**:
+
 1. Add `ClarificationMiddleware` class to `src/specify_cli/glossary/middleware.py`:
+
    ```python
    from rich.console import Console
    from specify_cli.glossary.rendering import render_conflict_batch
@@ -734,6 +761,7 @@ history:
    ```
 
 2. Add event emission stubs to `events.py` (full implementation in WP08):
+
    ```python
    def emit_clarification_requested(
        conflict_id: str,
@@ -788,10 +816,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/middleware.py` (add ~150 lines)
 - `src/specify_cli/glossary/events.py` (add ~50 lines of stubs)
 
 **Validation**:
+
 - [ ] Middleware renders conflicts with `render_conflict_batch()`
 - [ ] Prompts user for each conflict with `prompt_conflict_resolution_safe()`
 - [ ] Handles SELECT_CANDIDATE: emits resolved event, updates glossary
@@ -803,6 +833,7 @@ history:
 - [ ] Clears context.conflicts if all resolved
 
 **Edge Cases**:
+
 - All conflicts deferred: context.conflicts remains populated (generation still blocked)
 - Some resolved, some deferred: context.conflicts has remaining deferred conflicts
 - User aborts (Ctrl+C) mid-batch: raises typer.Abort, no partial updates
@@ -817,9 +848,11 @@ history:
 **Purpose**: Write comprehensive integration tests that verify the full clarification workflow with mocked Typer prompts and all resolution paths.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_clarification.py`:
 
 2. Implement test fixtures:
+
    ```python
    import pytest
    from unittest.mock import MagicMock, patch
@@ -883,6 +916,7 @@ history:
 3. Write test cases for all resolution paths:
 
    **Test: Select candidate**:
+
    ```python
    @patch("specify_cli.glossary.prompts.prompt_conflict_resolution_safe")
    @patch("specify_cli.glossary.events.emit_clarification_resolved")
@@ -919,6 +953,7 @@ history:
    ```
 
    **Test: Custom sense**:
+
    ```python
    @patch("specify_cli.glossary.prompts.prompt_conflict_resolution_safe")
    @patch("specify_cli.glossary.events.emit_sense_updated")
@@ -958,6 +993,7 @@ history:
    ```
 
    **Test: Defer to async**:
+
    ```python
    @patch("specify_cli.glossary.prompts.prompt_conflict_resolution_safe")
    @patch("specify_cli.glossary.events.emit_clarification_requested")
@@ -990,6 +1026,7 @@ history:
    ```
 
    **Test: Non-interactive mode**:
+
    ```python
    @patch("specify_cli.glossary.prompts.is_interactive", return_value=False)
    @patch("specify_cli.glossary.events.emit_clarification_requested")
@@ -1015,6 +1052,7 @@ history:
    ```
 
    **Test: Max questions capping**:
+
    ```python
    @patch("specify_cli.glossary.prompts.prompt_conflict_resolution_safe")
    @patch("specify_cli.glossary.events.emit_clarification_requested")
@@ -1072,9 +1110,11 @@ history:
    - Event emission failure (logs error, continues)
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_clarification.py` (new file, ~400 lines)
 
 **Validation**:
+
 - [ ] All resolution paths tested (select, custom, defer)
 - [ ] Non-interactive mode tested (auto-defer)
 - [ ] Max questions capping tested
@@ -1085,6 +1125,7 @@ history:
 - [ ] Test coverage >95% on clarification.py
 
 **Edge Cases**:
+
 - User aborts (Ctrl+C): test with `side_effect=typer.Abort`
 - Conflict with very long definition: rendering doesn't crash
 - Multiple conflicts with same term: all are prompted
@@ -1096,6 +1137,7 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/glossary/test_rendering.py`, `test_prompts.py`):
+
 - Test `render_conflict()` with all severity levels
 - Test `render_conflict_batch()` with various conflict counts
 - Test `prompt_conflict_resolution()` with all input types (1-N, C, D)
@@ -1103,6 +1145,7 @@ history:
 - Test `auto_defer_conflicts()` batch deferral
 
 **Integration Tests** (in `tests/specify_cli/glossary/test_clarification.py`):
+
 - Test full `ClarificationMiddleware.process()` workflow
 - Mock Typer prompts to simulate user choices
 - Verify event emission for all paths
@@ -1110,6 +1153,7 @@ history:
 - Test max_questions capping with 5+ conflicts
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/glossary/test_rendering.py -v
@@ -1151,6 +1195,7 @@ python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Rendering is clear and usable**:
    - Severity color-coding is correct (red=high, yellow=medium, blue=low)
    - Candidates are ranked deterministically (scope precedence → confidence)

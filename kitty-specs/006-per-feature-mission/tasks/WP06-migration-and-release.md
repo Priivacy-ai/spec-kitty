@@ -39,6 +39,7 @@ subtasks:
 - Update README with new per-feature mission workflow
 
 **Success Metrics** (from spec):
+
 - SC-006: `spec-kitty upgrade` removes `.kittify/active-mission` files
 - Version shows 0.8.0
 - CHANGELOG documents all breaking changes
@@ -47,17 +48,20 @@ subtasks:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/006-per-feature-mission/spec.md` (Breaking Changes, FR-007)
 - Plan: `kitty-specs/006-per-feature-mission/plan.md` (Phase 5, Phase 6)
 - Quickstart: `kitty-specs/006-per-feature-mission/quickstart.md` (User workflow)
 
 **Files to Modify**:
+
 - `src/specify_cli/cli/commands/upgrade.py` - Upgrade command
 - `CHANGELOG.md` - Release notes
 - `pyproject.toml` - Version number
 - `README.md` - User documentation
 
 **Constraints**:
+
 - Migration must be non-destructive (just removes obsolete files)
 - CHANGELOG should follow existing format
 - README should be updated, not replaced
@@ -71,6 +75,7 @@ subtasks:
 - **Steps**:
   1. Find the upgrade command implementation
   2. Add migration step for v0.8.0:
+
      ```python
      def migrate_to_0_8_0(kittify_dir: Path, console: Console) -> None:
          """Remove deprecated active-mission file/symlink."""
@@ -86,6 +91,7 @@ subtasks:
          else:
              console.print("[dim]No active-mission file found (already migrated or new project)[/dim]")
      ```
+
   3. Register migration in upgrade command's migration list
   4. Ensure migration only runs if version < 0.8.0
 - **Parallel?**: No (core migration logic)
@@ -96,6 +102,7 @@ subtasks:
 - **Files**: `CHANGELOG.md`
 - **Steps**:
   1. Add new section at top of CHANGELOG:
+
      ```markdown
      ## [0.8.0] - 2025-12-XX
 
@@ -130,6 +137,7 @@ subtasks:
      - Remove obsolete `.kittify/active-mission` file
      - No changes required to existing feature specs
      ```
+
   2. Update the date when releasing
 - **Parallel?**: Yes (documentation task)
 
@@ -139,19 +147,25 @@ subtasks:
 - **Files**: `pyproject.toml`
 - **Steps**:
   1. Find version in pyproject.toml:
+
      ```bash
      grep "version" pyproject.toml
      ```
+
   2. Update from current version to 0.8.0:
+
      ```toml
      [project]
      name = "specify-cli"
      version = "0.8.0"
      ```
+
   3. Also update any `__version__` in Python code if present:
+
      ```bash
      grep -r "__version__" src/
      ```
+
 - **Parallel?**: Yes (simple change)
 
 ### Subtask T034 – Update README with new workflow
@@ -161,6 +175,7 @@ subtasks:
 - **Steps**:
   1. Find existing mission documentation section
   2. Update or add section explaining new workflow:
+
      ```markdown
      ## Mission Selection
 
@@ -193,8 +208,10 @@ subtasks:
      ```bash
      spec-kitty mission list
      ```
+
      ```
   3. Remove any documentation about `spec-kitty mission switch` or `--mission` flag on init
+
   4. Update Quick Start section if it mentions mission selection during init
 - **Parallel?**: Yes (documentation task)
 
@@ -204,10 +221,12 @@ subtasks:
 - **Files**: Any other docs referencing missions
 - **Steps**:
   1. Search for other markdown files mentioning missions:
+
      ```bash
      grep -r "mission" --include="*.md" docs/ 2>/dev/null || true
      grep -r "active-mission" --include="*.md" . 2>/dev/null || true
      ```
+
   2. Update any found references to reflect per-feature model
   3. Check for outdated screenshots or examples
   4. Update any developer documentation or contributing guides
@@ -219,42 +238,56 @@ subtasks:
 - **Files**: N/A (testing task)
 - **Steps**:
   1. Create a test project:
+
      ```bash
      mkdir test-project && cd test-project
      spec-kitty init
      ```
+
   2. Test specify with software description:
+
      ```bash
      /spec-kitty.specify "Build a REST API for user management"
      # Verify: software-dev mission suggested and stored
      ```
+
   3. Test specify with research description:
+
      ```bash
      /spec-kitty.specify "Research best practices for API security"
      # Verify: research mission suggested and stored
      ```
+
   4. Test downstream commands:
+
      ```bash
      /spec-kitty.plan
      /spec-kitty.tasks
      ```
+
   5. Test upgrade on project with active-mission:
+
      ```bash
      # Create fake active-mission
      ln -s missions/software-dev .kittify/active-mission
      spec-kitty upgrade
      # Verify: active-mission removed
      ```
+
   6. Test mission list:
+
      ```bash
      spec-kitty mission list
      # Verify: shows Source column
      ```
+
   7. Test deprecated command:
+
      ```bash
      spec-kitty mission switch research
      # Verify: helpful error message
      ```
+
   8. Document any issues found
 - **Parallel?**: No (final validation step)
 

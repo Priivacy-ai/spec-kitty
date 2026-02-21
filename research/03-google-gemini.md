@@ -1,15 +1,17 @@
 # Agent: Google Gemini (Gemini CLI)
 
 ## Basic Info
+
 - **Directory**: `.gemini/`
 - **Primary Interface**: CLI
 - **Vendor**: Google
-- **Documentation**: https://developers.google.com/gemini-code-assist/docs/gemini-cli
-- **GitHub**: https://github.com/google-gemini/gemini-cli
+- **Documentation**: <https://developers.google.com/gemini-code-assist/docs/gemini-cli>
+- **GitHub**: <https://github.com/google-gemini/gemini-cli>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # NPX (no installation required)
 npx @google/gemini-cli
@@ -24,6 +26,7 @@ brew install gemini-cli
 **Prerequisites**: Node.js 20 or higher
 
 ### Verification
+
 ```bash
 which gemini
 gemini --version
@@ -31,6 +34,7 @@ gemini --help
 ```
 
 ### Local Test Results
+
 ```bash
 $ which gemini
 /opt/homebrew/bin/gemini
@@ -52,6 +56,7 @@ $ echo 'print("Hello")' | gemini -p "What does this code do?" --output-format js
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument (`gemini "your prompt"` or `gemini -p "prompt"`)
 - [x] Stdin (`echo "code" | gemini`)
 - [x] Stdin + prompt combined (`cat file.md | gemini -p "analyze"`)
@@ -59,6 +64,7 @@ $ echo 'print("Hello")' | gemini -p "What does this code do?" --output-format js
 - [ ] Environment variable
 
 ### Example Invocation
+
 ```bash
 # One-shot headless execution
 gemini "Write a function to reverse a string in Python" --output-format json
@@ -77,6 +83,7 @@ gemini "Implement a REST API" --output-format stream-json
 ```
 
 ### Context Handling
+
 - Automatically indexes the current working directory
 - Respects `.gitignore` patterns
 - Uses `AGENTS.md` or `.gemini/AGENTS.md` for project-specific instructions
@@ -87,6 +94,7 @@ gemini "Implement a REST API" --output-format stream-json
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
@@ -96,12 +104,14 @@ gemini "Implement a REST API" --output-format stream-json
 | 130 | FatalCancellationError - User cancelled (e.g., trust dialog) |
 
 ### Output Format
+
 - [x] Stdout (plain text) - default
 - [x] Stdout (JSON) - `--output-format json`
 - [x] Streaming JSONL - `--output-format stream-json`
 - [x] Structured logs (stats, tool calls, token usage in JSON)
 
 **JSON Output Structure**:
+
 ```json
 {
   "session_id": "uuid",
@@ -123,6 +133,7 @@ gemini "Implement a REST API" --output-format stream-json
 ## Parallel Execution
 
 ### Rate Limits
+
 | Auth Method | Rate Limit |
 |-------------|------------|
 | Google Account (OAuth) | 60 requests/min, 1,000 requests/day |
@@ -131,12 +142,14 @@ gemini "Implement a REST API" --output-format stream-json
 | Gemini Code Assist Enterprise | Enterprise-grade limits |
 
 ### Concurrent Sessions
+
 - Multiple CLI instances can run in parallel in separate directories
 - Each session gets a unique `session_id`
 - No shared state between instances
 - Workspace isolation via `--include-directories`
 
 ### Resource Requirements
+
 - 1M token context window (Gemini 2.5 Pro)
 - Tools: file operations, shell commands, web fetch, Google Search grounding
 - MCP server support for custom integrations
@@ -144,6 +157,7 @@ gemini "Implement a REST API" --output-format stream-json
 ## Authentication
 
 ### Option 1: Google Account (OAuth) - Recommended
+
 ```bash
 # Interactive login
 gemini
@@ -152,12 +166,14 @@ gemini
 ```
 
 ### Option 2: API Key
+
 ```bash
 # Generate key at https://aistudio.google.com/apikey
 export GEMINI_API_KEY="your-api-key-here"
 ```
 
 ### Option 3: Vertex AI (Enterprise)
+
 ```bash
 export GOOGLE_API_KEY="your-api-key"
 export GOOGLE_GENAI_USE_VERTEXAI=true
@@ -165,12 +181,14 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"  # Optional
 ```
 
 ### Option 4: Gemini Code Assist License
+
 ```bash
 export GOOGLE_GENAI_USE_GCA=true
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 ```
 
 **Environment Variables**:
+
 - `GEMINI_API_KEY` - Direct API key
 - `GOOGLE_API_KEY` - Google Cloud API key
 - `GOOGLE_GENAI_USE_VERTEXAI` - Enable Vertex AI backend
@@ -180,9 +198,11 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Capabilities
+
 - **Headless execution**: Full support with `-p` flag
 - **JSON output**: Structured parsing with `--output-format json`
 - **Streaming**: Real-time progress with `--output-format stream-json`
@@ -191,16 +211,19 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 - **Session management**: `--resume` flag for session continuity
 
 ### Limitations
+
 - Requires authentication setup (OAuth or API key)
 - Rate limits on free tier (60/min, 1000/day)
 - 1M token context limit
 
 ### Integration Complexity
+
 **Low** - Full CLI with headless mode, JSON output, and well-documented exit codes
 
 ## Advanced Features
 
 ### MCP Server Support
+
 ```bash
 # List configured MCP servers
 gemini mcp list
@@ -213,6 +236,7 @@ gemini --allowed-mcp-server-names server1,server2 "your prompt"
 ```
 
 ### Extensions
+
 ```bash
 # List extensions
 gemini --list-extensions
@@ -222,6 +246,7 @@ gemini -e extension1,extension2 "your prompt"
 ```
 
 ### Approval Modes
+
 - `default` - Prompt for each action
 - `auto_edit` - Auto-approve file edits only
 - `yolo` - Auto-approve everything
@@ -250,6 +275,7 @@ echo "$response"
 ```
 
 ## Sources
+
 - [Gemini CLI Documentation](https://developers.google.com/gemini-code-assist/docs/gemini-cli)
 - [Headless Mode Guide](https://google-gemini.github.io/gemini-cli/docs/cli/headless.html)
 - [GitHub Repository](https://github.com/google-gemini/gemini-cli)

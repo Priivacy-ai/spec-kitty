@@ -5,6 +5,7 @@
 This document specifies the functional tests required to lock in the encoding validation and plan validation guardrails implemented in PR #XXX.
 
 **Target Test Files:**
+
 - `tests/test_encoding_validation_functional.py` (new)
 - `tests/test_plan_validation_functional.py` (new)
 - `tests/test_dashboard_encoding_resilience.py` (new)
@@ -21,6 +22,7 @@ This document specifies the functional tests required to lock in the encoding va
 **Objective:** Verify sanitizer detects all 15+ problematic character types
 
 **Setup:**
+
 ```python
 test_content = """
 User's "favorite" feature
@@ -38,12 +40,14 @@ Non breaking space (invisible)
 ```
 
 **Expected Behavior:**
+
 1. `detect_problematic_characters(test_content)` returns at least 15 issues
 2. Each issue tuple contains: `(line_number, column, character, replacement)`
 3. Line numbers are 1-indexed
 4. Replacements match `PROBLEMATIC_CHARS` mapping
 
 **Assertions:**
+
 ```python
 issues = detect_problematic_characters(test_content)
 assert len(issues) >= 15
@@ -58,18 +62,21 @@ assert any(char == '\u00d7' and repl == "x" for _, _, char, repl in issues)  # M
 **Objective:** Verify sanitization replaces characters without corrupting text
 
 **Setup:**
+
 ```python
 original = "User's "favorite" feature costs $100 ± $10 at 72°F"
 expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degrees F'
 ```
 
 **Expected Behavior:**
+
 1. `sanitize_markdown_text(original)` returns expected
 2. No extra whitespace added
 3. No content lost
 4. Idempotent (running twice produces same result)
 
 **Assertions:**
+
 ```python
 result = sanitize_markdown_text(original)
 assert result == expected
@@ -82,6 +89,7 @@ assert sanitize_markdown_text(result) == expected
 **Objective:** Verify file sanitization creates .bak file before modifying
 
 **Setup:**
+
 ```python
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -92,12 +100,14 @@ with TemporaryDirectory() as tmpdir:
 ```
 
 **Expected Behavior:**
+
 1. `sanitize_file(test_file, backup=True)` returns `(True, None)`
 2. Backup file `test.md.bak` exists
 3. Backup contains original content
 4. Main file contains sanitized content
 
 **Assertions:**
+
 ```python
 was_modified, error = sanitize_file(test_file, backup=True, dry_run=False)
 assert was_modified is True
@@ -114,6 +124,7 @@ assert test_file.read_text() == "User's test"
 **Objective:** Verify sanitizer can read and fix Windows-1252 encoded files
 
 **Setup:**
+
 ```python
 # Write file with Windows-1252 encoding
 bad_content = "User's "test""
@@ -128,11 +139,13 @@ except UnicodeDecodeError:
 ```
 
 **Expected Behavior:**
+
 1. `sanitize_file(test_file)` returns `(True, None)`
 2. File is now valid UTF-8
 3. Smart quotes replaced with ASCII
 
 **Assertions:**
+
 ```python
 was_modified, error = sanitize_file(test_file, backup=True, dry_run=False)
 assert was_modified is True
@@ -148,6 +161,7 @@ assert fixed_content == 'User\'s "test"'
 **Objective:** Verify directory sanitization finds all .md files recursively
 
 **Setup:**
+
 ```python
 with TemporaryDirectory() as tmpdir:
     base = Path(tmpdir)
@@ -166,11 +180,13 @@ with TemporaryDirectory() as tmpdir:
 ```
 
 **Expected Behavior:**
+
 1. `sanitize_directory(base, pattern="**/*.md")` finds all 3 files
 2. All files sanitized
 3. No false positives (e.g., .txt files)
 
 **Assertions:**
+
 ```python
 results = sanitize_directory(base, pattern="**/*.md", backup=False, dry_run=False)
 assert len(results) == 3
@@ -186,6 +202,7 @@ for f in files:
 **Objective:** Verify dry_run=True detects issues without modifying files
 
 **Setup:**
+
 ```python
 test_file.write_text("User's test")
 original_content = test_file.read_text()
@@ -193,12 +210,14 @@ original_mtime = test_file.stat().st_mtime
 ```
 
 **Expected Behavior:**
+
 1. `sanitize_file(test_file, dry_run=True)` returns `(True, None)`
 2. File content unchanged
 3. File mtime unchanged
 4. No backup created
 
 **Assertions:**
+
 ```python
 was_modified, error = sanitize_file(test_file, backup=True, dry_run=True)
 assert was_modified is True  # Would modify
@@ -220,6 +239,7 @@ assert not test_file.with_suffix(test_file.suffix + '.bak').exists()
 **Objective:** Verify command exits 0 when no issues found
 
 **Setup:**
+
 ```python
 from typer.testing import CliRunner
 from specify_cli import app
@@ -232,11 +252,13 @@ feature_dir.mkdir(parents=True)
 ```
 
 **Expected Behavior:**
+
 1. Command exits with code 0
 2. Output contains "✓ All files are properly UTF-8 encoded!"
 3. No fixes applied
 
 **Assertions:**
+
 ```python
 runner = CliRunner()
 result = runner.invoke(app, ["validate-encoding", "--feature", "001-test-feature"])
@@ -249,17 +271,20 @@ assert "✓ All files are properly UTF-8 encoded!" in result.stdout
 **Objective:** Verify command exits 1 when issues found and --fix not specified
 
 **Setup:**
+
 ```python
 (feature_dir / "bad.md").write_text("User's test")
 ```
 
 **Expected Behavior:**
+
 1. Command exits with code 1
 2. Output shows table of files with issues
 3. Output shows example problematic characters with line numbers
 4. Suggests running with --fix
 
 **Assertions:**
+
 ```python
 result = runner.invoke(app, ["validate-encoding", "--feature", "001-test-feature"])
 assert result.exit_code == 1
@@ -274,18 +299,21 @@ assert "--fix" in result.stdout  # Suggests fix
 **Objective:** Verify --fix flag repairs files and creates backups
 
 **Setup:**
+
 ```python
 bad_file = feature_dir / "broken.md"
 bad_file.write_text("User's "test"")
 ```
 
 **Expected Behavior:**
+
 1. Command exits with code 0
 2. Output shows "Fixed" status
 3. File sanitized
 4. Backup created
 
 **Assertions:**
+
 ```python
 result = runner.invoke(app, ["validate-encoding", "--feature", "001-test-feature", "--fix"])
 assert result.exit_code == 0
@@ -306,16 +334,19 @@ assert backup.read_text() == "User's "test""
 **Objective:** Verify --no-backup flag skips backup creation
 
 **Setup:**
+
 ```python
 bad_file.write_text("User's test")
 ```
 
 **Expected Behavior:**
+
 1. Command exits 0
 2. File fixed
 3. No backup created
 
 **Assertions:**
+
 ```python
 result = runner.invoke(app, [
     "validate-encoding",
@@ -333,6 +364,7 @@ assert not bad_file.with_suffix(".md.bak").exists()
 **Objective:** Verify --all flag scans multiple features
 
 **Setup:**
+
 ```python
 for i in range(1, 4):
     feat_dir = tmp_path / "kitty-specs" / f"00{i}-feature"
@@ -341,11 +373,13 @@ for i in range(1, 4):
 ```
 
 **Expected Behavior:**
+
 1. Scans all 3 features
 2. Reports total issues
 3. Can fix all with --fix
 
 **Assertions:**
+
 ```python
 result = runner.invoke(app, ["validate-encoding", "--all"])
 assert result.exit_code == 1
@@ -367,6 +401,7 @@ assert result.exit_code == 0
 **Objective:** Verify dashboard auto-fixes encoding errors on read
 
 **Setup:**
+
 ```python
 from specify_cli.dashboard.scanner import read_file_resilient
 
@@ -375,12 +410,14 @@ bad_file.write_bytes("User's test".encode('cp1252'))
 ```
 
 **Expected Behavior:**
+
 1. `read_file_resilient(bad_file, auto_fix=True)` returns `(content, None)`
 2. Content is valid string with sanitized characters
 3. File is fixed on disk
 4. Backup created
 
 **Assertions:**
+
 ```python
 content, error = read_file_resilient(bad_file, auto_fix=True)
 assert content is not None
@@ -399,17 +436,20 @@ assert bad_file.with_suffix('.md.bak').exists()
 **Objective:** Verify non-auto-fix mode returns clear error message
 
 **Setup:**
+
 ```python
 bad_file.write_bytes("User's test".encode('cp1252'))
 ```
 
 **Expected Behavior:**
+
 1. `read_file_resilient(bad_file, auto_fix=False)` returns `(None, error_msg)`
 2. Error message contains file name
 3. Error message contains byte offset
 4. Error message suggests fix command
 
 **Assertions:**
+
 ```python
 content, error = read_file_resilient(bad_file, auto_fix=False)
 assert content is None
@@ -424,6 +464,7 @@ assert "spec-kitty validate-encoding" in error
 **Objective:** Verify dashboard creates error card for broken files instead of crashing
 
 **Setup:**
+
 ```python
 from specify_cli.dashboard.scanner import scan_feature_kanban
 
@@ -441,6 +482,7 @@ work_package_id: WP01
 ```
 
 **Expected Behavior:**
+
 1. Scanner doesn't crash
 2. Returns lanes dict with error card in planned lane
 3. Error card has `encoding_error: True` flag
@@ -448,6 +490,7 @@ work_package_id: WP01
 5. Error card markdown contains error description
 
 **Assertions:**
+
 ```python
 lanes = scan_feature_kanban(tmp_path, "001-test")
 assert "planned" in lanes
@@ -465,17 +508,20 @@ assert "Encoding Error" in error_card["prompt_markdown"]
 **Objective:** Verify auto-fix allows successful load after initial error
 
 **Setup:**
+
 ```python
 # Same as 3.3 but verify successful load after auto-fix
 ```
 
 **Expected Behavior:**
+
 1. First call auto-fixes file
 2. Card loaded successfully (not error card)
 3. Content properly parsed
 4. Frontmatter extracted
 
 **Assertions:**
+
 ```python
 lanes = scan_feature_kanban(tmp_path, "001-test")
 task = lanes["planned"][0]
@@ -495,6 +541,7 @@ assert "User's Test" in task["title"]  # Fixed smart quote
 **Objective:** Verify /spec-kitty.research blocks when plan.md is template
 
 **Setup:**
+
 ```python
 from specify_cli.cli.commands.research import research
 from typer.testing import CliRunner
@@ -518,6 +565,7 @@ ACTION REQUIRED: Replace the content
 ```
 
 **Expected Behavior:**
+
 1. Command exits with code 1
 2. Output contains "appears to be unfilled"
 3. Output shows count of template markers
@@ -525,6 +573,7 @@ ACTION REQUIRED: Replace the content
 5. No research artifacts created
 
 **Assertions:**
+
 ```python
 runner = CliRunner()
 result = runner.invoke(research_command, ["--feature", "001-test"])
@@ -540,6 +589,7 @@ assert not (feature_dir / "research.md").exists()
 **Objective:** Verify research proceeds when plan is properly filled
 
 **Setup:**
+
 ```python
 plan_file.write_text("""
 # Implementation Plan: User Auth System
@@ -557,11 +607,13 @@ backend/
 ```
 
 **Expected Behavior:**
+
 1. Command exits 0
 2. Research artifacts created
 3. No validation errors
 
 **Assertions:**
+
 ```python
 result = runner.invoke(research_command, ["--feature", "001-test"])
 assert result.exit_code == 0
@@ -574,17 +626,20 @@ assert (feature_dir / "data-model.md").exists()
 **Objective:** Verify prerequisite check script blocks tasks generation
 
 **Setup:**
+
 ```bash
 # Create feature with template plan (same as 4.1)
 ```
 
 **Expected Behavior:**
+
 1. `check-prerequisites.sh --include-tasks` exits non-zero
 2. stderr contains "plan.md appears to be unfilled"
 3. stderr shows marker count
 4. stderr provides remediation steps
 
 **Assertions:**
+
 ```python
 import subprocess
 
@@ -605,16 +660,19 @@ assert "/spec-kitty.plan" in result.stderr
 **Objective:** Verify tasks proceeds with properly filled plan
 
 **Setup:**
+
 ```python
 # Use filled plan from 4.2
 ```
 
 **Expected Behavior:**
+
 1. Script exits 0
 2. JSON output includes FEATURE_DIR
 3. JSON output includes plan.md in validation
 
 **Assertions:**
+
 ```python
 result = subprocess.run(
     [".kittify/scripts/bash/check-prerequisites.sh", "--include-tasks", "--json"],
@@ -632,6 +690,7 @@ assert "FEATURE_DIR" in output
 **Objective:** Verify 5-marker threshold works correctly
 
 **Setup:**
+
 ```python
 # Create plan with exactly 4 markers (should pass)
 plan_4_markers = """
@@ -652,11 +711,13 @@ plan_5_markers = plan_4_markers + """
 ```
 
 **Expected Behavior:**
+
 1. 4 markers → validation passes
 2. 5 markers → validation fails
 3. Threshold is configurable
 
 **Assertions:**
+
 ```python
 from specify_cli.plan_validation import detect_unfilled_plan
 
@@ -682,6 +743,7 @@ assert len(markers) == 5
 **Objective:** Verify pre-commit hook blocks commits with encoding errors
 
 **Setup:**
+
 ```python
 import subprocess
 import os
@@ -713,12 +775,14 @@ subprocess.run(["git", "add", "test.md"], check=True)
 ```
 
 **Expected Behavior:**
+
 1. `git commit` fails
 2. Error message shows "Encoding errors detected"
 3. Error shows file name and line number
 4. Suggests fix command
 
 **Assertions:**
+
 ```python
 result = subprocess.run(
     ["git", "commit", "-m", "Test commit"],
@@ -736,6 +800,7 @@ assert "spec-kitty validate-encoding" in result.stderr or result.stdout
 **Objective:** Verify hook passes for properly encoded files
 
 **Setup:**
+
 ```python
 # Clean repo from 5.1
 clean_file = git_repo / "clean.md"
@@ -744,10 +809,12 @@ subprocess.run(["git", "add", "clean.md"], check=True)
 ```
 
 **Expected Behavior:**
+
 1. `git commit` succeeds
 2. Output shows "✓ All staged markdown files are properly UTF-8 encoded"
 
 **Assertions:**
+
 ```python
 result = subprocess.run(
     ["git", "commit", "-m", "Clean commit"],
@@ -763,6 +830,7 @@ assert "properly UTF-8 encoded" in result.stdout or result.stderr
 **Objective:** Verify hook only checks .md files
 
 **Setup:**
+
 ```python
 # Stage mixed files
 (git_repo / "code.py").write_text("print('User's test')")  # Bad chars in Python OK
@@ -771,11 +839,13 @@ subprocess.run(["git", "add", "."], check=True)
 ```
 
 **Expected Behavior:**
+
 1. Hook only validates .md files
 2. Python file ignored (even with smart quotes)
 3. Commit succeeds if markdown clean
 
 **Assertions:**
+
 ```python
 result = subprocess.run(
     ["git", "commit", "-m", "Mixed files"],
@@ -790,6 +860,7 @@ assert result.returncode == 0
 **Objective:** Verify git commit --no-verify bypasses hook
 
 **Setup:**
+
 ```python
 bad_file = git_repo / "bad.md"
 bad_file.write_text("User's test")
@@ -797,10 +868,12 @@ subprocess.run(["git", "add", "bad.md"], check=True)
 ```
 
 **Expected Behavior:**
+
 1. `git commit --no-verify` succeeds
 2. Hook not executed
 
 **Assertions:**
+
 ```python
 result = subprocess.run(
     ["git", "commit", "--no-verify", "-m", "Bypass hook"],
@@ -821,12 +894,14 @@ assert result.returncode == 0
 **Objective:** Test complete workflow from detection to fix to dashboard
 
 **Scenario:**
+
 1. Create feature with Windows-1252 encoded files
 2. Dashboard scanner detects and auto-fixes
 3. CLI validation confirms clean
 4. Pre-commit hook allows commit
 
 **Assertions:**
+
 ```python
 # 1. Create bad files
 feature_dir = setup_feature_with_bad_encoding()
@@ -849,6 +924,7 @@ assert commit_result.returncode == 0
 **Objective:** Test complete plan validation workflow
 
 **Scenario:**
+
 1. Create feature with template plan
 2. Research command blocks
 3. Fill in plan
@@ -856,6 +932,7 @@ assert commit_result.returncode == 0
 5. Tasks command proceeds
 
 **Assertions:**
+
 ```python
 # 1. Template plan
 plan_file.write_text(TEMPLATE_PLAN)
@@ -881,11 +958,13 @@ assert result.returncode == 0
 **Objective:** Verify validation handles mixed state across features
 
 **Scenario:**
+
 1. Feature 001: clean encoding, filled plan
 2. Feature 002: bad encoding, filled plan
 3. Feature 003: clean encoding, template plan
 
 **Assertions:**
+
 ```python
 # All-features scan shows correct counts
 result = runner.invoke(app, ["validate-encoding", "--all"])
@@ -905,12 +984,14 @@ assert result.exit_code == 1
 ## Test Coverage Requirements
 
 **Minimum Coverage Targets:**
+
 - `src/specify_cli/text_sanitization.py`: **95%**
 - `src/specify_cli/plan_validation.py`: **95%**
 - `src/specify_cli/cli/commands/validate_encoding.py`: **85%**
 - `src/specify_cli/dashboard/scanner.py` (encoding portions): **90%**
 
 **Critical Paths (Must Be 100%):**
+
 - Character mapping in `PROBLEMATIC_CHARS`
 - Backup file creation
 - Plan marker detection
@@ -921,11 +1002,13 @@ assert result.exit_code == 1
 ## Performance Requirements
 
 ### Encoding Validation
+
 - Single file validation: **< 50ms** (for 10KB file)
 - Directory scan (100 files): **< 2 seconds**
 - Dashboard auto-fix: **< 200ms** (first-time per file)
 
 ### Plan Validation
+
 - Template detection: **< 20ms** (for typical plan.md)
 - Research command gate: **< 100ms** total overhead
 
@@ -933,7 +1016,7 @@ assert result.exit_code == 1
 
 ## Error Case Testing
 
-### Must Test These Failure Modes:
+### Must Test These Failure Modes
 
 1. **Binary file mistaken as markdown**
    - Verify sanitizer handles gracefully
@@ -995,6 +1078,7 @@ assert result.exit_code == 1
 ## Acceptance Criteria
 
 **All tests must:**
+
 - ✅ Run in CI/CD pipeline
 - ✅ Complete in < 30 seconds total
 - ✅ Be deterministic (no flaky tests)
@@ -1005,6 +1089,7 @@ assert result.exit_code == 1
 - ✅ Have descriptive names matching test IDs above
 
 **Test execution:**
+
 ```bash
 # Run all encoding/plan tests
 pytest tests/test_encoding_validation_functional.py -v
@@ -1038,18 +1123,21 @@ pytest tests/ -k "encoding or plan" -x  # Stop on first failure
 ## Test Maintenance Notes
 
 **When adding new problematic characters:**
+
 1. Update `PROBLEMATIC_CHARS` in `text_sanitization.py`
 2. Add test case in Test 1.1
 3. Update AGENTS.md examples
 4. Add to pre-commit hook detection
 
 **When changing plan template:**
+
 1. Update marker list in `plan_validation.py`
 2. Update Test 4.5 threshold tests
 3. Update bash script markers
 4. Regenerate test fixtures
 
 **When modifying dashboard scanner:**
+
 1. Verify Test 3.3 still creates error cards
 2. Verify Test 3.4 auto-fix still works
 3. Check performance benchmarks

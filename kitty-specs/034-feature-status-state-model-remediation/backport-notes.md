@@ -47,10 +47,12 @@ cherry-picks would be fragile. Instead:
 1. **After feature merge to 2.x**: All WP commits are on 2.x.
 2. **Create backport branch from main**: `git checkout -b backport/034-status-engine main`
 3. **Cherry-pick the relevant files** using `git checkout 2.x -- <paths>`:
+
    ```bash
    git checkout 2.x -- src/specify_cli/status/
    git checkout 2.x -- tests/specify_cli/status/
    ```
+
 4. **Add missing dependency**: Update pyproject.toml to include `python-ulid`.
 5. **Run tests on backport branch**: `pytest tests/specify_cli/status/ -x -q`
 6. **Verify branch detection**: `is_01x_branch()` must return True on main.
@@ -59,6 +61,7 @@ cherry-picks would be fragile. Instead:
 ### Files to Backport
 
 **Source code** (all files in `src/specify_cli/status/`):
+
 - `__init__.py` - Package init with public API
 - `models.py` - Lane enum, StatusEvent, StatusSnapshot, evidence dataclasses
 - `transitions.py` - State machine matrix, guards, validation
@@ -73,6 +76,7 @@ cherry-picks would be fragile. Instead:
 - `migrate.py` - Legacy frontmatter-to-event-log migration
 
 **Tests** (all files in `tests/specify_cli/status/`):
+
 - `conftest.py` - Shared fixtures
 - `test_models.py`
 - `test_transitions.py`

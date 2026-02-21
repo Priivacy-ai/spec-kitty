@@ -11,6 +11,7 @@ The Spec Kitty test suite ensures code quality and prevents regressions through 
 Tests always run against the current source code in `src/`, never against a pip-installed version of spec-kitty-cli. This prevents version mismatches that can cause spurious failures.
 
 **Key Design Principles:**
+
 1. **Isolation**: Tests create isolated environments that block host package interference
 2. **Consistency**: Same test behavior locally and in CI
 3. **Fail-Fast**: Configuration errors are caught immediately with clear messages
@@ -27,6 +28,7 @@ pytest tests/unit/ -v
 ```
 
 **Characteristics:**
+
 - Test individual functions and classes
 - Fast execution (< 1s total)
 - No external dependencies
@@ -41,6 +43,7 @@ pytest tests/integration/ -v
 ```
 
 **Characteristics:**
+
 - Test CLI commands end-to-end
 - Use git operations and file system
 - Test version checking, migrations, and workflows
@@ -56,6 +59,7 @@ pytest tests/test_version_detection.py -v
 ```
 
 **Characteristics:**
+
 - Test complete features (encoding, version detection, dashboard)
 - Mix of unit and integration approaches
 - Feature-focused organization
@@ -159,14 +163,17 @@ Both CI workflows verify version consistency before running tests:
 #### Core Fixtures
 
 **`isolated_env`** - Environment dictionary with isolation settings
+
 - Used by: All integration tests (via `run_cli`)
 - Sets: PYTHONPATH, version overrides, test mode, template root
 
 **`run_cli`** - Execute CLI commands in isolated environment
+
 - Used by: All integration tests that invoke CLI
 - Returns: subprocess.CompletedProcess with stdout/stderr
 
 **`test_project`** - Create temporary Spec Kitty project with git
+
 - Used by: Integration tests needing a project
 - Creates: .kittify/, git repo, missions, metadata
 
@@ -196,6 +203,7 @@ run_cli_subprocess()      # Low-level CLI execution with isolation
 **Cause**: Installed spec-kitty-cli version doesn't match source
 
 **Solution**:
+
 ```bash
 pip uninstall spec-kitty-cli -y
 pytest
@@ -208,6 +216,7 @@ pytest
 **Cause**: Test is not using `isolated_env` or `run_cli` fixture
 
 **Solution**: Use the proper fixtures for integration tests:
+
 ```python
 def test_my_command(run_cli, test_project):
     result = run_cli(test_project, "my-command")
@@ -229,6 +238,7 @@ def test_my_command(run_cli, test_project):
 **Cause**: Local environment has cached files or different state
 
 **Solution**: Test in clean virtualenv:
+
 ```bash
 python -m venv test-venv
 source test-venv/bin/activate  # On Windows: test-venv\Scripts\activate
@@ -247,26 +257,31 @@ pytest
 ### Debugging Tips
 
 **View full test output**:
+
 ```bash
 pytest -vv --tb=long
 ```
 
 **Run with print statements visible**:
+
 ```bash
 pytest -s
 ```
 
 **Debug specific test with pdb**:
+
 ```bash
 pytest --pdb tests/integration/test_mission_cli.py::test_mission_list
 ```
 
 **Check which fixtures are used**:
+
 ```bash
 pytest --fixtures
 ```
 
 **See test setup/teardown**:
+
 ```bash
 pytest --setup-show
 ```
@@ -336,6 +351,7 @@ def test_cli_uses_source_version(run_cli, test_project):
 #### Release Readiness (`.github/workflows/release-readiness.yml`)
 
 Runs on PRs to `main`:
+
 1. Install dependencies (`pip install -e .[test]`)
 2. **Verify test isolation** (new step!)
 3. Run pytest
@@ -345,6 +361,7 @@ Runs on PRs to `main`:
 #### Release (`.github/workflows/release.yml`)
 
 Runs on git tags (`v*.*.*`):
+
 1. Install dependencies
 2. **Verify test isolation** (new step!)
 3. Run pytest
@@ -370,6 +387,7 @@ This script checks that installed version matches source, catching version drift
 ### Current Coverage
 
 Run coverage report:
+
 ```bash
 pytest --cov=specify_cli --cov-report=html
 open htmlcov/index.html  # View in browser
@@ -387,6 +405,7 @@ open htmlcov/index.html  # View in browser
 ### Version Isolation (`tests/integration/test_version_isolation.py`)
 
 Comprehensive tests ensuring isolation system works:
+
 - Source version is readable
 - Installed version matches or is absent
 - CLI uses source version in tests
@@ -395,6 +414,7 @@ Comprehensive tests ensuring isolation system works:
 - Parallel execution is isolated
 
 Run isolation tests:
+
 ```bash
 pytest tests/integration/test_version_isolation.py -v
 ```
@@ -406,6 +426,7 @@ pytest tests/integration/test_version_isolation.py -v
 Full suite: ~20-30 seconds
 
 Breakdown:
+
 - Unit tests: < 1s
 - Integration tests: ~15-20s
 - Functional tests: ~5-10s

@@ -1,4 +1,5 @@
 # Quickstart: Unified Python CLI for Agents
+
 *Path: kitty-specs/008-unified-python-cli/quickstart.md*
 
 ## Overview
@@ -41,21 +42,25 @@ This feature is implemented in 7 phases with maximum parallelization:
 Check `plan.md` for your work stream assignment. Each stream owns specific files with **no conflicts**:
 
 **Stream A (Agent Alpha)**: Feature Commands
+
 - Files: `src/specify_cli/cli/commands/agent/feature.py`, `src/specify_cli/core/worktree.py`
 - Dependencies: Phase 1 complete
 - Duration: 2 days
 
 **Stream B (Agent Beta)**: Task Commands
+
 - Files: `src/specify_cli/cli/commands/agent/tasks.py`
 - Dependencies: Phase 1 complete
 - Duration: 2 days
 
 **Stream C (Agent Gamma)**: Context Commands
+
 - Files: `src/specify_cli/cli/commands/agent/context.py`, `src/specify_cli/core/agent_context.py`
 - Dependencies: Phase 1 complete
 - Duration: 1 day
 
 **Stream D (Agent Delta)**: Release Commands
+
 - Files: `src/specify_cli/cli/commands/agent/release.py`, `src/specify_cli/core/release.py`
 - Dependencies: Phase 1 complete
 - Duration: 1 day
@@ -210,12 +215,14 @@ git status
 ### Coordination Points
 
 **Daily Sync (Required)**:
+
 1. Push your changes to feature branch
 2. Run integration tests: `pytest tests/integration/`
 3. Report status: "Stream X complete" or "Stream X blocked on Y"
 4. Pull changes from other streams
 
 **Sync Checkpoints**:
+
 - **Sync 1 (Day 2)**: Foundation complete, parallel streams begin
 - **Sync 2 (Day 6)**: Streams A+B complete
 - **Sync 3 (Day 8)**: All streams complete, begin cleanup
@@ -380,8 +387,8 @@ pytest tests/unit/agent/test_<module>.py::test_name -vv
 - **Plan**: `kitty-specs/008-unified-python-cli/plan.md`
 - **Research**: `kitty-specs/008-unified-python-cli/research.md`
 - **Data Model**: `kitty-specs/008-unified-python-cli/data-model.md`
-- **Typer Docs**: https://typer.tiangolo.com/
-- **pathlib Docs**: https://docs.python.org/3/library/pathlib.html
+- **Typer Docs**: <https://typer.tiangolo.com/>
+- **pathlib Docs**: <https://docs.python.org/3/library/pathlib.html>
 
 ## Need Help?
 

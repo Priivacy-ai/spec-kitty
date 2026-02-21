@@ -110,32 +110,24 @@ class TestLockExclusive:
 class TestPopulateFromPackage:
     """populate_from_package() copies package assets to target."""
 
-    def test_copies_missions(
-        self, tmp_path: Path, fake_assets: Path
-    ) -> None:
+    def test_copies_missions(self, tmp_path: Path, fake_assets: Path) -> None:
         target = tmp_path / "staging"
         populate_from_package(target)
         assert (target / "missions" / "software-dev" / "mission.yaml").exists()
         assert (target / "missions" / "research" / "mission.yaml").exists()
 
-    def test_copies_scripts(
-        self, tmp_path: Path, fake_assets: Path
-    ) -> None:
+    def test_copies_scripts(self, tmp_path: Path, fake_assets: Path) -> None:
         target = tmp_path / "staging"
         populate_from_package(target)
         assert (target / "scripts" / "validate.py").exists()
 
-    def test_copies_agents_md(
-        self, tmp_path: Path, fake_assets: Path
-    ) -> None:
+    def test_copies_agents_md(self, tmp_path: Path, fake_assets: Path) -> None:
         target = tmp_path / "staging"
         populate_from_package(target)
         assert (target / "AGENTS.md").exists()
         assert (target / "AGENTS.md").read_text() == "# Agents"
 
-    def test_creates_target_dir(
-        self, tmp_path: Path, fake_assets: Path
-    ) -> None:
+    def test_creates_target_dir(self, tmp_path: Path, fake_assets: Path) -> None:
         target = tmp_path / "nonexistent" / "staging"
         populate_from_package(target)
         assert target.is_dir()
@@ -167,9 +159,7 @@ class TestEnsureRuntimeFastPath:
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
         # Track whether populate_from_package is called
-        with patch(
-            "specify_cli.runtime.bootstrap.populate_from_package"
-        ) as mock_pop:
+        with patch("specify_cli.runtime.bootstrap.populate_from_package") as mock_pop:
             ensure_runtime()
             mock_pop.assert_not_called()
 
@@ -189,9 +179,7 @@ class TestEnsureRuntimeFastPath:
         cache_dir.mkdir(parents=True)
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
-        with patch(
-            "specify_cli.runtime.bootstrap._lock_exclusive"
-        ) as mock_lock:
+        with patch("specify_cli.runtime.bootstrap._lock_exclusive") as mock_lock:
             ensure_runtime()
             mock_lock.assert_not_called()
 
@@ -302,9 +290,7 @@ class TestEnsureRuntimeSlowPath:
             lock_that_creates_version,
         )
 
-        with patch(
-            "specify_cli.runtime.bootstrap.populate_from_package"
-        ) as mock_pop:
+        with patch("specify_cli.runtime.bootstrap.populate_from_package") as mock_pop:
             ensure_runtime()
             # populate_from_package should NOT be called -- double-check caught it
             mock_pop.assert_not_called()
@@ -379,9 +365,7 @@ class TestEnsureRuntimeVersionLockWrittenLast:
         )
 
         write_order: list[str] = []
-        original_merge = __import__(
-            "specify_cli.runtime.merge", fromlist=["merge_package_assets"]
-        ).merge_package_assets
+        original_merge = __import__("specify_cli.runtime.merge", fromlist=["merge_package_assets"]).merge_package_assets
 
         def tracking_merge(source: Path, dest: Path) -> None:
             original_merge(source, dest)
@@ -570,9 +554,7 @@ class TestCheckVersionPin:
             warnings.simplefilter("always")
             check_version_pin(project)
 
-        assert any(
-            "pinning is not yet supported" in str(warning.message) for warning in w
-        )
+        assert any("pinning is not yet supported" in str(warning.message) for warning in w)
 
     def test_pin_version_warning_contains_pin_value(self, tmp_path: Path) -> None:
         """Warning message includes the actual pinned version."""
@@ -589,9 +571,7 @@ class TestCheckVersionPin:
         assert len(user_warnings) == 1
         assert "2.5.3" in str(user_warnings[0].message)
 
-    def test_pin_version_warning_says_not_silently_honored(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pin_version_warning_says_not_silently_honored(self, tmp_path: Path) -> None:
         """Warning explicitly says the pin will NOT be silently honored."""
         project = tmp_path / "project"
         config = project / ".kittify" / "config.yaml"

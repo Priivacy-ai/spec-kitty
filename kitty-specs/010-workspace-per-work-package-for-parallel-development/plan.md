@@ -18,6 +18,7 @@ Transform Spec Kitty's workspace model from "one worktree per feature" to "one w
 **Language/Version**: Python 3.11+ (existing Spec Kitty requirement)
 
 **Primary Dependencies**:
+
 - `typer` - CLI command framework (existing)
 - `rich` - Console output formatting (existing)
 - `ruamel.yaml` - YAML frontmatter parsing (existing)
@@ -28,6 +29,7 @@ Transform Spec Kitty's workspace model from "one worktree per feature" to "one w
 **Storage**: Filesystem only (YAML frontmatter in markdown files, git repositories)
 
 **Testing**:
+
 - **Unit tests**: Dependency graph utilities (parsing, cycle detection, validation)
 - **Integration tests**: Full workflow (specify → plan → tasks → implement with dependencies)
 - **Migration tests**: Verify all 12 agent templates updated (parametrized across agents)
@@ -37,17 +39,20 @@ Transform Spec Kitty's workspace model from "one worktree per feature" to "one w
 **Project Type**: Single project (Spec Kitty CLI tool)
 
 **Performance Goals**:
+
 - Dependency parsing: <100ms for 50 WPs
 - Cycle detection: <500ms for complex graphs (50 nodes, 100 edges)
 - Worktree creation: <2 seconds per WP workspace
 
 **Constraints**:
+
 - **Git compatibility**: Must work with git 2.5.0+ (when `git worktree` was introduced)
 - **Backward incompatibility accepted**: Version 0.11.0 is breaking change, no legacy support
 - **File-based state**: All dependency data in WP frontmatter (no database)
 - **Test-first mandate**: Migration tests written before implementation to prevent gaps
 
 **Scale/Scope**:
+
 - Support features with up to 50 work packages
 - Handle dependency graphs with complex fan-out (e.g., 10 WPs depending on WP01)
 - 12 AI agent templates to update (Claude, Copilot, Gemini, Cursor, Qwen, OpenCode, Windsurf, Codex, Kilocode, Augment, Roo, Amazon Q)
@@ -71,6 +76,7 @@ This feature uses Git worktrees exclusively (no jj yet), but is designed as foun
 This feature directly enables the constitutional goal of "multiple AI agents working together on a single codebase" by providing isolated workspaces for parallel work.
 
 **Evidence**:
+
 - FR-001 through FR-003: All 12 agents get updated templates
 - User Story 1: Parallel multi-agent development is the primary capability
 - Spec section: "Agent coordination is external" - this feature provides technical isolation, agents coordinate which WP to implement
@@ -96,6 +102,7 @@ This feature makes WPs "independently testable, reviewable, and mergeable" a rea
 **Alignment**: ✅ **COMPLIANT**
 
 All new state stored in files:
+
 - Dependencies: WP frontmatter (`dependencies: ["WP01"]`)
 - Workspace paths: Filesystem (`.worktrees/###-feature-WP##/`)
 - Planning artifacts: Main repository (`kitty-specs/###-feature/`)
@@ -107,6 +114,7 @@ All new state stored in files:
 **Result**: ✅ **PASS** - All 5 constitutional principles satisfied.
 
 **Note**: Breaking change justified under Governance principle: "Breaking Changes: Must be justified against constitutional goals and include migration path"
+
 - Justification: Enables Multi-Agent Orchestration (Principle II) and Work Package Granularity (Principle IV)
 - Migration path: Pre-upgrade validation + cleanup tools provided
 
@@ -184,20 +192,24 @@ This feature adds complexity (dependency graph, workspace-per-WP model, breaking
 ### Research Questions
 
 **Q1: Git worktree best practices for dependency chains**
+
 - **Status**: No research needed
 - **Reason**: Git worktree branching model is well-understood. WP02 branches from WP01's branch via `git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP01` (standard git operation).
 
 **Q2: Cycle detection algorithms for dependency graphs**
+
 - **Status**: Use standard algorithms
 - **Decision**: Depth-first search (DFS) with visited/recursion stack for cycle detection. O(V+E) complexity, sufficient for <50 WPs.
 - **Alternatives considered**: Topological sort (also O(V+E), but we only need cycle detection, not ordering)
 
 **Q3: WP frontmatter schema for dependencies**
+
 - **Status**: Decided during planning
 - **Decision**: `dependencies: ["WP01", "WP02"]` - list of WP IDs
 - **Rationale**: Parseable YAML, extends existing frontmatter pattern, self-documenting
 
 **Q4: Migration strategy for breaking changes**
+
 - **Status**: Decided during planning
 - **Decision**: Semver bump to 0.11.0, pre-upgrade validation blocks if legacy worktrees exist
 - **Rationale**: Zero legacy code in 0.11.0, clean break, users complete or delete in-progress features before upgrading
@@ -215,6 +227,7 @@ No `research.md` file needed - all decisions resolved during planning interrogat
 See [data-model.md](data-model.md) for complete entity definitions.
 
 **Key Entities:**
+
 - **WorkPackage**: Represents a WP with dependencies field
 - **DependencyGraph**: Represents relationships between WPs
 - **Worktree**: Represents a git worktree for a WP
@@ -226,6 +239,7 @@ See [data-model.md](data-model.md) for complete entity definitions.
 **NEW COMMAND** - Creates workspace for work package implementation
 
 **Behavior:**
+
 ```bash
 # WP01 (no dependencies)
 spec-kitty implement WP01
@@ -245,6 +259,7 @@ spec-kitty implement WP02 --base WP01
 ```
 
 **Validation:**
+
 1. Check WP frontmatter has `work_package_id: WP##`
 2. If `--base` provided, verify base workspace exists (`.worktrees/###-feature-WPXX/`)
 3. If WP has dependencies in frontmatter but no `--base` provided, error with suggestion
@@ -253,18 +268,22 @@ spec-kitty implement WP02 --base WP01
 #### Modified Commands
 
 **`/spec-kitty.specify`**:
+
 - **OLD**: Created `.worktrees/###-feature/` worktree
 - **NEW**: Creates `kitty-specs/###-feature/spec.md` in main repo, commits to main, NO worktree
 
 **`/spec-kitty.plan`**:
+
 - **OLD**: Worked in `.worktrees/###-feature/` worktree
 - **NEW**: Works in main repo, commits plan.md to main, NO worktree
 
 **`/spec-kitty.tasks`**:
+
 - **OLD**: Created tasks.md in `.worktrees/###-feature/` worktree
 - **NEW**: Creates tasks/*.md in main repo, commits to main, parses dependencies and writes to WP frontmatter
 
 **`spec-kitty merge ###-feature`**:
+
 - **OLD**: Merged single feature branch
 - **NEW**: Validates all WP worktrees merged/cleaned, merges feature as before (all WPs as one merge for now)
 
@@ -273,6 +292,7 @@ spec-kitty implement WP02 --base WP01
 **Module**: `src/specify_cli/core/dependency_graph.py`
 
 **Functions:**
+
 ```python
 def parse_wp_dependencies(wp_file: Path) -> list[str]:
     """Parse dependencies from WP frontmatter."""
@@ -306,6 +326,7 @@ def get_dependents(wp_id: str, graph: dict[str, list[str]]) -> list[str]:
 ```
 
 **Testing Strategy**: TDD - write tests first in `tests/specify_cli/test_dependency_graph.py`:
+
 - Test cycle detection with various graph shapes (no cycles, simple cycle, complex cycle)
 - Test dependency validation (missing deps, self-deps, invalid WP IDs)
 - Test dependent lookup for warnings
@@ -315,6 +336,7 @@ def get_dependents(wp_id: str, graph: dict[str, list[str]]) -> list[str]:
 **Migration**: `m_0_11_0_workspace_per_wp.py`
 
 **Pre-upgrade validation:**
+
 ```python
 def validate_upgrade() -> tuple[bool, list[str]]:
     """Check if project ready for 0.11.0 upgrade."""
@@ -325,6 +347,7 @@ def validate_upgrade() -> tuple[bool, list[str]]:
 ```
 
 **Agent template updates:**
+
 ```python
 def update_agent_templates():
     """Update all 12 agent directories with new workflow."""
@@ -342,6 +365,7 @@ def update_agent_templates():
 ```
 
 **Test coverage**: `tests/specify_cli/test_workspace_per_wp_migration.py`
+
 ```python
 @pytest.mark.parametrize("agent_dir", AGENT_DIRS)
 def test_agent_template_updated(agent_dir):
@@ -354,6 +378,7 @@ def test_agent_template_updated(agent_dir):
 ### 1.5 WP Frontmatter Schema Extension
 
 **Current schema** (in `src/specify_cli/frontmatter.py`):
+
 ```yaml
 ---
 work_package_id: "WP01"
@@ -367,6 +392,7 @@ agent: ""
 ```
 
 **Extended schema** (0.11.0):
+
 ```yaml
 ---
 work_package_id: "WP01"
@@ -381,6 +407,7 @@ agent: ""
 ```
 
 **Validation rules**:
+
 - `dependencies` field is optional (defaults to `[]`)
 - Each dependency must be valid WP ID format (`WP##`)
 - Dependencies must exist in same feature
@@ -390,6 +417,7 @@ agent: ""
 ### 1.6 Workflow Changes
 
 **Planning workflow (NO worktree)**:
+
 ```
 User in main repo
 ↓
@@ -412,6 +440,7 @@ User in main repo
 ```
 
 **Implementation workflow (ON-DEMAND worktrees)**:
+
 ```
 Agent A:
   spec-kitty implement WP01
@@ -433,6 +462,7 @@ Agent C (dependent):
 ```
 
 **Merge workflow (UNCHANGED for now)**:
+
 ```
 spec-kitty merge 010-feature
   → Validates all WP worktrees merged or removed
@@ -478,6 +508,7 @@ spec-kitty merge 010-feature
 ### Breaking Change Communication
 
 **Version 0.11.0 release notes MUST include:**
+
 - ⚠️ **BREAKING CHANGE**: Workspace model changed to workspace-per-WP
 - **Action required**: Complete or delete in-progress features before upgrading
 - **How to prepare**: Run `spec-kitty list-legacy-features`, then merge or remove
@@ -487,6 +518,7 @@ spec-kitty merge 010-feature
 ### Rollback Plan
 
 **If 0.11.0 upgrade causes issues:**
+
 - Downgrade to 0.10.12: `pip install spec-kitty-cli==0.10.12`
 - Note: Any features planned in 0.11.0 will need re-planning in 0.10.12 (planning artifacts in main vs worktree)
 - Recommendation: Test 0.11.0 in non-production project first
@@ -496,12 +528,14 @@ spec-kitty merge 010-feature
 ## Next Steps
 
 **After plan approval:**
+
 1. Run `/spec-kitty.tasks` to generate work packages
 2. Implement in test-driven order (tests first, then code)
 3. Validate with real project (dogfood on Spec Kitty itself)
 4. Document migration guide before release
 
 **Post-implementation:**
+
 - Version 0.11.0 release with breaking change notes
 - Maintain 0.10.x for 6 months with critical bug fixes
 - Monitor adoption, provide migration support
@@ -512,24 +546,28 @@ spec-kitty merge 010-feature
 ## Appendix: Design Decisions Log
 
 **D1: Why frontmatter for dependencies?**
+
 - Extends existing WP frontmatter pattern
 - Parseable with ruamel.yaml (already in use)
 - Self-documenting (each WP declares dependencies)
 - Canonical source of truth (not in tasks.md prose)
 
 **D2: Why not incremental WP merging in 0.11.0?**
+
 - Adds significant complexity (merge orchestration, dependency ordering)
 - Current merge workflow works (merge entire feature)
 - Can be added in future version after workspace-per-WP validated
 - Spec explicitly defers to future: "Out of Scope: Incremental WP-by-WP merging"
 
 **D3: Why block upgrade instead of auto-migrate legacy worktrees?**
+
 - Safety: Auto-migration could break in-progress work
 - Simplicity: Zero legacy code in 0.11.0 codebase
 - User control: Users decide how to handle in-progress features (merge or delete)
 - Semantic versioning: Breaking change justified by version bump
 
 **D4: Why TDD for migration?**
+
 - Prevents gaps (bash→python migration left template holes)
 - Ensures exhaustive coverage (all 12 agents updated)
 - Regression safety (tests prevent future breakage)

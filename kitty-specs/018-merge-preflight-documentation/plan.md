@@ -66,6 +66,7 @@ src/specify_cli/cli/commands/merge.py  # --resume, --abort flags, CLI interface
 **Style Reference**: `docs/how-to/accept-and-merge.md`
 
 **Structure**:
+
 ```
 # How to Merge a Feature
 ├── Prerequisites
@@ -91,6 +92,7 @@ src/specify_cli/cli/commands/merge.py  # --resume, --abort flags, CLI interface
 **Style Reference**: Troubleshooting sections in existing docs
 
 **Structure**:
+
 ```
 # How to Troubleshoot Merge Issues
 ├── Quick Reference (decision tree)
@@ -118,6 +120,7 @@ src/specify_cli/cli/commands/merge.py  # --resume, --abort flags, CLI interface
 **Location**: After "Workspace-per-Work-Package Development" section
 
 **Content**:
+
 ```
 ### Merge & Preflight Patterns (0.11.0+)
 

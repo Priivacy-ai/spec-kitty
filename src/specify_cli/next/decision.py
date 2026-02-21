@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -32,6 +31,7 @@ from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 
 class DecisionKind:
     """String constants for decision kinds (avoids Enum import overhead)."""
+
     step = "step"
     decision_required = "decision_required"
     blocked = "blocked"
@@ -52,8 +52,8 @@ class Decision:
     prompt_file: str | None = None
     reason: str | None = None
     guard_failures: list[str] = field(default_factory=list)
-    progress: dict | None = None
-    origin: dict = field(default_factory=dict)
+    progress: dict[str, Any] | None = None
+    origin: dict[str, Any] = field(default_factory=dict)
     # Runtime fields (added in v2.0.0)
     run_id: str | None = None
     step_id: str | None = None

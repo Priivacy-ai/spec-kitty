@@ -76,10 +76,13 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Ensure every canonical lane maps to the expected 4-lane sync value.
 - **Steps**:
   1. Confirm mapping in `src/specify_cli/status/emit.py`:
+
      ```bash
      grep -n "SYNC_LANE_MAP\|lane\|mapping" src/specify_cli/status/emit.py
      ```
+
   2. Create `tests/specify_cli/status/test_sync_lane_mapping.py`:
+
      ```python
      import pytest
      from specify_cli.status.emit import _SYNC_LANE_MAP
@@ -96,6 +99,7 @@ No dependencies — branches directly from the 2.x branch.
      def test_sync_lane_map_values(input_lane, expected_output):
          assert _SYNC_LANE_MAP[input_lane] == expected_output
      ```
+
   3. Verify test runs: `python -m pytest tests/specify_cli/status/test_sync_lane_mapping.py -v`
 - **Files**: `tests/specify_cli/status/test_sync_lane_mapping.py` (new)
 - **Parallel?**: No — foundation for T026-T028
@@ -105,6 +109,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Ensure invalid lanes are rejected before canonical persistence/fan-out.
 - **Steps**:
   1. Add test for invalid lane transition:
+
      ```python
      import pytest
      from specify_cli.status.emit import TransitionError, emit_status_transition
@@ -119,6 +124,7 @@ No dependencies — branches directly from the 2.x branch.
                  actor="tester",
              )
      ```
+
   2. Verify behavior is enforced via alias resolution + transition validation.
 - **Files**: `tests/specify_cli/status/test_sync_lane_mapping.py` (extend)
 - **Parallel?**: No — depends on T025

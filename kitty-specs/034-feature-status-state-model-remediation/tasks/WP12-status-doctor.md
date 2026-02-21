@@ -31,6 +31,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -44,6 +45,7 @@ history:
 **Primary Objective**: Create a health check framework (`status doctor`) that detects operational hygiene issues: stale claims, orphan workspaces/worktrees, and unresolved materialization or derived-view drift. The doctor reports problems and recommends actions but does NOT automatically fix anything.
 
 **Success Criteria**:
+
 1. Stale claims (WPs in `claimed` or `in_progress` beyond a configurable threshold) are detected and reported.
 2. Orphan workspaces (worktrees for features where all WPs are `done` or `canceled`) are detected.
 3. Materialization drift and derived-view drift are detected (by delegating to the validation engine).
@@ -54,15 +56,18 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` User Story 8 defines the doctor scenarios and acceptance criteria.
 - `plan.md` project structure places `status/doctor.py` in the status package.
 - The doctor delegates drift detection to the validation engine from WP11. However, since WP12 and WP11 have different dependencies (WP12 depends only on WP03, WP11 depends on WP03 + WP06), the doctor should be designed to work even if the validation engine is not yet available. Use a try/except import for the validation functions.
 
 **Dependency Artifacts Available**:
+
 - WP03 provides `status/reducer.py` with `reduce()` for reading materialized state.
 - WP03 provides `status/store.py` with `read_events()` for reading the event log.
 
 **Constraints**:
+
 - Doctor is a READ-ONLY operation. It never modifies files.
 - Threshold values should be configurable via function parameters with sensible defaults.
 - Worktree scanning should be limited to the feature being checked (not a full repo scan).
@@ -77,8 +82,10 @@ history:
 **Purpose**: Build the foundational data model and framework for the doctor.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/doctor.py`.
 2. Define the data models:
+
    ```python
    from __future__ import annotations
 
@@ -130,7 +137,9 @@ history:
        def findings_by_category(self, category: Category) -> list[Finding]:
            return [f for f in self.findings if f.category == category]
    ```
+
 3. Define the main entry point:
+
    ```python
    def run_doctor(
        feature_dir: Path,
@@ -163,6 +172,7 @@ history:
 
        return result
    ```
+
 4. Export from `status/__init__.py`: `DoctorResult`, `Finding`, `Severity`, `Category`, `run_doctor`.
 
 **Files**: `src/specify_cli/status/doctor.py`, `src/specify_cli/status/__init__.py`
@@ -170,6 +180,7 @@ history:
 **Validation**: DoctorResult and Finding dataclasses can be constructed and serialized.
 
 **Edge Cases**:
+
 - No status.json and no events file: snapshot is None, skip all checks (feature not migrated yet).
 - Feature directory does not exist: raise a clear error before running checks.
 
@@ -178,7 +189,9 @@ history:
 **Purpose**: Detect WPs that have been in `claimed` or `in_progress` for longer than a configurable threshold.
 
 **Steps**:
+
 1. Implement `check_stale_claims()`:
+
    ```python
    from datetime import datetime, timezone, timedelta
 
@@ -242,12 +255,14 @@ history:
 
        return findings
    ```
+
 2. The thresholds are configurable per call and via CLI flags (default 7 for claimed, 14 for in_progress).
 3. Actor identity is included in the finding message for actionability.
 
 **Files**: `src/specify_cli/status/doctor.py`
 
 **Validation**:
+
 - Test: WP in claimed for 3 days with threshold 7 -> no finding.
 - Test: WP in claimed for 10 days with threshold 7 -> finding.
 - Test: WP in in_progress for 20 days with threshold 14 -> finding.
@@ -255,6 +270,7 @@ history:
 - Test: custom thresholds are respected.
 
 **Edge Cases**:
+
 - `last_transition_at` is missing or malformed: skip this WP, do not crash.
 - WP in `blocked`: not checked for staleness (blocking is intentional, not stale).
 - Timezone handling: all timestamps should be UTC. Use `datetime.fromisoformat()` which handles `Z` suffix in Python 3.11+.
@@ -264,7 +280,9 @@ history:
 **Purpose**: Detect worktrees that exist for a feature where all WPs are done or canceled.
 
 **Steps**:
+
 1. Implement `check_orphan_workspaces()`:
+
    ```python
    def check_orphan_workspaces(
        repo_root: Path,
@@ -314,18 +332,21 @@ history:
 
        return findings
    ```
+
 2. Only report orphans when ALL WPs are terminal. If even one WP is active, the worktrees are legitimate.
 3. Scan only the `.worktrees/` directory for the specific feature slug pattern.
 
 **Files**: `src/specify_cli/status/doctor.py`
 
 **Validation**:
+
 - Test: all WPs done + worktree exists -> finding.
 - Test: some WPs still in_progress + worktree exists -> no finding.
 - Test: all WPs done + no worktrees -> no finding.
 - Test: no `.worktrees/` directory -> no finding.
 
 **Edge Cases**:
+
 - Feature slug contains regex special characters: `glob()` uses fnmatch, not regex, so this should be safe.
 - Worktree directory exists but is a file (not a directory): `is_dir()` filters this out.
 - Mixed terminal states (some done, some canceled): all are terminal, so report orphans.
@@ -335,7 +356,9 @@ history:
 **Purpose**: Run the validation engine's drift checks as part of the doctor report.
 
 **Steps**:
+
 1. Implement `check_drift()`:
+
    ```python
    def check_drift(feature_dir: Path) -> list[Finding]:
        """Delegate to validation engine for drift detection.
@@ -395,17 +418,20 @@ history:
 
        return findings
    ```
+
 2. The try/except import allows the doctor to work even when the validation engine (WP11) is not yet available.
 3. Drift findings from validation are wrapped in Finding objects with recommended actions.
 
 **Files**: `src/specify_cli/status/doctor.py`
 
 **Validation**:
+
 - Test: with validation engine available and drift present -> findings reported.
 - Test: with validation engine NOT available (mock ImportError) -> empty findings, no crash.
 - Test: with no status.json -> materialization drift reported.
 
 **Edge Cases**:
+
 - Validation engine raises an unexpected exception: caught by broad except, logged, not propagated.
 - Phase resolution fails: caught by except, doctor continues without drift check.
 
@@ -414,7 +440,9 @@ history:
 **Purpose**: Create the CLI command and comprehensive test suite.
 
 **Steps**:
+
 1. Add the `doctor` command to `src/specify_cli/cli/commands/agent/status.py`:
+
    ```python
    @app.command()
    def doctor(
@@ -478,6 +506,7 @@ history:
 
        raise typer.Exit(0 if result.is_healthy else 1)
    ```
+
 2. Rich table output with color-coded severity for terminal display.
 3. JSON output for machine consumption and CI integration.
 4. Exit code: 0 = healthy, 1 = issues found.
@@ -531,21 +560,25 @@ history:
 **Validation**: All tests pass. Doctor module coverage reaches 90%+.
 
 **Edge Cases**:
+
 - Feature with zero WPs in snapshot: all checks skip gracefully.
 - Snapshot loading fails: `_load_or_reduce_snapshot` should return None, and run_doctor should handle it.
 
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/status/test_doctor.py`):
+
 - Test each check function independently: `check_stale_claims`, `check_orphan_workspaces`, `check_drift`.
 - Test DoctorResult properties: `is_healthy`, `has_errors`, `has_warnings`, `findings_by_category`.
 - Test Finding construction and serialization.
 
 **CLI Tests** (in `tests/specify_cli/status/test_doctor.py` or `test_status_cli.py`):
+
 - CliRunner tests for the doctor command.
 - Verify JSON output and exit codes.
 
 **Running Tests**:
+
 ```bash
 python -m pytest tests/specify_cli/status/test_doctor.py -x -q
 ```
@@ -563,6 +596,7 @@ python -m pytest tests/specify_cli/status/test_doctor.py -x -q
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Read-only**: Doctor never modifies any files. All findings include RECOMMENDATIONS, not automatic fixes.
 2. **Threshold configurability**: Both stale claim thresholds are configurable via CLI flags and function parameters.
 3. **Graceful degradation**: Doctor works even when validation engine (WP11) is not available (try/except import).

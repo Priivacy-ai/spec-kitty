@@ -1,21 +1,16 @@
 """Tests for documentation state management."""
 
 import json
-import tempfile
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
 from specify_cli.doc_state import (
-    DocumentationState,
-    GeneratorConfig,
     set_iteration_mode,
     set_divio_types_selected,
     set_generators_configured,
     set_audit_metadata,
     read_documentation_state,
-    write_documentation_state,
     initialize_documentation_state,
     update_documentation_state,
     ensure_documentation_state,
@@ -27,17 +22,14 @@ from specify_cli.doc_state import (
 def test_initialize_documentation_state(tmp_path):
     """Test initialization creates valid state."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation"
-    }))
+    meta_file.write_text(json.dumps({"feature_number": "001", "mission": "documentation"}))
 
     state = initialize_documentation_state(
         meta_file,
         iteration_mode="initial",
         divio_types=["tutorial", "reference"],
         generators=[{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}],
-        target_audience="developers"
+        target_audience="developers",
     )
 
     assert state["iteration_mode"] == "initial"
@@ -57,17 +49,21 @@ def test_initialize_documentation_state(tmp_path):
 def test_read_documentation_state(tmp_path):
     """Test reading state from meta.json."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "documentation",
-        "documentation_state": {
-            "iteration_mode": "gap_filling",
-            "divio_types_selected": ["tutorial"],
-            "generators_configured": [],
-            "target_audience": "end-users",
-            "last_audit_date": "2026-01-12T00:00:00Z",
-            "coverage_percentage": 0.5
-        }
-    }))
+    meta_file.write_text(
+        json.dumps(
+            {
+                "mission": "documentation",
+                "documentation_state": {
+                    "iteration_mode": "gap_filling",
+                    "divio_types_selected": ["tutorial"],
+                    "generators_configured": [],
+                    "target_audience": "end-users",
+                    "last_audit_date": "2026-01-12T00:00:00Z",
+                    "coverage_percentage": 0.5,
+                },
+            }
+        )
+    )
 
     state = read_documentation_state(meta_file)
     assert state is not None
@@ -79,26 +75,15 @@ def test_read_documentation_state(tmp_path):
 def test_update_documentation_state(tmp_path):
     """Test partial state updates."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation"
-    }))
+    meta_file.write_text(json.dumps({"feature_number": "001", "mission": "documentation"}))
 
     # Initialize
     initialize_documentation_state(
-        meta_file,
-        iteration_mode="initial",
-        divio_types=[],
-        generators=[],
-        target_audience="developers"
+        meta_file, iteration_mode="initial", divio_types=[], generators=[], target_audience="developers"
     )
 
     # Update
-    updated = update_documentation_state(
-        meta_file,
-        iteration_mode="gap_filling",
-        coverage_percentage=0.75
-    )
+    updated = update_documentation_state(meta_file, iteration_mode="gap_filling", coverage_percentage=0.75)
 
     assert updated["iteration_mode"] == "gap_filling"
     assert updated["coverage_percentage"] == 0.75
@@ -110,11 +95,9 @@ def test_ensure_state_for_old_feature(tmp_path):
     """Test migration adds state to old features."""
     # Old feature without documentation_state
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation",
-        "created_at": "2025-01-01T00:00:00Z"
-    }))
+    meta_file.write_text(
+        json.dumps({"feature_number": "001", "mission": "documentation", "created_at": "2025-01-01T00:00:00Z"})
+    )
 
     ensure_documentation_state(meta_file)
 
@@ -129,9 +112,7 @@ def test_ensure_state_for_old_feature(tmp_path):
 def test_read_state_for_non_doc_mission(tmp_path):
     """Test returns None for non-documentation missions."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "software-dev"
-    }))
+    meta_file.write_text(json.dumps({"mission": "software-dev"}))
 
     state = read_documentation_state(meta_file)
     assert state is None
@@ -140,9 +121,7 @@ def test_read_state_for_non_doc_mission(tmp_path):
 def test_ensure_state_ignores_non_doc_mission(tmp_path):
     """Test ensure_state ignores non-documentation missions."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "software-dev"
-    }))
+    meta_file.write_text(json.dumps({"mission": "software-dev"}))
 
     ensure_documentation_state(meta_file)
 
@@ -234,9 +213,7 @@ def test_invalid_generator_config_rejected(tmp_path):
 
     # Invalid generator name
     with pytest.raises(ValueError, match="Invalid generator name"):
-        set_generators_configured(meta_file, [
-            {"name": "invalid", "language": "python", "config_path": "docs/conf.py"}
-        ])
+        set_generators_configured(meta_file, [{"name": "invalid", "language": "python", "config_path": "docs/conf.py"}])
 
 
 def test_invalid_coverage_percentage_rejected(tmp_path):
@@ -265,7 +242,7 @@ def test_empty_divio_types_allowed(tmp_path):
         iteration_mode="initial",
         divio_types=[],  # Empty
         generators=[],
-        target_audience="developers"
+        target_audience="developers",
     )
 
     state = read_documentation_state(meta_file)
@@ -283,7 +260,7 @@ def test_empty_generators_allowed(tmp_path):
         iteration_mode="initial",
         divio_types=[],
         generators=[],  # Empty
-        target_audience="developers"
+        target_audience="developers",
     )
 
     state = read_documentation_state(meta_file)
@@ -309,7 +286,7 @@ def test_get_state_version():
         "generators_configured": [],
         "target_audience": "developers",
         "last_audit_date": None,
-        "coverage_percentage": 0.0
+        "coverage_percentage": 0.0,
     }
 
     version = get_state_version(state)
@@ -327,7 +304,7 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
         iteration_mode="initial",
         divio_types=["tutorial"],
         generators=[{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}],
-        target_audience="developers"
+        target_audience="developers",
     )
 
     # Read raw JSON to verify formatting
@@ -345,19 +322,19 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
 def test_original_fields_preserved_after_state_update(tmp_path):
     """Test original meta.json fields are preserved."""
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "012",
-        "mission": "documentation",
-        "created_at": "2026-01-13T00:00:00Z",
-        "custom_field": "custom_value"
-    }))
+    meta_file.write_text(
+        json.dumps(
+            {
+                "feature_number": "012",
+                "mission": "documentation",
+                "created_at": "2026-01-13T00:00:00Z",
+                "custom_field": "custom_value",
+            }
+        )
+    )
 
     initialize_documentation_state(
-        meta_file,
-        iteration_mode="initial",
-        divio_types=[],
-        generators=[],
-        target_audience="developers"
+        meta_file, iteration_mode="initial", divio_types=[], generators=[], target_audience="developers"
     )
 
     with open(meta_file) as f:

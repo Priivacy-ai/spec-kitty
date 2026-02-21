@@ -29,9 +29,7 @@ __all__ = [
 ]
 
 
-def read_file_resilient(
-    file_path: Path, *, auto_fix: bool = True
-) -> tuple[Optional[str], Optional[str]]:
+def read_file_resilient(file_path: Path, *, auto_fix: bool = True) -> tuple[Optional[str], Optional[str]]:
     """Read a file with resilience to encoding errors.
 
     This function attempts to read a file as UTF-8, and if that fails:
@@ -65,9 +63,7 @@ def read_file_resilient(
         return content, None
     except UnicodeDecodeError as exc:
         # Log the encoding error
-        logger.warning(
-            f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}"
-        )
+        logger.warning(f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}")
 
         if not auto_fix:
             return None, (
@@ -135,7 +131,7 @@ def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
     return f"~{os.sep}{relative_str}"
 
 
-def work_package_sort_key(task: Dict[str, Any]) -> tuple:
+def work_package_sort_key(task: Dict[str, Any]) -> tuple[tuple[int, ...], str]:
     """Provide a natural sort key for work package identifiers."""
     work_id = str(task.get("id", "")).strip()
     if not work_id:
@@ -145,7 +141,7 @@ def work_package_sort_key(task: Dict[str, Any]) -> tuple:
     return (tuple(number_parts), work_id.lower())
 
 
-def _get_artifact_info(path: Path) -> Dict[str, any]:
+def _get_artifact_info(path: Path) -> Dict[str, Any]:
     """Get artifact information including existence, mtime, and size."""
     if not path.exists():
         return {"exists": False, "mtime": None, "size": None}
@@ -158,10 +154,33 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
     }
 
 
-def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
+def _get_project_constitution_info(feature_dir: Path) -> Dict[str, Any]:
+    """Check for project-level constitution (not per-feature).
+
+    Constitution is project-wide, not feature-specific. Checks:
+    1. .kittify/constitution/constitution.md (new path, post Feature 045 migration)
+    2. .kittify/memory/constitution.md (old path, pre-migration)
+
+    Context: Feature 011 removed per-mission/per-feature constitutions.
+    Only ONE project-level constitution exists.
+    """
+    # Navigate from feature_dir (kitty-specs/NNN-feature) to project root
+    project_root = feature_dir.parent.parent
+
+    # Check new path first (post-migration)
+    new_path = project_root / ".kittify" / "constitution" / "constitution.md"
+    if new_path.exists():
+        return _get_artifact_info(new_path)
+
+    # Fallback to old path (pre-migration, backward compatibility)
+    old_path = project_root / ".kittify" / "memory" / "constitution.md"
+    return _get_artifact_info(old_path)
+
+
+def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, Any]]:
     """Return which artifacts exist for a feature with modification info."""
     return {
-        "constitution": _get_artifact_info(feature_dir / "constitution.md"),
+        "constitution": _get_project_constitution_info(feature_dir),
         "spec": _get_artifact_info(feature_dir / "spec.md"),
         "plan": _get_artifact_info(feature_dir / "plan.md"),
         "tasks": _get_artifact_info(feature_dir / "tasks.md"),
@@ -174,7 +193,7 @@ def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
     }
 
 
-def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
+def get_workflow_status(artifacts: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
     """Determine workflow progression status."""
     has_spec = artifacts.get("spec", {}).get("exists", False)
     has_plan = artifacts.get("plan", {}).get("exists", False)
@@ -184,9 +203,7 @@ def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
     workflow: Dict[str, str] = {}
 
     if not has_spec:
-        workflow.update(
-            {"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"}
-        )
+        workflow.update({"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"})
         return workflow
     workflow["specify"] = "complete"
 

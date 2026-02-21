@@ -14,16 +14,19 @@
 **Problem**: Prompts instruct `cd /Users/robert/Code/spec-kitty` before running tests.
 
 **Why this is wrong**:
+
 1. Goes back to main repo (old code)
 2. Tests would run against 0.10.12 code, not 0.11.0 code we're building
 3. Tests are in the worktree where new code lives
 4. Absolute paths are fragile (user-specific)
 
 **Found in**:
+
 - `WP01-dependency-graph-utilities-tdd-foundation.md:361`
 - `WP08-integration-tests-full-workflow-validation.md:582`
 
 **Should be**:
+
 ```bash
 # Run from current worktree (no cd needed)
 pytest tests/specify_cli/test_dependency_graph.py -v
@@ -39,6 +42,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 **Analysis**: Integration tests (WP08) will test the NEW workspace-per-WP behavior (0.11.0) which doesn't exist yet in the running Spec Kitty installation (0.10.12).
 
 **Solution Already Correct**: WP08 test examples DO use tmp_path fixture ✅
+
 - Line 452-467: `init_test_repo(tmp_path)` - creates clean test environment
 - Line 469-486: Uses tmp_path throughout
 - No pollution of actual Spec Kitty repo
@@ -70,6 +74,7 @@ cd .worktrees/011-test-WP01  # ← Specific feature "011-test", could be confusi
 ```
 
 **Not critical** because:
+
 - It's in manual testing section (user adapts)
 - "011-test" is clearly a placeholder example
 - No absolute paths
@@ -85,16 +90,19 @@ cd .worktrees/011-test-WP01  # ← Specific feature "011-test", could be confusi
 **Fix 1: Removed incorrect cd commands from test execution sections**
 
 Files updated:
+
 1. ✅ `WP01-dependency-graph-utilities-tdd-foundation.md:361` - Fixed
 2. ✅ `WP08-integration-tests-full-workflow-validation.md:582` - Fixed
 
 Changed FROM:
+
 ```bash
 cd /Users/robert/Code/spec-kitty
 pytest tests/specify_cli/test_dependency_graph.py -v
 ```
 
 Changed TO:
+
 ```bash
 # Run from current worktree (where new code lives)
 pytest tests/specify_cli/test_dependency_graph.py -v
@@ -109,11 +117,13 @@ Added notes explaining tests run in worktree, not main repo.
 File: `WP09-review-feedback-warning-system.md:518`
 
 Change FROM:
+
 ```bash
 cd .worktrees/011-test-WP01
 ```
 
 Change TO:
+
 ```bash
 cd .worktrees/###-feature-WP01  # Replace ### with your feature number
 ```
@@ -132,6 +142,7 @@ cd .worktrees/###-feature-WP01  # Replace ### with your feature number
 ## Root Cause Analysis
 
 **Why this happened**: When writing prompts, I initially thought about running tests from the "standard" location (main repo root) without considering:
+
 1. We're IN a worktree (feature 010)
 2. New code lives HERE (in worktree), not in main
 3. Tests need to run against code in THIS worktree
@@ -145,6 +156,7 @@ cd .worktrees/###-feature-WP01  # Replace ### with your feature number
 ### WP01: Lines 359-365
 
 **Current**:
+
 ```bash
 **Test execution**:
 ```bash
@@ -155,6 +167,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 
 **Expected initial state**: All tests FAIL (module doesn't exist yet)
 **After T006**: All tests PASS
+
 ```
 
 **Fixed**:
@@ -170,6 +183,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 **After T006**: All tests PASS
 
 **Note**: Do NOT cd to main repo - tests must run against code in this worktree.
+
 ```
 
 ### WP08: Lines 580-584
@@ -181,6 +195,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 cd /Users/robert/Code/spec-kitty
 pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v --tb=short
 ```
+
 ```
 
 **Fixed**:
@@ -192,6 +207,7 @@ pytest tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py -v -
 ```
 
 **Note**: Tests run in this worktree. Integration tests create isolated tmp_path environments to test new 0.11.0 behavior.
+
 ```
 
 ### WP09: Line 518 (Optional)
@@ -202,6 +218,7 @@ cd .worktrees/011-test-WP01 && echo "WP01" > file.txt && git add . && git commit
 ```
 
 **Fixed** (optional clarity):
+
 ```bash
 cd .worktrees/###-test-feature-WP01 && echo "WP01" > file.txt && git add . && git commit -m "WP01"
 # Replace ### with your actual feature number
@@ -236,6 +253,7 @@ cd .worktrees/###-test-feature-WP01 && echo "WP01" > file.txt && git add . && gi
 ## Recommendation
 
 **Apply High Priority Fixes**:
+
 1. Update WP01 test execution section (remove cd command)
 2. Update WP08 test execution section (remove cd command)
 

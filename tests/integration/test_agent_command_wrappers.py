@@ -56,7 +56,7 @@ class TestAgentWorkflowImplement:
             "---\n"
             "# Build API\n"
             "Task description\n",
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         # Commit the WP file
@@ -67,21 +67,18 @@ class TestAgentWorkflowImplement:
         subprocess.run(["git", "checkout", "-b", "001-test-feature"], cwd=mock_repo, check=True, capture_output=True)
 
         # Mock locate_project_root and locate_work_package
-        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
-             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
-             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug:
-
+        with (
+            patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
+            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+        ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
 
             # Mock WP object
             mock_wp = MagicMock()
             mock_wp.path = wp_file
-            mock_wp.frontmatter = {
-                "work_package_id": "WP02",
-                "dependencies": ["WP01"],
-                "lane": "planned"
-            }
+            mock_wp.frontmatter = {"work_package_id": "WP02", "dependencies": ["WP01"], "lane": "planned"}
             mock_wp.body = "# Build API\nTask description\n"
             mock_locate_wp.return_value = mock_wp
 
@@ -91,7 +88,7 @@ class TestAgentWorkflowImplement:
                     wp_id="WP02",
                     feature="001-test-feature",
                     agent="test-agent",
-                    base=None  # Missing!
+                    base=None,  # Missing!
                 )
 
             # Verify error message suggests --base WP01
@@ -104,30 +101,20 @@ class TestAgentWorkflowImplement:
         # Create WP01 and WP02
         wp01_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-setup.md"
         wp01_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: Setup\n"
-            "dependencies: []\n"
-            "lane: done\n"
-            "---\n"
-            "Setup task\n",
-            encoding="utf-8"
+            "---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\nlane: done\n---\nSetup task\n",
+            encoding="utf-8",
         )
 
         wp02_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
         wp02_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Build API\n"
-            "dependencies: [WP01]\n"
-            "lane: planned\n"
-            "---\n"
-            "Build API task\n",
-            encoding="utf-8"
+            "---\nwork_package_id: WP02\ntitle: Build API\ndependencies: [WP01]\nlane: planned\n---\nBuild API task\n",
+            encoding="utf-8",
         )
 
         # Commit WP files
-        subprocess.run(["git", "add", "-f", str(wp01_file), str(wp02_file)], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "-f", str(wp01_file), str(wp02_file)], cwd=mock_repo, check=True, capture_output=True
+        )
         subprocess.run(["git", "commit", "-m", "Add WPs"], cwd=mock_repo, check=True, capture_output=True)
 
         # Create WP01 workspace (base workspace must exist)
@@ -138,48 +125,37 @@ class TestAgentWorkflowImplement:
             ["git", "worktree", "add", str(wp01_workspace), "-b", "001-test-feature-WP01"],
             cwd=mock_repo,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
         # Mock dependencies
-        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
-             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
-             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug, \
-             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level:
-
+        with (
+            patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
+            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+        ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
 
             # Mock WP02 object
             mock_wp = MagicMock()
             mock_wp.path = wp02_file
-            mock_wp.frontmatter = {
-                "work_package_id": "WP02",
-                "dependencies": ["WP01"],
-                "lane": "planned"
-            }
+            mock_wp.frontmatter = {"work_package_id": "WP02", "dependencies": ["WP01"], "lane": "planned"}
             mock_wp.body = "Build API task\n"
             mock_locate_wp.return_value = mock_wp
 
             # Run agent implement with --base WP01
             # This should call top-level implement (mocked to avoid full execution)
             try:
-                agent_implement(
-                    wp_id="WP02",
-                    feature="001-test-feature",
-                    agent="test-agent",
-                    base="WP01"
-                )
+                agent_implement(wp_id="WP02", feature="001-test-feature", agent="test-agent", base="WP01")
             except Exception:
                 # May fail during prompt display, but top-level should be called
                 pass
 
             # Verify top-level implement was called with correct parameters
             mock_top_level.assert_called_once_with(
-                wp_id="WP02",
-                base="WP01",
-                feature="001-test-feature",
-                json_output=False
+                wp_id="WP02", base="WP01", feature="001-test-feature", json_output=False
             )
 
     def test_multi_parent_auto_merge(self, mock_repo, capsys):
@@ -194,28 +170,25 @@ class TestAgentWorkflowImplement:
             "lane: planned\n"
             "---\n"
             "Integration task\n",
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Add WP04"], cwd=mock_repo, check=True, capture_output=True)
 
         # Mock dependencies
-        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
-             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
-             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug, \
-             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level:
-
+        with (
+            patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
+            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+        ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
 
             mock_wp = MagicMock()
             mock_wp.path = wp_file
-            mock_wp.frontmatter = {
-                "work_package_id": "WP04",
-                "dependencies": ["WP02", "WP03"],
-                "lane": "planned"
-            }
+            mock_wp.frontmatter = {"work_package_id": "WP04", "dependencies": ["WP02", "WP03"], "lane": "planned"}
             mock_wp.body = "Integration task\n"
             mock_locate_wp.return_value = mock_wp
 
@@ -225,7 +198,7 @@ class TestAgentWorkflowImplement:
                     wp_id="WP04",
                     feature="001-test-feature",
                     agent="test-agent",
-                    base=None  # Auto-merge should trigger
+                    base=None,  # Auto-merge should trigger
                 )
             except Exception:
                 # May fail during workspace creation/prompt display
@@ -243,24 +216,19 @@ class TestAgentWorkflowImplement:
         # Create WP02 with dependency on WP01
         wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
         wp_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "dependencies: [WP01]\n"
-            "lane: planned\n"
-            "---\n"
-            "Task\n",
-            encoding="utf-8"
+            "---\nwork_package_id: WP02\ndependencies: [WP01]\nlane: planned\n---\nTask\n", encoding="utf-8"
         )
 
         subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Add WP02"], cwd=mock_repo, check=True, capture_output=True)
 
         # Mock dependencies
-        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
-             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
-             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug, \
-             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level:
-
+        with (
+            patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
+            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+        ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
 
@@ -272,12 +240,7 @@ class TestAgentWorkflowImplement:
 
             # Should error during validation (before calling top-level)
             with pytest.raises(typer.Exit):
-                agent_implement(
-                    wp_id="WP02",
-                    feature="001-test-feature",
-                    agent="test-agent",
-                    base=None
-                )
+                agent_implement(wp_id="WP02", feature="001-test-feature", agent="test-agent", base=None)
 
             # Verify top-level implement was NOT called
             mock_top_level.assert_not_called()
@@ -409,8 +372,10 @@ class TestAgentFeatureMerge:
         # Make top-level raise typer.Exit
         mock_merge.side_effect = typer.Exit(1)
 
-        with patch("specify_cli.cli.commands.agent.feature.locate_project_root") as mock_locate_root, \
-             patch("specify_cli.cli.commands.agent.feature._get_current_branch") as mock_branch:
+        with (
+            patch("specify_cli.cli.commands.agent.feature.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.feature._get_current_branch") as mock_branch,
+        ):
             mock_locate_root.return_value = Path("/tmp/test")
             mock_branch.return_value = "001-test-feature-WP01"
 
@@ -436,8 +401,7 @@ class TestAgentCommandConsistency:
         from specify_cli.cli.commands.agent import feature, workflow
 
         # Check workflow.py imports
-        assert hasattr(workflow, "top_level_implement") or \
-               "top_level_implement" in workflow.implement.__code__.co_names
+        assert hasattr(workflow, "top_level_implement") or "top_level_implement" in workflow.implement.__code__.co_names
 
         # Check feature.py imports (in function scope)
         feature_source = Path(feature.__file__).read_text()
@@ -456,5 +420,4 @@ class TestAgentCommandConsistency:
                 continue
 
             content = py_file.read_text()
-            assert "scripts/tasks/tasks_cli.py" not in content, \
-                f"{py_file.name} still references legacy tasks_cli.py"
+            assert "scripts/tasks/tasks_cli.py" not in content, f"{py_file.name} still references legacy tasks_cli.py"
