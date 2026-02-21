@@ -1,10 +1,13 @@
 ---
 work_package_id: WP08
 title: Local Parity-Drift Detector
-lane: planned
+lane: "doing"
 dependencies:
 - WP04
 - WP05
+base_branch: 042-local-mission-dossier-authority-parity-export-WP08-merge-base
+base_commit: 1bf5196379830703d153f67da65abff9469ed59d
+created_at: '2026-02-21T15:59:47.689895+00:00'
 subtasks:
 - T040
 - T041
@@ -13,6 +16,7 @@ subtasks:
 - T044
 - T045
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "99003"
 ---
 
 # WP08: Local Parity-Drift Detector
