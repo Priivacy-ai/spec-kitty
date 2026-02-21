@@ -169,7 +169,8 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-latest
-    needs: lint
+    # Run unit tests independently of lint job
+    # This ensures test results are always available even if linting fails
     if: always()
 
     steps:
@@ -219,6 +220,8 @@ jobs:
   cli-tests:
     runs-on: ubuntu-latest
     needs: unit-tests
+    # Run even if unit-tests failed (to get full test results)
+    if: always()
 
     steps:
       - name: Check out repository
@@ -258,6 +261,8 @@ jobs:
   sync-tests:
     runs-on: ubuntu-latest
     needs: unit-tests
+    # Run even if unit-tests failed (to get full test results)
+    if: always()
 
     steps:
       - name: Check out repository
@@ -297,7 +302,8 @@ jobs:
   integration-smoke:
     runs-on: ubuntu-latest
     needs: unit-tests
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended)
+    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 45
 
     steps:
@@ -342,7 +348,8 @@ jobs:
   dashboard-tests:
     runs-on: ubuntu-latest
     needs: unit-tests
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended)
+    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
 
     steps:
       - name: Check out repository
