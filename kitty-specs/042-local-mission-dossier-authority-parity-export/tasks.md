@@ -170,11 +170,11 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T023-T027 (5 subtasks)
-- [ ] T023: Deterministic snapshot computation (sort artifacts, count by status)
-- [ ] T024: Parity hash algorithm (sorted artifact hashes, combined hash)
-- [ ] T025: Snapshot persistence (JSON storage to `.kittify/dossiers/{feature_slug}/snapshot-latest.json`)
-- [ ] T026: Snapshot validation (reproducibility: same content → same hash)
-- [ ] T027: Snapshot equality comparison (parity_hash_sha256 as source of truth)
+- [x] T023: Deterministic snapshot computation (sort artifacts, count by status)
+- [x] T024: Parity hash algorithm (sorted artifact hashes, combined hash)
+- [x] T025: Snapshot persistence (JSON storage to `.kittify/dossiers/{feature_slug}/snapshot-latest.json`)
+- [x] T026: Snapshot validation (reproducibility: same content → same hash)
+- [x] T027: Snapshot equality comparison (parity_hash_sha256 as source of truth)
 
 **Implementation Notes**:
 - Snapshot: Point-in-time projection with artifact counts, completeness status, parity hash
