@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Dossier Event Types & Emission
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP03
 base_branch: 042-local-mission-dossier-authority-parity-export-WP03
@@ -377,3 +377,4 @@ When reviewing WP04:
 ## Activity Log
 
 - 2026-02-21T15:52:01Z – coordinator – shell_pid=90295 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T15:55:41Z – coordinator – shell_pid=90295 – lane=for_review – Ready for review: WP04 complete with 4 event schemas, comprehensive payload validation, and 37 passing tests
