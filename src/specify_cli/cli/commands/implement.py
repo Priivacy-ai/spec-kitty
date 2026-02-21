@@ -37,7 +37,6 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.git import safe_commit
-from specify_cli.sync.events import emit_wp_status_changed
 
 console = Console()
 
