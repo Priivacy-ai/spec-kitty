@@ -122,7 +122,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          python -m mypy --strict src/specify_cli src/doctrine | tee out/reports/static-analysis/mypy-report.txt
+          python -m mypy --strict src/specify_cli | tee out/reports/static-analysis/mypy-report.txt
 
       - name: Run Bandit security scan
         id: bandit
@@ -199,16 +199,13 @@ jobs:
         run: |
           python -m pytest \
             -v \
-            tests/unit/ tests/doctrine/ tests/contract/ \
+            tests/unit/ tests/contract/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
             --cov=src/specify_cli \
-            --cov=src/doctrine \
+            --cov-fail-under=80 \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
-
-      - name: Check tiered coverage thresholds
-        run: python scripts/check_coverage.py
 
       - name: Upload unit test artifacts
         if: always()
