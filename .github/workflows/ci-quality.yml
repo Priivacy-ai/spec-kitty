@@ -1,0 +1,444 @@
+name: CI Quality
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - 2.x
+  push:
+    branches:
+      - main
+      - develop
+      - 2.x
+  workflow_dispatch:
+    inputs:
+      run_extended:
+        description: 'Run integration/smoke suite'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ci-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Prepare report directories
+        run: |
+          mkdir -p out/reports/static-analysis
+          mkdir -p out/reports/security
+
+      - name: Determine commit range
+        id: commit_range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "from=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "to=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "from=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "to=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run commit message linting
+        id: commitlint
+        if: always()
+        continue-on-error: true
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping commitlint."
+            exit 0
+          fi
+          npx --yes @commitlint/cli@19.8.1 \
+            --config commitlint.config.cjs \
+            --from "$FROM_SHA" \
+            --to "$TO_SHA" \
+            --verbose
+
+      - name: Run markdown style linting on changed files
+        id: markdownlint
+        if: always()
+        continue-on-error: true
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping markdownlint."
+            exit 0
+          fi
+
+          mapfile -d '' CHANGED_MD_FILES < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- '*.md' '*.mdx')
+          if [ "${#CHANGED_MD_FILES[@]}" -eq 0 ]; then
+            echo "No changed markdown files in commit range."
+            exit 0
+          fi
+
+          npx --yes markdownlint-cli2@0.18.1 \
+            --config .markdownlint-cli2.jsonc \
+            "${CHANGED_MD_FILES[@]}"
+
+      - name: Run ruff report
+        id: ruff
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m ruff check src tests | tee out/reports/static-analysis/ruff-report.txt
+
+      - name: Run mypy report
+        id: mypy
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m mypy --strict src/specify_cli | tee out/reports/static-analysis/mypy-report.txt
+
+      - name: Run Bandit security scan
+        id: bandit
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m bandit -r src/ \
+            --severity-level medium \
+            --confidence-level medium \
+            | tee out/reports/security/bandit-report.txt
+
+      - name: Run pip-audit CVE scan
+        id: pip_audit
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m pip_audit | tee out/reports/security/pip-audit-report.txt
+
+      - name: Upload lint artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: out/reports/
+
+      - name: Fail job if required checks failed
+        if: always()
+        run: |
+          echo "commitlint outcome: ${{ steps.commitlint.outcome }}"
+          echo "markdownlint outcome: ${{ steps.markdownlint.outcome }}"
+          echo "ruff outcome: ${{ steps.ruff.outcome }}"
+          echo "mypy outcome: ${{ steps.mypy.outcome }}"
+          echo "bandit outcome: ${{ steps.bandit.outcome }}"
+          echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
+          if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
+             [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
+             [ "${{ steps.ruff.outcome }}" != "success" ] || \
+             [ "${{ steps.mypy.outcome }}" != "success" ] || \
+             [ "${{ steps.bandit.outcome }}" != "success" ] || \
+             [ "${{ steps.pip_audit.outcome }}" != "success" ]; then
+            echo "One or more checks failed."
+            exit 1
+          fi
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    # Run unit tests independently of lint job
+    # This ensures test results are always available even if linting fails
+    if: always()
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: Run unit tests with coverage
+        run: |
+          python -m pytest \
+            -v \
+            tests/unit/ tests/contract/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-fail-under=80 \
+            --cov-report=term-missing \
+            --cov-report=xml:out/reports/coverage/coverage.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+
+      - name: Upload unit test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: out/reports/
+
+  cli-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # Run even if unit-tests failed (to get full test results)
+    if: always()
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run CLI tests
+        run: |
+          python -m pytest \
+            -v \
+            tests/specify_cli/ tests/adversarial/ tests/test_template/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-cli-${{ github.run_id }}.xml
+
+      - name: Upload CLI test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-test-reports
+          path: out/reports/
+
+  sync-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # Run even if unit-tests failed (to get full test results)
+    if: always()
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run sync tests
+        run: |
+          python -m pytest \
+            -v \
+            tests/sync/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-sync-${{ github.run_id }}.xml
+
+      - name: Upload sync test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-test-reports
+          path: out/reports/
+
+  integration-smoke:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/integration
+
+      - name: Run integration and smoke tests
+        run: |
+          python -m pytest \
+            -v \
+            tests/integration \
+            tests/e2e \
+            -m "not distribution" \
+            --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml \
+            | tee out/reports/integration/integration-smoke.log
+
+      - name: Upload integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-smoke-reports
+          path: out/reports/
+
+  dashboard-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run dashboard tests
+        env:
+          PWHEADLESS: '1'
+        run: |
+          python -m pytest \
+            -v \
+            tests/test_dashboard/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-dashboard-${{ github.run_id }}.xml
+
+      - name: Upload dashboard test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-reports
+          path: out/reports/
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: always()
+
+    steps:
+      - name: Check Sonar token availability
+        id: sonar_token
+        run: |
+          if [ -n "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SONAR_TOKEN is not configured; skipping SonarCloud steps."
+          fi
+
+      - name: Check out repository
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-reports
+          path: out/reports
+
+      - name: Normalize xUnit path for SonarCloud
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        run: |
+          mkdir -p out/reports/xunit-reports
+          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-unit-*.xml | head -n 1)"
+          cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
+
+      - name: SonarCloud Scan
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCloud Quality Gate
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
