@@ -26,6 +26,7 @@ review_status: "approved"
 **Priority**: P1 (Foundation for all other WPs)
 
 **Scope**:
+
 - ArtifactRef model (~25 fields)
 - Hasher utility class
 - Deterministic SHA256 hashing
@@ -34,6 +35,7 @@ review_status: "approved"
 - Unit tests for reproducibility
 
 **Test Criteria**:
+
 - ArtifactRef validates all required fields, rejects malformed inputs
 - Same file hashed 10x produces identical SHA256
 - Different files produce different hashes
@@ -47,6 +49,7 @@ review_status: "approved"
 Feature 042 requires a mission artifact dossier system. The dossier stores immutable references to indexed artifacts, each with deterministic content hash (SHA256) and metadata. The ArtifactRef model is the core data structure; the Hasher utility ensures deterministic hashing across machines/timezones/runs.
 
 **Key Requirements**:
+
 - **FR-001**: System MUST index all artifact files and compute deterministic content_hash_sha256
 - **FR-005**: System MUST compute deterministic parity_hash_sha256 from artifact hashes
 - **SC-002**: Snapshots are deterministic—repeated scans produce identical hashes
@@ -61,6 +64,7 @@ Feature 042 requires a mission artifact dossier system. The dossier stores immut
 **What**: Create comprehensive pydantic BaseModel for ArtifactRef.
 
 **How**:
+
 1. Define ArtifactRef class in `src/specify_cli/dossier/models.py`
 2. Include 25 fields across 6 categories:
    - **Identity**: artifact_key (unique per dossier), artifact_class (6-type enum)
@@ -74,6 +78,7 @@ Feature 042 requires a mission artifact dossier system. The dossier stores immut
 5. Add docstring referencing data-model.md
 
 **Example Signature**:
+
 ```python
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -89,6 +94,7 @@ class ArtifactRef(BaseModel):
 ```
 
 **Validation**:
+
 - artifact_key must be non-empty, alphanumeric + dots/underscores
 - artifact_class must be in {input, workflow, output, evidence, policy, runtime}
 - required_status must be in {required, optional}
@@ -96,6 +102,7 @@ class ArtifactRef(BaseModel):
 - content_hash_sha256 must be 64 hex chars (SHA256) or None (if error_reason set)
 
 **Test Requirements**:
+
 - Create valid ArtifactRef, verify all fields present
 - Reject artifact_key=None, verify error
 - Reject artifact_class="unknown", verify error
@@ -108,6 +115,7 @@ class ArtifactRef(BaseModel):
 **What**: Create standalone hash_file() function for deterministic content hashing.
 
 **How**:
+
 1. Create hasher.py module in `src/specify_cli/dossier/hasher.py`
 2. Implement `hash_file(file_path: Path) -> str` function:
    - Read file as bytes (binary mode, no text encoding assumptions)
@@ -120,6 +128,7 @@ class ArtifactRef(BaseModel):
 4. Add docstring with examples
 
 **Implementation Sketch**:
+
 ```python
 import hashlib
 from pathlib import Path
@@ -144,6 +153,7 @@ def hash_file(file_path: Path) -> str:
 ```
 
 **Test Requirements**:
+
 - Hash same file 10 times, verify identical result
 - Hash two different files, verify different hashes
 - Hash large file (>100MB), verify completes without memory issues
@@ -152,6 +162,7 @@ def hash_file(file_path: Path) -> str:
 - PermissionError raises on unreadable file (if testable)
 
 **Notes**:
+
 - Use binary mode (rb) to avoid encoding assumptions
 - Chunk read size: 8192 bytes (standard buffer size)
 - No encoding/decoding steps (handled in WP04 UTF-8 validation)
@@ -163,7 +174,9 @@ def hash_file(file_path: Path) -> str:
 **What**: Create Hasher class that computes order-independent parity hash from artifact hashes.
 
 **How**:
+
 1. Create Hasher class in hasher.py:
+
    ```python
    class Hasher:
        def __init__(self):
@@ -175,6 +188,7 @@ def hash_file(file_path: Path) -> str:
        def compute_parity_hash(self) -> str:
            """Compute order-independent parity hash."""
    ```
+
 2. Implement `compute_parity_hash()`:
    - Sort artifact hashes lexicographically
    - Concatenate sorted hashes into single string
@@ -184,6 +198,7 @@ def hash_file(file_path: Path) -> str:
 4. Add docstring explaining order-independence
 
 **Algorithm**:
+
 ```python
 def compute_parity_hash(self) -> str:
     """Compute SHA256 of sorted artifact hashes.
@@ -198,6 +213,7 @@ def compute_parity_hash(self) -> str:
 ```
 
 **Test Requirements**:
+
 - Add 5 artifact hashes in order [A, B, C, D, E], compute parity → X
 - Add same 5 hashes in random order [C, A, E, B, D], compute parity → X (identical)
 - Add hashes with 100+ artifacts, verify deterministic
@@ -205,6 +221,7 @@ def compute_parity_hash(self) -> str:
 - Duplicate artifact hashes included in parity (intentional)
 
 **Notes**:
+
 - UTF-8 encode concatenated string before hashing (hashes are hex strings)
 - Duplicates allowed and included in parity (features may have duplicate artifacts)
 
@@ -215,6 +232,7 @@ def compute_parity_hash(self) -> str:
 **What**: Add UTF-8 validation to hashing pipeline, ensure no silent corruption.
 
 **How**:
+
 1. Create `hash_file_with_validation(file_path: Path) -> Tuple[str, Optional[str]]` function:
    - Attempt to read file as UTF-8 text (validate encoding)
    - If valid UTF-8, hash bytes normally
@@ -229,6 +247,7 @@ def compute_parity_hash(self) -> str:
 4. Add docstring with examples
 
 **Implementation Sketch**:
+
 ```python
 def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[str]]:
     """Hash file, validate UTF-8 encoding, return (hash, error_reason)."""
@@ -250,6 +269,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
 ```
 
 **Test Requirements**:
+
 - Valid UTF-8 file: returns (hash, None)
 - File with BOM (UTF-8 BOM prefix): validates, hashes correctly
 - File with CJK characters (Chinese/Japanese): validates, hashes correctly
@@ -258,6 +278,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
 - Unreadable file (permission): returns (None, "unreadable")
 
 **Notes**:
+
 - No fallback encoding (e.g., latin-1). Invalid UTF-8 is error, not silent corruption.
 - BOM handling: UTF-8 BOM is valid (bytes 0xEF, 0xBB, 0xBF); Python's decode('utf-8') handles it.
 - CJK: Valid UTF-8 multibyte sequences should validate cleanly.
@@ -269,6 +290,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
 **What**: Comprehensive unit tests for deterministic hashing.
 
 **How**:
+
 1. Create `tests/specify_cli/dossier/test_hasher.py`
 2. Add test cases:
    - **test_hash_file_determinism**: Hash same file 10 times, verify identical
@@ -285,6 +307,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
 4. Add parametrized tests for multiple scenarios
 
 **Test Structure**:
+
 ```python
 import pytest
 from pathlib import Path
@@ -336,15 +359,19 @@ def test_hasher_order_independence():
 ## Risks & Mitigations
 
 **Risk 1**: Encoding assumptions (e.g., assuming UTF-8)
+
 - **Mitigation**: Hash bytes directly, validate UTF-8 separately, no fallback encoding
 
 **Risk 2**: Memory issues on large files
+
 - **Mitigation**: Chunk read size (8192 bytes), test with 100MB+ files
 
 **Risk 3**: Hash collision false positives
+
 - **Mitigation**: SHA256 is standard, tested across Python versions; collision probability negligible
 
 **Risk 4**: Timezone/platform differences in hash
+
 - **Mitigation**: Hash is deterministic (bytes-based), timezone-independent; SC-006 validates
 
 ---
@@ -352,6 +379,7 @@ def test_hasher_order_independence():
 ## Reviewer Guidance
 
 When reviewing WP01:
+
 1. Verify ArtifactRef model matches data-model.md exactly (all 25 fields)
 2. Confirm hash_file() uses binary mode (no encoding assumptions)
 3. Check UTF-8 validation handles BOM, CJK, surrogates explicitly

@@ -461,6 +461,7 @@ curl -X POST https://saas.example.com/api/import-dossier \
 **Cause**: Feature missing required artifact (e.g., plan.md)
 
 **Fix**:
+
 ```bash
 # Check what's missing
 spec-kitty dashboard → Dossier → Filter [Required Only]
@@ -477,6 +478,7 @@ spec-kitty plan  # Recreates plan.md
 **Cause**: Artifact content changed (expected after edits)
 
 **Fix**:
+
 ```bash
 # Re-capture parity baseline
 curl -s http://localhost:8000/api/dossier/snapshots/export?feature=042-local-mission-dossier \
@@ -490,6 +492,7 @@ curl -s http://localhost:8000/api/dossier/snapshots/export?feature=042-local-mis
 **Cause**: Artifact file not valid UTF-8
 
 **Fix**:
+
 ```bash
 # Check file encoding
 file -i artifact.md

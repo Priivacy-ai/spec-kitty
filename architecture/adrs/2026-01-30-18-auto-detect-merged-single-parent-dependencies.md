@@ -133,6 +133,7 @@ We will validate this decision by:
 Check if base WP is merged (lane == "done"), use target branch instead of workspace branch.
 
 **Pros:**
+
 - Zero manual intervention (workflow "just works")
 - Correct semantics (merged work is in target)
 - Backwards compatible (in-progress unchanged)
@@ -141,6 +142,7 @@ Check if base WP is merged (lane == "done"), use target branch instead of worksp
 - Consistent with ADR-15 (multi-parent all-done detection)
 
 **Cons:**
+
 - Implicit behavior (branching point changes silently)
 - Code complexity (lane status query before branch resolution)
 - Frontmatter staleness (`base_branch` field may be outdated)
@@ -151,11 +153,13 @@ Check if base WP is merged (lane == "done"), use target branch instead of worksp
 Make user explicitly opt-in to branching from target when dependency is merged.
 
 **Pros:**
+
 - Explicit (user chooses behavior)
 - No surprises (branching point always clear)
 - Simpler code (no auto-detection)
 
 **Cons:**
+
 - Extra flag every time (WP02, WP03, WP08 all need --force)
 - Poor UX (why require flag for normal case?)
 - Inconsistent with ADR-15 (multi-parent suggests merge, not --force)
@@ -166,11 +170,13 @@ Make user explicitly opt-in to branching from target when dependency is merged.
 User manually updates `dependencies: []` and `base_branch: 2.x` when WP01 merges.
 
 **Pros:**
+
 - No code changes needed
 - Explicit (frontmatter shows intent)
 - Full control (user decides)
 
 **Cons:**
+
 - Error-prone (manual YAML editing)
 - Workflow interruption (must edit, commit, then implement)
 - Confusing (why remove dependency if it's real?)
@@ -182,10 +188,12 @@ User manually updates `dependencies: []` and `base_branch: 2.x` when WP01 merges
 Block WP01 merge if WP02/WP08 are not started/completed.
 
 **Pros:**
+
 - No stale branches (all WPs exist until merged together)
 - Simple logic (all workspaces exist always)
 
 **Cons:**
+
 - Blocks parallel development (WP02 can't start until WP01 merges)
 - Forces sequential workflow (no benefit of workspace-per-WP)
 - Poor scaling (diamond dependencies deadlock)

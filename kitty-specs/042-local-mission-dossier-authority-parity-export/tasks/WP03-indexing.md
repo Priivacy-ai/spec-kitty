@@ -26,6 +26,7 @@ review_status: "approved"
 **Priority**: P1 (Core dossier functionality)
 
 **Scope**:
+
 - Artifact indexing (recursive directory scan)
 - Artifact classification (deterministic, 6 classes)
 - Missing artifact detection (required vs optional per manifest)
@@ -34,6 +35,7 @@ review_status: "approved"
 - Step-aware completeness checking
 
 **Test Criteria**:
+
 - Scans 30+ artifacts without errors
 - Correctly identifies required vs optional
 - Missing required artifacts flagged with reason codes
@@ -47,12 +49,14 @@ review_status: "approved"
 After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings them together: scan feature directory, create ArtifactRef for each file found, compare against manifest requirements, and identify gaps. The indexer is the bridge between filesystem and dossier system.
 
 **Key Requirements**:
+
 - **FR-001**: System MUST index all artifact files and compute deterministic content_hash_sha256
 - **FR-002**: System MUST support 6 artifact classes
 - **FR-004**: System MUST detect missing required artifacts and emit events
 - **FR-009**: System MUST never silently omit artifacts
 
 **Mission Context**:
+
 - Feature directory structure: spec.md, plan.md, tasks.md, tasks/*.md, etc.
 - Hidden files/directories: ignore .git, .kittify, etc.
 - Symlinks: handle gracefully (optional: follow or skip)
@@ -66,8 +70,10 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Create Indexer class with index_feature() method for recursive directory scan.
 
 **How**:
+
 1. Create indexer.py in `src/specify_cli/dossier/indexer.py`
 2. Define Indexer class:
+
    ```python
    class Indexer:
        def __init__(self, manifest_registry: ManifestRegistry):
@@ -123,10 +129,12 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
            """Index single file, return ArtifactRef or None if unindexable."""
            # Implemented in T013-T015
    ```
+
 3. Handle errors gracefully (log, continue scan)
 4. Return iterator (don't load all files in memory at once)
 
 **Implementation Details**:
+
 - Use `pathlib.Path.rglob()` for recursive scan
 - Skip hidden files/dirs (names starting with .)
 - Skip .git, .kittify directories explicitly
@@ -134,6 +142,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 - Return Path objects (relative_to feature_dir in ArtifactRef)
 
 **Test Requirements**:
+
 - Scan feature directory with 30+ files, no errors
 - Skip .git, .kittify directories
 - Yield all non-hidden files
@@ -146,7 +155,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Implement deterministic artifact classification (6 classes).
 
 **How**:
+
 1. Add classification logic to Indexer._index_file():
+
    ```python
    def _classify_artifact(
        self,
@@ -191,11 +202,13 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        relative = str(file_path.relative_to(feature_dir)) if feature_dir else file_path.name
        return fnmatch.fnmatch(relative, pattern)
    ```
+
 2. Ensure classification is deterministic (same file, always same class)
 3. Never return "other" or unknown class (fail explicitly if can't classify)
 4. Log classification reasoning
 
 **Classification Rules**:
+
 - **input**: spec.md, requirements.md, research.md
 - **workflow**: plan.md, tasks.md, tasks/*.md, mission artifacts
 - **output**: implementation artifacts, reports, findings.md
@@ -204,6 +217,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 - **runtime**: generated files, logs, runtime state
 
 **Test Requirements**:
+
 - Classify spec.md → input
 - Classify plan.md → output
 - Classify tasks.md → workflow
@@ -218,7 +232,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Compare indexed artifacts against manifest requirements, identify gaps.
 
 **How**:
+
 1. Add method to Indexer:
+
    ```python
    def _detect_missing_artifacts(self, dossier: MissionDossier, step_id: Optional[str] = None) -> List[ArtifactRef]:
        """Detect required artifacts that are not present.
@@ -261,16 +277,19 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 
        return missing
    ```
+
 2. Link detected missing artifacts to dossier for event emission (handled in WP04)
 3. Distinguish between required and optional (blocking vs non-blocking)
 
 **Missing Reason Codes**:
+
 - "not_found": Required artifact expected but filesystem scan found no match
 - "unreadable": Found but couldn't read (permission, I/O error)
 - "invalid_format": Found but failed validation (encoding error, malformed)
 - "deleted_after_scan": Found during scan but deleted before hashing
 
 **Test Requirements**:
+
 - Missing required artifact detected (reason="not_found")
 - Missing optional artifact not flagged
 - Multiple missing artifacts detected
@@ -283,7 +302,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Gracefully handle artifacts that can't be read.
 
 **How**:
+
 1. Wrap file operations in try-catch:
+
    ```python
    def _index_file(self, file_path: Path, feature_dir: Path, mission_type: str) -> Optional[ArtifactRef]:
        """Index single file, handle read errors gracefully."""
@@ -326,11 +347,13 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        except OSError:
            return ArtifactRef(..., is_present=False, error_reason='unreadable')
    ```
+
 2. Record error_reason on ArtifactRef
 3. Continue scan (no silent failures)
 4. Log all errors
 
 **Error Scenarios**:
+
 - Permission denied: error_reason="unreadable"
 - File deleted after iteration start: error_reason="unreadable"
 - I/O error (disk issues): error_reason="unreadable"
@@ -338,6 +361,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 - File size too large (optional limit): error_reason="size_limit"
 
 **Test Requirements**:
+
 - Unreadable artifact (no read permission) recorded with error_reason="unreadable"
 - Invalid UTF-8 file recorded with error_reason="invalid_utf8"
 - Scan continues after errors (no exception thrown)
@@ -350,7 +374,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Aggregate indexed artifacts and missing artifacts into complete MissionDossier.
 
 **How**:
+
 1. In Indexer.index_feature(), build MissionDossier:
+
    ```python
    def index_feature(self, feature_dir: Path, mission_type: str, step_id: Optional[str] = None) -> MissionDossier:
        """Build complete MissionDossier from indexed artifacts."""
@@ -383,10 +409,12 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 
        return dossier
    ```
+
 2. MissionDossier should include all artifacts (present + missing + unreadable)
 3. Completeness status automatically computed by MissionDossier.completeness_status
 
 **Test Requirements**:
+
 - Dossier includes all indexed artifacts
 - Dossier includes missing artifacts (is_present=False)
 - Completeness status correctly computed
@@ -399,7 +427,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **What**: Implement logic to check completeness for specific mission step.
 
 **How**:
+
 1. Add method to MissionDossier (from data-model.md):
+
    ```python
    def get_required_artifacts(self, step_id: Optional[str] = None) -> List[ArtifactRef]:
        """Return required artifacts for step (or all required if step_id=None)."""
@@ -433,10 +463,12 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        missing = self.get_missing_required_artifacts()
        return 'complete' if not missing else 'incomplete'
    ```
+
 2. Completeness is step-aware (depends on step_id passed)
 3. Optional artifacts never affect completeness
 
 **Test Requirements**:
+
 - completeness_status='complete' when all required present
 - completeness_status='incomplete' when any required missing
 - completeness_status='unknown' when no manifest
@@ -463,18 +495,23 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 ## Risks & Mitigations
 
 **Risk 1**: Hidden files indexed when they shouldn't be
+
 - **Mitigation**: Explicit skip of hidden dirs (names starting with .)
 
 **Risk 2**: Symlinks cause issues (loops, permission errors)
+
 - **Mitigation**: Don't follow symlinks (deferred post-042 enhancement)
 
 **Risk 3**: Classification fails for unknown artifacts
+
 - **Mitigation**: Fail explicitly (raise exception), don't return "other"
 
 **Risk 4**: Concurrent file deletion during scan
+
 - **Mitigation**: Catch FileNotFoundError, mark as unreadable
 
 **Risk 5**: Large feature directories (1000s of files) slow indexing
+
 - **Mitigation**: Use iterator (don't load all in memory); SC-005 validates performance
 
 ---
@@ -482,6 +519,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 ## Reviewer Guidance
 
 When reviewing WP03:
+
 1. Verify Indexer recursively scans feature directory (Path.rglob)
 2. Check artifact classification deterministic (same file, always same class)
 3. Confirm classification never returns "other" (fail explicitly)

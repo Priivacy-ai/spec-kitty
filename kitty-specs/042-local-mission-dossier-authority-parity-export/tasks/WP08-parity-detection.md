@@ -29,6 +29,7 @@ review_status: "approved"
 **Priority**: P1 (Core parity feature, offline-capable)
 
 **Scope**:
+
 - Baseline key computation (project, node, feature, branch, mission, manifest)
 - Baseline persistence (JSON file)
 - Baseline acceptance logic (key match validation)
@@ -37,6 +38,7 @@ review_status: "approved"
 - Baseline update logic
 
 **Test Criteria**:
+
 - Baseline computes and persists without errors
 - Acceptance validates key match
 - Drift detection identifies hash changes
@@ -50,10 +52,12 @@ review_status: "approved"
 After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the parity loop: it maintains locally cached baselines and compares current snapshots against them to detect drift. The design is robust (fully namespaced baseline key) to prevent false positives in multi-feature, multi-branch, multi-user scenarios.
 
 **Key Requirements**:
+
 - **FR-012**: Local runtime MUST own parity-drift detection and operate offline
 - **Decision 2** (plan.md): Fully namespaced baseline (project, node, feature, branch, mission, manifest version)
 
 **Baseline Purpose**:
+
 - Detect unintended content changes (drift)
 - Work offline (no SaaS call)
 - Prevent false positives (branch switches, manifest updates)
@@ -68,8 +72,10 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Create identity tuple (baseline key) that uniquely identifies baseline scope.
 
 **How**:
+
 1. Create drift_detector.py in `src/specify_cli/dossier/drift_detector.py`
 2. Define BaselineKey dataclass:
+
    ```python
    from dataclasses import dataclass
    from typing import Optional
@@ -101,7 +107,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
            data = json.dumps(self.to_dict(), sort_keys=True)
            return hashlib.sha256(data.encode()).hexdigest()
    ```
+
 3. Create compute_baseline_key() function:
+
    ```python
    def compute_baseline_key(
        feature_slug: str,
@@ -120,6 +128,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
            manifest_version=manifest_version,
        )
    ```
+
 4. Key components (rationale):
    - **project_uuid**: Different projects → different baseline (no collision)
    - **node_id**: Different machines/users in same project → different baseline (multi-user safe)
@@ -129,6 +138,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
    - **manifest_version**: Manifest updates → different baseline (prevents false drift)
 
 **Test Requirements**:
+
 - compute_baseline_key() produces valid BaselineKey
 - to_dict() includes all 6 components
 - compute_hash() produces 64-char SHA256 hash
@@ -142,7 +152,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Store and load baseline key + parity hash to/from JSON file.
 
 **How**:
+
 1. Define BaselineSnapshot dataclass:
+
    ```python
    @dataclass
    class BaselineSnapshot:
@@ -172,7 +184,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
                captured_by=data['captured_by'],
            )
    ```
+
 2. Create save_baseline() function:
+
    ```python
    def save_baseline(feature_slug: str, baseline: BaselineSnapshot, repo_root: Path) -> None:
        """Persist baseline to JSON.
@@ -186,7 +200,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
        with open(baseline_file, 'w') as f:
            json.dump(baseline.to_dict(), f, indent=2)
    ```
+
 3. Create load_baseline() function:
+
    ```python
    def load_baseline(feature_slug: str, repo_root: Path) -> Optional[BaselineSnapshot]:
        """Load baseline from JSON.
@@ -201,10 +217,12 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
            data = json.load(f)
        return BaselineSnapshot.from_dict(data)
    ```
+
 4. File location: `.kittify/dossiers/{feature_slug}/parity-baseline.json`
 5. Store full baseline object (key + hash + metadata)
 
 **File Format Example**:
+
 ```json
 {
   "baseline_key": {
@@ -223,6 +241,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 ```
 
 **Test Requirements**:
+
 - save_baseline() creates file in correct location
 - load_baseline() reads file without errors
 - Round-trip (save, load) preserves all fields
@@ -235,7 +254,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Validate baseline key matches current context (prevent false positives).
 
 **How**:
+
 1. Create accept_baseline() function:
+
    ```python
    def accept_baseline(
        loaded_baseline: BaselineSnapshot,
@@ -278,7 +299,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
        # Accepted
        return True, None
    ```
+
 2. Usage in drift detection:
+
    ```python
    loaded_baseline = load_baseline(feature_slug, repo_root)
    if not loaded_baseline:
@@ -293,17 +316,20 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 
    # Baseline accepted, proceed to drift check
    ```
+
 3. Acceptance logic:
    - If loaded baseline key != current key → reject ("no baseline")
    - If keys match → accept, safe to compare hashes
 
 **False Positive Prevention**:
+
 - Branch switch (target_branch differs) → baseline rejected (no drift event)
 - Manifest update (manifest_version differs) → baseline rejected
 - Multi-user (node_id differs) → baseline rejected
 - Multi-project → baseline rejected
 
 **Test Requirements**:
+
 - Exact match → accepted
 - project_uuid differs → rejected
 - target_branch differs → rejected
@@ -317,7 +343,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Compare current snapshot parity hash vs cached baseline.
 
 **How**:
+
 1. Create detect_drift() function:
+
    ```python
    def detect_drift(
        feature_slug: str,
@@ -375,6 +403,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 
        return True, drift_info
    ```
+
 2. Severity levels:
    - "info": Minor drift (e.g., optional artifact changed)
    - "warning": Significant drift (e.g., multiple required artifacts changed)
@@ -382,6 +411,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 3. Missing artifacts: Compute by comparing artifact keys in snapshot vs baseline
 
 **Test Requirements**:
+
 - Same hash → no drift
 - Different hash → drift detected
 - No baseline → no drift (return False)
@@ -394,7 +424,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Emit event when drift detected (only if conditions met).
 
 **How**:
+
 1. Integrate drift detection with event emission:
+
    ```python
    async def emit_drift_if_detected(
        feature_slug: str,
@@ -433,10 +465,12 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 
        return event
    ```
+
 2. Conditional emission: Event emitted only if has_drift=True
 3. Integrate into indexing workflow (call after snapshot computed)
 
 **Test Requirements**:
+
 - Event emitted if drift detected
 - Event not emitted if no drift
 - Event not emitted if no baseline
@@ -450,7 +484,9 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 **What**: Implement logic to capture new baseline when accepted by user.
 
 **How**:
+
 1. Create capture_baseline() function:
+
    ```python
    def capture_baseline(
        feature_slug: str,
@@ -484,6 +520,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
        save_baseline(feature_slug, baseline, repo_root)
        return baseline
    ```
+
 2. Usage:
    - Curator reviews drift event
    - If change is intentional, curator runs `spec-kitty accept-baseline {feature}`
@@ -491,10 +528,12 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 3. Baseline should only be captured by curator (manual acceptance, not automatic)
 
 **Baseline Update Triggers**:
+
 - Manual: `spec-kitty accept-baseline {feature}` command
 - Deferred: Automatic capture on snapshot after CI/CD validation (post-042)
 
 **Test Requirements**:
+
 - capture_baseline() creates BaselineSnapshot
 - Baseline saved to correct file
 - Baseline_key_hash computed correctly
@@ -522,15 +561,19 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 ## Risks & Mitigations
 
 **Risk 1**: Baseline key namespace incomplete (collision possible)
+
 - **Mitigation**: Include all context (project, node, feature, branch, mission, manifest); test multi-user scenarios
 
 **Risk 2**: Baseline files accumulate (storage bloat)
+
 - **Mitigation**: Keep one baseline per feature (overwrite on capture); cleanup in future (deferred)
 
 **Risk 3**: Drift detection too noisy (false positive events)
+
 - **Mitigation**: Robust key matching (exact component comparison) + clear logging
 
 **Risk 4**: Baseline update race condition (concurrent captures)
+
 - **Mitigation**: File locking (optional, deferred post-042)
 
 ---
@@ -538,6 +581,7 @@ After WP05 computes snapshots and WP06 exposes them via API, WP08 closes the par
 ## Reviewer Guidance
 
 When reviewing WP08:
+
 1. Verify BaselineKey includes all 6 components (project, node, feature, branch, mission, manifest)
 2. Check baseline persistence (save/load JSON correctly)
 3. Confirm acceptance logic validates all key components

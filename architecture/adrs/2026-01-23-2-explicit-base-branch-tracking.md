@@ -95,11 +95,13 @@ We'll validate this decision by:
 ### Option 1: Continue Runtime Derivation
 
 **Pros:**
+
 - No schema changes required
 - Minimal implementation effort
 - Flexible (no persistent state to manage)
 
 **Cons:**
+
 - Base branch invisible to agents without git queries
 - No audit trail for base branch changes
 - Debugging requires inferring from git metadata
@@ -109,6 +111,7 @@ We'll validate this decision by:
 ### Option 2: Store Base Branch in WP Frontmatter
 
 **Pros:**
+
 - Single source of truth
 - Visible to agents reading planning artifacts
 - Tracked in git history (auditability)
@@ -117,6 +120,7 @@ We'll validate this decision by:
 - Enables validation and debugging
 
 **Cons:**
+
 - Could diverge from git state
 - Additional frontmatter fields
 - Minor overhead during workspace creation
@@ -124,10 +128,12 @@ We'll validate this decision by:
 ### Option 3: Store Base Branch in Git Commit Message
 
 **Pros:**
+
 - Already in git history
 - No schema changes needed
 
 **Cons:**
+
 - Difficult to query programmatically
 - Not visible in WP files
 - Agents would need to parse git log
@@ -136,10 +142,12 @@ We'll validate this decision by:
 ### Option 4: Store Base Branch in Separate Metadata File
 
 **Pros:**
+
 - Doesn't pollute frontmatter
 - Could store additional metadata
 
 **Cons:**
+
 - New file to manage (.kittify/workspace-metadata/ directory)
 - Not visible in WP files
 - Another file to track and sync

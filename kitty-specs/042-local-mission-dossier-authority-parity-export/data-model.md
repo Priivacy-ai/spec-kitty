@@ -140,11 +140,13 @@ class ExpectedArtifactManifest(BaseModel):
 ```
 
 **Manifests Shipped in V1**:
+
 - `src/specify_cli/missions/software-dev/expected-artifacts.yaml`
 - `src/specify_cli/missions/research/expected-artifacts.yaml`
 - `src/specify_cli/missions/documentation/expected-artifacts.yaml`
 
 **Registry Access**:
+
 ```python
 # src/specify_cli/dossier/manifest.py
 class ManifestRegistry:
@@ -275,6 +277,7 @@ class MissionDossierSnapshot(BaseModel):
 ```
 
 **Computation Algorithm**:
+
 ```python
 def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
     """Deterministically compute snapshot from dossier."""
@@ -514,6 +517,7 @@ Stores point-in-time parity hash with identity tuple for robust drift detection 
 ```
 
 **Baseline Key Components** (prevent false positives):
+
 - `project_uuid`: Local project identity (from sync/project_identity.py)
 - `node_id`: Stable machine identifier (from sync/project_identity.py)
 - `feature_slug`: Feature identifier
@@ -522,6 +526,7 @@ Stores point-in-time parity hash with identity tuple for robust drift detection 
 - `manifest_version`: Manifest schema version
 
 **Acceptance Logic**:
+
 - On parity detection, compute current key
 - Compare current key vs baseline key (via hash)
 - Accept baseline only if keys match; else treat as "no baseline" (informational drift event)
@@ -552,7 +557,7 @@ Stores point-in-time parity hash with identity tuple for robust drift detection 
 
 ## References
 
-- **Pydantic Documentation**: https://docs.pydantic.dev/
+- **Pydantic Documentation**: <https://docs.pydantic.dev/>
 - **datetime Handling**: Use `datetime.utcnow()` (UTC-aware, no timezone ambiguity)
 - **SHA256 Hashing**: Use `hashlib.sha256()` from stdlib
 - **YAML Parsing**: Use `ruamel.yaml` (existing spec-kitty dependency)

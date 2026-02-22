@@ -105,6 +105,7 @@ We validated this decision by:
 Add commit_hash, commit_created, files_committed to JSON response.
 
 **Pros:**
+
 - Explicit: Agent knows if commit happened
 - Verifiable: Can check git rev-parse HEAD = commit_hash
 - Clear scope: files_committed lists what changed
@@ -112,6 +113,7 @@ Add commit_hash, commit_created, files_committed to JSON response.
 - Prevents confusion: Distinguishes related from unrelated changes
 
 **Cons:**
+
 - Larger JSON: More data to transmit
 - Breaking change: Requires agent updates
 - Code complexity: More fields to populate
@@ -121,11 +123,13 @@ Add commit_hash, commit_created, files_committed to JSON response.
 Add --verbose flag to include details.
 
 **Pros:**
+
 - Opt-in: Agents choose verbosity level
 - No breaking change: Default behavior unchanged
 - Smaller default response
 
 **Cons:**
+
 - Agents must know to use --verbose
 - Two modes to maintain
 - Still doesn't prevent confusion (agent might not use it)
@@ -135,10 +139,12 @@ Add --verbose flag to include details.
 Add spec-kitty verify finalize-tasks to check results.
 
 **Pros:**
+
 - Separation of concerns
 - No changes to existing command
 
 **Cons:**
+
 - Two commands instead of one
 - Agent must know to run verify
 - Duplicates logic (finalize-tasks knows what it did)
@@ -149,10 +155,12 @@ Add spec-kitty verify finalize-tasks to check results.
 Keep vague "success" message.
 
 **Pros:**
+
 - No changes needed
 - Minimal JSON payload
 
 **Cons:**
+
 - Agents get confused by unrelated dirty files
 - No verification mechanism
 - Cannot distinguish "already done" from "just done"

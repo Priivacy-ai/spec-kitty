@@ -105,6 +105,7 @@ We validated this decision by:
 meta.json always includes target_branch and vcs, even if they match defaults.
 
 **Pros:**
+
 - Visible: cat meta.json shows configuration
 - Debuggable: No guessing about defaults
 - SDD-compliant: Specification is explicit
@@ -112,6 +113,7 @@ meta.json always includes target_branch and vcs, even if they match defaults.
 - Self-documenting: New developers see config immediately
 
 **Cons:**
+
 - Verbose: Two extra lines per meta.json
 - Migration: Must update existing features
 - Template: Agents must set fields
@@ -121,11 +123,13 @@ meta.json always includes target_branch and vcs, even if they match defaults.
 Keep implicit defaults, add command to display them.
 
 **Pros:**
+
 - No migration needed
 - Smaller meta.json files
 - No template changes
 
 **Cons:**
+
 - Requires running command to see config
 - Not visible in git history
 - Cannot grep for features by config
@@ -137,10 +141,12 @@ Keep implicit defaults, add command to display them.
 Set target_branch only if not "main", vcs only if not "git".
 
 **Pros:**
+
 - Smaller meta.json for most features
 - Explicit when overriding defaults
 
 **Cons:**
+
 - Ambiguous: Is "main" explicit or implicit?
 - Cannot distinguish explicit from fallback
 - Debugging still requires checking code
@@ -151,11 +157,13 @@ Set target_branch only if not "main", vcs only if not "git".
 Keep current behavior, document defaults in code comments.
 
 **Pros:**
+
 - No changes needed
 - Minimal meta.json
 - No migration
 
 **Cons:**
+
 - Violates SDD principles
 - Not debuggable from meta.json
 - Cannot grep for features by config

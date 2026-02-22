@@ -38,6 +38,7 @@ review_status: "approved"
 **Priority**: P1 (Hardening, final validation before production)
 
 **Scope**:
+
 - Missing artifact detection edge cases
 - Optional artifact handling
 - Unreadable artifact handling
@@ -48,6 +49,7 @@ review_status: "approved"
 - Manifest version mismatch edge case
 
 **Test Criteria**:
+
 - All edge cases handled gracefully (no crashes, no silent failures)
 - Full workflow integration test passing
 - SaaS webhook simulator receives all 4 event types
@@ -70,8 +72,10 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Edge case—multiple missing artifacts, verify all detected.
 
 **How**:
+
 1. Create test_missing_detection.py in `tests/specify_cli/dossier/integration/`
 2. Implement test_missing_required_artifacts():
+
    ```python
    def test_missing_required_artifacts_detected(tmp_path):
        """Missing required artifacts flagged with reason codes."""
@@ -128,10 +132,12 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
        assert len(events) == len(missing), f"Expected {len(missing)} events, got {len(events)}"
        assert all(e.event_type == 'mission_dossier_artifact_missing' for e in events)
    ```
+
 3. Test with step-specific requirements (plan, implementation, etc.)
 4. Verify all missing detected (not just first one)
 
 **Test Requirements**:
+
 - Multiple missing artifacts all detected
 - All have error_reason (not_found, unreadable, etc.)
 - Completeness status 'incomplete'
@@ -144,7 +150,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Optional artifacts missing should not trigger missing events.
 
 **How**:
+
 1. Implement test_optional_artifacts():
+
    ```python
    def test_optional_artifacts_not_required(tmp_path):
        """Optional artifacts (e.g., research.md) don't block completeness."""
@@ -185,10 +193,12 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
            # emit_artifact_missing should not be called
            mock_emit.assert_not_called()
    ```
+
 2. Manifest should mark research.md, gap-analysis.md as optional
 3. Verify "complete" status despite missing optionals
 
 **Test Requirements**:
+
 - Optional artifacts don't block completeness
 - Missing optional artifacts don't trigger events
 - Completeness status 'complete' with missing optionals
@@ -200,7 +210,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Artifacts with permission errors, encoding errors handled gracefully.
 
 **How**:
+
 1. Implement test_unreadable_artifacts():
+
    ```python
    def test_unreadable_artifact_permission_denied(tmp_path):
        """Unreadable artifact (permission denied) recorded."""
@@ -269,11 +281,13 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
                assert artifact.error_reason is not None, \
                    f"Unreadable artifact {artifact.artifact_key} missing error_reason"
    ```
+
 2. Test permission errors (PermissionError)
 3. Test encoding errors (UnicodeDecodeError)
 4. Verify NO silent skips (all artifacts recorded)
 
 **Test Requirements**:
+
 - Unreadable artifacts recorded (not skipped)
 - error_reason set (unreadable, invalid_utf8)
 - Scan completes (doesn't crash)
@@ -286,7 +300,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Artifacts >5MB handled without memory issues.
 
 **How**:
+
 1. Implement test_large_artifacts():
+
    ```python
    def test_large_artifact_api_truncation(tmp_path):
        """Large artifact (>5MB) truncated in API response."""
@@ -335,11 +351,13 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
        assert huge.content_hash_sha256 is not None
        assert huge.size_bytes > 100 * 1024 * 1024
    ```
+
 2. Create artifacts >5MB (use file generation, not in memory)
 3. Test API returns truncation notice
 4. Verify hashing works without loading full content
 
 **Test Requirements**:
+
 - Large artifacts (>5MB) indexed without memory crash
 - API returns truncation notice
 - content field is None (not included)
@@ -352,7 +370,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: End-to-end test from feature creation to snapshot and events.
 
 **How**:
+
 1. Implement test_full_workflow():
+
    ```python
    async def test_full_dossier_workflow_integration(tmp_path):
        """Full workflow: create feature → index → snapshot → events → API."""
@@ -413,11 +433,13 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
        assert overview.completeness_status == 'complete'
        assert overview.artifact_counts.total >= 3
    ```
+
 2. Create real feature directory with artifacts
 3. Run full indexing → snapshot → events → API flow
 4. Verify all steps succeed
 
 **Test Requirements**:
+
 - Feature created and scanned
 - Snapshot computed (parity hash)
 - All events emitted
@@ -431,7 +453,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Mock SaaS webhook endpoint receives all 4 dossier event types.
 
 **How**:
+
 1. Create mock webhook in test fixtures:
+
    ```python
    from http.server import HTTPServer, BaseHTTPRequestHandler
    import json
@@ -507,11 +531,13 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 
        webhook.shutdown()
    ```
+
 2. Start mock HTTP server
 3. Emit all 4 event types
 4. Verify webhook receives them
 
 **Test Requirements**:
+
 - Mock webhook started
 - All 4 event types emitted
 - Webhook receives events correctly
@@ -524,7 +550,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: File modified during scan—verify hash captures point-in-time state.
 
 **How**:
+
 1. Implement test_concurrent_modification():
+
    ```python
    def test_concurrent_file_modification(tmp_path):
        """File modified during scan—hash captures pre-modification state."""
@@ -563,10 +591,12 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
        snapshot = compute_snapshot(dossier)
        assert snapshot.parity_hash_sha256 is not None
    ```
+
 2. This test validates that scanning captures point-in-time state
 3. Not a failure case, just validates behavior
 
 **Test Requirements**:
+
 - File modification detected by hash change
 - Scan captures pre-modification state
 - Snapshot reproducible (same state → same hash)
@@ -578,7 +608,9 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 **What**: Manifest version updated—baseline should be rejected (no false positive drift).
 
 **How**:
+
 1. Implement test_manifest_version_mismatch():
+
    ```python
    def test_manifest_version_mismatch_prevents_false_drift(tmp_path):
        """Manifest version change causes baseline rejection (no false drift)."""
@@ -645,12 +677,14 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
            f"Manifest version change should not trigger drift event"
        assert drift_info is None
    ```
+
 2. This validates that baseline rejection prevents false positives
 3. Scenario: manifest_version changes from "1" to "2"
 4. Even though content identical, baseline key differs
 5. Baseline rejected → no drift event (correct behavior)
 
 **Test Requirements**:
+
 - Manifest version change detected
 - Baseline rejected (key mismatch)
 - No drift event emitted (not false positive)
@@ -677,15 +711,19 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 ## Risks & Mitigations
 
 **Risk 1**: Integration tests fragile (depend on order, state)
+
 - **Mitigation**: Use fixtures, isolate each test, clean up after
 
 **Risk 2**: Large file tests slow down CI/CD
+
 - **Mitigation**: Mark with @pytest.mark.slow, skip by default, include in nightly
 
 **Risk 3**: Mock webhook flaky (port conflicts, timing)
+
 - **Mitigation**: Use ephemeral ports, retry logic, timeout guards
 
 **Risk 4**: Concurrent modification hard to reproduce
+
 - **Mitigation**: Simulate with explicit file operations (not actual threading)
 
 ---
@@ -693,6 +731,7 @@ WP10 is the final phase: integration and hardening. After WP01-WP09 build indivi
 ## Reviewer Guidance
 
 When reviewing WP10:
+
 1. Verify edge cases are representative (missing, optional, unreadable, large, concurrent)
 2. Check full workflow integration test exercises all components
 3. Validate mock webhook correctly simulates SaaS behavior

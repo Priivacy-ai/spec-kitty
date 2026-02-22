@@ -87,6 +87,7 @@ We'll validate this decision by:
 ### Option 1: Keep Current (Cleanup at Merge)
 
 **Pros:**
+
 - Parallel workflows safe (WP02, WP03 both use WP01 simultaneously)
 - Diamond deps work (all bases available at WP04 creation)
 - Review rework resilient (WP01 worktree exists if reopened)
@@ -96,6 +97,7 @@ We'll validate this decision by:
 - Simple implementation (no additional logic needed)
 
 **Cons:**
+
 - Worktrees accumulate until merge (disk usage)
 - Mental model mismatch (seems wasteful to keep WP01)
 - No explicit feedback during implement
@@ -105,11 +107,13 @@ We'll validate this decision by:
 Delete worktree when dependent created, with extensive validation.
 
 **Pros:**
+
 - Immediate disk reclamation
 - Matches mental model ("WP01 done → delete")
 - Cleanup happens at natural boundary (dependent creation)
 
 **Cons:**
+
 - **BREAKS PARALLEL WORKFLOWS**: If WP02 deletes WP01, WP03 creation fails
 - **BREAKS DIAMOND DEPS**: WP04 can't validate WP01 exists (deleted by WP02)
 - **BREAKS REVIEW REWORK**: WP01 back to "planned" but worktree gone
@@ -161,12 +165,14 @@ Timeline:
 Provide `spec-kitty cleanup-worktrees` for user-triggered cleanup.
 
 **Pros:**
+
 - User control over disk usage
 - Can cleanup specific worktrees or all
 - No automatic behavior (explicit intent)
 - Safe (user decides when ready)
 
 **Cons:**
+
 - Extra command to learn and remember
 - No automatic cleanup (relies on user discipline)
 - Still accumulates worktrees (most users won't use)

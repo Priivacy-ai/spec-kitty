@@ -28,6 +28,7 @@ review_status: "approved"
 **Priority**: P1 (Critical for feature success, non-negotiable quality bar)
 
 **Scope**:
+
 - Hash reproducibility (same file → same hash, 10+ runs)
 - Order independence (artifact order irrelevant)
 - UTF-8 handling (BOM, CJK, surrogates)
@@ -35,6 +36,7 @@ review_status: "approved"
 - Cross-machine/timezone stability
 
 **Test Criteria**:
+
 - All SC-002, SC-006, SC-007 success criteria passed
 - Zero hash mismatches across 10+ runs, multiple machines
 - UTF-8 edge cases handled explicitly
@@ -47,6 +49,7 @@ review_status: "approved"
 WP01-WP05 implement the core dossier system. WP09 validates that the system meets its fundamental promise: deterministic hashing. If hashing is non-deterministic, the entire parity detection system (WP08) fails, and SaaS can't trust local snapshots.
 
 **Critical Success Criteria** (from spec):
+
 - **SC-002**: Repeated scans of unchanged content produce identical snapshots
 - **SC-006**: Parity hash reproducible across machines/timezones
 - **SC-007**: UTF-8 robustness—edge cases handled consistently
@@ -62,8 +65,10 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 **What**: Prove same file → same hash across multiple runs.
 
 **How**:
+
 1. Create test_determinism.py in `tests/specify_cli/dossier/test_determinism.py`
 2. Implement test_hash_reproducibility():
+
    ```python
    import pytest
    from pathlib import Path
@@ -122,11 +127,13 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
        # Verify all identical
        assert len(set(hashes)) == 1, f"Hash mismatch across {run_count} runs: {set(hashes)}"
    ```
+
 3. Test with various file sizes (small, medium, large)
 4. Test with many artifacts (10, 50, 100)
 5. Verify exact hash match (bit-for-bit)
 
 **Test Requirements**:
+
 - Same file, 10 runs → 10 identical hashes
 - Different snapshots of same content → identical parity hashes
 - No timing-dependent randomness
@@ -139,7 +146,9 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 **What**: Prove artifact order irrelevant to parity hash.
 
 **How**:
+
 1. Implement test_order_independence():
+
    ```python
    def test_order_independence_artifact_keys(tmp_path):
        """Artifacts in different order → same parity hash."""
@@ -198,11 +207,13 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
        # All should be identical
        assert len(set(parity_hashes)) == 1, f"Parity differs by order: {set(parity_hashes)}"
    ```
+
 2. Test with various artifact counts (5, 10, 50)
 3. Test random shuffling multiple times
 4. Verify SC-002 (ordering irrelevant)
 
 **Test Requirements**:
+
 - Artifacts in order [A, B, C] → hash X
 - Artifacts in order [C, A, B] → hash X (identical)
 - Random orderings always produce same hash
@@ -215,7 +226,9 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 **What**: Validate UTF-8 edge cases handled correctly.
 
 **How**:
+
 1. Implement test_utf8_handling():
+
    ```python
    def test_utf8_bom_handling(tmp_path):
        """UTF-8 BOM (0xEF 0xBB 0xBF) handled correctly."""
@@ -287,12 +300,14 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
        assert error is None, "Emoji should hash"
        assert hash_val is not None
    ```
+
 2. Test BOM handling (valid, included in hash)
 3. Test CJK characters (multi-byte sequences, valid)
 4. Test invalid UTF-8 (fail explicitly, no corruption)
 5. Test emoji and other Unicode
 
 **Test Requirements**:
+
 - BOM-prefixed files validate (error=None)
 - CJK characters validate
 - Invalid sequences detected (error="invalid_utf8")
@@ -306,7 +321,9 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 **What**: Validate line-ending differences don't cause hash mismatches.
 
 **How**:
+
 1. Implement test_line_ending_handling():
+
    ```python
    def test_crlf_vs_lf_consistency(tmp_path):
        """Windows (CRLF) vs Unix (LF) line endings handled."""
@@ -343,12 +360,14 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
        assert error is None, "Mixed line endings should hash"
        assert hash_val is not None
    ```
+
 2. Create identical content in LF and CRLF variants
 3. Verify both hash successfully (no encoding errors)
 4. Note: Hashes will differ (intentional - line endings are part of content)
 5. This validates line-ending normalization is NOT applied (preserve exact content)
 
 **Test Requirements**:
+
 - LF files hash correctly
 - CRLF files hash correctly
 - Mixed line endings handled
@@ -361,7 +380,9 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 **What**: Validate parity hash reproducible across machines and timezones.
 
 **How**:
+
 1. Implement test_cross_machine_stability():
+
    ```python
    def test_parity_hash_timezone_independent(tmp_path):
        """Parity hash not affected by timezone."""
@@ -407,12 +428,14 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 
        assert hash_val == expected, f"Hash mismatch: {hash_val} vs {expected}"
    ```
+
 2. Verify parity hash based on artifact content (not computed_at timestamp)
 3. Verify SHA256 deterministic across Python versions
 4. Create fixture with pre-computed expected hashes
 5. Test on multiple platforms if possible (CI/CD)
 
 **Test Requirements**:
+
 - Parity hash timezone-independent (computed_at excluded)
 - Parity hash Python version-independent (SHA256 standard)
 - SC-006 satisfied
@@ -437,15 +460,19 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 ## Risks & Mitigations
 
 **Risk 1**: Tests pass locally but fail on CI/CD
+
 - **Mitigation**: Run tests on multiple platforms (GitHub Actions matrix)
 
 **Risk 2**: Timezone-dependent code hidden in snapshot computation
+
 - **Mitigation**: Audit all timestamp/datetime usage, verify excluded from parity hash
 
 **Risk 3**: Tests flaky (intermittent failures)
+
 - **Mitigation**: No timing dependencies, no file system race conditions, use fixtures
 
 **Risk 4**: Python version differences in SHA256
+
 - **Mitigation**: SHA256 is standard library, version-independent; test confirms
 
 ---
@@ -453,6 +480,7 @@ WP01-WP05 implement the core dossier system. WP09 validates that the system meet
 ## Reviewer Guidance
 
 When reviewing WP09:
+
 1. Verify test_hash_reproducibility runs 10+ iterations
 2. Check test_order_independence shuffles artifacts randomly
 3. Validate UTF-8 test covers BOM, CJK, invalid sequences, emoji

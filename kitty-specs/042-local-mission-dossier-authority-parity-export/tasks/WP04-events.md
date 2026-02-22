@@ -27,6 +27,7 @@ review_status: "approved"
 **Priority**: P1 (Required for SaaS integration)
 
 **Scope**:
+
 - Define 4 dossier event types (schemas, payloads)
 - Add JSON Schema definitions to spec-kitty-events contracts
 - Implement event emitters using the existing sync emitter API (not direct queue writes)
@@ -34,12 +35,14 @@ review_status: "approved"
 - Event routing and envelope metadata
 
 **Event Types**:
+
 1. MissionDossierArtifactIndexed (emitted per artifact)
 2. MissionDossierArtifactMissing (emitted if required missing)
 3. MissionDossierSnapshotComputed (emitted after scan)
 4. MissionDossierParityDriftDetected (emitted if drift detected)
 
 **Test Criteria**:
+
 - All 4 event types emit with valid schemas
 - Conditional events (missing, drift) emit only when conditions met
 - Events enqueue to offline queue (no SaaS call)
@@ -52,11 +55,13 @@ review_status: "approved"
 Feature 042 is designed to emit events that SaaS backend consumes for parity validation and dashboard display. Events are immutable, timestamped, and self-contained; they form the canonical record of dossier state. The sync infrastructure (`EventEmitter` + queue routing) handles delivery.
 
 **Key Requirements**:
+
 - **FR-006**: System MUST support 4 canonical dossier event types
 - **FR-011**: System MUST integrate with existing sync infrastructure
 - **SC-003**: Dossier events are consumable by offline queue
 
 **Sync Context**:
+
 - spec_kitty_events: Central event schema registry
 - EventEmitter: builds canonical envelopes and routes to queue/websocket
 - OfflineQueue: persistence backend used by EventEmitter (not called directly by dossier code)
@@ -71,10 +76,12 @@ Feature 042 is designed to emit events that SaaS backend consumes for parity val
 **What**: Define pydantic models for event payloads.
 
 **How**:
+
 1. Create events.py in `src/specify_cli/dossier/events.py`
 2. Define 4 event payload models (from data-model.md):
 
 **Event 1: MissionDossierArtifactIndexed**
+
 ```python
 class MissionDossierArtifactIndexedPayload(BaseModel):
     """Emitted when artifact successfully indexed."""
@@ -93,6 +100,7 @@ class MissionDossierArtifactIndexedPayload(BaseModel):
 ```
 
 **Event 2: MissionDossierArtifactMissing**
+
 ```python
 class MissionDossierArtifactMissingPayload(BaseModel):
     """Emitted when required artifact missing or unreadable."""
@@ -108,6 +116,7 @@ class MissionDossierArtifactMissingPayload(BaseModel):
 ```
 
 **Event 3: MissionDossierSnapshotComputed**
+
 ```python
 class ArtifactCountsPayload(BaseModel):
     total: int
@@ -129,6 +138,7 @@ class MissionDossierSnapshotComputedPayload(BaseModel):
 ```
 
 **Event 4: MissionDossierParityDriftDetected**
+
 ```python
 class MissionDossierParityDriftDetectedPayload(BaseModel):
     """Emitted when local snapshot differs from baseline."""
@@ -145,6 +155,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 4. Document event semantics (when emitted, purpose, audience)
 
 **Test Requirements**:
+
 - Each event model validates with correct data
 - Event model rejects invalid data (missing required fields)
 - payload validators reject invalid values before emission
@@ -156,6 +167,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 **What**: Register dossier event schemas in spec-kitty-events package.
 
 **How**:
+
 1. Update spec-kitty-events repository (external package, may be in separate repo)
 2. Add JSON Schema files for each event type:
    - `src/spec_kitty_events/schemas/mission_dossier_artifact_indexed.schema.json`
@@ -167,6 +179,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 5. Document event contract in spec-kitty-events README
 
 **Schema Example** (mission_dossier_artifact_indexed.schema.json):
+
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -195,6 +208,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 ```
 
 **Test Requirements**:
+
 - Schemas validate with valid payloads
 - Schemas reject invalid payloads
 - All 4 schemas present and discoverable
@@ -206,8 +220,10 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 **What**: Implement dossier emission helpers that use the existing sync emitter path (canonical envelope + queue/websocket routing).
 
 **How**:
+
 1. In `src/specify_cli/dossier/events.py`, create helper functions that build payload models and forward to public sync emitter helpers.
 2. Add public sync helpers in `src/specify_cli/sync/events.py` (for example `emit_mission_dossier_artifact_indexed`, `emit_mission_dossier_artifact_missing`, etc.) so dossier code does not call private emitter methods directly.
+
    ```python
    from specify_cli.sync.events import emit_mission_dossier_artifact_indexed
 
@@ -225,6 +241,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
        ).model_dump()
        return emit_mission_dossier_artifact_indexed(feature_slug=feature_slug, payload=payload)
    ```
+
 3. Repeat for:
    - `MissionDossierArtifactMissing` (emit only if blocking/required)
    - `MissionDossierSnapshotComputed` (always emit after snapshot build)
@@ -233,6 +250,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 5. Do not call `OfflineQueue` directly from dossier code; route via sync emitter API.
 
 **Test Requirements**:
+
 - Emitting artifact_indexed routes through emitter and returns event dict (or None on validation failure)
 - Emitting artifact_missing skips optional/non-blocking artifacts
 - Emitting snapshot_computed always emits
@@ -246,8 +264,10 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 **What**: Ensure payloads are valid before emission.
 
 **How**:
+
 1. Leverage pydantic validation (automatic with BaseModel)
 2. Add custom validation methods:
+
    ```python
    from pydantic import field_validator
 
@@ -276,10 +296,12 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
                raise ValueError(f'Invalid required_status: {v}')
            return v
    ```
+
 3. Fail fast on validation error (raise, don't emit)
 4. Log validation errors
 
 **Test Requirements**:
+
 - Valid payload emits
 - Invalid hash rejected
 - Invalid artifact_class rejected
@@ -293,18 +315,22 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 **What**: Integrate events with `specify_cli.sync.events` so routing follows the existing emitter → queue/websocket pipeline.
 
 **How**:
+
 1. Ensure sync emitter integration:
+
    ```python
    from specify_cli.sync.events import emit_mission_dossier_artifact_indexed
 
    # In emitter functions:
    event = emit_mission_dossier_artifact_indexed(feature_slug=feature_slug, payload=payload)
    ```
+
 2. Verify webhook routing configuration:
    - Events routed to SaaS webhook endpoint (or mock in tests)
    - Envelope metadata included (event_id, timestamp, node_id, lamport_clock)
    - Retry logic handled by EventEmitter routing + OfflineQueue backend
 3. Add error handling:
+
    ```python
    try:
        event = emit_mission_dossier_artifact_indexed(...)
@@ -312,9 +338,11 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
        logger.error(f"Failed to emit event: {e}")
        # Scan continues; emitter is non-blocking and queue-backed
    ```
+
 4. Document webhook contract (payload format, retry semantics)
 
 **Test Requirements**:
+
 - Events route through EventEmitter and are persisted to queue when offline
 - Mock webhook receives events
 - Envelope metadata included
@@ -340,15 +368,19 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 ## Risks & Mitigations
 
 **Risk 1**: Event emission failure breaks dossier scan
+
 - **Mitigation**: Wrap emission in try-catch, log errors, continue scan
 
 **Risk 2**: Invalid payload emitted (corrupts SaaS)
+
 - **Mitigation**: Pydantic validation (fail fast, reject before emit)
 
 **Risk 3**: Bypassing EventEmitter causes envelope/schema drift
+
 - **Mitigation**: Reuse existing EventEmitter path; avoid direct queue calls from dossier module
 
 **Risk 4**: Event schema version conflicts post-042
+
 - **Mitigation**: Schema versioning deferred post-042 (current: v1 only)
 
 ---
@@ -356,6 +388,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 ## Reviewer Guidance
 
 When reviewing WP04:
+
 1. Verify 4 event types defined (pydantic models)
 2. Check JSON schemas match pydantic models exactly
 3. Confirm emitters route via public `specify_cli.sync.events` helpers (no direct queue calls)

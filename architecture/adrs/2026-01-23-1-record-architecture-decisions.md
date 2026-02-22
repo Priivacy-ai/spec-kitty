@@ -87,10 +87,12 @@ We'll know this decision is successful if:
 ### Option 1: No Formal Decision Documentation
 
 **Pros:**
+
 - No overhead or process burden
 - Maximum flexibility
 
 **Cons:**
+
 - Architectural knowledge lost over time
 - Decisions must be reverse-engineered from code
 - Repeated debates about settled issues
@@ -99,6 +101,7 @@ We'll know this decision is successful if:
 ### Option 2: Architecture Decision Records (ADRs)
 
 **Pros:**
+
 - Lightweight and focused (one decision per document)
 - Immutable historical record
 - Widely adopted industry standard
@@ -107,6 +110,7 @@ We'll know this decision is successful if:
 - Template-driven for consistency
 
 **Cons:**
+
 - Requires discipline to maintain
 - Documentation overhead for each decision
 - Can become stale if not kept in sync
@@ -114,11 +118,13 @@ We'll know this decision is successful if:
 ### Option 3: Design Documents in Wiki
 
 **Pros:**
+
 - Easy to update and edit
 - Can include diagrams and rich media
 - Searchable and cross-linked
 
 **Cons:**
+
 - Separate from code repository
 - Encourages editing rather than superseding
 - No clear versioning or history
@@ -127,10 +133,12 @@ We'll know this decision is successful if:
 ### Option 4: Comprehensive Architecture Specification
 
 **Pros:**
+
 - Single comprehensive reference
 - Covers entire system architecture
 
 **Cons:**
+
 - Becomes outdated quickly
 - Too large to read or maintain
 - Doesn't capture decision history or alternatives

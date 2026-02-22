@@ -118,11 +118,13 @@ We'll validate this decision by:
 ### Option 1: Manual Guards in Each Command
 
 **Pros:**
+
 - Full control over error messages per command
 - No framework overhead
 - Simple to understand (explicit code)
 
 **Cons:**
+
 - Verbose boilerplate (20+ lines per command)
 - Easy to forget for new commands
 - Inconsistent error messages
@@ -133,6 +135,7 @@ We'll validate this decision by:
 ### Option 2: Decorator-Based Validation
 
 **Pros:**
+
 - Declarative (clear from signature)
 - Reusable (DRY principle)
 - Can't be accidentally removed
@@ -142,6 +145,7 @@ We'll validate this decision by:
 - Pythonic approach
 
 **Cons:**
+
 - Adds import overhead
 - Runtime detection cost (~1ms)
 - Could be bypassed if function called directly
@@ -149,11 +153,13 @@ We'll validate this decision by:
 ### Option 3: Pre-Command Hooks (Global Validation)
 
 **Pros:**
+
 - Centralized validation logic
 - No per-command changes needed
 - Could validate multiple aspects
 
 **Cons:**
+
 - Magic behavior (not clear from function)
 - Hard to customize per command
 - Difficult to test
@@ -163,10 +169,12 @@ We'll validate this decision by:
 ### Option 4: Wrapper Scripts
 
 **Pros:**
+
 - Language-agnostic
 - Could add shell-level checks
 
 **Cons:**
+
 - Extra layer of indirection
 - Harder to maintain
 - Not integrated with Python code

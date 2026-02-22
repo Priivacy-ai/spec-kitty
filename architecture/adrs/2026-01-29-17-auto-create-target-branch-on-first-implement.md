@@ -104,6 +104,7 @@ We'll validate this decision by:
 Just-in-time: Create target branch automatically when first WP is implemented.
 
 **Pros:**
+
 - Automatic (no user input)
 - Just-in-time (created when needed)
 - Eliminates bootstrap task from WP01
@@ -111,6 +112,7 @@ Just-in-time: Create target branch automatically when first WP is implemented.
 - Clear ownership (tool creates infrastructure)
 
 **Cons:**
+
 - Implicit (might surprise users)
 - No opt-out mechanism
 - Naming conflict risk (must check existence)
@@ -120,11 +122,13 @@ Just-in-time: Create target branch automatically when first WP is implemented.
 Early creation: Create target branch when feature is specified.
 
 **Pros:**
+
 - Branch exists before any implementation
 - Explicit timing (during specify)
 - No bootstrap paradox
 
 **Cons:**
+
 - Creates branch too early (might not be needed)
 - Requires user prompt ("Create 3.x now?")
 - Specify becomes interactive (slower)
@@ -135,11 +139,13 @@ Early creation: Create target branch when feature is specified.
 Instruct agent in WP01 prompt how to create branch manually.
 
 **Pros:**
+
 - Explicit instructions
 - Agent has control
 - No code changes
 
 **Cons:**
+
 - Complex workflow (worktree → main repo → worktree)
 - Error-prone (agent must get steps right)
 - Confusing (not standard WP workflow)
@@ -150,10 +156,12 @@ Instruct agent in WP01 prompt how to create branch manually.
 Don't assign branch creation to WP01, require user to create manually.
 
 **Pros:**
+
 - Clean separation (WP01 focuses on features)
 - User has control
 
 **Cons:**
+
 - Manual step (user must remember)
 - Easy to forget (causes fallback)
 - Not automated
@@ -163,10 +171,12 @@ Don't assign branch creation to WP01, require user to create manually.
 Keep current behavior, let WP01 create branch manually if needed.
 
 **Pros:**
+
 - No changes needed
 - Graceful degradation
 
 **Cons:**
+
 - Bootstrap paradox persists
 - Agent confusion continues
 - Fallback routing (not ideal)

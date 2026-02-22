@@ -227,11 +227,13 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Use `chmod 444` to make CSV files read-only, forcing append-only writes.
 
 **Pros:**
+
 - Strongest enforcement - agents cannot overwrite headers
 - Simple, deterministic, foolproof
 - Works even if agents ignore instructions
 
 **Cons:**
+
 - File permissions fragile (git doesn't preserve)
 - Breaks legitimate use cases (bulk import)
 - Harder to troubleshoot (permission errors confusing)
@@ -244,11 +246,13 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Git hook validates CSV schemas before every commit, blocks if wrong.
 
 **Pros:**
+
 - Automatic enforcement at commit time
 - Early detection (before review)
 - Works for all agents (universal)
 
 **Cons:**
+
 - Requires git hook setup (not all users have hooks)
 - Agents can bypass with `--no-verify`
 - Surprising failures (agent doesn't know why commit blocked)
@@ -261,6 +265,7 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Add schema documentation to implement.md templates that agents read.
 
 **Pros:**
+
 - Preventative - agents see schema before editing
 - Clear, visible, with examples
 - Works with agent workflow (read instructions first)
@@ -268,6 +273,7 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 - Users in control (can still override if needed)
 
 **Cons:**
+
 - Relies on agents reading instructions
 - Not enforced at runtime
 - Schema duplicated across 12 agent templates
@@ -279,11 +285,13 @@ Create `m_0_13_0_update_research_implement_templates.py`:
 **Description:** Migration automatically fixes wrong schemas by mapping columns.
 
 **Pros:**
+
 - Zero user effort (automatic fix)
 - Immediate resolution (no manual migration)
 - Works for all projects (universal)
 
 **Cons:**
+
 - **Risk of data loss**: Mapping arbitrary schemas error-prone
 - **Unknown schemas**: Ad hoc schemas in wild (can't predict all)
 - **User trust**: Auto-modifying data without permission concerning

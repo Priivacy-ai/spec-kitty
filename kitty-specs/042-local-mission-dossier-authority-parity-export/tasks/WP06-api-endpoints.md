@@ -29,6 +29,7 @@ review_status: "approved"
 **Priority**: P1 (Enables dashboard UI)
 
 **Scope**:
+
 - 4 dossier endpoints (overview, list, detail, export)
 - Filtering by class, wp_id, step_id
 - Stable ordering (lexicographic by artifact_key)
@@ -37,6 +38,7 @@ review_status: "approved"
 - Adapter interface for future migration
 
 **Test Criteria**:
+
 - All endpoints return valid JSON
 - Filtering works (class=output returns only output)
 - Detail endpoint truncates large files
@@ -49,11 +51,13 @@ review_status: "approved"
 Phase 2 brings dossier system online: API endpoints expose indexing/snapshot results to local dashboard UI (WP07) and SaaS backend (via export). The 4 endpoints follow REST conventions and integrate with existing dashboard handler pattern.
 
 **Key Requirements**:
+
 - **FR-007**: System MUST expose dashboard API endpoints (4 types)
 - **FR-008**: System MUST support filtering by class, wp_id, step_id
 - **SC-001**: API responses <500ms for full catalog
 
 **Dashboard Context**:
+
 - Existing dashboard: `src/specify_cli/dashboard/`
 - Handler pattern: HTTPServer + handler methods + router dispatch
 - Future migration: Defer to post-042 (Decision 1 in plan.md)
@@ -67,7 +71,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: Return high-level dossier summary (completeness, counts, hashes).
 
 **How**:
+
 1. Create DossierOverviewResponse model:
+
    ```python
    class DossierOverviewResponse(BaseModel):
        feature_slug: str
@@ -77,7 +83,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
        missing_required_count: int
        last_scanned_at: Optional[datetime]
    ```
+
 2. Implement handler method in DossierHandler:
+
    ```python
    def handle_dossier_overview(self, feature_slug: str) -> DossierOverviewResponse:
        """GET /api/dossier/overview?feature={feature_slug}"""
@@ -102,11 +110,13 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
            last_scanned_at=snapshot.computed_at,
        )
    ```
+
 3. Route: GET /api/dossier/overview
 4. Query params: feature={feature_slug}
 5. Response: 200 with JSON, or 404 if not found
 
 **Test Requirements**:
+
 - Returns valid JSON with all fields
 - Correct artifact counts
 - Correct completeness status
@@ -119,7 +129,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: List all artifacts with filtering and stable ordering.
 
 **How**:
+
 1. Create ArtifactListResponse model:
+
    ```python
    class ArtifactListItem(BaseModel):
        artifact_key: str
@@ -137,7 +149,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
        artifacts: List[ArtifactListItem]
        filters_applied: dict  # {class, wp_id, step_id, required_only}
    ```
+
 2. Implement handler:
+
    ```python
    def handle_dossier_artifacts(self, feature_slug: str, **filters) -> ArtifactListResponse:
        """GET /api/dossier/artifacts?feature={feature_slug}&class=output&wp_id=WP01&step_id=plan&required_only=true"""
@@ -179,11 +193,13 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
            filters_applied=filters,
        )
    ```
+
 3. Route: GET /api/dossier/artifacts
 4. Query params: feature, class (optional), wp_id (optional), step_id (optional), required_only (optional)
 5. Response: 200 with JSON list
 
 **Filtering Rules**:
+
 - class: One of {input, workflow, output, evidence, policy, runtime}
 - wp_id: Exact match (e.g., "WP01")
 - step_id: Exact match (e.g., "plan")
@@ -191,6 +207,7 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 - Multiple filters AND together
 
 **Test Requirements**:
+
 - Returns all artifacts if no filters
 - Filters work independently and combined
 - Stable ordering (by artifact_key)
@@ -203,7 +220,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: Return artifact detail with full-text content (or truncation notice).
 
 **How**:
+
 1. Create ArtifactDetailResponse model:
+
    ```python
    class ArtifactDetailResponse(BaseModel):
        artifact_key: str
@@ -225,7 +244,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 
        indexed_at: datetime
    ```
+
 2. Implement handler:
+
    ```python
    def handle_dossier_artifact_detail(self, feature_slug: str, artifact_key: str) -> ArtifactDetailResponse:
        """GET /api/dossier/artifacts/{artifact_key}"""
@@ -287,10 +308,12 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
            return 'yaml'
        return 'text'
    ```
+
 3. Route: GET /api/dossier/artifacts/{artifact_key}
 4. Response: 200 with JSON, or 404 if artifact not found
 
 **Test Requirements**:
+
 - Returns artifact detail
 - Content included if <5MB
 - Truncation notice if >5MB
@@ -304,7 +327,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: Export snapshot JSON for SaaS import.
 
 **How**:
+
 1. Implement handler:
+
    ```python
    def handle_dossier_snapshot_export(self, feature_slug: str) -> dict:
        """GET /api/dossier/snapshots/export?feature={feature_slug}"""
@@ -328,16 +353,19 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
            "computed_at": snapshot.computed_at.isoformat(),
        }
    ```
+
 2. Route: GET /api/dossier/snapshots/export
 3. Query params: feature={feature_slug}
 4. Response: 200 with JSON snapshot (SaaS import-compatible)
 
 **Export Format**:
+
 - JSON representation of MissionDossierSnapshot
 - All fields included (for SaaS audit trail)
 - Timestamps in ISO format
 
 **Test Requirements**:
+
 - Returns valid JSON
 - All fields present
 - Timestamps ISO format
@@ -350,7 +378,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: Integrate dossier handlers into dashboard request dispatcher.
 
 **How**:
+
 1. Modify dashboard handler router (src/specify_cli/dashboard/handlers/router.py):
+
    ```python
    def do_GET(self):
        """Route incoming GET request."""
@@ -384,7 +414,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
        self.end_headers()
        self.wfile.write(json.dumps(response.dict() if hasattr(response, 'dict') else response).encode())
    ```
+
 2. Create DossierHandler mixin:
+
    ```python
    class DossierHandler:
        def __init__(self, repo_root: Path):
@@ -402,10 +434,12 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
        def handle_dossier_snapshot_export(self, feature_slug: str):
            # Implementation from T031
    ```
+
 3. Mix into dashboard handler class
 4. Test route dispatch
 
 **Route Table**:
+
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | /api/dossier/overview | handle_dossier_overview |
@@ -414,6 +448,7 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 | GET | /api/dossier/snapshots/export | handle_dossier_snapshot_export |
 
 **Test Requirements**:
+
 - All routes dispatched correctly
 - Query params parsed
 - Error responses for invalid paths
@@ -425,7 +460,9 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 **What**: Define interface/protocol for handler methods (enables future FastAPI port).
 
 **How**:
+
 1. Create adapter protocol in src/specify_cli/dashboard/handlers/adapter.py:
+
    ```python
    from typing import Protocol, Any
 
@@ -448,6 +485,7 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
            """GET /api/dossier/snapshots/export"""
            ...
    ```
+
 2. Document interface semantics:
    - All methods return pydantic models (serializable to JSON)
    - Error handling: Return error_response or raise (depends on framework)
@@ -455,11 +493,13 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 3. Add migration roadmap to plan.md (deferred feature 044)
 
 **Adapter Benefits**:
+
 - Future FastAPI migration: Implement FastAPI routes that wrap these methods
 - No modification to dossier logic (pure functions)
 - Testable in isolation (mock HTTP framework)
 
 **Test Requirements**:
+
 - Adapter protocol well-defined
 - All handler methods comply with protocol
 - Testable without HTTP framework
@@ -484,15 +524,19 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 ## Risks & Mitigations
 
 **Risk 1**: Adapter interface doesn't fully decouple HTTPServer/FastAPI
+
 - **Mitigation**: Keep handlers pure (no HTTP context), return models
 
 **Risk 2**: Large artifacts cause memory issues
+
 - **Mitigation**: Stream large artifacts, don't load full content
 
 **Risk 3**: Query param parsing fragile
+
 - **Mitigation**: Use urllib.parse.parse_qs, validate params
 
 **Risk 4**: Router dispatch too complex
+
 - **Mitigation**: Keep dispatch simple, push logic to handlers
 
 ---
@@ -500,6 +544,7 @@ Phase 2 brings dossier system online: API endpoints expose indexing/snapshot res
 ## Reviewer Guidance
 
 When reviewing WP06:
+
 1. Verify 4 endpoints implemented (overview, list, detail, export)
 2. Check filtering logic (class, wp_id, step_id, required_only)
 3. Confirm stable ordering (by artifact_key)

@@ -456,6 +456,7 @@ For each WP, generate `FEATURE_DIR/tasks/WPxx-slug.md` using the template.
 ### Step 8: Finalize Tasks
 
 Run `spec-kitty agent feature finalize-tasks --json --feature <feature-slug>` to:
+
 - Parse dependencies
 - Update frontmatter
 - Validate (cycles, invalid refs)

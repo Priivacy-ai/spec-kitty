@@ -136,11 +136,13 @@ Present event log conflicts to a human for manual resolution, similar to git mer
 ## More Information
 
 **Related ADRs:**
+
 * ADR 2026-02-09-1 (Canonical WP Status Model) — event log format this algorithm operates on
 * ADR 2026-02-09-2 (WP Lifecycle State Machine) — state machine used for the reduce step
 * ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — reconciliation events appended to the same log
 
 **References:**
+
 * CRDTs and Convergent Replicated Data Types — <https://crdt.tech/>
 * Lamport Clocks — <https://lamport.azurewebsites.net/pubs/time-clocks.pdf>
 * Git Merge Strategies — <https://git-scm.com/docs/merge-strategies>

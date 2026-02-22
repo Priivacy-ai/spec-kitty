@@ -81,6 +81,7 @@ Every event transitioning a WP to `done` must include a structured `evidence` fi
 4. **Never implicit**: Reconciliation never silently mutates state
 
 **Guard integration:** Evidence satisfies ADR 2026-02-09-2 guards:
+
 * Guard 3 (`in_progress → for_review`): Satisfied by `evidence.repos` and `evidence.verification`
 * Guard 4 (`for_review → done`): Satisfied by `evidence.review`
 
@@ -169,10 +170,12 @@ Use the SaaS platform to continuously monitor target repos and auto-reconcile.
 ## More Information
 
 **Related ADRs:**
+
 * ADR 2026-02-09-1 (Canonical WP Status Model) — evidence events appended to the same JSONL log
 * ADR 2026-02-09-2 (WP Lifecycle State Machine) — evidence satisfies guard conditions
 * ADR 2026-02-09-3 (Event-Log Merge Semantics) — reconciliation events participate in merge
 
 **References:**
+
 * The Twelve-Factor App: Admin Processes — <https://12factor.net/admin-processes>
 * PRD: Feature Status State Model Remediation (Sections 2, 4, 8, 10, 11)

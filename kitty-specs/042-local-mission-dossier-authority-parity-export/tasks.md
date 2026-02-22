@@ -13,6 +13,7 @@ lane: planned
 Feature 042 implements a mission artifact dossier system that indexes all spec-kitty feature artifacts, computes deterministic content hashes and parity signatures, and emits canonical dossier events to sync infrastructure. The system enables local parity-drift detection (offline) while exporting events for SaaS backend integration.
 
 **Phases**:
+
 - **Phase 1 (WP01-WP05)**: Core models, manifests, indexing, events, snapshots
 - **Phase 2 (WP06-WP08)**: Dashboard API, UI integration, parity detection
 - **Phase 3 (WP09-WP10)**: Testing, edge cases, integration
@@ -32,6 +33,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T001-T005 (5 subtasks)
+
 - [x] T001: Create ArtifactRef pydantic model (identity, location, content hash, provenance, state fields)
 - [x] T002: Implement SHA256 deterministic hashing utility (file → hash)
 - [x] T003: Build Hasher class with order-independent parity (sorted hashes, combined hash)
@@ -39,12 +41,14 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T005: Unit tests for hashing determinism (same file → same hash, reproducibility)
 
 **Implementation Notes**:
+
 - ArtifactRef: ~25 fields covering identity, location, metadata, provenance, state (see data-model.md for full spec)
 - Hasher: Standalone utility class, no dependencies beyond hashlib (stdlib)
 - Order-independence: Sort artifact hashes lexicographically before concatenation
 - UTF-8: Read file as bytes, hash bytes directly; if invalid UTF-8 detected, emit error_reason and continue
 
 **Test Criteria**:
+
 - ArtifactRef validates all required fields, rejects malformed artifact_key
 - Same file hashed 10x produces identical SHA256
 - Different files produce different hashes
@@ -65,6 +69,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T006-T011 (6 subtasks)
+
 - [x] T006: Design manifest schema (required_always, required_by_step, optional_always)
 - [x] T007: Implement ManifestRegistry loader (reads mission.yaml states, loads YAML manifests)
 - [x] T008: Create software-dev expected-artifacts.yaml (step-aware, using existing mission artifacts)
@@ -73,6 +78,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T011: Manifest validation (verify steps exist in mission.yaml, path patterns valid)
 
 **Implementation Notes**:
+
 - Manifest schema: YAML per mission, with schema_version, mission_type, manifest_version fields
 - Step-aware: `required_by_step` keys are state IDs from mission.yaml (e.g., "planning", "implementation")
 - V1 scope: Only software-dev, research, documentation; other missions degrade gracefully (index only, no completeness check)
@@ -80,6 +86,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Path patterns: Support wildcards (e.g., "tasks/*.md")
 
 **Test Criteria**:
+
 - Manifest loads from YAML without errors
 - Registry correctly maps step names to artifact lists
 - Unknown missions handled gracefully (return None, no exception)
@@ -99,6 +106,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T012-T017 (6 subtasks)
+
 - [x] T012: Implement Indexer.index_feature() scanning logic (walk feature directory)
 - [x] T013: Artifact classification (derive from filename patterns, manifest definitions)
 - [x] T014: Missing artifact detection (required vs optional, per manifest)
@@ -107,6 +115,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T017: Step-aware completeness checking (given mission step, which artifacts required?)
 
 **Implementation Notes**:
+
 - Indexer: Recursive directory scan, yield artifacts as discovered
 - Classification: 6 deterministic classes (input, workflow, output, evidence, policy, runtime)
 - Missing detection: Compare filesystem scan against manifest requirements; record reason_code (not_found, unreadable, invalid_format)
@@ -114,6 +123,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - MissionDossier: Aggregates artifacts, links to manifest, computes completeness_status
 
 **Test Criteria**:
+
 - Scans 30+ artifacts without errors
 - Correctly identifies required vs optional
 - Missing required artifacts flagged with reason codes
@@ -134,6 +144,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T018-T022 (5 subtasks)
+
 - [x] T018: Define 4 dossier event schemas (ArtifactIndexed, ArtifactMissing, SnapshotComputed, ParityDriftDetected)
 - [x] T019: Add schemas to spec-kitty-events contracts (JSON Schema)
 - [x] T020: Event emitters (async, integrate with OfflineQueue)
@@ -141,6 +152,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T022: Event routing to sync infrastructure (enqueue, webhook dispatch)
 
 **Implementation Notes**:
+
 - Event types: See data-model.md for complete payload schemas
   - MissionDossierArtifactIndexed: Emitted once per artifact indexed
   - MissionDossierArtifactMissing: Emitted only if required artifact missing
@@ -150,6 +162,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Validation: Pydantic BaseModel for each payload; raise on schema violation
 
 **Test Criteria**:
+
 - All 4 event types emit with valid schemas
 - Events enqueue to offline queue (no SaaS call during local scan)
 - Conditional events (missing, drift) emit only when conditions met
@@ -170,6 +183,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T023-T027 (5 subtasks)
+
 - [x] T023: Deterministic snapshot computation (sort artifacts, count by status)
 - [x] T024: Parity hash algorithm (sorted artifact hashes, combined hash)
 - [x] T025: Snapshot persistence (JSON storage to `.kittify/dossiers/{feature_slug}/snapshot-latest.json`)
@@ -177,6 +191,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T027: Snapshot equality comparison (parity_hash_sha256 as source of truth)
 
 **Implementation Notes**:
+
 - Snapshot: Point-in-time projection with artifact counts, completeness status, parity hash
 - Parity hash: SHA256 of concatenated sorted artifact hashes (order-independent)
 - Persistence: Store as JSON, include timestamp and artifact summaries for audit
@@ -184,6 +199,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - SC-002 validation: Run twice on unchanged content, verify parity_hash_sha256 identical
 
 **Test Criteria**:
+
 - Snapshot computes without errors for 30+ artifacts
 - Parity hash deterministic (same content → same hash, multiple runs)
 - Snapshot reproducible on different machines/timezones (if artifact content identical)
@@ -206,6 +222,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T028-T033 (6 subtasks)
+
 - [x] T028: Implement GET /api/dossier/overview endpoint (returns DossierOverviewResponse)
 - [x] T029: Implement GET /api/dossier/artifacts endpoint (list, filtering by class/wp_id/step_id)
 - [x] T030: Implement GET /api/dossier/artifacts/{artifact_key} endpoint (detail, full text)
@@ -214,6 +231,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T033: Define adapter interface for future FastAPI migration (handler protocol spec)
 
 **Implementation Notes**:
+
 - Overview: Returns completeness_status, parity_hash, artifact counts, last_scanned_at
 - Artifacts list: Supports filtering by class, wp_id, step_id; stable ordering (by artifact_key)
 - Detail: Returns full text content (if <5MB), media_type_hint (markdown, json, yaml), truncation notice if >5MB
@@ -222,6 +240,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Adapter interface: Define protocol/interface for handler methods (enables future FastAPI port)
 
 **Test Criteria**:
+
 - All endpoints return valid JSON with correct schema
 - Filtering works (class=output returns only output artifacts)
 - Detail endpoint truncates large files (>5MB) gracefully
@@ -242,6 +261,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T034-T039 (6 subtasks)
+
 - [x] T034: Create dossier-panel.js (vanilla JS, fetch wrappers, no Vue framework)
 - [x] T035: Add dossier tab to dashboard HTML (tabs: overview, artifacts, detail)
 - [x] T036: Render artifact list with filtering UI (checkboxes for class, wp_id, step_id)
@@ -250,6 +270,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T039: Media type hints (markdown badge, json icon, yaml label)
 
 **Implementation Notes**:
+
 - Vanilla JS: No Vue/SPA framework; fetch API + DOM manipulation
 - Panel: Integrated as new tab in existing dashboard
 - Filtering: Client-side filtering (load full list, filter locally) or server-side (add query params to /api/dossier/artifacts)
@@ -258,6 +279,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Syntax hints: Add CSS classes (markdown-content, json-content) for browser-native highlighting
 
 **Test Criteria**:
+
 - Dashboard renders dossier panel without errors
 - Artifact list loads and displays 30+ artifacts
 - Filtering works (click class=output, list updates)
@@ -278,6 +300,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T040-T045 (6 subtasks)
+
 - [x] T040: Baseline key computation (identity tuple: project_uuid, node_id, feature_slug, target_branch, mission_key, manifest_version)
 - [x] T041: Baseline persistence (JSON file: `.kittify/dossiers/{feature_slug}/parity-baseline.json`)
 - [x] T042: Baseline acceptance logic (key match validation, prevent false positives)
@@ -286,6 +309,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T045: Baseline update logic (capture new baseline when accepted)
 
 **Implementation Notes**:
+
 - Baseline key: Fully namespaced to prevent false positives (branch switches, manifest updates, multi-user/machine)
 - Key components: project_uuid, node_id (from sync/project_identity.py), feature_slug, target_branch, mission_key, manifest_version
 - Acceptance: Compare current key hash vs baseline key hash; accept only if match (else treat as "no baseline")
@@ -293,6 +317,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Event: Emitted only if baseline accepted AND hash differs; includes severity (info/warning/error)
 
 **Test Criteria**:
+
 - Baseline computes and persists without errors
 - Acceptance correctly validates key match
 - Drift detection identifies hash changes
@@ -316,6 +341,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T046-T050 (5 subtasks)
+
 - [x] T046: Hash reproducibility (same file → same hash, tested 10 runs)
 - [x] T047: Order independence (artifact order irrelevant to parity hash)
 - [x] T048: UTF-8 handling (special chars, BOM, CJK, surrogates)
@@ -323,6 +349,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T050: Parity hash stability (machines, timezones, different Python versions)
 
 **Implementation Notes**:
+
 - Reproducibility: Hash same file multiple times, verify identical SHA256
 - Order independence: Create dossier with artifacts in random order, verify parity hash unchanged
 - UTF-8: Test BOM-prefixed files, CJK characters (Chinese/Japanese), UTF-8 surrogates, invalid sequences (should fail explicitly)
@@ -330,6 +357,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Cross-machine: If possible, run same test on different machines (Linux/macOS/Windows), verify hash identical
 
 **Test Criteria**:
+
 - All SC-002, SC-006, SC-007 success criteria passed
 - Zero hash mismatches across 10+ runs, multiple machines
 - UTF-8 edge cases handled explicitly (error_reason, no corruption)
@@ -350,6 +378,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T051-T058 (8 subtasks)
+
 - [x] T051: Missing required artifact detection (edge case: multiple missing, blocking)
 - [x] T052: Optional artifact handling (edge case: optional missing, non-blocking)
 - [x] T053: Unreadable artifact handling (permission denied, disk I/O errors)
@@ -360,6 +389,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - [x] T058: Manifest version mismatch edge case (manifest updated, baseline key mismatch)
 
 **Implementation Notes**:
+
 - Missing detection: Create feature with spec.md missing, plan.md present; verify MissionDossierArtifactMissing event
 - Optional handling: Create feature with research.md (optional) missing; verify no missing event
 - Unreadable: Create artifact with no read permissions; verify unreadable error_reason, continue scan
@@ -370,6 +400,7 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 - Manifest mismatch: Change manifest_version, re-scan; verify baseline rejected (no drift event, informational instead)
 
 **Test Criteria**:
+
 - All edge cases handled gracefully (no silent failures, no crashes)
 - SaaS webhook simulator receives all expected events
 - Large artifacts processed without memory issues
@@ -424,6 +455,7 @@ WP09 (Determinism Tests)
 **Critical Path**: WP01 → WP02 → WP03 → (WP04 + WP05) → WP06 → WP07 → WP10
 
 **Parallelizable Groups**:
+
 - Phase 1: WP01, then WP02, then WP03, then WP04 + WP05 in parallel
 - Phase 2: WP06 (after WP04 + WP05), then WP07 (after WP06), and WP08 in parallel (after WP04 + WP05)
 - Phase 3: WP09 (after WP01 + WP05), WP10 (after WP06 + WP07 + WP08 + WP09)

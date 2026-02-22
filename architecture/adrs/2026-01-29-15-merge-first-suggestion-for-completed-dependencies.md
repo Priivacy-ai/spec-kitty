@@ -103,6 +103,7 @@ We validated this decision by:
 Pre-flight check before auto-merge. If all dependencies done, error with suggestion.
 
 **Pros:**
+
 - Proactive detection (before failure)
 - Clear guidance (suggests exact command)
 - Explains trade-offs (merge-first vs auto-merge)
@@ -110,6 +111,7 @@ Pre-flight check before auto-merge. If all dependencies done, error with suggest
 - Agent-friendly (no trial-and-error)
 
 **Cons:**
+
 - Extra step (two commands instead of one)
 - Code complexity (detection logic)
 - Requires --force to override
@@ -119,11 +121,13 @@ Pre-flight check before auto-merge. If all dependencies done, error with suggest
 Try auto-merge, if fails, guide user to manual merge.
 
 **Pros:**
+
 - Works for non-conflicting cases
 - No pre-flight overhead
 - Simpler code (no detection)
 
 **Cons:**
+
 - Reactive (fails first, then suggests)
 - Trial-and-error experience
 - Wastes time on predictable failures
@@ -134,10 +138,12 @@ Try auto-merge, if fails, guide user to manual merge.
 Block multi-parent entirely, force user to merge first.
 
 **Pros:**
+
 - No surprises (never attempts auto-merge)
 - Explicit control over all merges
 
 **Cons:**
+
 - Loses auto-merge benefits for work-in-progress
 - Too restrictive (many WPs could auto-merge cleanly)
 - Breaks existing workflows
@@ -147,10 +153,12 @@ Block multi-parent entirely, force user to merge first.
 Always attempt auto-merge for multi-parent, let git handle it.
 
 **Pros:**
+
 - No changes needed
 - Works for non-conflicting cases
 
 **Cons:**
+
 - Predictable failures (all-done + shared files = conflict)
 - No guidance (agent stuck)
 - Poor UX (trial-and-error)

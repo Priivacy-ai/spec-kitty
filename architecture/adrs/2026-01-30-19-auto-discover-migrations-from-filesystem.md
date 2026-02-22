@@ -121,6 +121,7 @@ We validated this decision by:
 Scan `migrations/` directory at runtime, dynamically import all `m_*.py` files.
 
 **Pros:**
+
 - Zero manual steps (just create file)
 - Impossible to forget registration
 - Standard pattern (Django, Alembic use this)
@@ -130,6 +131,7 @@ Scan `migrations/` directory at runtime, dynamically import all `m_*.py` files.
 - Fail-fast (import errors surface immediately)
 
 **Cons:**
+
 - Slightly slower startup (~50ms overhead)
 - Module reload needed after clear() in tests
 - Less explicit (can't see migration list in **init**.py)
@@ -140,11 +142,13 @@ Scan `migrations/` directory at runtime, dynamically import all `m_*.py` files.
 Generate **init**.py automatically when migration created (e.g., via CLI command).
 
 **Pros:**
+
 - Explicit migration list visible in **init**.py
 - No runtime scanning overhead
 - Familiar pattern (explicit imports)
 
 **Cons:**
+
 - Still two-step process (create migration, run codegen)
 - Can forget to run codegen command
 - Codegen complexity (when to run? pre-commit hook?)
@@ -156,11 +160,13 @@ Generate **init**.py automatically when migration created (e.g., via CLI command
 Keep manual imports, add reminders in docs and CI.
 
 **Pros:**
+
 - No code changes needed
 - Explicit migration list in **init**.py
 - No performance overhead
 
 **Cons:**
+
 - **Doesn't solve the problem** - Still requires human memory
 - Still blocks releases (proven track record)
 - Documentation doesn't prevent mistakes
@@ -172,11 +178,13 @@ Keep manual imports, add reminders in docs and CI.
 Git hook that checks **init**.py matches filesystem before commit.
 
 **Pros:**
+
 - Catches errors before commit
 - No runtime overhead
 - Fails early in development
 
 **Cons:**
+
 - Still requires manual import (doesn't eliminate problem)
 - Pre-commit hooks can be skipped (`--no-verify`)
 - Adds setup complexity for contributors

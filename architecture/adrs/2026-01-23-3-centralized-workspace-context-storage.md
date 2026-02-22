@@ -92,11 +92,13 @@ We'll validate this decision by:
 ### Option 1: Per-Worktree `.spec-kitty-context` File
 
 **Pros:**
+
 - High visibility (in worktree root)
 - No relative path needed
 - Colocated with workspace files
 
 **Cons:**
+
 - Lost when worktree deleted (no audit trail)
 - Requires gitignoring (untracked, ephemeral)
 - Duplicates info from frontmatter
@@ -107,6 +109,7 @@ We'll validate this decision by:
 ### Option 2: Centralized Storage in `.kittify/workspaces/`
 
 **Pros:**
+
 - Survives worktree deletion (audit trail)
 - No .gitignore complexity
 - Consistent with `.kittify/` pattern
@@ -115,6 +118,7 @@ We'll validate this decision by:
 - No merge conflicts
 
 **Cons:**
+
 - Requires relative path from worktree
 - Context stored separately from workspace
 - Could become orphaned
@@ -122,11 +126,13 @@ We'll validate this decision by:
 ### Option 3: Environment Variables Only
 
 **Pros:**
+
 - No files to manage
 - Available to all processes
 - Traditional Unix approach
 
 **Cons:**
+
 - Ephemeral (lost when shell exits)
 - Not queryable after command finishes
 - No audit trail
@@ -136,10 +142,12 @@ We'll validate this decision by:
 ### Option 4: Store in Git Config
 
 **Pros:**
+
 - Git-native approach
 - Persistent across shell sessions
 
 **Cons:**
+
 - Pollutes git config namespace
 - Difficult to query programmatically
 - Not human-readable

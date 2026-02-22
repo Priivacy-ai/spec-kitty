@@ -145,11 +145,13 @@ Store status in the SaaS platform's Postgres instance.
 ## More Information
 
 **Related ADRs:**
+
 * ADR 2026-02-09-2 (WP Lifecycle State Machine) — consumes events from this log
 * ADR 2026-02-09-3 (Event-Log Merge Semantics) — operates on this log
 * ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — extends this log with evidence payloads
 
 **References:**
+
 * Martin Fowler: Event Sourcing — <https://martinfowler.com/eaaDev/EventSourcing.html>
 * JSONL Specification — <https://jsonlines.org/>
 * PRD: Feature Status State Model Remediation (Sections 2, 3, 5, 6, 15)

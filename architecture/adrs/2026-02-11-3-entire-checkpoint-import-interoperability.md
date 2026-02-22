@@ -95,17 +95,20 @@ However, ignoring Entire misses partnership/acquisition opportunities and forces
 ### Confirmation
 
 **Success Metrics**:
+
 - **Compatibility**: Successfully import 100+ Entire checkpoints without errors
 - **Adoption**: 5-10% of Spec Kitty users also use Entire (indicates interoperability value)
 - **Partnership**: Initiate discussions with Entire team (if they gain traction: 5K+ GitHub stars, funding)
 - **Format stability**: Entire's checkpoint format remains stable (no breaking changes in 6 months)
 
 **Validation Timeline**:
+
 - **Month 1**: Implement EntireCheckpointReader, test with sample Entire repository
 - **Month 2**: Release CLI command (`spec-kitty import-sessions --source entire`)
 - **Month 3-6**: Monitor adoption, format stability, partnership signals
 
 **Confidence Level**: **MEDIUM** (6/10)
+
 - **High confidence**: Interoperability is valuable (users can combine tools)
 - **Medium confidence**: Entire will gain traction (Tier 1 threat, but early stage)
 - **Low confidence**: Format will remain stable (no version control guarantees from Entire)
@@ -188,16 +191,19 @@ However, ignoring Entire misses partnership/acquisition opportunities and forces
 ## More Information
 
 **References**:
+
 - Competitive analysis: `competitive/tier-1-threats/entire-io/THREAT-ASSESSMENT.md`, `VISION-COMPARISON.md`
 - Entire.io codebase: <https://github.com/entireio/cli> (checkpoint storage implementation)
 - Product requirements: `product-ideas/prd-agent-orchestration-integration-v1.md` (AD-003)
 - Integration spec: `competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 1.1)
 
 **Implementation Files**:
+
 - `spec_kitty_events/sources/entire_checkpoint.py` - EntireCheckpointReader class
 - `specify_cli/commands/import_sessions.py` - CLI command for import
 
 **Related ADRs**:
+
 - ADR-2026-02-09-1: Canonical WP Status Model (PostgreSQL event log - this ADR aligns with that decision)
 - ADR-2026-02-11-4: Agent Attribution Tracking (Entire's attribution data feeds into this)
 - ADR-2026-01-31-1: Vendor spec-kitty-events (event library available for checkpoint reading)
@@ -236,15 +242,18 @@ spec-kitty import-sessions \
 **Partnership/Acquisition Scenarios**:
 
 **Scenario A: Entire gains traction** (10K+ stars, funding, enterprise customers)
+
 - Action: Reach out to Entire team (Stefan Haubold, Alex Ong)
 - Proposal: Integration partnership ("Entire infrastructure + Spec Kitty orchestration")
 - Acquisition estimate: $10-30M (depending on traction, revenue)
 
 **Scenario B: Entire format breaks** (breaking changes to checkpoint JSONL)
+
 - Action: Version EntireCheckpointReader (detect format version, handle multiple)
 - Fallback: Deprecate import if maintenance burden too high
 
 **Rollback Plan**:
+
 - If format breaks repeatedly: Deprecate import feature (remove from CLI)
 - If Entire shuts down: Archive feature (no longer maintained)
 - Zero impact on core Spec Kitty flows (import is optional)

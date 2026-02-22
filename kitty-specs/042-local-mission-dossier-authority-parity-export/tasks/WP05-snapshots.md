@@ -28,6 +28,7 @@ review_status: "approved"
 **Priority**: P1 (Core for determinism requirement)
 
 **Scope**:
+
 - Deterministic snapshot computation (artifact aggregation, counting)
 - Parity hash algorithm (sorted artifact hashes, combined hash)
 - Snapshot persistence (JSON storage)
@@ -35,6 +36,7 @@ review_status: "approved"
 - Snapshot equality comparison
 
 **Test Criteria**:
+
 - Snapshot computes without errors for 30+ artifacts
 - Parity hash deterministic (same content → same hash, multiple runs)
 - Snapshot reproducible on different machines/timezones
@@ -47,6 +49,7 @@ review_status: "approved"
 WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that dossier into a deterministic snapshot. The snapshot is the canonical record of dossier state at a point in time—it includes artifact counts, completeness status, and parity hash. The parity hash is computed from sorted artifact content hashes, ensuring order-independence and reproducibility across machines.
 
 **Key Requirements**:
+
 - **FR-005**: System MUST compute deterministic parity_hash_sha256 from all indexed artifacts' hashes
 - **FR-010**: Dossier projection MUST be deterministic
 - **SC-002**: Repeated scans of unchanged content produce identical snapshots
@@ -61,8 +64,10 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 **What**: Create algorithm to compute snapshot from MissionDossier.
 
 **How**:
+
 1. Create store.py in `src/specify_cli/dossier/store.py`
 2. Define compute_snapshot() function:
+
    ```python
    def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
        """Deterministically compute snapshot from dossier.
@@ -120,10 +125,12 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
            computed_at=datetime.utcnow(),
        )
    ```
+
 3. Ensure all counting logic deterministic (no randomness, no timestamps in computation)
 4. Completeness status must match dossier.completeness_status
 
 **Test Requirements**:
+
 - Snapshot computes without errors
 - Artifact counts accurate
 - Completeness status correct
@@ -136,7 +143,9 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 **What**: Implement order-independent parity hash computation.
 
 **How**:
+
 1. Create compute_parity_hash_from_dossier() function:
+
    ```python
    def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
        """Compute SHA256 parity hash from artifact content hashes.
@@ -175,16 +184,19 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
        ]
        return sorted(present_hashes)
    ```
+
 2. Missing/unreadable artifacts excluded (hash only present artifacts)
 3. Duplicate artifact hashes included (intentional, not deduplicated)
 4. Order-independence validated by tests
 
 **Order-Independence Proof**:
+
 - Sorting before concatenation ensures artifact scan order irrelevant
 - Same content, any scan order → same sorted hashes → same parity hash
 - SC-006 validates this across machines/timezones
 
 **Test Requirements**:
+
 - Same artifacts in different order → same parity hash
 - Different artifacts → different parity hash
 - Missing artifacts excluded (don't contribute to hash)
@@ -197,7 +209,9 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 **What**: Store snapshot to JSON file for later retrieval.
 
 **How**:
+
 1. Create persistence functions:
+
    ```python
    def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
        """Persist snapshot to JSON.
@@ -228,12 +242,14 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
        """Get most recent snapshot (convenience alias)."""
        return load_snapshot(feature_dir, feature_slug)
    ```
+
 2. Snapshot file location: `.kittify/dossiers/{feature_slug}/snapshot-latest.json`
 3. Use JSON (not JSONL) for snapshot (single object, not log)
 4. Store full snapshot object (all fields)
 5. Include computed_at timestamp (immutable)
 
 **File Format Example**:
+
 ```json
 {
   "feature_slug": "042-local-mission-dossier",
@@ -253,6 +269,7 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 ```
 
 **Test Requirements**:
+
 - Snapshot saves to correct file path
 - Snapshot loads from JSON without errors
 - Round-trip (save, load) preserves all fields
@@ -265,7 +282,9 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 **What**: Validate that snapshots are reproducible (same content → same hash).
 
 **How**:
+
 1. Create validate_snapshot_reproducibility() test function:
+
    ```python
    def test_snapshot_reproducibility():
        """Verify same content produces identical snapshot."""
@@ -285,11 +304,13 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
        assert snapshot1.completeness_status == snapshot2.completeness_status
        assert snapshot1.total_artifacts == snapshot2.total_artifacts
    ```
+
 2. Test multiple runs on same content
 3. Test on different artifact orderings
 4. Validate SC-002 success criterion
 
 **Test Requirements**:
+
 - Same content, 10 scans → same parity hash
 - Different orderings → same parity hash
 - Completeness status reproducible
@@ -302,7 +323,9 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 **What**: Implement equality check for parity hashes.
 
 **How**:
+
 1. Add comparison method to MissionDossierSnapshot:
+
    ```python
    class MissionDossierSnapshot(BaseModel):
        ...
@@ -324,11 +347,13 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
            """Hash based on parity_hash (for set/dict usage)."""
            return hash(self.parity_hash_sha256)
    ```
+
 2. Parity hash is source of truth (not snapshot_id, computed_at)
 3. Equality ignores envelope metadata (event_id, timestamp)
 4. Support comparison with other snapshots
 
 **Test Requirements**:
+
 - Same parity hash → equal snapshots
 - Different parity hash → unequal
 - Snapshot equality ignore timestamp/id differences
@@ -353,15 +378,19 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 ## Risks & Mitigations
 
 **Risk 1**: Artifact ordering affects parity hash
+
 - **Mitigation**: Sort before concatenation (order-independent algorithm)
 
 **Risk 2**: Timestamps make snapshots non-reproducible
+
 - **Mitigation**: Use UTC timezone, don't include timestamps in parity computation
 
 **Risk 3**: Missing/unreadable artifacts counted incorrectly
+
 - **Mitigation**: Test with various missing scenarios (T026)
 
 **Risk 4**: Large dossiers (1000s of artifacts) slow down snapshot
+
 - **Mitigation**: SC-005 validates performance (linear scaling)
 
 ---
@@ -369,6 +398,7 @@ WP01-WP04 build up to WP05: indexing produces MissionDossier; WP05 projects that
 ## Reviewer Guidance
 
 When reviewing WP05:
+
 1. Verify compute_snapshot() sorts artifacts before hashing (order-independence)
 2. Check parity hash computed from sorted hashes (not artifact order)
 3. Confirm missing/unreadable artifacts excluded from parity (only present)

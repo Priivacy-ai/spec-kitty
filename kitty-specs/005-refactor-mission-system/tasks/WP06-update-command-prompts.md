@@ -160,6 +160,7 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Replace inline pre-flight check in implement command.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/software-dev/commands/implement.md`
 2. Locate "Location Pre-flight Check" section (around line 18-41)
 3. Replace with same Python validation block as T041
@@ -182,6 +183,7 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Replace inline pre-flight check in review command.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/software-dev/commands/review.md`
 2. Locate "Location Pre-flight Check" section
 3. Replace with Python validation block
@@ -201,6 +203,7 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Replace inline pre-flight check in merge command.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/software-dev/commands/merge.md`
 2. Locate "Location Pre-flight Check" section
 3. Replace with Python validation block
@@ -220,6 +223,7 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Update research mission plan command with Python validation.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/research/commands/plan.md`
 2. Replace "Location Pre-flight Check" section with Python validation
 3. Ensure methodology-specific sections preserved
@@ -239,9 +243,11 @@ This validates you're on a feature branch in a worktree, not on main.
 **Purpose**: Update research implement command with validation AND citation tracking guidance.
 
 **Steps**:
+
 1. Open file: `.kittify/missions/research/commands/implement.md`
 2. Replace "Location Pre-flight Check" with Python validation
 3. ADD new section after pre-flight: "Citation Tracking Requirements":
+
    ```markdown
    ## Citation Tracking Requirements (Research Mission)
 

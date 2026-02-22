@@ -144,11 +144,13 @@ Two states (`open`/`closed`) with free-form tags for substates.
 ## More Information
 
 **Related ADRs:**
+
 * ADR 2026-02-09-1 (Canonical WP Status Model) — state machine consumes events from this log
 * ADR 2026-02-09-3 (Event-Log Merge Semantics) — replays events through this state machine
 * ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — evidence payloads satisfy guard conditions
 
 **References:**
+
 * Harel Statecharts — <https://www.wisdom.weizmann.ac.il/~dharel/SCANNED.PAPERS/Statecharts.pdf>
 * XState Documentation — <https://xstate.js.org/docs/>
 * PRD: Feature Status State Model Remediation (Sections 7, 8, 13, 14)

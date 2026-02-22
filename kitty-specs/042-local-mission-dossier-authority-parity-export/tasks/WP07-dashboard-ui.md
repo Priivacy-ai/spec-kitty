@@ -28,6 +28,7 @@ review_status: "approved"
 **Priority**: P1 (User-facing feature)
 
 **Scope**:
+
 - dossier-panel.js (vanilla JS component)
 - Dashboard HTML integration (new dossier tab)
 - Artifact list rendering + filtering UI
@@ -36,6 +37,7 @@ review_status: "approved"
 - Media type hints (markdown, json, yaml)
 
 **Test Criteria**:
+
 - Dashboard renders dossier panel without errors
 - Artifact list loads and displays 30+ artifacts
 - Filtering works (click class=output, list updates)
@@ -49,11 +51,13 @@ review_status: "approved"
 WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The dashboard integrates a new dossier tab alongside existing features, allowing curators to inspect artifact completeness and review content without leaving the dashboard.
 
 **Key Requirements**:
+
 - **FR-013**: Local dashboard UI MUST render dossier overview, artifact list/filter, detail views
 - **SC-001**: Dashboard <500ms response times
 - **Design**: Vanilla JS (no Vue/SPA framework, aligns with existing dashboard)
 
 **Dashboard Context**:
+
 - Existing dashboard: `src/specify_cli/dashboard/`
 - Static JS: `src/specify_cli/dashboard/static/js/`
 - Templates: `src/specify_cli/dashboard/templates/dashboard.html`
@@ -67,7 +71,9 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Vanilla JavaScript component managing dossier UI state and interactions.
 
 **How**:
+
 1. Create dossier-panel.js in `src/specify_cli/dashboard/static/js/dossier-panel.js`:
+
    ```javascript
    class DossierPanel {
        constructor(containerId) {
@@ -222,12 +228,14 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        }
    }
    ```
+
 2. Add initialization code to dashboard.js
 3. Use vanilla fetch API (no jQuery)
 4. Handle loading states (spinner, disabled buttons)
 5. Add error handling (404, network errors)
 
 **Implementation Details**:
+
 - Use Fetch API (modern, built-in)
 - Handle promises with async/await
 - DOM manipulation with querySelector, innerHTML
@@ -235,6 +243,7 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 - Error messages displayed to user
 
 **Test Requirements**:
+
 - Component initializes without errors
 - loadSnapshot fetches overview correctly
 - loadArtifacts fetches artifact list correctly
@@ -248,7 +257,9 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Integrate dossier panel into dashboard.html with tab navigation.
 
 **How**:
+
 1. Modify dashboard.html to add dossier tab:
+
    ```html
    <div class="dashboard-container">
        <div class="dashboard-tabs">
@@ -277,16 +288,19 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        </div>
    </div>
    ```
+
 2. Add CSS styling for dossier panel (new file or inline)
 3. Add tab switching JavaScript
 4. Ensure existing tabs still work
 
 **HTML Structure**:
+
 - Tab navigation buttons (Features, Missions, Dossier)
 - Tab content divs (dossier-panel, detail modal)
 - IDs for JavaScript targeting
 
 **Test Requirements**:
+
 - Dossier tab renders without errors
 - Tab switching works (click Dossier tab, shows dossier panel)
 - Other tabs unaffected
@@ -298,7 +312,9 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Display filtered artifact table with checkbox filters.
 
 **How**:
+
 1. Create renderFilterUI() in DossierPanel:
+
    ```javascript
    renderFilterUI() {
        const filterContainer = this.container.querySelector('.dossier-filters');
@@ -353,17 +369,20 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        this.renderArtifactList();
    }
    ```
+
 2. renderArtifactList() displays table with columns: Key, Class, Path, Status
 3. Support filtering by class, wp_id, step_id (UI provides checkboxes)
 4. Display stable ordering (by artifact_key, verified by server)
 
 **Filter UI Design**:
+
 - Checkboxes for each class
 - "Required Only" checkbox
 - "Reset Filters" button
 - Real-time filtering (update list on checkbox change)
 
 **Test Requirements**:
+
 - Filters appear in HTML
 - Clicking checkbox triggers filter update
 - Artifact list updates with filtered results
@@ -376,7 +395,9 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Show full artifact content in modal/side panel.
 
 **How**:
+
 1. Create renderArtifactDetail() in DossierPanel:
+
    ```javascript
    renderArtifactDetail(artifact) {
        const modal = this.container.querySelector('#dossier-detail-modal');
@@ -443,12 +464,14 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        return (bytes / 1024 / 1024).toFixed(1) + ' MB';
    }
    ```
+
 2. Create modal HTML in dashboard.html
 3. Show metadata (path, size, hash, status)
 4. Display full content if <5MB
 5. Show truncation notice if >5MB
 
 **Test Requirements**:
+
 - Detail modal opens on artifact click
 - Metadata displays correctly
 - Content shows for small artifacts
@@ -461,7 +484,9 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Display user-friendly truncation message for large artifacts.
 
 **How**:
+
 1. In renderArtifactDetail(), check artifact.content_truncated:
+
    ```javascript
    if (artifact.content_truncated) {
        contentHTML = `
@@ -481,11 +506,13 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        `;
    }
    ```
+
 2. Add CSS styling (.artifact-truncated class)
 3. Include "Download File" link (optional enhancement)
 4. Clear messaging (why content not shown)
 
 **Test Requirements**:
+
 - Truncation notice displays for artifacts >5MB
 - Notice includes file size
 - User understands why content not shown
@@ -497,15 +524,21 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 **What**: Add CSS classes/icons based on artifact media type.
 
 **How**:
+
 1. In renderArtifactList(), add class to table row:
+
    ```javascript
    <tr data-artifact-key="${artifact.artifact_key}" class="artifact-row media-${artifact.media_type_hint}">
    ```
+
 2. In renderArtifactDetail(), add class to content:
+
    ```javascript
    <pre class="artifact-content media-${artifact.media_type_hint}">
    ```
+
 3. Add CSS styling per media type:
+
    ```css
    .artifact-content.media-markdown {
        border-left: 4px solid #0366d6;
@@ -520,16 +553,19 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
        background-color: #f3e8ff;
    }
    ```
+
 4. Optional: Add icon badge (MD, JSON, YAML)
 5. Syntax highlighting hint (markdown=italic, json=monospace, etc.)
 
 **Media Types**:
+
 - markdown: Blue border, light blue bg, italic text
 - json: Orange border, light orange bg, monospace
 - yaml: Purple border, light purple bg, monospace
 - text: Default styling
 
 **Test Requirements**:
+
 - Media type hints visible in artifact list
 - Correct colors/styling per type
 - Accessibility (not color-only)
@@ -555,15 +591,19 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 ## Risks & Mitigations
 
 **Risk 1**: Vanilla JS code becomes complex
+
 - **Mitigation**: Keep components small, use helper functions
 
 **Risk 2**: Large artifact content crashes browser
+
 - **Mitigation**: Truncate at 5MB (server-side check)
 
 **Risk 3**: Filtering logic inconsistent with server
+
 - **Mitigation**: All filtering on server (client just sends params)
 
 **Risk 4**: HTML escaping issues (XSS)
+
 - **Mitigation**: Use escapeHtml() helper, avoid innerHTML for user data
 
 ---
@@ -571,6 +611,7 @@ WP06 provides API endpoints; WP07 consumes them with vanilla JavaScript UI. The 
 ## Reviewer Guidance
 
 When reviewing WP07:
+
 1. Verify dossier-panel.js uses vanilla JS (no Vue)
 2. Check fetch API usage (correct error handling)
 3. Confirm artifact list renders correctly

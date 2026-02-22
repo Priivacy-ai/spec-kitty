@@ -581,7 +581,7 @@ history:
 
 **Validation**:
 
-- [ ] `verify_input_hash()` returns (True, _,_) if hashes match
+- [ ] `verify_input_hash()` returns (True, *,*) if hashes match
 - [ ] `verify_input_hash()` returns (False, old, new) if hashes differ
 - [ ] `verify_input_hash()` returns truncated hashes (16 chars) for display
 - [ ] `handle_context_change()` calls prompt if hashes differ

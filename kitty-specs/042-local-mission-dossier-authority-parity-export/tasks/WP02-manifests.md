@@ -28,6 +28,7 @@ review_status: "approved"
 **Priority**: P1 (Foundation for completeness checking)
 
 **Scope**:
+
 - Manifest schema design (required_always, required_by_step, optional_always)
 - ManifestRegistry loader (reads mission.yaml states)
 - 3 mission-specific expected-artifacts.yaml files
@@ -35,6 +36,7 @@ review_status: "approved"
 - Integration with mission.yaml state machine
 
 **Test Criteria**:
+
 - Manifest loads from YAML without errors
 - Registry correctly maps step names to artifact lists
 - Unknown missions handled gracefully (return None)
@@ -48,11 +50,13 @@ review_status: "approved"
 Feature 042's dossier system needs to know which artifacts are required at any given point in a mission workflow. Unlike hardcoded phases, manifests are mission-aware: they read from mission.yaml state machine and define requirements per step (e.g., "specify" → requires spec.md, "planning" → requires plan.md, "implementation" → requires code changes).
 
 **Key Requirements**:
+
 - **FR-003**: System MUST define expected-artifact manifests per mission type, step-aware
 - **FR-004**: System MUST detect missing required artifacts and emit MissionDossierArtifactMissing events
 - **Assumption 1**: Expected artifact manifests are defined in mission templates (not hard-coded)
 
 **Mission Context**:
+
 - software-dev: States include "discovery", "specify", "plan", "implement", "review", "done"
 - research: States include "scoping", "methodology", "gathering", "synthesis", "output", "done"
 - documentation: Mission-specific states
@@ -66,7 +70,9 @@ Feature 042's dossier system needs to know which artifacts are required at any g
 **What**: Define YAML schema for expected artifact manifests.
 
 **How**:
+
 1. Create schema structure with 3 top-level sections:
+
    ```yaml
    schema_version: "1.0"
    mission_type: "software-dev"  # or "research", "documentation"
@@ -93,6 +99,7 @@ Feature 042's dossier system needs to know which artifacts are required at any g
        artifact_class: "..."
        path_pattern: "..."
    ```
+
 2. Define validation rules:
    - artifact_key: Stable, unique, format "class.category.qualifier" (e.g., "input.spec.main")
    - artifact_class: One of {input, workflow, output, evidence, policy, runtime}
@@ -109,6 +116,7 @@ Feature 042's dossier system needs to know which artifacts are required at any g
 4. Add comprehensive docstring and examples in schema
 
 **Schema Example**:
+
 ```yaml
 # software-dev expected-artifacts.yaml
 schema_version: "1.0"
@@ -148,6 +156,7 @@ optional_always:
 ```
 
 **Test Requirements**:
+
 - Valid manifest YAML parses without errors
 - Invalid artifact_class rejected
 - Missing required steps allowed (optional)
@@ -161,8 +170,10 @@ optional_always:
 **What**: Create ManifestRegistry class to load and query manifests.
 
 **How**:
+
 1. Create manifest.py in `src/specify_cli/dossier/manifest.py`
 2. Define ExpectedArtifactSpec and ExpectedArtifactManifest pydantic models (from data-model.md):
+
    ```python
    class ArtifactClassEnum(str, Enum):
        INPUT = "input"
@@ -195,7 +206,9 @@ optional_always:
                data = yaml.load(f)
            return cls(**data)
    ```
+
 3. Create ManifestRegistry class:
+
    ```python
    class ManifestRegistry:
        _cache: Dict[str, Optional[ExpectedArtifactManifest]] = {}
@@ -227,9 +240,11 @@ optional_always:
            """Clear manifest cache (for testing)."""
            ManifestRegistry._cache.clear()
    ```
+
 4. Add methods to get artifacts by class, filter by blocking, etc.
 
 **Test Requirements**:
+
 - load_manifest("software-dev") returns valid manifest
 - load_manifest("unknown") returns None
 - get_required_artifacts(manifest, "specify") returns correct list
@@ -243,6 +258,7 @@ optional_always:
 **What**: Create expected-artifacts.yaml for software-dev mission.
 
 **How**:
+
 1. Analyze existing software-dev mission template in `src/specify_cli/missions/software-dev/`
 2. Review mission.yaml to identify state machine (states: discovery, specify, plan, implement, review, done)
 3. Identify all artifacts expected at each state:
@@ -261,6 +277,7 @@ optional_always:
 **File Location**: `src/specify_cli/missions/software-dev/expected-artifacts.yaml`
 
 **Example Content**:
+
 ```yaml
 schema_version: "1.0"
 mission_type: "software-dev"
@@ -295,6 +312,7 @@ optional_always:
 ```
 
 **Test Requirements**:
+
 - Manifest loads without errors
 - All referenced states exist in mission.yaml
 - Path patterns match existing artifacts in mission template
@@ -307,6 +325,7 @@ optional_always:
 **What**: Create expected-artifacts.yaml for research mission.
 
 **How**:
+
 1. Analyze research mission template in `src/specify_cli/missions/research/`
 2. Review mission.yaml states (scoping, methodology, gathering, synthesis, output, done)
 3. Identify artifacts per state:
@@ -321,6 +340,7 @@ optional_always:
 **File Location**: `src/specify_cli/missions/research/expected-artifacts.yaml`
 
 **Test Requirements**:
+
 - Manifest loads without errors
 - States align with actual mission.yaml
 - Blocking semantics correct (findings.md blocks completeness at synthesis state)
@@ -332,6 +352,7 @@ optional_always:
 **What**: Create expected-artifacts.yaml for documentation mission.
 
 **How**:
+
 1. Analyze documentation mission template in `src/specify_cli/missions/documentation/`
 2. Review mission.yaml states and identify documentation artifacts
 3. Determine which artifacts are required per Divio 4-type system (tutorial, how-to, reference, explanation)
@@ -341,6 +362,7 @@ optional_always:
 **File Location**: `src/specify_cli/missions/documentation/expected-artifacts.yaml`
 
 **Test Requirements**:
+
 - Manifest loads without errors
 - Divio types (tutorial, how-to, reference, explanation) properly mapped
 - Path patterns valid
@@ -352,7 +374,9 @@ optional_always:
 **What**: Implement validation that manifests are correct (steps exist, paths valid).
 
 **How**:
+
 1. Add validation methods to ManifestRegistry:
+
    ```python
    @staticmethod
    def validate_manifest(manifest: ExpectedArtifactManifest, mission_dir: Path) -> Tuple[bool, List[str]]:
@@ -380,10 +404,12 @@ optional_always:
 
        return len(errors) == 0, errors
    ```
+
 2. Call validation during manifest loading (warn if validation fails, but don't block)
 3. Add validation tests
 
 **Test Requirements**:
+
 - Valid manifest passes validation
 - Invalid step name detected
 - Absolute paths rejected
@@ -411,15 +437,19 @@ optional_always:
 ## Risks & Mitigations
 
 **Risk 1**: Manifest steps don't match mission.yaml
+
 - **Mitigation**: Validation (T011) checks step existence; validation failures logged
 
 **Risk 2**: Path patterns don't match actual files
+
 - **Mitigation**: Manual review of mission templates during implementation; tests verify paths
 
 **Risk 3**: Manifest versions diverge across missions
+
 - **Mitigation**: Single manifest_version field per mission; versioning strategy deferred post-042
 
 **Risk 4**: Custom/unknown missions not supported
+
 - **Mitigation**: Graceful degradation: unknown missions return None, no missing detection
 
 ---
@@ -427,6 +457,7 @@ optional_always:
 ## Reviewer Guidance
 
 When reviewing WP02:
+
 1. Verify manifest schema matches data-model.md (schema_version, mission_type, manifest_version, required_always, required_by_step, optional_always)
 2. Check all 3 manifests (software-dev, research, documentation) created in mission directories
 3. Confirm step names match mission.yaml state IDs (from each mission template)

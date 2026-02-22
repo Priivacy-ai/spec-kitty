@@ -110,11 +110,13 @@ We'll validate this decision by:
 ### Option 1: Manual --base Selection + Manual Merge
 
 **Pros:**
+
 - Simple implementation (no auto-merge logic)
 - User has full control over merge order
 - Minimal git operations
 
 **Cons:**
+
 - Arbitrary base selection (non-deterministic)
 - Manual merge steps burden agents
 - No validation of complete dependency merge
@@ -124,6 +126,7 @@ We'll validate this decision by:
 ### Option 2: Auto-Merge All Dependencies
 
 **Pros:**
+
 - Fully deterministic (sorted deps → same tree)
 - No manual steps required
 - All dependencies validated automatically
@@ -132,6 +135,7 @@ We'll validate this decision by:
 - Agents don't need merge knowledge
 
 **Cons:**
+
 - Additional merge commits created
 - Conflicts block workspace creation
 - Temporary branches persist
@@ -140,11 +144,13 @@ We'll validate this decision by:
 ### Option 3: Topological-First Parent Selection
 
 **Pros:**
+
 - Deterministic ordering (earliest dependency)
 - Single base branch (simpler than merge)
 - Fewer merge commits
 
 **Cons:**
+
 - Still requires manual merge of remaining deps
 - Not all dependencies included automatically
 - Partial solution (doesn't eliminate manual steps)
@@ -152,10 +158,12 @@ We'll validate this decision by:
 ### Option 4: Dependency Weight-Based Selection
 
 **Pros:**
+
 - Intelligent base selection (largest impact)
 - Potentially fewer merge conflicts
 
 **Cons:**
+
 - Still requires manual merge
 - Non-deterministic if weights equal
 - Complex heuristic (file count? lines changed?)
