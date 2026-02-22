@@ -21,8 +21,8 @@ from typing import List, Tuple
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-MIGRATION_ID = "0.16.2_remove_wp_status_gitignore_rule"
-MIGRATION_VERSION = "0.16.2"
+MIGRATION_ID = "2.0.0a5_remove_wp_status_gitignore_rule"
+MIGRATION_VERSION = "2.0.0a5"
 MIGRATION_DESCRIPTION = (
     "Remove stale WP status ignore rules from tracked .gitignore"
 )
