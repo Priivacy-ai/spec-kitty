@@ -363,6 +363,19 @@ def create_feature(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        primary_branch = _resolve_primary_branch(repo_root)
+        if current_branch != primary_branch:
+            error_msg = (
+                f"Feature creation must run on '{primary_branch}' branch "
+                f"(current: '{current_branch}')."
+            )
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
         planning_branch = current_branch
 
         # Get next feature number
