@@ -56,7 +56,6 @@ from specify_cli.template.github_client import (
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.runtime.resolver import resolve_command
-from specify_cli.hooks import install_or_update_hooks
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -192,7 +191,7 @@ def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
     This is the ``src/doctrine/templates/`` directory which contains
-    ``command-templates/``, ``git-hooks/``, ``AGENTS.md``, etc.
+    ``command-templates/``, ``AGENTS.md``, etc.
 
     Returns None if the templates directory cannot be located.
     """
@@ -307,39 +306,6 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
     # Write back
     with open(config_file, "w") as f:
         yaml.dump(config, f)
-
-
-def _install_git_hooks(
-    project_path: Path, templates_root: Path | None = None, tracker: StepTracker | None = None
-) -> None:
-    """Install centralized hooks and project shim wrappers.
-
-    Args:
-        project_path: Path to the project root
-        templates_root: Path to the templates directory (if available)
-        tracker: Optional progress tracker
-    """
-    template_hooks_dir = templates_root / "git-hooks" if templates_root else None
-
-    try:
-        result = install_or_update_hooks(
-            project_path,
-            template_hooks_dir=template_hooks_dir,
-            force=False,
-        )
-    except FileNotFoundError as exc:
-        if tracker:
-            tracker.skip("git-hooks", str(exc))
-        return
-
-    if tracker:
-        summary = (
-            f"global:{len(result.global_hooks)} file(s), "
-            f"shims +{len(result.project.installed)} / ~{len(result.project.updated)}"
-        )
-        if result.project.skipped_custom:
-            summary += f", skipped custom: {', '.join(sorted(result.project.skipped_custom))}"
-        tracker.complete("git-hooks", summary)
 
 
 def init(
@@ -783,7 +749,7 @@ def init(
                                     command_templates_dir = copy_specify_base_from_package(
                                         project_path, selected_script
                                     )
-                                # Track templates root for later use (AGENTS.md, .claudeignore, git-hooks)
+                                # Track templates root for later use (AGENTS.md, .claudeignore)
                                 if command_templates_dir:
                                     templates_root = command_templates_dir.parent
                             base_prepared = True
@@ -857,7 +823,7 @@ def init(
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker)
 
-            # Git step - must happen BEFORE hook installation
+            # Git step
             if not no_git:
                 tracker.start("git")
                 if is_git_repo(project_path):
@@ -877,12 +843,6 @@ def init(
             # Exclude .worktrees/ from git index (defensive protection)
             if not no_git and is_git_repo(project_path):
                 exclude_from_git_index(project_path, [".worktrees/"])
-
-            # Install git hooks AFTER git is initialized
-            if not no_git and is_git_repo(project_path):
-                tracker.add("git-hooks", "Install git hooks")
-                tracker.start("git-hooks")
-                _install_git_hooks(project_path, templates_root=templates_root, tracker=tracker)
 
             tracker.complete("final", "project ready")
         except Exception as e:

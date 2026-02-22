@@ -148,7 +148,6 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     # Copy from src/doctrine/templates/ (doctrine artifacts)
     # The src/doctrine/templates/ directory contains:
     # - command-templates/ (agent command templates)
-    # - git-hooks/ (pre-commit hooks)
     # - claudeignore-template
     # - AGENTS.md
     templates_src = repo_root / "src" / "doctrine" / "templates"

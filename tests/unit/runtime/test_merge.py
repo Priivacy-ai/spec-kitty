@@ -151,7 +151,6 @@ class TestMergePackageAssets:
             "missions/audit",
             "missions/refactor",
             "scripts",
-            "hooks",
         }
         assert set(MANAGED_DIRS) == expected
 
@@ -169,7 +168,7 @@ class TestMergePackageAssets:
         source = tmp_path / "source"
         dest = tmp_path / "dest"
 
-        for managed_dir in ["missions/software-dev", "missions/research", "scripts", "hooks"]:
+        for managed_dir in ["missions/software-dev", "missions/research", "scripts"]:
             (source / managed_dir).mkdir(parents=True)
             (source / managed_dir / "file.txt").write_text(f"new-{managed_dir}")
 
@@ -178,5 +177,5 @@ class TestMergePackageAssets:
 
         merge_package_assets(source, dest)
 
-        for managed_dir in ["missions/software-dev", "missions/research", "scripts", "hooks"]:
+        for managed_dir in ["missions/software-dev", "missions/research", "scripts"]:
             assert (dest / managed_dir / "file.txt").read_text() == f"new-{managed_dir}"

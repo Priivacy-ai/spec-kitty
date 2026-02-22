@@ -30,7 +30,7 @@ description: "Work package task list template for feature implementation"
 ## Work Package WP01: Setup & Environment (Priority: P0)
 
 **Goal**: Establish project skeleton and shared tooling.
-**Independent Test**: Project bootstraps locally with linting and formatter hooks in place.
+**Independent Test**: Project bootstraps locally with linting and formatter tooling configured.
 **Prompt**: `/tasks/WP01-setup-and-environment.md`
 
 ### Included Subtasks

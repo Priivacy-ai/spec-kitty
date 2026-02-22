@@ -68,9 +68,9 @@ def test_sdist_bundles_templates():
         ]
         assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
 
-        # Should have git hooks
-        git_hooks = [m for m in members if "git-hooks/pre-commit" in m]
-        assert len(git_hooks) >= 2, f"Missing git hooks: {len(git_hooks)}"
+        # Git hooks are intentionally not bundled in 2.x
+        git_hooks = [m for m in members if "git-hooks/" in m]
+        assert len(git_hooks) == 0, f"Unexpected git hook assets bundled: {git_hooks}"
 
 
 def test_wheel_bundles_templates_correctly():
@@ -141,4 +141,4 @@ def test_wheel_bundles_templates_correctly():
         assert result.returncode == 0, f"Failed to check templates: {result.stderr}"
         output = result.stdout
         assert "command-templates" in output, "command-templates not found in bundled package"
-        assert "git-hooks" in output, "git-hooks not found in bundled package"
+        assert "git-hooks" not in output, "git-hooks should not be bundled in 2.x"

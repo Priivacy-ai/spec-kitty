@@ -117,11 +117,11 @@ pytest tests/test_encoding_validation_functional.py -v
 
 ---
 
-### ⏳ Test Suite 5: Pre-Commit Hook
+### ⏳ Test Suite 5: Git Hook Regression (Legacy/Deprecated in 2.x)
 
 **File:** `tests/test_pre_commit_hook_functional.py` (NOT STARTED)
 **Required Tests:** 4
-**Target:** `templates/git-hooks/pre-commit-encoding-check`
+**Target:** Legacy hook migration safety checks
 
 **Tests to implement:**
 - Test 5.1: Hook blocks bad encoding
@@ -152,7 +152,7 @@ pytest tests/test_encoding_validation_functional.py -v
 | 2. CLI Commands | `test_encoding_validation_cli.py` | 10/10 | ✅ **COMPLETE** |
 | 3. Dashboard Resilience | `test_dashboard_encoding_resilience.py` | 16/16 | ✅ **COMPLETE** |
 | 4. Plan Validation | `test_plan_validation.py` | 7/7 | ✅ **COMPLETE** |
-| 5. Pre-Commit Hook | `test_pre_commit_hook_functional.py` | 0/4 | ⏳ OPTIONAL |
+| 5. Legacy Git Hook Regression | `test_pre_commit_hook_functional.py` | 0/4 | ⏳ OPTIONAL |
 | 6. Integration | `test_encoding_plan_integration.py` | 0/3 | ⏳ OPTIONAL |
 | **CORE TOTAL** | **4 files** | **48/48** | ✅ **100% Complete** |
 | **FULL TOTAL** | **6 files** | **48/55** | **87% Complete** |
@@ -251,7 +251,7 @@ pytest tests/test_*encoding*.py tests/test_*plan*.py \
 - ✅ **Zero false positives** in clean file validation
 - ✅ **100% detection rate** for all 15+ problematic character types
 - ✅ **Zero data loss** during sanitization (content preserved)
-- ⏳ **Pre-commit blocks 100%** of files with encoding errors (tests pending)
+- ⏳ **Legacy hook retirement** migrates managed hooks without touching custom hooks (tests pending)
 - ⏳ **Research/tasks block 100%** of template plans (tests pending)
 
 ---
@@ -273,7 +273,7 @@ pytest tests/test_*encoding*.py tests/test_*plan*.py \
 1. Use `typer.testing.CliRunner` for CLI tests (Suite 2)
 2. Mock or use test fixtures for dashboard scanner tests (Suite 3)
 3. Create realistic test fixtures for plan validation (Suite 4)
-4. Use temporary git repos for pre-commit hook tests (Suite 5)
+4. Use temporary git repos for legacy hook retirement tests (Suite 5)
 5. Integration tests should reuse fixtures from individual suites (Suite 6)
 
 ---

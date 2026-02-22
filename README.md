@@ -504,15 +504,7 @@ Spec Kitty automatically protects you with multiple layers:
 
 **During `spec-kitty init`:**
 - ✅ Adds all 12 agent directories to `.gitignore`
-- ✅ Installs pre-commit hooks that block commits containing agent files
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
-
-**Pre-commit Hook Protection:**
-The installed pre-commit hook will block any commit that includes files from:
-`.claude/`, `.codex/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`,
-`.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.amazonq/`, `.github/copilot/`
-
-If you need to bypass the hook (not recommended): `git commit --no-verify`
 
 **Worktree Constitution Sharing:**
 When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
