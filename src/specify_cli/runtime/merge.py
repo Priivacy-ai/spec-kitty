@@ -19,6 +19,7 @@ MANAGED_DIRS: list[str] = [
     "missions/audit",
     "missions/refactor",
     "scripts",
+    "hooks",
 ]
 
 # Individual files managed by the package — overwritten on every update.

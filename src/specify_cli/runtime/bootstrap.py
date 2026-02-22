@@ -67,6 +67,7 @@ def populate_from_package(target: Path) -> None:
 
     - ``missions/`` -- copied from ``get_package_asset_root()``
     - ``scripts/``  -- copied from the package's ``scripts/`` directory
+    - ``hooks/``    -- copied from ``templates/git-hooks`` in package assets
     - ``AGENTS.md`` -- copied from the package root
 
     Args:
@@ -85,6 +86,16 @@ def populate_from_package(target: Path) -> None:
     scripts_src = asset_root.parent / "scripts"
     if scripts_src.is_dir():
         shutil.copytree(scripts_src, target / "scripts")
+
+    # Copy centralized git hooks if they exist
+    hooks_src = asset_root.parent / "templates" / "git-hooks"
+    if hooks_src.is_dir():
+        hooks_dst = target / "hooks"
+        shutil.copytree(hooks_src, hooks_dst)
+        if os.name != "nt":
+            for hook_file in hooks_dst.iterdir():
+                if hook_file.is_file():
+                    hook_file.chmod(0o755)
 
     # Copy AGENTS.md if it exists
     agents_src = asset_root.parent / "AGENTS.md"

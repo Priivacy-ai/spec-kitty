@@ -57,6 +57,12 @@ def fake_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     scripts.mkdir(parents=True)
     (scripts / "validate.py").write_text("# validate")
 
+    # Hook templates (sibling of missions via templates/git-hooks)
+    hooks = pkg_root / "templates" / "git-hooks"
+    hooks.mkdir(parents=True)
+    (hooks / "pre-commit").write_text("#!/usr/bin/env bash\nexit 0\n")
+    (hooks / "commit-msg").write_text("#!/usr/bin/env bash\nexit 0\n")
+
     # AGENTS.md (sibling of missions)
     (pkg_root / "AGENTS.md").write_text("# Agents")
 
@@ -132,6 +138,14 @@ class TestPopulateFromPackage:
         populate_from_package(target)
         assert (target / "AGENTS.md").exists()
         assert (target / "AGENTS.md").read_text() == "# Agents"
+
+    def test_copies_hooks(
+        self, tmp_path: Path, fake_assets: Path
+    ) -> None:
+        target = tmp_path / "staging"
+        populate_from_package(target)
+        assert (target / "hooks" / "pre-commit").exists()
+        assert (target / "hooks" / "commit-msg").exists()
 
     def test_creates_target_dir(
         self, tmp_path: Path, fake_assets: Path

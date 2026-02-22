@@ -56,6 +56,7 @@ from specify_cli.template.github_client import (
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.hooks import install_or_update_hooks
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -311,45 +312,34 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
 def _install_git_hooks(
     project_path: Path, templates_root: Path | None = None, tracker: StepTracker | None = None
 ) -> None:
-    """Install git hooks from templates to .git/hooks directory.
+    """Install centralized hooks and project shim wrappers.
 
     Args:
         project_path: Path to the project root
         templates_root: Path to the templates directory (if available)
         tracker: Optional progress tracker
     """
-    git_hooks_dir = project_path / ".git" / "hooks"
-    # Use templates_root if available, otherwise fall back to user project (for backwards compat)
-    if templates_root:
-        template_hooks_dir = templates_root / "git-hooks"
-    else:
-        template_hooks_dir = project_path / ".kittify" / "templates" / "git-hooks"
+    template_hooks_dir = templates_root / "git-hooks" if templates_root else None
 
-    if not git_hooks_dir.exists():
+    try:
+        result = install_or_update_hooks(
+            project_path,
+            template_hooks_dir=template_hooks_dir,
+            force=False,
+        )
+    except FileNotFoundError as exc:
         if tracker:
-            tracker.skip("git-hooks", ".git/hooks directory not found")
+            tracker.skip("git-hooks", str(exc))
         return
-
-    if not template_hooks_dir.exists():
-        if tracker:
-            tracker.skip("git-hooks", "no hook templates found")
-        return
-
-    installed_count = 0
-    for hook_template in template_hooks_dir.iterdir():
-        if hook_template.is_file() and not hook_template.name.startswith("."):
-            hook_dest = git_hooks_dir / hook_template.name
-            shutil.copy2(hook_template, hook_dest)
-            # Make executable on POSIX systems
-            if os.name != "nt":
-                hook_dest.chmod(0o755)
-            installed_count += 1
 
     if tracker:
-        if installed_count > 0:
-            tracker.complete("git-hooks", f"{installed_count} hook(s) installed")
-        else:
-            tracker.skip("git-hooks", "no hooks to install")
+        summary = (
+            f"global:{len(result.global_hooks)} file(s), "
+            f"shims +{len(result.project.installed)} / ~{len(result.project.updated)}"
+        )
+        if result.project.skipped_custom:
+            summary += f", skipped custom: {', '.join(sorted(result.project.skipped_custom))}"
+        tracker.complete("git-hooks", summary)
 
 
 def init(
