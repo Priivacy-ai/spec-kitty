@@ -1,0 +1,9 @@
+{
+  "feature_number": "044",
+  "slug": "044-constitution-interview-compiler-context-bootstrap",
+  "friendly_name": "Constitution Interview Compiler and Context Bootstrap",
+  "mission": "software-dev",
+  "target_branch": "2.x",
+  "created_at": "2026-02-22T00:00:00Z",
+  "vcs": "git"
+}
