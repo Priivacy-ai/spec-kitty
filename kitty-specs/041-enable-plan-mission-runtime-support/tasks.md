@@ -110,9 +110,9 @@ This feature is organized into 5 focused work packages, organized by phase:
 **Goal**: Create any referenced content templates and set up the test framework.
 
 **Included Subtasks**:
-- [ ] T010: Create any referenced content templates
-- [ ] T011: Create test file (test_plan_mission_runtime.py)
-- [ ] T012: Set up test fixtures and mocks
+- [x] T010: Create any referenced content templates
+- [x] T011: Create test file (test_plan_mission_runtime.py)
+- [x] T012: Set up test fixtures and mocks
 
 **Implementation Sketch**:
 1. Review content template references from WP02 T009
@@ -146,9 +146,9 @@ This feature is organized into 5 focused work packages, organized by phase:
 **Goal**: Comprehensive testing to ensure plan mission works end-to-end and other missions remain unaffected.
 
 **Included Subtasks**:
-- [ ] T013: Implement mission discovery integration test
-- [ ] T014: Implement command resolution tests (all 4 steps)
-- [ ] T015: Implement regression tests (software-dev, research)
+- [x] T013: Implement mission discovery integration test
+- [x] T014: Implement command resolution tests (all 4 steps)
+- [x] T015: Implement regression tests (software-dev, research)
 - [ ] T016: Verify test coverage and CI compatibility (UPDATED: was T016, renamed)
 - [ ] T017: Run tests locally and verify all pass
 
