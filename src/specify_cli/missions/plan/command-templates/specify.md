@@ -10,29 +10,31 @@ estimated_duration: "15-20 minutes"
 
 ## Context
 
-You are beginning the planning phase for a new feature or initiative. Your role is to create a clear, detailed specification that will guide the research and design phases.
+You are beginning the planning phase for a new software feature. Your role is to create a clear, detailed specification that will guide the research and design phases.
 
 **Input**: Feature description or user request from the specification step
 
-**Output**: A comprehensive specification document (`spec.md`) that will be the foundation for the remaining planning steps
+**Output**: A comprehensive specification document that will be the foundation for the remaining planning steps (research → plan → review)
 
-**What You're Doing**: Analyzing the feature request, asking clarifying questions (if needed), and documenting:
+**What You're Doing**: Analyzing the user's feature request, asking clarifying questions if needed, and documenting:
 - Feature goals and objectives
 - User scenarios and use cases
 - Functional and non-functional requirements
 - Acceptance criteria and success metrics
 - Constraints and assumptions
+- Scope boundaries
 
 ## Deliverables
 
-- `spec.md` document with:
-  - Executive Summary (1-2 paragraphs)
-  - Problem Statement (what problem does this solve?)
-  - Functional Requirements (list of requirements)
-  - Success Criteria (measurable outcomes)
-  - User Scenarios (3-5 key user flows)
-  - Assumptions and Constraints
-  - Scope boundaries (in/out of scope)
+The planning specification should include:
+- **Executive Summary** (1-2 paragraphs describing the feature at high level)
+- **Problem Statement** (what problem does this feature solve?)
+- **Functional Requirements** (list of what the feature must do)
+- **Non-Functional Requirements** (performance, security, scalability expectations)
+- **User Scenarios** (3-5 key user flows and interactions)
+- **Success Criteria** (measurable outcomes that define "done")
+- **Assumptions and Constraints** (what are we assuming? what are the limits?)
+- **Scope Boundaries** (what's explicitly in scope and out of scope)
 
 ## Instructions
 
@@ -40,44 +42,57 @@ You are beginning the planning phase for a new feature or initiative. Your role 
    - What is the core feature being requested?
    - Who are the primary users?
    - What problem does it solve?
+   - What value does it deliver?
 
 2. **Define feature goals**
-   - List 3-5 primary goals
-   - Ensure each goal is measurable
-   - Consider both user goals and business goals
+   - List 3-5 primary goals for this feature
+   - Ensure each goal is specific and measurable
+   - Prioritize goals by importance
 
 3. **Create user scenarios**
    - Develop 3-5 key user scenarios
-   - Include happy path and at least one edge case
-   - Each scenario should be testable
-   - Format: "As a [user type], I want to [action], so that [benefit]"
+   - Include the happy path for each scenario
+   - Include at least one edge case or error scenario
+   - Each scenario should be testable and realistic
 
 4. **Document requirements**
-   - Translate goals and scenarios into testable requirements
-   - Separate functional (what it does) from non-functional (performance, security, etc.)
-   - Make requirements specific and measurable
-   - Avoid vague terms like "fast", "easy", or "intuitive"
+   - Translate goals and scenarios into specific, testable requirements
+   - Separate functional requirements (what it does) from non-functional (performance, security, etc.)
+   - Make requirements specific and measurable (avoid vague terms like "fast" or "user-friendly")
+   - Cross-reference each requirement to a user scenario
 
 5. **Define success criteria**
-   - What does done look like?
-   - How will we validate the feature works?
-   - Include both user-facing and technical criteria
-   - Each criterion should be objectively verifiable
+   - What does it mean for this feature to be "done"?
+   - How will you validate the feature works as intended?
+   - Include both user-facing criteria and technical criteria
+   - Make criteria objective and testable
 
 6. **Identify constraints and assumptions**
-   - What technical limitations exist?
-   - What are we assuming about the environment, users, etc.?
-   - What's explicitly out of scope?
-   - Document any dependencies on other systems
+   - What technical limitations or dependencies exist?
+   - What are we assuming about the environment, users, or systems?
+   - What constraints (budget, timeline, resources) affect this feature?
+   - What is explicitly out of scope?
+
+7. **Validate for clarity**
+   - Review each section for clarity and completeness
+   - Remove or clarify any ambiguous language
+   - Ensure there are no conflicting requirements
+   - Document any assumptions or open questions
 
 ## Success Criteria
 
-- [ ] spec.md file created with all required sections
-- [ ] Feature goals are clear and measurable
-- [ ] User scenarios are specific and testable (not generic)
-- [ ] Requirements are testable (not vague like "fast" or "easy")
-- [ ] Success criteria are technology-agnostic
-- [ ] Scope boundaries are clearly stated (what's in and out of scope)
-- [ ] No [NEEDS CLARIFICATION] markers remain (or justified and documented)
-- [ ] Document is well-organized and readable
-- [ ] Ready for research phase (step 2)
+- [ ] Specification document created with all required sections
+- [ ] Feature goals are clear, specific, and measurable
+- [ ] User scenarios are concrete and testable (not generic)
+- [ ] Requirements are testable (avoid subjective terms)
+- [ ] Success criteria are objective and technology-agnostic
+- [ ] Scope boundaries are clearly stated (in scope and out of scope)
+- [ ] No open questions or clarifications needed (or justified as intentional)
+- [ ] Specification is well-organized and readable
+
+## References
+
+- Specification format: Use clear section headings and structured bullet points
+- Example: See documentation for specification best practices
+- Related: This specification feeds into the research phase
+

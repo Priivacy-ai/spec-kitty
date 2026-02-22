@@ -3,95 +3,103 @@ step_id: "plan"
 mission: "plan"
 title: "Plan"
 description: "Design and create planning artifacts"
-estimated_duration: "25-35 minutes"
+estimated_duration: "25-40 minutes"
 ---
 
-# Plan Phase
+# Design & Planning
 
 ## Context
 
-You are in the design and planning phase. Your role is to take the research findings and create detailed design artifacts that define how the feature will be built.
+You are creating the technical design artifacts that will guide the implementation phase. Building on the feature specification and research findings, you now design the solution architecture, data models, APIs, and implementation approach.
 
-**Input**: research.md from the Research phase (step 2) and spec.md from step 1
+**Input**: Feature specification and research findings from previous steps
 
-**Output**: Complete design artifacts including architecture, data models, API contracts, and implementation sketch
+**Output**: Design artifacts including architecture diagrams, data models, API contracts, and implementation sketches
 
-**What You're Doing**: Creating:
-- System architecture and component design
-- Data models and schema definitions
-- API contracts and interfaces
-- Implementation approach and technical decisions
-- Assumptions and design rationale
+**What You're Doing**:
+- Designing the system architecture and component interactions
+- Creating data models and entity relationships
+- Defining API contracts and interfaces
+- Sketching the implementation approach
+- Documenting design decisions and assumptions
 
 ## Deliverables
 
-- Design artifact documents:
-  - `architecture.md` - System design and component interactions
-  - `data-model.md` - Entity definitions, relationships, schemas
-  - `api-contracts.md` - REST/GraphQL endpoints, request/response shapes
-  - `implementation-sketch.md` - High-level implementation steps and approach
-  - `design-decisions.md` - Key design choices and rationale
-
-Alternative formats acceptable:
-- Single `design.md` combining all sections
-- Multiple topic-specific files in `design/` directory
-- Any format that captures: architecture, data model, contracts, implementation sketch
+The design planning should produce:
+- **Architecture Design** (system design, component interactions, deployment model)
+- **Data Model** (entities, fields, relationships, validation rules)
+- **API Contracts** (REST/GraphQL endpoints, request/response formats, error handling)
+- **Implementation Sketch** (high-level implementation steps, phase sequencing)
+- **Design Patterns Applied** (which patterns are used and why)
+- **Technical Decisions** (key design choices and their rationale)
+- **Design Assumptions** (assumptions made during design)
+- **Integration Design** (how this integrates with existing systems)
+- **Validation Rules** (business logic and data validation requirements)
 
 ## Instructions
 
 1. **Design system architecture**
-   - What are the main components/modules?
-   - How do they interact?
-   - What's the overall system structure?
-   - Where does this feature fit in the larger system?
-   - Draw diagrams if helpful (can be ASCII art)
+   - How should this feature be architected?
+   - What components are needed?
+   - How do components interact?
+   - What is the deployment model?
+   - What are the boundaries of responsibility?
 
-2. **Define data models**
-   - What entities/objects are involved?
-   - What are the key attributes of each?
-   - What relationships exist between entities?
-   - What constraints apply (uniqueness, dependencies)?
-   - Include schema definitions or examples
+2. **Create data model**
+   - What entities does this feature require?
+   - What are the key properties of each entity?
+   - What are the relationships between entities?
+   - What validation rules apply?
+   - What is the state model (if applicable)?
 
-3. **Document API contracts**
-   - What endpoints or interfaces are exposed?
-   - Request/response structure for each
-   - Status codes and error handling
-   - Authentication and authorization
-   - Rate limiting or other constraints
-   - Use examples or OpenAPI/GraphQL specs
+3. **Define API contracts**
+   - What endpoints or interfaces are needed?
+   - For each user action or requirement, what API is needed?
+   - What are the request parameters?
+   - What are the response formats?
+   - What error cases must be handled?
+   - Use standard REST or GraphQL patterns
 
-4. **Create implementation sketch**
-   - What are the high-level implementation steps?
-   - Which components are built first?
-   - What's the critical path?
-   - What can be deferred or made optional?
-   - What dependencies exist between components?
-   - Estimate effort for major components
+4. **Sketch implementation approach**
+   - What are the major implementation phases?
+   - In what order should components be built?
+   - What are the dependencies between components?
+   - What are the testing requirements?
+   - What are the rollout/deployment considerations?
 
-5. **Document assumptions**
-   - What assumptions guide this design?
-   - What external constraints are we working with?
-   - What future changes might break this design?
-   - What would need to change if requirements evolved?
+5. **Document design patterns**
+   - Which design patterns are used and why?
+   - How do they apply to this feature?
+   - What benefits do they provide?
+   - Any anti-patterns to avoid?
 
-6. **Validate against specification**
-   - Does the design satisfy all requirements from spec.md?
-   - Does it address all success criteria?
-   - Are all user scenarios supported?
-   - Have all constraints been addressed?
+6. **Record technical decisions**
+   - What major technical choices were made?
+   - What was the rationale for each?
+   - What alternatives were considered?
+   - Why were alternatives rejected?
+
+7. **Document assumptions**
+   - What assumptions are embedded in the design?
+   - What if these assumptions prove false?
+   - What would need to change?
 
 ## Success Criteria
 
-- [ ] Design artifacts created with clear structure
-- [ ] System architecture is well-documented
-- [ ] Data models are specific and implementable (not vague)
-- [ ] API contracts are detailed and testable
-- [ ] Implementation sketch is actionable
-- [ ] All design decisions are justified
-- [ ] Architecture diagrams are included (text or visual)
-- [ ] Design satisfies all requirements from spec.md
-- [ ] Design addresses all risks identified in research.md
-- [ ] Assumptions are explicitly documented
-- [ ] No major gaps or inconsistencies
-- [ ] Ready for review phase (step 4)
+- [ ] Architecture design is clear and documented
+- [ ] Data model captures all required entities and relationships
+- [ ] API contracts are complete with request/response examples
+- [ ] Implementation sketch provides clear phasing and sequencing
+- [ ] All design patterns are identified and explained
+- [ ] Technical decisions are documented with rationale
+- [ ] Integration points are clearly defined
+- [ ] Validation rules are explicit and testable
+- [ ] Design is ready to be handed off to implementation teams
+
+## References
+
+- Design format: Use diagrams (ASCII or markdown) for architecture clarity
+- Data model: Document entity relationships and validation rules
+- API contracts: Provide realistic examples of requests and responses
+- Related: Implementation teams will use these artifacts to build the feature
+
