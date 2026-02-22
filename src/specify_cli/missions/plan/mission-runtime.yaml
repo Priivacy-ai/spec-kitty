@@ -1,0 +1,38 @@
+# =============================================================================
+# Runtime DAG-based Mission Template (v2.0.0)
+# =============================================================================
+#
+# Plan Mission runtime definition for spec-kitty next.
+# Used by the runtime bridge to enable `spec-kitty next --feature <plan-feature>`.
+#
+# The runtime engine uses DAG-based step planning.
+# This mission defines a 4-step linear workflow: specify → research → plan → review
+
+mission:
+  key: plan
+  name: Planning Mission
+  version: "2.0.0"
+
+steps:
+  - id: specify
+    title: Specify
+    prompt_template: specify.md
+    description: Define planning goals and requirements
+
+  - id: research
+    title: Research
+    depends_on: [specify]
+    prompt_template: research.md
+    description: Gather research inputs and technical context
+
+  - id: plan
+    title: Plan
+    depends_on: [research]
+    prompt_template: plan.md
+    description: Design and create planning artifacts
+
+  - id: review
+    title: Review
+    depends_on: [plan]
+    prompt_template: review.md
+    description: Review and validate planning artifacts
