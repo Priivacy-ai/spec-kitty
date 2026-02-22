@@ -200,3 +200,45 @@ def test_tag_mode_fails_on_regression(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "does not advance beyond latest tag v0.2.3" in result.stderr
+
+
+def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "2.0.0",
+        changelog_for_versions(("2.0.0", "- Initial 2.x release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 2.0.0")
+    tag(tmp_path, "v2.0.0")
+
+    write_release_files(
+        tmp_path,
+        "3.0.0",
+        changelog_for_versions(
+            ("3.0.0", "- Different release line"),
+            ("2.0.0", "- Initial 2.x release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: create unrelated major line")
+    tag(tmp_path, "v3.0.0")
+
+    write_release_files(
+        tmp_path,
+        "2.0.1",
+        changelog_for_versions(
+            ("2.0.1", "- Patch release"),
+            ("3.0.0", "- Different release line"),
+            ("2.0.0", "- Initial 2.x release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 2.0.1")
+
+    result_scoped = run_validator(
+        tmp_path, "--mode", "branch", "--tag-pattern", "v2.*.*"
+    )
+    assert result_scoped.returncode == 0, result_scoped.stderr
+
+    result_unscoped = run_validator(tmp_path, "--mode", "branch")
+    assert result_unscoped.returncode == 1
+    assert "does not advance beyond latest tag v3.0.0" in result_unscoped.stderr

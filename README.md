@@ -82,9 +82,9 @@ graph LR
 
 </div>
 
-**Recent stable release:** `v0.15.1` (2026-02-12)
+**Current 2.x release line:** `v2.0.0` (GitHub releases)
 
-**0.15.x highlights:**
+**2.x highlights:**
 - Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
 - Branch routing and merge-base calculation are centralized for more predictable behavior
 - Worktree isolation and lane transitions have stronger guardrails and test coverage
@@ -101,14 +101,15 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty is currently published on a stable `0.15.x` track from the `main` branch.
+Spec Kitty now runs split release tracks: `main` for the 1.0 PyPI stream and `2.x` for GitHub-only next-generation releases.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **0.15.x** | Active stable releases | `pip install spec-kitty-cli` |
+| **main** | **1.0.0rc** | Release-candidate/stable PyPI stream | `pip install --pre spec-kitty-cli` |
+| **2.x** | **2.x** | GitHub-only semantic releases | Install from source or GitHub release artifacts |
 
-**For users:** install from PyPI (`pip install spec-kitty-cli`).
-**For contributors:** target `main` unless maintainers specify otherwise in an issue or PR discussion.
+**For users:** install stable from PyPI (`pip install spec-kitty-cli`) or opt into RC (`pip install --pre spec-kitty-cli`).
+**For 2.x contributors/testers:** follow `v2.*.*` GitHub releases and install from source or release artifacts.
 
 ---
 
@@ -1120,192 +1121,90 @@ cat .kittify/active-mission/mission.yaml
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
 <details>
-<summary><h2>🚀 Releasing to PyPI (Maintainers)</h2></summary>
+<summary><h2>🚀 Releasing 2.x on GitHub (Maintainers)</h2></summary>
 
-Spec Kitty CLI uses an automated release workflow to publish to PyPI. Releases are triggered by pushing semantic version tags and include automated validation, testing, and quality checks.
+`2.x` now uses GitHub-only releases with semantic tags in the form `v2.<minor>.<patch>`.
+The `2.x` release workflow does not publish to PyPI.
 
-### For Users
+### 1. Prepare Release Branch
 
-Install or upgrade from PyPI:
 ```bash
-pip install --upgrade spec-kitty-cli
+git checkout 2.x
+git pull origin 2.x
+git checkout -b release/v2.0.0
+
+# Update pyproject.toml to a semantic version (example: 2.0.0)
+# Add CHANGELOG.md entry under: ## [2.0.0] - YYYY-MM-DD
 ```
 
-Check your version:
-```bash
-spec-kitty --version
-```
-
-### For Maintainers
-
-Follow these steps to publish a new release:
-
-#### 1. Prepare Release Branch
+### 2. Validate Locally
 
 ```bash
-# Create feature branch
-git checkout -b release/v0.2.4
-
-# Bump version in pyproject.toml
-vim pyproject.toml  # Update version = "0.2.4"
-
-# Add changelog entry
-# Update CHANGELOG.md with ## [0.2.4] - YYYY-MM-DD section with release notes
-```
-
-#### 2. Validate Locally
-
-```bash
-# Run validator in branch mode
-python scripts/release/validate_release.py --mode branch
-
-# Run tests
+python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
 python -m pytest
-
-# Test package build
 python -m build
 twine check dist/*
-
-# Clean up
 rm -rf dist/ build/
 ```
 
-#### 3. Open Pull Request
+### 3. Open and Merge PR to `2.x`
 
 ```bash
-# Commit changes
 git add pyproject.toml CHANGELOG.md
-git commit -m "Prepare release 0.2.4"
-git push origin release/v0.2.4
-
-# Open PR targeting main
-# Ensure all CI checks pass (tests + release-readiness workflow)
+git commit -m "chore(release): prepare 2.0.0"
+git push origin release/v2.0.0
 ```
 
-#### 4. Merge & Tag
+After review, merge into `2.x`.
+
+### 4. Tag and Push
 
 ```bash
-# After PR approval, merge to main
-# Then pull latest main
-git checkout main
-git pull origin main
-
-# Create annotated tag
-git tag v0.2.4 -m "Release 0.2.4"
-
-# Push tag (triggers release workflow)
-git push origin v0.2.4
+git checkout 2.x
+git pull origin 2.x
+git tag v2.0.0 -m "Release 2.0.0"
+git push origin v2.0.0
 ```
 
-#### 5. Monitor Release
+This triggers `.github/workflows/release.yml`.
 
-1. Go to **Actions** tab in GitHub
-2. Watch **"Publish Release"** workflow
-3. Workflow will:
-   - ✅ Run full test suite
-   - ✅ Validate version/changelog alignment
-   - ✅ Build distributions (wheel + sdist)
-   - ✅ Run twine check
-   - ✅ Generate checksums
-   - ✅ Create GitHub Release with changelog
-   - ✅ Publish to PyPI (via trusted publishing)
-
-> **Note:** The release workflow uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) via GitHub Actions OIDC. This means the workflow obtains a short-lived token automatically without needing stored API keys. However, `PYPI_API_TOKEN` is still required as a fallback. The workflow will show "This environment is not supported for trusted publishing" if running outside of GitHub Actions or if trusted publishing isn't configured for the package.
-
-#### 6. Verify Release
+### 5. Verify GitHub Release
 
 ```bash
-# Wait a few minutes for PyPI to update
-pip install --upgrade spec-kitty-cli==0.2.4
-
-# Verify version
-spec-kitty --version  # Should show 0.2.4
-
-# Quick smoke test
-spec-kitty --help
+gh release view v2.0.0
 ```
 
-### Secret Management
+### Guardrails
 
-The release workflow requires `PYPI_API_TOKEN` to be configured as a GitHub repository secret.
-
-**To create/rotate the token**:
-
-1. Log in to https://pypi.org
-2. Go to **Account Settings > API tokens**
-3. Click **"Add API token"**
-4. Name: "spec-kitty-cli GitHub Actions"
-5. Scope: "Project: spec-kitty-cli"
-6. Copy the token (starts with `pypi-`)
-7. Add to GitHub:
-   - Go to repository **Settings > Secrets and variables > Actions**
-   - Click **"New repository secret"**
-   - Name: `PYPI_API_TOKEN`
-   - Value: Paste the PyPI token
-   - Click **"Add secret"**
-
-**Rotation schedule**: Every 6 months or after any security incident
-
-Update the rotation date in [docs/releases/readiness-checklist.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/releases/readiness-checklist.md) when rotating.
-
-### Branch Protection
-
-Enable branch protection rules for `main`:
-
-1. Go to **Settings > Branches**
-2. Add rule for `main` branch
-3. Enable:
-   - ✅ "Require pull request reviews before merging"
-   - ✅ "Require status checks to pass before merging"
-   - ✅ Select required check: `release-readiness / check-readiness`
-4. This prevents direct pushes and ensures all changes go through PR review
-
-### Automated Guardrails
-
-Three workflows protect release quality:
-
-1. **release-readiness.yml** - Runs on PRs targeting `main`
-   - Validates version bump, changelog, tests
-   - Blocks merge if validation fails
-   - Provides actionable job summary
-
-2. **protect-main.yml** - Runs on pushes to `main`
-   - Detects direct pushes (blocks)
-   - Allows PR merges (passes)
-   - Provides remediation guidance
-
-3. **release.yml** - Runs on `v*.*.*` tags
-   - Full release pipeline
-   - Publishes to PyPI
-   - Creates GitHub Release
+- `release-readiness.yml`: runs on PRs to `2.x` to validate version/changelog/tests.
+- `release.yml`: runs on `v2.*.*` tags and performs:
+  - test execution
+  - release metadata validation
+  - artifact build and checksums
+  - GitHub Release creation with changelog notes
 
 ### Troubleshooting
 
 **Validation fails**: "Version does not advance beyond latest tag"
-- Check latest tag: `git tag --list 'v*' --sort=-version:refname | head -1`
-- Bump version in `pyproject.toml` to be higher
+- Check latest tag: `git tag --list 'v2.*.*' --sort=-version:refname | head -1`
+- Bump `pyproject.toml` to a higher semantic version
 
 **Validation fails**: "CHANGELOG.md lacks a populated section"
-- Add entry with format `## [X.Y.Z]` and release notes below
-
-**Workflow fails**: "PYPI_API_TOKEN secret is not configured"
-- Add token to repository secrets (see Secret Management above)
+- Add `## [X.Y.Z]` with release notes in `CHANGELOG.md`
 
 **Tag already exists**:
 ```bash
-# Delete and recreate tag
-git tag -d v0.2.4
-git push origin :refs/tags/v0.2.4
-git tag v0.2.4 -m "Release 0.2.4"
-git push origin v0.2.4
+git tag -d v2.0.0
+git push origin :refs/tags/v2.0.0
+git tag v2.0.0 -m "Release 2.0.0"
+git push origin v2.0.0
 ```
 
-### Documentation
+### References
 
-- 📋 [Release Readiness Checklist](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/releases/readiness-checklist.md) - Complete step-by-step guide
-- 🔧 [Release Scripts Documentation](https://github.com/Priivacy-ai/spec-kitty/blob/main/scripts/release/README.md) - Validator and helper scripts
-- 📦 [Feature Specification](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/002-lightweight-pypi-release/spec.md) - Design decisions
-- 🔄 [GitHub Workflows](https://github.com/Priivacy-ai/spec-kitty/tree/main/.github/workflows) - Automation implementation
+- `RELEASE_CHECKLIST.md`
+- `scripts/release/README.md`
+- `.github/workflows/release.yml`
 
 </details>
 

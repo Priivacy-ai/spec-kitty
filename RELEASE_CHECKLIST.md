@@ -2,6 +2,8 @@
 
 Use this checklist to ensure consistent, high-quality releases of spec-kitty.
 
+> For the `2.x` branch, releases are GitHub-only. Use semantic tags in the form `v2.<minor>.<patch>` and skip any PyPI publication steps.
+
 ## Pre-Release Preparation
 
 ### Version Planning
@@ -165,7 +167,7 @@ gh pr create --title "Release X.Y.Z: [Brief description]" \
 [List any breaking changes or "None"]
 EOF
 )" \
-             --base main
+             --base 2.x
 ```
 
 ### 4. Wait for CI and Review
@@ -193,8 +195,8 @@ gh pr merge --merge --delete-branch
 ### 6. Create and Push Release Tag
 
 ```bash
-git checkout main
-git pull origin main
+git checkout 2.x
+git pull origin 2.x
 git tag -a vX.Y.Z -m "Release vX.Y.Z
 
 [Brief description of what's in this release]
@@ -217,19 +219,12 @@ git push origin vX.Y.Z
 - [ ] Verify workflow completes successfully:
   - Tests pass
   - Package builds
-  - Published to PyPI
-  - GitHub release created
+  - GitHub release created (with artifacts)
 
-- [ ] Check PyPI release:
-  ```bash
-  # Wait a few minutes for PyPI to update
-  pip install --upgrade spec-kitty-cli
-  spec-kitty --version  # Should show new version
-  ```
-
-- [ ] Verify GitHub release created:
+- [ ] Verify GitHub release payload:
   ```bash
   gh release view vX.Y.Z
+  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
   ```
 
 ## Post-Release Verification
