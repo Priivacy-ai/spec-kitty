@@ -13,7 +13,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.agent.workflow import implement as agent_implement
+from specify_cli.cli.commands.agent.workflow import (
+    implement as agent_implement,
+    review as agent_review,
+)
 
 
 class TestAgentWorkflowImplement:
@@ -282,6 +285,86 @@ class TestAgentWorkflowImplement:
             # Verify top-level implement was NOT called
             mock_top_level.assert_not_called()
 
+    def test_implement_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
+        """Workflow implement must fail loudly when status commit fails."""
+        feature_slug = "001-test-feature"
+        wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: Setup\n"
+            "dependencies: []\n"
+            "lane: planned\n"
+            "agent: \"\"\n"
+            "shell_pid: \"\"\n"
+            "---\n"
+            "# Setup\n\n"
+            "## Activity Log\n"
+            "- 2026-01-01T00:00:00Z – system – lane=planned – Prompt created.\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add WP01"], cwd=mock_repo, check=True, capture_output=True)
+
+        # Ensure command does not delegate to top-level implement.
+        workspace_path = mock_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root", return_value=mock_repo), \
+             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug", return_value=feature_slug), \
+             patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out", return_value=(mock_repo, "main")), \
+             patch("specify_cli.cli.commands.agent.workflow.safe_commit", return_value=False):
+            with pytest.raises(typer.Exit):
+                agent_implement(
+                    wp_id="WP01",
+                    feature=feature_slug,
+                    agent="test-agent",
+                    base=None,
+                )
+
+        captured = capsys.readouterr()
+        assert "Failed to commit workflow status update for WP01" in captured.out
+        assert "✓ Claimed WP01" not in captured.out
+
+    def test_review_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
+        """Workflow review must fail loudly when status commit fails."""
+        feature_slug = "001-test-feature"
+        wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: Setup\n"
+            "dependencies: []\n"
+            "lane: for_review\n"
+            "agent: \"\"\n"
+            "shell_pid: \"\"\n"
+            "---\n"
+            "# Setup\n\n"
+            "## Activity Log\n"
+            "- 2026-01-01T00:00:00Z – system – lane=for_review – Prompt created.\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add WP01 for review"], cwd=mock_repo, check=True, capture_output=True)
+
+        # Ensure command does not create workspace (which would obscure commit-failure path).
+        workspace_path = mock_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root", return_value=mock_repo), \
+             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug", return_value=feature_slug), \
+             patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out", return_value=(mock_repo, "main")), \
+             patch("specify_cli.cli.commands.agent.workflow.safe_commit", return_value=False):
+            with pytest.raises(typer.Exit):
+                agent_review(
+                    wp_id="WP01",
+                    feature=feature_slug,
+                    agent="reviewer",
+                )
+
+        captured = capsys.readouterr()
+        assert "Failed to commit workflow status update for WP01" in captured.out
+        assert "✓ Claimed WP01 for review" not in captured.out
 
 class TestAgentFeatureAccept:
     """Integration tests for spec-kitty agent feature accept."""

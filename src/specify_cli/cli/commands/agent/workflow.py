@@ -435,12 +435,18 @@ def implement(
 
             # Auto-commit to target branch (enables instant status sync)
             actual_wp_path = wp.path.resolve()
-            safe_commit(
+            commit_success = safe_commit(
                 repo_path=main_repo_root,
                 files_to_commit=[actual_wp_path],
                 commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
                 allow_empty=True,  # OK if already in this state
             )
+            if not commit_success:
+                print(
+                    f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
+                    "Status claim aborted."
+                )
+                raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -849,15 +855,19 @@ def review(
             wp.path.write_text(updated_doc, encoding="utf-8")
 
             # Auto-commit to target branch (enables instant status sync)
-            import subprocess
-
             actual_wp_path = wp.path.resolve()
-            safe_commit(
+            commit_success = safe_commit(
                 repo_path=main_repo_root,
                 files_to_commit=[actual_wp_path],
                 commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
                 allow_empty=True,  # OK if already in this state
             )
+            if not commit_success:
+                print(
+                    f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
+                    "Review claim aborted."
+                )
+                raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
