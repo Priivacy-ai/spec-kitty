@@ -206,6 +206,88 @@ class TestBuildPromptTemplate:
         assert path.exists()
         path.unlink()
 
+    @patch("specify_cli.next.prompt_builder.resolve_command")
+    def test_template_prompt_bootstrap_context_first_load(self, mock_resolve, feature_with_wp: Path) -> None:
+        mock_path = feature_with_wp / "fake-template.md"
+        mock_path.write_text("# Specify Template\nCreate spec.md.\n", encoding="utf-8")
+        mock_result = MagicMock()
+        mock_result.path = mock_path
+        mock_resolve.return_value = mock_result
+
+        repo_root = feature_with_wp.parent.parent
+        constitution_dir = repo_root / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "constitution.md").write_text(
+            """# Project Constitution
+
+## Policy Summary
+
+- Intent: deterministic change management
+- Testing: pytest + coverage
+
+## Governance Activation
+
+```yaml
+mission: software-dev
+selected_paradigms: [test-first]
+selected_directives: [TEST_FIRST]
+available_tools: [git]
+template_set: software-dev-default
+```
+""",
+            encoding="utf-8",
+        )
+        (constitution_dir / "references.yaml").write_text(
+            """schema_version: "1.0.0"
+references:
+  - id: USER:PROJECT_PROFILE
+    kind: user_profile
+    title: User Profile
+    local_path: library/user-project-profile.md
+""",
+            encoding="utf-8",
+        )
+        (constitution_dir / "governance.yaml").write_text(
+            """doctrine:
+  selected_paradigms: [test-first]
+  selected_directives: [TEST_FIRST]
+  available_tools: [git]
+  template_set: software-dev-default
+""",
+            encoding="utf-8",
+        )
+        (constitution_dir / "directives.yaml").write_text(
+            """directives:
+  - id: TEST_FIRST
+    title: Keep tests strict
+""",
+            encoding="utf-8",
+        )
+
+        first_text, first_path = build_prompt(
+            action="specify",
+            feature_dir=feature_with_wp,
+            feature_slug="042-test-feature",
+            wp_id=None,
+            agent="claude",
+            repo_root=repo_root,
+            mission_key="software-dev",
+        )
+        assert "Constitution Context (Bootstrap):" in first_text
+        first_path.unlink()
+
+        second_text, second_path = build_prompt(
+            action="specify",
+            feature_dir=feature_with_wp,
+            feature_slug="042-test-feature",
+            wp_id=None,
+            agent="claude",
+            repo_root=repo_root,
+            mission_key="software-dev",
+        )
+        assert "Governance:" in second_text
+        second_path.unlink()
+
 
 class TestGovernanceContext:
     @patch("specify_cli.next.prompt_builder.resolve_governance")

@@ -13,7 +13,25 @@ Provides:
 """
 
 from .catalog import DoctrineCatalog, load_doctrine_catalog
+from .compiler import (
+    CompiledConstitution,
+    ConstitutionReference,
+    WriteBundleResult,
+    compile_constitution,
+    write_compiled_constitution,
+)
+from .context import ConstitutionContextResult, build_constitution_context
 from .generator import ConstitutionDraft, build_constitution_draft, write_constitution
+from .interview import (
+    ConstitutionInterview,
+    MINIMAL_QUESTION_ORDER,
+    QUESTION_ORDER,
+    QUESTION_PROMPTS,
+    apply_answer_overrides,
+    default_interview,
+    read_interview_answers,
+    write_interview_answers,
+)
 from .parser import ConstitutionParser, ConstitutionSection
 from .schemas import (
     BranchStrategyConfig,
@@ -46,9 +64,24 @@ from .resolver import (
 __all__ = [
     "DoctrineCatalog",
     "load_doctrine_catalog",
+    "CompiledConstitution",
+    "ConstitutionReference",
+    "WriteBundleResult",
+    "compile_constitution",
+    "write_compiled_constitution",
+    "ConstitutionContextResult",
+    "build_constitution_context",
     "ConstitutionDraft",
     "build_constitution_draft",
     "write_constitution",
+    "ConstitutionInterview",
+    "QUESTION_ORDER",
+    "MINIMAL_QUESTION_ORDER",
+    "QUESTION_PROMPTS",
+    "default_interview",
+    "read_interview_answers",
+    "write_interview_answers",
+    "apply_answer_overrides",
     "ConstitutionParser",
     "ConstitutionSection",
     "BranchStrategyConfig",

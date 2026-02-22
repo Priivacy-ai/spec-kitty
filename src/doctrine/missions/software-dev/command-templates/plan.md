@@ -30,6 +30,17 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Constitution Context Bootstrap (required)
+
+Before planning interrogation, load constitution context for this action:
+
+```bash
+spec-kitty constitution context --action plan --json
+```
+
+- If JSON `mode` is `bootstrap`, apply JSON `text` as first-run governance context and follow referenced docs as needed.
+- If JSON `mode` is `compact`, continue with condensed governance context.
+
 ## Location Check (0.11.0+)
 
 This command runs in the **planning repository**, not in a worktree.

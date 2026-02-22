@@ -25,7 +25,7 @@ class DoctrineCatalog:
 
 def load_doctrine_catalog() -> DoctrineCatalog:
     """Load doctrine catalogs from package assets with development fallbacks."""
-    doctrine_root = _resolve_doctrine_root()
+    doctrine_root = resolve_doctrine_root()
     paradigms = _load_yaml_id_catalog(doctrine_root / "paradigms", "*.paradigm.yaml")
     directives = _load_yaml_id_catalog(doctrine_root / "directives", "*.directive.yaml")
     template_sets = _load_template_sets(doctrine_root)
@@ -40,8 +40,8 @@ def load_doctrine_catalog() -> DoctrineCatalog:
     )
 
 
-def _resolve_doctrine_root() -> Path:
-    """Resolve the doctrine package root in installed and dev layouts."""
+def resolve_doctrine_root() -> Path:
+    """Resolve the doctrine package root in installed and development layouts."""
     try:
         doctrine_pkg = importlib.resources.files("doctrine")
         doctrine_root = Path(str(doctrine_pkg))
@@ -55,6 +55,11 @@ def _resolve_doctrine_root() -> Path:
         return dev_root
 
     raise FileNotFoundError("Cannot locate doctrine root. Ensure doctrine assets are packaged.")
+
+
+# Backward-compatible alias for existing private callers.
+def _resolve_doctrine_root() -> Path:
+    return resolve_doctrine_root()
 
 
 def _load_yaml_id_catalog(directory: Path, pattern: str) -> set[str]:

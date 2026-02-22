@@ -112,7 +112,23 @@ def test_status_command_json_output(mock_repo: Path) -> None:
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["status"] == "synced"
-        assert len(data["files"]) == 3
+        assert len(data["files"]) == 4
+
+
+def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    with patch("specify_cli.cli.commands.constitution.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        result = runner.invoke(app, ["interview", "--defaults", "--json"])
+
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["success"] is True
+        answers_path = repo_root / payload["interview_path"]
+        assert answers_path.exists()
 
 
 def test_generate_command_success(tmp_path: Path) -> None:
@@ -128,8 +144,9 @@ def test_generate_command_success(tmp_path: Path) -> None:
         assert result.exit_code == 0
         assert "generated and synced" in result.stdout
         assert (repo_root / ".kittify" / "constitution" / "constitution.md").exists()
+        assert (repo_root / ".kittify" / "constitution" / "references.yaml").exists()
         assert (repo_root / ".kittify" / "constitution" / "governance.yaml").exists()
-        assert (repo_root / ".kittify" / "constitution" / "directives.yaml").exists()
+        assert (repo_root / ".kittify" / "constitution" / "library").exists()
 
 
 def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
@@ -164,6 +181,31 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
         assert data["success"] is True
         assert data["template_set"]
         assert "selected_directives" in data
+        assert data["references_count"] >= 1
+
+
+def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".kittify" / "constitution").mkdir(parents=True)
+
+    with patch("specify_cli.cli.commands.constitution.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        generate_result = runner.invoke(app, ["generate", "--json"])
+        assert generate_result.exit_code == 0
+
+        first = runner.invoke(app, ["context", "--action", "specify", "--json"])
+        assert first.exit_code == 0
+        first_payload = json.loads(first.stdout)
+        assert first_payload["mode"] == "bootstrap"
+        assert first_payload["first_load"] is True
+
+        second = runner.invoke(app, ["context", "--action", "specify", "--json"])
+        assert second.exit_code == 0
+        second_payload = json.loads(second.stdout)
+        assert second_payload["mode"] == "compact"
+        assert second_payload["first_load"] is False
 
 
 def test_help_output() -> None:
@@ -171,6 +213,8 @@ def test_help_output() -> None:
 
     assert result.exit_code == 0
     assert "constitution" in result.stdout.lower() or "Constitution" in result.stdout
+    assert "interview" in result.stdout
     assert "generate" in result.stdout
+    assert "context" in result.stdout
     assert "sync" in result.stdout
     assert "status" in result.stdout

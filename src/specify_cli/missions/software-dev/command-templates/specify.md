@@ -30,6 +30,17 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Constitution Context Bootstrap (required)
+
+Before discovery questions, load constitution context for this action:
+
+```bash
+spec-kitty constitution context --action specify --json
+```
+
+- If JSON `mode` is `bootstrap`, treat JSON `text` as the initial governance context and consult referenced docs as needed.
+- If JSON `mode` is `compact`, proceed with concise governance context.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.

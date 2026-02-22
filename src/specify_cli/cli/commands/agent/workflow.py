@@ -14,6 +14,7 @@ import typer
 from typing_extensions import Annotated
 
 from specify_cli.cli.commands.implement import implement as top_level_implement
+from specify_cli.constitution.context import build_constitution_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
@@ -56,6 +57,16 @@ def _write_prompt_to_file(
     prompt_file = Path(tempfile.gettempdir()) / f"spec-kitty-{command_type}-{wp_id}.md"
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
+
+
+def _render_constitution_context(repo_root: Path, action: str) -> str:
+    """Render constitution context for workflow prompts."""
+    try:
+        context = build_constitution_context(repo_root, action=action, mark_loaded=True)
+        return context.text
+    except Exception as exc:
+        return f"Governance: unavailable ({exc})"
+
 
 app = typer.Typer(
     name="workflow",
@@ -480,6 +491,8 @@ def implement(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
+        lines.append("")
+        lines.append(_render_constitution_context(repo_root, "implement"))
         lines.append("")
 
         # CRITICAL: WP isolation rules
@@ -982,6 +995,8 @@ def review(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
+        lines.append("")
+        lines.append(_render_constitution_context(repo_root, "review"))
         lines.append("")
 
         # Add dependency warning to file
