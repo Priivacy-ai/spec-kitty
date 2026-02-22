@@ -287,7 +287,7 @@ class ManifestRegistry:
         return len(errors) == 0, errors
 
     @staticmethod
-    def clear_cache():
+    def clear_cache() -> None:
         """Clear manifest cache (useful for testing).
 
         Resets _cache dict to empty.

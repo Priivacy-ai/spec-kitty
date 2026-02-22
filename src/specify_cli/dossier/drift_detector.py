@@ -24,7 +24,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from specify_cli.dossier.events import emit_parity_drift_detected
 from specify_cli.dossier.models import MissionDossierSnapshot
@@ -57,7 +57,7 @@ class BaselineKey:
     mission_key: str
     manifest_version: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str]:
         """Convert to dictionary for JSON serialization.
 
         Returns:
@@ -134,7 +134,7 @@ class BaselineSnapshot:
     captured_at: datetime
     captured_by: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
 
         Returns:
@@ -149,7 +149,7 @@ class BaselineSnapshot:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> BaselineSnapshot:
+    def from_dict(data: dict[str, Any]) -> BaselineSnapshot:
         """Create from dictionary (loaded from JSON).
 
         Args:
@@ -243,6 +243,9 @@ def load_baseline(
     try:
         with open(baseline_file) as f:
             data = json.load(f)
+        if not isinstance(data, dict):
+            logger.error(f"Invalid baseline payload type in {baseline_file}: {type(data).__name__}")
+            return None
         return BaselineSnapshot.from_dict(data)
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.error(f"Failed to load baseline from {baseline_file}: {e}")
@@ -318,7 +321,7 @@ def detect_drift(
     target_branch: str,
     mission_key: str,
     manifest_version: str,
-) -> Tuple[bool, Optional[dict]]:
+) -> Tuple[bool, Optional[dict[str, Any]]]:
     """Detect parity drift by comparing current snapshot against baseline.
 
     Works offline: no SaaS call required. Returns False if no baseline exists
@@ -385,7 +388,7 @@ def detect_drift(
             # Default to warning for any drift
             severity = "warning"
 
-    drift_info = {
+    drift_info: dict[str, Any] = {
         "local_parity_hash": current_hash,
         "baseline_parity_hash": baseline_hash,
         "missing_in_local": [],  # TODO: compute from artifact summaries
@@ -405,7 +408,7 @@ async def emit_drift_if_detected(
     mission_key: str,
     manifest_version: str,
     actor: Optional[str] = None,
-) -> Optional[dict]:
+) -> Optional[dict[str, Any]]:
     """Detect drift and emit event if found.
 
     Conditional emission: event only emitted if has_drift=True and baseline accepted.
@@ -434,6 +437,8 @@ async def emit_drift_if_detected(
     )
 
     if not has_drift:
+        return None
+    if drift_info is None:
         return None
 
     # Emit ParityDriftDetected event

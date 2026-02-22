@@ -10,10 +10,8 @@ Tests verify:
 - Media type hints and styling
 """
 
-import json
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
 

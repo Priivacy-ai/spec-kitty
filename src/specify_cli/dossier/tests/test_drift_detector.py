@@ -11,11 +11,8 @@ Tests cover:
 """
 
 import json
-import pytest
 from datetime import datetime
-from pathlib import Path
 from uuid import UUID
-from unittest.mock import MagicMock, patch
 
 from specify_cli.dossier.drift_detector import (
     BaselineKey,
@@ -25,7 +22,6 @@ from specify_cli.dossier.drift_detector import (
     load_baseline,
     accept_baseline,
     detect_drift,
-    emit_drift_if_detected,
     capture_baseline,
 )
 from specify_cli.dossier.models import MissionDossierSnapshot

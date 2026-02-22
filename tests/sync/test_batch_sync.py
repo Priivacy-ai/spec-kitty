@@ -237,7 +237,7 @@ class TestBatchSyncErrors:
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_timeout(self, mock_post, populated_queue):
         """Test batch sync handles request timeout"""
-        import requests
+        import requests  # type: ignore[import-untyped]
 
         mock_post.side_effect = requests.exceptions.Timeout()
 
@@ -251,7 +251,7 @@ class TestBatchSyncErrors:
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_connection_error(self, mock_post, populated_queue):
         """Test batch sync handles connection error"""
-        import requests
+        import requests  # type: ignore[import-untyped]
 
         mock_post.side_effect = requests.exceptions.ConnectionError("Network unreachable")
 

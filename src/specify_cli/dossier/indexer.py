@@ -19,7 +19,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator, List, Optional
+from typing import Any, Iterator, List, Optional
 
 from specify_cli.dossier.hasher import hash_file_with_validation
 from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
@@ -48,7 +48,7 @@ class Indexer:
         """
         self.manifest_registry = manifest_registry
         self.artifacts: List[ArtifactRef] = []
-        self.errors: List[dict] = []
+        self.errors: List[dict[str, str]] = []
 
     def index_feature(
         self, feature_dir: Path, mission_type: str, step_id: Optional[str] = None
@@ -77,6 +77,7 @@ class Indexer:
 
         # Load manifest
         manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest_data: dict[str, Any] | None = manifest.dict() if manifest else None
 
         # Build MissionDossier
         dossier = MissionDossier(
@@ -85,7 +86,8 @@ class Indexer:
             feature_slug=self._extract_feature_slug(feature_dir),
             feature_dir=str(feature_dir),
             artifacts=self.artifacts,
-            manifest=manifest.dict() if manifest else None,
+            manifest=manifest_data,
+            latest_snapshot=None,
         )
 
         # Detect missing artifacts
@@ -162,6 +164,8 @@ class Indexer:
                     relative_path=relative_path,
                     content_hash_sha256="",
                     size_bytes=size_bytes,
+                    wp_id=None,
+                    step_id=None,
                     required_status=self._get_required_status(
                         artifact_key, manifest
                     ),
@@ -174,8 +178,10 @@ class Indexer:
                 artifact_key=artifact_key,
                 artifact_class=artifact_class,
                 relative_path=relative_path,
-                content_hash_sha256=file_hash,
+                content_hash_sha256=file_hash or "",
                 size_bytes=file_path.stat().st_size,
+                wp_id=None,
+                step_id=None,
                 required_status=self._get_required_status(
                     artifact_key, manifest
                 ),
@@ -191,6 +197,8 @@ class Indexer:
                 relative_path=relative_path,
                 content_hash_sha256="",
                 size_bytes=0,
+                wp_id=None,
+                step_id=None,
                 required_status=self._get_required_status(
                     artifact_key, manifest
                 ),
@@ -205,6 +213,8 @@ class Indexer:
                 relative_path=relative_path,
                 content_hash_sha256="",
                 size_bytes=0,
+                wp_id=None,
+                step_id=None,
                 required_status=self._get_required_status(
                     artifact_key, manifest
                 ),
@@ -342,7 +352,7 @@ class Indexer:
             required_specs.extend(manifest.required_by_step.get(step_id, []))
 
         # Check each required spec
-        missing = []
+        missing: List[ArtifactRef] = []
         for spec in required_specs:
             # Check if any indexed artifact matches this spec
             matched = False
@@ -361,6 +371,8 @@ class Indexer:
                     relative_path=spec.path_pattern,
                     content_hash_sha256="",
                     size_bytes=0,
+                    wp_id=None,
+                    step_id=step_id,
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",

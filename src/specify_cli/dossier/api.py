@@ -13,13 +13,12 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP06-ap
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-from .models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from .models import ArtifactRef, MissionDossier
 from .snapshot import load_snapshot
 
 __all__ = [
@@ -186,7 +185,7 @@ class DossierHandlerAdapter:
         raise NotImplementedError
 
     def handle_dossier_artifacts(
-        self, feature_slug: str, **filters
+        self, feature_slug: str, **filters: str
     ) -> ArtifactListResponse | Dict[str, Any]:
         """GET /api/dossier/artifacts?feature={feature_slug}&class=...&wp_id=...&step_id=...&required_only=...
 
@@ -308,7 +307,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             return error_response(f"Error loading overview: {str(exc)}", 500)
 
     def handle_dossier_artifacts(
-        self, feature_slug: str, **filters
+        self, feature_slug: str, **filters: str
     ) -> ArtifactListResponse | Dict[str, Any]:
         """List all artifacts with filtering and stable ordering.
 
@@ -518,27 +517,43 @@ class DossierAPIHandler(DossierHandlerAdapter):
             return None
 
         # Reconstruct artifacts from snapshot's artifact_summaries
-        artifacts = []
+        artifacts: list[ArtifactRef] = []
         for summary in snapshot.artifact_summaries:
-            # Parse indexed_at if it's a string (from JSON)
-            indexed_at = summary.get("indexed_at")
-            if isinstance(indexed_at, str):
-                from datetime import datetime
-                indexed_at = datetime.fromisoformat(indexed_at)
+            indexed_at_value = summary.get("indexed_at")
+            indexed_at = datetime.utcnow()
+            if isinstance(indexed_at_value, str):
+                try:
+                    indexed_at = datetime.fromisoformat(indexed_at_value)
+                except ValueError:
+                    indexed_at = datetime.utcnow()
+            elif isinstance(indexed_at_value, datetime):
+                indexed_at = indexed_at_value
+
+            artifact_key = summary.get("artifact_key", "")
+            artifact_class = summary.get("artifact_class", "other")
+            relative_path = summary.get("relative_path", "")
+            content_hash = summary.get("content_hash_sha256")
+            size_value = summary.get("size_bytes", 0)
+            wp_id = summary.get("wp_id")
+            step_id = summary.get("step_id")
+            required_status = summary.get("required_status", "optional")
+            is_present = summary.get("is_present", False)
+            error_reason = summary.get("error_reason")
+            provenance = summary.get("provenance", {})
 
             artifact = ArtifactRef(
-                artifact_key=summary.get("artifact_key", ""),
-                artifact_class=summary.get("artifact_class", "other"),
-                relative_path=summary.get("relative_path", ""),
-                content_hash_sha256=summary.get("content_hash_sha256"),
-                size_bytes=summary.get("size_bytes", 0),
-                wp_id=summary.get("wp_id"),
-                step_id=summary.get("step_id"),
-                required_status=summary.get("required_status", "optional"),
-                is_present=summary.get("is_present", False),
-                error_reason=summary.get("error_reason"),
+                artifact_key=artifact_key if isinstance(artifact_key, str) else "",
+                artifact_class=artifact_class if isinstance(artifact_class, str) else "other",
+                relative_path=relative_path if isinstance(relative_path, str) else "",
+                content_hash_sha256=content_hash if isinstance(content_hash, str) else "",
+                size_bytes=size_value if isinstance(size_value, int) else 0,
+                wp_id=wp_id if isinstance(wp_id, str) else None,
+                step_id=step_id if isinstance(step_id, str) else None,
+                required_status=required_status if isinstance(required_status, str) else "optional",
+                is_present=is_present if isinstance(is_present, bool) else False,
+                error_reason=error_reason if isinstance(error_reason, str) else None,
                 indexed_at=indexed_at,
-                provenance=summary.get("provenance", {}),
+                provenance=provenance if isinstance(provenance, dict) else {},
             )
             artifacts.append(artifact)
 
@@ -550,4 +565,6 @@ class DossierAPIHandler(DossierHandlerAdapter):
             artifacts=artifacts,
             mission_slug="unknown",  # Not tracked in snapshot
             mission_run_id=snapshot.snapshot_id,  # Use snapshot ID as proxy
+            manifest=None,
+            latest_snapshot=None,
         )

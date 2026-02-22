@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 
 import pytest
-import toml
+import toml  # type: ignore[import-untyped]
 
 from specify_cli.sync.auth import CredentialStore
 

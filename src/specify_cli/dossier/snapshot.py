@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from .models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from .models import MissionDossier, MissionDossierSnapshot
 
 
 def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:

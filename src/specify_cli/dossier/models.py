@@ -8,7 +8,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, validator
 import uuid
 
@@ -79,7 +79,7 @@ class ArtifactRef(BaseModel):
     )
 
     # Provenance
-    provenance: Optional[dict] = Field(
+    provenance: Optional[dict[str, Any]] = Field(
         default=None,
         description="Source info: {source_kind: 'git'|'runtime'|'generated'|'manual', actor_id, captured_at}",
     )
@@ -101,7 +101,7 @@ class ArtifactRef(BaseModel):
     )
 
     @validator("artifact_key")
-    def validate_artifact_key(cls, v):
+    def validate_artifact_key(cls, v: str) -> str:
         """Validate artifact_key format (alphanumeric + dots/underscores)."""
         if not v:
             raise ValueError("artifact_key cannot be empty")
@@ -114,7 +114,7 @@ class ArtifactRef(BaseModel):
         return v
 
     @validator("artifact_class")
-    def validate_artifact_class(cls, v):
+    def validate_artifact_class(cls, v: str) -> str:
         """Validate artifact_class is one of the allowed types."""
         allowed_classes = {
             "input",
@@ -132,7 +132,7 @@ class ArtifactRef(BaseModel):
         return v
 
     @validator("required_status")
-    def validate_required_status(cls, v):
+    def validate_required_status(cls, v: str) -> str:
         """Validate required_status is 'required' or 'optional'."""
         allowed_values = {"required", "optional"}
         if v not in allowed_values:
@@ -142,9 +142,9 @@ class ArtifactRef(BaseModel):
         return v
 
     @validator("content_hash_sha256")
-    def validate_content_hash_sha256(cls, v):
+    def validate_content_hash_sha256(cls, v: str) -> str:
         """Validate content_hash_sha256 is a 64-character hex string (SHA256)."""
-        if v is not None and v != "":
+        if v != "":
             if len(v) != 64:
                 raise ValueError(
                     f"content_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
@@ -206,13 +206,13 @@ class MissionDossier(BaseModel):
     )
 
     # Completeness (manifest from WP02)
-    manifest: Optional[dict] = Field(
+    manifest: Optional[dict[str, Any]] = Field(
         None,
         description="Loaded manifest for this mission type (None if not found)",
     )
 
     # Snapshot (from WP05)
-    latest_snapshot: Optional[dict] = Field(
+    latest_snapshot: Optional[dict[str, Any]] = Field(
         None,
         description="Most recent snapshot (after all artifacts indexed)",
     )
@@ -367,7 +367,7 @@ class MissionDossierSnapshot(BaseModel):
     )
 
     @validator("completeness_status")
-    def validate_completeness_status(cls, v):
+    def validate_completeness_status(cls, v: str) -> str:
         """Validate completeness_status is one of the allowed values."""
         allowed_values = {"complete", "incomplete", "unknown"}
         if v not in allowed_values:
@@ -377,9 +377,9 @@ class MissionDossierSnapshot(BaseModel):
         return v
 
     @validator("parity_hash_sha256")
-    def validate_parity_hash_sha256(cls, v):
+    def validate_parity_hash_sha256(cls, v: str) -> str:
         """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
-        if v is not None and v != "":
+        if v != "":
             if len(v) != 64:
                 raise ValueError(
                     f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
@@ -403,7 +403,7 @@ class MissionDossierSnapshot(BaseModel):
         """
         return self.parity_hash_sha256 != other.parity_hash_sha256
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equality based on parity hash and completeness status.
 
         Source of truth is parity hash (not snapshot_id or computed_at).

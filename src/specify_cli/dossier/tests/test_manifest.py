@@ -11,7 +11,6 @@ Tests cover:
 
 import pytest
 from pathlib import Path
-from typing import Optional
 from pydantic import ValidationError
 
 from specify_cli.dossier.manifest import (

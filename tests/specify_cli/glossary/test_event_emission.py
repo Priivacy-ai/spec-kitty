@@ -1141,7 +1141,7 @@ class TestCanonicalEventContracts:
     def test_events_available_flag_reflects_package(self):
         """EVENTS_AVAILABLE reflects whether spec-kitty-events glossary is importable."""
         try:
-            import spec_kitty_events.glossary.events  # noqa: F401
+            import spec_kitty_events.glossary.events  # type: ignore[import-not-found]  # noqa: F401
 
             pkg_available = True
         except (ImportError, ModuleNotFoundError):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from ..diagnostics import run_diagnostics
 from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
@@ -152,25 +153,27 @@ class APIHandler(DashboardHandler):
         query = urllib.parse.parse_qs(parsed.query)
 
         # Extract feature_slug from query params
-        feature_slug = query.get('feature', [None])[0]
-        if not feature_slug:
+        feature_slug_raw = query.get('feature', [None])[0]
+        if not isinstance(feature_slug_raw, str) or not feature_slug_raw:
             self.send_response(400)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({'error': 'Missing feature parameter'}).encode())
             return
+        feature_slug = feature_slug_raw
 
         try:
             # Initialize dossier handler
-            repo_root = Path(self.project_dir).resolve()
+            repo_root = Path(self.project_dir or Path.cwd()).resolve()
             handler = DossierAPIHandler(repo_root)
+            response: object
 
             # Route to appropriate endpoint
             if path == '/api/dossier/overview':
                 response = handler.handle_dossier_overview(feature_slug)
             elif path == '/api/dossier/artifacts':
                 # Extract filters from query
-                filters = {}
+                filters: dict[str, str] = {}
                 if 'class' in query:
                     filters['class'] = query['class'][0]
                 if 'wp_id' in query:
@@ -195,7 +198,8 @@ class APIHandler(DashboardHandler):
 
             # Check if response is an error dict (has 'error' key and optional 'status_code')
             if isinstance(response, dict) and 'error' in response:
-                status_code = response.get('status_code', 500)
+                status_code_obj = response.get('status_code', 500)
+                status_code = status_code_obj if isinstance(status_code_obj, int) else 500
                 self.send_response(status_code)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
@@ -208,7 +212,7 @@ class APIHandler(DashboardHandler):
                 self.end_headers()
                 # Use the model's dict() method if available, otherwise direct JSON
                 if hasattr(response, 'dict'):
-                    self.wfile.write(json.dumps(response.dict(), default=str).encode())
+                    self.wfile.write(json.dumps(cast(Any, response).dict(), default=str).encode())
                 else:
                     self.wfile.write(json.dumps(response, default=str).encode())
         except Exception as exc:

@@ -625,7 +625,7 @@ class TestBatchSyncEventResults:
     @patch("specify_cli.sync.batch.requests.post")
     def test_timeout_populates_server_error_category(self, mock_post, small_queue):
         """Request timeout creates event_results with server_error category."""
-        import requests as req
+        import requests as req  # type: ignore[import-untyped]
 
         mock_post.side_effect = req.exceptions.Timeout()
 
@@ -642,7 +642,7 @@ class TestBatchSyncEventResults:
     @patch("specify_cli.sync.batch.requests.post")
     def test_connection_error_populates_event_results(self, mock_post, small_queue):
         """Connection error creates event_results with server_error category."""
-        import requests as req
+        import requests as req  # type: ignore[import-untyped]
 
         mock_post.side_effect = req.exceptions.ConnectionError("Network unreachable")
 

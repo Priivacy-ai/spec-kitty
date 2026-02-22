@@ -164,6 +164,9 @@ line-ending = "auto"
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true
+# `mypy .` should focus on production code. Tests, one-off scripts, and archived
+# spec artifacts are validated through other tooling and can intentionally remain untyped.
+exclude = "^(tests/|scripts/|kitty-specs/)"
 
 [tool.coverage.run]
 source = ["src/specify_cli", "src/doctrine"]
@@ -234,6 +237,8 @@ min_coverage = 0
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
 module = [
     "specify_cli.agent_utils.status",
+    "specify_cli.dossier.tests",
+    "specify_cli.dossier.tests.*",
     "specify_cli.cli.commands.glossary",
     "specify_cli.cli.ui",
     "specify_cli.core.feature_detection",

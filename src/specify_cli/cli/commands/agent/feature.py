@@ -711,9 +711,9 @@ def check_prerequisites(
                 print(json.dumps(payload))
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
+                for line in cast(list[str], payload.get("candidate_summary", [])):
                     console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
+                for cmd in cast(list[str], payload.get("suggested_commands", []))[:3]:
                     console.print(f"  {cmd}")
             raise typer.Exit(1)
 
@@ -800,9 +800,9 @@ def setup_plan(
                 print(json.dumps(payload))
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
+                for line in cast(list[str], payload.get("candidate_summary", [])):
                     console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
+                for cmd in cast(list[str], payload.get("suggested_commands", []))[:3]:
                     console.print(f"  {cmd}")
             raise typer.Exit(1)
 
@@ -822,14 +822,14 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    f"Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                    "Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
                 ],
             }
             if json_output:
                 print(json.dumps(payload))
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for step in payload["remediation"]:
+                for step in cast(list[str], payload["remediation"]):
                     console.print(f"  - {step}")
             raise typer.Exit(1)
 
@@ -1314,9 +1314,9 @@ def finalize_tasks(
                 print(json.dumps(payload))
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
+                for line in cast(list[str], payload.get("candidate_summary", [])):
                     console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
+                for cmd in cast(list[str], payload.get("suggested_commands", []))[:3]:
                     console.print(f"  {cmd}")
             raise typer.Exit(1)
 
