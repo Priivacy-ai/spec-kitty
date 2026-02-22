@@ -24,7 +24,10 @@ if ! command -v npx >/dev/null 2>&1; then
     exit 1
 fi
 
-mapfile -d '' STAGED_MD_FILES < <(git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.mdx')
+STAGED_MD_FILES=()
+while IFS= read -r -d '' staged_file; do
+    STAGED_MD_FILES+=("$staged_file")
+done < <(git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.mdx')
 
 if [ "${#STAGED_MD_FILES[@]}" -eq 0 ]; then
     exit 0
