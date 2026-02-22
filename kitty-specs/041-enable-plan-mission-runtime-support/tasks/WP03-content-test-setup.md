@@ -1,19 +1,20 @@
 ---
 work_package_id: WP03
 title: Content Templates & Test Setup
-lane: "done"
-dependencies: []
+lane: done
+dependencies:
+- WP02
 base_branch: 041-enable-plan-mission-runtime-support-WP02
 base_commit: ffee473555152ab434da959dc854344d209aa6da
 created_at: '2026-02-22T08:19:42.941772+00:00'
 subtasks: [T010, T011, T012]
+agent: claude
+shell_pid: '96910'
+review_status: approved
+reviewed_by: Robert Douglass
 description: Create any referenced content templates and set up the test framework
 estimated_duration: 1-2 hours
 priority: P1
-shell_pid: "96910"
-agent: "claude"
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 ---
 
 # WP03: Content Templates & Test Setup
