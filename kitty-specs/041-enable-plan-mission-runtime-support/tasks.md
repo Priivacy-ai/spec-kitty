@@ -150,7 +150,7 @@ This feature is organized into 5 focused work packages, organized by phase:
 - [x] T014: Implement command resolution tests (all 4 steps)
 - [x] T015: Implement regression tests (software-dev, research)
 - [ ] T016: Verify test coverage and CI compatibility (UPDATED: was T016, renamed)
-- [ ] T017: Run tests locally and verify all pass
+- [x] T017: Run tests locally and verify all pass
 
 **Implementation Sketch**:
 
