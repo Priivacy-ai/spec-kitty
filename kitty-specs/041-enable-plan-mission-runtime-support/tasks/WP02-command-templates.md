@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Command Templates - All Steps
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-enable-plan-mission-runtime-support-WP01
 base_commit: fd8b09d0a2d065f9ddd08efc49a5bbc21291c599
@@ -509,3 +509,4 @@ spec-kitty implement WP03 --base WP02
 ## Activity Log
 
 - 2026-02-22T08:15:41Z – claude – shell_pid=93261 – lane=doing – Assigned agent via workflow command
+- 2026-02-22T08:18:16Z – claude – shell_pid=93261 – lane=for_review – Ready for review: All 4 command templates created and validated
