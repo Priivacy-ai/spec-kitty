@@ -386,28 +386,28 @@ jobs:
           fetch-depth: 0
 
       - name: Download coverage artifact
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: unit-test-reports
           path: out/reports
 
       - name: Normalize xUnit path for SonarCloud
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
         run: |
           mkdir -p out/reports/xunit-reports
           latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-unit-*.xml | head -n 1)"
           cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
 
       - name: SonarCloud Scan
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarCloud Quality Gate
-        if: steps.sonar_token.outputs.enabled == 'true'
+        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 5
         env:
