@@ -1475,8 +1475,10 @@ def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]
     """
     dependencies = {}
 
-    # Split into WP sections
-    wp_sections = re.split(r'##\s+Work Package (WP\d{2})', tasks_content)
+    # Split into WP sections - handle both formats:
+    # - "## Work Package WP01" (older format)
+    # - "### WP01: ..." (newer format)
+    wp_sections = re.split(r'(?:##\s+Work Package\s+|###\s+)(WP\d{2})', tasks_content)
 
     # Process sections (they come in pairs: WP ID, then content)
     for i in range(1, len(wp_sections), 2):
@@ -1494,8 +1496,8 @@ def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]
         for match in depends_matches:
             explicit_deps.extend(re.findall(r'WP\d{2}', match))
 
-        # Pattern: "Dependencies: WP01, WP02"
-        deps_line = re.search(r'Dependencies:\s*(.+)', section_content)
+        # Pattern: "**Dependencies**: WP01" or "Dependencies: WP01, WP02" (handle bold markdown)
+        deps_line = re.search(r'\*?\*?Dependencies\*?\*?\s*:\s*(.+)', section_content)
         if deps_line:
             explicit_deps.extend(re.findall(r'WP\d{2}', deps_line.group(1)))
 
