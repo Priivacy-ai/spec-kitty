@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release readiness validator for Spec Kitty PyPI automation.
+"""Release readiness validator for Spec Kitty automation.
 
 The script validates three core conditions before allowing a release:
 
@@ -79,7 +79,7 @@ class ReleaseValidatorError(Exception):
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate release readiness for Spec Kitty PyPI automation"
+        description="Validate release readiness for Spec Kitty release automation"
     )
     parser.add_argument(
         "--mode",
