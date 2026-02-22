@@ -200,3 +200,82 @@ def test_tag_mode_fails_on_regression(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "does not advance beyond latest tag v0.2.3" in result.stderr
+
+
+def test_branch_mode_accepts_rc_version(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.16.2",
+        changelog_for_versions(("0.16.2", "- Stable baseline")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap stable")
+    tag(tmp_path, "v0.16.2")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0rc1",
+        changelog_for_versions(
+            ("1.0.0rc1", "- Begin release-candidate track"),
+            ("0.16.2", "- Stable baseline"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0rc1")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "Version: 1.0.0rc1" in result.stdout
+
+
+def test_tag_mode_accepts_rc_tag_alignment(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.16.2",
+        changelog_for_versions(("0.16.2", "- Stable baseline")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap stable")
+    tag(tmp_path, "v0.16.2")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0rc1",
+        changelog_for_versions(
+            ("1.0.0rc1", "- Begin release-candidate track"),
+            ("0.16.2", "- Stable baseline"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0rc1")
+    tag(tmp_path, "v1.0.0rc1")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v1.0.0rc1")
+
+    assert result.returncode == 0, result.stderr
+    assert "Tag: v1.0.0rc1" in result.stdout
+
+
+def test_tag_mode_fails_on_rc_regression_against_newer_rc(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.0.0rc2",
+        changelog_for_versions(("1.0.0rc2", "- Later RC")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap rc2")
+    tag(tmp_path, "v1.0.0rc2")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0rc1",
+        changelog_for_versions(
+            ("1.0.0rc1", "- Earlier RC"),
+            ("1.0.0rc2", "- Later RC"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: regress rc version")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v1.0.0rc1")
+
+    assert result.returncode == 1
+    assert "does not advance beyond latest tag v1.0.0rc2" in result.stderr

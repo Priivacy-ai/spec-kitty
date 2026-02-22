@@ -83,8 +83,9 @@ graph LR
 </div>
 
 **Recent stable release:** `v0.16.2` (2026-02-21)
+**Current release candidate:** `v1.0.0rc1` (2026-02-22)
 
-**0.16.x highlights:**
+**1.0 RC highlights:**
 - Deterministic review feedback enforcement with persisted feedback file paths
 - Safer review transitions with automatic WP worktree rebase handling
 - Dashboard browser launch is now opt-in via `--open`
@@ -101,13 +102,14 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty is currently published on a stable `0.16.x` track from the `main` branch.
+Spec Kitty now tracks `1.0` release candidates from `main` while `2.x` remains the experimental stream.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **0.16.x** | Active stable releases | `pip install spec-kitty-cli` |
+| **main** | **1.0.0rc** | Active 1.0 release candidates | `pip install --pre spec-kitty-cli` |
+| **2.x** | **2.x** | Experimental next-generation development | Install from source |
 
-**For users:** install from PyPI (`pip install spec-kitty-cli`).
+**For users:** install stable from PyPI (`pip install spec-kitty-cli`) or opt into the `1.0` RC stream (`pip install --pre spec-kitty-cli`).
 **For contributors:** target `main` unless maintainers specify otherwise in an issue or PR discussion.
 
 ---

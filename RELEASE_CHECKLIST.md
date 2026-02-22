@@ -10,6 +10,7 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - **Patch** (X.Y.Z): Bug fixes, small improvements
   - **Minor** (X.Y.0): New features, backward compatible
   - **Major** (X.0.0): Breaking changes
+  - **Release Candidate** (X.Y.ZrcN): Pre-release candidate on the path to a major/minor/patch release
 
 ### Code Quality
 
