@@ -1,12 +1,16 @@
 ---
 work_package_id: WP05
 title: Finalization & Commit
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 041-enable-plan-mission-runtime-support-WP04
+base_commit: e4d3cebd9abf157e11ad07174efa709b0450aa1e
+created_at: '2026-02-22T08:29:06.279401+00:00'
 subtasks: [T018]
 description: Parse dependencies and commit all work packages to 2.x branch
 estimated_duration: 15-30 minutes
 priority: P0
+shell_pid: "6149"
 ---
 
 # WP05: Finalization & Commit
