@@ -70,12 +70,12 @@ This feature is organized into 5 focused work packages, organized by phase:
 **Goal**: Create 4 mission-scoped command templates that guide agents through the planning workflow.
 
 **Included Subtasks**:
-- [ ] T004: Create specify.md (step 1 - feature definition)
-- [ ] T005: Create research.md (step 2 - research gathering)
-- [ ] T006: Create plan.md (step 3 - design artifacts)
-- [ ] T007: Create review.md (step 4 - final validation)
-- [ ] T008: Validate all templates for completeness
-- [ ] T009: Analyze for content template references
+- [x] T004: Create specify.md (step 1 - feature definition)
+- [x] T005: Create research.md (step 2 - research gathering)
+- [x] T006: Create plan.md (step 3 - design artifacts)
+- [x] T007: Create review.md (step 4 - final validation)
+- [x] T008: Validate all templates for completeness
+- [x] T009: Analyze for content template references
 
 **Implementation Sketch**:
 1. Create specify.md with entry point context, deliverables, instructions
