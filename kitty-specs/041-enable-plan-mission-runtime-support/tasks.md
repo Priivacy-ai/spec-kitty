@@ -35,10 +35,10 @@ This feature is organized into 5 focused work packages, organized by phase:
 **Goal**: Create the runtime schema that enables the runtime bridge to discover and load the plan mission.
 
 **Included Subtasks**:
-- [ ] T001: Study existing mission-runtime.yaml patterns
-- [ ] T002: Create mission-runtime.yaml with 4-step schema
-- [ ] T003: Validate against runtime bridge expectations
-- [ ] T016: Create directory structure
+- [x] T001: Study existing mission-runtime.yaml patterns
+- [x] T002: Create mission-runtime.yaml with 4-step schema
+- [x] T003: Validate against runtime bridge expectations
+- [x] T016: Create directory structure
 
 **Implementation Sketch**:
 1. Examine software-dev and research mission runtime definitions
