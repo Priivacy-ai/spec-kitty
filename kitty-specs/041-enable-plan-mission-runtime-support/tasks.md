@@ -213,7 +213,7 @@ This feature is organized into 5 focused work packages, organized by phase:
 **Goal**: Parse dependencies and commit all work to the 2.x branch.
 
 **Included Subtasks**:
-- [ ] T018: Run finalize-tasks command and verify commit
+- [x] T018: Run finalize-tasks command and verify commit
 
 **Implementation Sketch**:
 1. Run `spec-kitty agent feature finalize-tasks --json`
