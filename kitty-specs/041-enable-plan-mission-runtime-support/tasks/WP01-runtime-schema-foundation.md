@@ -1,12 +1,17 @@
 ---
-work_package_id: "WP01"
-title: "Runtime Schema Foundation"
-description: "Create the runtime schema that enables plan mission discovery in the runtime loop"
-priority: "P0"
-lane: "planned"
+work_package_id: WP01
+title: Runtime Schema Foundation
+lane: "for_review"
 dependencies: []
-subtasks: ["T001", "T002", "T003", "T016"]
-estimated_duration: "1-2 hours"
+base_branch: 2.x
+base_commit: 7605f1577bdaa18cc2ab61c4f0fd5ba28fc1ae4c
+created_at: '2026-02-22T08:12:56.105802+00:00'
+subtasks: [T001, T002, T003, T016]
+description: Create the runtime schema that enables plan mission discovery in the runtime loop
+estimated_duration: 1-2 hours
+priority: P0
+shell_pid: "90107"
+agent: "claude"
 ---
 
 # WP01: Runtime Schema Foundation
@@ -328,3 +333,8 @@ After completion:
 ```bash
 spec-kitty implement WP02 --base WP01
 ```
+
+## Activity Log
+
+- 2026-02-22T08:12:56Z – claude – shell_pid=90107 – lane=doing – Assigned agent via workflow command
+- 2026-02-22T08:15:16Z – claude – shell_pid=90107 – lane=for_review – WP01 implementation complete: Runtime schema foundation with mission-runtime.yaml and directory structure ready for command template creation
