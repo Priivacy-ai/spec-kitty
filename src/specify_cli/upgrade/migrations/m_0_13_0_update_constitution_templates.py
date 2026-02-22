@@ -54,10 +54,8 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
         """Check if we can read the template from packaged missions."""
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
-            if template_path.exists():
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
+            if template_path.is_file():
                 return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
@@ -72,11 +70,9 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
         # Load template from packaged missions
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
-            if not template_path.exists():
+            if not template_path.is_file():
                 errors.append("Constitution template not found in packaged missions")
                 return MigrationResult(
                     success=False,

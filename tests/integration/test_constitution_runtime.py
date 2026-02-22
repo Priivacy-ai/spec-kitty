@@ -12,8 +12,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 
 class TestConstitutionDiscovery:
     """Tests for constitution file discovery."""

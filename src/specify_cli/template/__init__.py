@@ -2,6 +2,7 @@
 
 from .manager import (
     copy_package_tree,
+    copy_constitution_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
@@ -31,6 +32,7 @@ __all__ = [
     "SSL_CONTEXT",
     "build_http_client",
     "copy_package_tree",
+    "copy_constitution_templates",
     "copy_specify_base_from_local",
     "copy_specify_base_from_package",
     "DEFAULT_PATH_PATTERNS",

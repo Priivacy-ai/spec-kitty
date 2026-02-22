@@ -673,13 +673,13 @@ assert len(markers) == 5
 
 ---
 
-## Test Suite 5: Pre-Commit Hook
+## Test Suite 5: Legacy Git Hook Retirement (Deprecated in 2.x)
 
 **File:** `tests/test_pre_commit_hook_functional.py`
 
-### Test 5.1: Hook Blocks Bad Encoding
+### Test 5.1: Managed Hook Is Removed During Migration
 
-**Objective:** Verify pre-commit hook blocks commits with encoding errors
+**Objective:** Verify legacy managed hooks are retired safely without deleting custom hooks
 
 **Setup:**
 ```python
@@ -700,10 +700,7 @@ subprocess.run(["git", "config", "user.name", "Test User"], check=True)
 hook_dir = git_repo / ".git" / "hooks"
 hook_dir.mkdir(parents=True, exist_ok=True)
 hook_file = hook_dir / "pre-commit"
-shutil.copy(
-    "/path/to/templates/git-hooks/pre-commit-encoding-check",
-    hook_file
-)
+hook_file.write_text("# legacy managed hook fixture content")
 hook_file.chmod(0o755)
 
 # Stage bad file
@@ -977,7 +974,7 @@ assert result.exit_code == 1
 2. Dashboard loads features with all UTF-8 files (no regression)
 3. Research command works normally with filled plan
 4. Backup files never overwrite existing .bak files
-5. Git hooks don't interfere with non-markdown commits
+5. Legacy hook retirement does not delete custom project hooks
 
 ---
 
@@ -986,7 +983,7 @@ assert result.exit_code == 1
 **Verify documentation examples work:**
 
 1. All code examples in `docs/encoding-validation.md` execute successfully
-2. All bash commands in pre-commit hook template are valid
+2. Migration and encoding documentation examples are valid
 3. AGENTS.md character examples actually trigger detection
 4. CLI help text matches documented behavior
 

@@ -1,0 +1,11 @@
+schema_version: "1.0"
+key: software-dev
+name: Software Development
+orchestration:
+  states: [planned, doing, for_review, done]
+  transitions:
+    - from: planned
+      to: doing
+      on: implement
+  guards: [dependencies_resolved]
+  required_artifacts: [spec.md, plan.md, tasks.md]

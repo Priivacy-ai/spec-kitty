@@ -1,0 +1,4 @@
+schema_version: "1.0"
+id: python-implementation
+title: Python Implementation Styleguide
+scope: code

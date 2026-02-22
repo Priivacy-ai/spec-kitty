@@ -12,6 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.constitution.resolver import (
+    GovernanceResolutionError,
+    resolve_governance,
+)
 from specify_cli.runtime.home import get_kittify_home
 
 # Managed mission directories expected under ~/.kittify/missions/.
@@ -37,9 +41,7 @@ def check_global_runtime_exists() -> DoctorCheck:
     """Check if ~/.kittify/ exists (1A-11)."""
     home = get_kittify_home()
     if home.is_dir():
-        return DoctorCheck(
-            "global_runtime_exists", True, f"{home} exists", "info"
-        )
+        return DoctorCheck("global_runtime_exists", True, f"{home} exists", "info")
     return DoctorCheck(
         "global_runtime_exists",
         False,
@@ -103,9 +105,7 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
     """Count legacy shared assets in project .kittify/ (1A-10)."""
     kittify = project_dir / ".kittify"
     if not kittify.exists():
-        return DoctorCheck(
-            "stale_legacy", True, "No .kittify/ directory", "info"
-        )
+        return DoctorCheck("stale_legacy", True, "No .kittify/ directory", "info")
 
     stale_count = 0
     shared_dirs = {"templates", "missions", "scripts", "command-templates"}
@@ -118,14 +118,54 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
             stale_count += 1
 
     if stale_count == 0:
-        return DoctorCheck(
-            "stale_legacy", True, "No stale shared assets", "info"
-        )
+        return DoctorCheck("stale_legacy", True, "No stale shared assets", "info")
     return DoctorCheck(
         "stale_legacy",
         False,
         f"{stale_count} shared assets could be migrated. Run 'spec-kitty migrate'.",
         "warning",
+    )
+
+
+def check_governance_resolution(project_dir: Path) -> DoctorCheck:
+    """Validate constitution-centric governance resolution for this project."""
+    try:
+        resolution = resolve_governance(project_dir)
+    except GovernanceResolutionError as exc:
+        return DoctorCheck(
+            "governance_resolution",
+            False,
+            str(exc),
+            "error",
+        )
+    except Exception as exc:
+        return DoctorCheck(
+            "governance_resolution",
+            False,
+            f"Could not resolve governance: {exc}",
+            "warning",
+        )
+
+    if resolution.metadata.get("template_set_source") == "fallback":
+        return DoctorCheck(
+            "governance_resolution",
+            True,
+            (
+                f"Resolved governance with template fallback '{resolution.template_set}'. "
+                "Set doctrine.template_set in constitution to make this explicit."
+            ),
+            "warning",
+        )
+
+    return DoctorCheck(
+        "governance_resolution",
+        True,
+        (
+            f"Resolved governance: {len(resolution.paradigms)} paradigm(s), "
+            f"{len(resolution.directives)} directive(s), "
+            f"{len(resolution.tools)} tool(s), template_set={resolution.template_set}"
+        ),
+        "info",
     )
 
 
@@ -147,4 +187,5 @@ def run_global_checks(
     ]
     if project_dir:
         checks.append(check_stale_legacy_assets(project_dir))
+        checks.append(check_governance_resolution(project_dir))
     return checks

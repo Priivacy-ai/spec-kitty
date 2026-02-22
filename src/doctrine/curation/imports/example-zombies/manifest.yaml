@@ -1,0 +1,6 @@
+version: 1
+source_id: example-zombies
+source_name: "ZOMBIES TDD"
+source_type: "book"
+owner: "governance"
+notes: "Example source manifest for pull-based curation flow"

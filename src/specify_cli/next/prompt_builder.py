@@ -9,6 +9,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from specify_cli.constitution.context import build_constitution_context
+from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
 
 
@@ -94,7 +96,8 @@ def _build_template_prompt(
     template_content = result.path.read_text(encoding="utf-8")
 
     header = _feature_context_header(feature_slug, feature_dir, agent)
-    return f"{header}\n\n{template_content}"
+    governance = _governance_context(repo_root, action=action)
+    return f"{header}\n\n{governance}\n\n{template_content}"
 
 
 def _build_wp_prompt(
@@ -122,6 +125,8 @@ def _build_wp_prompt(
     lines.append(f"Feature: {feature_slug}")
     lines.append(f"Mission: {mission_key}")
     lines.append(f"Workspace: {workspace_path}")
+    lines.append("")
+    lines.append(_governance_context(repo_root, action=action))
     lines.append("")
 
     # WP isolation rules
@@ -183,6 +188,49 @@ def _feature_context_header(feature_slug: str, feature_dir: Path, agent: str) ->
         f"Feature directory: {feature_dir}",
         "=" * 80,
     ]
+    return "\n".join(lines)
+
+
+def _governance_context(repo_root: Path, action: str | None = None) -> str:
+    """Render governance context for prompt preamble.
+
+    For bootstrap actions, constitution context is injected on first load.
+    Falls back to compact governance rendering if constitution artifacts are missing.
+    """
+    if action:
+        try:
+            context = build_constitution_context(repo_root, action=action, mark_loaded=True)
+            if context.mode != "missing":
+                return context.text
+        except Exception:
+            # Non-fatal: fall back to compact governance rendering.
+            pass
+
+    return _legacy_governance_context(repo_root)
+
+
+def _legacy_governance_context(repo_root: Path) -> str:
+    """Render compact governance context via resolver."""
+    try:
+        resolution = resolve_governance(repo_root)
+    except GovernanceResolutionError as exc:
+        return f"Governance: unresolved ({exc})"
+    except Exception as exc:
+        return f"Governance: unavailable ({exc})"
+
+    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
+    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
+    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+
+    lines = [
+        "Governance:",
+        f"  - Template set: {resolution.template_set}",
+        f"  - Paradigms: {paradigms}",
+        f"  - Directives: {directives}",
+        f"  - Tools: {tools}",
+    ]
+    if resolution.diagnostics:
+        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
     return "\n".join(lines)
 
 

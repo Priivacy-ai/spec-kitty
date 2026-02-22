@@ -119,7 +119,11 @@ class TestConstitutionDirectoryMigration:
         # Run migration
         migration = Migration()
         with patch("specify_cli.constitution.sync.sync") as mock_sync:
-            mock_sync.return_value = Mock(synced=True, files_written=["governance.yaml", "agents.yaml"], error=None)
+            mock_sync.return_value = Mock(
+                synced=True,
+                files_written=["governance.yaml", "directives.yaml"],
+                error=None,
+            )
             changes = migration.apply(tmp_path, dry_run=False)
 
             # Verify sync was called

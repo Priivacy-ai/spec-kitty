@@ -1,0 +1,4 @@
+schema_version: "1.0"
+id: test-first
+name: Test-First Doctrine
+summary: Prefer acceptance-first and red-green-refactor loops for deterministic delivery quality.

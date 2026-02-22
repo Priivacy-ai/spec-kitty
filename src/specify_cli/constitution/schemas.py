@@ -2,7 +2,6 @@
 
 Defines the output schema for:
 - governance.yaml (testing, quality, performance, branch strategy)
-- agents.yaml (agent profiles and selection strategy)
 - directives.yaml (numbered rules and enforcement)
 - metadata.yaml (extraction provenance and statistics)
 """
@@ -57,6 +56,15 @@ class BranchStrategyConfig(BaseModel):
     rules: list[str] = Field(default_factory=list)
 
 
+class DoctrineSelectionConfig(BaseModel):
+    """Constitution-level selection of active doctrine elements."""
+
+    selected_paradigms: list[str] = Field(default_factory=list)
+    selected_directives: list[str] = Field(default_factory=list)
+    available_tools: list[str] = Field(default_factory=list)
+    template_set: str | None = None
+
+
 class GovernanceConfig(BaseModel):
     """Top-level governance configuration."""
 
@@ -65,31 +73,8 @@ class GovernanceConfig(BaseModel):
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     branch_strategy: BranchStrategyConfig = Field(default_factory=BranchStrategyConfig)
+    doctrine: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
     enforcement: dict[str, str] = Field(default_factory=dict)
-
-
-class AgentProfile(BaseModel):
-    """Configuration for a single AI agent."""
-
-    agent_key: str
-    role: str = "implementer"
-    preferred_model: str | None = None
-    capabilities: list[str] = Field(default_factory=list)
-
-
-class AgentSelectionConfig(BaseModel):
-    """Strategy for selecting agents for tasks."""
-
-    strategy: str = "preferred"
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
-
-
-class AgentsConfig(BaseModel):
-    """Agent profiles and selection configuration."""
-
-    profiles: list[AgentProfile] = Field(default_factory=list)
-    selection: AgentSelectionConfig = Field(default_factory=AgentSelectionConfig)
 
 
 class Directive(BaseModel):

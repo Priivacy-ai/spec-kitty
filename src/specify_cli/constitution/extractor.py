@@ -2,7 +2,6 @@
 
 Maps parsed constitution sections to validated Pydantic models:
 - governance.yaml (testing, quality, performance, branch strategy)
-- agents.yaml (agent profiles and selection strategy)
 - directives.yaml (numbered rules and enforcement)
 - metadata.yaml (extraction provenance and statistics)
 """
@@ -16,11 +15,9 @@ from typing import Any
 from specify_cli.constitution.hasher import hash_content
 from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
 from specify_cli.constitution.schemas import (
-    AgentProfile,
-    AgentSelectionConfig,
-    AgentsConfig,
     BranchStrategyConfig,
     CommitConfig,
+    DoctrineSelectionConfig,
     Directive,
     DirectivesConfig,
     ExtractionMetadata,
@@ -44,7 +41,9 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
     "commit": ("governance", "commits"),
     "performance": ("governance", "performance"),
     "branch": ("governance", "branch_strategy"),
-    "agent": ("agents", "profiles"),
+    "paradigm": ("governance", "doctrine"),
+    "tool": ("governance", "doctrine"),
+    "template": ("governance", "doctrine"),
     "directive": ("directives", "directives"),
     "constraint": ("directives", "directives"),
     "rule": ("directives", "directives"),
@@ -56,7 +55,6 @@ class ExtractionResult:
     """Complete extraction result with all config schemas and metadata."""
 
     governance: GovernanceConfig
-    agents: AgentsConfig
     directives: DirectivesConfig
     metadata: ExtractionMetadata
 
@@ -85,13 +83,11 @@ class Extractor:
             raise TypeError(f"content must be str, got {type(content).__name__}")
         sections = self.parser.parse(content)
         governance = self._extract_governance(sections)
-        agents = self._extract_agents(sections)
         directives = self._extract_directives(sections)
         metadata = self._build_metadata(content, sections)
 
         return ExtractionResult(
             governance=governance,
-            agents=agents,
             directives=directives,
             metadata=metadata,
         )
@@ -111,6 +107,7 @@ class Extractor:
         commits = CommitConfig()
         performance = PerformanceConfig()
         branch_strategy = BranchStrategyConfig()
+        doctrine = DoctrineSelectionConfig()
 
         # Iterate sections in document order for deterministic merging
         for section in sections:
@@ -178,58 +175,83 @@ class Extractor:
                 if numbered_items:
                     branch_strategy.rules = numbered_items
 
+            elif field_name == "doctrine":
+                self._merge_doctrine_selection(section, doctrine)
+
+        # Also scan all sections for explicit doctrine selection keys
+        # so constitution headings remain flexible.
+        for section in sections:
+            self._merge_doctrine_selection(section, doctrine)
+
         return GovernanceConfig(
             testing=testing,
             quality=quality,
             commits=commits,
             performance=performance,
             branch_strategy=branch_strategy,
+            doctrine=doctrine,
         )
 
-    def _extract_agents(self, sections: list[ConstitutionSection]) -> AgentsConfig:
-        """Extract agent profiles and selection config from classified sections.
+    def _merge_doctrine_selection(self, section: ConstitutionSection, doctrine: DoctrineSelectionConfig) -> None:
+        """Merge doctrine selection hints from a section into doctrine config."""
+        tables = section.structured_data.get("tables", [])
+        yaml_blocks = section.structured_data.get("yaml_blocks", [])
 
-        Args:
-            sections: Parsed constitution sections
+        for row in tables:
+            self._apply_selection_row(row, doctrine)
 
-        Returns:
-            AgentsConfig with profiles and selection strategy
-        """
-        profiles: list[AgentProfile] = []
-        selection = AgentSelectionConfig()
+        for block in yaml_blocks:
+            if isinstance(block, dict):
+                self._apply_selection_row(block, doctrine)
 
-        for section in sections:
-            classification = self._classify_section(section.heading)
-            if not classification:
+    def _apply_selection_row(self, row: dict[str, Any], doctrine: DoctrineSelectionConfig) -> None:
+        """Apply one table/yaml row that may contain doctrine selection keys."""
+        normalized = {str(k).strip().lower(): v for k, v in row.items()}
+
+        paradigms = self._get_list_value(normalized, ("selected_paradigms", "paradigms"))
+        if paradigms:
+            doctrine.selected_paradigms = paradigms
+
+        directives = self._get_list_value(normalized, ("selected_directives", "directives"))
+        if directives:
+            doctrine.selected_directives = directives
+
+        tools = self._get_list_value(normalized, ("available_tools", "tools", "selected_tools"))
+        if tools:
+            doctrine.available_tools = tools
+
+        template_set = self._get_scalar_value(normalized, ("template_set", "templateset"))
+        if template_set:
+            doctrine.template_set = template_set
+
+    def _get_list_value(
+        self,
+        normalized_row: dict[str, Any],
+        candidate_keys: tuple[str, ...],
+    ) -> list[str]:
+        """Read list value from row by trying candidate keys."""
+        for key in candidate_keys:
+            if key not in normalized_row:
                 continue
+            value = normalized_row[key]
+            if isinstance(value, list):
+                return [str(item).strip() for item in value if str(item).strip()]
+            if isinstance(value, str):
+                return [item.strip() for item in value.split(",") if item.strip()]
+        return []
 
-            schema_name, _ = classification
-
-            # Only process agent sections
-            if schema_name != "agents":
-                continue
-
-            # Extract agent profiles from tables
-            tables = section.structured_data.get("tables", [])
-            for table_row in tables:
-                # Look for agent_key, role, model columns
-                agent_key = table_row.get("agent") or table_row.get("agent_key") or table_row.get("name")
-                role = table_row.get("role", "implementer")
-                model = table_row.get("model") or table_row.get("preferred_model")
-
-                if agent_key:
-                    profile = AgentProfile(
-                        agent_key=agent_key,
-                        role=role,
-                        preferred_model=model,
-                    )
-                    profiles.append(profile)
-
-            # Extract selection strategy from keywords
-            if "preferred" in section.content.lower():
-                selection.strategy = "preferred"
-
-        return AgentsConfig(profiles=profiles, selection=selection)
+    def _get_scalar_value(
+        self,
+        normalized_row: dict[str, Any],
+        candidate_keys: tuple[str, ...],
+    ) -> str | None:
+        """Read scalar string value from row by trying candidate keys."""
+        for key in candidate_keys:
+            if key in normalized_row:
+                value = str(normalized_row[key]).strip()
+                if value:
+                    return value
+        return None
 
     def _extract_directives(self, sections: list[ConstitutionSection]) -> DirectivesConfig:
         """Extract numbered directives from classified sections.
@@ -362,6 +384,5 @@ def write_extraction_result(result: ExtractionResult, constitution_dir: Path) ->
     constitution_dir.mkdir(parents=True, exist_ok=True)
 
     emit_yaml(result.governance, constitution_dir / "governance.yaml")
-    emit_yaml(result.agents, constitution_dir / "agents.yaml")
     emit_yaml(result.directives, constitution_dir / "directives.yaml")
     emit_yaml(result.metadata, constitution_dir / "metadata.yaml")

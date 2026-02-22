@@ -61,7 +61,7 @@ def _populate_package_templates(pkg_root: Path) -> None:
     """Create a fake package templates directory tree.
 
     Mimics ``src/specify_cli/templates/`` which contains base command
-    templates, git-hooks, AGENTS.md, etc.
+    templates, AGENTS.md, etc.
     """
     cmd_templates = pkg_root / "templates" / "command-templates"
     cmd_templates.mkdir(parents=True, exist_ok=True)
@@ -69,11 +69,6 @@ def _populate_package_templates(pkg_root: Path) -> None:
         (cmd_templates / f"{name}.md").write_text(
             f"---\ndescription: {name} command\nscripts:\n  sh: echo {name}\n---\n# {name}\n"
         )
-
-    # git-hooks
-    hooks = pkg_root / "templates" / "git-hooks"
-    hooks.mkdir(parents=True, exist_ok=True)
-    (hooks / "pre-commit").write_text("#!/bin/bash\nexit 0\n")
 
     # AGENTS.md
     (pkg_root / "templates" / "AGENTS.md").write_text("# Package AGENTS\n")

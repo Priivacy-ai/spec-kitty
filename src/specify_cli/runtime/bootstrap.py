@@ -12,7 +12,6 @@ Also provides version pin detection and warning for projects that set
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import sys
 import tempfile

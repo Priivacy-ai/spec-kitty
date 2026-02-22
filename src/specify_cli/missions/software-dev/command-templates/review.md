@@ -2,6 +2,16 @@
 description: Perform structured code review and kanban transitions for completed task prompt files
 ---
 
+## Constitution Context Bootstrap (required)
+
+Before running workflow review, load constitution context for this action:
+
+```bash
+spec-kitty constitution context --action review --json
+```
+
+Use JSON `text` as governance context. On first load (`mode=bootstrap`), follow referenced docs as needed.
+
 **IMPORTANT**: After running the command below, you'll see a LONG work package prompt (~1000+ lines).
 
 **You MUST scroll to the BOTTOM** to see the completion commands!
