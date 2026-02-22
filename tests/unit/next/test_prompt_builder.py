@@ -9,6 +9,7 @@ import pytest
 
 from specify_cli.next.prompt_builder import (
     _feature_context_header,
+    _governance_context,
     _read_wp_content,
     _write_to_temp,
     build_prompt,
@@ -171,13 +172,21 @@ class TestBuildPromptWP:
 
 class TestBuildPromptTemplate:
     @patch("specify_cli.next.prompt_builder.resolve_command")
-    def test_template_prompt_has_header(self, mock_resolve, feature_with_wp: Path) -> None:
+    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    def test_template_prompt_has_header(self, mock_governance, mock_resolve, feature_with_wp: Path) -> None:
         # Mock the resolver to return a fake template
         mock_path = feature_with_wp / "fake-template.md"
         mock_path.write_text("# Specify Template\nCreate spec.md.\n", encoding="utf-8")
         mock_result = MagicMock()
         mock_result.path = mock_path
         mock_resolve.return_value = mock_result
+        mock_governance.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=["test-first"],
+            directives=["TEST_FIRST"],
+            tools=["git", "pytest"],
+            diagnostics=[],
+        )
 
         repo_root = feature_with_wp.parent.parent
         text, path = build_prompt(
@@ -192,5 +201,30 @@ class TestBuildPromptTemplate:
         assert "042-test-feature" in text
         assert "claude" in text
         assert "Specify Template" in text
+        assert "Governance:" in text
+        assert "Template set: software-dev-default" in text
         assert path.exists()
         path.unlink()
+
+
+class TestGovernanceContext:
+    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    def test_governance_context_renders_resolution(self, mock_resolve, feature_dir: Path) -> None:
+        mock_resolve.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=["test-first"],
+            directives=["TEST_FIRST"],
+            tools=["git", "pytest"],
+            diagnostics=["Template set from constitution."],
+        )
+        text = _governance_context(feature_dir.parent.parent)
+        assert "Governance:" in text
+        assert "Template set: software-dev-default" in text
+        assert "Paradigms: test-first" in text
+        assert "Directives: TEST_FIRST" in text
+
+    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    def test_governance_context_handles_failures(self, mock_resolve, feature_dir: Path) -> None:
+        mock_resolve.side_effect = RuntimeError("boom")
+        text = _governance_context(feature_dir.parent.parent)
+        assert "Governance: unavailable" in text

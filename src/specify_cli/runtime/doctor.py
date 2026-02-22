@@ -161,7 +161,8 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
         "governance_resolution",
         True,
         (
-            f"Resolved governance: {len(resolution.agent_profiles)} profile(s), "
+            f"Resolved governance: {len(resolution.paradigms)} paradigm(s), "
+            f"{len(resolution.directives)} directive(s), "
             f"{len(resolution.tools)} tool(s), template_set={resolution.template_set}"
         ),
         "info",

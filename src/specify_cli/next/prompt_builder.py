@@ -9,6 +9,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
 
 
@@ -94,7 +95,8 @@ def _build_template_prompt(
     template_content = result.path.read_text(encoding="utf-8")
 
     header = _feature_context_header(feature_slug, feature_dir, agent)
-    return f"{header}\n\n{template_content}"
+    governance = _governance_context(repo_root)
+    return f"{header}\n\n{governance}\n\n{template_content}"
 
 
 def _build_wp_prompt(
@@ -122,6 +124,8 @@ def _build_wp_prompt(
     lines.append(f"Feature: {feature_slug}")
     lines.append(f"Mission: {mission_key}")
     lines.append(f"Workspace: {workspace_path}")
+    lines.append("")
+    lines.append(_governance_context(repo_root))
     lines.append("")
 
     # WP isolation rules
@@ -183,6 +187,31 @@ def _feature_context_header(feature_slug: str, feature_dir: Path, agent: str) ->
         f"Feature directory: {feature_dir}",
         "=" * 80,
     ]
+    return "\n".join(lines)
+
+
+def _governance_context(repo_root: Path) -> str:
+    """Render governance context for prompt preamble."""
+    try:
+        resolution = resolve_governance(repo_root)
+    except GovernanceResolutionError as exc:
+        return f"Governance: unresolved ({exc})"
+    except Exception as exc:
+        return f"Governance: unavailable ({exc})"
+
+    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
+    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
+    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+
+    lines = [
+        "Governance:",
+        f"  - Template set: {resolution.template_set}",
+        f"  - Paradigms: {paradigms}",
+        f"  - Directives: {directives}",
+        f"  - Tools: {tools}",
+    ]
+    if resolution.diagnostics:
+        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
     return "\n".join(lines)
 
 

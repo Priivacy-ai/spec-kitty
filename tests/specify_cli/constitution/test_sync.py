@@ -53,7 +53,6 @@ def test_sync_fresh_constitution(tmp_path: Path):
     assert result.extraction_mode in ["deterministic", "hybrid"]
     assert set(result.files_written) == {
         "governance.yaml",
-        "agents.yaml",
         "directives.yaml",
         "metadata.yaml",
     }
@@ -95,7 +94,7 @@ def test_sync_with_force_flag(tmp_path: Path):
 
     assert result2.synced is True
     assert result2.stale_before is False  # Was not stale
-    assert len(result2.files_written) == 4
+    assert len(result2.files_written) == 3
 
 
 def test_sync_modified_constitution(tmp_path: Path):
@@ -116,7 +115,7 @@ def test_sync_modified_constitution(tmp_path: Path):
 
     assert result2.synced is True
     assert result2.stale_before is True
-    assert len(result2.files_written) == 4
+    assert len(result2.files_written) == 3
 
 
 def test_sync_idempotency(tmp_path: Path):

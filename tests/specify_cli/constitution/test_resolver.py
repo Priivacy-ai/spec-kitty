@@ -15,13 +15,11 @@ def _write_constitution_files(
     root: Path,
     *,
     governance: str,
-    agents: str = "profiles: []\nselection: {}\n",
     directives: str = "directives: []\n",
 ) -> Path:
     constitution_dir = root / ".kittify" / "constitution"
     constitution_dir.mkdir(parents=True)
     (constitution_dir / "governance.yaml").write_text(governance, encoding="utf-8")
-    (constitution_dir / "agents.yaml").write_text(agents, encoding="utf-8")
     (constitution_dir / "directives.yaml").write_text(directives, encoding="utf-8")
     return constitution_dir
 
@@ -32,22 +30,13 @@ def test_resolve_governance_reads_constitution_selections_first(tmp_path: Path) 
         governance="""
 doctrine:
   selected_paradigms: [test-first]
-  selected_directives: [DIR-001]
-  selected_agent_profiles: [codex]
+  selected_directives: [TEST_FIRST]
   available_tools: [git]
-  template_set: strict-doctrine
-""",
-        agents="""
-profiles:
-  - agent_key: codex
-    role: implementer
-  - agent_key: claude
-    role: reviewer
-selection: {}
+  template_set: software-dev-default
 """,
         directives="""
 directives:
-  - id: DIR-001
+  - id: TEST_FIRST
     title: Keep tests strict
 """,
     )
@@ -55,32 +44,40 @@ directives:
     result = resolve_governance(tmp_path, tool_registry={"git", "python", "pytest"})
 
     assert result.paradigms == ["test-first"]
-    assert result.directives == ["DIR-001"]
-    assert [profile.agent_key for profile in result.agent_profiles] == ["codex"]
+    assert result.directives == ["TEST_FIRST"]
     assert result.tools == ["git"]
-    assert result.template_set == "strict-doctrine"
+    assert result.template_set == "software-dev-default"
     assert result.metadata["template_set_source"] == "constitution"
 
 
-def test_resolve_governance_missing_profile_hard_fails(tmp_path: Path) -> None:
+def test_resolve_governance_missing_paradigm_hard_fails(tmp_path: Path) -> None:
     _write_constitution_files(
         tmp_path,
         governance="""
 doctrine:
-  selected_agent_profiles: [missing-profile]
-""",
-        agents="""
-profiles:
-  - agent_key: codex
-    role: implementer
-selection: {}
+  selected_paradigms: [missing-paradigm]
 """,
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
         resolve_governance(tmp_path)
 
-    assert "missing-profile" in str(exc.value)
+    assert "missing-paradigm" in str(exc.value)
+
+
+def test_resolve_governance_missing_directive_hard_fails(tmp_path: Path) -> None:
+    _write_constitution_files(
+        tmp_path,
+        governance="""
+doctrine:
+  selected_directives: [NOT_A_DIRECTIVE]
+""",
+    )
+
+    with pytest.raises(GovernanceResolutionError) as exc:
+        resolve_governance(tmp_path)
+
+    assert "NOT_A_DIRECTIVE" in str(exc.value)
 
 
 def test_resolve_governance_missing_tool_hard_fails(tmp_path: Path) -> None:
@@ -98,12 +95,26 @@ doctrine:
     assert "imaginary-tool" in str(exc.value)
 
 
+def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> None:
+    _write_constitution_files(
+        tmp_path,
+        governance="""
+doctrine:
+  template_set: missing-template-set
+""",
+    )
+
+    with pytest.raises(GovernanceResolutionError) as exc:
+        resolve_governance(tmp_path)
+
+    assert "missing-template-set" in str(exc.value)
+
+
 def test_resolve_governance_template_set_fallback_visible(tmp_path: Path) -> None:
     _write_constitution_files(
         tmp_path,
         governance="""
 doctrine:
-  selected_agent_profiles: []
   available_tools: []
 """,
     )
@@ -137,11 +148,10 @@ def test_collect_governance_diagnostics_reports_failures(tmp_path: Path) -> None
         tmp_path,
         governance="""
 doctrine:
-  selected_agent_profiles: [missing-profile]
+  selected_directives: [NOT_A_DIRECTIVE]
 """,
-        agents="profiles: []\nselection: {}\n",
     )
 
     diagnostics = collect_governance_diagnostics(tmp_path)
     assert diagnostics
-    assert any("missing-profile" in line for line in diagnostics)
+    assert any("NOT_A_DIRECTIVE" in line for line in diagnostics)

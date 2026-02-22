@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.constitution.generator import build_constitution_draft, write_constitution
 from specify_cli.constitution.hasher import is_stale
 from specify_cli.constitution.sync import sync as sync_constitution
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -45,6 +46,66 @@ def _resolve_constitution_path(repo_root: Path) -> Path:
         return legacy_path
 
     raise TaskCliError(f"Constitution not found. Expected:\n  - {new_path}\n  - {legacy_path} (legacy)")
+
+
+@app.command()
+def generate(
+    mission: str = typer.Option("software-dev", "--mission", help="Mission key for template-set defaults"),
+    template_set: str | None = typer.Option(
+        None,
+        "--template-set",
+        help="Override doctrine template set (must exist in packaged doctrine missions)",
+    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing constitution.md"),
+    json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Generate a deterministic project constitution and sync extracted config."""
+    try:
+        repo_root = find_repo_root()
+        constitution_path = repo_root / ".kittify" / "constitution" / "constitution.md"
+        draft = build_constitution_draft(
+            mission=mission,
+            template_set=template_set,
+        )
+        write_constitution(constitution_path, draft.markdown, force=force)
+        sync_result = sync_constitution(constitution_path, constitution_path.parent, force=True)
+
+        if json_output:
+            data = {
+                "success": sync_result.error is None,
+                "constitution_path": str(constitution_path.relative_to(repo_root)),
+                "mission": draft.mission,
+                "template_set": draft.template_set,
+                "selected_paradigms": draft.selected_paradigms,
+                "selected_directives": draft.selected_directives,
+                "available_tools": draft.available_tools,
+                "files_written": sync_result.files_written,
+                "error": sync_result.error,
+            }
+            console.print(json.dumps(data, indent=2))
+            return
+
+        if sync_result.error:
+            console.print(f"[red]❌ Error:[/red] {sync_result.error}")
+            raise typer.Exit(code=1)
+
+        console.print("[green]✅ Constitution generated and synced[/green]")
+        console.print(f"Constitution: {constitution_path.relative_to(repo_root)}")
+        console.print(f"Mission: {draft.mission}")
+        console.print(f"Template set: {draft.template_set}")
+        console.print("Files written:")
+        for filename in sync_result.files_written:
+            console.print(f"  ✓ {filename}")
+
+    except FileExistsError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+    except (TaskCliError, ValueError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -109,7 +170,7 @@ def status(
 
         # Get file info
         files_info: list[dict[str, str | bool | float]] = []
-        for filename in ["governance.yaml", "agents.yaml", "directives.yaml", "metadata.yaml"]:
+        for filename in ["governance.yaml", "directives.yaml", "metadata.yaml"]:
             file_path = output_dir / filename
             if file_path.exists():
                 size = file_path.stat().st_size

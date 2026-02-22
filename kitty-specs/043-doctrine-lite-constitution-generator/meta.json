@@ -1,0 +1,10 @@
+{
+  "feature_number": "043",
+  "slug": "043-doctrine-lite-constitution-generator",
+  "friendly_name": "Doctrine-Lite Deterministic Constitution Generator",
+  "mission": "software-dev",
+  "source_description": "User-defined doctrine-lite scope: deterministic constitution creator, no agent entities, no scaffolding-only doctrine artifacts",
+  "created_at": "2026-02-22T00:00:00Z",
+  "target_branch": "2.x",
+  "vcs": "git"
+}

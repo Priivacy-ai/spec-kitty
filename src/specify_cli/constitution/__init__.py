@@ -9,15 +9,13 @@ This subpackage provides tools for:
 Provides:
 - sync(): Parse constitution.md → structured YAML files
 - load_governance_config(): Load governance rules for hook evaluation
-- load_agents_config(): Load agent profiles for routing
 - post_save_hook(): Auto-trigger sync after CLI writes
 """
 
+from .catalog import DoctrineCatalog, load_doctrine_catalog
+from .generator import ConstitutionDraft, build_constitution_draft, write_constitution
 from .parser import ConstitutionParser, ConstitutionSection
 from .schemas import (
-    AgentProfile,
-    AgentsConfig,
-    AgentSelectionConfig,
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
@@ -33,7 +31,6 @@ from .schemas import (
 )
 from .sync import (
     SyncResult,
-    load_agents_config,
     load_directives_config,
     load_governance_config,
     post_save_hook,
@@ -47,11 +44,13 @@ from .resolver import (
 )
 
 __all__ = [
+    "DoctrineCatalog",
+    "load_doctrine_catalog",
+    "ConstitutionDraft",
+    "build_constitution_draft",
+    "write_constitution",
     "ConstitutionParser",
     "ConstitutionSection",
-    "AgentProfile",
-    "AgentsConfig",
-    "AgentSelectionConfig",
     "BranchStrategyConfig",
     "CommitConfig",
     "DoctrineSelectionConfig",
@@ -65,7 +64,6 @@ __all__ = [
     "ConstitutionTestingConfig",
     "emit_yaml",
     "SyncResult",
-    "load_agents_config",
     "load_directives_config",
     "load_governance_config",
     "post_save_hook",

@@ -9,9 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.constitution.schemas import AgentProfile
+from specify_cli.constitution.catalog import load_doctrine_catalog
 from specify_cli.constitution.sync import (
-    load_agents_config,
     load_directives_config,
     load_governance_config,
 )
@@ -35,7 +34,6 @@ class GovernanceResolution:
 
     paradigms: list[str]
     directives: list[str]
-    agent_profiles: list[AgentProfile]
     tools: list[str]
     template_set: str
     metadata: dict[str, str]
@@ -45,35 +43,26 @@ class GovernanceResolution:
 def resolve_governance(
     repo_root: Path,
     *,
-    profile_catalog: dict[str, AgentProfile] | None = None,
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> GovernanceResolution:
     """Resolve active governance from constitution-first selection data."""
     governance = load_governance_config(repo_root)
-    agents = load_agents_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
+    doctrine_catalog = load_doctrine_catalog()
     doctrine = governance.doctrine
-
-    catalog = profile_catalog or {p.agent_key: p for p in agents.profiles}
-    selected_profiles = doctrine.selected_agent_profiles
     diagnostics: list[str] = []
 
-    if selected_profiles:
-        missing_profiles = sorted(profile for profile in selected_profiles if profile not in catalog)
-        if missing_profiles:
+    selected_paradigms = list(doctrine.selected_paradigms)
+    if selected_paradigms and doctrine_catalog.paradigms:
+        missing_paradigms = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
+        if missing_paradigms:
             raise GovernanceResolutionError(
                 [
-                    "Selected agent profiles are not available: " + ", ".join(missing_profiles),
-                    "Update constitution selected_agent_profiles or add matching profiles to agents.yaml.",
+                    "Constitution selected unavailable paradigms: " + ", ".join(missing_paradigms),
+                    "Update constitution selected_paradigms to values present in doctrine/paradigms.",
                 ]
             )
-        resolved_profiles = [catalog[profile] for profile in selected_profiles]
-        profile_source = "constitution"
-    else:
-        resolved_profiles = list(catalog.values())
-        profile_source = "catalog_fallback"
-        diagnostics.append("No selected_agent_profiles provided; using full profile catalog fallback.")
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     selected_tools = doctrine.available_tools
@@ -93,14 +82,38 @@ def resolve_governance(
         tools_source = "registry_fallback"
         diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
 
+    directive_catalog_ids = {directive.id for directive in directives_cfg.directives}
+    if doctrine_catalog.directives:
+        directive_catalog_ids.update(doctrine_catalog.directives)
+
     if doctrine.selected_directives:
+        missing_directives = sorted(
+            directive for directive in doctrine.selected_directives if directive not in directive_catalog_ids
+        )
+        if missing_directives:
+            raise GovernanceResolutionError(
+                [
+                    "Constitution selected unavailable directives: " + ", ".join(missing_directives),
+                    "Update constitution selected_directives to values present in directives.yaml or doctrine/directives.",
+                ]
+            )
         resolved_directives = list(doctrine.selected_directives)
         directives_source = "constitution"
     else:
-        resolved_directives = [directive.id for directive in directives_cfg.directives]
+        if directives_cfg.directives:
+            resolved_directives = [directive.id for directive in directives_cfg.directives]
+        else:
+            resolved_directives = sorted(doctrine_catalog.directives)
         directives_source = "catalog_fallback"
 
     if doctrine.template_set:
+        if doctrine_catalog.template_sets and doctrine.template_set not in doctrine_catalog.template_sets:
+            raise GovernanceResolutionError(
+                [
+                    f"Constitution selected unavailable template_set: {doctrine.template_set}",
+                    "Update constitution template_set to values available in doctrine missions.",
+                ]
+            )
         template_set = doctrine.template_set
         template_set_source = "constitution"
     else:
@@ -109,13 +122,11 @@ def resolve_governance(
         diagnostics.append(f"Template set not selected in constitution; fallback '{template_set}' applied.")
 
     return GovernanceResolution(
-        paradigms=list(doctrine.selected_paradigms),
+        paradigms=selected_paradigms,
         directives=resolved_directives,
-        agent_profiles=resolved_profiles,
         tools=resolved_tools,
         template_set=template_set,
         metadata={
-            "profile_source": profile_source,
             "tools_source": tools_source,
             "directives_source": directives_source,
             "template_set_source": template_set_source,
@@ -127,7 +138,6 @@ def resolve_governance(
 def collect_governance_diagnostics(
     repo_root: Path,
     *,
-    profile_catalog: dict[str, AgentProfile] | None = None,
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> list[str]:
@@ -135,7 +145,6 @@ def collect_governance_diagnostics(
     try:
         resolution = resolve_governance(
             repo_root,
-            profile_catalog=profile_catalog,
             tool_registry=tool_registry,
             fallback_template_set=fallback_template_set,
         )

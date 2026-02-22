@@ -2,7 +2,6 @@
 
 Maps parsed constitution sections to validated Pydantic models:
 - governance.yaml (testing, quality, performance, branch strategy)
-- agents.yaml (agent profiles and selection strategy)
 - directives.yaml (numbered rules and enforcement)
 - metadata.yaml (extraction provenance and statistics)
 """
@@ -16,9 +15,6 @@ from typing import Any
 from specify_cli.constitution.hasher import hash_content
 from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
 from specify_cli.constitution.schemas import (
-    AgentProfile,
-    AgentSelectionConfig,
-    AgentsConfig,
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
@@ -45,7 +41,6 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
     "commit": ("governance", "commits"),
     "performance": ("governance", "performance"),
     "branch": ("governance", "branch_strategy"),
-    "agent": ("agents", "profiles"),
     "paradigm": ("governance", "doctrine"),
     "tool": ("governance", "doctrine"),
     "template": ("governance", "doctrine"),
@@ -60,7 +55,6 @@ class ExtractionResult:
     """Complete extraction result with all config schemas and metadata."""
 
     governance: GovernanceConfig
-    agents: AgentsConfig
     directives: DirectivesConfig
     metadata: ExtractionMetadata
 
@@ -89,13 +83,11 @@ class Extractor:
             raise TypeError(f"content must be str, got {type(content).__name__}")
         sections = self.parser.parse(content)
         governance = self._extract_governance(sections)
-        agents = self._extract_agents(sections)
         directives = self._extract_directives(sections)
         metadata = self._build_metadata(content, sections)
 
         return ExtractionResult(
             governance=governance,
-            agents=agents,
             directives=directives,
             metadata=metadata,
         )
@@ -224,17 +216,6 @@ class Extractor:
         if directives:
             doctrine.selected_directives = directives
 
-        profiles = self._get_list_value(
-            normalized,
-            (
-                "selected_agent_profiles",
-                "agent_profiles",
-                "selected_profiles",
-            ),
-        )
-        if profiles:
-            doctrine.selected_agent_profiles = profiles
-
         tools = self._get_list_value(normalized, ("available_tools", "tools", "selected_tools"))
         if tools:
             doctrine.available_tools = tools
@@ -271,51 +252,6 @@ class Extractor:
                 if value:
                     return value
         return None
-
-    def _extract_agents(self, sections: list[ConstitutionSection]) -> AgentsConfig:
-        """Extract agent profiles and selection config from classified sections.
-
-        Args:
-            sections: Parsed constitution sections
-
-        Returns:
-            AgentsConfig with profiles and selection strategy
-        """
-        profiles: list[AgentProfile] = []
-        selection = AgentSelectionConfig()
-
-        for section in sections:
-            classification = self._classify_section(section.heading)
-            if not classification:
-                continue
-
-            schema_name, _ = classification
-
-            # Only process agent sections
-            if schema_name != "agents":
-                continue
-
-            # Extract agent profiles from tables
-            tables = section.structured_data.get("tables", [])
-            for table_row in tables:
-                # Look for agent_key, role, model columns
-                agent_key = table_row.get("agent") or table_row.get("agent_key") or table_row.get("name")
-                role = table_row.get("role", "implementer")
-                model = table_row.get("model") or table_row.get("preferred_model")
-
-                if agent_key:
-                    profile = AgentProfile(
-                        agent_key=agent_key,
-                        role=role,
-                        preferred_model=model,
-                    )
-                    profiles.append(profile)
-
-            # Extract selection strategy from keywords
-            if "preferred" in section.content.lower():
-                selection.strategy = "preferred"
-
-        return AgentsConfig(profiles=profiles, selection=selection)
 
     def _extract_directives(self, sections: list[ConstitutionSection]) -> DirectivesConfig:
         """Extract numbered directives from classified sections.
@@ -448,6 +384,5 @@ def write_extraction_result(result: ExtractionResult, constitution_dir: Path) ->
     constitution_dir.mkdir(parents=True, exist_ok=True)
 
     emit_yaml(result.governance, constitution_dir / "governance.yaml")
-    emit_yaml(result.agents, constitution_dir / "agents.yaml")
     emit_yaml(result.directives, constitution_dir / "directives.yaml")
     emit_yaml(result.metadata, constitution_dir / "metadata.yaml")

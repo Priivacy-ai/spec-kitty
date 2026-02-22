@@ -325,14 +325,15 @@ class TestRunGlobalChecks:
     def test_includes_legacy_check_with_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """With project_dir, returns 4 checks including stale_legacy."""
+        """With project_dir, returns checks including stale_legacy and governance."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "kittify"))
         project = tmp_path / "project"
         project.mkdir()
         checks = run_global_checks(project_dir=project)
-        assert len(checks) == 4
+        assert len(checks) == 5
         names = {c.name for c in checks}
         assert "stale_legacy" in names
+        assert "governance_resolution" in names
 
     def test_all_pass_with_healthy_setup(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -4,7 +4,7 @@ Provides the main sync() function that orchestrates:
 1. Read constitution.md
 2. Check staleness (skip if unchanged, unless --force)
 3. Parse and extract to YAML
-4. Write governance/agents/directives/metadata files
+4. Write governance/directives/metadata files
 5. Update metadata with hash and timestamp
 """
 
@@ -17,7 +17,6 @@ from ruamel.yaml import YAML
 from specify_cli.constitution.extractor import Extractor, write_extraction_result
 from specify_cli.constitution.hasher import is_stale
 from specify_cli.constitution.schemas import (
-    AgentsConfig,
     DirectivesConfig,
     GovernanceConfig,
 )
@@ -85,7 +84,6 @@ def sync(
         # List files written
         files_written = [
             "governance.yaml",
-            "agents.yaml",
             "directives.yaml",
             "metadata.yaml",
         ]
@@ -168,41 +166,6 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     yaml = YAML()
     data = yaml.load(governance_path)
     return GovernanceConfig.model_validate(data)
-
-
-def load_agents_config(repo_root: Path) -> AgentsConfig:
-    """Load agents config from .kittify/constitution/agents.yaml.
-
-    Falls back to empty AgentsConfig if file missing.
-    Checks staleness and logs warning if stale (FR-4.2).
-
-    Performance: YAML loading only, no AI invocation (FR-4.5).
-
-    Args:
-        repo_root: Repository root directory
-
-    Returns:
-        AgentsConfig instance (empty if file missing)
-    """
-    constitution_dir = repo_root / ".kittify" / "constitution"
-    agents_path = constitution_dir / "agents.yaml"
-
-    if not agents_path.exists():
-        logger.warning("agents.yaml not found. Run 'spec-kitty constitution sync'.")
-        return AgentsConfig()
-
-    # Check staleness
-    constitution_path = constitution_dir / "constitution.md"
-    metadata_path = constitution_dir / "metadata.yaml"
-    if constitution_path.exists() and metadata_path.exists():
-        stale, _, _ = is_stale(constitution_path, metadata_path)
-        if stale:
-            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
-
-    # Load and validate
-    yaml = YAML()
-    data = yaml.load(agents_path)
-    return AgentsConfig.model_validate(data)
 
 
 def load_directives_config(repo_root: Path) -> DirectivesConfig:
