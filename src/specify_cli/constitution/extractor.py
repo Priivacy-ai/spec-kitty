@@ -21,6 +21,7 @@ from specify_cli.constitution.schemas import (
     AgentsConfig,
     BranchStrategyConfig,
     CommitConfig,
+    DoctrineSelectionConfig,
     Directive,
     DirectivesConfig,
     ExtractionMetadata,
@@ -45,6 +46,9 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
     "performance": ("governance", "performance"),
     "branch": ("governance", "branch_strategy"),
     "agent": ("agents", "profiles"),
+    "paradigm": ("governance", "doctrine"),
+    "tool": ("governance", "doctrine"),
+    "template": ("governance", "doctrine"),
     "directive": ("directives", "directives"),
     "constraint": ("directives", "directives"),
     "rule": ("directives", "directives"),
@@ -111,6 +115,7 @@ class Extractor:
         commits = CommitConfig()
         performance = PerformanceConfig()
         branch_strategy = BranchStrategyConfig()
+        doctrine = DoctrineSelectionConfig()
 
         # Iterate sections in document order for deterministic merging
         for section in sections:
@@ -178,13 +183,94 @@ class Extractor:
                 if numbered_items:
                     branch_strategy.rules = numbered_items
 
+            elif field_name == "doctrine":
+                self._merge_doctrine_selection(section, doctrine)
+
+        # Also scan all sections for explicit doctrine selection keys
+        # so constitution headings remain flexible.
+        for section in sections:
+            self._merge_doctrine_selection(section, doctrine)
+
         return GovernanceConfig(
             testing=testing,
             quality=quality,
             commits=commits,
             performance=performance,
             branch_strategy=branch_strategy,
+            doctrine=doctrine,
         )
+
+    def _merge_doctrine_selection(self, section: ConstitutionSection, doctrine: DoctrineSelectionConfig) -> None:
+        """Merge doctrine selection hints from a section into doctrine config."""
+        tables = section.structured_data.get("tables", [])
+        yaml_blocks = section.structured_data.get("yaml_blocks", [])
+
+        for row in tables:
+            self._apply_selection_row(row, doctrine)
+
+        for block in yaml_blocks:
+            if isinstance(block, dict):
+                self._apply_selection_row(block, doctrine)
+
+    def _apply_selection_row(self, row: dict[str, Any], doctrine: DoctrineSelectionConfig) -> None:
+        """Apply one table/yaml row that may contain doctrine selection keys."""
+        normalized = {str(k).strip().lower(): v for k, v in row.items()}
+
+        paradigms = self._get_list_value(normalized, ("selected_paradigms", "paradigms"))
+        if paradigms:
+            doctrine.selected_paradigms = paradigms
+
+        directives = self._get_list_value(normalized, ("selected_directives", "directives"))
+        if directives:
+            doctrine.selected_directives = directives
+
+        profiles = self._get_list_value(
+            normalized,
+            (
+                "selected_agent_profiles",
+                "agent_profiles",
+                "selected_profiles",
+            ),
+        )
+        if profiles:
+            doctrine.selected_agent_profiles = profiles
+
+        tools = self._get_list_value(normalized, ("available_tools", "tools", "selected_tools"))
+        if tools:
+            doctrine.available_tools = tools
+
+        template_set = self._get_scalar_value(normalized, ("template_set", "templateset"))
+        if template_set:
+            doctrine.template_set = template_set
+
+    def _get_list_value(
+        self,
+        normalized_row: dict[str, Any],
+        candidate_keys: tuple[str, ...],
+    ) -> list[str]:
+        """Read list value from row by trying candidate keys."""
+        for key in candidate_keys:
+            if key not in normalized_row:
+                continue
+            value = normalized_row[key]
+            if isinstance(value, list):
+                return [str(item).strip() for item in value if str(item).strip()]
+            if isinstance(value, str):
+                return [item.strip() for item in value.split(",") if item.strip()]
+        return []
+
+    def _get_scalar_value(
+        self,
+        normalized_row: dict[str, Any],
+        candidate_keys: tuple[str, ...],
+    ) -> str | None:
+        """Read scalar string value from row by trying candidate keys."""
+        for key in candidate_keys:
+            if key in normalized_row:
+                value = str(normalized_row[key]).strip()
+                if value:
+                    return value
+        return None
 
     def _extract_agents(self, sections: list[ConstitutionSection]) -> AgentsConfig:
         """Extract agent profiles and selection config from classified sections.

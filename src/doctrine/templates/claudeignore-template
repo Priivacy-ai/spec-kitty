@@ -1,0 +1,58 @@
+# Spec Kitty Configuration and Templates
+# These are internal directories that shouldn't be scanned by AI assistants
+
+# Template directories (not working code)
+.kittify/templates/
+.kittify/missions/
+.kittify/scripts/
+
+# Agent command directories (generated from templates, not source)
+.claude/
+.codex/
+.gemini/
+.cursor/
+.qwen/
+.opencode/
+.windsurf/
+.kilocode/
+.augment/
+.roo/
+.amazonq/
+.github/copilot/
+
+# Git metadata
+.git/
+
+# Build artifacts and caches
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and databases
+*.log
+*.db
+*.sqlite

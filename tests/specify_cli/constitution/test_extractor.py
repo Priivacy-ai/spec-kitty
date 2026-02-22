@@ -196,6 +196,27 @@ We require 90% test coverage.
         # Both sections map to testing - last one wins
         assert result.governance.testing.min_coverage == 90
 
+    def test_extract_doctrine_selection_from_yaml_block(self, extractor):
+        """Extract doctrine selection from yaml block data."""
+        content = """## Governance Activation
+
+```yaml
+selected_paradigms: [test-first]
+selected_directives: [DIR-001]
+selected_agent_profiles: [codex]
+available_tools: [git, pytest]
+template_set: strict-doctrine
+```
+"""
+        result = extractor.extract(content)
+        doctrine = result.governance.doctrine
+        assert doctrine.selected_paradigms == ["test-first"]
+        assert doctrine.selected_directives == ["DIR-001"]
+        assert doctrine.selected_agent_profiles == ["codex"]
+        assert doctrine.available_tools == ["git", "pytest"]
+        assert doctrine.template_set == "strict-doctrine"
+
+
 class TestAgentsExtraction:
     """Tests for agent configuration extraction."""
 

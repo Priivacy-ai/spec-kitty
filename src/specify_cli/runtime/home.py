@@ -47,8 +47,8 @@ def get_package_asset_root() -> Path:
 
     Resolution order:
     1. SPEC_KITTY_TEMPLATE_ROOT environment variable (CI/testing)
-    2. importlib.resources.files("specify_cli") / "missions" (installed package)
-    3. Path(specify_cli.__file__).parent / "missions" (development layout)
+    2. importlib.resources.files("doctrine") / "missions" (installed package)
+    3. Path(__file__).parent.parent / "doctrine" / "missions" (development layout)
 
     Returns:
         Path: Absolute path to the missions directory in the package.
@@ -61,27 +61,22 @@ def get_package_asset_root() -> Path:
         root = Path(env_root)
         if root.is_dir():
             return root
-        raise FileNotFoundError(
-            f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}"
-        )
+        raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
 
-    # Installed package
+    # Installed package - try doctrine package first
     try:
-        pkg_root = importlib.resources.files("specify_cli")
+        pkg_root = importlib.resources.files("doctrine")
         missions_dir = Path(str(pkg_root)) / "missions"
         if missions_dir.is_dir():
             return missions_dir
     except (TypeError, ModuleNotFoundError):
         pass
 
-    # Development layout
-    import specify_cli
-
-    dev_root = Path(specify_cli.__file__).parent / "missions"
+    # Development layout - look for src/doctrine/missions
+    dev_root = Path(__file__).parent.parent.parent / "doctrine" / "missions"
     if dev_root.is_dir():
         return dev_root
 
     raise FileNotFoundError(
-        "Cannot locate package mission assets. "
-        "Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
+        "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
     )

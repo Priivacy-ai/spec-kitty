@@ -20,6 +20,7 @@ from .schemas import (
     AgentSelectionConfig,
     BranchStrategyConfig,
     CommitConfig,
+    DoctrineSelectionConfig,
     Directive,
     DirectivesConfig,
     ExtractionMetadata,
@@ -38,6 +39,12 @@ from .sync import (
     post_save_hook,
     sync,
 )
+from .resolver import (
+    GovernanceResolution,
+    GovernanceResolutionError,
+    collect_governance_diagnostics,
+    resolve_governance,
+)
 
 __all__ = [
     "ConstitutionParser",
@@ -47,6 +54,7 @@ __all__ = [
     "AgentSelectionConfig",
     "BranchStrategyConfig",
     "CommitConfig",
+    "DoctrineSelectionConfig",
     "Directive",
     "DirectivesConfig",
     "ExtractionMetadata",
@@ -62,4 +70,8 @@ __all__ = [
     "load_governance_config",
     "post_save_hook",
     "sync",
+    "GovernanceResolution",
+    "GovernanceResolutionError",
+    "resolve_governance",
+    "collect_governance_diagnostics",
 ]
