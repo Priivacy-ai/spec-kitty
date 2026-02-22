@@ -71,9 +71,6 @@ sdd-*/
 .pytest_cache/
 # Note: kitty-specs/ is tracked in main repo but ignored in worktrees via .git/info/exclude
 .github/copilot/
-# Block WP status files (managed in main repo, prevents merge conflicts)
-# Research artifacts in kitty-specs/**/research/ are allowed
-kitty-specs/**/tasks/*.md
 
 # Generated PDF brochures (output of generate_pdf.py)
 spec-kitty-capabilities.pdf

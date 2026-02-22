@@ -241,6 +241,36 @@ def test_safe_commit_with_subdirectory_files(git_repo: Path):
     assert "WP04.md" not in status_result.stdout
 
 
+def test_safe_commit_can_commit_explicitly_ignored_file(git_repo: Path):
+    """safe_commit should commit explicitly requested files even if ignored."""
+    # Simulate stale project-level ignore rule.
+    gitignore = git_repo / ".gitignore"
+    gitignore.write_text("kitty-specs/**/tasks/*.md\n", encoding="utf-8")
+
+    # Create ignored WP file
+    wp_file = git_repo / "kitty-specs" / "041-test-feature" / "tasks" / "WP01.md"
+    wp_file.parent.mkdir(parents=True, exist_ok=True)
+    wp_file.write_text("---\nlane: doing\n---\n", encoding="utf-8")
+
+    result = safe_commit(
+        repo_path=git_repo,
+        files_to_commit=[wp_file],
+        commit_message="Commit ignored WP file explicitly",
+        allow_empty=False,
+    )
+
+    assert result is True
+
+    tracked = subprocess.run(
+        ["git", "ls-files", str(wp_file.relative_to(git_repo))],
+        cwd=git_repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert str(wp_file.relative_to(git_repo)) in tracked.stdout
+
+
 def test_safe_commit_multiple_files_at_once(git_repo: Path):
     """Test committing multiple intended files while preserving staged files."""
     # Stage unrelated file

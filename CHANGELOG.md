@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deterministic review feedback capture**: `spec-kitty agent tasks move-task <WP> --to planned` now strictly requires `--review-feedback-file` (unless `--force`) and persists the absolute feedback path and content into WP metadata/prompt context.
 - **Dashboard browser side effects**: `spec-kitty dashboard` no longer auto-opens desktop browsers by default. Browser launch is now explicit via `--open`.
 - **Drift/rebase trap on review transitions**: `move-task --to for_review` now auto-rebases eligible WP worktrees onto their base branch when behind non-planning commits, removing the normal manual rebase loop while preserving safe blocking on conflicts/dirty states.
+- **WP prompt tracking reliability**: removed stale `kitty-specs/**/tasks/*.md` from tracked `.gitignore`, migrated existing projects away from that rule, and hardened workflow status commits to fail loudly if claim commits cannot be written.
 
 ### 🔧 Changed
 

@@ -76,7 +76,9 @@ def safe_commit(
         # Stage only the intended files
         for file_path in normalized_files:
             add_result = subprocess.run(
-                ["git", "add", file_path],
+                # Use --force for explicitly-requested files so ignored
+                # status files can still be committed intentionally.
+                ["git", "add", "--force", "--", file_path],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
