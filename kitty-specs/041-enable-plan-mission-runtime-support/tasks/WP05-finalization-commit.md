@@ -1,15 +1,15 @@
 ---
 work_package_id: WP05
 title: Finalization & Commit
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP04
 base_branch: 041-enable-plan-mission-runtime-support-WP04
 base_commit: e4d3cebd9abf157e11ad07174efa709b0450aa1e
 created_at: '2026-02-22T08:29:06.279401+00:00'
 subtasks: [T018]
-agent: claude
-shell_pid: '6149'
+agent: "codex"
+shell_pid: "15393"
 description: Parse dependencies and commit all work packages to 2.x branch
 estimated_duration: 15-30 minutes
 priority: P0
@@ -331,3 +331,4 @@ All work packages are now ready for agents to implement, review, and merge back 
 
 - 2026-02-22T08:29:06Z – claude – shell_pid=6149 – lane=doing – Assigned agent via workflow command
 - 2026-02-22T08:37:27Z – claude – shell_pid=6149 – lane=for_review – Feature 041 complete: Plan mission runtime enabled, all dependencies parsed and committed, ready for merge
+- 2026-02-22T08:38:58Z – codex – shell_pid=15393 – lane=doing – Started review via workflow command
