@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Finalization & Commit
-lane: doing
+lane: "for_review"
 dependencies:
 - WP04
 base_branch: 041-enable-plan-mission-runtime-support-WP04
@@ -330,3 +330,4 @@ All work packages are now ready for agents to implement, review, and merge back 
 ## Activity Log
 
 - 2026-02-22T08:29:06Z – claude – shell_pid=6149 – lane=doing – Assigned agent via workflow command
+- 2026-02-22T08:37:27Z – claude – shell_pid=6149 – lane=for_review – Feature 041 complete: Plan mission runtime enabled, all dependencies parsed and committed, ready for merge
