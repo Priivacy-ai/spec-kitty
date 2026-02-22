@@ -56,7 +56,9 @@ jobs:
         run: npm ci
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/static-analysis
+        run: |
+          mkdir -p out/reports/static-analysis
+          mkdir -p out/reports/security
 
       - name: Determine commit range
         id: commit_range
@@ -122,6 +124,23 @@ jobs:
         run: |
           python -m mypy --strict src/specify_cli src/doctrine | tee out/reports/static-analysis/mypy-report.txt
 
+      - name: Run Bandit security scan
+        id: bandit
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m bandit -r src/ \
+            --severity-level medium \
+            --confidence-level medium \
+            | tee out/reports/security/bandit-report.txt
+
+      - name: Run pip-audit CVE scan
+        id: pip_audit
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m pip_audit | tee out/reports/security/pip-audit-report.txt
+
       - name: Upload lint artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -136,11 +155,15 @@ jobs:
           echo "markdownlint outcome: ${{ steps.markdownlint.outcome }}"
           echo "ruff outcome: ${{ steps.ruff.outcome }}"
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
+          echo "bandit outcome: ${{ steps.bandit.outcome }}"
+          echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
           if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
              [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
              [ "${{ steps.ruff.outcome }}" != "success" ] || \
-             [ "${{ steps.mypy.outcome }}" != "success" ]; then
-            echo "One or more lint checks failed."
+             [ "${{ steps.mypy.outcome }}" != "success" ] || \
+             [ "${{ steps.bandit.outcome }}" != "success" ] || \
+             [ "${{ steps.pip_audit.outcome }}" != "success" ]; then
+            echo "One or more checks failed."
             exit 1
           fi
 
@@ -179,10 +202,12 @@ jobs:
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
             --cov=src/specify_cli \
             --cov=src/doctrine \
-            --cov-fail-under=90 \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+
+      - name: Check tiered coverage thresholds
+        run: python scripts/check_coverage.py
 
       - name: Upload unit test artifacts
         if: always()
