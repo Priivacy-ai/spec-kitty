@@ -11,6 +11,7 @@ description: Create the runtime schema that enables plan mission discovery in th
 estimated_duration: 1-2 hours
 priority: P0
 shell_pid: "90107"
+agent: "claude"
 ---
 
 # WP01: Runtime Schema Foundation
@@ -332,3 +333,7 @@ After completion:
 ```bash
 spec-kitty implement WP02 --base WP01
 ```
+
+## Activity Log
+
+- 2026-02-22T08:12:56Z – claude – shell_pid=90107 – lane=doing – Assigned agent via workflow command
