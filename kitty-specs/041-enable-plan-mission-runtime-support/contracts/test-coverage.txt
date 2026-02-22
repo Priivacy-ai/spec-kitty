@@ -1,0 +1,414 @@
+# Test Coverage Contract: Plan Mission Runtime Support
+
+Feature: 041-enable-plan-mission-runtime-support
+Test File: tests/specify_cli/next/test_plan_mission_runtime.py
+Target: Python pytest
+
+---
+
+## Test Organization
+
+All plan mission tests are organized in a SINGLE dedicated test file:
+- Location: tests/specify_cli/next/test_plan_mission_runtime.py
+- Organization: test classes grouped by concern (Integration, Resolution, Regression)
+- Framework: pytest (existing spec-kitty test suite)
+- Fixtures: Use standard pytest fixtures and mocks
+
+---
+
+## Test Classes & Coverage
+
+### 1. Integration Tests
+**Class**: TestPlanMissionIntegration
+**Purpose**: Verify end-to-end feature creation + runtime loop progression
+
+**Tests**:
+
+```
+test_create_plan_feature_with_mission_yaml()
+  - Create feature with mission=plan
+  - Verify meta.json contains "mission": "plan"
+  - Verify feature directory created
+  - Expected: Success, feature ready for runtime
+
+test_next_command_plan_feature_not_blocked()
+  - Create feature with mission=plan
+  - Call spec-kitty next --feature <slug>
+  - Verify status != "blocked"
+  - Verify no "Mission 'plan' not found" error
+  - Expected: Returns "step" status (non-blocked)
+
+test_plan_mission_all_steps_reachable()
+  - Create feature with mission=plan
+  - Simulate progression through all 4 steps
+  - Step 1: specify → should be accessible
+  - Step 2: research → should be accessible after step 1
+  - Step 3: plan → should be accessible after step 2
+  - Step 4: review → should be accessible after step 3
+  - Expected: All 4 steps reachable sequentially
+
+test_plan_feature_artifacts_created()
+  - Create feature with mission=plan
+  - Progress through steps (simulated)
+  - Verify artifacts are created:
+    - spec.md (from specify step)
+    - research.md (from research step)
+    - data-model.md (from plan step)
+    - validation report (from review step)
+  - Expected: All expected artifacts present
+```
+
+### 2. Command Resolution Tests
+**Class**: TestPlanCommandResolution
+**Purpose**: Verify each step's command template resolves successfully
+
+**Tests**:
+
+```
+test_resolve_specify_command_template()
+  - Input: mission="plan", step="specify"
+  - Call: resolver.resolve_command(...)
+  - Verify: Template file exists
+  - Verify: YAML frontmatter parses
+  - Verify: Required sections present (Context, Deliverables, Instructions, Success Criteria)
+  - Verify: No broken references
+  - Expected: Valid template object returned
+
+test_resolve_research_command_template()
+  - Input: mission="plan", step="research"
+  - Same checks as specify
+  - Additional: Check for content template references
+  - Expected: Valid template object returned
+
+test_resolve_plan_command_template()
+  - Input: mission="plan", step="plan"
+  - Same checks as specify
+  - Additional: Verify design artifact references
+  - Expected: Valid template object returned
+
+test_resolve_review_command_template()
+  - Input: mission="plan", step="review"
+  - Same checks as specify
+  - Additional: Verify validation checklist references
+  - Expected: Valid template object returned
+
+test_resolve_all_plan_steps()
+  - Loop through all 4 steps
+  - Verify each resolves without error
+  - Parameterized test with steps: ["specify", "research", "plan", "review"]
+  - Expected: All 4 resolve successfully
+
+test_mission_runtime_yaml_validation()
+  - Load: src/specify_cli/missions/plan/mission-runtime.yaml
+  - Verify: mission.key == "plan"
+  - Verify: 4 steps with correct IDs (specify, research, plan, review)
+  - Verify: Step sequence is ordered 1-4
+  - Verify: Dependencies form linear chain
+  - Verify: terminal_step == "review"
+  - Expected: All validations pass
+
+test_command_template_frontmatter_valid()
+  - For each template file (specify.md, research.md, plan.md, review.md)
+  - Load YAML frontmatter
+  - Verify: step_id matches filename
+  - Verify: mission == "plan"
+  - Verify: title is non-empty
+  - Verify: description is non-empty
+  - Expected: All frontmatter valid
+
+test_command_template_body_sections_present()
+  - For each template file
+  - Parse Markdown body
+  - Verify: Context section present
+  - Verify: Deliverables section present
+  - Verify: Instructions section present
+  - Verify: Success Criteria section present
+  - Expected: All required sections present in all templates
+```
+
+### 3. Regression Tests
+**Class**: TestPlanMissionRegressions
+**Purpose**: Ensure no regressions in other missions
+
+**Tests**:
+
+```
+test_software_dev_mission_still_resolves()
+  - Create feature with mission="software-dev"
+  - Verify mission resolves
+  - Verify all software-dev steps resolve (research, design, implement, test, review)
+  - Expected: No regressions, software-dev works as before
+
+test_research_mission_still_resolves()
+  - Create feature with mission="research"
+  - Verify mission resolves
+  - Verify all research steps resolve (question, methodology, gather, analyze, synthesize, publish)
+  - Expected: No regressions, research works as before
+
+test_runtime_bridge_backward_compatibility()
+  - Verify runtime bridge still handles software-dev and research missions
+  - Call: runtime_bridge.discover_mission("software-dev")
+  - Call: runtime_bridge.discover_mission("research")
+  - Call: runtime_bridge.discover_mission("plan")
+  - Expected: All 3 missions discoverable, no errors
+
+test_command_resolver_backward_compatibility()
+  - Verify existing command resolver still works
+  - Test resolving commands for software-dev and research
+  - No changes to resolver API or behavior
+  - Expected: Backward compatible
+```
+
+---
+
+## Test Fixtures & Mocks
+
+### Fixtures Required
+
+```python
+@pytest.fixture
+def temp_project(tmp_path):
+    """Create temporary spec-kitty project for testing"""
+    # Setup: minimal project structure
+    # Teardown: cleanup
+    # Yields: Path to project root
+
+@pytest.fixture
+def plan_feature(temp_project):
+    """Create a test feature with mission=plan"""
+    # Setup: create feature via CLI
+    # Yields: Feature slug and paths
+    # Teardown: cleanup
+
+@pytest.fixture
+def mock_runtime_bridge():
+    """Mock the runtime bridge for unit tests"""
+    # Returns: MagicMock with expected methods
+    # Methods: discover_mission(), resolve_command()
+```
+
+### Mocks Required
+
+```python
+@patch('specify_cli.next.runtime_bridge.discover_mission')
+@patch('specify_cli.next.command_resolver.resolve_command')
+@patch('specify_cli.core.feature_detection.load_feature')
+```
+
+---
+
+## Test Data
+
+### Feature Creation Test Data
+
+```python
+TEST_PLAN_FEATURE = {
+    "slug": "test-plan-feature",
+    "mission": "plan",
+    "description": "Test feature for plan mission runtime verification"
+}
+```
+
+### Command Template Test Data
+
+```python
+EXPECTED_STEPS = ["specify", "research", "plan", "review"]
+
+EXPECTED_FRONTMATTER = {
+    "specify": {"step_id": "specify", "mission": "plan", "title": "Specify"},
+    "research": {"step_id": "research", "mission": "plan", "title": "Research"},
+    "plan": {"step_id": "plan", "mission": "plan", "title": "Plan"},
+    "review": {"step_id": "review", "mission": "plan", "title": "Review"}
+}
+
+EXPECTED_BODY_SECTIONS = [
+    "Context",
+    "Deliverables",
+    "Instructions",
+    "Success Criteria"
+]
+```
+
+---
+
+## Test Execution
+
+### Run All Plan Mission Tests
+
+```bash
+pytest tests/specify_cli/next/test_plan_mission_runtime.py -v
+```
+
+### Run Specific Test Class
+
+```bash
+# Integration tests only
+pytest tests/specify_cli/next/test_plan_mission_runtime.py::TestPlanMissionIntegration -v
+
+# Resolution tests only
+pytest tests/specify_cli/next/test_plan_mission_runtime.py::TestPlanCommandResolution -v
+
+# Regression tests only
+pytest tests/specify_cli/next/test_plan_mission_runtime.py::TestPlanMissionRegressions -v
+```
+
+### Run with Coverage
+
+```bash
+pytest tests/specify_cli/next/test_plan_mission_runtime.py \
+  --cov=src/specify_cli/missions/plan \
+  --cov=src/specify_cli/next \
+  --cov-report=html
+```
+
+---
+
+## Coverage Targets
+
+### Code Coverage
+
+- `src/specify_cli/missions/plan/mission-runtime.yaml`: 100% (schema validation)
+- `src/specify_cli/missions/plan/command-templates/*.md`: 100% (resolution tests)
+- `src/specify_cli/next/runtime_bridge.py`: No new changes, existing coverage applies
+
+### Scenario Coverage
+
+- ✅ Feature creation with mission=plan
+- ✅ Runtime discovery of plan mission
+- ✅ Command template resolution for all 4 steps
+- ✅ End-to-end progression through plan mission
+- ✅ Regression verification for other missions
+- ✅ Error handling (missing files, invalid schemas)
+
+---
+
+## CI Integration
+
+### Test Requirements for CI
+
+```yaml
+# .github/workflows/test.yml (example)
+plan-mission-tests:
+  runs-on: ubuntu-latest
+  python-version: "3.11"
+  steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    - run: pip install -e .
+    - run: pytest tests/specify_cli/next/test_plan_mission_runtime.py -v
+    - run: pytest tests/specify_cli/next/test_plan_mission_runtime.py --cov=src/specify_cli/missions/plan
+
+# Failure threshold
+minimum-coverage: 85%
+allowed-test-failures: 0
+```
+
+---
+
+## Determinism & Isolation
+
+### Requirements for CI
+
+✅ No external service calls (no API calls, no network requests)
+✅ No timing-dependent assertions (no sleep(), no timing checks)
+✅ No random data (all test data deterministic)
+✅ Isolated filesystem (use tmp_path fixtures)
+✅ Isolated processes (no cross-test contamination)
+✅ Consistent ordering (no reliance on dict ordering, list order)
+
+### Non-Deterministic Tests Prohibited
+
+❌ Tests that depend on current time/date
+❌ Tests that mock random number generators
+❌ Tests with flaky timing windows
+❌ Tests that assume specific file ordering
+❌ Tests that depend on environment variables
+
+---
+
+## Test Success Criteria
+
+All tests must:
+
+✅ Pass consistently in CI (100% pass rate)
+✅ Pass with and without coverage instrumentation
+✅ Pass on multiple Python versions (3.11+)
+✅ Complete in < 60 seconds total
+✅ Use < 100MB RAM
+✅ Not leave artifacts in /tmp or project directory
+✅ Not modify git state (repo must remain clean after tests)
+
+---
+
+## Known Test Limitations
+
+### Not Tested (out of scope)
+
+- Agent-specific behavior (each agent produces different outputs)
+- Actual AI model responses (mocked in tests)
+- Live runtime loop (simulated with fixtures)
+- Cross-platform file encoding (assume UTF-8 only)
+
+### Accepted Tradeoffs
+
+- Mock runtime bridge instead of full integration (faster tests)
+- Simulate step progression instead of actual agent calls (deterministic)
+- Unit-level template validation instead of runtime execution (catches issues early)
+
+---
+
+## Test File Structure
+
+```python
+# tests/specify_cli/next/test_plan_mission_runtime.py
+
+import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+
+class TestPlanMissionIntegration:
+    """Integration tests for plan mission feature creation and runtime"""
+
+    def test_create_plan_feature_with_mission_yaml(self, temp_project):
+        """..."""
+
+    def test_next_command_plan_feature_not_blocked(self, plan_feature):
+        """..."""
+
+    # ... more tests
+
+class TestPlanCommandResolution:
+    """Resolution tests for plan mission command templates"""
+
+    def test_resolve_specify_command_template(self):
+        """..."""
+
+    def test_resolve_all_plan_steps(self):
+        """..."""
+
+    # ... more tests
+
+class TestPlanMissionRegressions:
+    """Regression tests ensuring no impacts to other missions"""
+
+    def test_software_dev_mission_still_resolves(self):
+        """..."""
+
+    def test_research_mission_still_resolves(self):
+        """..."""
+
+    # ... more tests
+
+# Fixtures and helpers at end of file
+```
+
+---
+
+## References
+
+- Feature Spec: [../spec.md](../spec.md)
+- Data Model: [../data-model.md](../data-model.md)
+- Implementation Plan: [../plan.md](../plan.md)
+- Quick Start: [../quickstart.md](../quickstart.md)
