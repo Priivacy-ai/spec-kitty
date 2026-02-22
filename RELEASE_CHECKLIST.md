@@ -2,6 +2,8 @@
 
 Use this checklist to ensure consistent, high-quality releases of spec-kitty.
 
+> For the `2.x` branch, releases are GitHub-only. Use semantic tags in the form `v2.<minor>.<patch>` and skip any PyPI publication steps.
+
 ## Pre-Release Preparation
 
 ### Version Planning
@@ -165,7 +167,7 @@ gh pr create --title "Release X.Y.Z: [Brief description]" \
 [List any breaking changes or "None"]
 EOF
 )" \
-             --base main
+             --base 2.x
 ```
 
 ### 4. Wait for CI and Review
@@ -193,8 +195,8 @@ gh pr merge --merge --delete-branch
 ### 6. Create and Push Release Tag
 
 ```bash
-git checkout main
-git pull origin main
+git checkout 2.x
+git pull origin 2.x
 git tag -a vX.Y.Z -m "Release vX.Y.Z
 
 [Brief description of what's in this release]
@@ -217,19 +219,12 @@ git push origin vX.Y.Z
 - [ ] Verify workflow completes successfully:
   - Tests pass
   - Package builds
-  - Published to PyPI
-  - GitHub release created
+  - GitHub release created (with artifacts)
 
-- [ ] Check PyPI release:
-  ```bash
-  # Wait a few minutes for PyPI to update
-  pip install --upgrade spec-kitty-cli
-  spec-kitty --version  # Should show new version
-  ```
-
-- [ ] Verify GitHub release created:
+- [ ] Verify GitHub release payload:
   ```bash
   gh release view vX.Y.Z
+  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
   ```
 
 ## Post-Release Verification
@@ -238,7 +233,8 @@ git push origin vX.Y.Z
 
 - [ ] Test fresh installation:
   ```bash
-  pip install --upgrade spec-kitty-cli
+  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
+  python -m pip install --force-reinstall /tmp/spec-kitty-release-check/spec_kitty_cli-X.Y.Z-py3-none-any.whl
   spec-kitty --version
   spec-kitty init test-project
   cd test-project
@@ -247,9 +243,11 @@ git push origin vX.Y.Z
 
 - [ ] Test upgrade from previous version:
   ```bash
-  pip install spec-kitty-cli==X.Y.[Z-1]  # Previous version
+  gh release download vX.Y.[Z-1] --dir /tmp/spec-kitty-prev-check
+  python -m pip install --force-reinstall /tmp/spec-kitty-prev-check/spec_kitty_cli-X.Y.[Z-1]-py3-none-any.whl
   spec-kitty init old-project
-  pip install --upgrade spec-kitty-cli
+  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
+  python -m pip install --force-reinstall /tmp/spec-kitty-release-check/spec_kitty_cli-X.Y.Z-py3-none-any.whl
   cd old-project
   spec-kitty upgrade
   ```
@@ -288,16 +286,18 @@ If critical issues discovered after release:
 
 3. Follow release process for X.Y.Z+1
 
-### Option 2: Yank Release (PyPI)
+### Option 2: Retire GitHub Release
 
-**Only for critical security issues or broken installations**
+**Only for critical security issues or broken installations before hotfix is ready**
 
 ```bash
-# Yank from PyPI (makes version invisible to pip install)
-# Contact PyPI maintainers or use PyPI web interface
+# Mark the release as retired in GitHub and point users to the hotfix
+gh release edit vX.Y.Z --draft
+# Or delete if policy allows:
+# gh release delete vX.Y.Z --cleanup-tag --yes
 ```
 
-**Note:** Yanking should be avoided. Prefer hotfix releases.
+**Note:** Prefer hotfix releases over deleting tags/releases.
 
 ## Version-Specific Checklists
 

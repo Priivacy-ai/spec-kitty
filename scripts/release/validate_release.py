@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release readiness validator for Spec Kitty PyPI automation.
+"""Release readiness validator for Spec Kitty automation.
 
 The script validates three core conditions before allowing a release:
 
@@ -79,7 +79,7 @@ class ReleaseValidatorError(Exception):
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate release readiness for Spec Kitty PyPI automation"
+        description="Validate release readiness for Spec Kitty release automation"
     )
     parser.add_argument(
         "--mode",
@@ -102,6 +102,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--changelog",
         default="CHANGELOG.md",
         help="Path to changelog file (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--tag-pattern",
+        default="v*.*.*",
+        help="Git tag glob pattern used for version progression checks "
+        "(default: %(default)s).",
     )
     parser.add_argument(
         "--fail-on-missing-tag",
@@ -184,8 +190,10 @@ def find_repo_root(start: Path) -> Path:
     return Path(output)
 
 
-def discover_semver_tags(repo_root: Path, exclude: Optional[str] = None) -> List[str]:
-    output = git("tag", "--list", "v*.*.*", cwd=repo_root)
+def discover_semver_tags(
+    repo_root: Path, tag_pattern: str, exclude: Optional[str] = None
+) -> List[str]:
+    output = git("tag", "--list", tag_pattern, cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
     filtered = [tag for tag in tags if tag != exclude]
     filtered.sort(key=lambda tag: parse_semver(tag.lstrip("v")), reverse=True)
@@ -289,12 +297,14 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             if mismatch:
                 issues.append(mismatch)
 
-        existing_tags = discover_semver_tags(repo_root, exclude=tag)
+        existing_tags = discover_semver_tags(
+            repo_root, tag_pattern=args.tag_pattern, exclude=tag
+        )
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)
     else:
-        existing_tags = discover_semver_tags(repo_root)
+        existing_tags = discover_semver_tags(repo_root, tag_pattern=args.tag_pattern)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)

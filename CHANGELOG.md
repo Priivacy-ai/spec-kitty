@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-02-22
+
+### 🔧 Changed
+
+- Start semantic versioning for `2.x` GitHub-only releases using `v2.<minor>.<patch>` tags.
+- `2.x` release automation now publishes GitHub Releases only (no PyPI publish step).
+
 ### 🐛 Fixed
 
 - `spec-kitty next` no longer short-circuits `--result failed|blocked` in the CLI bridge; both now flow through `spec-kitty-runtime` `next_step(...)`, preserving canonical runtime lifecycle behavior and run metadata.

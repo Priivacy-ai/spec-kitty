@@ -3,7 +3,7 @@ name: Release Readiness Check
 on:
   pull_request:
     branches:
-      - main
+      - 2.x
   workflow_dispatch:
     inputs:
       tag:
@@ -96,10 +96,10 @@ jobs:
         run: |
           if [[ -n "${{ inputs.tag }}" ]]; then
             echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
-            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}"
+            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v2.*.*"
           else
             echo "Running validation in branch mode"
-            python scripts/release/validate_release.py --mode branch
+            python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
           fi
 
       - name: Test packaging
@@ -136,7 +136,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📖 **Reference**: [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)" >> $GITHUB_STEP_SUMMARY
+            echo "📖 **Reference**: [Release Checklist](https://github.com/${{ github.repository }}/blob/2.x/RELEASE_CHECKLIST.md)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Fail if validation failed
