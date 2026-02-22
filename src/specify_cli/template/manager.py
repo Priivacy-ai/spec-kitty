@@ -60,6 +60,7 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     """Copy the embedded .kittify assets from a local repository checkout."""
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
+    (specify_root / "constitution").mkdir(exist_ok=True)
 
     # Copy from .kittify/memory/ for consistency with other .kittify paths
     memory_src = repo_root / ".kittify" / "memory"
@@ -136,6 +137,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     data_root = files("specify_cli")
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
+    (specify_root / "constitution").mkdir(exist_ok=True)
 
     memory_resource = data_root.joinpath("memory")
     if memory_resource.exists():

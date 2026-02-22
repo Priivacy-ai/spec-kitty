@@ -19,7 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 This command creates or updates the **project constitution** through an interactive, phase-based discovery workflow.
 
-**Location**: `.kittify/memory/constitution.md` (project root, not worktrees)
+**Location**: `.kittify/constitution/constitution.md` (project root, not worktrees)
 **Scope**: Project-wide principles that apply to ALL features
 
 **Important**: The constitution is OPTIONAL. All spec-kitty commands work without it.
@@ -76,7 +76,7 @@ C) Yes, comprehensive - Full governance and tribal knowledge (≈2-3 pages, 8-12
 ```
 
 Handle responses:
-- **A (Skip)**: Create a minimal placeholder at `.kittify/memory/constitution.md`:
+- **A (Skip)**: Create a minimal placeholder at `.kittify/constitution/constitution.md`:
   - Title + short note: "Constitution skipped - not required for spec-kitty usage. Run /spec-kitty.constitution anytime to create one."
   - Exit successfully.
 - **B (Minimal)**: Continue with Phase 1 only.
@@ -292,7 +292,7 @@ Constitution Summary
 ====================
 
 You've completed [X] phases and answered [Y] questions.
-Here's what will be written to .kittify/memory/constitution.md:
+Here's what will be written to .kittify/constitution/constitution.md:
 
 Technical Standards:
 - Languages: [Q1]

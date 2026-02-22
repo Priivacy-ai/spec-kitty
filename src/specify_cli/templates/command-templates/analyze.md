@@ -54,7 +54,7 @@ This command performs a comprehensive cross-artifact analysis. It reads (but doe
 - **spec.md** – Requirements, user stories, edge cases
 - **plan.md** – Architecture choices, data model, technical design
 - **tasks.md** – Work breakdown, task descriptions, phases
-- **constitution.md** – Project principles (from `.kittify/memory/constitution.md`)
+- **constitution.md** – Project principles (from `.kittify/constitution/constitution.md`)
 
 **Output**: analysis.md report with consistency findings and recommendations
 
@@ -88,7 +88,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
+**Constitution Authority**: The project constitution (`/constitution/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
 
 ## Execution Steps
 
@@ -131,7 +131,7 @@ Load only the minimal necessary context from each artifact:
 
 **From constitution:**
 
-- Load `/memory/constitution.md` for principle validation
+- Load `/constitution/constitution.md` for principle validation
 
 ### 3. Build Semantic Models
 

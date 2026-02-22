@@ -105,9 +105,12 @@ class APIHandler(DashboardHandler):
             self.wfile.write(json.dumps(error_msg).encode())
 
     def handle_constitution(self) -> None:
-        """Serve project-level constitution from .kittify/memory/constitution.md"""
+        """Serve project-level constitution from new path with legacy fallback."""
         try:
-            constitution_path = Path(self.project_dir) / ".kittify" / "memory" / "constitution.md"
+            project_root = Path(self.project_dir)
+            constitution_path = project_root / ".kittify" / "constitution" / "constitution.md"
+            if not constitution_path.exists():
+                constitution_path = project_root / ".kittify" / "memory" / "constitution.md"
 
             if not constitution_path.exists():
                 self.send_response(404)
