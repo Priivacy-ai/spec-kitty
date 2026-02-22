@@ -537,11 +537,13 @@ class AbortResume(GlossaryError):
 ## Testing Middleware
 
 **Unit tests** (per middleware component):
+
 - Mock inputs, assert outputs
 - Verify events emitted at correct stage
 - Test exception handling (BlockedByConflict, DeferredToAsync)
 
 **Integration tests** (full pipeline):
+
 - Run extraction → check → gate → clarification → resume
 - Verify event order: TermCandidateObserved → SemanticCheckEvaluated → GenerationBlockedBySemanticConflict → GlossaryClarificationResolved
 - Test edge cases (no conflicts, all conflicts resolved, defer to async)

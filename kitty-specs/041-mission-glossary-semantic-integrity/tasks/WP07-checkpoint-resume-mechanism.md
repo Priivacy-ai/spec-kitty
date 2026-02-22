@@ -22,6 +22,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -35,6 +36,7 @@ history:
 **Primary Objective**: Implement the event-sourced checkpoint/resume mechanism that enables cross-session conflict resolution by persisting minimal state before the generation gate, verifying input hash on resume to detect context changes, and restoring execution from the checkpoint cursor.
 
 **Success Criteria**:
+
 1. StepCheckpoint data model captures minimal state (mission/run/step IDs, strictness, scope refs, input hash, cursor, retry token).
 2. Checkpoint emission occurs before generation gate evaluation (ensure state saved before blocking).
 3. Checkpoint loading retrieves the latest StepCheckpointed event for a given step_id from the event log.
@@ -46,6 +48,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` FR-010: System MUST resume mission step execution from checkpoint after conflict resolution
 - `spec.md` FR-011: System MUST store all glossary state in the event log (no side-channel state files)
 - `spec.md` FR-019: System MUST request user confirmation before resuming if context has changed materially
@@ -55,11 +58,13 @@ history:
 - `contracts/events.md` StepCheckpointed event schema (CLI-specific, pending Feature 007 approval)
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01 provides `glossary/models.py` with GlossaryScope, Strictness enums
 - WP05 provides `glossary/middleware.py` with GenerationGateMiddleware that emits events before blocking
 - WP06 provides `glossary/prompts.py` with prompt_context_change_confirmation() for user confirmation
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - No new external dependencies (hashlib, json are stdlib)
 - Event log is source of truth (per Feature 007 invariant #6) - no side-channel state files
@@ -76,9 +81,11 @@ history:
 **Purpose**: Define the StepCheckpoint data model that captures the minimal state needed to deterministically resume step execution after conflict resolution.
 
 **Steps**:
+
 1. Create `src/specify_cli/glossary/checkpoint.py`.
 
 2. Define ScopeRef value object:
+
    ```python
    from dataclasses import dataclass
    from specify_cli.glossary.models import GlossaryScope
@@ -91,6 +98,7 @@ history:
    ```
 
 3. Define StepCheckpoint data model:
+
    ```python
    from datetime import datetime
    from specify_cli.glossary.strictness import Strictness
@@ -126,6 +134,7 @@ history:
    ```
 
 4. Add helper functions for checkpoint creation:
+
    ```python
    import uuid
    import hashlib
@@ -183,10 +192,12 @@ history:
 5. Export from `glossary/__init__.py`: `StepCheckpoint`, `ScopeRef`, `compute_input_hash`, `create_checkpoint`.
 
 **Files**:
+
 - `src/specify_cli/glossary/checkpoint.py` (new file, ~100 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] `StepCheckpoint` has all required fields (9 total)
 - [ ] `input_hash` is validated as 64 hex chars (SHA256)
 - [ ] `retry_token` is validated as 36 chars (UUID)
@@ -196,6 +207,7 @@ history:
 - [ ] `create_checkpoint()` generates fresh UUID for retry_token
 
 **Edge Cases**:
+
 - Inputs contain non-ASCII characters: JSON encoding handles UTF-8 correctly
 - Inputs contain floats: JSON serialization is stable (no precision drift)
 - Inputs are empty dict: hash is computed correctly (valid edge case)
@@ -210,7 +222,9 @@ history:
 **Purpose**: Implement checkpoint emission logic that creates and emits StepCheckpointed events before the generation gate evaluates conflicts.
 
 **Steps**:
+
 1. Add checkpoint emission function to `events.py`:
+
    ```python
    from specify_cli.glossary.checkpoint import StepCheckpoint
    import logging
@@ -236,6 +250,7 @@ history:
    ```
 
 2. Add checkpoint creation to `GenerationGateMiddleware` in `middleware.py`:
+
    ```python
    from specify_cli.glossary.checkpoint import create_checkpoint, ScopeRef
    from specify_cli.glossary.events import emit_step_checkpointed
@@ -332,10 +347,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/events.py` (add ~15 lines)
 - `src/specify_cli/glossary/middleware.py` (modify GenerationGateMiddleware, add ~40 lines)
 
 **Validation**:
+
 - [ ] `emit_step_checkpointed()` logs checkpoint details
 - [ ] Checkpoint is created before `BlockedByConflict` exception is raised
 - [ ] Checkpoint cursor is set to "pre_generation_gate"
@@ -345,6 +362,7 @@ history:
 - [ ] Generation blocked event is emitted after checkpoint event
 
 **Edge Cases**:
+
 - Context has no active_scopes: scope_refs is empty list (valid)
 - Checkpoint emission fails (stub logs error): BlockedByConflict is still raised (don't let event failure prevent blocking)
 - Multiple conflicts: single checkpoint emitted (not one per conflict)
@@ -357,7 +375,9 @@ history:
 **Purpose**: Implement checkpoint loading logic that retrieves the latest StepCheckpointed event for a given step_id from the event log.
 
 **Steps**:
+
 1. Add checkpoint loading function to `checkpoint.py`:
+
    ```python
    from pathlib import Path
    from typing import Optional
@@ -393,6 +413,7 @@ history:
    ```
 
 2. Add checkpoint parsing from event payload:
+
    ```python
    def parse_checkpoint_event(
        event_payload: dict,
@@ -433,9 +454,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/checkpoint.py` (add ~60 lines)
 
 **Validation**:
+
 - [ ] `load_checkpoint()` returns None if no checkpoint exists for step_id
 - [ ] `load_checkpoint()` returns latest checkpoint if multiple exist (sorted by timestamp desc)
 - [ ] `parse_checkpoint_event()` correctly reconstructs StepCheckpoint from dict
@@ -444,6 +467,7 @@ history:
 - [ ] Scope refs are parsed correctly (scope enum + version_id)
 
 **Edge Cases**:
+
 - No checkpoints exist for step_id: returns None (not an error)
 - Multiple checkpoints with same timestamp: uses first encountered (stable sort)
 - Event payload has extra fields: ignored (forward compatibility)
@@ -457,7 +481,9 @@ history:
 **Purpose**: Implement input hash verification logic that detects context changes between checkpoint creation and resume by comparing SHA256 hashes.
 
 **Steps**:
+
 1. Add verification function to `checkpoint.py`:
+
    ```python
    def verify_input_hash(
        checkpoint: StepCheckpoint,
@@ -482,6 +508,7 @@ history:
    ```
 
 2. Add context change handling to `checkpoint.py`:
+
    ```python
    from specify_cli.glossary.prompts import prompt_context_change_confirmation
 
@@ -513,6 +540,7 @@ history:
    ```
 
 3. Add detailed hash diff for debugging:
+
    ```python
    def compute_input_diff(
        old_inputs: dict,
@@ -548,10 +576,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/checkpoint.py` (add ~50 lines)
 
 **Validation**:
-- [ ] `verify_input_hash()` returns (True, _, _) if hashes match
+
+- [ ] `verify_input_hash()` returns (True, *,*) if hashes match
 - [ ] `verify_input_hash()` returns (False, old, new) if hashes differ
 - [ ] `verify_input_hash()` returns truncated hashes (16 chars) for display
 - [ ] `handle_context_change()` calls prompt if hashes differ
@@ -560,6 +590,7 @@ history:
 - [ ] Hash comparison is case-sensitive (lowercase hex)
 
 **Edge Cases**:
+
 - Inputs unchanged: hash matches, no prompt (fast path)
 - Single character changed in input: hash differs, prompt shown
 - Input order changed but content same: hash matches (deterministic sorting)
@@ -574,7 +605,9 @@ history:
 **Purpose**: Create the ResumeMiddleware component that orchestrates checkpoint loading, input hash verification, context restoration, and resuming step execution from the checkpoint cursor.
 
 **Steps**:
+
 1. Add `ResumeMiddleware` class to `src/specify_cli/glossary/middleware.py`:
+
    ```python
    from pathlib import Path
    from specify_cli.glossary.checkpoint import (
@@ -678,6 +711,7 @@ history:
    ```
 
 2. Add `AbortResume` exception to `models.py`:
+
    ```python
    class AbortResume(Exception):
        """Raised when user aborts resume due to context change."""
@@ -687,10 +721,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/middleware.py` (add ~100 lines)
 - `src/specify_cli/glossary/models.py` (add ~10 lines)
 
 **Validation**:
+
 - [ ] ResumeMiddleware returns original context if no retry_token present
 - [ ] Loads checkpoint via `load_checkpoint()` if retry_token present
 - [ ] Returns original context if checkpoint not found (graceful fallback)
@@ -701,6 +737,7 @@ history:
 - [ ] Logs warning if checkpoint not found but retry_token present
 
 **Edge Cases**:
+
 - No retry_token: treats as fresh execution (fast path)
 - Checkpoint found but hash differs and user confirms: resumes anyway
 - Checkpoint found but hash differs and user declines: raises AbortResume
@@ -715,9 +752,11 @@ history:
 **Purpose**: Write comprehensive integration tests that verify the full checkpoint → defer → resolve → resume workflow with cross-session simulation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_checkpoint_resume.py`:
 
 2. Implement test fixtures:
+
    ```python
    import pytest
    from unittest.mock import MagicMock, patch
@@ -771,6 +810,7 @@ history:
 3. Write test cases for checkpoint lifecycle:
 
    **Test: Checkpoint creation**:
+
    ```python
    def test_create_checkpoint_computes_hash(sample_inputs):
        """Checkpoint creation computes deterministic input hash."""
@@ -802,6 +842,7 @@ history:
    ```
 
    **Test: Input hash verification**:
+
    ```python
    from specify_cli.glossary.checkpoint import verify_input_hash
 
@@ -832,6 +873,7 @@ history:
    ```
 
    **Test: Resume middleware**:
+
    ```python
    @patch("specify_cli.glossary.checkpoint.load_checkpoint")
    @patch("specify_cli.glossary.checkpoint.handle_context_change", return_value=True)
@@ -863,6 +905,7 @@ history:
    ```
 
    **Test: Context change abort**:
+
    ```python
    from specify_cli.glossary.models import AbortResume
 
@@ -891,6 +934,7 @@ history:
    ```
 
    **Test: No checkpoint found**:
+
    ```python
    @patch("specify_cli.glossary.checkpoint.load_checkpoint", return_value=None)
    def test_resume_graceful_when_no_checkpoint(
@@ -918,9 +962,11 @@ history:
    - Invalid checkpoint payload (parsing error)
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_checkpoint_resume.py` (new file, ~350 lines)
 
 **Validation**:
+
 - [ ] Checkpoint creation is deterministic (same inputs → same hash)
 - [ ] Retry tokens are unique (fresh UUID each checkpoint)
 - [ ] Input hash verification correctly detects changes
@@ -930,6 +976,7 @@ history:
 - [ ] Test coverage >95% on checkpoint.py and ResumeMiddleware
 
 **Edge Cases**:
+
 - Inputs unchanged: hash matches, no prompt
 - Single char changed: hash differs, prompt shown
 - User confirms despite context change: resume proceeds
@@ -942,6 +989,7 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/glossary/test_checkpoint.py`):
+
 - Test `compute_input_hash()` with various input structures
 - Test `StepCheckpoint` validation (hash format, retry token format, cursor values)
 - Test `create_checkpoint()` creates valid checkpoints
@@ -949,12 +997,14 @@ history:
 - Test `handle_context_change()` with user confirmation scenarios
 
 **Integration Tests** (in `tests/specify_cli/glossary/test_checkpoint_resume.py`):
+
 - Test full `ResumeMiddleware.process()` workflow
 - Mock `load_checkpoint()` to simulate event log reads
 - Test checkpoint emission in `GenerationGateMiddleware`
 - Test cross-session resume (checkpoint → defer → resolve → resume)
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/glossary/test_checkpoint.py -v
@@ -995,6 +1045,7 @@ python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Checkpoint state is minimal**:
    - Only essential fields (mission/run/step IDs, strictness, scope refs, input hash, cursor, retry token)
    - No full glossary snapshot (violates "minimal payload" requirement)

@@ -32,6 +32,7 @@ Implement glossary scope loading, seed file parsing (YAML), scope activation wit
 This WP establishes the glossary storage layer. It loads seed files from `.kittify/glossaries/` (team_domain.yaml, audience_domain.yaml, spec_kitty_core.yaml), activates scopes, and provides a queryable in-memory store backed by the event log.
 
 **Design references**:
+
 - [data-model.md](../data-model.md) - TermSense, GlossaryScope
 - [research.md](../research.md) - Scope resolution strategy
 - [quickstart.md](../quickstart.md) - Seed file format examples
@@ -55,6 +56,7 @@ spec-kitty implement WP02 --base WP01
 **Steps**:
 
 1. **Create loader in scope.py**:
+
    ```python
    from pathlib import Path
    from typing import List, Optional
@@ -92,6 +94,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 2. **Add validation** for seed file schema:
+
    ```python
    def validate_seed_file(data: dict) -> None:
        """Validate seed file schema."""
@@ -106,6 +109,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 3. **Write tests** (test_seed_loader.py):
+
    ```python
    def test_load_seed_file(sample_seed_file, tmp_path):
        """Can load seed file and parse terms."""
@@ -124,10 +128,12 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files modified**:
+
 - `src/specify_cli/glossary/scope.py` (+60 lines)
 - `tests/specify_cli/glossary/test_scope.py` (+40 lines)
 
 **Validation**:
+
 - [ ] Can parse valid seed file
 - [ ] Returns empty list if file missing (no error)
 - [ ] Validates required fields (surface, definition)
@@ -142,6 +148,7 @@ spec-kitty implement WP02 --base WP01
 **Steps**:
 
 1. **Create activation function** in scope.py:
+
    ```python
    def activate_scope(
        scope: GlossaryScope,
@@ -164,6 +171,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 2. **Write activation tests**:
+
    ```python
    def test_activate_scope(mock_event_emitter):
        """Emits GlossaryScopeActivated event."""
@@ -182,10 +190,12 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files modified**:
+
 - `src/specify_cli/glossary/scope.py` (+20 lines)
 - `tests/specify_cli/glossary/test_scope.py` (+15 lines)
 
 **Validation**:
+
 - [ ] Emits event with correct payload
 - [ ] Event includes mission_id, run_id, scope_id, version_id
 
@@ -198,6 +208,7 @@ spec-kitty implement WP02 --base WP01
 **Steps**:
 
 1. **Create GlossaryStore class** in new file `store.py`:
+
    ```python
    from typing import Dict, List, Optional
    from functools import lru_cache
@@ -239,6 +250,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 2. **Write store tests**:
+
    ```python
    def test_glossary_store_add_lookup(sample_term_sense):
        """Can add and look up senses."""
@@ -280,10 +292,12 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files created**:
+
 - `src/specify_cli/glossary/store.py` (~80 lines)
 - `tests/specify_cli/glossary/test_store.py` (~60 lines)
 
 **Validation**:
+
 - [ ] Can add senses to store
 - [ ] Lookup returns senses in scope order
 - [ ] LRU cache works (performance)
@@ -298,6 +312,7 @@ spec-kitty implement WP02 --base WP01
 **Steps**:
 
 1. **Create comprehensive resolution tests**:
+
    ```python
    def test_scope_resolution_hierarchy(tmp_path):
        """Resolution follows mission_local -> team_domain -> audience_domain -> spec_kitty_core."""
@@ -355,9 +370,11 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files modified**:
+
 - `tests/specify_cli/glossary/test_store.py` (+40 lines)
 
 **Validation**:
+
 - [ ] Resolution follows correct order
 - [ ] Skips missing scopes without error
 - [ ] Returns all matching senses across scopes
@@ -371,6 +388,7 @@ spec-kitty implement WP02 --base WP01
 **Steps**:
 
 1. **Create spec_kitty_core.yaml** in repo root `.kittify/glossaries/`:
+
    ```yaml
    # Spec Kitty Canonical Terms
    # This file defines the authoritative meanings of Spec Kitty domain concepts.
@@ -428,6 +446,7 @@ spec-kitty implement WP02 --base WP01
    ```
 
 2. **Add to .gitignore** (preserve user's glossaries):
+
    ```
    # User-managed glossaries (optional)
    .kittify/glossaries/team_domain.yaml
@@ -439,10 +458,12 @@ spec-kitty implement WP02 --base WP01
    ```
 
 **Files created**:
+
 - `.kittify/glossaries/spec_kitty_core.yaml` (~40 lines)
 - `.gitignore` (updated)
 
 **Validation**:
+
 - [ ] File parses with load_seed_file()
 - [ ] All terms have required fields
 - [ ] Definitions are clear and unambiguous
@@ -474,11 +495,13 @@ pytest --cov=src/specify_cli/glossary/scope --cov=src/specify_cli/glossary/store
 ## Reviewer Guidance
 
 **Focus**:
+
 1. Seed file validation (schema, required fields)
 2. Store lookup correctness (scope order, fallback)
 3. Event emission (GlossaryScopeActivated payload)
 
 **Acceptance**:
+
 - [ ] Can load seed files
 - [ ] Store returns correct senses
 - [ ] Scope order respected
