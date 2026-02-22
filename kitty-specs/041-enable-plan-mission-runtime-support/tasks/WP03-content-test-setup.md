@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Content Templates & Test Setup
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-enable-plan-mission-runtime-support-WP02
 base_commit: ffee473555152ab434da959dc854344d209aa6da
@@ -513,3 +513,4 @@ spec-kitty implement WP04 --base WP03
 ## Activity Log
 
 - 2026-02-22T08:19:43Z – claude – shell_pid=96910 – lane=doing – Assigned agent via workflow command
+- 2026-02-22T08:21:32Z – claude – shell_pid=96910 – lane=for_review – Test setup complete: 18 tests discovered, 4 fixtures implemented and tested, ready for WP04
