@@ -7,6 +7,13 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0rc1] - 2026-02-22
+
+### 🔧 Changed
+
+- **Release track shift to 1.0 RC on `main`**: project version now starts the `1.0` release-candidate stream (`1.0.0rc1`) while preserving `0.16.2` as the latest stable release.
+- **Release automation RC support**: release validation and changelog extraction now accept `X.Y.ZrcN` versions/tags, and GitHub Releases are marked prerelease automatically for `rc` tags.
+
 ## [0.16.2] - 2026-02-21
 
 ### 🐛 Fixed

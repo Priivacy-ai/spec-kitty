@@ -3,7 +3,8 @@
 
 The script validates three core conditions before allowing a release:
 
-1. The semantic version declared in pyproject.toml is well-formed.
+1. The release version declared in pyproject.toml is well-formed (`X.Y.Z` or
+   `X.Y.ZrcN`).
 2. CHANGELOG.md contains a populated section for the target version.
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
@@ -29,9 +30,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreter
     import tomli as tomllib  # type: ignore
 
 
-SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+RELEASE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:rc(\d+))?$")
 CHANGELOG_HEADING_RE = re.compile(
-    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+)(?:\s*\]|)(?:\s*-.*)?$"
+    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+(?:rc\d+)?)(?:\s*\]|)(?:\s*-.*)?$"
 )
 
 
@@ -90,8 +91,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--tag",
-        help="Explicit tag (e.g., v1.2.3). Defaults to the detected GITHUB_REF or "
-        "GITHUB_REF_NAME in tag mode.",
+        help="Explicit tag (e.g., v1.2.3 or v1.2.3rc1). Defaults to the detected "
+        "GITHUB_REF or GITHUB_REF_NAME in tag mode.",
     )
     parser.add_argument(
         "--pyproject",
@@ -126,9 +127,9 @@ def load_pyproject_version(path: Path) -> str:
         ) from exc
     if not isinstance(version, str):
         raise ReleaseValidatorError("pyproject version must be a string.")
-    if not SEMVER_RE.match(version):
+    if not RELEASE_VERSION_RE.match(version):
         raise ReleaseValidatorError(
-            f"Version '{version}' is not a semantic version (expected X.Y.Z)."
+            f"Version '{version}' is not a valid release version (expected X.Y.Z or X.Y.ZrcN)."
         )
     return version
 
@@ -184,31 +185,40 @@ def find_repo_root(start: Path) -> Path:
     return Path(output)
 
 
-def discover_semver_tags(repo_root: Path, exclude: Optional[str] = None) -> List[str]:
-    output = git("tag", "--list", "v*.*.*", cwd=repo_root)
+def discover_release_tags(repo_root: Path, exclude: Optional[str] = None) -> List[str]:
+    output = git("tag", "--list", "v*", cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
-    filtered = [tag for tag in tags if tag != exclude]
-    filtered.sort(key=lambda tag: parse_semver(tag.lstrip("v")), reverse=True)
+    filtered: List[str] = []
+    for tag in tags:
+        if tag == exclude:
+            continue
+        candidate = tag.lstrip("v")
+        if RELEASE_VERSION_RE.match(candidate):
+            filtered.append(tag)
+    filtered.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
     return filtered
 
 
-def parse_semver(value: str) -> Tuple[int, int, int]:
-    match = SEMVER_RE.match(value)
+def parse_release_version(value: str) -> Tuple[int, int, int, int, int]:
+    match = RELEASE_VERSION_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid semantic version (expected X.Y.Z)."
+            f"Value '{value}' is not a valid release version (expected X.Y.Z or X.Y.ZrcN)."
         )
-    return tuple(int(part) for part in match.groups())
+    major, minor, patch, rc = match.groups()
+    if rc is None:
+        return int(major), int(minor), int(patch), 1, 0
+    return int(major), int(minor), int(patch), 0, int(rc)
 
 
 def detect_tag_from_env() -> Optional[str]:
     ref_name = os.getenv("GITHUB_REF_NAME")
-    if ref_name and ref_name.startswith("v") and SEMVER_RE.match(ref_name[1:]):
+    if ref_name and ref_name.startswith("v") and RELEASE_VERSION_RE.match(ref_name[1:]):
         return ref_name
     ref = os.getenv("GITHUB_REF")
     if ref and ref.startswith("refs/tags/"):
         candidate = ref.rsplit("/", maxsplit=1)[-1]
-        if candidate.startswith("v") and SEMVER_RE.match(candidate[1:]):
+        if candidate.startswith("v") and RELEASE_VERSION_RE.match(candidate[1:]):
             return candidate
     return None
 
@@ -218,12 +228,12 @@ def validate_version_progression(
 ) -> Optional[ValidationIssue]:
     if not existing_tags:
         return None
-    current_tuple = parse_semver(current_version)
-    latest_tuple = parse_semver(existing_tags[0].lstrip("v"))
+    current_tuple = parse_release_version(current_version)
+    latest_tuple = parse_release_version(existing_tags[0].lstrip("v"))
     if current_tuple <= latest_tuple:
         return ValidationIssue(
             message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
-            hint="Select a semantic version greater than previously published releases.",
+            hint="Select a release version greater than previously published tags.",
         )
     return None
 
@@ -281,7 +291,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             issues.append(
                 ValidationIssue(
                     message="No tag supplied and none detected from environment.",
-                    hint="Use --tag vX.Y.Z or set GITHUB_REF_NAME when running in CI.",
+                    hint="Use --tag vX.Y.Z (or vX.Y.ZrcN), or set GITHUB_REF_NAME when running in CI.",
                 )
             )
         else:
@@ -289,12 +299,12 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             if mismatch:
                 issues.append(mismatch)
 
-        existing_tags = discover_semver_tags(repo_root, exclude=tag)
+        existing_tags = discover_release_tags(repo_root, exclude=tag)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)
     else:
-        existing_tags = discover_semver_tags(repo_root)
+        existing_tags = discover_release_tags(repo_root)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)
