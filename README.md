@@ -117,7 +117,20 @@ Spec Kitty now tracks `1.x` prereleases from `main` while `2.x` remains the expe
 
 ## 🤝 Multi-Agent Coordination for AI Coding
 
-Orchestrate multiple AI agents on a single feature with lower merge friction. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
+Run multi-agent delivery with an external orchestrator while keeping workflow state and guardrails in `spec-kitty`. Core CLI orchestration is exposed as `spec-kitty orchestrator-api`; there is no in-core `spec-kitty orchestrate` shim.
+
+```bash
+# Verify host contract
+spec-kitty orchestrator-api contract-version --json
+
+# Use the reference external orchestrator
+spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --feature 034-my-feature
+```
+
+Docs:
+- External provider runbook: [`docs/how-to/run-external-orchestrator.md`](docs/how-to/run-external-orchestrator.md)
+- Custom provider guide: [`docs/how-to/build-custom-orchestrator.md`](docs/how-to/build-custom-orchestrator.md)
 
 ```mermaid
 sequenceDiagram
@@ -147,7 +160,7 @@ sequenceDiagram
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
 - 🌳 **Worktree isolation** - One workspace per WP to reduce branch contention
 - 👀 **Full visibility** - Dashboard shows who's doing what
-- 🔄 **Auto-sequencing** - Dependency tracking in WP frontmatter
+- 🔒 **Security boundary** - Orchestration policy and transitions are validated at the host API boundary
 
 ---
 
@@ -647,7 +660,7 @@ Learn from real-world workflows used by teams building production software with 
 ### Featured Workflows
 
 - **[Multi-Agent Feature Development](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/multi-agent-feature-development.md)**
-  *Orchestrate 3-5 AI agents on a single large feature with parallel work packages*
+  *Coordinate 3-5 AI agents on a single large feature using an external orchestrator plus host API*
 
 - **[Parallel Implementation Tracking](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/parallel-implementation-tracking.md)**
   *Monitor multiple teams/agents delivering features simultaneously with dashboard metrics*

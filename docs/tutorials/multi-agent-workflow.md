@@ -106,5 +106,6 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 ### Learn More
 
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
+- [Run External Orchestrator](../how-to/run-external-orchestrator.md) - Automate WP execution with the external provider
 - [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Isolation strategy
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
