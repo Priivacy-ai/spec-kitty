@@ -2,8 +2,10 @@
   "feature_number": "045",
   "slug": "045-mission-handoff-package-version-matrix",
   "feature_slug": "045-mission-handoff-package-version-matrix",
-  "friendly_name": "mission handoff package version matrix",
+  "friendly_name": "Mission Handoff Package & Version Matrix",
   "mission": "software-dev",
+  "source_description": "Team Prompt 1 (spec-kitty producer): Publish one canonical mission handoff package for the plan-context-bootstrap-fix wave on 2.x (event stream, artifact manifest snapshot, artifact tree snapshot, namespace tuple), plus a cross-repo version matrix note and test verification note. C-lite scope: commit concrete artifacts + minimal generator script; no new exporter subsystem.",
+  "created_at": "2026-02-23T17:39:22.795734+00:00",
   "target_branch": "2.x",
-  "created_at": "2026-02-23T17:39:22.795734+00:00"
+  "vcs": "git"
 }
