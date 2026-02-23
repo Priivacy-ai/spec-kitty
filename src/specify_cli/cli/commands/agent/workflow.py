@@ -241,11 +241,26 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
             cwd=worktree_path, capture_output=True, check=False
         )
 
-        # Remove orphaned kitty-specs if present (from before sparse-checkout was configured)
-        orphan_kitty = worktree_path / "kitty-specs"
-        if orphan_kitty.exists():
-            shutil.rmtree(orphan_kitty)
-            print(f"✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
+    # Ensure .git/info/exclude blocks the entire planning tree in WP worktrees.
+    exclude_file = git_dir / "info" / "exclude"
+    exclude_file.parent.mkdir(parents=True, exist_ok=True)
+    existing_exclude = ""
+    if exclude_file.exists():
+        try:
+            existing_exclude = exclude_file.read_text(encoding="utf-8")
+        except OSError:
+            existing_exclude = ""
+    if "kitty-specs/" not in existing_exclude:
+        entry = "# Excluded via sparse-checkout\nkitty-specs/\n"
+        updated = existing_exclude.rstrip() + "\n" + entry
+        exclude_file.write_text(updated.lstrip(), encoding="utf-8")
+
+    # Sparse-checkout metadata can be correct while files still remain on disk.
+    # Remove kitty-specs/ physically so worktree agents cannot touch planning files.
+    orphan_kitty = worktree_path / "kitty-specs"
+    if orphan_kitty.exists():
+        shutil.rmtree(orphan_kitty)
+        print("✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
 
     return True
 

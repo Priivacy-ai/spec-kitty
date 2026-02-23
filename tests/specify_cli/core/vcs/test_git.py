@@ -203,7 +203,39 @@ class TestWorkspaceOperations:
                     break
         exclude_file = git_dir / "info" / "exclude"
         assert exclude_file.exists(), f"Expected {exclude_file} to exist"
-        assert "kitty-specs/" in exclude_file.read_text()
+        exclude_content = exclude_file.read_text()
+        assert "kitty-specs/" in exclude_content
+        assert "kitty-specs/**/tasks/*.md" not in exclude_content
+
+    def test_apply_sparse_checkout_removes_orphan_kitty_specs(self, git_repo, git_vcs):
+        """_apply_sparse_checkout should physically remove orphan kitty-specs/ paths."""
+        kitty_specs = git_repo / "kitty-specs" / "001-feature"
+        kitty_specs.mkdir(parents=True)
+        (kitty_specs / "spec.md").write_text("# Test spec")
+        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add kitty-specs"],
+            cwd=git_repo,
+            capture_output=True,
+        )
+
+        workspace_path = git_repo / ".worktrees" / "test-orphan-removal-WP01"
+        result = git_vcs.create_workspace(
+            workspace_path,
+            "test-orphan-removal-WP01",
+            repo_root=git_repo,
+            sparse_exclude=["kitty-specs/"],
+        )
+        assert result.success is True, f"Failed: {result.error}"
+
+        orphan_path = workspace_path / "kitty-specs"
+        orphan_path.mkdir(parents=True, exist_ok=True)
+        (orphan_path / "orphan.txt").write_text("orphan", encoding="utf-8")
+        assert orphan_path.exists()
+
+        sparse_error = git_vcs._apply_sparse_checkout(workspace_path, ["kitty-specs/"])
+        assert sparse_error is None
+        assert not orphan_path.exists()
 
     def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
         """create_workspace should support branching from a base branch."""
