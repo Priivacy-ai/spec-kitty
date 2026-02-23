@@ -240,7 +240,7 @@ class TestEventTypeCoverage:
         )
 
     def test_valid_event_types_match_emitter(self):
-        """The 8 documented types must match VALID_EVENT_TYPES from the emitter."""
+        """Documented outbound types must match VALID_EVENT_TYPES from the emitter."""
         expected = {
             "WPStatusChanged",
             "WPCreated",
@@ -250,6 +250,10 @@ class TestEventTypeCoverage:
             "HistoryAdded",
             "ErrorLogged",
             "DependencyResolved",
+            "MissionDossierArtifactIndexed",
+            "MissionDossierArtifactMissing",
+            "MissionDossierParityDriftDetected",
+            "MissionDossierSnapshotComputed",
         }
         assert VALID_EVENT_TYPES == expected
 

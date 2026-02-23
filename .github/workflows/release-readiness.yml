@@ -87,7 +87,7 @@ jobs:
       - name: Run tests
         run: |
           echo "::group::Running test suite"
-          python -m pytest -v
+          python -m pytest -v --import-mode=importlib
           echo "::endgroup::"
 
       - name: Validate release metadata

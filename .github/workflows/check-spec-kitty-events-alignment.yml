@@ -49,21 +49,31 @@ jobs:
           echo "pin=${PINNED}" >> "$GITHUB_OUTPUT"
 
       - name: Fetch spec-kitty-saas pyproject.toml from GitHub API
+        id: fetch_saas
         run: |
           set -euo pipefail
           URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
-          curl -fsSL \
+          if curl -fsSL \
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
             -H "Accept: application/vnd.github.raw" \
             "$URL" \
-            -o /tmp/spec-kitty-saas-pyproject.toml || {
-              echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
-              echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
-              exit 1
-            }
+            -o /tmp/spec-kitty-saas-pyproject.toml; then
+            echo "fetched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fetched=false" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "::warning::Unable to fetch spec-kitty-saas/pyproject.toml from main; skipping parity check for pull_request."
+              echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas to enforce parity in PRs."
+              exit 0
+            fi
+            echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
+            echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
+            exit 1
+          fi
 
       - name: Extract SaaS pin
         id: saas_pin
+        if: steps.fetch_saas.outputs.fetched == 'true'
         run: |
           SAAS_PIN=$(python - <<'PY'
           import tomllib
@@ -84,6 +94,7 @@ jobs:
           echo "pin=${SAAS_PIN}" >> "$GITHUB_OUTPUT"
 
       - name: Compare pins
+        if: steps.fetch_saas.outputs.fetched == 'true'
         run: |
           if [ "${{ steps.local_pin.outputs.pin }}" != "${{ steps.saas_pin.outputs.pin }}" ]; then
             echo "Pin mismatch detected:"

@@ -80,6 +80,8 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
+    "pytest-cov>=4.1.0",  # Required by CI coverage flags
+    "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "build>=1.0.0",  # Required for distribution tests (wheel building)
 ]
 
