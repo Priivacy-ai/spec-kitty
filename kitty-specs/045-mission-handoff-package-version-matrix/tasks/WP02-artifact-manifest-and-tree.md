@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Artifact Manifest Snapshot + Tree Snapshot
+lane: "doing"
+dependencies: [WP01]
+base_branch: 2.x
+base_commit: daad18d1a6cc861106e5879e1875fda34517d0a2
+created_at: '2026-02-23T19:43:18.822060+00:00'
 subtasks:
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Artifact Manifest Snapshot + Tree Snapshot"
-phase: "Phase 2 - Parallel Wave"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T004
+- T005
+- T006
+- T007
+phase: Phase 2 - Parallel Wave
+assignee: ''
+agent: ''
+shell_pid: "36909"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-23T18:04:02Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-23T18:04:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Artifact Manifest Snapshot + Tree Snapshot
