@@ -1,0 +1,21 @@
+schema_version: "1.0"
+id: tactic-with-references
+name: Tactic With References
+purpose: Fixture exercising root-level and step-level references.
+references:
+  - name: Example Styleguide
+    type: styleguide
+    id: example-styleguide
+    when: Consult throughout all steps.
+steps:
+  - title: Step with references
+    description: A step that references a styleguide.
+    examples:
+      - "Apply the styleguide during this step."
+    references:
+      - name: Another Styleguide
+        type: styleguide
+        id: another-styleguide
+        when: Check anti-patterns before finalizing.
+  - title: Step without references
+    description: A step with no references.

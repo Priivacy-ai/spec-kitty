@@ -28,12 +28,40 @@ properties:
       - architecture
       - testing
       - operations
+      - glossary
   principles:
     type: array
     minItems: 1
     items:
       type: string
       minLength: 1
+  anti_patterns:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - description
+        - bad_example
+        - good_example
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        bad_example:
+          type: string
+          minLength: 1
+        good_example:
+          type: string
+          minLength: 1
+  quality_test:
+    type: string
+    minLength: 1
   references:
     type: array
     items:

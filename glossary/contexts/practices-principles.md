@@ -50,3 +50,14 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Context** | Practices & Principles |
 | **Status** | canonical |
 
+---
+
+### Human-in-Charge (Cross-Reference)
+
+| | |
+|---|---|
+| **Definition** | The principle that the human remains responsible and accountable for all decisions. Agents assist and propose; the HiC owns the final call. See full definition in Identity context. |
+| **Context** | Practices & Principles |
+| **Status** | candidate |
+| **Canonical entry** | [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
+
