@@ -1,0 +1,11 @@
+{
+  "schema_version": "1",
+  "project_scope_id": "spec-kitty",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "source_branch": "2.x",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "mission_key": "software-dev",
+  "manifest_version": "1",
+  "step_id": null,
+  "generated_at": "2026-02-23T19:37:40Z"
+}

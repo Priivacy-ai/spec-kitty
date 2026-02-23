@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Handoff Directory Scaffold + Namespace Tuple
-lane: "done"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 595bf2762385da04c26488fec4d96ea3b1c23939
@@ -12,10 +12,10 @@ subtasks:
 - T003
 phase: Phase 1 - Foundation
 assignee: ''
-agent: claude-opus
-shell_pid: '31424'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude
+shell_pid: '29627'
+review_status: ''
+reviewed_by: ''
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
@@ -198,5 +198,3 @@ Reviewers should verify:
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
 - 2026-02-23T19:37:18Z – claude – shell_pid=29627 – lane=doing – Assigned agent via workflow command
 - 2026-02-23T19:38:35Z – claude – shell_pid=29627 – lane=for_review – Ready for review: handoff/ directory with README.md and namespace.json (9 fields, all 4 invariants pass)
-- 2026-02-23T19:39:34Z – claude-opus – shell_pid=31424 – lane=doing – Started review via workflow command
-- 2026-02-23T19:42:33Z – claude-opus – shell_pid=31424 – lane=done – Review passed: All 6 review checks pass. namespace.json has 9 keys, 4 invariants validated, source_commit verified, step_id is JSON null, generated_at is proper ISO 8601 UTC. README.md present. C-lite constraint satisfied.
