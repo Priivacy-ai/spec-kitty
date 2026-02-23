@@ -299,5 +299,5 @@ WP01 (scaffold + namespace)
 ## Canonical Status (Generated)
 - WP01: done
 - WP02: done
-- WP03: for_review
+- WP03: done
 <!-- status-model:end -->
