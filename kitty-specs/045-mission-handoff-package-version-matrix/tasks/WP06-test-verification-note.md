@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Test Run + Verification Note
-lane: "planned"
+lane: "doing"
 dependencies: [WP02, WP03, WP04, WP05]
 base_branch: 2.x
 base_commit: 21a6cf3bce5293de281d8f0b2a272ab505eae166
@@ -13,8 +13,8 @@ subtasks:
 - T022
 phase: Phase 4 - Evidence Gate
 assignee: ''
-agent: claude-opus
-shell_pid: '38060'
+agent: "claude-opus"
+shell_pid: "41132"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 review_feedback_file: "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-review-feedback-WP06.md"
@@ -359,3 +359,4 @@ Reviewers verify:
 - 2026-02-23T20:38:22Z – claude-opus – shell_pid=31188 – lane=for_review – Ready for review: verification.md (64 lines) with all 4 setup-plan context scenarios PASS, completeness self-check green, re-run command included. All subtasks T019-T022 complete.
 - 2026-02-23T20:39:04Z – claude-opus – shell_pid=38060 – lane=doing – Started review via workflow command
 - 2026-02-23T20:41:38Z – claude-opus – shell_pid=38060 – lane=planned – Moved to planned
+- 2026-02-23T20:41:49Z – claude-opus – shell_pid=41132 – lane=doing – Started implementation via workflow command
