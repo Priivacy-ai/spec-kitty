@@ -1,24 +1,27 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Event Stream Export
+lane: "doing"
+dependencies: [WP01]
+base_branch: 2.x
+base_commit: d9cacce44e9b10233e49d0f9fdd19a2f0f4a78da
+created_at: '2026-02-23T20:07:13.558439+00:00'
 subtasks:
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Event Stream Export"
-phase: "Phase 2 - Parallel Wave"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T008
+- T009
+- T010
+phase: Phase 2 - Parallel Wave
+assignee: ''
+agent: ''
+shell_pid: "94220"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-23T18:04:02Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-23T18:04:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Event Stream Export
