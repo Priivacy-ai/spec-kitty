@@ -172,9 +172,9 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T016 [P] Write version pins section with `versions` fenced code block (5 key=value pairs)
-- [ ] T017 [P] Write source reference + wave description + replay commands sections
-- [ ] T018 [P] Write expected artifact classes section (all 6 classes: input, workflow, output, evidence, policy, runtime)
+- [x] T016 [P] Write version pins section with `versions` fenced code block (5 key=value pairs)
+- [x] T017 [P] Write source reference + wave description + replay commands sections
+- [x] T018 [P] Write expected artifact classes section (all 6 classes: input, workflow, output, evidence, policy, runtime)
 
 ### Implementation Notes
 
@@ -300,5 +300,5 @@ WP01 (scaffold + namespace)
 - WP01: done
 - WP02: done
 - WP03: done
-- WP04: for_review
+- WP04: done
 <!-- status-model:end -->
