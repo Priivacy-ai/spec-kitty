@@ -56,3 +56,25 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Status** | candidate |
 | **Related terms** | [Constitution](./governance.md#constitution), [Mission](./orchestration.md#mission) |
 
+---
+
+### Project Constitution
+
+| | |
+|---|---|
+| **Definition** | The compiled, project-specific constitution containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/constitution/`. Use "Project Constitution" when distinguishing from the Constitution Library. |
+| **Context** | Configuration & Project Structure |
+| **Status** | candidate |
+| **Related terms** | [Constitution](./governance.md#constitution), [Constitution Library](#constitution-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
+
+---
+
+### Constitution Library
+
+| | |
+|---|---|
+| **Definition** | The project-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Constitution and indexed by a reference manifest. |
+| **Context** | Configuration & Project Structure |
+| **Status** | candidate |
+| **Related terms** | [Project Constitution](#project-constitution), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+

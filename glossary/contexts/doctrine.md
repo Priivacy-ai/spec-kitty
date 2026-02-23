@@ -133,3 +133,14 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Related terms** | [Doctrine Domain](#doctrine-domain), [Governance](./governance.md), [Configuration & Project Structure](./configuration-project-structure.md)                                                                                        |
 
 ---
+
+### Doctrine Catalog
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | The registry of all available paradigms, directives, template sets, and tools that the HiC can select from when building their constitution. The constitution compiler validates selections against this catalog.                       |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | candidate                                                                                                                                                                                                                               |
+| **Related terms** | [Constitution Selection](#constitution-selection), [Constitution Compiler](./governance.md#constitution-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic)                                                         |
+
+---

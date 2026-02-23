@@ -42,3 +42,14 @@ Terms describing who performs work and who owns semantic decisions.
 | **Status** | canonical |
 | **Rule** | Tie-break only after normal participant resolution fails |
 
+---
+
+### Human-in-Charge (HiC)
+
+| | |
+|---|---|
+| **Definition** | The human who remains responsible and accountable for decisions made during a mission. Agents assist and propose, but the HiC owns the final call. This principle ensures that automation supports human judgement rather than replacing it. |
+| **Context** | Identity |
+| **Status** | candidate |
+| **Related terms** | [Mission Owner](#mission-owner), [Collaboration Mode](./execution.md#collaboration-mode), [HiC cross-reference](./practices-principles.md#human-in-charge-cross-reference) |
+

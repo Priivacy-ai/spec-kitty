@@ -1,0 +1,7 @@
+schema_version: "1.0"
+id: bad-reference
+name: Bad Reference Tactic
+steps:
+  - title: Step one
+    references:
+      - name: Missing required fields

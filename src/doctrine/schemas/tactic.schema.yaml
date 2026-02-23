@@ -9,6 +9,36 @@ required:
   - id
   - name
   - steps
+definitions:
+  reference:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - type
+      - id
+      - when
+    properties:
+      name:
+        type: string
+        minLength: 1
+        description: Human-readable name of the referenced artifact.
+      type:
+        type: string
+        enum:
+          - styleguide
+          - tactic
+          - directive
+          - toolguide
+        description: Doctrine artifact type being referenced.
+      id:
+        type: string
+        pattern: '^[a-z][a-z0-9-]*$'
+        description: Artifact identifier matching the id field of the referenced artifact.
+      when:
+        type: string
+        minLength: 1
+        description: When this reference should be consulted during the step or tactic.
 properties:
   schema_version:
     type: string
@@ -21,6 +51,11 @@ properties:
     minLength: 1
   purpose:
     type: string
+  references:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/reference'
   steps:
     type: array
     minItems: 1
@@ -42,3 +77,8 @@ properties:
           items:
             type: string
             minLength: 1
+        references:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/definitions/reference'

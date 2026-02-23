@@ -23,13 +23,17 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 
 | Domain | Summary | File |
 |---|---|---|
-| Execution | CLI/tool invocation and generation boundaries. | `glossary/contexts/execution.md` |
-| Identity | Actors, roles, and mission participation. | `glossary/contexts/identity.md` |
-| Orchestration | Project/mission/feature/work-package lifecycle terms. | `glossary/contexts/orchestration.md` |
+| Dossier | Artifact inventory, integrity validation, and drift detection. | `glossary/contexts/dossier.md` |
+| Execution | CLI/tool invocation, generation boundaries, and collaboration modes. | `glossary/contexts/execution.md` |
+| Identity | Actors, roles, mission participation, and Human-in-Charge (HiC). | `glossary/contexts/identity.md` |
+| Lexical | Glossary internal data model — term surfaces, senses, provenance. | `glossary/contexts/lexical.md` |
+| Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. | `glossary/contexts/orchestration.md` |
 | Governance | Constitution/ADR/policy precedence and rules. | `glossary/contexts/governance.md` |
-| Events & Telemetry | Event envelope, replay, and glossary evolution history. | `glossary/contexts/events-telemetry.md` |
+| Doctrine | Doctrine domain model and artifact taxonomy. | `glossary/contexts/doctrine.md` |
+| System Events | Event envelope, replay, glossary evolution, and system event types. | `glossary/contexts/system-events.md` |
 | Practices & Principles | Working agreements for low-friction, high-signal delivery. | `glossary/contexts/practices-principles.md` |
 | Configuration & Project Structure | Project-local structure and configuration artifacts. | `glossary/contexts/configuration-project-structure.md` |
+| Technology Foundations | General technology terms (API, CLI, YAML, etc.) for reader accessibility. | `glossary/contexts/technology-foundations.md` |
 
 ## Reference Notes
 
