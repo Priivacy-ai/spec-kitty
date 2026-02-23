@@ -12,7 +12,7 @@ subtasks:
 - T018
 phase: Phase 2 - Parallel Wave
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "23713"
 review_status: ''
 reviewed_by: ''
@@ -300,3 +300,4 @@ Reviewers verify:
 ## Activity Log
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
+- 2026-02-23T20:29:58Z – claude-opus – shell_pid=23713 – lane=doing – Assigned agent via workflow command
