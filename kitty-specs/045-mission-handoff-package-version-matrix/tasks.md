@@ -23,9 +23,9 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T001 Create `kitty-specs/045-.../handoff/` directory
-- [ ] T002 Write `handoff/namespace.json` with all 9 required fields
-- [ ] T003 Validate namespace.json against all 4 invariants from data-model.md
+- [x] T001 Create `kitty-specs/045-.../handoff/` directory
+- [x] T002 Write `handoff/namespace.json` with all 9 required fields
+- [x] T003 Validate namespace.json against all 4 invariants from data-model.md
 
 ### Implementation Notes
 
