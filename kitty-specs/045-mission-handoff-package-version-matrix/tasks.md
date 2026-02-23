@@ -294,3 +294,8 @@ WP01 (scaffold + namespace)
 | T020 | Confirm all 4 scenarios pass | WP06 | P3 | No |
 | T021 | Write verification.md with scenario table | WP06 | P3 | No |
 | T022 | Add re-run command + completeness check | WP06 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
