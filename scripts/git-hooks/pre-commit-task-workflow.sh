@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# WP worktree branches must not commit planning artifacts.
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [[ "$CURRENT_BRANCH" =~ -WP[0-9]+$ ]]; then
+  STAGED_KITTY_SPECS=$(git diff --cached --name-only | grep -E '^kitty-specs/' || true)
+  if [[ -n "$STAGED_KITTY_SPECS" ]]; then
+    echo "❌ COMMIT BLOCKED: WP branches must not commit kitty-specs/"
+    echo "Branch: $CURRENT_BRANCH"
+    echo "Staged planning files:"
+    echo "$STAGED_KITTY_SPECS" | sed 's/^/  /'
+    echo ""
+    echo "Fix:"
+    echo "  git restore --staged kitty-specs/"
+    echo "  git restore --worktree kitty-specs/"
+    exit 1
+  fi
+fi
+
 TASK_PROMPTS=$(git diff --cached --name-only | grep -E '^kitty-specs/.+/tasks/' || true)
 
 if [[ -z "$TASK_PROMPTS" ]]; then

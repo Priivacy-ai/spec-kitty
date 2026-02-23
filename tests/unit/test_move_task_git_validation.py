@@ -307,14 +307,54 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_for_review_from_worktree_mirrors_commit_to_wp_branch(
+    def test_move_for_review_blocks_when_wp_branch_has_kitty_specs_commits(
+        self,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_worktree: tuple[Path, Path],
+    ):
+        """for_review gate should block WP branches that committed planning artifacts."""
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        contaminated_file = (
+            worktree / "kitty-specs" / "017-test-feature" / "tasks" / "WP01-test-task.md"
+        )
+        contaminated_file.write_text(
+            contaminated_file.read_text(encoding="utf-8") + "\n<!-- accidental edit -->\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            ["git", "add", str(contaminated_file)],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "accidental: planning edit in WP branch"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+        )
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split("\n")[0]
+        output = json.loads(first_line)
+        assert "error" in output
+        assert "kitty-specs" in output["error"].lower()
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_for_review_from_worktree_does_not_mirror_commit_to_wp_branch(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """Moving from a WP worktree should mirror lane commit to WP branch."""
+        """Moving from a WP worktree should not add kitty-specs commits to the WP branch."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -343,4 +383,5 @@ class TestMoveTaskGitValidation:
         ).stdout.strip()
 
         assert "Move WP01 to for_review" in main_head_msg
-        assert "Move WP01 to for_review" in wp_head_msg
+        assert "Move WP01 to for_review" not in wp_head_msg
+        assert "Add implementation" in wp_head_msg
