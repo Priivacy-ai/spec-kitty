@@ -1,11 +1,14 @@
 ---
 work_package_id: WP04
 title: Generator Script
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP02
 - WP03
+base_branch: 2.x
+base_commit: 600c404c671d057fc977c705171648c27744009f
+created_at: '2026-02-23T20:16:41.835465+00:00'
 subtasks:
 - T011
 - T012
@@ -15,7 +18,7 @@ subtasks:
 phase: Phase 3 - Synthesis
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "1896"
 review_status: ''
 reviewed_by: ''
 history:
