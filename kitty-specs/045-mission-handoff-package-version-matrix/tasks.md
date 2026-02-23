@@ -22,11 +22,13 @@ description: "Work package task list template for feature implementation"
 **Prompt**: `tasks/WP01-handoff-scaffold-namespace-tuple.md`
 
 ### Included Subtasks
+
 - [ ] T001 Create `kitty-specs/045-.../handoff/` directory
 - [ ] T002 Write `handoff/namespace.json` with all 9 required fields
 - [ ] T003 Validate namespace.json against all 4 invariants from data-model.md
 
 ### Implementation Notes
+
 - `handoff/` is a new subdirectory inside the existing feature dir — use a README or .gitkeep so git tracks it before files land
 - `project_scope_id`: derive from `basename $(git rev-parse --show-toplevel)` — will be `spec-kitty`
 - `source_commit` is hardcoded: `21ed0738f009ca35a2927528238a48778e41f1d4`
@@ -34,12 +36,15 @@ description: "Work package task list template for feature implementation"
 - Do not auto-commit in this WP — finalize-tasks handles git
 
 ### Parallel Opportunities
+
 - None; WP01 is the foundation that all other WPs depend on.
 
 ### Dependencies
+
 - None (starting package).
 
 ### Risks & Mitigations
+
 - Wrong source_commit → validate the SHA against `git log --oneline` before hardcoding.
 - `generated_at` format drift → use `date -u +"%Y-%m-%dT%H:%M:%SZ"` or Python `datetime.utcnow().strftime(...)`.
 
@@ -53,12 +58,14 @@ description: "Work package task list template for feature implementation"
 **Estimated size**: ~320 lines
 
 ### Included Subtasks
+
 - [ ] T004 [P] Export `src/specify_cli/missions/software-dev/expected-artifacts.yaml` → `handoff/artifact-manifest.json`
 - [ ] T005 [P] Walk `kitty-specs/045-.../` recursively, compute SHA-256 for each file
 - [ ] T006 Cross-reference walked entries against manifest to identify expected-but-absent artifacts
 - [ ] T007 Write `handoff/artifact-tree.json` with combined present + absent entries and summary counts
 
 ### Implementation Notes
+
 - YAML → JSON: `python3 -c "import yaml,json,sys; print(json.dumps(yaml.safe_load(open(sys.argv[1]).read()), indent=2))" path/to/expected-artifacts.yaml`
 - Add extra fields to manifest snapshot: `source_commit`, `captured_at`
 - Exclude `handoff/` from tree walk (prevents self-referential entries)
@@ -66,12 +73,15 @@ description: "Work package task list template for feature implementation"
 - Glob patterns in path_pattern (e.g., `tasks/*.md`) must be expanded to check if any match exists
 
 ### Parallel Opportunities
+
 - T004 and T005 can run in parallel (different operations on different file sets).
 
 ### Dependencies
+
 - Depends on WP01 (handoff/ directory must exist before writing output files).
 
 ### Risks & Mitigations
+
 - YAML parsing failure → ensure PyYAML or ruamel.yaml is available in venv; both are spec-kitty deps.
 - `handoff/` included in own tree → test the exclusion logic with an assertion before committing.
 
@@ -85,23 +95,28 @@ description: "Work package task list template for feature implementation"
 **Estimated size**: ~220 lines
 
 ### Included Subtasks
+
 - [ ] T008 Check `kitty-specs/045-.../status.events.jsonl` — determine if it exists and has content
 - [ ] T009 Export events verbatim OR write single synthetic bootstrap event if log is empty
 - [ ] T010 Verify `handoff/events.jsonl` integrity: UTF-8 decoding, one JSON object per line, sorted keys
 
 ### Implementation Notes
+
 - Verbatim copy: `cp status.events.jsonl handoff/events.jsonl` is sufficient if file has content
 - Synthetic bootstrap event (if empty): JSON object with fields: `event_id` (ULID or UUID), `event_type=handoff_package_created`, `feature_slug`, `source_commit`, `source_branch`, `at`, `actor=spec-kitty/045-generator`
 - Sorted keys verification: `python3 -c "import json; [json.loads(l) for l in open('events.jsonl')]"` — loads each line
 - Do NOT re-sort events from a real event log; insertion order is the invariant
 
 ### Parallel Opportunities
+
 - T008 can run in parallel with WP02's T004/T005 (independent read operation).
 
 ### Dependencies
+
 - Depends on WP01 (handoff/ directory must exist).
 
 ### Risks & Mitigations
+
 - Status events may not yet exist (feature is in spec phase) → the bootstrap event path is expected and not a failure.
 - Encoding issues → always open with `encoding="utf-8"` in Python; spec-kitty codec ensures events are already UTF-8.
 
@@ -115,6 +130,7 @@ description: "Work package task list template for feature implementation"
 **Estimated size**: ~380 lines
 
 ### Included Subtasks
+
 - [ ] T011 Write `generate.sh` header: shebang, set -euo pipefail, embedded SOURCE_COMMIT/SOURCE_BRANCH vars, usage function, arg-parsing, DRY_RUN default
 - [ ] T012 Implement `namespace.json` generation step (Python inline, reads git metadata, writes JSON)
 - [ ] T013 Implement `artifact-manifest.json` + `artifact-tree.json` generation steps (Python inline for YAML→JSON + SHA-256 walk)
@@ -122,6 +138,7 @@ description: "Work package task list template for feature implementation"
 - [ ] T015 Implement `version-matrix.md` skeleton step + `chmod +x generate.sh` + dry-run output validation
 
 ### Implementation Notes
+
 - Shell structure: `parse_args → check_prereqs → generate_namespace → generate_manifest → generate_tree → export_events → generate_version_matrix → done`
 - Dry-run: print each file's target path and byte count estimate, but do NOT write
 - `--write`: activate actual file emission
@@ -132,12 +149,15 @@ description: "Work package task list template for feature implementation"
 - Comment in script: `# NOTE: verification.md requires running pytest manually — see WP06`
 
 ### Parallel Opportunities
+
 - None; generator must accurately reflect the actual content of WP01-WP03 output files.
 
 ### Dependencies
+
 - Depends on WP01, WP02, WP03 (generator must match what those WPs actually wrote).
 
 ### Risks & Mitigations
+
 - Script generates different content than committed files → include a self-check comment pointing to the diff command in quickstart.md.
 - YAML library unavailability in fresh env → fallback: use `python3 -c "import json; ..."` with pre-known YAML content (the expected-artifacts.yaml content is stable).
 
@@ -151,11 +171,13 @@ description: "Work package task list template for feature implementation"
 **Estimated size**: ~220 lines
 
 ### Included Subtasks
+
 - [ ] T016 [P] Write version pins section with `versions` fenced code block (5 key=value pairs)
 - [ ] T017 [P] Write source reference + wave description + replay commands sections
 - [ ] T018 [P] Write expected artifact classes section (all 6 classes: input, workflow, output, evidence, policy, runtime)
 
 ### Implementation Notes
+
 - File location: `handoff/version-matrix.md`
 - Machine-scan convention: `versions` fenced block with these exact keys: `spec-kitty`, `spec-kitty-events`, `spec-kitty-runtime`, `source-commit`, `source-branch`
 - Version values: `spec-kitty=2.0.0`, `spec-kitty-events=2.3.1`, `spec-kitty-runtime=v0.2.0a0`, `source-commit=21ed0738f009ca35a2927528238a48778e41f1d4`, `source-branch=2.x`
@@ -164,12 +186,15 @@ description: "Work package task list template for feature implementation"
 - Section: Parity checks — reference the `generate.sh` diff verification from quickstart.md
 
 ### Parallel Opportunities
+
 - T016, T017, T018 are logically sequential sections of one file but can be drafted in any order.
 
 ### Dependencies
+
 - Depends on WP01 (needs namespace.json values; output dir must exist).
 
 ### Risks & Mitigations
+
 - Version pins stale if pyproject.toml changes → embed a verification note: "Check `pyproject.toml` to confirm these pins before publishing."
 - Missing artifact classes → the spec requires all 6; verify against PRD §6 Ubiquitous Language.
 
@@ -183,12 +208,14 @@ description: "Work package task list template for feature implementation"
 **Estimated size**: ~280 lines
 
 ### Included Subtasks
+
 - [ ] T019 Run the 4 setup-plan context scenarios via pytest and capture output
 - [ ] T020 Confirm all 4 scenarios pass — fail hard (do not write verification.md) if any fail
 - [ ] T021 Write `handoff/verification.md` with the scenario table, pass/fail counts, branch, commit SHA, run date
 - [ ] T022 Add re-run command to verification.md and perform completeness self-check
 
 ### Implementation Notes
+
 - Pytest invocation (run from repo root on branch 2.x):
   ```bash
   pytest tests/integration/test_planning_workflow.py::TestSetupPlanCommand \
@@ -205,12 +232,15 @@ description: "Work package task list template for feature implementation"
 - Re-run command must be copy-pasteable from a clean 2.x checkout
 
 ### Parallel Opportunities
+
 - T019 can run while WP04/WP05 are in progress (test execution is independent of generate.sh).
 
 ### Dependencies
+
 - Depends on WP02, WP03, WP04, WP05 — verification is the evidence gate and should be the last thing committed.
 
 ### Risks & Mitigations
+
 - Test failure on 2.x → this is a BLOCKING signal; the plan-context-bootstrap-fix wave is not actually validated. Escalate before completing this WP.
 - Pytest class/function name changes → verify test names exist before running: `pytest --collect-only -q tests/integration/test_planning_workflow.py | grep setup_plan`.
 
