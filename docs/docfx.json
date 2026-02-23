@@ -3,27 +3,16 @@
     "content": [
       {
         "files": [
-          "*.md",
+          "index.md",
           "toc.yml",
-          "tutorials/*.md",
-          "tutorials/toc.yml",
-          "how-to/*.md",
-          "how-to/toc.yml",
-          "reference/*.md",
-          "reference/toc.yml",
-          "explanation/*.md",
-          "explanation/toc.yml"
-        ]
-      },
-      {
-        "files": [
-          "../README.md",
-          "../CONTRIBUTING.md",
-          "../CODE_OF_CONDUCT.md",
-          "../SECURITY.md",
-          "../SUPPORT.md"
+          "1x/*.md",
+          "1x/toc.yml",
+          "2x/*.md",
+          "2x/toc.yml"
         ],
-        "dest": "project"
+        "exclude": [
+          "**/_*.md"
+        ]
       }
     ],
     "resource": [
@@ -59,14 +48,14 @@
     "cleanupCacheHistory": false,
     "disableGitFeatures": false,
     "globalMetadata": {
-      "_appTitle": "Spec Kitty Documentation",
+      "_appTitle": "Spec Kitty Documentation (1.x and 2.x)",
       "_appName": "Spec Kitty",
-      "_appFooter": "Spec Kitty - A specification-driven development toolkit",
+      "_appFooter": "Spec Kitty documentation tracks for 1.x and 2.x",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
         "repo": "https://github.com/Priivacy-ai/spec-kitty",
-        "branch": "main"
+        "branch": "2.x"
       },
       "_appLogoPath": "assets/images/logo_small.webp",
       "_appFaviconPath": "assets/images/logo_small.webp"
