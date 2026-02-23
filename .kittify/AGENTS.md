@@ -138,7 +138,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 ✅ **DO commit:**
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission definitions
-- `.kittify/memory/constitution.md` - Project constitution
+- `.kittify/constitution/constitution.md` - Project constitution
 - `.gitignore` - With all agent directories excluded
 
 ❌ **DO NOT commit:**
@@ -150,8 +150,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 
 Spec Kitty automatically:
 1. Adds all agent directories to `.gitignore` during `spec-kitty init`
-2. Installs pre-commit hook to block accidental commits
-3. Creates `.claudeignore` to optimize AI scanning
+2. Creates `.claudeignore` to optimize AI scanning
 
 ### Manual Verification
 
