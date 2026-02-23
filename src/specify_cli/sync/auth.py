@@ -13,6 +13,10 @@ import toml
 from filelock import FileLock, Timeout
 
 from specify_cli.sync.config import SyncConfig
+from specify_cli.sync.feature_flags import (
+    is_saas_sync_enabled,
+    saas_sync_disabled_message,
+)
 
 SPEC_KITTY_DIR = Path.home() / ".spec-kitty"
 CREDENTIALS_PATH = SPEC_KITTY_DIR / "credentials"
@@ -220,6 +224,13 @@ class AuthClient:
         except (TypeError, ValueError):
             return default
 
+    def _require_saas_sync(self, operation: str) -> None:
+        """Raise when SaaS connectivity is disabled by feature flag."""
+        if not is_saas_sync_enabled():
+            raise AuthenticationError(
+                f"{saas_sync_disabled_message()} Operation: {operation}."
+            )
+
     @property
     def server_url(self) -> str:
         """Get server URL from config."""
@@ -259,6 +270,8 @@ class AuthClient:
             AuthenticationError: If credentials are invalid
             httpx.RequestError: If network error occurs
         """
+        self._require_saas_sync("auth login")
+
         client = self._get_http_client()
         url = f"{self.server_url}/api/v1/token/"
 
@@ -320,6 +333,8 @@ class AuthClient:
             AuthenticationError: If refresh token is invalid/expired
             httpx.RequestError: If network error occurs
         """
+        self._require_saas_sync("token refresh")
+
         refresh_token = self.credential_store.get_refresh_token()
         if not refresh_token:
             raise AuthenticationError("No valid refresh token. Please log in again.")
@@ -387,6 +402,8 @@ class AuthClient:
         Raises:
             AuthenticationError: If not authenticated or token exchange fails
         """
+        self._require_saas_sync("websocket token exchange")
+
         access_token = self.get_access_token()
         if not access_token:
             raise AuthenticationError("Not authenticated. Please log in first.")
@@ -442,6 +459,8 @@ class AuthClient:
             return access_token
 
         if self.credential_store.is_refresh_token_valid():
+            if not is_saas_sync_enabled():
+                return None
             try:
                 self.refresh_tokens()
                 return self.credential_store.get_access_token()

@@ -8,6 +8,10 @@ import websockets
 from websockets import ConnectionClosed
 
 from specify_cli.sync.auth import AuthClient, AuthenticationError
+from specify_cli.sync.feature_flags import (
+    is_saas_sync_enabled,
+    saas_sync_disabled_message,
+)
 
 
 class ConnectionStatus:
@@ -85,6 +89,11 @@ class WebSocketClient:
 
     async def connect(self):
         """Establish WebSocket connection with authentication"""
+        if not is_saas_sync_enabled():
+            self.connected = False
+            self.status = ConnectionStatus.OFFLINE
+            raise AuthenticationError(saas_sync_disabled_message())
+
         # Convert https:// to wss:// and http:// to ws:// for WebSocket
         ws_base = self.server_url.replace("https://", "wss://").replace("http://", "ws://")
         uri = f"{ws_base}/ws/v1/events/"

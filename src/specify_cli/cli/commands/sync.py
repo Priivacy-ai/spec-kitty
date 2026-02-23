@@ -28,6 +28,11 @@ from specify_cli.core.vcs import (
 )
 
 from specify_cli.sync.queue import QueueStats
+from specify_cli.sync.feature_flags import (
+    SAAS_SYNC_ENV_VAR,
+    is_saas_sync_enabled,
+    saas_sync_disabled_message,
+)
 
 console = Console()
 
@@ -483,6 +488,12 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     Returns:
         Tuple of (rich-formatted status string, detail message).
     """
+    if not is_saas_sync_enabled():
+        return (
+            "[dim]Disabled[/dim]",
+            saas_sync_disabled_message(),
+        )
+
     import httpx
     from specify_cli.sync.auth import AuthClient, AuthenticationError, CredentialStore
 
@@ -627,6 +638,11 @@ def now(
     from specify_cli.sync.background import get_sync_service
     from specify_cli.sync.batch import format_sync_summary, write_failure_report
 
+    if not is_saas_sync_enabled():
+        console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
+        console.print(f"[dim]Set {SAAS_SYNC_ENV_VAR}=1 to enable upload.[/dim]")
+        return
+
     service = get_sync_service()
     queue_size = service.queue.size()
 
@@ -704,6 +720,7 @@ def status(
     # Load configuration
     config = SyncConfig()
     server_url = config.get_server_url()
+    saas_enabled = is_saas_sync_enabled()
 
     emitter = get_emitter()
     service = get_sync_service()
@@ -717,6 +734,12 @@ def status(
     queue_size = service.queue.size()
     queue_color = "green" if queue_size == 0 else "yellow"
     table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
+
+    # Feature flag
+    if saas_enabled:
+        table.add_row("SaaS Sync", "[green]Enabled[/green]")
+    else:
+        table.add_row("SaaS Sync", f"[yellow]Disabled[/yellow] ({SAAS_SYNC_ENV_VAR}=1)")
 
     # Connection status
     conn_status = emitter.get_connection_status()
@@ -737,8 +760,11 @@ def status(
         table.add_row("Failures", f"[yellow]{service.consecutive_failures} consecutive[/yellow]")
 
     # Auth status
-    auth_ok = emitter.auth.is_authenticated()
-    auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
+    if saas_enabled:
+        auth_ok = emitter.auth.is_authenticated()
+        auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
+    else:
+        auth_text = "[dim]Disabled by feature flag[/dim]"
     table.add_row("Auth", auth_text)
 
     # Server URL

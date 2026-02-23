@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 
 from specify_cli.cli.helpers import console
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR, is_saas_sync_enabled, saas_sync_disabled_message
 
 
 app = typer.Typer(help="Authentication commands")
@@ -61,18 +62,27 @@ def _handle_auth_error(message: str, server_url: str) -> None:
 
 @app.command()
 def login(
-    username: str = typer.Option(None, "--username", "-u", prompt=True, help="Your username or email"),
-    password: str = typer.Option(
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Your username or email"),
+    password: Optional[str] = typer.Option(
         None,
         "--password",
         "-p",
-        prompt=True,
         hide_input=True,
         help="Your password",
     ),
     force: bool = typer.Option(False, "--force", "-f", help="Re-authenticate even if already logged in"),
 ) -> None:
     """Log in to the sync service."""
+    if not is_saas_sync_enabled():
+        console.print(f"❌ {saas_sync_disabled_message()}")
+        console.print(f"   Set {SAAS_SYNC_ENV_VAR}=1 to enable authentication.")
+        raise typer.Exit(1)
+
+    if not username:
+        username = typer.prompt("Username")
+    if not password:
+        password = typer.prompt("Password", hide_input=True)
+
     try:
         from specify_cli.sync.auth import AuthClient, AuthenticationError
     except ImportError:
@@ -139,6 +149,9 @@ def logout() -> None:
 @app.command()
 def status() -> None:
     """Show current authentication status."""
+    if not is_saas_sync_enabled():
+        console.print(f"ℹ️  {saas_sync_disabled_message()}")
+
     try:
         from specify_cli.sync.auth import AuthClient
     except ImportError:

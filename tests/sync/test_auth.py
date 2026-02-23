@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from specify_cli.sync.auth import AuthClient, AuthenticationError
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 
 @pytest.fixture
@@ -352,3 +353,36 @@ class TestGetTeamSlug:
 
             # team_slug should be updated to new value
             assert auth_client.get_team_slug() == "new-team"
+
+
+class TestSaasFeatureFlag:
+    """Feature-flag behavior for SaaS auth paths."""
+
+    def test_obtain_tokens_blocked_when_disabled(self, auth_client, monkeypatch):
+        """obtain_tokens() should fail before any network call."""
+        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            with pytest.raises(AuthenticationError) as exc_info:
+                auth_client.obtain_tokens("user@example.com", "password")
+
+        assert "disabled" in str(exc_info.value).lower()
+        mock_client.assert_not_called()
+
+    def test_get_access_token_does_not_refresh_when_disabled(self, auth_client, monkeypatch):
+        """Expired access token should not trigger refresh when feature is disabled."""
+        auth_client.credential_store.save(
+            access_token="expired_access",
+            refresh_token="valid_refresh",
+            access_expires_at=datetime.utcnow() - timedelta(minutes=1),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+        )
+        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+
+        with patch.object(auth_client, "refresh_tokens") as mock_refresh:
+            token = auth_client.get_access_token()
+
+        assert token is None
+        mock_refresh.assert_not_called()

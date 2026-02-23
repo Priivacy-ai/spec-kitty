@@ -13,6 +13,7 @@ import httpx
 import pytest
 
 from specify_cli.cli.commands.sync import _check_server_connection
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 
 SERVER_URL = "https://spec-kitty-dev.fly.dev"
@@ -31,6 +32,16 @@ def _mock_httpx_client(status_code=200, side_effect=None):
     mock_client.__enter__ = MagicMock(return_value=mock_client)
     mock_client.__exit__ = MagicMock(return_value=False)
     return mock_client
+
+
+def test_check_server_connection_reports_disabled_when_flag_off(monkeypatch):
+    """Flag-off mode should skip connectivity probing entirely."""
+    monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+
+    status, note = _check_server_connection(SERVER_URL)
+
+    assert "Disabled" in status
+    assert "disabled by feature flag" in note
 
 
 class TestCheckServerConnectionNoCredentials:

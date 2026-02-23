@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+
 if TYPE_CHECKING:
     from .background import BackgroundSyncService
     from .client import WebSocketClient
@@ -86,6 +88,10 @@ class SyncRuntime:
         - Safe to call multiple times
         """
         if self.started:
+            return
+
+        if not is_saas_sync_enabled():
+            logger.info("%s SyncRuntime not started.", saas_sync_disabled_message())
             return
 
         # Check config for opt-out (project-level)
