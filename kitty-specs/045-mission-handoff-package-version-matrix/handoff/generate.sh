@@ -92,23 +92,21 @@ emit_file "${NAMESPACE_PATH}" "${NAMESPACE_CONTENT}"
 # ── Step 2: artifact-manifest.json ──────────────────────────────────────────
 echo "==> Step 2: artifact-manifest.json"
 
-YAML_SRC="${REPO_ROOT}/src/specify_cli/missions/software-dev/expected-artifacts.yaml"
 MANIFEST_PATH="${OUTPUT_DIR}/artifact-manifest.json"
 CAPTURED_AT="${GENERATED_AT}"
 
-# C-lite: stdlib only — embed parsed YAML as Python dict instead of importing yaml
+# Verify the source YAML exists at SOURCE_COMMIT (sanity check only).
+# We do NOT read its content at runtime — the C-lite constraint requires a
+# hardcoded Python dict (no PyYAML dependency).  The dict below was parsed
+# once from expected-artifacts.yaml and embedded here.
+YAML_REL="src/specify_cli/missions/software-dev/expected-artifacts.yaml"
+if ! git show "${SOURCE_COMMIT}:${YAML_REL}" >/dev/null 2>&1; then
+  echo "WARNING: ${YAML_REL} not found at SOURCE_COMMIT ${SOURCE_COMMIT}." >&2
+  echo "         The embedded manifest may be stale." >&2
+fi
+
 MANIFEST_CONTENT="$(python3 - <<PYEOF
 import json
-from pathlib import Path
-
-yaml_path = Path("${YAML_SRC}")
-if not yaml_path.exists():
-    raise FileNotFoundError(f"Expected artifacts YAML not found: {yaml_path}")
-
-# Parse the known YAML structure using stdlib only.
-# The expected-artifacts.yaml has a stable, well-known schema.
-# We read the file and parse it with a minimal line-based approach.
-text = yaml_path.read_text(encoding="utf-8")
 
 # Embedded pre-parsed structure matching expected-artifacts.yaml
 # This avoids requiring PyYAML at runtime (C-lite constraint).
@@ -184,29 +182,61 @@ emit_file "${MANIFEST_PATH}" "${MANIFEST_CONTENT}"
 # ── Step 3: artifact-tree.json ───────────────────────────────────────────────
 echo "==> Step 3: artifact-tree.json"
 
-FEATURE_DIR_ABS="${REPO_ROOT}/kitty-specs/${FEATURE_SLUG}"
 TREE_PATH="${OUTPUT_DIR}/artifact-tree.json"
 
+# Read committed state via git, not the working tree.
+# The 045 feature dir was created after SOURCE_COMMIT, so we use HEAD.
+TREE_COMMIT="$(git rev-parse HEAD)"
+FEATURE_TREE_PREFIX="kitty-specs/${FEATURE_SLUG}"
+HANDOFF_PREFIX="kitty-specs/${FEATURE_SLUG}/handoff/"
+
+# git ls-tree gives us committed files; git show gives us committed content.
+GIT_LS_TREE="$(git ls-tree -r --long "${TREE_COMMIT}" -- "${FEATURE_TREE_PREFIX}/")"
+
 TREE_CONTENT="$(python3 - <<PYEOF
-import hashlib, json, fnmatch
-from pathlib import Path
+import hashlib, json, fnmatch, subprocess
 
-feature_dir = Path("${FEATURE_DIR_ABS}")
-handoff_dir = feature_dir / "handoff"
+feature_prefix = "${FEATURE_TREE_PREFIX}/"
+handoff_prefix = "${HANDOFF_PREFIX}"
+tree_commit = "${TREE_COMMIT}"
 
-# Parse manifest from the content we just generated
+# Parse git ls-tree output: "<mode> <type> <hash> <size>\t<path>"
+ls_lines = """${GIT_LS_TREE}""".strip().splitlines()
+
 manifest = json.loads('''${MANIFEST_CONTENT}''')
 
 present = []
-for p in sorted(feature_dir.rglob("*")):
-    if not p.is_file(): continue
-    if handoff_dir in p.parents or p.parent == handoff_dir: continue
-    if "__pycache__" in p.parts or p.suffix == ".pyc": continue
-    rel = str(p.relative_to(feature_dir))
-    sha256 = hashlib.sha256(p.read_bytes()).hexdigest()
-    present.append({"path": rel, "sha256": sha256, "size_bytes": p.stat().st_size, "status": "present"})
+for line in ls_lines:
+    if not line.strip():
+        continue
+    meta, path = line.split("\t", 1)
+    # Skip handoff/ directory files and __pycache__/.pyc
+    if path.startswith(handoff_prefix):
+        continue
+    if "__pycache__" in path or path.endswith(".pyc"):
+        continue
+    parts = meta.split()
+    size_bytes = int(parts[3]) if parts[3] != "-" else 0
 
+    rel = path[len(feature_prefix):]
+
+    # Hash committed content via git show
+    blob = subprocess.run(
+        ["git", "show", f"{tree_commit}:{path}"],
+        capture_output=True, check=True,
+    ).stdout
+    sha256 = hashlib.sha256(blob).hexdigest()
+
+    present.append({
+        "path": rel,
+        "sha256": sha256,
+        "size_bytes": size_bytes,
+        "status": "present",
+    })
+
+present.sort(key=lambda e: e["path"])
 present_paths = {e["path"] for e in present}
+
 all_specs = list(manifest.get("required_always", []))
 for specs in manifest.get("required_by_step", {}).values():
     all_specs.extend(specs)
@@ -223,6 +253,7 @@ print(json.dumps({
     "schema_version": "1",
     "feature_slug": "${FEATURE_SLUG}",
     "root_path": "kitty-specs/${FEATURE_SLUG}",
+    "tree_commit": tree_commit,
     "source_commit": "${SOURCE_COMMIT}",
     "captured_at": "${CAPTURED_AT}",
     "entries": all_entries,
@@ -238,19 +269,21 @@ emit_file "${TREE_PATH}" "${TREE_CONTENT}"
 # ── Step 4: events.jsonl ─────────────────────────────────────────────────────
 echo "==> Step 4: events.jsonl"
 
-SOURCE_EVENTS="${FEATURE_DIR_ABS}/status.events.jsonl"
+# Read committed events via git show (not the working tree).
+SOURCE_EVENTS_REL="kitty-specs/${FEATURE_SLUG}/status.events.jsonl"
 EVENTS_PATH="${OUTPUT_DIR}/events.jsonl"
 
-if [[ -f "$SOURCE_EVENTS" && -s "$SOURCE_EVENTS" ]]; then
+if git show "HEAD:${SOURCE_EVENTS_REL}" >/dev/null 2>&1; then
+  EVENT_COUNT="$(git show "HEAD:${SOURCE_EVENTS_REL}" | wc -l | tr -d ' ')"
   if [[ "$DRY_RUN" == "true" ]]; then
-    echo "[DRY-RUN] Would copy: ${SOURCE_EVENTS} → ${EVENTS_PATH} ($(wc -l < "$SOURCE_EVENTS" | tr -d ' ') events)"
+    echo "[DRY-RUN] Would extract: ${SOURCE_EVENTS_REL} from HEAD → ${EVENTS_PATH} (${EVENT_COUNT} events)"
   else
     if [[ -f "$EVENTS_PATH" && "$FORCE" == "false" ]]; then
       echo "ERROR: ${EVENTS_PATH} already exists. Use --force to overwrite." >&2
       exit 1
     fi
-    cp "$SOURCE_EVENTS" "$EVENTS_PATH"
-    echo "[WROTE] ${EVENTS_PATH} ($(wc -l < "$EVENTS_PATH" | tr -d ' ') events)"
+    git show "HEAD:${SOURCE_EVENTS_REL}" > "$EVENTS_PATH"
+    echo "[WROTE] ${EVENTS_PATH} (${EVENT_COUNT} events)"
   fi
 else
   # Synthesize bootstrap event
@@ -272,6 +305,20 @@ PYEOF
 fi
 
 # ── Step 5: version-matrix.md ────────────────────────────────────────────────
+# SKELETON ONLY — by design (WP05).
+#
+# generate.sh emits a minimal version-matrix.md containing only the version
+# pins that can be derived mechanically (package versions, source commit).
+# The following sections require human judgement and are added manually after
+# generation (see WP05 task prompt for the enrichment checklist):
+#
+#   1. Source Reference   — annotated links to key files at SOURCE_COMMIT
+#   2. Replay Commands    — exact CLI invocations to reproduce the feature
+#   3. Expected Artifact Classes — which artifact types the feature produces
+#   4. Parity Verification — how to confirm regenerated output matches committed
+#
+# This separation keeps generate.sh fully deterministic while allowing the
+# version matrix to carry context that only a human/reviewer can provide.
 echo "==> Step 5: version-matrix.md (skeleton)"
 
 VERSION_MATRIX_PATH="${OUTPUT_DIR}/version-matrix.md"
@@ -287,7 +334,12 @@ source-commit=${SOURCE_COMMIT}
 source-branch=${SOURCE_BRANCH}
 \`\`\`
 
-*Generated by generate.sh. Edit Replay Commands and Artifact Classes sections after generation.*
+<!-- Skeleton generated by generate.sh.  Manual enrichment required:
+  1. Source Reference   — annotated links to key files at SOURCE_COMMIT
+  2. Replay Commands    — exact CLI invocations to reproduce the feature
+  3. Expected Artifact Classes — which artifact types the feature produces
+  4. Parity Verification — how to confirm regenerated output matches committed
+  See tasks/WP05 for the full enrichment checklist. -->
 
 NOTE: verification.md must be written manually after running pytest — see tasks/WP06 for instructions."
 

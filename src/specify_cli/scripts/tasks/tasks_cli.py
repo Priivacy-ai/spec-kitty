@@ -592,8 +592,14 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def merge_command(args: argparse.Namespace) -> None:
-    repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.feature)
+    # merge_command needs the LOCAL git root (may be a worktree), not the main
+    # repo root that find_repo_root() returns.  git rev-parse --show-toplevel
+    # gives us exactly that.
+    local_root = Path(
+        run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip()
+    )
+    repo_root = local_root
+    feature = _resolve_feature(find_repo_root(), args.feature)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
