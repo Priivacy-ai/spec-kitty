@@ -1,7 +1,7 @@
 """Agent configuration for the orchestrator.
 
 This module manages agent configuration that is set during `spec-kitty init`
-and used by the orchestrator to select agents for implementation and review.
+and used by the orchestrator and related commands to determine which agents are enabled.
 
 The configuration is stored in .kittify/config.yaml under the `agents` key.
 """
@@ -26,73 +26,14 @@ class AgentConfigError(RuntimeError):
 
 
 @dataclass
-class AgentSelectionConfig:
-    """Configuration for preferred role assignment.
-
-    Attributes:
-        preferred_implementer: Agent ID to prefer for implementation tasks.
-        preferred_reviewer: Agent ID to prefer for review tasks.
-    """
-
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
-
-
-@dataclass
 class AgentConfig:
     """Full agent configuration.
 
     Attributes:
         available: List of agent IDs that are available for use
-        selection: Configuration for how to select agents
     """
 
     available: list[str] = field(default_factory=list)
-    selection: AgentSelectionConfig = field(default_factory=AgentSelectionConfig)
-
-    def select_implementer(self, exclude: str | None = None) -> str | None:
-        """Select an agent for implementation.
-
-        Args:
-            exclude: Optional agent ID to exclude from selection
-
-        Returns:
-            Selected agent ID or None if no agents available
-        """
-        candidates = [a for a in self.available if a != exclude]
-        if not candidates:
-            return None
-
-        if self.selection.preferred_implementer in candidates:
-            return self.selection.preferred_implementer
-        # Fall back to first available
-        return candidates[0]
-
-    def select_reviewer(self, implementer: str | None = None) -> str | None:
-        """Select an agent for review.
-
-        Prefers a different agent than the implementer for cross-review.
-
-        Args:
-            implementer: Agent that did implementation (prefer different agent)
-
-        Returns:
-            Selected agent ID or None if no agents available
-        """
-        # Prefer different agent for cross-review
-        candidates = [a for a in self.available if a != implementer]
-
-        # Fall back to same agent if no other available
-        if not candidates:
-            candidates = self.available.copy()
-
-        if not candidates:
-            return None
-
-        if self.selection.preferred_reviewer in candidates:
-            return self.selection.preferred_reviewer
-        # Fall back to first available that's not the implementer
-        return candidates[0]
 
 
 def load_agent_config(repo_root: Path) -> AgentConfig:
@@ -145,17 +86,8 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
             f"Valid agents: {valid_agents}"
         )
 
-    # Parse selection config (legacy strategy field ignored)
-    selection_data = agents_data.get("selection", {})
-    if not isinstance(selection_data, dict):
-        selection_data = {}
-
-    selection = AgentSelectionConfig(
-        preferred_implementer=selection_data.get("preferred_implementer"),
-        preferred_reviewer=selection_data.get("preferred_reviewer"),
-    )
-
-    return AgentConfig(available=available, selection=selection)
+    # Ignore any legacy role-preference fields that may still exist in old configs.
+    return AgentConfig(available=available)
 
 
 def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
@@ -184,10 +116,6 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
     # Update agents section
     data["agents"] = {
         "available": config.available,
-        "selection": {
-            "preferred_implementer": config.selection.preferred_implementer,
-            "preferred_reviewer": config.selection.preferred_reviewer,
-        },
     }
 
     # Write back
@@ -213,7 +141,6 @@ def get_configured_agents(repo_root: Path) -> list[str]:
 
 
 __all__ = [
-    "AgentSelectionConfig",
     "AgentConfig",
     "AgentConfigError",
     "load_agent_config",

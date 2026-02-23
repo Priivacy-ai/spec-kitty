@@ -81,8 +81,8 @@ spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 @dataclass
 class AgentSelectionConfig:
     strategy: SelectionStrategy = SelectionStrategy.PREFERRED
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
+    implementer_agent: str | None = None
+    reviewer_agent: str | None = None
 
 @dataclass
 class AgentConfig:
@@ -100,8 +100,8 @@ agents:
     - opencode
   selection:
     strategy: preferred  # or "random"
-    preferred_implementer: claude
-    preferred_reviewer: codex
+    implementer_agent: claude
+    reviewer_agent: codex
 ```
 
 ### Configuration Behavior

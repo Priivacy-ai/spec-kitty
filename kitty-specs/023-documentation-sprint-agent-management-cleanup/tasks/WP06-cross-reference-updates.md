@@ -199,15 +199,15 @@ Use language identifiers in code blocks: ````python`, ````bash`
        - opencode
      selection:
        strategy: preferred  # or "random"
-       preferred_implementer: claude
-       preferred_reviewer: codex
+       implementer_agent: claude
+       reviewer_agent: codex
    ```
 
    **Fields**:
    - `available` (list): Agent keys currently active in project
    - `selection.strategy` (string): Agent selection strategy (`preferred` or `random`)
-   - `selection.preferred_implementer` (string): Preferred agent for implementation tasks
-   - `selection.preferred_reviewer` (string): Preferred agent for review tasks
+   - `selection.implementer_agent` (string): Preferred agent for implementation tasks
+   - `selection.reviewer_agent` (string): Preferred agent for review tasks
 
    **See**:
    - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands

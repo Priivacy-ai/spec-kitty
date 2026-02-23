@@ -74,8 +74,7 @@ def init_test_repo(tmp_path: Path) -> Path:
         "vcs": {"type": "git"},
         "agents": {
             "available": ["claude"],
-            "selection": {"preferred_implementer": "claude"}
-        }
+        },
     }
     (kittify / "config.yaml").write_text(yaml.dump(config))
 

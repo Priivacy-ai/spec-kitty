@@ -155,8 +155,8 @@ A user wants to understand how the orchestrator works internally: the state mach
 **R2 Content Requirements**:
 - agents.available list
 - agents.selection.strategy (preferred/random)
-- agents.selection.preferred_implementer
-- agents.selection.preferred_reviewer
+- agents.selection.implementer_agent
+- agents.selection.reviewer_agent
 
 **R3 Content Requirements**:
 - State file location (`.kittify/orchestration-state.json`)

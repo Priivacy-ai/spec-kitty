@@ -118,11 +118,11 @@ class TestVersionReading:
         """Verify version follows semantic versioning format."""
         module_version = get_venv_module_version()
 
-        # Should match semantic versioning pattern: X.Y.Z or X.Y.Z-suffix
+        # Should match release or pre-release variants (e.g., 1.0.0, 1.0.0-rc1, 1.0.0rc1)
         import re
-        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(-\w+)?$')
+        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(?:[-_.]?[a-zA-Z]+[0-9]*)?$')
         assert semver_pattern.match(module_version), \
-            f"Version '{module_version}' should follow semantic versioning (X.Y.Z)"
+            f"Version '{module_version}' should follow release/pre-release versioning"
 
 
 class TestVersionConsistency:
@@ -354,7 +354,7 @@ class TestPackageMetadataIntegrity:
             pytest.skip("Package metadata not available")
 
         import re
-        # Match X.Y.Z or X.Y.Z-suffix (like 0.5.0-dev)
-        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$')
+        # Match release or pre-release variants (e.g., 1.0.0, 1.0.0-rc1, 1.0.0rc1)
+        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(?:[-_.]?[a-zA-Z]+[0-9]*)?$')
         assert semver_pattern.match(pkg_version), \
-            f"Version '{pkg_version}' should follow semantic versioning"
+            f"Version '{pkg_version}' should follow release/pre-release versioning"

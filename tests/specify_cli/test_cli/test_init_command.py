@@ -471,23 +471,3 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
     plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
 
-
-def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "bad-preferred",
-            "--ai",
-            "codex",
-            "--preferred-implementer",
-            "gemini",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "Preferred implementer must be one of the selected agents" in console_output

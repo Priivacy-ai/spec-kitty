@@ -9,7 +9,6 @@ import pytest
 from specify_cli.orchestrator.agent_config import (
     AgentConfig,
     AgentConfigError,
-    AgentSelectionConfig,
     load_agent_config,
     save_agent_config,
 )
@@ -48,20 +47,14 @@ class TestUnknownAgentKey:
         assert "Valid agents" in message
 
 
-class TestStrategyRemoval:
-    def test_save_agent_config_does_not_persist_selection_strategy(self, tmp_path: Path) -> None:
-        """Persisted agent config should not include a selection.strategy field."""
-        config = AgentConfig(
-            available=["claude", "codex"],
-            selection=AgentSelectionConfig(
-                preferred_implementer="claude",
-                preferred_reviewer="codex",
-            ),
-        )
+class TestRolePreferenceRemoval:
+    def test_save_agent_config_only_persists_available_agents(self, tmp_path: Path) -> None:
+        """Persisted agent config should only include agents.available."""
+        config = AgentConfig(available=["claude", "codex"])
 
         save_agent_config(tmp_path, config)
         content = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
 
         assert "strategy:" not in content
-        assert "preferred_implementer: claude" in content
-        assert "preferred_reviewer: codex" in content
+        assert "selection:" not in content
+        assert "available:" in content

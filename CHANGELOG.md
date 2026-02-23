@@ -648,7 +648,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Fully Non-Interactive Init Support**:
 - Added `--non-interactive` / `--yes` and `SPEC_KITTY_NON_INTERACTIVE` to disable prompts
-- Added `--agent-strategy`, `--preferred-implementer`, and `--preferred-reviewer` to expose all selection options via CLI
+- Added agent selection CLI options for orchestration workflows
 - Non-interactive mode now avoids arrow-key menus and requires `--force` for non-empty `--here` directories
 - Updated documentation for automation and CI usage
 

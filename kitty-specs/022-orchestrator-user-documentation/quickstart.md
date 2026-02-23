@@ -56,7 +56,7 @@ PENDING → READY → IMPLEMENTATION → REVIEW → COMPLETED
 
 | Strategy | Description |
 |----------|-------------|
-| `preferred` | User specifies preferred implementer and reviewer |
+| `preferred` | User specifies deterministic implementation/review ordering |
 | `random` | Randomly select from available agents |
 
 ## Config Structure (`.kittify/config.yaml`)
@@ -69,8 +69,8 @@ agents:
     - opencode
   selection:
     strategy: preferred  # or "random"
-    preferred_implementer: claude
-    preferred_reviewer: codex
+    implementer_agent: claude
+    reviewer_agent: codex
 ```
 
 ## State File (`.kittify/orchestration-state.json`)
