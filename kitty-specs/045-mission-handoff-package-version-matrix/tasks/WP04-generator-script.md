@@ -17,7 +17,7 @@ subtasks:
 - T015
 phase: Phase 3 - Synthesis
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "1896"
 review_status: ''
 reviewed_by: ''
@@ -434,3 +434,4 @@ Reviewers verify:
 ## Activity Log
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
+- 2026-02-23T20:16:42Z – claude-opus – shell_pid=1896 – lane=doing – Assigned agent via workflow command
