@@ -3,24 +3,12 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.16.2
-  initialized_at: '2026-02-03T17:59:23.703791'
-  last_upgraded_at: '2026-02-22T09:46:39.599866'
+  version: 2.0.0
+  initialized_at: '2026-02-23T19:11:47.349652'
+  last_upgraded_at: null
 environment:
   python_version: 3.14.0
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
 migrations:
-  applied:
-  - id: 0.14.0_centralized_feature_detection
-    applied_at: '2026-02-06T10:54:05.184716'
-    result: skipped
-    notes: Not applicable
-  - id: 0.14.0_centralized_feature_detection
-    applied_at: '2026-02-07T09:45:50.518428'
-    result: skipped
-    notes: Not applicable
-  - id: 0.14.0_centralized_feature_detection
-    applied_at: '2026-02-07T13:06:00.335154'
-    result: skipped
-    notes: Not applicable
+  applied: []
