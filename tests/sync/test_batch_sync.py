@@ -8,6 +8,7 @@ import tempfile
 
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.batch import batch_sync, sync_all_queued_events, BatchSyncResult
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 
 @pytest.fixture
@@ -83,6 +84,28 @@ class TestBatchSyncEmptyQueue:
 
         assert result.total_events == 0
         assert result.synced_count == 0
+
+
+class TestSaasFeatureFlag:
+    """Feature-flag behavior for SaaS upload."""
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_skips_network_when_disabled(self, mock_post, populated_queue, monkeypatch):
+        """No HTTP upload should occur when SaaS sync feature is disabled."""
+        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+        initial_size = populated_queue.size()
+
+        result = batch_sync(
+            queue=populated_queue,
+            auth_token="test-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        assert populated_queue.size() == initial_size
+        assert result.total_events == 0
+        assert any("disabled" in msg.lower() for msg in result.error_messages)
+        mock_post.assert_not_called()
 
 
 class TestBatchSyncSuccess:

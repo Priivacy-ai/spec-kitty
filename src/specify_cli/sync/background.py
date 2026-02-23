@@ -17,6 +17,7 @@ from typing import Optional
 from .auth import AuthClient
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
+from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,10 @@ class BackgroundSyncService:
 
     def start(self) -> None:
         """Start the background sync service."""
+        if not is_saas_sync_enabled():
+            logger.info("%s Background sync service will remain stopped.", saas_sync_disabled_message())
+            return
+
         with self._lock:
             if self._running:
                 return
@@ -128,6 +133,12 @@ class BackgroundSyncService:
         Thread-safe: holds _lock for the full duration so background
         timer ticks are serialised.
         """
+        if not is_saas_sync_enabled():
+            logger.info("%s Full sync skipped.", saas_sync_disabled_message())
+            result = BatchSyncResult()
+            result.error_messages.append(saas_sync_disabled_message())
+            return result
+
         with self._lock:
             access_token = self.auth.get_access_token()
             if access_token is None:
@@ -162,6 +173,12 @@ class BackgroundSyncService:
 
     def _sync_once(self) -> BatchSyncResult:
         """Internal: single-batch sync (caller must hold _lock)."""
+        if not is_saas_sync_enabled():
+            logger.info("%s Single-batch sync skipped.", saas_sync_disabled_message())
+            result = BatchSyncResult()
+            result.error_messages.append(saas_sync_disabled_message())
+            return result
+
         access_token = self.auth.get_access_token()
         if access_token is None:
             logger.warning("Not authenticated, skipping sync")
@@ -216,7 +233,10 @@ def get_sync_service() -> BackgroundSyncService:
                     auth=AuthClient(),
                     config=SyncConfig(),
                 )
-                _service.start()
+                if is_saas_sync_enabled():
+                    _service.start()
+                else:
+                    logger.info("%s Service created without auto-start.", saas_sync_disabled_message())
                 atexit.register(_service.stop)
     return _service
 

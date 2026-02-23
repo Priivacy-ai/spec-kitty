@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 
 @pytest.fixture
@@ -33,6 +34,18 @@ def temp_credentials(tmp_path, monkeypatch):
 
 class TestAuthLogin:
     """Tests for 'spec-kitty auth login' command."""
+
+    def test_login_blocked_when_saas_feature_disabled(self, runner, temp_credentials, monkeypatch):
+        """Login should fail fast when SaaS feature flag is disabled."""
+        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+        result = runner.invoke(
+            cli_app,
+            ["auth", "login"],
+            input="test@example.com\ntestpassword\n",
+        )
+
+        assert result.exit_code == 1
+        assert "SaaS sync is disabled by feature flag" in result.stdout
 
     def test_login_success(self, runner, temp_credentials):
         """Login should succeed with valid credentials."""

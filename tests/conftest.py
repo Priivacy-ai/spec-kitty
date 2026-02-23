@@ -20,6 +20,12 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+
 def _venv_python(venv_dir: Path) -> Path:
     candidate = venv_dir / "bin" / "python"
     if candidate.exists():

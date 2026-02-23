@@ -11,6 +11,9 @@ Provides real-time synchronization with spec-kitty-saas server via:
 Heavy dependencies (requests, websockets) are lazily imported via __getattr__
 so that lightweight imports like ``from specify_cli.sync.events import ...``
 do not pull in optional packages.
+
+SaaS connectivity is feature-flagged and disabled by default. Set
+``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` to enable auth/network sync flows.
 """
 
 from .clock import LamportClock, generate_node_id
@@ -27,6 +30,11 @@ from .events import (
     emit_dependency_resolved,
 )
 from .queue import OfflineQueue
+from .feature_flags import (
+    SAAS_SYNC_ENV_VAR,
+    is_saas_sync_enabled,
+    saas_sync_disabled_message,
+)
 
 # Lazy-loaded names (require 'requests' or 'websockets' at runtime)
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
@@ -95,4 +103,7 @@ __all__ = [
     "SyncRuntime",
     "get_runtime",
     "reset_runtime",
+    "SAAS_SYNC_ENV_VAR",
+    "is_saas_sync_enabled",
+    "saas_sync_disabled_message",
 ]

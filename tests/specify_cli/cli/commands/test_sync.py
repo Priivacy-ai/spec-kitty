@@ -27,6 +27,7 @@ from specify_cli.core.vcs import (
     SyncStatus,
     VCSBackend,
 )
+from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 
 class TestDetectWorkspaceContext:
@@ -462,6 +463,18 @@ class TestSyncNowExitCodes:
                 with patch("specify_cli.sync.batch.write_failure_report"):
                     res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1
+
+    def test_now_returns_0_when_saas_feature_disabled(self, monkeypatch):
+        """sync now should no-op safely when SaaS flag is disabled."""
+        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service") as get_service:
+            res = runner.invoke(sync_app, ["now"])
+
+        assert res.exit_code == 0
+        assert "disabled by feature flag" in res.output.lower()
+        get_service.assert_not_called()
 
     def test_strict_exits_0_on_success(self):
         """Strict mode exits 0 when all events sync successfully."""

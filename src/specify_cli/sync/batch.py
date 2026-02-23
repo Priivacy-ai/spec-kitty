@@ -13,6 +13,7 @@ from typing import Optional
 
 import requests
 
+from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 
 
@@ -331,6 +332,12 @@ def batch_sync(
         categorised error details.
     """
     result = BatchSyncResult()
+    if not is_saas_sync_enabled():
+        message = saas_sync_disabled_message()
+        result.error_messages.append(message)
+        if show_progress:
+            print(message)
+        return result
 
     events = queue.drain_queue(limit=limit)
     result.total_events = len(events)
@@ -492,6 +499,13 @@ def sync_all_queued_events(
         Aggregated BatchSyncResult across all batches.
     """
     total_result = BatchSyncResult()
+    if not is_saas_sync_enabled():
+        message = saas_sync_disabled_message()
+        total_result.error_messages.append(message)
+        if show_progress:
+            print(message)
+        return total_result
+
     batch_num = 0
 
     while queue.size() > 0:
