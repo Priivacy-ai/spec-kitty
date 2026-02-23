@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Test Run + Verification Note
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02, WP03, WP04, WP05]
 base_branch: 2.x
 base_commit: 21a6cf3bce5293de281d8f0b2a272ab505eae166
@@ -13,17 +13,17 @@ subtasks:
 - T022
 phase: Phase 4 - Evidence Gate
 assignee: ''
-agent: "claude-opus"
-shell_pid: "41132"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback_file: "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-review-feedback-WP06.md"
+agent: claude-opus
+shell_pid: '41132'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+review_feedback_file: /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-review-feedback-WP06.md
 ---
 
 # Work Package Prompt: WP06 – Test Run + Verification Note
@@ -360,3 +360,4 @@ Reviewers verify:
 - 2026-02-23T20:39:04Z – claude-opus – shell_pid=38060 – lane=doing – Started review via workflow command
 - 2026-02-23T20:41:38Z – claude-opus – shell_pid=38060 – lane=planned – Moved to planned
 - 2026-02-23T20:41:49Z – claude-opus – shell_pid=41132 – lane=doing – Started implementation via workflow command
+- 2026-02-23T20:46:42Z – claude-opus – shell_pid=41132 – lane=for_review – Ready for review: fixed all 4 issues from prior review — emoji PASS markers, TestSetupPlanCommand in re-run command, subtask checkboxes restored, completeness self-check green (6/6), re-run command verified (16 passed, 0 failed)
