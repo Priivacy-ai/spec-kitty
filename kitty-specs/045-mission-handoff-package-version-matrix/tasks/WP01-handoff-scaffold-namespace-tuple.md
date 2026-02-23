@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Handoff Directory Scaffold + Namespace Tuple
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 595bf2762385da04c26488fec4d96ea3b1c23939
@@ -12,8 +12,8 @@ subtasks:
 - T003
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "claude"
-shell_pid: "29627"
+agent: claude
+shell_pid: '29627'
 review_status: ''
 reviewed_by: ''
 history:
@@ -197,3 +197,4 @@ Reviewers should verify:
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
 - 2026-02-23T19:37:18Z – claude – shell_pid=29627 – lane=doing – Assigned agent via workflow command
+- 2026-02-23T19:38:35Z – claude – shell_pid=29627 – lane=for_review – Ready for review: handoff/ directory with README.md and namespace.json (9 fields, all 4 invariants pass)
