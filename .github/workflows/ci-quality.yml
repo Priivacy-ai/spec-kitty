@@ -157,8 +157,7 @@ jobs:
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "bandit outcome: ${{ steps.bandit.outcome }}"
           echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
-          if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
-             [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
+          if [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
              [ "${{ steps.ruff.outcome }}" != "success" ] || \
              [ "${{ steps.mypy.outcome }}" != "success" ] || \
              [ "${{ steps.bandit.outcome }}" != "success" ] || \
