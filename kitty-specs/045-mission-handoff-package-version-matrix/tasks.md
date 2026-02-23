@@ -59,10 +59,10 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T004 [P] Export `src/specify_cli/missions/software-dev/expected-artifacts.yaml` → `handoff/artifact-manifest.json`
-- [ ] T005 [P] Walk `kitty-specs/045-.../` recursively, compute SHA-256 for each file
-- [ ] T006 Cross-reference walked entries against manifest to identify expected-but-absent artifacts
-- [ ] T007 Write `handoff/artifact-tree.json` with combined present + absent entries and summary counts
+- [x] T004 [P] Export `src/specify_cli/missions/software-dev/expected-artifacts.yaml` → `handoff/artifact-manifest.json`
+- [x] T005 [P] Walk `kitty-specs/045-.../` recursively, compute SHA-256 for each file
+- [x] T006 Cross-reference walked entries against manifest to identify expected-but-absent artifacts
+- [x] T007 Write `handoff/artifact-tree.json` with combined present + absent entries and summary counts
 
 ### Implementation Notes
 
@@ -297,5 +297,5 @@ WP01 (scaffold + namespace)
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: for_review
+- WP01: done
 <!-- status-model:end -->
