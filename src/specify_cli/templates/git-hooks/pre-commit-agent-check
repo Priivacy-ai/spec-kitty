@@ -36,4 +36,25 @@ if [ -n "$STAGED_AGENT_FILES" ]; then
     exit 1
 fi
 
+# WP worktree branches must never commit planning artifacts.
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if echo "$CURRENT_BRANCH" | grep -Eq -- '-WP[0-9]+$'; then
+    STAGED_KITTY_SPECS=$(git diff --cached --name-only | grep -E '^kitty-specs/' || true)
+
+    if [ -n "$STAGED_KITTY_SPECS" ]; then
+        echo "❌ COMMIT BLOCKED: WP branches must not commit kitty-specs/"
+        echo ""
+        echo "Branch: $CURRENT_BRANCH"
+        echo "Staged planning files:"
+        echo "$STAGED_KITTY_SPECS" | sed 's/^/  /'
+        echo ""
+        echo "To fix:"
+        echo "  1. Unstage planning files: git restore --staged kitty-specs/"
+        echo "  2. Keep commits limited to deliverable paths (src/, docs/, tests/, etc.)"
+        echo ""
+        echo "To bypass this check (NOT recommended): git commit --no-verify"
+        exit 1
+    fi
+fi
+
 exit 0
