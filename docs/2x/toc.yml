@@ -6,5 +6,7 @@
   href: glossary-system.md
 - name: Runtime and Missions
   href: runtime-and-missions.md
+- name: Orchestration and API Boundary
+  href: orchestration-and-api.md
 - name: ADR Coverage
   href: adr-coverage.md

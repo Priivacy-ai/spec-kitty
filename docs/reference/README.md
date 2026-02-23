@@ -11,6 +11,7 @@ Reference docs are:
 ## Contents
 
 - [CLI Commands](cli-commands.md) - All commands, flags, and options
+- [Orchestrator API](orchestrator-api.md) - Host contract for external orchestration providers
 - [Slash Commands](slash-commands.md) - All `/spec-kitty.*` commands
 - [Agent Subcommands](agent-subcommands.md) - `spec-kitty agent *` commands
 - [Configuration](configuration.md) - All configuration options

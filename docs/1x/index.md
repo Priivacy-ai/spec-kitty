@@ -20,4 +20,5 @@
 
 1. [Workflow](workflow.md)
 2. [Artifacts and Commands](artifacts-and-commands.md)
-3. [Branch and Workspace Model](branches-and-workspaces.md)
+3. [Orchestration and API Boundary](orchestration-and-api.md)
+4. [Branch and Workspace Model](branches-and-workspaces.md)
