@@ -1,0 +1,136 @@
+{
+  "event_count": 17,
+  "feature_slug": "034-feature-status-state-model-remediation",
+  "last_event_id": "01KJ5V38WJK5HZHWGSDWY3AJAV",
+  "materialized_at": "2026-02-23T18:10:00.723277+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 17,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VNFCH6XJGDQQVW4MJM",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VP3AH9DDC26VDETC3B",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VRXHSD3W5ARYKAVHJG",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VT5ZE2X0C9QH9MPJXR",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VWS4STEE1M8MV2BM8Z",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38VYNY56FYVY46EE3B6H",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W0WCGPFXNZFJPX9RBR",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W19ZX500TJAP5CM7CN",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP09": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W35K6ESR1WF7CT5T1H",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP10": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W5F6NJMDY56Z7TQ9TP",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP11": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W79VVPD1WXW8FREEXB",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP12": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38W9C5PCK2B7AYS0JR96",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP13": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38WAMDJ4KK2MHAR8AZE4",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP14": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38WC4SMJQKTZ58K9E0AF",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP15": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38WEC97ECNJYKG5F0VZQ",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP16": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38WG15DNC3X37484VMDC",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    },
+    "WP17": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38WJK5HZHWGSDWY3AJAV",
+      "last_transition_at": "2026-02-08T14:07:18Z"
+    }
+  }
+}

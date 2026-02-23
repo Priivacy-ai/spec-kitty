@@ -1,0 +1,52 @@
+{
+  "event_count": 5,
+  "feature_slug": "041-enable-plan-mission-runtime-support",
+  "last_event_id": "01KJ5V38XG9B006TT6BXWJ2QFQ",
+  "materialized_at": "2026-02-23T18:10:00.753246+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38XAEQFVTH64K3699ACK",
+      "last_transition_at": "2026-02-23T18:10:00.746278+00:00"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38XB8WB3D6TQF12SHYRK",
+      "last_transition_at": "2026-02-23T18:10:00.747758+00:00"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38XDBH71BJ4WPWYYCRDF",
+      "last_transition_at": "2026-02-23T18:10:00.749556+00:00"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38XFKA9R9MDYWEETM9BA",
+      "last_transition_at": "2026-02-23T18:10:00.751280+00:00"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38XG9B006TT6BXWJ2QFQ",
+      "last_transition_at": "2026-02-23T18:10:00.752618+00:00"
+    }
+  }
+}

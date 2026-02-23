@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "feature_slug": "011-constitution-packaging-safety-and-redesign",
+  "last_event_id": "01KJ5V38NVNSWGEKWK6RR64D4C",
+  "materialized_at": "2026-02-23T18:10:00.511598+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NPZHSM660A1MFK78MZ",
+      "last_transition_at": "2026-01-12T11:30:00Z"
+    },
+    "WP02": {
+      "actor": "claude-sonnet-4-5",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NR3MWKSS35WP7DHAZP",
+      "last_transition_at": "2026-01-12T11:45:00Z"
+    },
+    "WP03": {
+      "actor": "claude-sonnet-4-5",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NSGT3TKYH03500XFBN",
+      "last_transition_at": "2026-01-12T11:50:00Z"
+    },
+    "WP04": {
+      "actor": "claude-sonnet-4-5",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NVNSWGEKWK6RR64D4C",
+      "last_transition_at": "2026-01-12T12:30:00Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NXXR9NR6Y3GSEYZAQK",
+      "last_transition_at": "2026-01-12T11:30:00Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38NZZYDKVTV0XW1F9KPA",
+      "last_transition_at": "2026-01-12T11:30:00Z"
+    }
+  }
+}

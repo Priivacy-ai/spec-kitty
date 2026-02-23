@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "feature_slug": "006-per-feature-mission",
+  "last_event_id": "01KJ5V38M4FTEBTRGFTHR2HK4X",
+  "materialized_at": "2026-02-23T18:10:00.452855+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38KXDZRWK9W0YJV6Z3GQ",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38KYT1V6DP149RRFNCPM",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M0QXXRRDZJ03C1AEFS",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M1GP4FAKR6EA6W6VM2",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M330XJXF7PY4AWF5TV",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M4FTEBTRGFTHR2HK4X",
+      "last_transition_at": "2025-12-15T11:55:00Z"
+    }
+  }
+}

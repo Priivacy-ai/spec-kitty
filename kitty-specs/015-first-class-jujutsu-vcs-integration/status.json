@@ -1,0 +1,80 @@
+{
+  "event_count": 9,
+  "feature_slug": "015-first-class-jujutsu-vcs-integration",
+  "last_event_id": "01KJ5V38QKFXDDB9561Q714TPP",
+  "materialized_at": "2026-02-23T18:10:00.563953+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38Q7T8Y21QE4J76PKB2P",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38Q8YZ09XPCF09WJ8R0V",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QADYC0VKN6P366M0PV",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QBGB0C6MB0GJ561QZ6",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QDC3W5Z8FN78A3E5SX",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QE42GZEPG7P08ARDYH",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QGC63ZTJA2ASCR4ZWY",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QHM4BFM88HG7H6YR3P",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    },
+    "WP09": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38QKFXDDB9561Q714TPP",
+      "last_transition_at": "2026-01-17T10:38:23Z"
+    }
+  }
+}

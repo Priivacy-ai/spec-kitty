@@ -1,0 +1,24 @@
+{
+  "event_count": 1,
+  "feature_slug": "013-fix-and-test-dashboard",
+  "last_event_id": "01KJ5V38PMZ7PWAXMW3C7M1E51",
+  "materialized_at": "2026-02-23T18:10:00.533205+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38PMZ7PWAXMW3C7M1E51",
+      "last_transition_at": "2026-01-16T13:44:43Z"
+    }
+  }
+}

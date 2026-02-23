@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "feature_slug": "007-frontmatter-only-lane",
+  "last_event_id": "01KJ5V38MEBP3QAH2HY1C9PSTP",
+  "materialized_at": "2026-02-23T18:10:00.464531+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M6KRBNV8A1NG3ED867",
+      "last_transition_at": "2025-12-17T13:15:00Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38M8NVKJ7BX00FQWF0BN",
+      "last_transition_at": "2025-12-17T13:15:00Z"
+    },
+    "WP03": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38MA76W31FX57ZT0PM80",
+      "last_transition_at": "2025-12-17T16:30:00Z"
+    },
+    "WP04": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38MCCSX9C6CXC21FRBN2",
+      "last_transition_at": "2025-12-17T16:45:00Z"
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38MEBP3QAH2HY1C9PSTP",
+      "last_transition_at": "2025-12-17T17:00:00Z"
+    },
+    "WP06": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38MGZMDECQR5TWAPC2T4",
+      "last_transition_at": "2025-12-17T13:50:00Z"
+    }
+  }
+}
