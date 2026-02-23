@@ -1,0 +1,57 @@
+name: Orchestrator Boundary Guardrails
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-bundled-orchestrator:
+    name: Verify Bundled Orchestrator Is Removed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check orchestrator package is absent
+        run: |
+          if [ -d "src/specify_cli/orchestrator" ]; then
+            echo "::error::src/specify_cli/orchestrator must not exist. Bundled orchestrator runtime is removed from core CLI."
+            exit 1
+          fi
+          echo "OK: src/specify_cli/orchestrator/ absent"
+
+      - name: Check orchestrate command is absent
+        run: |
+          if [ -f "src/specify_cli/cli/commands/orchestrate.py" ]; then
+            echo "::error::src/specify_cli/cli/commands/orchestrate.py must not exist. Use orchestrator-api instead."
+            exit 1
+          fi
+          echo "OK: orchestrate.py absent"
+
+  no-banned-flags-in-core-runtime:
+    name: Verify Banned Autonomous Flags Stay Out Of Core Runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan runtime paths for banned flags
+        run: |
+          SCAN_DIR="src/specify_cli"
+          BANNED="--full-auto --yolo --dangerously-bypass-approvals-and-sandbox --dangerously-skip-permissions"
+          ALLOWED_FILE="src/specify_cli/orchestrator_api/envelope.py"
+
+          FOUND=0
+          for flag in $BANNED; do
+            MATCHES=$(grep -R -n --include="*.py" -- "$flag" "$SCAN_DIR" | grep -v "$ALLOWED_FILE" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Banned flag '$flag' found in core runtime paths"
+              echo "$MATCHES"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::Banned autonomous flags are not allowed in core runtime. They may appear only as validation constants in orchestrator_api/envelope.py"
+            exit 1
+          fi
+
+          echo "OK: no banned autonomous flags found in core runtime paths"

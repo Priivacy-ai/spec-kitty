@@ -29,6 +29,8 @@ Solve specific problems with step-by-step instructions.
 
 - [Install & Upgrade](how-to/install-spec-kitty.md) — Installation methods and upgrades
 - [Use the Dashboard](how-to/use-dashboard.md) — Monitor progress in real-time
+- [Run External Orchestrator](how-to/run-external-orchestrator.md) — Drive multi-agent automation via `spec-kitty-orchestrator`
+- [Build Custom Orchestrator](how-to/build-custom-orchestrator.md) — Build your own provider against the host API
 - [Upgrade to 0.11.0](how-to/upgrade-to-0-11-0.md) — Migration guide
 - [Non-Interactive Init](how-to/non-interactive-init.md) — Run init without prompts
 
@@ -37,6 +39,7 @@ Solve specific problems with step-by-step instructions.
 Complete command and configuration documentation.
 
 - [CLI Commands](reference/cli-commands.md) — All `spec-kitty` commands
+- [Orchestrator API](reference/orchestrator-api.md) — Contract for external orchestrators
 - [Slash Commands](reference/slash-commands.md) — All `/spec-kitty.*` commands
 - [Agent Subcommands](reference/agent-subcommands.md) — `spec-kitty agent *` commands
 - [Configuration](reference/configuration.md) — Config files and options
@@ -55,6 +58,7 @@ Understand the concepts and architecture.
 - [Mission System](explanation/mission-system.md) — Why missions exist
 - [Kanban Workflow](explanation/kanban-workflow.md) — Lane-based workflow
 - [AI Agent Architecture](explanation/ai-agent-architecture.md) — Multi-agent design
+- [Multi-Agent Orchestration](explanation/multi-agent-orchestration.md) — Manual and external orchestration models
 
 ---
 

@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.orchestrator.agent_config import (
+from specify_cli.core.agent_config import (
     load_agent_config,
     save_agent_config,
     AgentConfig,

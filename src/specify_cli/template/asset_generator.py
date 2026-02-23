@@ -113,11 +113,12 @@ def render_command_template(
         description_value = description
         if description_value.startswith('"') and description_value.endswith('"'):
             description_value = description_value[1:-1]
-        description_value = description_value.replace('"', '\\"')
+        description_value = _toml_escape_basic_string(description_value)
         body_text = rendered_body
         if not body_text.endswith("\n"):
             body_text += "\n"
-        return f'description = "{description_value}"\n\nprompt = """\n{body_text}"""\n'
+        prompt_literal = _toml_multiline_prompt_string(body_text)
+        return f'description = "{description_value}"\n\nprompt = {prompt_literal}\n'
 
     if frontmatter_clean:
         result = f"---\n{frontmatter_clean}\n---\n\n{rendered_body}"
@@ -166,6 +167,25 @@ def _filter_frontmatter(frontmatter_text: str) -> str:
     return "\n".join(filtered_lines)
 
 
+def _toml_escape_basic_string(value: str) -> str:
+    """Escape a TOML basic string value."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _toml_multiline_prompt_string(value: str) -> str:
+    """Serialize prompt text as TOML with backslash-safe behavior.
+
+    Prefer multiline literal strings ('''...''') so Windows/PowerShell
+    backslashes are preserved without escape handling. If the payload itself
+    contains the literal terminator, fall back to escaped multiline basic.
+    """
+    if "'''" not in value:
+        return "'''\n" + value + "'''"
+
+    escaped = _toml_escape_basic_string(value)
+    return '"""\n' + escaped + '"""'
+
+
 def _raise_template_discovery_error(commands_dir: Path) -> None:
     """Raise an informative error about template discovery failure."""
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
@@ -203,4 +223,6 @@ __all__ = [
     "prepare_command_templates",
     "render_command_template",
     "_convert_markdown_syntax_to_format",
+    "_toml_escape_basic_string",
+    "_toml_multiline_prompt_string",
 ]

@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v1*'
   workflow_dispatch:
 
 permissions:
@@ -182,7 +182,7 @@ jobs:
             dist/*.tar.gz
             SHA256SUMS.txt
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
 
       - name: Upload test output
         uses: actions/upload-artifact@v4

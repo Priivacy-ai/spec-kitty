@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 from specify_cli.template.asset_generator import (
@@ -64,8 +65,38 @@ def test_render_command_template_handles_toml_extension(tmp_path: Path) -> None:
         extension="toml",
     )
 
-    assert output.startswith('description = "Demo Template"')
-    assert 'prompt = """\nRun echo hi {{args}}  for gemini.\n"""' in output
+    parsed = tomllib.loads(output)
+    assert parsed["description"] == "Demo Template"
+    assert parsed["prompt"] == "Run echo hi {{args}}  for gemini.\n"
+
+
+def test_render_command_template_toml_parses_with_powershell_backslashes(tmp_path: Path) -> None:
+    template_path = tmp_path / "powershell.md"
+    template_path.write_text(
+        """---
+description: PowerShell Example
+scripts:
+  sh: echo hi
+---
+Use PowerShell:
+Get-Content .\\tasks\\WP01.md
+$env:USERPROFILE\\Documents\\spec-kitty
+""",
+        encoding="utf-8",
+    )
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="gemini",
+        arg_format="{{args}}",
+        extension="toml",
+    )
+
+    parsed = tomllib.loads(output)
+    prompt = parsed["prompt"]
+    assert "Get-Content .\\tasks\\WP01.md" in prompt
+    assert "$env:USERPROFILE\\Documents\\spec-kitty" in prompt
 
 
 def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:

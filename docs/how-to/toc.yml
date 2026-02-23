@@ -28,6 +28,10 @@
   href: use-operation-history.md
 - name: Parallel Development
   href: parallel-development.md
+- name: Run External Orchestrator
+  href: run-external-orchestrator.md
+- name: Build Custom Orchestrator
+  href: build-custom-orchestrator.md
 - name: Switch Missions
   href: switch-missions.md
 - name: Use the Dashboard

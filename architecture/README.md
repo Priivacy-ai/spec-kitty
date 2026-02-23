@@ -45,7 +45,8 @@ architecture/
     ├── 2026-01-29-17-auto-create-target-branch-on-first-implement.md
     ├── 2026-01-30-18-auto-detect-merged-single-parent-dependencies.md
     ├── 2026-01-30-19-auto-discover-migrations-from-filesystem.md
-    └── 2026-02-04-21-done-means-review-complete-not-merged.md
+    ├── 2026-02-04-21-done-means-review-complete-not-merged.md
+    └── 2026-02-23-4-orchestrator-externalization-host-contract.md
 ```
 
 **Note:** Implementation details are documented in code, tests, and docstrings. ADRs focus on decisions and link directly to code.
@@ -148,6 +149,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-02-12-1](adrs/2026-02-12-1-freeze-auth-architecture-for-2x-stabilization.md) | Freeze Auth Architecture for 2.x Stabilization Sprint | Accepted | Auth Strategy / Scope Control |
 | [2026-02-12-2](adrs/2026-02-12-2-use-scoped-api-keys-for-ci-during-stabilization.md) | Use Scoped API Keys for CI During Stabilization | Accepted | Service Authentication |
 | [2026-02-12-3](adrs/2026-02-12-3-defer-auth0-and-nango-to-post-stabilization.md) | Defer Auth0 and Nango to Post-Stabilization Migration | Accepted | Identity & Integration Roadmap |
+| [2026-02-23-4](adrs/2026-02-23-4-orchestrator-externalization-host-contract.md) | Externalize Orchestration Behind a Host Contract | Accepted | CLI/Automation |
 
 ### By Topic
 

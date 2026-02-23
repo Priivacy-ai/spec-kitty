@@ -95,6 +95,7 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 
 - [Agent Subcommands](../reference/agent-subcommands.md) - Workflow commands for agents
 - [CLI Commands](../reference/cli-commands.md) - Full CLI reference
+- [Orchestrator API](../reference/orchestrator-api.md) - Host contract for external automation providers
 
 ## See Also
 
@@ -111,3 +112,4 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 ## Getting Started
 
 - [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) - Hands-on parallel tutorial
+- [Run External Orchestrator](run-external-orchestrator.md) - Automate lane transitions with `spec-kitty-orchestrator`

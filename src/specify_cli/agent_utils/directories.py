@@ -71,7 +71,7 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         12  # All agents
     """
     try:
-        from specify_cli.orchestrator.agent_config import (
+        from specify_cli.core.agent_config import (
             AgentConfigError,
             get_configured_agents,
         )

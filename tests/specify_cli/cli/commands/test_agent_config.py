@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.config import app
-from specify_cli.orchestrator.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import AgentConfig, save_agent_config
 
 runner = CliRunner()
 
@@ -160,7 +160,7 @@ class TestRemoveCommand:
             claude.mkdir(parents=True)
 
         # Update config to include claude
-        from specify_cli.orchestrator.agent_config import load_agent_config
+        from specify_cli.core.agent_config import load_agent_config
         config = load_agent_config(mock_project)
         config.available.append("claude")
         save_agent_config(mock_project, config)
@@ -175,7 +175,7 @@ class TestRemoveCommand:
     def test_remove_nonexistent_directory(self, mock_project):
         """Test removing an agent whose directory doesn't exist."""
         # Add gemini to config but not filesystem
-        from specify_cli.orchestrator.agent_config import load_agent_config
+        from specify_cli.core.agent_config import load_agent_config
         config = load_agent_config(mock_project)
         config.available.append("gemini")
         save_agent_config(mock_project, config)
@@ -197,7 +197,7 @@ class TestRemoveCommand:
             # Verify directory was deleted but config still has it
             assert not (mock_project / ".opencode").exists()
 
-            from specify_cli.orchestrator.agent_config import load_agent_config
+            from specify_cli.core.agent_config import load_agent_config
             config = load_agent_config(mock_project)
             assert "opencode" in config.available
 
@@ -273,7 +273,7 @@ class TestSyncCommand:
     def test_sync_create_missing(self, mock_project):
         """Test sync creates missing directories with --create-missing."""
         # Add gemini to config but don't create directory
-        from specify_cli.orchestrator.agent_config import load_agent_config
+        from specify_cli.core.agent_config import load_agent_config
         config = load_agent_config(mock_project)
         config.available.append("gemini")
         save_agent_config(mock_project, config)

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 CHANGELOG_HEADING_RE = re.compile(
-    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+(?:rc\d+)?)(?:\s*\]|)(?:\s*-.*)?$"
+    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?)(?:\s*\]|)(?:\s*-.*)?$"
 )
 
 

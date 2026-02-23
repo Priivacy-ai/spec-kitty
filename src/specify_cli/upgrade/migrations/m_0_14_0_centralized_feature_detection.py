@@ -37,8 +37,8 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
     Note:
         Falls back to all agents if config doesn't exist (legacy projects).
     """
-    from specify_cli.orchestrator.agent_config import load_agent_config
-    from specify_cli.agent_utils import AGENT_DIR_TO_KEY
+    from specify_cli.core.agent_config import load_agent_config
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
 
     # Try to load config
     config = load_agent_config(project_path)

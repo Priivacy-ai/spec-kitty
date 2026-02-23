@@ -7,6 +7,24 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0a1] - 2026-02-23
+
+### 💥 Breaking
+
+- **Bundled orchestrator removed from core CLI**: `spec-kitty orchestrate` is hard-removed with no compatibility shim. Orchestration is now externalized behind `spec-kitty orchestrator-api`.
+
+### ✅ Added
+
+- **Versioned host orchestration contract**: Added `spec-kitty orchestrator-api` command group with JSON envelope responses for:
+  `contract-version`, `feature-state`, `list-ready`, `start-implementation`, `start-review`, `transition`, `append-history`, `accept-feature`, and `merge-feature`.
+- **Boundary CI guardrail**: Added workflow checks that fail CI if bundled orchestrator runtime files are reintroduced.
+- **ADR for externalization**: Added architecture decision record documenting security rationale, host mutation authority, extensibility goals, and explicit no-shim policy.
+
+### 🐛 Fixed
+
+- **Gemini TOML parse failures (`#154`)**: TOML prompt serialization now uses backslash-safe output so generated command files parse cleanly with PowerShell/Windows-style paths.
+- **Forced-add + stale ignore behavior shipped in 1.x alpha (`#152`)**: retained safe forced add behavior for explicit status/task file commits and retained stale tracked ignore migration for `kitty-specs/**/tasks/*.md`.
+
 ## [1.0.0rc1] - 2026-02-22
 
 ### 🔧 Changed

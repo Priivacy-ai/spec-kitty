@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Optional tag to validate (for dry runs)'
+        description: 'Optional tag to validate (for dry runs, e.g. v1.0.0a1)'
         required: false
         type: string
   schedule:
@@ -131,7 +131,7 @@ jobs:
             echo "### Required Actions" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
-            echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` or \`## [X.Y.ZaN/bN/rcN]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
             echo "3. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY

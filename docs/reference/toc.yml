@@ -1,5 +1,7 @@
 - name: CLI Commands
   href: cli-commands.md
+- name: Orchestrator API
+  href: orchestrator-api.md
 - name: Slash Commands
   href: slash-commands.md
 - name: Agent Subcommands

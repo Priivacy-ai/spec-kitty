@@ -279,3 +279,56 @@ def test_tag_mode_fails_on_rc_regression_against_newer_rc(tmp_path: Path) -> Non
 
     assert result.returncode == 1
     assert "does not advance beyond latest tag v1.0.0rc2" in result.stderr
+
+
+def test_branch_mode_accepts_alpha_version(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.16.2",
+        changelog_for_versions(("0.16.2", "- Stable baseline")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap stable")
+    tag(tmp_path, "v0.16.2")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0a1",
+        changelog_for_versions(
+            ("1.0.0a1", "- Start 1.x alpha track"),
+            ("0.16.2", "- Stable baseline"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0a1")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "Version: 1.0.0a1" in result.stdout
+
+
+def test_tag_mode_accepts_alpha_tag_alignment(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.16.2",
+        changelog_for_versions(("0.16.2", "- Stable baseline")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap stable")
+    tag(tmp_path, "v0.16.2")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0a1",
+        changelog_for_versions(
+            ("1.0.0a1", "- Start 1.x alpha track"),
+            ("0.16.2", "- Stable baseline"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0a1")
+    tag(tmp_path, "v1.0.0a1")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v1.0.0a1")
+
+    assert result.returncode == 0, result.stderr
+    assert "Tag: v1.0.0a1" in result.stdout
