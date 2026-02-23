@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Test Run + Verification Note
+lane: "doing"
+dependencies: [WP02, WP03, WP04, WP05]
+base_branch: 2.x
+base_commit: 21a6cf3bce5293de281d8f0b2a272ab505eae166
+created_at: '2026-02-23T20:35:37.533857+00:00'
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-title: "Test Run + Verification Note"
-phase: "Phase 4 - Evidence Gate"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP02", "WP03", "WP04", "WP05"]
+- T019
+- T020
+- T021
+- T022
+phase: Phase 4 - Evidence Gate
+assignee: ''
+agent: ''
+shell_pid: "31188"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-23T18:04:02Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-23T18:04:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Test Run + Verification Note
