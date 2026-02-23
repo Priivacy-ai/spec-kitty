@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Event Stream Export
-lane: "doing"
+lane: "done"
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: d9cacce44e9b10233e49d0f9fdd19a2f0f4a78da
@@ -12,10 +12,10 @@ subtasks:
 - T010
 phase: Phase 2 - Parallel Wave
 assignee: ''
-agent: "claude-opus"
-shell_pid: "96811"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus
+shell_pid: '96811'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
@@ -223,3 +223,4 @@ Reviewers verify:
 - 2026-02-23T20:07:13Z – claude-opus – shell_pid=94220 – lane=doing – Assigned agent via workflow command
 - 2026-02-23T20:09:11Z – claude-opus – shell_pid=94220 – lane=for_review – Ready for review: handoff/events.jsonl contains verbatim copy of 10 status events from status.events.jsonl. UTF-8, no BOM, each line valid JSON, line count matches source. All 3 subtasks (T008-T010) complete.
 - 2026-02-23T20:10:41Z – claude-opus – shell_pid=96811 – lane=doing – Started review via workflow command
+- 2026-02-23T20:13:20Z – claude-opus – shell_pid=96811 – lane=done – Review passed: All 5 review criteria verified. events.jsonl has 10 events (verbatim copy of source status.events.jsonl at implementation time), all valid JSON objects, UTF-8 no BOM, chronological order preserved, trailing newline present. C-lite constraint satisfied. Dependency WP01 is done.
