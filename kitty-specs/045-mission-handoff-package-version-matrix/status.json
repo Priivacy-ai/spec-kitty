@@ -1,14 +1,14 @@
 {
-  "event_count": 17,
+  "event_count": 25,
   "feature_slug": "045-mission-handoff-package-version-matrix",
-  "last_event_id": "01KJ62J327VCKPF74J3CJE1S5R",
-  "materialized_at": "2026-02-23T20:20:26.311931+00:00",
+  "last_event_id": "01KJ63CC4X6Q1TCKCVJ63CRSNN",
+  "materialized_at": "2026-02-23T20:34:47.582032+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 3,
-    "for_review": 1,
+    "done": 5,
+    "for_review": 0,
     "in_progress": 0,
     "planned": 0
   },
@@ -36,10 +36,17 @@
     },
     "WP04": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KJ62J327VCKPF74J3CJE1S5R",
-      "last_transition_at": "2026-02-23T20:20:26.311663+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJ62SM9QM3R46D25QTVKMFTB",
+      "last_transition_at": "2026-02-23T20:24:33.335604+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJ63CC4X6Q1TCKCVJ63CRSNN",
+      "last_transition_at": "2026-02-23T20:34:47.581700+00:00"
     }
   }
 }
