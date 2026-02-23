@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Version Matrix Note
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: c68d22f347a00d33225c7ccf1f2a4dd1b7ba068a
@@ -12,8 +12,8 @@ subtasks:
 - T018
 phase: Phase 2 - Parallel Wave
 assignee: ''
-agent: claude-opus
-shell_pid: '23713'
+agent: "claude-opus"
+shell_pid: "27166"
 review_status: ''
 reviewed_by: ''
 history:
@@ -302,3 +302,4 @@ Reviewers verify:
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
 - 2026-02-23T20:29:58Z – claude-opus – shell_pid=23713 – lane=doing – Assigned agent via workflow command
 - 2026-02-23T20:32:07Z – claude-opus – shell_pid=23713 – lane=for_review – Ready for review: version-matrix.md (160 lines) with all 5 version pins in versions block, source reference with exact commit SHA, 4 executable replay commands using concrete slug, all 6 artifact classes (input/workflow/output/evidence/policy/runtime). All 3 subtasks (T016-T018) complete.
+- 2026-02-23T20:32:45Z – claude-opus – shell_pid=27166 – lane=doing – Started review via workflow command
