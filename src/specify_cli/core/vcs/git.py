@@ -13,6 +13,7 @@ and adds VCS abstraction layer functionality.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -134,10 +135,6 @@ class GitVCS:
                     # Log warning but continue
                     pass
 
-            # Add WP status files to .git/info/exclude (Bug #120 fix)
-            # Use local git exclude (not .gitignore) to prevent merge pollution
-            self._add_wp_status_exclusion(workspace_path)
-
             # Get workspace info for the newly created workspace
             workspace_info = self.get_workspace_info(workspace_path)
 
@@ -234,8 +231,7 @@ class GitVCS:
                 return "Failed to apply sparse-checkout patterns"
 
             # Add excluded paths to .git/info/exclude to prevent manual git add
-            # Sparse-checkout only controls checkout, NOT staging
-            # Use .git/info/exclude (local, unversioned) instead of .gitignore (fixes #120)
+            # Sparse-checkout only controls checkout, NOT staging.
             git_dir = self._get_git_dir(workspace_path)
             if git_dir:
                 exclude_file = git_dir / "info" / "exclude"
@@ -258,6 +254,12 @@ class GitVCS:
                     # Append new entries to existing content
                     new_content = existing_exclude.rstrip() + "\n" + "".join(exclude_entries)
                     exclude_file.write_text(new_content.lstrip(), encoding="utf-8")
+
+            # Sparse-checkout can leave excluded paths on disk in some states.
+            # Remove kitty-specs/ physically so agents cannot accidentally edit it.
+            kitty_specs_path = workspace_path / "kitty-specs"
+            if kitty_specs_path.exists():
+                shutil.rmtree(kitty_specs_path)
 
             return None
 
@@ -301,36 +303,6 @@ class GitVCS:
             return git_path
 
         return None
-
-    def _add_wp_status_exclusion(self, workspace_path: Path) -> None:
-        """
-        Add WP status files exclusion to .git/info/exclude.
-
-        This prevents WP status files from being accidentally staged in worktrees.
-        Uses .git/info/exclude (local, unversioned) instead of .gitignore to
-        prevent merge pollution (fixes Bug #120).
-
-        Args:
-            workspace_path: Path to the workspace
-        """
-        git_dir = self._get_git_dir(workspace_path)
-        if not git_dir:
-            return
-
-        exclude_file = git_dir / "info" / "exclude"
-        exclude_file.parent.mkdir(parents=True, exist_ok=True)
-
-        exclude_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-
-        # Read existing exclude content
-        existing_content = ""
-        if exclude_file.exists():
-            existing_content = exclude_file.read_text(encoding="utf-8")
-
-        # Only add if not already present
-        if "kitty-specs/**/tasks/*.md" not in existing_content:
-            new_content = existing_content.rstrip() + "\n" + exclude_entry
-            exclude_file.write_text(new_content.lstrip(), encoding="utf-8")
 
     def remove_workspace(self, workspace_path: Path) -> bool:
         """

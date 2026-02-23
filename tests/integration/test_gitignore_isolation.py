@@ -343,15 +343,15 @@ dependencies: []
         f".git/info/exclude should exist at {exclude_path}"
     )
 
-    # Verify it contains the exclusion pattern for WP status files
+    # Verify it contains the exclusion pattern for the full planning tree
     exclude_content = exclude_path.read_text()
-    assert "kitty-specs/**/tasks/*.md" in exclude_content, (
-        ".git/info/exclude should contain 'kitty-specs/**/tasks/*.md' pattern. "
+    assert "kitty-specs/" in exclude_content, (
+        ".git/info/exclude should contain 'kitty-specs/' pattern. "
         f"Content:\n{exclude_content}"
     )
 
     # Verify comment is included
-    assert "Block WP status files" in exclude_content or "managed in planning branch" in exclude_content, (
+    assert "Excluded via sparse-checkout" in exclude_content, (
         ".git/info/exclude should contain explanatory comment. "
         f"Content:\n{exclude_content}"
     )

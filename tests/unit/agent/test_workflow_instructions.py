@@ -212,7 +212,10 @@ class TestMoveTaskPreflightCheck:
                 any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) 
                 for line in guidance
             ), f"No uncommitted/staged message in: {guidance}"
-            assert any("git add -A" in line for line in guidance), f"No 'git add -A' in: {guidance}"
+            assert any(
+                "git add <deliverable-path-1> <deliverable-path-2>" in line
+                for line in guidance
+            ), f"No explicit staging guidance in: {guidance}"
             assert any("git commit" in line for line in guidance), f"No 'git commit' in: {guidance}"
 
     def test_validate_ready_for_review_allows_clean_worktree(self, tmp_path):

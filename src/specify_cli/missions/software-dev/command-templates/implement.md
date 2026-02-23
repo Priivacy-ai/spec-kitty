@@ -57,7 +57,8 @@ If no WP ID is provided, it will automatically find the first work package with 
 
 ```bash
 cd .worktrees/###-feature-WP##/
-git add -A
+# Stage only expected deliverables for this WP (never use `git add -A`)
+git add <deliverable-path-1> <deliverable-path-2> ...
 git commit -m "feat(WP##): <describe your implementation>"
 ```
 
@@ -65,7 +66,8 @@ git commit -m "feat(WP##): <describe your implementation>"
 
 ```powershell
 Set-Location .worktrees\###-feature-WP##\
-git add -A
+# Stage only expected deliverables for this WP (never use `git add -A`)
+git add <deliverable-path-1> <deliverable-path-2> ...
 git commit -m "feat(WP##): <describe your implementation>"
 ```
 
