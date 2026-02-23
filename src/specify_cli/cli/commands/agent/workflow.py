@@ -479,20 +479,24 @@ def implement(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to target branch (enables instant status sync)
-            actual_wp_path = wp.path.resolve()
-            commit_success = safe_commit(
-                repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path],
-                commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
-                allow_empty=True,  # OK if already in this state
-            )
-            if not commit_success:
-                print(
-                    f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
-                    "Status claim aborted."
+            # Auto-commit to target branch when git is available.
+            # Some tests/fixtures intentionally run without git.
+            if _is_git_repo(main_repo_root):
+                actual_wp_path = wp.path.resolve()
+                commit_success = safe_commit(
+                    repo_path=main_repo_root,
+                    files_to_commit=[actual_wp_path],
+                    commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                    allow_empty=True,  # OK if already in this state
                 )
-                raise typer.Exit(1)
+                if not commit_success:
+                    print(
+                        f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
+                        "Status claim aborted."
+                    )
+                    raise typer.Exit(1)
+            else:
+                print("Warning: No git repository detected. Skipping status auto-commit.")
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -901,20 +905,24 @@ def review(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to target branch (enables instant status sync)
-            actual_wp_path = wp.path.resolve()
-            commit_success = safe_commit(
-                repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path],
-                commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
-                allow_empty=True,  # OK if already in this state
-            )
-            if not commit_success:
-                print(
-                    f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
-                    "Review claim aborted."
+            # Auto-commit to target branch when git is available.
+            # Some tests/fixtures intentionally run without git.
+            if _is_git_repo(main_repo_root):
+                actual_wp_path = wp.path.resolve()
+                commit_success = safe_commit(
+                    repo_path=main_repo_root,
+                    files_to_commit=[actual_wp_path],
+                    commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                    allow_empty=True,  # OK if already in this state
                 )
-                raise typer.Exit(1)
+                if not commit_success:
+                    print(
+                        f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
+                        "Review claim aborted."
+                    )
+                    raise typer.Exit(1)
+            else:
+                print("Warning: No git repository detected. Skipping status auto-commit.")
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -929,24 +937,27 @@ def review(
 
         # Ensure workspace exists (create if needed)
         if not workspace_path.exists():
-            # Ensure .worktrees directory exists
-            worktrees_dir = repo_root / ".worktrees"
-            worktrees_dir.mkdir(parents=True, exist_ok=True)
-
-            # Create worktree using VCS layer (handles sparse-checkout + git/info/exclude)
-            vcs = get_vcs(repo_root)
-            create_result = vcs.create_workspace(
-                workspace_path=workspace_path,
-                workspace_name=workspace_name,
-                base_branch=target_branch,
-                repo_root=repo_root,
-                sparse_exclude=["kitty-specs/"],
-            )
-
-            if not create_result.success:
-                print(f"Warning: Could not create workspace: {create_result.error}")
+            if not _is_git_repo(repo_root):
+                print("Warning: No git repository detected. Skipping workspace creation.")
             else:
-                print(f"✓ Created workspace: {workspace_path}")
+                # Ensure .worktrees directory exists
+                worktrees_dir = repo_root / ".worktrees"
+                worktrees_dir.mkdir(parents=True, exist_ok=True)
+
+                # Create worktree using VCS layer (handles sparse-checkout + git/info/exclude)
+                vcs = get_vcs(repo_root)
+                create_result = vcs.create_workspace(
+                    workspace_path=workspace_path,
+                    workspace_name=workspace_name,
+                    base_branch=target_branch,
+                    repo_root=repo_root,
+                    sparse_exclude=["kitty-specs/"],
+                )
+
+                if not create_result.success:
+                    print(f"Warning: Could not create workspace: {create_result.error}")
+                else:
+                    print(f"✓ Created workspace: {workspace_path}")
 
         # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
         # without sparse-checkout or where setup failed silently)
