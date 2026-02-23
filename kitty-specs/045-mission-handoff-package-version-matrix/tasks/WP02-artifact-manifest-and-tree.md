@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Artifact Manifest Snapshot + Tree Snapshot
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: daad18d1a6cc861106e5879e1875fda34517d0a2
@@ -13,8 +13,8 @@ subtasks:
 - T007
 phase: Phase 2 - Parallel Wave
 assignee: ''
-agent: claude-opus
-shell_pid: '36909'
+agent: "claude-opus"
+shell_pid: "44442"
 review_status: ''
 reviewed_by: ''
 history:
@@ -292,3 +292,4 @@ Reviewers verify:
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
 - 2026-02-23T19:43:19Z – claude-opus – shell_pid=36909 – lane=doing – Assigned agent via workflow command
 - 2026-02-23T19:45:50Z – claude-opus – shell_pid=36909 – lane=for_review – Ready for review: artifact-manifest.json (YAML→JSON export with provenance) and artifact-tree.json (16 present + 1 absent, SHA-256 fingerprinted, no handoff/ entries). All 5 review criteria validated.
+- 2026-02-23T19:46:22Z – claude-opus – shell_pid=44442 – lane=doing – Started review via workflow command
