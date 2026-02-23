@@ -1,0 +1,9 @@
+{
+  "feature_number": "045",
+  "slug": "045-mission-handoff-package-version-matrix",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "friendly_name": "mission handoff package version matrix",
+  "mission": "software-dev",
+  "target_branch": "2.x",
+  "created_at": "2026-02-23T17:39:22.795734+00:00"
+}
