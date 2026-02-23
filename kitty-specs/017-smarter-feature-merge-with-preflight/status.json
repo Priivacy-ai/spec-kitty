@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "feature_slug": "017-smarter-feature-merge-with-preflight",
+  "last_event_id": "01KJ5V38R75S4G4N00HZS6EFAC",
+  "materialized_at": "2026-02-23T18:10:00.584261+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 3,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38R0B8AZPCZGYHPXGHJ2",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38R17D7P8MPZD3RA7TKZ",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KJ5V38R3QZJ8DVPBWDTMMAM4",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KJ5V38R40SE698XH9CPM3HB3",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KJ5V38R63ECQKN2KYG6E5XE2",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38R75S4G4N00HZS6EFAC",
+      "last_transition_at": "2026-01-18T10:37:13Z"
+    }
+  }
+}

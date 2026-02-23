@@ -1,0 +1,73 @@
+{
+  "event_count": 8,
+  "feature_slug": "004-modular-code-refactoring",
+  "last_event_id": "01KJ5V38KCJYBFSFFR9MVSXMK4",
+  "materialized_at": "2026-02-23T18:10:00.428573+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JT00JPNCGNRNVWXV12",
+      "last_transition_at": "2026-02-23T18:10:00.410438+00:00"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JXYWPQNPD87XWP7ZSE",
+      "last_transition_at": "2026-02-23T18:10:00.413612+00:00"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JZ4DXFJ18Q6CW6VS2C",
+      "last_transition_at": "2026-02-23T18:10:00.415865+00:00"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38K2FJR1MV4J37AFBRG9",
+      "last_transition_at": "2026-02-23T18:10:00.418442+00:00"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38K54EE35YS7R5TV6Z8B",
+      "last_transition_at": "2026-02-23T18:10:00.421633+00:00"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38K8WZD0PY3J8TK6TZMT",
+      "last_transition_at": "2026-02-23T18:10:00.424063+00:00"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38KAFT6F0G4GVAR4HD8A",
+      "last_transition_at": "2026-02-23T18:10:00.426476+00:00"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38KCJYBFSFFR9MVSXMK4",
+      "last_transition_at": "2026-02-23T18:10:00.428011+00:00"
+    }
+  }
+}

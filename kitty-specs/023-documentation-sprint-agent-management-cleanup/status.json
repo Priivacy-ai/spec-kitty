@@ -1,0 +1,66 @@
+{
+  "event_count": 7,
+  "feature_slug": "023-documentation-sprint-agent-management-cleanup",
+  "last_event_id": "01KJ5V38T8VK8WZ6ENTH8VF8M7",
+  "materialized_at": "2026-02-23T18:10:00.649557+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38SXWG2WGR2AFPX2BWTF",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T0XEWAHN02A2C4RS36",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T2CPZ8JRWHMADFVQR7",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T487TT5D5PGPCR569Q",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T5N1QXM33M3WT5XQV2",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T7NWBTQ1TCT17FPJR4",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38T8VK8WZ6ENTH8VF8M7",
+      "last_transition_at": "2026-01-23T10:23:45Z"
+    }
+  }
+}

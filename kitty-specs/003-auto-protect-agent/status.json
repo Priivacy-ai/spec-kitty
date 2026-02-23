@@ -1,0 +1,52 @@
+{
+  "event_count": 11,
+  "feature_slug": "003-auto-protect-agent",
+  "last_event_id": "01KJ5V38JM9MQD0BHZ6Y3MKSKP",
+  "materialized_at": "2026-02-23T18:10:00.407519+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JGMT9FE0G46VCQDPZ1",
+      "last_transition_at": "2025-11-10T11:00:00Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JJF8G12NACMVWRQGEG",
+      "last_transition_at": "2025-11-10T11:15:00Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JM9MQD0BHZ6Y3MKSKP",
+      "last_transition_at": "2025-11-10T11:35:00Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JN86FXE08A275GKCWJ",
+      "last_transition_at": "2025-11-10T10:00:00Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJ5V38JP3MFY4SW9YHVZDWY5",
+      "last_transition_at": "2025-11-10T10:00:00Z"
+    }
+  }
+}
