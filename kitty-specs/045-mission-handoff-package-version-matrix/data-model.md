@@ -1,0 +1,291 @@
+# Data Model: Mission Handoff Package & Version Matrix
+
+**Feature**: 045-mission-handoff-package-version-matrix
+**Date**: 2026-02-23
+
+---
+
+## Handoff Package: File Layout
+
+All files are committed to:
+```
+kitty-specs/045-mission-handoff-package-version-matrix/handoff/
+```
+
+| File | Entity | Format | Required |
+|------|--------|--------|---------|
+| `namespace.json` | NamespaceTuple | JSON | Yes |
+| `artifact-manifest.json` | ArtifactManifestSnapshot | JSON | Yes |
+| `artifact-tree.json` | ArtifactTreeSnapshot | JSON | Yes |
+| `events.jsonl` | EventStream | JSONL | Yes |
+| `version-matrix.md` | VersionMatrix | Markdown | Yes |
+| `verification.md` | VerificationNote | Markdown | Yes |
+| `generate.sh` | GeneratorCommand | Shell script | Yes |
+
+---
+
+## Entity: NamespaceTuple (`namespace.json`)
+
+```json
+{
+  "schema_version": "1",
+  "project_scope_id": "<repo-root-directory-name or config-derived>",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "source_branch": "2.x",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "mission_key": "software-dev",
+  "manifest_version": "1",
+  "step_id": null,
+  "generated_at": "<ISO 8601 UTC>"
+}
+```
+
+**Field definitions**:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `schema_version` | string | Always `"1"` for V1 handoff packages |
+| `project_scope_id` | string | Local project identity — basename of repo root directory |
+| `feature_slug` | string | Always `"045-mission-handoff-package-version-matrix"` |
+| `source_branch` | string | Always `"2.x"` for this wave |
+| `source_commit` | string | Full 40-char SHA — `21ed0738f009ca35a2927528238a48778e41f1d4` |
+| `mission_key` | string | Always `"software-dev"` for this wave |
+| `manifest_version` | string | Mirrors `manifest_version` from `expected-artifacts.yaml` — `"1"` |
+| `step_id` | string or null | `null` — no explicit step boundary for this wave |
+| `generated_at` | string | ISO 8601 UTC timestamp of package generation |
+
+**Validation rules**:
+- `source_commit` MUST be a 40-character lowercase hex string
+- `generated_at` MUST be ISO 8601 UTC (`Z` suffix)
+- `step_id` MAY be `null`; when present MUST match a step ID from `expected-artifacts.yaml`
+
+---
+
+## Entity: ArtifactManifestSnapshot (`artifact-manifest.json`)
+
+Point-in-time JSON export of `src/specify_cli/missions/software-dev/expected-artifacts.yaml` at `source_commit`.
+
+**Schema** (mirrors YAML structure):
+
+```json
+{
+  "schema_version": "1.0",
+  "mission_type": "software-dev",
+  "manifest_version": "1",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "captured_at": "<ISO 8601 UTC>",
+  "required_always": [],
+  "required_by_step": {
+    "discovery": [],
+    "specify": [
+      {
+        "artifact_key": "input.spec.main",
+        "artifact_class": "input",
+        "path_pattern": "spec.md",
+        "blocking": true
+      }
+    ],
+    "plan": [
+      { "artifact_key": "output.plan.main", "artifact_class": "output", "path_pattern": "plan.md", "blocking": true },
+      { "artifact_key": "output.tasks.list", "artifact_class": "output", "path_pattern": "tasks.md", "blocking": true }
+    ],
+    "implement": [],
+    "review": [],
+    "done": []
+  },
+  "optional_always": [
+    { "artifact_key": "evidence.research", "artifact_class": "evidence", "path_pattern": "research.md", "blocking": false },
+    { "artifact_key": "evidence.gap-analysis", "artifact_class": "evidence", "path_pattern": "gap-analysis.md", "blocking": false },
+    { "artifact_key": "evidence.quickstart", "artifact_class": "evidence", "path_pattern": "quickstart.md", "blocking": false },
+    { "artifact_key": "evidence.data-model", "artifact_class": "evidence", "path_pattern": "data-model.md", "blocking": false }
+  ]
+}
+```
+
+**Extra fields added during snapshot** (not in YAML):
+- `source_commit`: provenance reference
+- `captured_at`: generation timestamp
+
+---
+
+## Entity: ArtifactTreeSnapshot (`artifact-tree.json`)
+
+```json
+{
+  "schema_version": "1",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "root_path": "kitty-specs/045-mission-handoff-package-version-matrix",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "captured_at": "<ISO 8601 UTC>",
+  "entries": [
+    {
+      "path": "spec.md",
+      "sha256": "<64-char hex>",
+      "size_bytes": 4712,
+      "status": "present"
+    },
+    {
+      "path": "plan.md",
+      "sha256": "<64-char hex>",
+      "size_bytes": 8341,
+      "status": "present"
+    },
+    {
+      "path": "tasks.md",
+      "sha256": null,
+      "size_bytes": null,
+      "status": "absent"
+    }
+  ],
+  "total_files": 7,
+  "present_count": 6,
+  "absent_count": 1
+}
+```
+
+**Walking rules**:
+- Walk `kitty-specs/045-.../` recursively
+- **Exclude** `handoff/` subdirectory (self-referential recursion prevention)
+- **Exclude** `__pycache__/`, `*.pyc`, `.git/`
+- Paths are relative to `root_path`
+- `status: "absent"` entries are generated by cross-referencing the manifest; they do NOT have corresponding files on disk
+
+---
+
+## Entity: EventStream (`events.jsonl`)
+
+One JSON object per line, sorted keys, UTF-8. Mirrors `status.events.jsonl` format.
+
+**If status events exist** (accumulated during WP implementation):
+```jsonl
+{"actor":"claude","at":"2026-02-23T17:39:22+00:00","event_id":"01JMXYZ...","feature_slug":"045-mission-handoff-package-version-matrix","wp_id":"WP01","from_lane":"planned","to_lane":"claimed",...}
+```
+
+**If no status events exist yet** (bootstrapping): a single synthetic event:
+```json
+{
+  "event_id": "<ULID>",
+  "event_type": "handoff_package_created",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "source_branch": "2.x",
+  "at": "<ISO 8601 UTC>",
+  "actor": "spec-kitty/045-generator"
+}
+```
+
+---
+
+## Entity: VersionMatrix (`version-matrix.md`)
+
+Structured Markdown with a machine-scannable `versions` code block.
+
+**Required sections**:
+
+### Section structure
+
+```markdown
+# Version Matrix: Mission Handoff Package & Version Matrix
+
+## Version Pins
+
+```versions
+spec-kitty=2.0.0
+spec-kitty-events=2.3.1
+spec-kitty-runtime=v0.2.0a0
+source-commit=21ed0738f009ca35a2927528238a48778e41f1d4
+source-branch=2.x
+```
+
+## Source Reference
+
+- **Branch**: `2.x`
+- **Source commit**: `21ed0738f009ca35a2927528238a48778e41f1d4` (Merge WP05 from 041-enable-plan-mission-runtime-support, 2026-02-22)
+- **Wave**: plan-context-bootstrap-fix
+
+## Replay Commands
+
+...
+
+## Expected Artifact Classes and Paths
+
+...
+```
+
+**Machine-scan convention**: CI tooling extracts versions by reading the fenced code block with language hint `versions`. Each line is `key=value`.
+
+---
+
+## Entity: VerificationNote (`verification.md`)
+
+```markdown
+# Verification Note: Setup-Plan Context Tests
+
+**Branch**: 2.x
+**Source commit**: 21ed0738f009ca35a2927528238a48778e41f1d4
+**Run date**: <ISO 8601 UTC>
+**Result**: PASS / FAIL
+
+## Test Coverage
+
+| Scenario | Test | Result |
+|---------|------|--------|
+| (a) Ambiguity error | test_setup_plan_ambiguous_context_returns_candidates | ✅ PASS |
+| (b) Explicit --feature success | test_setup_plan_explicit_feature_reports_spec_path | ✅ PASS |
+| (c) Missing spec.md hard error | test_setup_plan_missing_spec_reports_absolute_path | ✅ PASS |
+| (d) Invalid slug validation error | test_errors_when_spec_missing (+ slug tests) | ✅ PASS |
+
+## Counts
+
+Passed: X / X
+
+## Re-run Command
+
+```bash
+pytest tests/integration/test_planning_workflow.py::TestSetupPlanCommand \
+       tests/specify_cli/test_cli/test_agent_feature.py \
+       -v --tb=short
+```
+```
+
+---
+
+## Entity: GeneratorCommand (`generate.sh`)
+
+**Interface**:
+
+```bash
+./handoff/generate.sh [--write] [--output-dir <path>] [--help]
+```
+
+| Flag | Behaviour |
+|------|-----------|
+| *(default)* | Dry-run: print what would be written, no files created |
+| `--write` | Write files to `--output-dir` (default: `handoff/`) |
+| `--output-dir <path>` | Override output directory (default: script's own directory) |
+| `--force` | Overwrite existing files (default: abort if files exist) |
+
+**Generator steps** (mirroring WP sequence):
+1. Compute `namespace.json` from embedded variables + `git rev-parse HEAD`
+2. Export `artifact-manifest.json` from `src/specify_cli/missions/software-dev/expected-artifacts.yaml` at `SOURCE_COMMIT`
+3. Walk feature directory → compute SHA-256 → emit `artifact-tree.json`
+4. Copy `status.events.jsonl` → `events.jsonl` (or emit bootstrap event)
+5. Embed version pins → emit `version-matrix.md`
+6. Print instructions for running tests → `verification.md` (manual step; generator does not run tests)
+
+---
+
+## State Transitions
+
+No runtime state transitions. This is a pure artifact-generation feature; no WP status machine changes are introduced.
+
+---
+
+## Key Invariants
+
+1. `namespace.json::source_commit` MUST equal the `SOURCE_COMMIT` embedded in `generate.sh`.
+2. `artifact-manifest.json::source_commit` MUST equal `namespace.json::source_commit`.
+3. `artifact-tree.json` MUST NOT include files from `handoff/` subdirectory.
+4. `events.jsonl` MUST preserve original JSONL insertion order from `status.events.jsonl`.
+5. All `captured_at` and `generated_at` timestamps MUST be ISO 8601 UTC.
+6. `generate.sh` MUST default to dry-run; `--write` is required to produce files.
