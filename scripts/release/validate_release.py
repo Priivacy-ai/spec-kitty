@@ -3,8 +3,8 @@
 
 The script validates three core conditions before allowing a release:
 
-1. The release version declared in pyproject.toml is well-formed (`X.Y.Z` or
-   `X.Y.ZrcN`).
+1. The release version declared in pyproject.toml is well-formed and
+   PEP 440-compatible (`X.Y.Z`, `X.Y.ZaN`, `X.Y.ZbN`, or `X.Y.ZrcN`).
 2. CHANGELOG.md contains a populated section for the target version.
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
@@ -22,17 +22,17 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence
 
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreters
     import tomli as tomllib  # type: ignore
 
+from packaging.version import InvalidVersion, Version
 
-RELEASE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:rc(\d+))?$")
 CHANGELOG_HEADING_RE = re.compile(
-    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+(?:rc\d+)?)(?:\s*\]|)(?:\s*-.*)?$"
+    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?)(?:\s*\]|)(?:\s*-.*)?$"
 )
 
 
@@ -127,10 +127,7 @@ def load_pyproject_version(path: Path) -> str:
         ) from exc
     if not isinstance(version, str):
         raise ReleaseValidatorError("pyproject version must be a string.")
-    if not RELEASE_VERSION_RE.match(version):
-        raise ReleaseValidatorError(
-            f"Version '{version}' is not a valid release version (expected X.Y.Z or X.Y.ZrcN)."
-        )
+    parse_release_version(version)
     return version
 
 
@@ -193,33 +190,67 @@ def discover_release_tags(repo_root: Path, exclude: Optional[str] = None) -> Lis
         if tag == exclude:
             continue
         candidate = tag.lstrip("v")
-        if RELEASE_VERSION_RE.match(candidate):
+        try:
+            parse_release_version(candidate)
+        except ReleaseValidatorError:
+            continue
+        else:
             filtered.append(tag)
     filtered.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
     return filtered
 
 
-def parse_release_version(value: str) -> Tuple[int, int, int, int, int]:
-    match = RELEASE_VERSION_RE.match(value)
-    if not match:
+def parse_release_version(value: str) -> Version:
+    """Parse and validate a supported release version string.
+
+    Accepted forms:
+    - X.Y.Z
+    - X.Y.ZaN
+    - X.Y.ZbN
+    - X.Y.ZrcN
+    """
+    try:
+        parsed = Version(value)
+    except InvalidVersion as exc:
         raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid release version (expected X.Y.Z or X.Y.ZrcN)."
+            f"Value '{value}' is not a valid PEP 440 release version."
+        ) from exc
+
+    if parsed.epoch != 0:
+        raise ReleaseValidatorError(f"Version '{value}' must not use an epoch.")
+    if parsed.local is not None:
+        raise ReleaseValidatorError(f"Version '{value}' must not include a local segment.")
+    if parsed.post is not None:
+        raise ReleaseValidatorError(f"Version '{value}' must not include a post-release segment.")
+    if parsed.dev is not None:
+        raise ReleaseValidatorError(f"Version '{value}' must not include a dev-release segment.")
+    if len(parsed.release) != 3:
+        raise ReleaseValidatorError(f"Version '{value}' must use three release components (X.Y.Z).")
+    if parsed.pre is not None and parsed.pre[0] not in {"a", "b", "rc"}:
+        raise ReleaseValidatorError(
+            f"Version '{value}' has unsupported pre-release segment '{parsed.pre[0]}'."
         )
-    major, minor, patch, rc = match.groups()
-    if rc is None:
-        return int(major), int(minor), int(patch), 1, 0
-    return int(major), int(minor), int(patch), 0, int(rc)
+
+    return parsed
 
 
 def detect_tag_from_env() -> Optional[str]:
     ref_name = os.getenv("GITHUB_REF_NAME")
-    if ref_name and ref_name.startswith("v") and RELEASE_VERSION_RE.match(ref_name[1:]):
-        return ref_name
+    if ref_name and ref_name.startswith("v"):
+        try:
+            parse_release_version(ref_name[1:])
+            return ref_name
+        except ReleaseValidatorError:
+            pass
     ref = os.getenv("GITHUB_REF")
     if ref and ref.startswith("refs/tags/"):
         candidate = ref.rsplit("/", maxsplit=1)[-1]
-        if candidate.startswith("v") and RELEASE_VERSION_RE.match(candidate[1:]):
-            return candidate
+        if candidate.startswith("v"):
+            try:
+                parse_release_version(candidate[1:])
+                return candidate
+            except ReleaseValidatorError:
+                pass
     return None
 
 
@@ -228,9 +259,9 @@ def validate_version_progression(
 ) -> Optional[ValidationIssue]:
     if not existing_tags:
         return None
-    current_tuple = parse_release_version(current_version)
-    latest_tuple = parse_release_version(existing_tags[0].lstrip("v"))
-    if current_tuple <= latest_tuple:
+    current_version_parsed = parse_release_version(current_version)
+    latest_version_parsed = parse_release_version(existing_tags[0].lstrip("v"))
+    if current_version_parsed <= latest_version_parsed:
         return ValidationIssue(
             message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
             hint="Select a release version greater than previously published tags.",
@@ -291,7 +322,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             issues.append(
                 ValidationIssue(
                     message="No tag supplied and none detected from environment.",
-                    hint="Use --tag vX.Y.Z (or vX.Y.ZrcN), or set GITHUB_REF_NAME when running in CI.",
+                    hint="Use --tag vX.Y.Z (or vX.Y.ZaN / vX.Y.ZbN / vX.Y.ZrcN), or set GITHUB_REF_NAME in CI.",
                 )
             )
         else:

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.upgrade.migrations.m_0_13_0_update_research_implement_templates import (
     UpdateResearchImplementTemplatesMigration,
 )

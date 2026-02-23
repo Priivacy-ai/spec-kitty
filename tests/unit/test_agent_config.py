@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import (
+from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
     load_agent_config,

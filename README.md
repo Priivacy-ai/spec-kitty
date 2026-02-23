@@ -83,12 +83,13 @@ graph LR
 </div>
 
 **Recent stable release:** `v0.16.2` (2026-02-21)
-**Current release candidate:** `v1.0.0rc1` (2026-02-22)
+**Current 1.x alpha:** `v1.0.0a1` (2026-02-23)
 
-**1.0 RC highlights:**
+**1.x alpha highlights:**
 - Deterministic review feedback enforcement with persisted feedback file paths
 - Safer review transitions with automatic WP worktree rebase handling
 - Dashboard browser launch is now opt-in via `--open`
+- Core `orchestrate` runtime removed; orchestration now integrates via `spec-kitty orchestrator-api`
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -102,14 +103,14 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty now tracks `1.0` release candidates from `main` while `2.x` remains the experimental stream.
+Spec Kitty now tracks `1.x` prereleases from `main` while `2.x` remains the experimental stream.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **1.0.0rc** | Active 1.0 release candidates | `pip install --pre spec-kitty-cli` |
+| **main** | **1.0.0a** | Active 1.x prereleases | `pip install --pre spec-kitty-cli` |
 | **2.x** | **2.x** | Experimental next-generation development | Install from source |
 
-**For users:** install stable from PyPI (`pip install spec-kitty-cli`) or opt into the `1.0` RC stream (`pip install --pre spec-kitty-cli`).
+**For users:** install stable from PyPI (`pip install spec-kitty-cli`) or opt into the `1.x` prerelease stream (`pip install --pre spec-kitty-cli`).
 **For contributors:** target `main` unless maintainers specify otherwise in an issue or PR discussion.
 
 ---
@@ -699,6 +700,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `dashboard` | Open or stop the Spec Kitty dashboard |
 | `diagnostics` | Show project health and diagnostics information |
 | `merge`     | Merge a completed feature branch into main and clean up resources |
+| `orchestrator-api` | Host contract for external orchestrators (JSON envelope interface) |
 | `research`  | Execute Phase 0 research workflow to scaffold artifacts |
 | `verify-setup` | Verify that the current environment matches Spec Kitty expectations |
 
@@ -1280,7 +1282,7 @@ Three workflows protect release quality:
    - Allows PR merges (passes)
    - Provides remediation guidance
 
-3. **release.yml** - Runs on `v*.*.*` tags
+3. **release.yml** - Runs on `v1*` tags (including prereleases like `v1.0.0a1`)
    - Full release pipeline
    - Publishes to PyPI
    - Creates GitHub Release

@@ -178,7 +178,6 @@ def test_centralized_imports_used(repo_root: Path):
         "cli/commands/agent/workflow.py",
         "cli/commands/agent/tasks.py",
         "cli/commands/mission.py",
-        "cli/commands/orchestrate.py",
         "acceptance.py",
         "agent_utils/status.py",
     ]
