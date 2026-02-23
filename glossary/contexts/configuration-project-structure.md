@@ -43,7 +43,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Policy-level language authority for terminology and semantic contracts. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
-| **Related terms** | [Glossary Scope](./events-telemetry.md#glossary-scope), [Semantic Check](./execution.md#semantic-check) |
+| **Related terms** | [Glossary Scope](./system-events.md#glossary-scope), [Semantic Check](./execution.md#semantic-check) |
 
 ---
 
@@ -77,4 +77,3 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Related terms** | [Project Constitution](#project-constitution), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
-

@@ -33,7 +33,7 @@ definitions:
         description: Doctrine artifact type being referenced.
       id:
         type: string
-        pattern: '^[a-z][a-z0-9-]*$'
+        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
         description: Artifact identifier matching the id field of the referenced artifact.
       when:
         type: string
