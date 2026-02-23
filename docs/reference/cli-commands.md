@@ -57,8 +57,6 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 | `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
 | `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--preferred-implementer TEXT` | Preferred agent for implementation |
-| `--preferred-reviewer TEXT` | Preferred agent for review |
 | `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
 | `--help` | Show this message and exit |
 

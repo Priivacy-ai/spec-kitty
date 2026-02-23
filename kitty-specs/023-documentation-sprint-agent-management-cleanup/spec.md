@@ -137,7 +137,7 @@ A user browsing documentation encounters outdated content unrelated to agent man
 
 - **AgentConfig**: Configuration object storing list of available agent keys and selection strategy
   - `available`: List of agent keys (e.g., `["claude", "codex", "opencode"]`)
-  - `selection`: Nested object with `strategy`, `preferred_implementer`, `preferred_reviewer`
+  - `selection`: Nested object with `strategy`, `implementer_agent`, `reviewer_agent`
 
 - **Agent Directory Mapping**: Key-to-filesystem mapping for 12 supported agents
   - Special cases: `copilot` → `.github/prompts`, `auggie` → `.augment/commands`, `q` → `.amazonq/prompts`

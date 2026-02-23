@@ -16,7 +16,7 @@ from rich.live import Live
 from rich.panel import Panel
 from ruamel.yaml import YAML
 
-from specify_cli.cli import StepTracker, select_with_arrows, multi_select_with_arrows
+from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AGENT_TOOL_REQUIREMENTS,
     AI_CHOICES,
@@ -37,7 +37,6 @@ from specify_cli.dashboard import ensure_dashboard_running
 from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
 from specify_cli.orchestrator.agent_config import (
     AgentConfig,
-    AgentSelectionConfig,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
@@ -84,32 +83,6 @@ def _is_non_interactive_mode(flag: bool) -> bool:
     if _is_truthy_env(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
         return True
     return not sys.stdin.isatty()
-
-
-def _resolve_preferred_agents(
-    selected_agents: list[str],
-    preferred_implementer: str | None,
-    preferred_reviewer: str | None,
-) -> tuple[str, str]:
-    if not selected_agents:
-        raise ValueError("At least one agent must be selected")
-
-    if preferred_implementer and preferred_implementer not in selected_agents:
-        raise ValueError("Preferred implementer must be one of the selected agents")
-    if preferred_reviewer and preferred_reviewer not in selected_agents:
-        raise ValueError("Preferred reviewer must be one of the selected agents")
-
-    if not preferred_implementer:
-        preferred_implementer = selected_agents[0]
-    if not preferred_reviewer:
-        if len(selected_agents) > 1:
-            preferred_reviewer = next(
-                agent for agent in selected_agents if agent != preferred_implementer
-            )
-        else:
-            preferred_reviewer = preferred_implementer
-
-    return preferred_implementer, preferred_reviewer
 
 
 def _detect_default_vcs() -> VCSBackend:
@@ -212,8 +185,6 @@ def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    preferred_implementer: str = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
-    preferred_reviewer: str = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
     mission_key: str = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -384,70 +355,8 @@ def init(
             _console.print(warning_panel)
             # Continue with init instead of blocking
 
-    # Agent role preferences
-    preferred_implementer_value: str | None = preferred_implementer
-    preferred_reviewer_value: str | None = preferred_reviewer
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
-
-    if non_interactive:
-        try:
-            preferred_implementer, preferred_reviewer = _resolve_preferred_agents(
-                selected_agents,
-                preferred_implementer_value,
-                preferred_reviewer_value,
-            )
-        except ValueError as exc:
-            _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
-    else:
-        # Ask for preferred implementer
-        agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
-
-        _console.print()
-        if preferred_implementer_value:
-            if preferred_implementer_value not in selected_agents:
-                _console.print("[red]Error:[/red] --preferred-implementer must be one of the selected agents")
-                raise typer.Exit(1)
-            preferred_implementer = preferred_implementer_value
-        else:
-            preferred_implementer = select_with_arrows(
-                agent_display_map,
-                "Which agent should be the preferred IMPLEMENTER?",
-                default_key=selected_agents[0],
-            )
-
-        # Ask for preferred reviewer (prefer different from implementer)
-        _console.print()
-        if len(selected_agents) > 1:
-            # Default to a different agent for review
-            default_reviewer = next((a for a in selected_agents if a != preferred_implementer), selected_agents[0])
-            if preferred_reviewer_value:
-                if preferred_reviewer_value not in selected_agents:
-                    _console.print("[red]Error:[/red] --preferred-reviewer must be one of the selected agents")
-                    raise typer.Exit(1)
-                preferred_reviewer = preferred_reviewer_value
-            else:
-                preferred_reviewer = select_with_arrows(
-                    agent_display_map,
-                    "Which agent should be the preferred REVIEWER?",
-                    default_key=default_reviewer,
-                )
-            if preferred_reviewer == preferred_implementer and len(selected_agents) > 1:
-                _console.print("[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)")
-        else:
-            # Only one agent - same for both
-            preferred_reviewer = preferred_implementer
-            _console.print(f"[dim]Single agent mode: {AI_CHOICES[preferred_implementer]} will do both implementation and review[/dim]")
-
     # Build agent config to save later
-    agent_config = AgentConfig(
-        available=selected_agents,
-        selection=AgentSelectionConfig(
-            preferred_implementer=preferred_implementer,
-            preferred_reviewer=preferred_reviewer,
-        ),
-    )
+    agent_config = AgentConfig(available=selected_agents)
 
     # Determine script type (explicit or auto-detect)
     if script_type:

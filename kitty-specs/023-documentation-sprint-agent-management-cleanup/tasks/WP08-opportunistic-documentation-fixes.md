@@ -200,8 +200,8 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
      class AgentSelectionConfig:
          strategy: SelectionStrategy  # PREFERRED or RANDOM
-         preferred_implementer: str | None
-         preferred_reviewer: str | None
+         implementer_agent: str | None
+         reviewer_agent: str | None
      ```
 
 2. **Find config examples in docs**:

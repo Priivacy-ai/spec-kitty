@@ -228,14 +228,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
    @dataclass
    class AgentSelectionConfig:
        strategy: SelectionStrategy = SelectionStrategy.PREFERRED
-       preferred_implementer: str | None = None
-       preferred_reviewer: str | None = None
+       implementer_agent: str | None = None
+       reviewer_agent: str | None = None
    ```
 
    **Document fields**:
    - `strategy`: Enum `SelectionStrategy` with values `PREFERRED` or `RANDOM` (default: `PREFERRED`)
-   - `preferred_implementer`: Optional string (agent ID for implementation)
-   - `preferred_reviewer`: Optional string (agent ID for review)
+   - `implementer_agent`: Optional string (agent ID for implementation)
+   - `reviewer_agent`: Optional string (agent ID for review)
 
 3. **Extract AgentConfig dataclass** (lines 45-55):
    ```python
@@ -258,8 +258,8 @@ Use language identifiers in code blocks: ````python`, ````bash`
        - opencode
      selection:
        strategy: preferred  # or "random"
-       preferred_implementer: claude
-       preferred_reviewer: codex
+       implementer_agent: claude
+       reviewer_agent: codex
    ```
 
 5. **Document fallback behavior** (from docstring and load_agent_config function):
@@ -269,7 +269,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 6. **Document selection behavior** (lines 57-108):
    - `select_implementer()`: Returns agent from `available` list
-     - If `strategy == PREFERRED`: Returns `preferred_implementer` if in available, else first agent
+     - If `strategy == PREFERRED`: Returns `implementer_agent` if in available, else first agent
      - If `strategy == RANDOM`: Returns random choice from available
    - `select_reviewer()`: Prefers different agent than implementer for cross-review
    - **Note**: Selection strategy is used by orchestrator (not in scope for this doc feature, but good to know)

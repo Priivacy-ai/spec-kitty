@@ -10,8 +10,6 @@
 spec-kitty init <project-name> \
   --ai <agents> \
   [--script <type>] \
-  [--preferred-implementer <agent>] \
-  [--preferred-reviewer <agent>] \
   [--non-interactive] \
   [--force] \
   [--no-git] \
@@ -76,13 +74,6 @@ spec-kitty init --here
 - Windows → `ps`
 - Mac/Linux → `sh`
 
-### 4. Preferred Implementer/Reviewer
-
-```bash
---preferred-implementer codex
---preferred-reviewer claude
-```
-
 ## Optional Flags
 
 | Flag | Purpose | Default |
@@ -110,8 +101,6 @@ spec-kitty init my-project \
 spec-kitty init . \
   --ai claude,codex,cursor \
   --script sh \
-  --preferred-implementer claude \
-  --preferred-reviewer codex \
   --force \
   --non-interactive
 ```
@@ -129,7 +118,7 @@ spec-kitty init --here \
 ```bash
 # In non-interactive environment (CI/CD):
 spec-kitty init my-project --ai codex --non-interactive
-# Auto-selects: --script sh (or ps on Windows), preferred role defaults
+# Auto-selects: --script sh (or ps on Windows)
 ```
 
 ### Example 5: CI/CD friendly
@@ -161,7 +150,6 @@ Triggered when:
 
 Presents:
 - Multi-select menu for AI assistants (space to select, enter to confirm)
-- Arrow selection for preferred implementer/reviewer
 - Confirmation prompt if directory not empty (unless `--force`)
 
 ### Non-Interactive Mode
@@ -356,8 +344,6 @@ spec-kitty init my-project --ai codex --non-interactive
 spec-kitty init my-project \
   --ai codex,claude,cursor \
   --script sh \
-  --preferred-implementer codex \
-  --preferred-reviewer claude \
   --force \
   --no-git \
   --ignore-agent-tools \

@@ -408,8 +408,8 @@ Use language identifiers in code blocks: ````python`, ````bash`
    # Configure in .kittify/config.yaml:
    # agents:
    #   selection:
-   #     preferred_implementer: claude
-   #     preferred_reviewer: codex
+   #     implementer_agent: claude
+   #     reviewer_agent: codex
    ```
    ```
 

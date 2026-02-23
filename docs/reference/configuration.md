@@ -363,16 +363,11 @@ agents:
   available:
     - opencode
     - claude
-  selection:
-    preferred_implementer: opencode
-    preferred_reviewer: claude
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `agents.available` | list | Agents enabled for this project |
-| `selection.preferred_implementer` | string | Agent for implementation tasks |
-| `selection.preferred_reviewer` | string | Agent for review tasks |
 
 ### Config-Driven Agent Management
 
@@ -390,15 +385,10 @@ agents:
     - claude
     - codex
     - opencode
-  selection:
-    preferred_implementer: claude
-    preferred_reviewer: codex
 ```
 
 **Fields**:
 - `available` (list): Agent keys currently active in project
-- `selection.preferred_implementer` (string): Preferred agent for implementation tasks
-- `selection.preferred_reviewer` (string): Preferred agent for review tasks
 
 **See**:
 - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands

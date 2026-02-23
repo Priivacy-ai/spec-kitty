@@ -150,8 +150,8 @@ agents:
     - codex
   selection:
     strategy: preferred  # or random
-    preferred_implementer: claude
-    preferred_reviewer: codex
+    implementer_agent: claude
+    reviewer_agent: codex
 ```
 
 **Decision**: Document structure with examples

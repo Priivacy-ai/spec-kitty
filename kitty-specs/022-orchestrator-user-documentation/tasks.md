@@ -61,7 +61,7 @@ description: "Work package task list for orchestrator user documentation"
 
 ### Implementation Notes
 - R1 must include: --feature, --status, --resume, --abort, --skip, --cleanup, --impl-agent, --review-agent
-- R2 must include: agents.available, agents.selection.strategy, preferred_implementer, preferred_reviewer
+- R2 must include: agents.available, agents.selection.strategy, implementer_agent, reviewer_agent
 - Generate synopsis from actual `spec-kitty orchestrate --help` output
 - Match existing reference doc style (Synopsis, Description, Options table, Examples)
 
