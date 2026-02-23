@@ -1,24 +1,27 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Version Matrix Note
+lane: "for_review"
+dependencies: [WP01]
+base_branch: 2.x
+base_commit: c68d22f347a00d33225c7ccf1f2a4dd1b7ba068a
+created_at: '2026-02-23T20:29:57.904796+00:00'
 subtasks:
-  - "T016"
-  - "T017"
-  - "T018"
-title: "Version Matrix Note"
-phase: "Phase 2 - Parallel Wave"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T016
+- T017
+- T018
+phase: Phase 2 - Parallel Wave
+assignee: ''
+agent: claude-opus
+shell_pid: '23713'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-23T18:04:02Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-23T18:04:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Version Matrix Note
@@ -297,3 +300,5 @@ Reviewers verify:
 ## Activity Log
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
+- 2026-02-23T20:29:58Z – claude-opus – shell_pid=23713 – lane=doing – Assigned agent via workflow command
+- 2026-02-23T20:32:07Z – claude-opus – shell_pid=23713 – lane=for_review – Ready for review: version-matrix.md (160 lines) with all 5 version pins in versions block, source reference with exact commit SHA, 4 executable replay commands using concrete slug, all 6 artifact classes (input/workflow/output/evidence/policy/runtime). All 3 subtasks (T016-T018) complete.
