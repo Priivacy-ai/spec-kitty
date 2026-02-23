@@ -209,10 +209,10 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T019 Run the 4 setup-plan context scenarios via pytest and capture output
-- [ ] T020 Confirm all 4 scenarios pass — fail hard (do not write verification.md) if any fail
-- [ ] T021 Write `handoff/verification.md` with the scenario table, pass/fail counts, branch, commit SHA, run date
-- [ ] T022 Add re-run command to verification.md and perform completeness self-check
+- [x] T019 Run the 4 setup-plan context scenarios via pytest and capture output
+- [x] T020 Confirm all 4 scenarios pass — fail hard (do not write verification.md) if any fail
+- [x] T021 Write `handoff/verification.md` with the scenario table, pass/fail counts, branch, commit SHA, run date
+- [x] T022 Add re-run command to verification.md and perform completeness self-check
 
 ### Implementation Notes
 
