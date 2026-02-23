@@ -188,6 +188,14 @@ dependencies: []
         capture_output=True,
     )
 
+    default_branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
     # Create worktree
     result = subprocess.run(
         ["spec-kitty", "implement", "WP01"],
@@ -215,9 +223,9 @@ dependencies: []
         capture_output=True,
     )
 
-    # Merge WP branch back to main
+    # Merge WP branch back to the repository default branch
     subprocess.run(
-        ["git", "checkout", "main"],
+        ["git", "checkout", default_branch],
         cwd=tmp_path,
         check=True,
         capture_output=True,

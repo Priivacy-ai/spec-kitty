@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from specify_cli.runtime.doctor import DoctorCheck
 from specify_cli.status.doctor import (
     Category,
     DoctorResult,
@@ -42,6 +43,42 @@ def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp:
     (feature_dir / "status.events.jsonl").write_text(
         "\n".join(events) + "\n", encoding="utf-8"
     )
+
+
+def _healthy_global_checks() -> list[DoctorCheck]:
+    """Return deterministic pass-state global checks for CLI unit tests."""
+    return [
+        DoctorCheck(
+            name="global_runtime_exists",
+            passed=True,
+            message="global runtime ready",
+            severity="info",
+        ),
+        DoctorCheck(
+            name="version_lock",
+            passed=True,
+            message="version lock matches",
+            severity="info",
+        ),
+        DoctorCheck(
+            name="mission_integrity",
+            passed=True,
+            message="mission directories present",
+            severity="info",
+        ),
+        DoctorCheck(
+            name="stale_legacy",
+            passed=True,
+            message="no stale assets",
+            severity="info",
+        ),
+        DoctorCheck(
+            name="governance_resolution",
+            passed=True,
+            message="governance resolved",
+            severity="info",
+        ),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -902,6 +939,9 @@ class TestDoctorCLI:
         _create_events_file(feature_dir, {"WP01": "in_progress"}, recent)
 
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
@@ -928,6 +968,9 @@ class TestDoctorCLI:
         feature_dir.mkdir(parents=True)
 
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
@@ -970,6 +1013,9 @@ class TestDoctorCLI:
         _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
@@ -1012,6 +1058,9 @@ class TestDoctorCLI:
         _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
@@ -1040,6 +1089,9 @@ class TestDoctorCLI:
         nonexistent = tmp_path / "kitty-specs" / "999-missing"
 
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(nonexistent, "999-missing", tmp_path),
         ):
@@ -1086,6 +1138,9 @@ class TestDoctorCLI:
 
         # Default threshold: healthy
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
@@ -1094,6 +1149,9 @@ class TestDoctorCLI:
 
         # Custom threshold: finding
         with patch(
+            "specify_cli.runtime.doctor.run_global_checks",
+            return_value=_healthy_global_checks(),
+        ), patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
