@@ -26,6 +26,7 @@ venv/
 ENV/
 env/
 .venv
+.venv*/
 .uv-tools/
 .pytest_cache
 
@@ -104,3 +105,4 @@ out
 
 tmp/**
 !tmp/.gitkeep
+.kittify/missions/__pycache__/
