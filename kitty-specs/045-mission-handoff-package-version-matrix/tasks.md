@@ -301,5 +301,5 @@ WP01 (scaffold + namespace)
 - WP02: done
 - WP03: done
 - WP04: done
-- WP05: for_review
+- WP05: done
 <!-- status-model:end -->
