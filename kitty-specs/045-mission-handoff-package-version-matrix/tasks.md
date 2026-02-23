@@ -131,11 +131,11 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T011 Write `generate.sh` header: shebang, set -euo pipefail, embedded SOURCE_COMMIT/SOURCE_BRANCH vars, usage function, arg-parsing, DRY_RUN default
-- [ ] T012 Implement `namespace.json` generation step (Python inline, reads git metadata, writes JSON)
-- [ ] T013 Implement `artifact-manifest.json` + `artifact-tree.json` generation steps (Python inline for YAML→JSON + SHA-256 walk)
-- [ ] T014 Implement `events.jsonl` copy step (cp from status.events.jsonl or synthesize bootstrap event)
-- [ ] T015 Implement `version-matrix.md` skeleton step + `chmod +x generate.sh` + dry-run output validation
+- [x] T011 Write `generate.sh` header: shebang, set -euo pipefail, embedded SOURCE_COMMIT/SOURCE_BRANCH vars, usage function, arg-parsing, DRY_RUN default
+- [x] T012 Implement `namespace.json` generation step (Python inline, reads git metadata, writes JSON)
+- [x] T013 Implement `artifact-manifest.json` + `artifact-tree.json` generation steps (Python inline for YAML→JSON + SHA-256 walk)
+- [x] T014 Implement `events.jsonl` copy step (cp from status.events.jsonl or synthesize bootstrap event)
+- [x] T015 Implement `version-matrix.md` skeleton step + `chmod +x generate.sh` + dry-run output validation
 
 ### Implementation Notes
 
