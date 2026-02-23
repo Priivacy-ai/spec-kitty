@@ -13,7 +13,7 @@ subtasks:
 - T022
 phase: Phase 4 - Evidence Gate
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "31188"
 review_status: ''
 reviewed_by: ''
@@ -302,3 +302,4 @@ Reviewers verify:
 ## Activity Log
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
+- 2026-02-23T20:35:37Z – claude-opus – shell_pid=31188 – lane=doing – Assigned agent via workflow command
