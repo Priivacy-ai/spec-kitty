@@ -23,8 +23,9 @@ This scenario demonstrates how a lead architect can orchestrate a multi-agent te
    - Cursor implements the chat service changes.  
    - Human reviewer tracks `tasks/for_review/`.
 
-5. **Run the kanban workflow**
-   spec-kitty agent workflow implement WP##
+5. **Run the orchestration loop**
+   - Manual mode: `spec-kitty agent workflow implement WP##` per assigned WP
+   - Automated mode: `spec-kitty-orchestrator orchestrate --feature 001-cross-platform-chat-upgrade`
 
 6. **Review completed work**
    Human reviewer processes `for_review` prompts via `/spec-kitty.review`, providing feedback or approving work to move to `done`.

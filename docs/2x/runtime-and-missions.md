@@ -37,3 +37,13 @@ ADR references:
 2. `architecture/adrs/2026-02-09-2-wp-lifecycle-state-machine.md`
 3. `architecture/adrs/2026-02-09-3-event-log-merge-semantics.md`
 4. `architecture/adrs/2026-02-09-4-cross-repo-evidence-completion.md`
+
+## External Orchestration Boundary
+
+2.x orchestration automation is externalized behind `spec-kitty orchestrator-api`.
+
+1. Host state and transition rules remain in `spec-kitty`.
+2. External providers (for example `spec-kitty-orchestrator`) call the host API contract.
+3. Provider implementations should not directly mutate lane/frontmatter state files.
+
+See [Orchestration and API Boundary](orchestration-and-api.md) for operator and provider guidance.

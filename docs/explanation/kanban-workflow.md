@@ -183,13 +183,15 @@ spec-kitty agent tasks move-task WP01 --to done
 /spec-kitty.accept
 ```
 
-### Users/Orchestrators Can Move Anything
+### Users and External Orchestrators Can Override
 
-Users can override any lane transition if needed:
+Users can override lane transitions when needed:
 ```bash
 # Force move (e.g., to un-block stuck work)
 spec-kitty agent tasks move-task WP01 --to planned
 ```
+
+External orchestrators should request equivalent transitions through `spec-kitty orchestrator-api transition ...` so host validation and audit history stay consistent.
 
 ## Activity Log
 

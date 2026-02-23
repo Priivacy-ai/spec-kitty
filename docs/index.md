@@ -13,6 +13,11 @@ This site is versioned by product line.
 
 The versioned tracks on this site cover local-first workflow and architecture only.
 
+Both tracks include the external orchestration boundary model:
+
+1. Host API in `spec-kitty orchestrator-api`.
+2. Optional external providers such as `spec-kitty-orchestrator`.
+
 ## Verification Notes
 
 Versioned docs are tested for:

@@ -14,4 +14,5 @@
 1. [Doctrine and Constitution](doctrine-and-constitution.md)
 2. [Glossary System](glossary-system.md)
 3. [Runtime and Missions](runtime-and-missions.md)
-4. [ADR Coverage](adr-coverage.md)
+4. [Orchestration and API Boundary](orchestration-and-api.md)
+5. [ADR Coverage](adr-coverage.md)

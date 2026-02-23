@@ -14,7 +14,8 @@ Optional supporting artifacts (for example `research.md`, `data-model.md`, `quic
 
 1. Core workflow commands (`specify`, `plan`, `tasks`, `implement`, `review`, `merge`)
 2. Agent command family (`spec-kitty agent ...`) for work-package movement and automation
-3. Mission selection/switching commands where mission-specific behavior is required
+3. Host orchestration contract (`spec-kitty orchestrator-api ...`) for external providers
+4. Mission selection/switching commands where mission-specific behavior is required
 
 ## Legacy Governance Artifacts
 

@@ -1,216 +1,107 @@
 ---
 title: Multi-Agent Orchestration
-description: Best practices for coordinating multiple AI agents with Spec Kitty's workspace-per-WP model.
+description: Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers.
 ---
 
 # Multi-Agent Orchestration
 
-Spec Kitty was designed for **multi-agent development orchestration**—it keeps parallel assistants synchronized while protecting the quality of shared artifacts. This guide outlines patterns that help teams run many AI agents in parallel without incurring merge chaos.
+Spec Kitty supports multi-agent delivery through a host/provider split:
+
+- `spec-kitty` owns workflow state, lane validation, and git-safe mutations.
+- External providers orchestrate agent execution and call `spec-kitty orchestrator-api`.
+
+This replaces in-core orchestration commands. The core CLI does not provide `spec-kitty orchestrate`.
+
+## Why this model
+
+1. Security boundary: autonomous orchestration is optional and can be disallowed by policy.
+2. Extensibility: multiple provider strategies can exist without branching core CLI behavior.
+3. Operational clarity: one host contract for state transitions and lifecycle events.
 
 ## Core Principles
 
-1. **Planning in main, implementation in worktrees:** All planning (`/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`) happens in the main repository. Worktrees are created on-demand for each work package during implementation.
-2. **One worktree per work package:** Each WP gets its own isolated worktree and branch (e.g., `.worktrees/001-feature-WP01/`), enabling true parallel development.
-3. **Command discipline:** Slash commands enforce gated, automated steps so agents cannot skip discovery or validation.
-4. **Lane-driven coordination:** Tasks move through `planned → doing → for_review → done` via frontmatter fields, ensuring the dashboard and history stay in sync.
+1. Planning in main, implementation in worktrees.
+2. One worktree per WP.
+3. Lane transitions validated by the host state model.
+4. External providers drive automation through API calls, not direct file edits.
 
+## Two orchestration styles
 
-## Orchestration Workflow (0.11.0+)
+### 1) Manual (human- or agent-driven)
 
-### 1. Lead Agent Creates the Feature (in main)
-
-```bash
-# In main repository
-/spec-kitty.specify "Add user authentication system"
-```
-
-This creates:
-- `kitty-specs/001-user-authentication-system/spec.md` (committed to main)
-- NO worktree is created during planning
-
-Share the feature slug (e.g., `001-user-authentication-system`) with all participating agents.
-
-### 2. Planning and Research (in main)
-
-A planning agent executes in the main repository:
+Manual coordination still works via normal commands:
 
 ```bash
-/spec-kitty.plan
-/spec-kitty.research  # Optional
-```
-
-Output artifacts live under `kitty-specs/<feature>/`:
-- `plan.md` - Implementation plan
-- `research.md` - Research findings (optional)
-- `data-model.md` - Database schema (software-dev mission)
-
-All artifacts are committed to main, visible to all agents.
-
-### 3. Task Decomposition (in main)
-
-```bash
-/spec-kitty.tasks
-```
-
-Creates:
-- `tasks.md` - Work package breakdown with dependencies
-- `tasks/WP01-setup.md`, `tasks/WP02-api.md`, etc. - Individual WP prompts
-
-Each WP file has frontmatter tracking status:
-
-```yaml
----
-work_package_id: "WP01"
-title: "Database Schema"
-lane: "planned"
-dependencies: []
----
-```
-
-### 4. Parallel Implementation (in separate worktrees)
-
-Each agent creates their own worktree for their assigned WP:
-
-```bash
-# Agent A implements WP01 (foundation)
 spec-kitty implement WP01
-# Creates .worktrees/001-user-authentication-system-WP01/
-
-# Agent B implements WP02 (depends on WP01)
-spec-kitty implement WP02 --base WP01
-# Creates .worktrees/001-user-authentication-system-WP02/
-
-# Agent C implements WP03 (independent)
-spec-kitty implement WP03
-# Creates .worktrees/001-user-authentication-system-WP03/
-```
-
-**Key points:**
-- Each agent works in their own isolated worktree
-- Each worktree has its own branch
-- No conflicts between agents (separate directories)
-- Dependencies handled via `--base` flag
-
-When finished, agents move their WP to review:
-
-```bash
 spec-kitty agent tasks move-task WP01 --to for_review
+spec-kitty agent tasks move-task WP01 --to done
 ```
 
-### 5. Review and Merge
+### 2) External automated orchestration
 
-Reviewers examine work packages in `for_review` lane:
+Automated coordination is run by external providers such as `spec-kitty-orchestrator`.
 
 ```bash
-/spec-kitty.review WP01
+spec-kitty orchestrator-api contract-version --json
+spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --feature 034-my-feature
 ```
 
-Once all packages are in `done` lane, merge from any WP worktree:
+Provider loop responsibilities:
 
-```bash
-cd .worktrees/001-user-authentication-system-WP01/
-spec-kitty merge
-```
+1. Discover ready WPs via host API.
+2. Start implementation and run agents in worktrees.
+3. Transition WPs through review cycles.
+4. Accept and merge when done.
 
-The merge command:
-- Detects all WP branches for the feature
-- Merges them to main in sequence
-- Cleans up all worktrees and branches
+## Host API boundary
 
-## Coordinating 10+ Agents
+All state-changing automation calls flow through `spec-kitty orchestrator-api`.
 
-| Challenge | Coordination Technique |
-|-----------|-----------------------|
-| Work overlap | Each WP has its own worktree—no overlap possible |
-| Dependency ordering | Use `--base WP##` to branch from dependencies |
-| Review backlog | Assign a dedicated "review agent" for `for_review` lane |
-| Status visibility | Use `/spec-kitty.status` or dashboard to see all lanes |
+- `start-implementation`
+- `start-review`
+- `transition`
+- `append-history`
+- `accept-feature`
+- `merge-feature`
 
-### Parallelization Patterns
+The host returns a stable JSON envelope with `success` and `error_code` for deterministic provider control flow.
 
-**Fan-out pattern** (maximum parallelism):
-```
-        WP01 (foundation)
-       /  |  \
-    WP02 WP03 WP04  ← All can run in parallel after WP01
-```
+## Lane semantics
 
-```bash
-# After WP01 completes:
-spec-kitty implement WP02 --base WP01 &  # Agent A
-spec-kitty implement WP03 --base WP01 &  # Agent B
-spec-kitty implement WP04 --base WP01 &  # Agent C
-```
+Public API lanes:
 
-**Diamond pattern** (converging dependencies):
-```
-        WP01
-       /    \
-    WP02    WP03
-       \    /
-        WP04  ← Depends on both WP02 and WP03
-```
+- `planned`
+- `in_progress`
+- `for_review`
+- `done`
+- `blocked`
+- `canceled`
 
-```bash
-# WP04 needs both WP02 and WP03
-spec-kitty implement WP04 --base WP03
-cd .worktrees/001-feature-WP04/
-git merge 001-feature-WP02  # Manual merge of second dependency
-```
+Compatibility mapping:
 
-## Automation Hooks
+- API `in_progress` maps to internal `doing`.
+- `planned`, `for_review`, and `done` map directly.
 
-- **Custom dispatch bot:** Monitor `kitty-specs/<feature>/tasks/` for WPs in `planned` lane and auto-assign to idle agents.
-- **Stale task detector:** Poll dashboard or parse WP frontmatter to flag work packages stuck in a lane.
-- **CI enforcement:** Reject merges where any WP has `lane: doing` or `lane: for_review` in frontmatter.
+## Policy metadata and mutation authority
 
-## Troubleshooting Parallel Runs
+Run-affecting operations require policy metadata (`--policy`) and are validated by the host.
 
-| Issue | Root Cause | Resolution |
-|-------|------------|------------|
-| Merge conflicts between WPs | WPs editing shared files | Split shared files into dedicated WP or gate via review |
-| Dependency not available | Forgot `--base` flag | Re-implement with `spec-kitty implement WP## --base WP##` |
-| WP stuck in wrong lane | Manual frontmatter edit | Use `spec-kitty agent tasks move-task WP## --to <lane>` |
-| Agent can't find WP | Wrong directory | Ensure agent is in correct worktree for their WP |
+This ensures:
 
-## Status Monitoring
+- identity and mode are explicit for each mutation
+- malformed or secret-like policy payloads are rejected
+- orchestrators cannot bypass host transition rules
 
-Check current state across all WPs:
+## What this means for teams
 
-```bash
-# From main repository or any worktree
-spec-kitty agent tasks status
-```
-
-Output shows kanban board:
-```
-Feature: 001-user-authentication-system
-═══════════════════════════════════════════════════════════════
- PLANNED     │ DOING       │ FOR_REVIEW  │ DONE
-─────────────┼─────────────┼─────────────┼─────────────
- WP04        │ WP02 (A)    │ WP03        │ WP01
-             │             │             │
-─────────────┴─────────────┴─────────────┴─────────────
-Progress: ████████░░░░░░░░ 25% (1/4 done)
-```
+- Teams that want full automation can run an external provider.
+- Teams with strict security constraints can keep orchestration manual.
+- Teams can build custom providers while preserving a consistent workflow model.
 
 ## See Also
 
-### Related Explanations
-- [Workspace-per-WP Model](workspace-per-wp.md) - How worktrees enable parallel development
-- [Git Worktrees](git-worktrees.md) - How git worktrees work
-- [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
-- [AI Agent Architecture](ai-agent-architecture.md) - How agents execute commands
-
-### Tutorials
-- [Multi-Agent Workflow Tutorial](../tutorials/multi-agent-workflow.md)
-
-### How-To Guides
-- [Parallel Development](../how-to/parallel-development.md)
-- [Handle Dependencies](../how-to/handle-dependencies.md)
-- [Sync Workspaces](../how-to/sync-workspaces.md)
-- [Use the Dashboard](../how-to/use-dashboard.md)
-
-### Reference
-- [Agent Subcommands](../reference/agent-subcommands.md)
-- [CLI Commands](../reference/cli-commands.md)
+- [Run the External Orchestrator](../how-to/run-external-orchestrator.md)
+- [Build a Custom Orchestrator](../how-to/build-custom-orchestrator.md)
+- [Orchestrator API Reference](../reference/orchestrator-api.md)
+- [Kanban Workflow](kanban-workflow.md)

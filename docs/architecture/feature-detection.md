@@ -154,7 +154,7 @@ Replaced 10 scattered implementations with imports from centralized module:
 - `implement.py` (detect_feature_context)
 - `acceptance.py` (detect_feature_slug)
 - `mission.py` (_detect_current_feature)
-- `orchestrate.py` (detect_current_feature)
+- `orchestrator_api/commands.py` (feature resolution for host API commands)
 
 ### Phase 3: Cleanup
 
