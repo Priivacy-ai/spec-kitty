@@ -96,9 +96,9 @@ description: "Work package task list template for feature implementation"
 
 ### Included Subtasks
 
-- [ ] T008 Check `kitty-specs/045-.../status.events.jsonl` — determine if it exists and has content
-- [ ] T009 Export events verbatim OR write single synthetic bootstrap event if log is empty
-- [ ] T010 Verify `handoff/events.jsonl` integrity: UTF-8 decoding, one JSON object per line, sorted keys
+- [x] T008 Check `kitty-specs/045-.../status.events.jsonl` — determine if it exists and has content
+- [x] T009 Export events verbatim OR write single synthetic bootstrap event if log is empty
+- [x] T010 Verify `handoff/events.jsonl` integrity: UTF-8 decoding, one JSON object per line, sorted keys
 
 ### Implementation Notes
 
@@ -298,5 +298,5 @@ WP01 (scaffold + namespace)
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: done
-- WP02: for_review
+- WP02: done
 <!-- status-model:end -->
