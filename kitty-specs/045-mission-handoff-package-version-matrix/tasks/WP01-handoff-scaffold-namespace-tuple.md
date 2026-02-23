@@ -1,24 +1,27 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-title: "Handoff Directory Scaffold + Namespace Tuple"
-phase: "Phase 1 - Foundation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Handoff Directory Scaffold + Namespace Tuple
+lane: "for_review"
 dependencies: []
+base_branch: 2.x
+base_commit: 595bf2762385da04c26488fec4d96ea3b1c23939
+created_at: '2026-02-23T19:37:18.133502+00:00'
+subtasks:
+- T001
+- T002
+- T003
+phase: Phase 1 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '29627'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-23T18:04:02Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-23T18:04:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Handoff Directory Scaffold + Namespace Tuple
@@ -193,3 +196,5 @@ Reviewers should verify:
 ## Activity Log
 
 - 2026-02-23T18:04:02Z – system – lane=planned – Prompt created.
+- 2026-02-23T19:37:18Z – claude – shell_pid=29627 – lane=doing – Assigned agent via workflow command
+- 2026-02-23T19:38:35Z – claude – shell_pid=29627 – lane=for_review – Ready for review: handoff/ directory with README.md and namespace.json (9 fields, all 4 invariants pass)
