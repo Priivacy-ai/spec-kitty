@@ -2,12 +2,10 @@ name: Deploy Docs to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 2.x ]
     paths:
       - 'docs/**'
-      - 'examples/**'
-      - 'spec-driven.md'
-      - 'README.md'
+      - 'architecture/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 

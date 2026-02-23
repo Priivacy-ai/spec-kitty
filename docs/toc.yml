@@ -1,11 +1,6 @@
-# Top navigation tabs - these link to subdirectories with their own toc.yml
 - name: Home
   href: index.md
-- name: Tutorials
-  href: tutorials/
-- name: How-To Guides
-  href: how-to/
-- name: Reference
-  href: reference/
-- name: Explanations
-  href: explanation/
+- name: 1.x Docs
+  href: 1x/
+- name: 2.x Docs
+  href: 2x/

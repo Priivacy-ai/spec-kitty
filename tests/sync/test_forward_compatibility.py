@@ -402,5 +402,9 @@ class TestValidEventTypesOnlyGatesOutgoing:
             "WPStatusChanged", "WPCreated", "WPAssigned",
             "FeatureCreated", "FeatureCompleted", "HistoryAdded",
             "ErrorLogged", "DependencyResolved",
+            "MissionDossierArtifactIndexed",
+            "MissionDossierArtifactMissing",
+            "MissionDossierParityDriftDetected",
+            "MissionDossierSnapshotComputed",
         }
         assert VALID_EVENT_TYPES == expected

@@ -1,5 +1,7 @@
 """Tests for constitution template migration (m_0_13_0_update_constitution_templates)."""
 
+from importlib.resources import files
+
 import pytest
 
 from specify_cli.upgrade.migrations.m_0_13_0_update_constitution_templates import (
@@ -28,6 +30,15 @@ ALL_AGENTS = [
     ("roo", ".roo", "commands"),
     ("q", ".amazonq", "prompts"),
 ]
+
+
+def _load_canonical_constitution_template() -> str:
+    """Return the current packaged software-dev constitution template content."""
+    return (
+        files("specify_cli")
+        .joinpath("missions", "software-dev", "command-templates", "constitution.md")
+        .read_text(encoding="utf-8")
+    )
 
 
 @pytest.mark.parametrize("agent_key,agent_dir,subdir", ALL_AGENTS)
@@ -70,8 +81,10 @@ After writing, provide:
 
     # Verify file updated
     updated_content = slash_cmd.read_text(encoding="utf-8")
-    assert "run /spec-kitty.specify" in updated_content
-    assert "run /spec-kitty.plan" not in updated_content or "Next steps" not in updated_content
+    assert updated_content == _load_canonical_constitution_template()
+    assert "spec-kitty constitution interview --defaults --profile minimal --json" in updated_content
+    assert "spec-kitty constitution context --action specify --json" in updated_content
+    assert "run /spec-kitty.plan" not in updated_content
 
 
 def test_migration_skips_already_updated(tmp_path, migration):
@@ -83,19 +96,11 @@ def test_migration_skips_already_updated(tmp_path, migration):
     config_file = kittify_dir / "config.yaml"
     config_file.write_text("agents:\n  available:\n    - opencode\n", encoding="utf-8")
 
-    # Create agent directory with CORRECT constitution template
+    # Create agent directory with canonical up-to-date constitution template
     agent_path = tmp_path / ".opencode" / "command"
     agent_path.mkdir(parents=True)
 
-    correct_content = """# Constitution Command
-
-## Next steps
-
-After writing, provide:
-- Location of the file
-- Phases completed and questions answered
-- Next steps (review, share with team, run /spec-kitty.specify)
-"""
+    correct_content = _load_canonical_constitution_template()
 
     slash_cmd = agent_path / "spec-kitty.constitution.md"
     slash_cmd.write_text(correct_content, encoding="utf-8")

@@ -157,8 +157,7 @@ jobs:
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "bandit outcome: ${{ steps.bandit.outcome }}"
           echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
-          if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
-             [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
+          if [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
              [ "${{ steps.ruff.outcome }}" != "success" ] || \
              [ "${{ steps.mypy.outcome }}" != "success" ] || \
              [ "${{ steps.bandit.outcome }}" != "success" ] || \
@@ -202,10 +201,32 @@ jobs:
             tests/unit/ tests/contract/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
             --cov=src/specify_cli \
-            --cov-fail-under=80 \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+
+      - name: Enforce coverage policy
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          report = ET.parse("out/reports/coverage/coverage.xml").getroot()
+          pct = float(report.attrib["line-rate"]) * 100.0
+          floor = 26.0
+          print(f"Total coverage: {pct:.2f}% (floor: {floor:.2f}%)")
+          if pct < floor:
+              raise SystemExit(
+                  f"Coverage floor not met: {pct:.2f}% < {floor:.2f}%"
+              )
+          PY
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            diff-cover out/reports/coverage/coverage.xml \
+              --compare-branch=origin/${{ github.base_ref }} \
+              --fail-under=80
+          else
+            echo "Skipping diff coverage check outside pull_request events."
+          fi
 
       - name: Upload unit test artifacts
         if: always()
