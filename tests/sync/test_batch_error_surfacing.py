@@ -165,6 +165,24 @@ class TestParseEventResults:
         assert rejected[0].error_category == "schema_mismatch"
         assert rejected[1].error_category == "auth_expired"
 
+    def test_terminal_success_like_statuses(self):
+        """accepted/warning/skipped are terminal non-error outcomes."""
+        result = BatchSyncResult()
+        raw = [
+            {"event_id": "e1", "status": "accepted"},
+            {"event_id": "e2", "status": "warning"},
+            {"event_id": "e3", "status": "skipped"},
+        ]
+
+        _parse_event_results(raw, result)
+
+        assert result.synced_count == 3
+        assert result.duplicate_count == 0
+        assert result.error_count == 0
+        assert result.synced_ids == ["e1", "e2", "e3"]
+        assert [r.status for r in result.event_results] == ["accepted", "warning", "skipped"]
+        assert result.failed_results == []
+
     def test_empty_results_array(self):
         """Empty results array (edge case for empty batch)."""
         result = BatchSyncResult()
@@ -442,6 +460,22 @@ class TestProcessBatchResults:
         remaining = small_queue.drain_queue()
         remaining_ids = {e["event_id"] for e in remaining}
         assert remaining_ids == {"evt-0002", "evt-0004"}
+
+    def test_terminal_success_like_results_removed(self, small_queue):
+        """accepted/warning/skipped are terminal and removed from queue."""
+        results = [
+            BatchEventResult("evt-0000", "accepted"),
+            BatchEventResult("evt-0001", "warning"),
+            BatchEventResult("evt-0002", "skipped"),
+            BatchEventResult("evt-0003", "error", "Server error", "server_error"),
+            BatchEventResult("evt-0004", "rejected", "Schema", "schema_mismatch"),
+        ]
+
+        small_queue.process_batch_results(results)
+
+        remaining = small_queue.drain_queue()
+        remaining_ids = {e["event_id"] for e in remaining}
+        assert remaining_ids == {"evt-0003", "evt-0004"}
 
     def test_all_success(self, small_queue):
         """All events synced -> queue empty."""

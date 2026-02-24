@@ -341,6 +341,7 @@ class EventEmitter:
         actor: str = "user",
         feature_slug: str | None = None,
         causation_id: str | None = None,
+        execution_mode: str | None = None,
         policy_metadata: dict | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
@@ -352,6 +353,8 @@ class EventEmitter:
             "feature_slug": feature_slug,
             "policy_metadata": policy_metadata,
         }
+        if execution_mode is not None:
+            payload["execution_mode"] = execution_mode
         return self._emit(
             event_type="WPStatusChanged",
             aggregate_id=wp_id,

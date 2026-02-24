@@ -207,6 +207,21 @@ class TestWPStatusChanged:
         assert event is not None
         assert event["payload"]["feature_slug"] == "028-sync"
 
+    def test_execution_mode_optional(self, emitter: EventEmitter, temp_queue):
+        """execution_mode is included only when explicitly provided."""
+        with_mode = emitter.emit_wp_status_changed(
+            "WP01",
+            "planned",
+            "in_progress",
+            execution_mode="worktree",
+        )
+        assert with_mode is not None
+        assert with_mode["payload"]["execution_mode"] == "worktree"
+
+        without_mode = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
+        assert without_mode is not None
+        assert "execution_mode" not in without_mode["payload"]
+
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
         emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -493,6 +508,23 @@ class TestConvenienceFunctions:
         mock_get.return_value = mock_emitter
         emit_wp_status_changed("WP01", "planned", "in_progress")
         mock_emitter.emit_wp_status_changed.assert_called_once()
+
+    @patch("specify_cli.sync.events.get_emitter")
+    def test_emit_wp_status_changed_forwards_execution_mode(self, mock_get):
+        """emit_wp_status_changed forwards optional execution_mode."""
+        mock_emitter = MagicMock()
+        mock_get.return_value = mock_emitter
+        emit_wp_status_changed("WP01", "planned", "in_progress", execution_mode="direct_repo")
+        mock_emitter.emit_wp_status_changed.assert_called_once_with(
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="user",
+            feature_slug=None,
+            causation_id=None,
+            execution_mode="direct_repo",
+            policy_metadata=None,
+        )
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emit_wp_created_delegates(self, mock_get):

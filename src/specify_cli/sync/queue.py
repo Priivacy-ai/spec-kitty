@@ -205,7 +205,7 @@ class OfflineQueue:
             conn.close()
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
-        """Process batch sync results: remove synced/duplicate, bump retry for failures.
+        """Process batch sync results: remove terminal results, bump retry for failures.
 
         Wraps all queue mutations in a single SQLite transaction for
         atomicity: either all changes apply or none do.
@@ -214,22 +214,23 @@ class OfflineQueue:
             results: List of ``BatchEventResult`` (or any object with
                 ``.status`` and ``.event_id`` attributes).
         """
-        synced_or_duplicate: list[str] = []
+        terminal: list[str] = []
         rejected: list[str] = []
+        terminal_statuses = {"success", "duplicate", "accepted", "warning", "skipped"}
         for r in results:
-            if r.status in ("success", "duplicate"):
-                synced_or_duplicate.append(r.event_id)
-            elif r.status == "rejected":
+            if r.status in terminal_statuses:
+                terminal.append(r.event_id)
+            elif r.status in ("rejected", "error"):
                 rejected.append(r.event_id)
 
         conn = sqlite3.connect(self.db_path)
         try:
             # Wrap both operations in a single transaction
-            if synced_or_duplicate:
-                placeholders = ",".join("?" * len(synced_or_duplicate))
+            if terminal:
+                placeholders = ",".join("?" * len(terminal))
                 conn.execute(
                     f"DELETE FROM queue WHERE event_id IN ({placeholders})",
-                    synced_or_duplicate,
+                    terminal,
                 )
             if rejected:
                 placeholders = ",".join("?" * len(rejected))

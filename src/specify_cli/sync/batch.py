@@ -60,12 +60,14 @@ class BatchEventResult:
 
     Attributes:
         event_id: Unique event identifier.
-        status: One of ``"success"``, ``"duplicate"``, ``"rejected"``.
+        status: One of ``"success"``, ``"duplicate"``, ``"rejected"``,
+            or terminal success-like variants (``"accepted"``,
+            ``"warning"``, ``"skipped"``).
         error: Human-readable error message (only for rejected events).
         error_category: Categorised reason (only for rejected events).
     """
     event_id: str
-    status: str  # "success", "duplicate", "rejected"
+    status: str
     error: Optional[str] = None
     error_category: Optional[str] = None
 
@@ -192,16 +194,18 @@ def _parse_event_results(
     Populates *result* counters, id lists, error messages, and
     ``event_results``.
     """
+    terminal_success_statuses = {"success", "accepted", "warning", "skipped"}
+
     for event_result in raw_results:
         event_id = event_result.get("event_id")
         status = event_result.get("status")
         error_msg = event_result.get("error_message") or event_result.get("error")
 
-        if status == "success":
+        if status in terminal_success_statuses:
             result.synced_count += 1
             result.synced_ids.append(event_id)
             result.event_results.append(
-                BatchEventResult(event_id=event_id, status="success")
+                BatchEventResult(event_id=event_id, status=str(status))
             )
         elif status == "duplicate":
             result.duplicate_count += 1

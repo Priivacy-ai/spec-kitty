@@ -329,6 +329,7 @@ def _saas_fan_out(
             to_lane=str(event.to_lane),
             actor=event.actor,
             feature_slug=feature_slug,
+            execution_mode=event.execution_mode,
             policy_metadata=policy_metadata,
         )
     except ImportError:

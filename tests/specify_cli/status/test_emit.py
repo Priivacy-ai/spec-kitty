@@ -732,6 +732,7 @@ class TestSaasFanOut:
             to_lane="in_progress",
             actor="test-actor",
             feature_slug="034-test-feature",
+            execution_mode="worktree",
             policy_metadata=None,
         )
 
