@@ -15,6 +15,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import logging
 import re
 from typing import Any, Optional
@@ -22,6 +23,67 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
+
+
+def _coerce_canonical_artifact_class(artifact_class: str) -> str:
+    """Canonical contract does not include 'other'; coerce to a supported value."""
+    allowed = {"input", "workflow", "output", "evidence", "policy", "runtime"}
+    if artifact_class in allowed:
+        return artifact_class
+    return "runtime"
+
+
+def _resolve_project_uuid(emitter: Any) -> str:
+    getter = getattr(emitter, "_get_identity", None)
+    if callable(getter):
+        try:
+            identity = getter()
+            project_uuid = getattr(identity, "project_uuid", None)
+            if project_uuid:
+                return str(project_uuid)
+        except Exception:
+            pass
+    return "unknown-project"
+
+
+def _resolve_git_metadata(emitter: Any) -> tuple[str | None, str | None]:
+    getter = getattr(emitter, "_get_git_metadata", None)
+    if callable(getter):
+        try:
+            git_meta = getter()
+            return getattr(git_meta, "git_branch", None), getattr(git_meta, "head_commit_sha", None)
+        except Exception:
+            pass
+    return None, None
+
+
+def _build_namespace(
+    emitter: Any,
+    feature_slug: str,
+    mission_slug: str,
+    step_id: str | None,
+    manifest_version: str,
+) -> dict[str, Any]:
+    branch, _ = _resolve_git_metadata(emitter)
+    return {
+        "project_uuid": _resolve_project_uuid(emitter),
+        "feature_slug": feature_slug,
+        "target_branch": branch or "unknown",
+        "mission_key": mission_slug,
+        "manifest_version": manifest_version,
+        "step_id": step_id,
+    }
+
+
+def _build_provenance(emitter: Any, actor: str | None) -> dict[str, Any]:
+    branch, sha = _resolve_git_metadata(emitter)
+    git_ref = f"refs/heads/{branch}" if branch else None
+    return {
+        "git_sha": sha,
+        "git_ref": git_ref,
+        "actor_id": actor or "spec-kitty-cli",
+        "actor_kind": "system",
+    }
 
 
 # ── Event Payload Schemas ─────────────────────────────────────────────
@@ -190,6 +252,9 @@ def emit_artifact_indexed(
     wp_id: Optional[str] = None,
     step_id: Optional[str] = None,
     required_status: str = "optional",
+    mission_slug: Optional[str] = None,
+    manifest_version: str = "1",
+    actor: Optional[str] = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierArtifactIndexed event.
 
@@ -225,11 +290,38 @@ def emit_artifact_indexed(
         from specify_cli.sync.events import get_emitter
 
         emitter = get_emitter()
+        resolved_mission_slug = mission_slug or feature_slug
+        payload_data = payload.model_dump()
+        payload_data.update(
+            {
+                "namespace": _build_namespace(
+                    emitter=emitter,
+                    feature_slug=feature_slug,
+                    mission_slug=resolved_mission_slug,
+                    step_id=step_id,
+                    manifest_version=manifest_version,
+                ),
+                "artifact_id": {
+                    "mission_key": resolved_mission_slug,
+                    "path": relative_path,
+                    "artifact_class": _coerce_canonical_artifact_class(artifact_class),
+                    "wp_id": wp_id,
+                },
+                "content_ref": {
+                    "hash": content_hash_sha256,
+                    "algorithm": "sha256",
+                    "size_bytes": size_bytes,
+                    "encoding": "utf-8",
+                },
+                "indexed_at": datetime.now(timezone.utc).isoformat(),
+                "provenance": _build_provenance(emitter=emitter, actor=actor),
+            }
+        )
         event = emitter._emit(
             event_type="MissionDossierArtifactIndexed",
-            aggregate_id=f"{feature_slug}:{artifact_key}",
+            aggregate_id=resolved_mission_slug,
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_data,
         )
         return event
 
@@ -249,6 +341,10 @@ def emit_artifact_missing(
     reason_code: str,
     reason_detail: Optional[str] = None,
     blocking: bool = True,
+    mission_slug: Optional[str] = None,
+    manifest_version: str = "1",
+    step_id: Optional[str] = None,
+    actor: Optional[str] = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierArtifactMissing event (only if required/blocking).
 
@@ -285,11 +381,34 @@ def emit_artifact_missing(
         from specify_cli.sync.events import get_emitter
 
         emitter = get_emitter()
+        resolved_mission_slug = mission_slug or feature_slug
+        payload_data = payload.model_dump()
+        payload_data.update(
+            {
+                "namespace": _build_namespace(
+                    emitter=emitter,
+                    feature_slug=feature_slug,
+                    mission_slug=resolved_mission_slug,
+                    step_id=step_id,
+                    manifest_version=manifest_version,
+                ),
+                "expected_identity": {
+                    "mission_key": resolved_mission_slug,
+                    "path": expected_path_pattern,
+                    "artifact_class": _coerce_canonical_artifact_class(artifact_class),
+                    "wp_id": None,
+                },
+                "manifest_step": step_id or "required_always",
+                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "last_known_ref": _build_provenance(emitter=emitter, actor=actor),
+                "remediation_hint": reason_detail,
+            }
+        )
         event = emitter._emit(
             event_type="MissionDossierArtifactMissing",
-            aggregate_id=f"{feature_slug}:{artifact_key}",
+            aggregate_id=resolved_mission_slug,
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_data,
         )
         return event
 
@@ -312,6 +431,9 @@ def emit_snapshot_computed(
     optional_present: int,
     completeness_status: str,
     snapshot_id: str,
+    mission_slug: Optional[str] = None,
+    manifest_version: str = "1",
+    actor: Optional[str] = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierSnapshotComputed event (always).
 
@@ -351,11 +473,30 @@ def emit_snapshot_computed(
         from specify_cli.sync.events import get_emitter
 
         emitter = get_emitter()
+        resolved_mission_slug = mission_slug or feature_slug
+        payload_data = payload.model_dump()
+        payload_data.update(
+            {
+                "namespace": _build_namespace(
+                    emitter=emitter,
+                    feature_slug=feature_slug,
+                    mission_slug=resolved_mission_slug,
+                    step_id=None,
+                    manifest_version=manifest_version,
+                ),
+                "snapshot_hash": parity_hash_sha256,
+                "artifact_count": total_artifacts,
+                "anomaly_count": required_missing,
+                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "algorithm": "sha256",
+                "provenance": _build_provenance(emitter=emitter, actor=actor),
+            }
+        )
         event = emitter._emit(
             event_type="MissionDossierSnapshotComputed",
-            aggregate_id=f"{feature_slug}:{snapshot_id}",
+            aggregate_id=resolved_mission_slug,
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_data,
         )
         return event
 
@@ -374,6 +515,9 @@ def emit_parity_drift_detected(
     missing_in_local: Optional[list[str]] = None,
     missing_in_baseline: Optional[list[str]] = None,
     severity: str = "warning",
+    mission_slug: Optional[str] = None,
+    manifest_version: str = "1",
+    actor: Optional[str] = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierParityDriftDetected event (only if drift detected).
 
@@ -408,11 +552,30 @@ def emit_parity_drift_detected(
         from specify_cli.sync.events import get_emitter
 
         emitter = get_emitter()
+        resolved_mission_slug = mission_slug or feature_slug
+        payload_data = payload.model_dump()
+        payload_data.update(
+            {
+                "namespace": _build_namespace(
+                    emitter=emitter,
+                    feature_slug=feature_slug,
+                    mission_slug=resolved_mission_slug,
+                    step_id=None,
+                    manifest_version=manifest_version,
+                ),
+                "expected_hash": baseline_parity_hash,
+                "actual_hash": local_parity_hash,
+                "drift_kind": "artifact_mutated",
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "rebuild_hint": "Rebuild dossier snapshot to reconcile drift",
+                "provenance": _build_provenance(emitter=emitter, actor=actor),
+            }
+        )
         event = emitter._emit(
             event_type="MissionDossierParityDriftDetected",
-            aggregate_id=f"{feature_slug}:drift",
+            aggregate_id=resolved_mission_slug,
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_data,
         )
         return event
 
