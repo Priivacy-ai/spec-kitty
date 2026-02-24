@@ -5,6 +5,11 @@ on:
     tags:
       - 'v1*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional release tag to validate/publish (defaults to pyproject version)
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -76,8 +81,29 @@ jobs:
           python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 
+      - name: Determine release context
+        id: release_context
+        env:
+          INPUT_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+          elif [ -n "${INPUT_RELEASE_TAG}" ]; then
+            RELEASE_TAG="${INPUT_RELEASE_TAG}"
+          else
+            RELEASE_TAG="v$(python -c 'import tomllib; print(tomllib.load(open(\"pyproject.toml\", \"rb\"))[\"project\"][\"version\"])')"
+          fi
+
+          echo "Release tag: ${RELEASE_TAG}"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
       - name: Validate release metadata
-        run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}"
+        run: |
+          python scripts/release/validate_release.py \
+            --mode tag \
+            --tag "${{ steps.release_context.outputs.release_tag }}" \
+            --tag-pattern "v1*"
 
       - name: Validate repository URLs
         run: |
@@ -161,7 +187,7 @@ jobs:
       - name: Extract changelog for release
         id: changelog
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.release_context.outputs.release_version }}"
           python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
           cat release-notes.md
 
