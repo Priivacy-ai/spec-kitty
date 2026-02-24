@@ -16,8 +16,12 @@ from specify_cli.cli.helpers import console, show_banner
 from specify_cli.git.commit_helpers import safe_commit
 
 
-def _git_status_paths(repo_path: Path) -> set[str]:
-    """Return git status paths for *repo_path* using porcelain -z output."""
+def _git_status_paths(repo_path: Path) -> set[str] | None:
+    """Return git status paths for *repo_path* using porcelain -z output.
+
+    Returns ``None`` when ``git status`` fails (e.g. not a git repo) so
+    callers can distinguish "no dirty files" from "unable to determine".
+    """
     result = subprocess.run(
         ["git", "status", "--porcelain", "-z"],
         cwd=repo_path,
@@ -25,7 +29,7 @@ def _git_status_paths(repo_path: Path) -> set[str]:
         check=False,
     )
     if result.returncode != 0:
-        return set()
+        return None
 
     entries = result.stdout.decode("utf-8", errors="replace").split("\0")
     paths: set[str] = set()
@@ -40,7 +44,9 @@ def _git_status_paths(repo_path: Path) -> set[str]:
         status = entry[:2]
         path = entry[3:]
 
-        # With -z format, renames/copies include a second NUL-separated path.
+        # With -z format, renames/copies include a second NUL-separated
+        # path.  We take the *destination* (new name); the source (old name)
+        # is intentionally discarded because we care about "what exists now".
         if "R" in status or "C" in status:
             if i < len(entries) and entries[i]:
                 path = entries[i]
@@ -75,10 +81,20 @@ def _is_upgrade_commit_eligible(path: str, project_path: Path) -> bool:
 
 def _prepare_upgrade_commit_files(
     project_path: Path,
-    baseline_paths: set[str],
+    baseline_paths: set[str] | None,
 ) -> list[Path]:
-    """Collect newly changed project-directory files after an upgrade run."""
+    """Collect newly changed project-directory files after an upgrade run.
+
+    Returns an empty list when *baseline_paths* is ``None`` (git status
+    failed at baseline time) to avoid accidentally committing unrelated work.
+    """
+    if baseline_paths is None:
+        return []
+
     current_paths = _git_status_paths(project_path)
+    if current_paths is None:
+        return []
+
     new_paths = sorted(
         path
         for path in current_paths
@@ -91,7 +107,7 @@ def _auto_commit_upgrade_changes(
     project_path: Path,
     from_version: str,
     to_version: str,
-    baseline_paths: set[str],
+    baseline_paths: set[str] | None,
 ) -> tuple[bool, list[str], str | None]:
     """Auto-commit newly introduced project-directory upgrade changes."""
     files_to_commit = _prepare_upgrade_commit_files(project_path, baseline_paths)
@@ -105,7 +121,7 @@ def _auto_commit_upgrade_changes(
         repo_path=project_path,
         files_to_commit=files_to_commit,
         commit_message=commit_message,
-        allow_empty=True,
+        allow_empty=False,
     )
     committed_paths = [str(path).replace("\\", "/") for path in files_to_commit]
 
@@ -292,6 +308,7 @@ def upgrade(
 
     auto_committed = False
     auto_commit_paths: list[str] = []
+    auto_commit_warning: str | None = None
     if result.success and not dry_run:
         auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
             project_path=project_path,
