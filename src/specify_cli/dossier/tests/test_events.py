@@ -393,6 +393,10 @@ class TestEmitArtifactIndexed:
         call_args = mock_emitter._emit.call_args
         assert call_args[1]["event_type"] == "MissionDossierArtifactIndexed"
         assert call_args[1]["aggregate_type"] == "MissionDossier"
+        payload = call_args[1]["payload"]
+        assert payload["namespace"]["mission_key"] == "042-feature"
+        assert payload["artifact_id"]["path"] == "spec.md"
+        assert payload["content_ref"]["size_bytes"] == 1024
 
     def test_emit_artifact_indexed_invalid_payload(self, caplog):
         """emit_artifact_indexed should reject invalid payload with error log."""
@@ -655,7 +659,7 @@ class TestEventEnvelopeMetadata:
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emitter_constructs_aggregate_id(self, mock_get_emitter):
-        """Events should construct aggregate_id from feature_slug and key."""
+        """Dossier events should aggregate by mission slug (not artifact key)."""
         mock_emitter = MagicMock()
         mock_emitter._emit.return_value = {}
         mock_get_emitter.return_value = mock_emitter
@@ -671,4 +675,4 @@ class TestEventEnvelopeMetadata:
         )
 
         call_kwargs = mock_emitter._emit.call_args[1]
-        assert call_kwargs["aggregate_id"] == "042-feature:input.spec.main"
+        assert call_kwargs["aggregate_id"] == "042-feature"
