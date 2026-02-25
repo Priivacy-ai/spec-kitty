@@ -89,14 +89,17 @@ jobs:
             exit 0
           fi
           
+          # Convert cutoff date to Unix timestamp for comparison
+          CUTOFF_TIMESTAMP=$(date -d "$CUTOFF_DATE" +%s)
+          
           # Get all commits in range
           mapfile -t ALL_COMMITS < <(git rev-list "$FROM_SHA..$TO_SHA")
           
           # Filter commits by cutoff date
           COMMITS_AFTER_CUTOFF=()
           for commit in "${ALL_COMMITS[@]}"; do
-            commit_date=$(git show -s --format=%ci "$commit")
-            if [[ "$commit_date" > "$CUTOFF_DATE" ]]; then
+            commit_timestamp=$(git show -s --format=%ct "$commit")
+            if [ "$commit_timestamp" -gt "$CUTOFF_TIMESTAMP" ]; then
               COMMITS_AFTER_CUTOFF+=("$commit")
             fi
           done
@@ -143,6 +146,9 @@ jobs:
             exit 0
           fi
 
+          # Convert cutoff date to Unix timestamp for comparison
+          CUTOFF_TIMESTAMP=$(date -d "$CUTOFF_DATE" +%s)
+
           mapfile -d '' CHANGED_MD_FILES < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- '*.md' '*.mdx')
           if [ "${#CHANGED_MD_FILES[@]}" -eq 0 ]; then
             echo "No changed markdown files in commit range."
@@ -153,9 +159,9 @@ jobs:
           FILES_TO_CHECK=()
           for file in "${CHANGED_MD_FILES[@]}"; do
             if [ -f "$file" ]; then
-              # Get the last commit date for this file in the range
-              last_commit_date=$(git log -1 --format=%ci "$FROM_SHA..$TO_SHA" -- "$file" 2>/dev/null || echo "")
-              if [ -n "$last_commit_date" ] && [[ "$last_commit_date" > "$CUTOFF_DATE" ]]; then
+              # Get the last commit timestamp for this file in the range
+              last_commit_timestamp=$(git log -1 --format=%ct "$FROM_SHA..$TO_SHA" -- "$file" 2>/dev/null || echo "0")
+              if [ "$last_commit_timestamp" -gt "$CUTOFF_TIMESTAMP" ]; then
                 FILES_TO_CHECK+=("$file")
               fi
             fi
