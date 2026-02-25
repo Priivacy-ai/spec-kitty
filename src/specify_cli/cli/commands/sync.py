@@ -303,6 +303,7 @@ def _push_dossier_content(upload_records: list[_DossierUploadRecord]) -> tuple[i
 
     endpoint = f"{server_url.rstrip('/')}/api/v1/dossier/content/"
     headers = {"Authorization": f"Bearer {token}"}
+    team_slug = auth.credential_store.get_team_slug()
 
     pushed = 0
     pending = 0
@@ -319,6 +320,7 @@ def _push_dossier_content(upload_records: list[_DossierUploadRecord]) -> tuple[i
                     "content_body": upload.content_body,
                     "mission_slug": upload.mission_slug,
                     "artifact_path": upload.artifact_path,
+                    **({"team_slug": team_slug} if team_slug else {}),
                 },
             )
             if response.status_code in (200, 201):
