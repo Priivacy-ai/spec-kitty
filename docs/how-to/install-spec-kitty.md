@@ -7,12 +7,17 @@
 ## Prerequisites
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- AI coding agent (any supported): Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Qwen, opencode, Windsurf, Kilocode, Auggie, Roo, or Amazon Q
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
 
 ## Installation
+
+### Release Tracks
+
+- **Recommended (`main` / PyPI 1.x stable)**: `pip install spec-kitty-cli`
+- **Forward track (`2.x`)**: GitHub releases only (`v2.*.*`), install from source/release artifacts
 
 ### Install Spec Kitty CLI
 
@@ -109,13 +114,14 @@ To manage agents post-init:
 
 See [Managing AI Agents](manage-agents.md) for complete documentation on agent management workflows.
 
-### Cross-Platform Python CLI (v0.10.0+)
+### Script Type Selection
 
-As of v0.10.0, all automation uses cross-platform Python CLI commands (`spec-kitty agent`).
+Spec Kitty can generate shell wrappers in either format:
 
-The legacy `--script` option is no longer needed - all commands work identically across Windows, macOS, and Linux.
+- `--script sh` for POSIX shells (default)
+- `--script ps` for PowerShell-oriented environments
 
-> **Migration Note:** Projects created before v0.10.0 had bash/PowerShell scripts. Run `spec-kitty upgrade` to migrate to Python CLI commands. See [Upgrade to 0.11.0](upgrade-to-0-11-0.md) for details.
+The underlying workflow is Python CLI-based (`spec-kitty agent *`), and wrappers are generated for your selected script type.
 
 ### Ignore Agent Tools Check
 
@@ -160,7 +166,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## See Also
 - [Non-Interactive Init](non-interactive-init.md)
-- [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
+- [Install and Upgrade](install-and-upgrade.md)
 - [Use the Dashboard](use-dashboard.md)
 
 ## Background

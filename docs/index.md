@@ -14,6 +14,17 @@ Works with Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, and 7 othe
 
 ---
 
+## Release Tracks
+
+Spec Kitty runs two active release lines:
+
+- **`main` / PyPI 1.x (recommended)**: install with `pip install spec-kitty-cli`
+- **`2.x` / GitHub-only**: semantic tags (`v2.*.*`) and release artifacts for forward-track testing
+
+If you're new to Spec Kitty, start on the **PyPI 1.x** line.
+
+---
+
 ## Quick Navigation
 
 ### 📚 Tutorials — Learning-Oriented
@@ -31,7 +42,6 @@ Solve specific problems with step-by-step instructions.
 - [Use the Dashboard](how-to/use-dashboard.md) — Monitor progress in real-time
 - [Run External Orchestrator](how-to/run-external-orchestrator.md) — Drive multi-agent automation via `spec-kitty-orchestrator`
 - [Build Custom Orchestrator](how-to/build-custom-orchestrator.md) — Build your own provider against the host API
-- [Upgrade to 0.11.0](how-to/upgrade-to-0-11-0.md) — Migration guide
 - [Non-Interactive Init](how-to/non-interactive-init.md) — Run init without prompts
 
 ### 📖 Reference — Information-Oriented
@@ -101,4 +111,4 @@ cd my-project
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
-- **Discussions**: [GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Priivacy-ai/spec-kitty/discussions)

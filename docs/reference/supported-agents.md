@@ -17,7 +17,7 @@ Spec Kitty supports **12 AI coding agents** with slash commands. This document l
 | Windsurf | `.windsurf/` | `workflows/` | `/spec-kitty.*` |
 | GitHub Codex | `.codex/` | `prompts/` | `/spec-kitty.*` |
 | Kilocode | `.kilocode/` | `workflows/` | `/spec-kitty.*` |
-| Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
+| Auggie CLI | `.augment/` | `commands/` | `/spec-kitty.*` |
 | Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
 | Amazon Q | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
 
@@ -204,18 +204,18 @@ spec-kitty init my-project --ai kilocode
 
 ---
 
-### Augment Code
+### Auggie CLI
 
 | Property | Value |
 |----------|-------|
 | Directory | `.augment/` |
 | Commands subdirectory | `commands/` |
-| CLI flag | `--ai augment` |
+| CLI flag | `--ai auggie` |
 | Status | Supported |
 
 **Usage**:
 ```bash
-spec-kitty init my-project --ai augment
+spec-kitty init my-project --ai auggie
 ```
 
 ---

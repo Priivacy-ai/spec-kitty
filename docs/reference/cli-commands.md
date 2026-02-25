@@ -16,11 +16,15 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 
 **Commands**:
 - `init` - Initialize a new Spec Kitty project from templates
+- `specify` - Create a feature scaffold in `kitty-specs/`
+- `plan` - Scaffold `plan.md` for a feature
+- `tasks` - Finalize task metadata after task generation
 - `accept` - Validate feature readiness before merging to main
 - `dashboard` - Open or stop the Spec Kitty dashboard
 - `implement` - Create workspace for work package implementation
 - `merge` - Merge a completed feature branch into the target branch and clean up resources
 - `sync` - Synchronize workspace with upstream changes
+- `context` - Query workspace context information
 - `ops` - Operation history and undo (git reflog)
 - `orchestrator-api` - Host contract for external orchestrators (JSON envelope interface)
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
@@ -30,7 +34,6 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 - `validate-tasks` - Validate and optionally fix task metadata inconsistencies
 - `verify-setup` - Verify that the current environment matches Spec Kitty expectations
 - `agent` - Commands for AI agents to execute spec-kitty workflows programmatically
-- `auth` - Authentication commands for the sync service
 - `mission` - View available Spec Kitty missions
 - `repair` - Repair broken templates
 
@@ -72,6 +75,53 @@ spec-kitty init my-project --ai codex --non-interactive
 ```
 
 **See Also**: `docs/non-interactive-init.md`
+
+---
+
+## spec-kitty specify
+
+**Synopsis**: `spec-kitty specify [OPTIONS] FEATURE`
+
+**Description**: Create a feature scaffold in `kitty-specs/`.
+
+**Arguments**:
+- `FEATURE`: Feature name or slug (for example `user-authentication`) [required]
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--mission TEXT` | Mission type (for example `software-dev`, `research`) |
+| `--json` | Emit JSON result |
+| `--help` | Show this message and exit |
+
+---
+
+## spec-kitty plan
+
+**Synopsis**: `spec-kitty plan [OPTIONS]`
+
+**Description**: Scaffold `plan.md` for a feature.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--feature TEXT` | Feature slug (for example `001-user-authentication`) |
+| `--json` | Emit JSON result |
+| `--help` | Show this message and exit |
+
+---
+
+## spec-kitty tasks
+
+**Synopsis**: `spec-kitty tasks [OPTIONS]`
+
+**Description**: Finalize tasks metadata after task generation.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--json` | Emit JSON result |
+| `--help` | Show this message and exit |
 
 ---
 
@@ -224,124 +274,6 @@ spec-kitty implement WP01 --json
 
 ---
 
-## spec-kitty auth
-
-**Synopsis**: `spec-kitty auth [OPTIONS] COMMAND [ARGS]...`
-
-**Description**: Authentication commands for the spec-kitty sync service.
-
-**Options**:
-| Flag | Description |
-| --- | --- |
-| `--help` | Show this message and exit |
-
-**Commands**:
-- `login` - Log in to the sync service
-- `logout` - Log out from the sync service
-- `status` - Show current authentication status
-
----
-
-## spec-kitty auth login
-
-**Synopsis**: `spec-kitty auth login [OPTIONS]`
-
-**Description**: Log in to the sync service. Prompts for username and password if not provided via flags. Stores JWT tokens in credential file.
-
-**Options**:
-| Flag | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--username`, `-u` | TEXT | (prompt) | Your username or email |
-| `--password`, `-p` | TEXT | (prompt, hidden) | Your password |
-| `--force`, `-f` | FLAG | false | Re-authenticate even if already logged in |
-| `--help` | | | Show this message and exit |
-
-**Examples**:
-```bash
-# Interactive login (prompts for credentials)
-spec-kitty auth login
-
-# Non-interactive login
-spec-kitty auth login --username user@example.com --password secret
-
-# Force re-authentication
-spec-kitty auth login --force
-```
-
-**Behavior**:
-- On success, prints the authenticated username and stores JWT tokens in `~/.spec-kitty/credentials`.
-- If already authenticated (without `--force`), prints a message and exits without re-authenticating.
-
-**Errors**:
-- Invalid credentials: `Invalid username or password`
-- Server unreachable: `Cannot reach server. Check your connection.`
-- Server error: `Server temporarily unavailable`
-- Session expired: `Session expired. Please log in again.`
-- Permission error: `Cannot access credentials file. Check permissions.`
-
----
-
-## spec-kitty auth logout
-
-**Synopsis**: `spec-kitty auth logout`
-
-**Description**: Log out from the sync service. Clears stored credentials.
-
-**Options**:
-| Flag | Description |
-| --- | --- |
-| `--help` | Show this message and exit |
-
-**Examples**:
-```bash
-spec-kitty auth logout
-```
-
-**Behavior**:
-- On success, clears credentials and prints the username that was logged out.
-- If no active session exists, prints an informational message and exits.
-
-**Errors**:
-- Permission error: `Cannot access credentials file. Check permissions.`
-
----
-
-## spec-kitty auth status
-
-**Synopsis**: `spec-kitty auth status`
-
-**Description**: Show current authentication status including username, server URL, and token expiry.
-
-**Options**:
-| Flag | Description |
-| --- | --- |
-| `--help` | Show this message and exit |
-
-**Examples**:
-```bash
-spec-kitty auth status
-```
-
-**Output** (authenticated):
-```
-✅ Authenticated
-   Username: user@example.com
-   Server:   https://your-server.example.com
-   Access token: valid (23h remaining)
-   Refresh token: valid (6d remaining)
-```
-
-**Output** (not authenticated):
-```
-❌ Not authenticated
-   Run 'spec-kitty auth login' to authenticate.
-```
-
-**Errors**:
-- Permission error: `Cannot access credentials file. Check permissions.`
-
----
-
 ## spec-kitty sync
 
 **Synopsis**: `spec-kitty sync [OPTIONS] COMMAND [ARGS]...`
@@ -355,8 +287,6 @@ spec-kitty auth status
 
 **Commands**:
 - `workspace` - Sync workspace with upstream changes (local)
-- `now` - Push and pull events with the server (remote)
-- `status` - Show sync configuration and connection state
 
 ---
 
@@ -386,79 +316,11 @@ spec-kitty sync workspace --repair
 
 ---
 
-## spec-kitty sync now
+## spec-kitty context
 
-**Synopsis**: `spec-kitty sync now [OPTIONS]`
+**Synopsis**: `spec-kitty context [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Push locally queued events to the server and pull new events. This drains the offline queue and synchronizes with the team's server.
-
-> **Note**: This command reference is based on the planned interface. Verify against `spec-kitty sync now --help` when the command is available.
-
-**Options**:
-| Flag | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--verbose`, `-v` | FLAG | false | Show per-event sync status |
-| `--dry-run`, `-n` | FLAG | false | Show what would be synced without syncing |
-| `--help` | | | Show this message and exit |
-
-**Examples**:
-```bash
-# Push all queued events and pull updates
-spec-kitty sync now
-
-# See what would be synced
-spec-kitty sync now --dry-run
-
-# Verbose output
-spec-kitty sync now --verbose
-```
-
-**Behavior**:
-- Drains the offline queue (up to 1000 events per request) and uploads events in a single batch request with gzip compression.
-- Successfully synced events are removed from the queue.
-- Duplicate events on the server are counted but not treated as errors.
-
----
-
-## spec-kitty sync status
-
-**Synopsis**: `spec-kitty sync status [OPTIONS]`
-
-**Description**: Show WebSocket sync connection status and server configuration.
-
-**Options**:
-| Flag | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--check`, `-c` | FLAG | false | Test connection to server (may be slow if unreachable) |
-| `--help` | | | Show this message and exit |
-
-**Examples**:
-```bash
-# Show configuration only (fast)
-spec-kitty sync status
-
-# Test actual connectivity
-spec-kitty sync status --check
-```
-
-**Output**:
-- **Server URL**: Configured sync server address
-- **Config File**: Path to the sync configuration file
-- **Connection** (with `--check`): Tests actual server connectivity with a 3-second timeout
-
-**Connection states** (with `--check`):
-- **Connected**: Successfully reached the server
-- **Reachable**: Server is online but authentication is required
-- **Unreachable**: Connection timeout or refused
-- **Error**: Connection test failed
-
----
-
-## spec-kitty ops
-
-**Synopsis**: `spec-kitty ops COMMAND [ARGS]...`
-
-**Description**: Operation history via git reflog. View recent git operations.
+**Description**: Query workspace context information.
 
 **Options**:
 | Flag | Description |
@@ -466,7 +328,27 @@ spec-kitty sync status --check
 | `--help` | Show this message and exit |
 
 **Commands**:
-- `log` - Show operation history (git reflog)
+- `info` - Show context information for current or specified workspace
+- `list` - List all workspace contexts
+- `cleanup` - Clean up orphaned workspace contexts
+
+---
+
+## spec-kitty ops
+
+**Synopsis**: `spec-kitty ops COMMAND [ARGS]...`
+
+**Description**: Operation history and undo (`jj`: full undo, `git`: reflog-only history).
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Commands**:
+- `log` - Show operation history
+- `undo` - Undo last operation (`jj` only)
+- `restore` - Restore to a specific operation (`jj` only)
 
 ### spec-kitty ops log
 
@@ -500,6 +382,18 @@ spec-kitty ops log --verbose
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
+
+**Commands**:
+- `list` - List all available missions with source (`project` or `built-in`)
+- `current` - Show currently active mission for a feature
+- `info` - Show mission details without switching
+- `switch` - Deprecated alias retained for compatibility (removed behavior)
+- `join` - Join mission as participant
+- `status` - Display mission roster and status
+- `comment` - Post a comment to the mission
+- `decide` - Capture a mission decision
+- `focus` - Focus management commands
+- `drive` - Drive management commands
 
 ### spec-kitty mission list
 
@@ -631,6 +525,10 @@ spec-kitty ops log --verbose
 | --- | --- |
 | `--help` | Show this message and exit |
 
+**Commands**:
+- `repair` - Repair broken templates caused by v0.10.0-v0.10.8 bundling bug
+- `worktree` - Diagnose worktree `kitty-specs/` status
+
 ### spec-kitty repair repair
 
 **Synopsis**: `spec-kitty repair repair [OPTIONS]`
@@ -642,6 +540,23 @@ spec-kitty ops log --verbose
 | --- | --- |
 | `--project-path PATH`, `-p` | Path to project to repair |
 | `--dry-run` | Show what would be changed without making changes |
+| `--help` | Show this message and exit |
+
+---
+
+### spec-kitty repair worktree
+
+**Synopsis**: `spec-kitty repair worktree [OPTIONS] [WORKTREE_PATH]`
+
+**Description**: Diagnose worktree `kitty-specs/` status and report repair guidance.
+
+**Arguments**:
+- `WORKTREE_PATH`: Specific worktree path to check (optional)
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--all` | Check all worktrees in `.worktrees/` |
 | `--help` | Show this message and exit |
 
 ---
