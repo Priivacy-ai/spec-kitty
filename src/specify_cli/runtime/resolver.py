@@ -5,7 +5,7 @@ Resolution tiers (checked in order):
 2. LEGACY          -- .kittify/{templates,command-templates}/ (deprecated; emits warning)
 3. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
 4. GLOBAL          -- ~/.kittify/{templates,command-templates}/
-5. PACKAGE         -- src/doctrine/missions/{mission}/{templates,command-templates}/
+5. PACKAGE         -- specify_cli/missions/{mission}/{templates,command-templates}/
 
 After ``spec-kitty migrate`` has been run (i.e. ``~/.kittify/`` is
 populated), legacy-tier warnings are suppressed.  Pre-migration projects
