@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.agent.feature import (
     _find_latest_feature_worktree,
@@ -198,18 +199,18 @@ def test_merge_command_delegates_to_toplevel(
     )
 
 
-@patch("specify_cli.cli.commands.agent.feature._find_latest_feature_worktree")
+@patch("specify_cli.cli.commands.agent.feature._find_feature_worktree")
 @patch("specify_cli.cli.commands.agent.feature._get_current_branch")
 @patch("subprocess.run")
-@patch("specify_cli.core.paths.locate_project_root")
+@patch("specify_cli.cli.commands.agent.feature.locate_project_root")
 def test_merge_command_auto_retry_logic(
     mock_locate: MagicMock,
     mock_subprocess: MagicMock,
     mock_get_branch: MagicMock,
-    mock_find_latest: MagicMock,
+    mock_find_feature_worktree: MagicMock,
     tmp_path: Path,
 ):
-    """Test merge auto-retry when not on feature branch."""
+    """Test merge auto-retry when not on feature branch with explicit --feature."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     latest_worktree = tmp_path / "repo" / ".worktrees" / "002-feature"
@@ -217,14 +218,14 @@ def test_merge_command_auto_retry_logic(
 
     mock_locate.return_value = repo_root
     mock_get_branch.return_value = "main"  # Not a feature branch
-    mock_find_latest.return_value = latest_worktree
+    mock_find_feature_worktree.return_value = latest_worktree
     mock_subprocess.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
     from specify_cli.cli.commands.agent.feature import merge_feature
 
     with pytest.raises(SystemExit):
         merge_feature(
-            feature=None,
+            feature="002-feature",
             target="main",
             strategy="merge",
             push=False,
@@ -234,8 +235,8 @@ def test_merge_command_auto_retry_logic(
             auto_retry=True  # Enable auto-retry
         )
 
-    # Verify auto-retry happened
-    mock_find_latest.assert_called_once()
+    # Verify deterministic worktree resolution happened
+    mock_find_feature_worktree.assert_called_once_with(repo_root, "002-feature")
 
     # Verify command was re-run in worktree
     for call in mock_subprocess.call_args_list:
@@ -353,41 +354,41 @@ def test_merge_command_propagates_errors(
     assert exc_info.value.exit_code == 1
 
 
-@patch("specify_cli.cli.commands.agent.feature._find_latest_feature_worktree")
+@patch("specify_cli.cli.commands.agent.feature._find_feature_worktree")
 @patch("specify_cli.cli.commands.agent.feature._get_current_branch")
-@patch("specify_cli.core.paths.locate_project_root")
+@patch("specify_cli.cli.commands.agent.feature.locate_project_root")
 def test_merge_command_auto_retry_no_worktree_found(
     mock_locate: MagicMock,
     mock_get_branch: MagicMock,
-    mock_find_latest: MagicMock,
+    mock_find_feature_worktree: MagicMock,
     tmp_path: Path,
 ):
-    """Test merge when auto-retry enabled but no worktrees exist."""
+    """Test merge when auto-retry enabled but target feature worktree does not exist."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
     mock_locate.return_value = repo_root
     mock_get_branch.return_value = "main"  # Not a feature branch
-    mock_find_latest.return_value = None  # No worktrees found
+    mock_find_feature_worktree.return_value = None  # No worktree for requested feature
 
     from specify_cli.cli.commands.agent.feature import merge_feature
 
     with patch("specify_cli.cli.commands.agent.feature.top_level_merge") as mock_merge:
-        merge_feature(
-            feature=None,
-            target="main",
-            strategy="merge",
-            push=False,
-            dry_run=False,
-            keep_branch=False,
-            keep_worktree=False,
-            auto_retry=True
-        )
+        with pytest.raises(typer.Exit) as exc_info:
+            merge_feature(
+                feature="002-feature",
+                target="main",
+                strategy="merge",
+                push=False,
+                dry_run=False,
+                keep_branch=False,
+                keep_worktree=False,
+                auto_retry=True
+            )
 
-        # Should have tried to find worktree but then proceeded normally
-        mock_find_latest.assert_called_once()
-        # Should call top-level merge since no worktree found
-        mock_merge.assert_called_once()
+        assert exc_info.value.exit_code == 1
+        mock_find_feature_worktree.assert_called_once_with(repo_root, "002-feature")
+        mock_merge.assert_not_called()
 
 
 @patch("specify_cli.cli.commands.agent.feature.top_level_accept")

@@ -28,6 +28,13 @@ pwd
 # Should show: /path/to/repo/.worktrees/###-feature-WP##/
 ```
 
+**Deterministic pre-read checks (required before Read/Edit/Write tools):**
+```bash
+ls -la
+test -f kitty-specs/<feature>/tasks/<wp-file>.md && echo "wp prompt exists"
+```
+If a path is uncertain, verify with `ls` or `test -f` first.
+
 ---
 
 ## CRITICAL: This is a TWO-STEP Command

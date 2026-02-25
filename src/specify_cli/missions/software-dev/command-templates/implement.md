@@ -25,6 +25,18 @@ Use JSON `text` as governance context. On first load (`mode=bootstrap`), follow 
 - Changes in main repository will NOT be seen by reviewers looking at the WP worktree
 - Writing to main instead of the workspace causes review failures and merge conflicts
 
+## Deterministic Pre-Read Checks (required)
+
+Before any `Read`/`Edit`/`Write` action, run these checks from your shell:
+
+```bash
+pwd
+ls -la
+test -f kitty-specs/<feature>/tasks/<wp-file>.md && echo "wp prompt exists"
+```
+
+If a file/path is uncertain, verify first with `ls` or `test -f` before reading it.
+
 ---
 
 **IMPORTANT**: After running the command below, you'll see a LONG work package prompt (~1000+ lines).

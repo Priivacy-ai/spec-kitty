@@ -305,10 +305,19 @@ def is_feature_complete(feature_dir: Path) -> bool:
     return True
 
 
+def _is_feature_runnable(feature_dir: Path) -> bool:
+    """Return True when a feature has concrete WP task files to operate on."""
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.exists():
+        return False
+    return any(tasks_dir.glob("WP*.md"))
+
+
 def find_latest_incomplete_feature(repo_root: Path) -> Optional[str]:
     """Find the highest numbered incomplete feature.
 
-    An incomplete feature is one where at least one WP has lane != 'done'.
+    An incomplete feature is one where at least one WP has lane != 'done'
+    and the feature is runnable (has tasks/WP*.md files).
 
     Args:
         repo_root: Repository root path
@@ -326,6 +335,8 @@ def find_latest_incomplete_feature(repo_root: Path) -> Optional[str]:
 
     for slug in all_features:
         feature_dir = kitty_specs_dir / slug
+        if not _is_feature_runnable(feature_dir):
+            continue
         if not is_feature_complete(feature_dir):
             incomplete.append(slug)
 

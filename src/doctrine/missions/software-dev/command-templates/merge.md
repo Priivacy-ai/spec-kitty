@@ -19,7 +19,7 @@ In 0.11.0, each work package has its own worktree:
 
 ## ⛔ Location Pre-flight Check (CRITICAL)
 
-**BEFORE PROCEEDING:** You MUST be in a feature worktree, NOT the main repository.
+**BEFORE PROCEEDING:** You MUST be in the main repository root, NOT inside `.worktrees/`.
 
 Verify your current location:
 
@@ -30,20 +30,19 @@ git branch --show-current
 
 **Expected output:**
 
-- `pwd`: Should end with `.worktrees/###-feature-name-WP01` (or similar feature worktree)
-- Branch: Should show your feature branch name like `###-feature-name-WP01` (NOT `main` or `release/*`)
+- `pwd`: Should be your project root (for example `/path/to/spec-kitty`) and must not include `.worktrees/`
+- Branch: Can be any project branch; merge will switch to the target branch in the primary repository
 
 **If you see:**
 
-- Branch showing `main` or `release/`
-- OR pwd shows the main repository root
+- `pwd` includes `.worktrees/`
 
 ⛔ **STOP - DANGER! You are in the wrong location!**
 
 **Correct the issue:**
 
-1. Navigate to ANY worktree for this feature: `cd .worktrees/###-feature-name-WP01`
-2. Verify you're on a feature branch: `git branch --show-current`
+1. Navigate to your repository root: `cd /path/to/project`
+2. Verify `pwd` does not include `.worktrees/`
 3. Then run this merge command again
 
 **Exception (main branch):**
@@ -61,29 +60,23 @@ Before merging, verify you are in the correct working directory by running this 
 
 ```bash
 python3 -c "
-from specify_cli.guards import validate_worktree_location
-result = validate_worktree_location()
-if not result.is_valid:
-    print(result.format_error())
-    print('\nThis command MUST run from a feature worktree, not the main repository.')
-    print('\nFor workspace-per-WP features, run from ANY WP worktree:')
-    print('  cd /path/to/project/.worktrees/<feature>-WP01')
-    print('  # or any other WP worktree for this feature')
+from pathlib import Path
+cwd = Path.cwd().resolve()
+if '.worktrees' in cwd.parts:
+    print('Error: merge must run from the main repository root, not inside .worktrees/')
     raise SystemExit(1)
-else:
-    print('✓ Location verified:', result.branch_name)
+print('✓ Location verified:', cwd)
 "
 ```
 
 **What this validates**:
 
-- Current branch follows the feature pattern like `001-feature-name` or `001-feature-name-WP01`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- You're not attempting to run from a worktree directory
+- The validator prints a clear correction when run from `.worktrees/`
 
 **For workspace-per-WP features (0.11.0+)**:
 
-- Run merge from ANY WP worktree (e.g., `.worktrees/014-feature-WP09/`)
+- Run merge from the main repository root
 - The merge command automatically detects all WP branches and merges them sequentially
 - You do NOT need to run merge from each WP worktree individually
 
@@ -250,7 +243,7 @@ my-project/                              # Main repo (main branch)
 
 **Merge behavior for workspace-per-WP**:
 
-- Run `spec-kitty merge` from **any** WP worktree for the feature
+- Run `spec-kitty merge` from the main repository root
 - The command automatically detects all WP branches (WP01, WP02, WP03, etc.)
 - Merges each WP branch into main in sequence
 - Cleans up all WP worktrees and branches
@@ -273,7 +266,7 @@ my-project/                    # Main repo (main branch)
 1. **Main branch** stays in the primary repo root
 2. **Feature branches** live in `.worktrees/<feature-slug>/`
 3. **Work on features** happens in their worktrees (isolation)
-4. **Merge from worktrees** using this command
+4. **Run merge from the main repository root** using this command
 5. **Cleanup is automatic** - worktrees removed after merge
 
 ### Why Worktrees?
@@ -294,20 +287,19 @@ my-project/                    # Main repo (main branch)
 5. /spec-kitty.implement
 6. /spec-kitty.review
 7. /spec-kitty.accept
-8. /spec-kitty.merge             → Merge + cleanup worktree
-9. Back in main repo!            → Ready for next feature
+8. cd /path/to/project           → Return to main repository root
+9. /spec-kitty.merge --feature <feature-slug>  → Merge + cleanup worktrees
+10. Ready for next feature
 ```
 
 ## Error Handling
 
 ### "Already on main branch"
 
-You're not on a feature branch. Switch to your feature branch first:
+Pass the feature slug explicitly when running from the main repository root:
 
 ```bash
-cd .worktrees/<feature-slug>
-# or
-git checkout <feature-branch>
+spec-kitty merge --feature <feature-slug>
 ```
 
 ### "Working directory has uncommitted changes"
