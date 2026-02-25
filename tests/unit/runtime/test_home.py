@@ -153,3 +153,17 @@ class TestGetPackageAssetRoot:
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
         result = get_package_asset_root()
         assert result.is_dir()
+
+    def test_dev_layout_fallback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Falls back to dev layout when importlib discovery fails."""
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        # Block importlib path so it falls through to dev layout
+        monkeypatch.setattr(
+            "specify_cli.runtime.home.importlib.resources.files",
+            lambda _pkg: type("Fake", (), {"__truediv__": lambda s, n: Path("/nonexistent")})(),
+        )
+        result = get_package_asset_root()
+        assert result.is_dir()
+        assert result.name == "missions"
