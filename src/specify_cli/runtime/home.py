@@ -47,8 +47,8 @@ def get_package_asset_root() -> Path:
 
     Resolution order:
     1. SPEC_KITTY_TEMPLATE_ROOT environment variable (CI/testing)
-    2. importlib.resources.files("doctrine") / "missions" (installed package)
-    3. Path(__file__).parent.parent / "doctrine" / "missions" (development layout)
+    2. importlib.resources.files("specify_cli") / "missions" (installed package)
+    3. Path(__file__).parent.parent / "missions" (development layout)
 
     Returns:
         Path: Absolute path to the missions directory in the package.
@@ -63,17 +63,17 @@ def get_package_asset_root() -> Path:
             return root
         raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
 
-    # Installed package - try doctrine package first
+    # Installed package - missions live inside specify_cli
     try:
-        pkg_root = importlib.resources.files("doctrine")
+        pkg_root = importlib.resources.files("specify_cli")
         missions_dir = Path(str(pkg_root)) / "missions"
         if missions_dir.is_dir():
             return missions_dir
     except (TypeError, ModuleNotFoundError):
         pass
 
-    # Development layout - look for src/doctrine/missions
-    dev_root = Path(__file__).parent.parent.parent / "doctrine" / "missions"
+    # Development layout - look for specify_cli/missions relative to this file
+    dev_root = Path(__file__).parent.parent / "missions"
     if dev_root.is_dir():
         return dev_root
 
