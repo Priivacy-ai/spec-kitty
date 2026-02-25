@@ -918,6 +918,26 @@ def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
     return latest_worktree
 
 
+def _find_feature_worktree(repo_root: Path, feature_slug: str) -> Optional[Path]:
+    """Find a deterministic worktree for a feature slug."""
+    worktrees_dir = repo_root / ".worktrees"
+    if not worktrees_dir.exists():
+        return None
+
+    exact = worktrees_dir / feature_slug
+    if exact.is_dir():
+        return exact
+
+    candidates = sorted(
+        p for p in worktrees_dir.glob(f"{feature_slug}-WP*")
+        if p.is_dir()
+    )
+    if candidates:
+        return candidates[0]
+
+    return None
+
+
 def _get_current_branch(repo_root: Path) -> str:
     """Get current git branch name.
 
@@ -1076,9 +1096,9 @@ def merge_feature(
         bool,
         typer.Option(
             "--auto-retry/--no-auto-retry",
-            help="Auto-navigate to latest worktree if in wrong location"
+            help="Auto-navigate to a deterministic feature worktree if in wrong location"
         )
-    ] = True,
+    ] = False,
 ) -> None:
     """Merge feature branch into target branch.
 
@@ -1088,9 +1108,9 @@ def merge_feature(
     3. Cleans up worktree
     4. Deletes feature branch
 
-    Auto-retry logic (from merge-feature.sh):
-    If current branch doesn't match feature pattern (XXX-name) and auto-retry is enabled,
-    automatically finds and navigates to latest worktree.
+    Auto-retry logic:
+    If current branch doesn't match feature pattern and auto-retry is enabled,
+    it retries only when --feature is provided so worktree selection is deterministic.
 
     Delegates to existing tasks_cli.py merge implementation.
 
@@ -1124,39 +1144,47 @@ def merge_feature(
             is_feature_branch = re.match(r"^\d{3}-", current_branch)
 
             if not is_feature_branch:
-                # Try to find latest worktree and retry there
-                latest_worktree = _find_latest_feature_worktree(repo_root)
-                if latest_worktree:
-                    console.print(
-                        f"[yellow]Auto-retry:[/yellow] Not on feature branch ({current_branch}). "
-                        f"Running merge in {latest_worktree.name}"
+                if not feature:
+                    raise RuntimeError(
+                        f"Not on feature branch ({current_branch}). "
+                        "Auto-retry requires --feature to choose a deterministic worktree."
                     )
 
-                    # Set env var to prevent infinite recursion
-                    env = os.environ.copy()
-                    env["SPEC_KITTY_AUTORETRY"] = "1"
-
-                    # Re-run command in worktree
-                    retry_cmd = ["spec-kitty", "agent", "feature", "merge"]
-                    if feature:
-                        retry_cmd.extend(["--feature", feature])
-                    retry_cmd.extend(["--target", target, "--strategy", strategy])
-                    if push:
-                        retry_cmd.append("--push")
-                    if dry_run:
-                        retry_cmd.append("--dry-run")
-                    if keep_branch:
-                        retry_cmd.append("--keep-branch")
-                    if keep_worktree:
-                        retry_cmd.append("--keep-worktree")
-                    retry_cmd.append("--no-auto-retry")
-
-                    result = subprocess.run(
-                        retry_cmd,
-                        cwd=latest_worktree,
-                        env=env,
+                retry_worktree = _find_feature_worktree(repo_root, feature)
+                if not retry_worktree:
+                    raise RuntimeError(
+                        f"Could not find worktree for feature {feature} under {repo_root / '.worktrees'}."
                     )
-                    sys.exit(result.returncode)
+
+                console.print(
+                    f"[yellow]Auto-retry:[/yellow] Not on feature branch ({current_branch}). "
+                    f"Running merge in {retry_worktree.name}"
+                )
+
+                # Set env var to prevent infinite recursion
+                env = os.environ.copy()
+                env["SPEC_KITTY_AUTORETRY"] = "1"
+
+                # Re-run command in worktree
+                retry_cmd = ["spec-kitty", "agent", "feature", "merge"]
+                retry_cmd.extend(["--feature", feature])
+                retry_cmd.extend(["--target", target, "--strategy", strategy])
+                if push:
+                    retry_cmd.append("--push")
+                if dry_run:
+                    retry_cmd.append("--dry-run")
+                if keep_branch:
+                    retry_cmd.append("--keep-branch")
+                if keep_worktree:
+                    retry_cmd.append("--keep-worktree")
+                retry_cmd.append("--no-auto-retry")
+
+                result = subprocess.run(
+                    retry_cmd,
+                    cwd=retry_worktree,
+                    env=env,
+                )
+                sys.exit(result.returncode)
 
         # Delegate to top-level merge command with parameter mapping
         # Note: Agent uses --keep-branch/--keep-worktree (default: False)

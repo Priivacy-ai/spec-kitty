@@ -251,6 +251,18 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 
 
+def resolve_feature_target_branch(feature_slug: str, repo_root: Path) -> str:
+    """Resolve the feature's configured target branch from meta.json."""
+    from specify_cli.core.git_ops import resolve_target_branch
+
+    resolution = resolve_target_branch(
+        feature_slug=feature_slug,
+        repo_path=repo_root,
+        respect_current=True,
+    )
+    return resolution.target
+
+
 def display_rebase_warning(
     workspace_path: Path,
     wp_id: str,
@@ -689,7 +701,7 @@ def implement(
         raise typer.Exit(1)
 
     # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
-    # All planning must happen in primary branch and be committed BEFORE worktree creation
+    # All planning must happen on the feature target branch before workspace creation.
     if base is None:  # Only for first WP in feature (branches from main)
         try:
             # Detect VCS backend early to use appropriate commands
@@ -703,17 +715,17 @@ def implement(
             vcs = get_vcs(repo_root)
             vcs_backend = vcs.backend
 
-            primary_branch = resolve_primary_branch(repo_root)
+            planning_branch = resolve_feature_target_branch(feature_slug, repo_root)
 
             if vcs_backend == VCSBackend.GIT:
                 # Git path: check branch and status using git commands
                 _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
                 )
             else:
                 # jj path: check status and commit using jj commands
                 _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
                 )
 
         except typer.Exit:

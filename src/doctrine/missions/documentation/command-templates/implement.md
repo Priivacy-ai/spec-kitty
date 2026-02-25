@@ -28,6 +28,18 @@ pwd
 # Should show: /path/to/repo/.worktrees/###-feature-WP##/
 ```
 
+## Deterministic Pre-Read Checks (required)
+
+Before any `Read`/`Edit`/`Write` action, run:
+
+```bash
+pwd
+ls -la
+test -f <path-you-plan-to-read> && echo "file exists"
+```
+
+If a path is uncertain, verify with `ls` or `test -f` first.
+
 ---
 
 ## User Input

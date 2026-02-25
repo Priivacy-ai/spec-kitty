@@ -732,9 +732,11 @@ class TestFindFeatureDirectory:
         # Create main repo structure
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
-        (kitty_specs / "001-feature").mkdir()
-        (kitty_specs / "003-feature").mkdir()
-        (kitty_specs / "002-feature").mkdir()
+        for slug in ("001-feature", "002-feature", "003-feature"):
+            feature_dir = kitty_specs / slug
+            tasks_dir = feature_dir / "tasks"
+            tasks_dir.mkdir(parents=True)
+            (tasks_dir / "WP01-test.md").write_text("# WP01\n")
 
         # Execute
         result = _find_feature_directory(tmp_path, tmp_path)

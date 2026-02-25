@@ -193,6 +193,17 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
     return True, ""
 
 
+def branch_already_merged(repo_root: Path, target_branch: str, branch_name: str) -> bool:
+    """Return True when branch tip is already reachable from target branch."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", branch_name, target_branch],
+        cwd=str(repo_root),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def merge_workspace_per_wp(
     repo_root: Path,
     merge_root: Path,
@@ -265,6 +276,9 @@ def merge_workspace_per_wp(
             "git pull --ff-only",
         ]
         for wt_path, wp_id, branch in wp_workspaces:
+            if branch_already_merged(main_repo, target_branch, branch):
+                steps.append(f"# skip {wp_id} ({branch}) - already merged")
+                continue
             if strategy == "squash":
                 steps.extend([
                     f"git merge --squash {branch}",
@@ -327,7 +341,14 @@ def merge_workspace_per_wp(
     # Merge all WP branches
     tracker.start("merge")
     try:
+        merged_count = 0
+        skipped_count = 0
         for wt_path, wp_id, branch in wp_workspaces:
+            if branch_already_merged(main_repo, target_branch, branch):
+                console.print(f"[dim]Skipping {wp_id} ({branch}) - already merged into {target_branch}[/dim]")
+                skipped_count += 1
+                continue
+
             console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
 
             if strategy == "squash":
@@ -355,8 +376,12 @@ def merge_workspace_per_wp(
                 to_lane="for_review",
                 feature_slug=feature_slug,
             )
+            merged_count += 1
 
-        tracker.complete("merge", f"merged {len(wp_workspaces)} work packages")
+        summary = f"merged {merged_count} work packages"
+        if skipped_count:
+            summary += f", skipped {skipped_count} already-merged"
+        tracker.complete("merge", summary)
     except Exception as exc:
         tracker.error("merge", str(exc))
         console.print(tracker.render())

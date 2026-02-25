@@ -60,6 +60,19 @@ cd {{workspace_path}}
 
 Your worktree is an isolated workspace for this WP. The deliverables path is accessible here.
 
+### Step 1.5: Deterministic Pre-Read Checks (Required)
+
+Before any `Read`/`Edit`/`Write` action, verify paths in shell first:
+
+```bash
+pwd
+ls -la
+test -f kitty-specs/{{feature_slug}}/meta.json && echo "meta exists"
+test -d {{deliverables_path}} || echo "deliverables path will be created"
+```
+
+If a file/path is uncertain, verify with `ls`, `test -f`, or `test -d` before reading it.
+
 ### Step 2: Create Research Deliverables (In Worktree)
 
 Create your research outputs in the deliverables path:
