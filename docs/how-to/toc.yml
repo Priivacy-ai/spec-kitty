@@ -1,5 +1,7 @@
 - name: Install & Upgrade
   href: install-spec-kitty.md
+- name: Set Up Codex Launcher
+  href: setup-codex-spec-kitty-launcher.md
 - name: Create a Specification
   href: create-specification.md
 - name: Create a Plan
