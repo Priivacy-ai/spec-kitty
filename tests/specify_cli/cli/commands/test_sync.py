@@ -15,6 +15,7 @@ from specify_cli.cli.commands.sync import (
     _display_conflicts,
     _git_repair,
     _jj_repair,
+    _resolve_feature_dirs,
     app as sync_app,
     sync_server,
     sync_workspace,
@@ -69,6 +70,27 @@ class TestDetectWorkspaceContext:
 
                 assert workspace_path == tmp_path
                 assert feature_slug is None
+
+
+class TestResolveFeatureDirs:
+    """Tests for dossier feature-directory resolution."""
+
+    def test_resolve_all_numeric_features(self, tmp_path):
+        kitty_specs = tmp_path / "kitty-specs"
+        (kitty_specs / "001-alpha").mkdir(parents=True)
+        (kitty_specs / "045-beta").mkdir()
+        (kitty_specs / "notes").mkdir()
+
+        resolved = _resolve_feature_dirs(tmp_path, None)
+        assert [path.name for path in resolved] == ["001-alpha", "045-beta"]
+
+    def test_resolve_selected_feature_subset(self, tmp_path):
+        kitty_specs = tmp_path / "kitty-specs"
+        (kitty_specs / "001-alpha").mkdir(parents=True)
+        (kitty_specs / "045-beta").mkdir()
+
+        resolved = _resolve_feature_dirs(tmp_path, ["045-beta", "does-not-exist"])
+        assert [path.name for path in resolved] == ["045-beta"]
 
 
 class TestSyncGroupHelp:

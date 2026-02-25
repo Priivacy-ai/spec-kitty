@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import re
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+import httpx
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -35,6 +37,27 @@ from specify_cli.sync.feature_flags import (
 )
 
 console = Console()
+
+
+@dataclass
+class _DossierUploadRecord:
+    """Content push payload for one indexed dossier artifact."""
+
+    mission_slug: str
+    artifact_path: str
+    content_hash: str
+    content_body: str
+
+
+@dataclass
+class _DossierEmissionSummary:
+    """Aggregated dossier emission counters for CLI reporting."""
+
+    features: int = 0
+    indexed_events: int = 0
+    missing_events: int = 0
+    snapshot_events: int = 0
+    upload_records: list[_DossierUploadRecord] = field(default_factory=list)
 
 
 def humanize_timedelta(td: "timedelta") -> str:
@@ -132,6 +155,181 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
             type_table.add_row(event_type, str(count))
 
         target_console.print(type_table)
+
+
+def _resolve_feature_dirs(repo_root: Path, feature_slugs: Optional[list[str]]) -> list[Path]:
+    """Resolve feature slugs to directories, defaulting to all numeric `kitty-specs` entries."""
+    kitty_specs_dir = repo_root / "kitty-specs"
+    if not kitty_specs_dir.is_dir():
+        return []
+
+    if feature_slugs:
+        resolved: list[Path] = []
+        for feature_slug in feature_slugs:
+            feature_dir = kitty_specs_dir / feature_slug
+            if feature_dir.is_dir():
+                resolved.append(feature_dir)
+        return resolved
+
+    discovered: list[Path] = []
+    for child in sorted(kitty_specs_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        if re.match(r"^\d{3}-", child.name):
+            discovered.append(child)
+    return discovered
+
+
+def _emit_dossier_for_feature(feature_dir: Path, step_id: Optional[str]) -> _DossierEmissionSummary:
+    """Index one feature and emit MissionDossier* events to the sync queue."""
+    from specify_cli.dossier.events import (
+        emit_artifact_indexed,
+        emit_artifact_missing,
+        emit_snapshot_computed,
+    )
+    from specify_cli.dossier.indexer import Indexer
+    from specify_cli.dossier.manifest import ManifestRegistry
+    from specify_cli.dossier.snapshot import compute_snapshot, save_snapshot
+    from specify_cli.mission import get_feature_mission_key
+
+    summary = _DossierEmissionSummary(features=1)
+    mission_key = get_feature_mission_key(feature_dir)
+
+    indexer = Indexer(manifest_registry=ManifestRegistry)
+    dossier = indexer.index_feature(feature_dir=feature_dir, mission_type=mission_key, step_id=step_id)
+    snapshot = compute_snapshot(dossier)
+    save_snapshot(snapshot, feature_dir)
+
+    manifest_version = "1"
+    if isinstance(dossier.manifest, dict):
+        manifest_version = str(dossier.manifest.get("manifest_version", "1"))
+
+    for artifact in dossier.artifacts:
+        if artifact.is_present:
+            emitted = emit_artifact_indexed(
+                feature_slug=dossier.feature_slug,
+                artifact_key=artifact.artifact_key,
+                artifact_class=artifact.artifact_class,
+                relative_path=artifact.relative_path,
+                content_hash_sha256=artifact.content_hash_sha256,
+                size_bytes=artifact.size_bytes,
+                wp_id=artifact.wp_id,
+                step_id=artifact.step_id,
+                required_status=artifact.required_status,
+                mission_slug=dossier.feature_slug,
+                manifest_version=manifest_version,
+                actor="spec-kitty-cli",
+            )
+            if emitted:
+                summary.indexed_events += 1
+
+            artifact_path = feature_dir / artifact.relative_path
+            try:
+                content_body = artifact_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                # Non-text or unreadable artifacts remain metadata-only in SaaS.
+                continue
+            summary.upload_records.append(
+                _DossierUploadRecord(
+                    mission_slug=dossier.feature_slug,
+                    artifact_path=artifact.relative_path,
+                    content_hash=f"sha256:{artifact.content_hash_sha256}",
+                    content_body=content_body,
+                )
+            )
+            continue
+
+        if artifact.required_status != "required":
+            continue
+
+        reason_code = artifact.error_reason or "not_found"
+        if reason_code not in {"not_found", "unreadable", "invalid_format", "deleted_after_scan"}:
+            reason_code = "not_found"
+
+        emitted = emit_artifact_missing(
+            feature_slug=dossier.feature_slug,
+            artifact_key=artifact.artifact_key,
+            artifact_class=artifact.artifact_class,
+            expected_path_pattern=artifact.relative_path,
+            reason_code=reason_code,
+            reason_detail=None,
+            blocking=True,
+            mission_slug=dossier.feature_slug,
+            manifest_version=manifest_version,
+            step_id=artifact.step_id,
+            actor="spec-kitty-cli",
+        )
+        if emitted:
+            summary.missing_events += 1
+
+    emitted_snapshot = emit_snapshot_computed(
+        feature_slug=dossier.feature_slug,
+        parity_hash_sha256=snapshot.parity_hash_sha256,
+        total_artifacts=snapshot.total_artifacts,
+        required_artifacts=snapshot.required_artifacts,
+        required_present=snapshot.required_present,
+        required_missing=snapshot.required_missing,
+        optional_artifacts=snapshot.optional_artifacts,
+        optional_present=snapshot.optional_present,
+        completeness_status=snapshot.completeness_status,
+        snapshot_id=snapshot.snapshot_id,
+        mission_slug=dossier.feature_slug,
+        manifest_version=manifest_version,
+        actor="spec-kitty-cli",
+    )
+    if emitted_snapshot:
+        summary.snapshot_events += 1
+
+    return summary
+
+
+def _push_dossier_content(upload_records: list[_DossierUploadRecord]) -> tuple[int, int, int]:
+    """Push artifact bodies to SaaS sidecar endpoint using JWT auth."""
+    from specify_cli.sync.auth import AuthClient, AuthenticationError
+    from specify_cli.sync.config import SyncConfig
+
+    if not upload_records:
+        return (0, 0, 0)
+
+    auth = AuthClient()
+    token = auth.get_access_token()
+    if not token:
+        raise AuthenticationError("Not authenticated. Run `spec-kitty auth login` before pushing dossier content.")
+
+    try:
+        server_url = auth.server_url
+    except AuthenticationError:
+        server_url = SyncConfig().get_server_url()
+
+    endpoint = f"{server_url.rstrip('/')}/api/v1/dossier/content/"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    pushed = 0
+    pending = 0
+    failed = 0
+
+    with httpx.Client(timeout=15.0) as client:
+        for upload in upload_records:
+            response = client.post(
+                endpoint,
+                headers=headers,
+                json={
+                    "content_hash": upload.content_hash,
+                    "hash_algorithm": "sha256",
+                    "content_body": upload.content_body,
+                    "mission_slug": upload.mission_slug,
+                    "artifact_path": upload.artifact_path,
+                },
+            )
+            if response.status_code in (200, 201):
+                pushed += 1
+            elif response.status_code == 404:
+                # Index rows are not present yet (or sync failed); retry later.
+                pending += 1
+            else:
+                failed += 1
+
+    return (pushed, pending, failed)
 
 
 # Create a Typer app for sync subcommands
@@ -609,6 +807,132 @@ def sync_server(
         "[dim]If you switched environments, run "
         "'spec-kitty auth login --force' to refresh credentials.[/dim]"
     )
+
+
+@app.command(name="dossier")
+def sync_dossier(
+    feature: Optional[list[str]] = typer.Option(
+        None,
+        "--feature",
+        "-f",
+        help="Feature slug to index (repeatable). Defaults to all kitty-specs features.",
+    ),
+    step_id: Optional[str] = typer.Option(
+        None,
+        "--step-id",
+        help="Optional mission step for step-aware completeness checks.",
+    ),
+    sync_events: bool = typer.Option(
+        True,
+        "--sync-events/--no-sync-events",
+        help="Upload emitted MissionDossier events immediately after indexing.",
+    ),
+    push_content: bool = typer.Option(
+        True,
+        "--push-content/--no-push-content",
+        help="Push artifact markdown bodies after event sync.",
+    ),
+    strict: bool = typer.Option(
+        True,
+        "--strict/--no-strict",
+        help="Exit non-zero if any dossier stage fails.",
+    ),
+) -> None:
+    """Index feature artifacts and publish MissionDossier data to SaaS."""
+    from specify_cli.sync.background import get_sync_service
+    from specify_cli.sync.batch import format_sync_summary
+    from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR, is_saas_sync_enabled, saas_sync_disabled_message
+    from specify_cli.sync.auth import AuthenticationError
+    from specify_cli.tasks_support import TaskCliError, find_repo_root
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    feature_dirs = _resolve_feature_dirs(repo_root, feature)
+    if not feature_dirs:
+        console.print("[yellow]No feature directories found to index.[/yellow]")
+        if strict:
+            raise typer.Exit(1)
+        return
+
+    aggregate = _DossierEmissionSummary()
+    emission_failures = 0
+
+    for feature_dir in feature_dirs:
+        try:
+            summary = _emit_dossier_for_feature(feature_dir=feature_dir, step_id=step_id)
+        except Exception as exc:
+            emission_failures += 1
+            console.print(f"[red]Failed:[/red] {feature_dir.name} ({exc})")
+            continue
+
+        aggregate.features += summary.features
+        aggregate.indexed_events += summary.indexed_events
+        aggregate.missing_events += summary.missing_events
+        aggregate.snapshot_events += summary.snapshot_events
+        aggregate.upload_records.extend(summary.upload_records)
+        console.print(
+            f"[green]Indexed[/green] {feature_dir.name}: "
+            f"{summary.indexed_events} indexed, "
+            f"{summary.missing_events} missing, "
+            f"{summary.snapshot_events} snapshot"
+        )
+
+    console.print(
+        f"[cyan]Dossier events queued:[/cyan] "
+        f"{aggregate.indexed_events + aggregate.missing_events + aggregate.snapshot_events}"
+    )
+
+    sync_error_count = 0
+    if sync_events:
+        if not is_saas_sync_enabled():
+            console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
+            console.print(f"[dim]Set {SAAS_SYNC_ENV_VAR}=1 to enable upload.[/dim]")
+            sync_error_count = 1
+        else:
+            service = get_sync_service()
+            queue_size = service.queue.size()
+            if queue_size > 0:
+                console.print(f"[cyan]Syncing[/cyan] {queue_size} queued event(s)...")
+                result = service.sync_now()
+                sync_error_count = result.error_count
+                summary = format_sync_summary(result)
+                for line in summary.split("\n"):
+                    if line.startswith("  "):
+                        console.print(f"  [yellow]{line.strip()}[/yellow]")
+                    else:
+                        console.print(
+                            f"[green]Synced:[/green] {result.synced_count}  "
+                            f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
+                            f"[red]Errors:[/red] {result.error_count}"
+                        )
+            else:
+                console.print("[dim]Queue is empty after dossier indexing.[/dim]")
+
+    pushed = pending = failed = 0
+    if push_content and aggregate.upload_records:
+        if sync_events and sync_error_count > 0:
+            console.print("[yellow]Skipping content push because event sync reported errors.[/yellow]")
+            failed = 1
+        else:
+            try:
+                pushed, pending, failed = _push_dossier_content(aggregate.upload_records)
+            except AuthenticationError as exc:
+                console.print(f"[red]Content push auth failed:[/red] {exc}")
+                failed = len(aggregate.upload_records)
+            except httpx.HTTPError as exc:
+                console.print(f"[red]Content push failed:[/red] {exc}")
+                failed = len(aggregate.upload_records)
+            console.print(
+                f"[cyan]Dossier content push:[/cyan] "
+                f"stored={pushed} pending={pending} failed={failed}"
+            )
+
+    if strict and (emission_failures > 0 or sync_error_count > 0 or failed > 0):
+        raise typer.Exit(1)
 
 
 @app.command()
