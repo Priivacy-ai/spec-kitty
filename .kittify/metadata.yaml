@@ -5,10 +5,14 @@
 spec_kitty:
   version: 2.0.0
   initialized_at: '2026-02-23T19:11:47.349652'
-  last_upgraded_at: null
+  last_upgraded_at: '2026-02-25T17:00:32.951685'
 environment:
   python_version: 3.14.0
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
 migrations:
-  applied: []
+  applied:
+  - id: 2.0.0_constitution_directory
+    applied_at: '2026-02-25T17:00:32.951661'
+    result: success
+    notes: Constitution already at .kittify/constitution/constitution.md
