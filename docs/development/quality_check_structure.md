@@ -47,13 +47,16 @@ This document provides a visual overview of the CI Quality workflow structure, s
 │  │   lint   │ (independent)     │  unit-tests  │ (independent)              │
 │  └────┬─────┘                   └──────┬───────┘                            │
 │       │                                │                                    │
-│       │ (non-blocking)                 ├──→ cli-tests                       │
-│       │                                ├──→ sync-tests                      │
-│       │                                ├──→ dashboard-tests                 │
-│       │                                ├──→ integration-smoke               │
-│       │                                └──→ sonarcloud                      │
-│       │                                                                      │
-│       └──→ PR Comment (if failures)                                         │
+│       │ (non-blocking)                 ├──→ cli-tests (with coverage) ──┐   │
+│       │                                ├──→ sync-tests (with coverage) ─┤   │
+│       │                                ├──→ dashboard-tests (coverage) ─┤   │
+│       │                                ├──→ integration-smoke (coverage)┤   │
+│       │                                │                                │   │
+│       │                                └────────────────────────────────┼──→│
+│       │                                                                  │   │
+│       └──→ PR Comment (if failures)                                     ▼   │
+│                                                                  sonarcloud  │
+│                                                        (merges all coverage) │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -132,6 +135,25 @@ This document provides a visual overview of the CI Quality workflow structure, s
 - [Linting Cutoff Policy](linting-cutoff-policy.md) - Detailed policy and implementation details
 - [CI Quality Workflow](../../.github/workflows/ci-quality.yml) - The actual workflow implementation
 
+## Coverage Collection Strategy
+
+All test jobs now produce coverage reports that are merged in the SonarCloud step:
+
+1. **unit-tests**: Produces `coverage.xml` for unit and contract tests
+2. **cli-tests**: Produces `coverage-cli.xml` for CLI tests
+3. **sync-tests**: Produces `coverage-sync.xml` for sync tests
+4. **integration-smoke**: Produces `coverage-integration.xml` for integration/e2e tests
+5. **dashboard-tests**: Produces `coverage-dashboard.xml` for dashboard tests
+
+The **sonarcloud** job:
+- Depends on all parallel test jobs: `[unit-tests, cli-tests, sync-tests, integration-smoke, dashboard-tests]`
+- Runs with `if: always()` to execute even if some tests fail
+- Downloads artifacts from all test jobs (using `continue-on-error: true` for optional jobs)
+- Merges all coverage reports before uploading to SonarCloud
+- Provides comprehensive code coverage metrics across the entire test suite
+
+This ensures SonarCloud has complete visibility into code coverage from all test suites, not just unit tests.
+
 ## Key Benefits
 
 1. **Historical Code Protection**: Old commits and files are not affected by new linting rules
@@ -139,3 +161,4 @@ This document provides a visual overview of the CI Quality workflow structure, s
 3. **Non-Blocking**: Linting issues don't prevent merging, encouraging gradual improvement
 4. **Maintained Quality**: All tests and critical checks still block the workflow
 5. **Flexible**: Cutoff date can be updated as the codebase improves
+6. **Comprehensive Coverage**: SonarCloud now receives coverage from all test suites

@@ -389,14 +389,18 @@ jobs:
           pip install -e .[test]
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run CLI tests
+      - name: Run CLI tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/specify_cli/ tests/adversarial/ tests/test_template/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-cli.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-cli-${{ github.run_id }}.xml
 
       - name: Upload CLI test artifacts
@@ -430,14 +434,18 @@ jobs:
           pip install -e .[test]
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run sync tests
+      - name: Run sync tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/sync/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-sync.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-sync-${{ github.run_id }}.xml
 
       - name: Upload sync test artifacts
@@ -474,15 +482,18 @@ jobs:
       - name: Prepare report directories
         run: |
           mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
           mkdir -p out/reports/integration
 
-      - name: Run integration and smoke tests
+      - name: Run integration and smoke tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/integration \
             tests/e2e \
             -m "not distribution" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-integration.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml \
             | tee out/reports/integration/integration-smoke.log
 
@@ -525,9 +536,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run dashboard tests
+      - name: Run dashboard tests with coverage
         env:
           PWHEADLESS: '1'
         run: |
@@ -535,6 +548,8 @@ jobs:
             -v \
             tests/test_dashboard/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-dashboard.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-dashboard-${{ github.run_id }}.xml
 
       - name: Upload dashboard test artifacts
@@ -546,7 +561,7 @@ jobs:
 
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: [unit-tests, cli-tests, sync-tests, integration-smoke, dashboard-tests]
     if: always()
 
     steps:
@@ -566,29 +581,87 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download coverage artifact
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+      - name: Download unit-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure')
         uses: actions/download-artifact@v4
         with:
           name: unit-test-reports
-          path: out/reports
+          path: out/reports/unit
+        continue-on-error: true
 
-      - name: Normalize xUnit path for SonarCloud
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+      - name: Download cli-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.cli-tests.result == 'success' || needs.cli-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-test-reports
+          path: out/reports/cli
+        continue-on-error: true
+
+      - name: Download sync-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.sync-tests.result == 'success' || needs.sync-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: sync-test-reports
+          path: out/reports/sync
+        continue-on-error: true
+
+      - name: Download integration-smoke coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-smoke.result == 'success' || needs.integration-smoke.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-smoke-reports
+          path: out/reports/integration
+        continue-on-error: true
+
+      - name: Download dashboard-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.dashboard-tests.result == 'success' || needs.dashboard-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-test-reports
+          path: out/reports/dashboard
+        continue-on-error: true
+
+      - name: Merge coverage reports
+        if: steps.sonar_token.outputs.enabled == 'true'
         run: |
+          mkdir -p out/reports/coverage
           mkdir -p out/reports/xunit-reports
-          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-unit-*.xml | head -n 1)"
-          cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
+          
+          # Merge all coverage files
+          find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
+          
+          # Create combined coverage if coverage-combiner is available, otherwise use first available
+          if [ -f "out/reports/unit/coverage/coverage.xml" ]; then
+            cp out/reports/unit/coverage/coverage.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/cli/coverage/coverage-cli.xml" ]; then
+            cp out/reports/cli/coverage/coverage-cli.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/sync/coverage/coverage-sync.xml" ]; then
+            cp out/reports/sync/coverage/coverage-sync.xml out/reports/coverage/coverage.xml
+          fi
+          
+          # Merge all xUnit files
+          find out/reports -name "xunit-result-*.xml" -type f -exec cp {} out/reports/xunit-reports/ \;
+          
+          # Create normalized xUnit file (use first available)
+          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-*.xml 2>/dev/null | head -n 1)"
+          if [ -n "$latest_file" ]; then
+            cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
+          fi
+          
+          echo "Coverage files found:"
+          find out/reports/coverage -name "*.xml" -type f
+          echo "xUnit files found:"
+          find out/reports/xunit-reports -name "*.xml" -type f
 
       - name: SonarCloud Scan
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarCloud Quality Gate
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 5
         env:
