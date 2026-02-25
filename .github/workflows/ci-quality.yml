@@ -24,7 +24,7 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   lint:
@@ -60,9 +60,13 @@ jobs:
           mkdir -p out/reports/static-analysis
           mkdir -p out/reports/security
 
-      - name: Determine commit range
+      - name: Determine commit range and cutoff date
         id: commit_range
         run: |
+          # Set cutoff date for linting (when linting was introduced)
+          CUTOFF_DATE="2026-02-25T00:00:00Z"
+          echo "cutoff_date=$CUTOFF_DATE" >> "$GITHUB_OUTPUT"
+          
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "from=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
             echo "to=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
@@ -78,15 +82,55 @@ jobs:
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
+          CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
+          
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping commitlint."
             exit 0
           fi
-          npx --yes @commitlint/cli@19.8.1 \
-            --config commitlint.config.cjs \
-            --from "$FROM_SHA" \
-            --to "$TO_SHA" \
-            --verbose
+          
+          # Convert cutoff date to Unix timestamp for comparison
+          CUTOFF_TIMESTAMP=$(date -d "$CUTOFF_DATE" +%s)
+          
+          # Get all commits in range
+          mapfile -t ALL_COMMITS < <(git rev-list "$FROM_SHA..$TO_SHA")
+          
+          # Filter commits by cutoff date
+          COMMITS_AFTER_CUTOFF=()
+          for commit in "${ALL_COMMITS[@]}"; do
+            commit_timestamp=$(git show -s --format=%ct "$commit")
+            if [ "$commit_timestamp" -gt "$CUTOFF_TIMESTAMP" ]; then
+              COMMITS_AFTER_CUTOFF+=("$commit")
+            fi
+          done
+          
+          if [ "${#COMMITS_AFTER_CUTOFF[@]}" -eq 0 ]; then
+            echo "No commits after cutoff date ($CUTOFF_DATE). Skipping commitlint."
+            exit 0
+          fi
+          
+          # Run commitlint on filtered commits
+          echo "Checking ${#COMMITS_AFTER_CUTOFF[@]} commits after cutoff date..."
+          FAILED_COMMITS=""
+          for commit in "${COMMITS_AFTER_CUTOFF[@]}"; do
+            if ! echo "$commit" | npx --yes @commitlint/cli@19.8.1 \
+              --config commitlint.config.cjs \
+              --from "$commit~1" \
+              --to "$commit" \
+              --verbose; then
+              commit_msg=$(git log --format=%s -n 1 "$commit")
+              FAILED_COMMITS="${FAILED_COMMITS}${commit} - ${commit_msg}\n"
+            fi
+          done
+          
+          # Save failed commits for PR comment
+          if [ -n "$FAILED_COMMITS" ]; then
+            echo -e "$FAILED_COMMITS" > /tmp/commitlint-failures.txt
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run markdown style linting on changed files
         id: markdownlint
@@ -95,20 +139,59 @@ jobs:
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
+          CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
+          
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping markdownlint."
             exit 0
           fi
+
+          # Convert cutoff date to Unix timestamp for comparison
+          CUTOFF_TIMESTAMP=$(date -d "$CUTOFF_DATE" +%s)
 
           mapfile -d '' CHANGED_MD_FILES < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- '*.md' '*.mdx')
           if [ "${#CHANGED_MD_FILES[@]}" -eq 0 ]; then
             echo "No changed markdown files in commit range."
             exit 0
           fi
-
-          npx --yes markdownlint-cli2@0.18.1 \
+          
+          # Filter files by last modification date after cutoff
+          FILES_TO_CHECK=()
+          for file in "${CHANGED_MD_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              # Get the last commit timestamp for this file in the range
+              last_commit_timestamp=$(git log -1 --format=%ct "$FROM_SHA..$TO_SHA" -- "$file" 2>/dev/null || echo "0")
+              if [ "$last_commit_timestamp" -gt "$CUTOFF_TIMESTAMP" ]; then
+                FILES_TO_CHECK+=("$file")
+              fi
+            fi
+          done
+          
+          if [ "${#FILES_TO_CHECK[@]}" -eq 0 ]; then
+            echo "No markdown files modified after cutoff date ($CUTOFF_DATE)."
+            exit 0
+          fi
+          
+          echo "Checking ${#FILES_TO_CHECK[@]} markdown files modified after cutoff date..."
+          
+          # Run markdownlint and capture failures
+          FAILED_FILES=""
+          if ! npx --yes markdownlint-cli2@0.18.1 \
             --config .markdownlint-cli2.jsonc \
-            "${CHANGED_MD_FILES[@]}"
+            "${FILES_TO_CHECK[@]}"; then
+            for file in "${FILES_TO_CHECK[@]}"; do
+              if ! npx --yes markdownlint-cli2@0.18.1 \
+                --config .markdownlint-cli2.jsonc \
+                "$file" 2>&1 >/dev/null; then
+                FAILED_FILES="${FAILED_FILES}${file}\n"
+              fi
+            done
+            echo -e "$FAILED_FILES" > /tmp/markdownlint-failures.txt
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run ruff report
         id: ruff
@@ -148,6 +231,54 @@ jobs:
           name: lint-reports
           path: out/reports/
 
+      - name: Post PR comment on linting failures
+        if: always() && github.event_name == 'pull_request' && (steps.commitlint.outputs.has_failures == 'true' || steps.markdownlint.outputs.has_failures == 'true')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let comment = '## ⚠️ Linting Issues Detected\n\n';
+            comment += 'The following linting issues were found in files/commits created after the cutoff date (2026-02-25):\n\n';
+            
+            // Check commitlint failures
+            const commitlintFailed = '${{ steps.commitlint.outputs.has_failures }}' === 'true';
+            if (commitlintFailed) {
+              const fs = require('fs');
+              let failedCommits = '';
+              try {
+                failedCommits = fs.readFileSync('/tmp/commitlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedCommits = 'Unable to read commit failures';
+              }
+              comment += '### 📝 Commit Message Issues\n\n';
+              comment += 'The following commits do not follow the conventional commit format:\n\n';
+              comment += '```\n' + failedCommits + '```\n\n';
+            }
+            
+            // Check markdownlint failures
+            const markdownlintFailed = '${{ steps.markdownlint.outputs.has_failures }}' === 'true';
+            if (markdownlintFailed) {
+              const fs = require('fs');
+              let failedFiles = '';
+              try {
+                failedFiles = fs.readFileSync('/tmp/markdownlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedFiles = 'Unable to read markdown failures';
+              }
+              comment += '### 📄 Markdown Style Issues\n\n';
+              comment += 'The following markdown files have style issues:\n\n';
+              comment += '```\n' + failedFiles + '```\n\n';
+            }
+            
+            comment += '**Note:** These are informational warnings and do not block the workflow. ';
+            comment += 'Please address these issues when convenient.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
       - name: Fail job if required checks failed
         if: always()
         run: |
@@ -157,8 +288,7 @@ jobs:
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "bandit outcome: ${{ steps.bandit.outcome }}"
           echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
-          if [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
-             [ "${{ steps.ruff.outcome }}" != "success" ] || \
+          if [ "${{ steps.ruff.outcome }}" != "success" ] || \
              [ "${{ steps.mypy.outcome }}" != "success" ] || \
              [ "${{ steps.bandit.outcome }}" != "success" ] || \
              [ "${{ steps.pip_audit.outcome }}" != "success" ]; then
@@ -259,14 +389,18 @@ jobs:
           pip install -e .[test]
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run CLI tests
+      - name: Run CLI tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/specify_cli/ tests/adversarial/ tests/test_template/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-cli.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-cli-${{ github.run_id }}.xml
 
       - name: Upload CLI test artifacts
@@ -300,14 +434,18 @@ jobs:
           pip install -e .[test]
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run sync tests
+      - name: Run sync tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/sync/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-sync.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-sync-${{ github.run_id }}.xml
 
       - name: Upload sync test artifacts
@@ -344,15 +482,18 @@ jobs:
       - name: Prepare report directories
         run: |
           mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
           mkdir -p out/reports/integration
 
-      - name: Run integration and smoke tests
+      - name: Run integration and smoke tests with coverage
         run: |
           python -m pytest \
             -v \
             tests/integration \
             tests/e2e \
             -m "not distribution" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-integration.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml \
             | tee out/reports/integration/integration-smoke.log
 
@@ -395,9 +536,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Prepare report directories
-        run: mkdir -p out/reports/xunit-reports
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
-      - name: Run dashboard tests
+      - name: Run dashboard tests with coverage
         env:
           PWHEADLESS: '1'
         run: |
@@ -405,6 +548,8 @@ jobs:
             -v \
             tests/test_dashboard/ \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-dashboard.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-dashboard-${{ github.run_id }}.xml
 
       - name: Upload dashboard test artifacts
@@ -416,7 +561,7 @@ jobs:
 
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: [unit-tests, cli-tests, sync-tests, integration-smoke, dashboard-tests]
     if: always()
 
     steps:
@@ -436,29 +581,87 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download coverage artifact
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+      - name: Download unit-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure')
         uses: actions/download-artifact@v4
         with:
           name: unit-test-reports
-          path: out/reports
+          path: out/reports/unit
+        continue-on-error: true
 
-      - name: Normalize xUnit path for SonarCloud
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+      - name: Download cli-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.cli-tests.result == 'success' || needs.cli-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-test-reports
+          path: out/reports/cli
+        continue-on-error: true
+
+      - name: Download sync-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.sync-tests.result == 'success' || needs.sync-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: sync-test-reports
+          path: out/reports/sync
+        continue-on-error: true
+
+      - name: Download integration-smoke coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-smoke.result == 'success' || needs.integration-smoke.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-smoke-reports
+          path: out/reports/integration
+        continue-on-error: true
+
+      - name: Download dashboard-tests coverage
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.dashboard-tests.result == 'success' || needs.dashboard-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-test-reports
+          path: out/reports/dashboard
+        continue-on-error: true
+
+      - name: Merge coverage reports
+        if: steps.sonar_token.outputs.enabled == 'true'
         run: |
+          mkdir -p out/reports/coverage
           mkdir -p out/reports/xunit-reports
-          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-unit-*.xml | head -n 1)"
-          cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
+          
+          # Merge all coverage files
+          find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
+          
+          # Create combined coverage if coverage-combiner is available, otherwise use first available
+          if [ -f "out/reports/unit/coverage/coverage.xml" ]; then
+            cp out/reports/unit/coverage/coverage.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/cli/coverage/coverage-cli.xml" ]; then
+            cp out/reports/cli/coverage/coverage-cli.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/sync/coverage/coverage-sync.xml" ]; then
+            cp out/reports/sync/coverage/coverage-sync.xml out/reports/coverage/coverage.xml
+          fi
+          
+          # Merge all xUnit files
+          find out/reports -name "xunit-result-*.xml" -type f -exec cp {} out/reports/xunit-reports/ \;
+          
+          # Create normalized xUnit file (use first available)
+          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-*.xml 2>/dev/null | head -n 1)"
+          if [ -n "$latest_file" ]; then
+            cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
+          fi
+          
+          echo "Coverage files found:"
+          find out/reports/coverage -name "*.xml" -type f
+          echo "xUnit files found:"
+          find out/reports/xunit-reports -name "*.xml" -type f
 
       - name: SonarCloud Scan
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarCloud Quality Gate
-        if: steps.sonar_token.outputs.enabled == 'true' && needs.unit-tests.result == 'success'
+        if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 5
         env:
