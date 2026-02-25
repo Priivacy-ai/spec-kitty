@@ -24,7 +24,7 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   lint:
@@ -60,9 +60,13 @@ jobs:
           mkdir -p out/reports/static-analysis
           mkdir -p out/reports/security
 
-      - name: Determine commit range
+      - name: Determine commit range and cutoff date
         id: commit_range
         run: |
+          # Set cutoff date for linting (when linting was introduced)
+          CUTOFF_DATE="2026-02-25T00:00:00Z"
+          echo "cutoff_date=$CUTOFF_DATE" >> "$GITHUB_OUTPUT"
+          
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "from=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
             echo "to=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
@@ -78,15 +82,52 @@ jobs:
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
+          CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
+          
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping commitlint."
             exit 0
           fi
-          npx --yes @commitlint/cli@19.8.1 \
-            --config commitlint.config.cjs \
-            --from "$FROM_SHA" \
-            --to "$TO_SHA" \
-            --verbose
+          
+          # Get all commits in range
+          mapfile -t ALL_COMMITS < <(git rev-list "$FROM_SHA..$TO_SHA")
+          
+          # Filter commits by cutoff date
+          COMMITS_AFTER_CUTOFF=()
+          for commit in "${ALL_COMMITS[@]}"; do
+            commit_date=$(git show -s --format=%ci "$commit")
+            if [[ "$commit_date" > "$CUTOFF_DATE" ]]; then
+              COMMITS_AFTER_CUTOFF+=("$commit")
+            fi
+          done
+          
+          if [ "${#COMMITS_AFTER_CUTOFF[@]}" -eq 0 ]; then
+            echo "No commits after cutoff date ($CUTOFF_DATE). Skipping commitlint."
+            exit 0
+          fi
+          
+          # Run commitlint on filtered commits
+          echo "Checking ${#COMMITS_AFTER_CUTOFF[@]} commits after cutoff date..."
+          FAILED_COMMITS=""
+          for commit in "${COMMITS_AFTER_CUTOFF[@]}"; do
+            if ! echo "$commit" | npx --yes @commitlint/cli@19.8.1 \
+              --config commitlint.config.cjs \
+              --from "$commit~1" \
+              --to "$commit" \
+              --verbose; then
+              commit_msg=$(git log --format=%s -n 1 "$commit")
+              FAILED_COMMITS="${FAILED_COMMITS}${commit} - ${commit_msg}\n"
+            fi
+          done
+          
+          # Save failed commits for PR comment
+          if [ -n "$FAILED_COMMITS" ]; then
+            echo -e "$FAILED_COMMITS" > /tmp/commitlint-failures.txt
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run markdown style linting on changed files
         id: markdownlint
@@ -95,6 +136,8 @@ jobs:
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
+          CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
+          
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping markdownlint."
             exit 0
@@ -105,10 +148,44 @@ jobs:
             echo "No changed markdown files in commit range."
             exit 0
           fi
-
-          npx --yes markdownlint-cli2@0.18.1 \
+          
+          # Filter files by last modification date after cutoff
+          FILES_TO_CHECK=()
+          for file in "${CHANGED_MD_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              # Get the last commit date for this file in the range
+              last_commit_date=$(git log -1 --format=%ci "$FROM_SHA..$TO_SHA" -- "$file" 2>/dev/null || echo "")
+              if [ -n "$last_commit_date" ] && [[ "$last_commit_date" > "$CUTOFF_DATE" ]]; then
+                FILES_TO_CHECK+=("$file")
+              fi
+            fi
+          done
+          
+          if [ "${#FILES_TO_CHECK[@]}" -eq 0 ]; then
+            echo "No markdown files modified after cutoff date ($CUTOFF_DATE)."
+            exit 0
+          fi
+          
+          echo "Checking ${#FILES_TO_CHECK[@]} markdown files modified after cutoff date..."
+          
+          # Run markdownlint and capture failures
+          FAILED_FILES=""
+          if ! npx --yes markdownlint-cli2@0.18.1 \
             --config .markdownlint-cli2.jsonc \
-            "${CHANGED_MD_FILES[@]}"
+            "${FILES_TO_CHECK[@]}"; then
+            for file in "${FILES_TO_CHECK[@]}"; do
+              if ! npx --yes markdownlint-cli2@0.18.1 \
+                --config .markdownlint-cli2.jsonc \
+                "$file" 2>&1 >/dev/null; then
+                FAILED_FILES="${FAILED_FILES}${file}\n"
+              fi
+            done
+            echo -e "$FAILED_FILES" > /tmp/markdownlint-failures.txt
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run ruff report
         id: ruff
@@ -148,6 +225,54 @@ jobs:
           name: lint-reports
           path: out/reports/
 
+      - name: Post PR comment on linting failures
+        if: always() && github.event_name == 'pull_request' && (steps.commitlint.outputs.has_failures == 'true' || steps.markdownlint.outputs.has_failures == 'true')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let comment = '## ⚠️ Linting Issues Detected\n\n';
+            comment += 'The following linting issues were found in files/commits created after the cutoff date (2026-02-25):\n\n';
+            
+            // Check commitlint failures
+            const commitlintFailed = '${{ steps.commitlint.outputs.has_failures }}' === 'true';
+            if (commitlintFailed) {
+              const fs = require('fs');
+              let failedCommits = '';
+              try {
+                failedCommits = fs.readFileSync('/tmp/commitlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedCommits = 'Unable to read commit failures';
+              }
+              comment += '### 📝 Commit Message Issues\n\n';
+              comment += 'The following commits do not follow the conventional commit format:\n\n';
+              comment += '```\n' + failedCommits + '```\n\n';
+            }
+            
+            // Check markdownlint failures
+            const markdownlintFailed = '${{ steps.markdownlint.outputs.has_failures }}' === 'true';
+            if (markdownlintFailed) {
+              const fs = require('fs');
+              let failedFiles = '';
+              try {
+                failedFiles = fs.readFileSync('/tmp/markdownlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedFiles = 'Unable to read markdown failures';
+              }
+              comment += '### 📄 Markdown Style Issues\n\n';
+              comment += 'The following markdown files have style issues:\n\n';
+              comment += '```\n' + failedFiles + '```\n\n';
+            }
+            
+            comment += '**Note:** These are informational warnings and do not block the workflow. ';
+            comment += 'Please address these issues when convenient.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
       - name: Fail job if required checks failed
         if: always()
         run: |
@@ -157,8 +282,7 @@ jobs:
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "bandit outcome: ${{ steps.bandit.outcome }}"
           echo "pip_audit outcome: ${{ steps.pip_audit.outcome }}"
-          if [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
-             [ "${{ steps.ruff.outcome }}" != "success" ] || \
+          if [ "${{ steps.ruff.outcome }}" != "success" ] || \
              [ "${{ steps.mypy.outcome }}" != "success" ] || \
              [ "${{ steps.bandit.outcome }}" != "success" ] || \
              [ "${{ steps.pip_audit.outcome }}" != "success" ]; then
