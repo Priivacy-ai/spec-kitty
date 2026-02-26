@@ -9,6 +9,12 @@ import typer
 
 from specify_cli.cli.helpers import console
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR, is_saas_sync_enabled, saas_sync_disabled_message
+from specify_cli.sync.queue import (
+    pending_events_for_scope,
+    read_active_scope,
+    read_queue_scope_from_credentials,
+    write_active_scope,
+)
 
 
 app = typer.Typer(help="Authentication commands")
@@ -95,12 +101,36 @@ def login(
 
     try:
         if client.is_authenticated() and not force:
+            scope = read_queue_scope_from_credentials()
+            if scope:
+                write_active_scope(scope)
             console.print("✅ Already authenticated.")
             console.print("Use --force to re-authenticate or 'auth logout' first.")
             return
 
         console.print(f"Authenticating with {client.server_url}...")
         client.obtain_tokens(username, password)
+
+        new_scope = read_queue_scope_from_credentials()
+        previous_scope = read_active_scope()
+        if new_scope and previous_scope and previous_scope != new_scope:
+            pending = pending_events_for_scope(previous_scope)
+            if pending > 0 and not force:
+                # Prevent accidental cross-account data transfer.
+                client.clear_credentials()
+                console.print("❌ Account switch blocked: previous account has queued unsynced events.")
+                console.print(f"   Pending events in previous account queue: {pending}")
+                console.print("   Run 'spec-kitty sync now' before switching accounts,")
+                console.print("   or re-run login with --force to keep queues isolated.")
+                raise typer.Exit(1)
+            if pending > 0 and force:
+                console.print(
+                    f"⚠️  Switching accounts with {pending} pending event(s) in the previous account queue."
+                )
+
+        if new_scope:
+            write_active_scope(new_scope)
+
         console.print("✅ Login successful!")
         console.print(f"   Logged in as: {username}")
     except AuthenticationError as exc:

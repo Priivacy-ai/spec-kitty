@@ -1,9 +1,12 @@
+import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, Protocol
+
+import toml
 
 
 class _BatchEventResultLike(Protocol):
@@ -28,6 +31,113 @@ class QueueStats:
     top_event_types: list[tuple[str, int]] = field(default_factory=list)
 
 
+def _spec_kitty_dir() -> Path:
+    """Return ~/.spec-kitty for the current HOME."""
+    return Path.home() / ".spec-kitty"
+
+
+def _credentials_path() -> Path:
+    return _spec_kitty_dir() / "credentials"
+
+
+def _legacy_queue_db_path() -> Path:
+    return _spec_kitty_dir() / "queue.db"
+
+
+def _scoped_queue_dir() -> Path:
+    return _spec_kitty_dir() / "queues"
+
+
+def _active_scope_path() -> Path:
+    return _spec_kitty_dir() / "active_queue_scope"
+
+
+def _normalise_scope_part(value: str) -> str:
+    return value.strip().lower()
+
+
+def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
+    """Build canonical queue scope identity for a login session."""
+    server = _normalise_scope_part(server_url).rstrip("/")
+    user = _normalise_scope_part(username)
+    team = _normalise_scope_part(team_slug)
+    return f"{server}|{user}|{team}"
+
+
+def read_queue_scope_from_credentials(credentials_path: Optional[Path] = None) -> Optional[str]:
+    """Read queue scope from credentials file.
+
+    Returns None when credentials are missing, invalid, or incomplete.
+    """
+    path = credentials_path or _credentials_path()
+    if not path.exists():
+        return None
+
+    try:
+        data = toml.load(path)
+    except (toml.TomlDecodeError, OSError):
+        return None
+
+    user_data = data.get("user") if isinstance(data, dict) else None
+    server_data = data.get("server") if isinstance(data, dict) else None
+    if not isinstance(user_data, dict) or not isinstance(server_data, dict):
+        return None
+
+    username = user_data.get("username")
+    server_url = server_data.get("url")
+    team_slug = user_data.get("team_slug") or "no-team"
+
+    if not username or not server_url:
+        return None
+    return build_queue_scope(str(server_url), str(username), str(team_slug))
+
+
+def scope_db_path(scope: str) -> Path:
+    """Resolve a deterministic queue DB path for a given scope."""
+    digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]
+    return _scoped_queue_dir() / f"queue-{digest}.db"
+
+
+def default_queue_db_path(credentials_path: Optional[Path] = None) -> Path:
+    """Resolve default queue DB path.
+
+    Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
+    Authenticated sessions use scoped queues under ~/.spec-kitty/queues/.
+    """
+    scope = read_queue_scope_from_credentials(credentials_path=credentials_path)
+    if scope:
+        return scope_db_path(scope)
+    return _legacy_queue_db_path()
+
+
+def read_active_scope(path: Optional[Path] = None) -> Optional[str]:
+    """Read previously active queue scope marker."""
+    marker = path or _active_scope_path()
+    if not marker.exists():
+        return None
+    try:
+        value = marker.read_text().strip()
+    except OSError:
+        return None
+    return value or None
+
+
+def write_active_scope(scope: str, path: Optional[Path] = None) -> None:
+    """Persist active queue scope marker."""
+    marker = path or _active_scope_path()
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(scope)
+
+
+def pending_events_for_scope(scope: str) -> int:
+    """Return pending event count for a scoped queue without mutating queue data."""
+    db_path = scope_db_path(scope)
+    if not db_path.exists():
+        return 0
+    queue = OfflineQueue(db_path=db_path)
+    return queue.size()
+
+
 class OfflineQueue:
     """
     SQLite-based offline event queue.
@@ -49,10 +159,12 @@ class OfflineQueue:
         Initialize offline queue.
 
         Args:
-            db_path: Path to SQLite database. Defaults to ~/.spec-kitty/queue.db
+            db_path: Path to SQLite database. Defaults to a scope-aware path:
+                - unauthenticated: ~/.spec-kitty/queue.db
+                - authenticated: ~/.spec-kitty/queues/queue-<scope-hash>.db
         """
         if db_path is None:
-            db_path = Path.home() / '.spec-kitty' / 'queue.db'
+            db_path = default_queue_db_path()
 
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

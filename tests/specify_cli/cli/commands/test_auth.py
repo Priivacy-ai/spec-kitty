@@ -9,6 +9,13 @@ from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+from specify_cli.sync.queue import (
+    OfflineQueue,
+    build_queue_scope,
+    pending_events_for_scope,
+    scope_db_path,
+    write_active_scope,
+)
 
 
 @pytest.fixture
@@ -20,6 +27,7 @@ def runner():
 @pytest.fixture
 def temp_credentials(tmp_path, monkeypatch):
     """Set up temporary credentials directory."""
+    monkeypatch.setenv("HOME", str(tmp_path))
     cred_dir = tmp_path / ".spec-kitty"
     cred_dir.mkdir()
 
@@ -112,6 +120,93 @@ url = "https://test.example.com"
 
         assert result.exit_code == 0
         assert "Already authenticated" in result.stdout
+
+    def test_login_blocks_account_switch_when_previous_scope_has_pending_events(
+        self, runner, temp_credentials
+    ):
+        """Login should block account switch unless --force when previous queue has pending events."""
+        previous_scope = build_queue_scope(
+            "https://test.example.com", "old@example.com", "old-team"
+        )
+        write_active_scope(previous_scope)
+        old_queue = OfflineQueue(scope_db_path(previous_scope))
+        old_queue.queue_event(
+            {
+                "event_id": "evt-old-001",
+                "event_type": "WPStatusChanged",
+                "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed"},
+            }
+        )
+        assert pending_events_for_scope(previous_scope) == 1
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access",
+            "refresh": "new_refresh",
+            "team_slug": "new-team",
+        }
+
+        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):
+            with patch("specify_cli.sync.auth.httpx.Client") as mock_client_class:
+                mock_client_class.return_value.post.return_value = mock_response
+                result = runner.invoke(
+                    cli_app,
+                    ["auth", "login", "--username", "new@example.com", "--password", "testpassword"],
+                )
+
+        assert result.exit_code == 1
+        assert "Account switch blocked" in result.stdout
+        assert not (temp_credentials / "credentials").exists()
+        assert pending_events_for_scope(previous_scope) == 1
+
+    def test_login_allows_account_switch_with_force_even_when_previous_scope_has_pending_events(
+        self, runner, temp_credentials
+    ):
+        """--force allows switching accounts while preserving old scoped queue."""
+        previous_scope = build_queue_scope(
+            "https://test.example.com", "old@example.com", "old-team"
+        )
+        write_active_scope(previous_scope)
+        old_queue = OfflineQueue(scope_db_path(previous_scope))
+        old_queue.queue_event(
+            {
+                "event_id": "evt-old-002",
+                "event_type": "WPStatusChanged",
+                "payload": {"wp_id": "WP02", "from_lane": "planned", "to_lane": "claimed"},
+            }
+        )
+        assert pending_events_for_scope(previous_scope) == 1
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access",
+            "refresh": "new_refresh",
+            "team_slug": "new-team",
+        }
+
+        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):
+            with patch("specify_cli.sync.auth.httpx.Client") as mock_client_class:
+                mock_client_class.return_value.post.return_value = mock_response
+                result = runner.invoke(
+                    cli_app,
+                    [
+                        "auth",
+                        "login",
+                        "--force",
+                        "--username",
+                        "new@example.com",
+                        "--password",
+                        "testpassword",
+                    ],
+                )
+
+        assert result.exit_code == 0
+        assert "Login successful" in result.stdout
+        assert "Switching accounts with 1 pending event" in result.stdout
+        assert (temp_credentials / "credentials").exists()
+        assert pending_events_for_scope(previous_scope) == 1
 
 
 class TestAuthLogout:
