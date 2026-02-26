@@ -44,7 +44,8 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         '{\n'
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
-        f'  "target_branch": "2.x"\n'
+        '  "target_branch": "2.x",\n'
+        '  "vcs": "git"\n'
         '}',
         encoding="utf-8"
     )
@@ -141,9 +142,15 @@ def test_implement_after_single_dependency_merged(feature_with_merged_dependency
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
+    combined_output = f"{result.stdout}\n{result.stderr}"
+
     # Should mention branching from target (2.x)
-    assert "2.x" in result.stdout or "2.x" in result.stderr, "Should mention target branch"
-    assert "done (merged)" in result.stdout or "done (merged)" in result.stderr, "Should detect WP01 is merged"
+    assert "2.x" in combined_output, "Should mention target branch"
+    assert (
+        "done and merged into 2.x" in combined_output
+        or "branch 025-cli-event-log-integration-WP01 not found" in combined_output
+    ), "Should either verify merge ancestry or explicitly note missing dependency branch"
+    assert "branching from 2.x" in combined_output, "Should branch from target branch"
 
     # Should NOT mention "Base workspace WP01 does not exist"
     assert "does not exist" not in result.stdout.lower()
@@ -206,7 +213,8 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
         '{\n'
         '  "spec_number": "010",\n'
         '  "slug": "010-workspace-per-wp",\n'
-        f'  "target_branch": "main"\n'
+        '  "target_branch": "main",\n'
+        '  "vcs": "git"\n'
         '}',
         encoding="utf-8"
     )
@@ -254,8 +262,11 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
-    # Should mention all dependencies are done
-    assert "done (merged)" in result.stdout or "done (merged)" in result.stderr, "Should detect all deps merged"
+    # Should mention all dependencies are done and reachable from target
+    assert (
+        "done and reachable from main" in result.stdout
+        or "done and reachable from main" in result.stderr
+    ), "Should detect all deps merged into main"
     assert "main" in result.stdout or "main" in result.stderr, "Should mention target branch"
 
     # Verify workspace created
@@ -283,7 +294,8 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
         '{\n'
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
-        f'  "target_branch": "main"\n'
+        '  "target_branch": "main",\n'
+        '  "vcs": "git"\n'
         '}',
         encoding="utf-8"
     )
@@ -331,3 +343,145 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
     # Should mention WP01 workspace doesn't exist
     assert "does not exist" in result.stderr or "does not exist" in result.stdout, "Should error about missing workspace"
     assert "WP01" in result.stderr or "WP01" in result.stdout, "Should mention WP01"
+
+
+def test_implement_single_dependency_done_but_unmerged_uses_dependency_branch(test_project, run_cli):
+    """When dependency lane is done but branch is not merged, use dependency branch."""
+    feature_slug = "026-single-dep-unmerged"
+    feature_dir = test_project / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    meta_file = feature_dir / "meta.json"
+    meta_file.write_text(
+        '{\n'
+        '  "spec_number": "026",\n'
+        '  "slug": "026-single-dep-unmerged",\n'
+        '  "target_branch": "main",\n'
+        '  "vcs": "git"\n'
+        '}',
+        encoding="utf-8",
+    )
+
+    (tasks_dir / "WP01-core.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Core\n"
+        "lane: done\n"
+        "dependencies: []\n"
+        "---\n"
+        "# Core\n",
+        encoding="utf-8",
+    )
+    (tasks_dir / "WP02-addon.md").write_text(
+        "---\n"
+        "work_package_id: WP02\n"
+        "title: Addon\n"
+        "lane: planned\n"
+        "dependencies: [WP01]\n"
+        "---\n"
+        "# Addon\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run(["git", "add", "."], cwd=test_project, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature 026 with single dependency"],
+        cwd=test_project,
+        check=True,
+    )
+
+    # Create dependency branch with unique code that is NOT merged to main.
+    subprocess.run(["git", "checkout", "-b", f"{feature_slug}-WP01"], cwd=test_project, check=True)
+    (test_project / "wp01-only.txt").write_text("from WP01 branch\n", encoding="utf-8")
+    subprocess.run(["git", "add", "wp01-only.txt"], cwd=test_project, check=True)
+    subprocess.run(["git", "commit", "-m", "WP01 branch-only commit"], cwd=test_project, check=True)
+    subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
+
+    result = run_cli(test_project, "implement", "WP02", "--feature", feature_slug)
+    assert result.returncode == 0, f"implement failed: {result.stderr}"
+    assert (
+        "done but not merged into main" in result.stdout
+        or "done but not merged into main" in result.stderr
+    ), "Should detect done lane != merged state"
+
+    workspace_path = test_project / ".worktrees" / f"{feature_slug}-WP02"
+    assert workspace_path.exists(), "Workspace should be created"
+    assert (workspace_path / "wp01-only.txt").exists(), "Workspace should include WP01 branch content"
+
+
+def test_implement_multi_parent_done_but_unmerged_creates_merge_base(test_project, run_cli):
+    """When deps are done but not merged, create merge base instead of target-branch optimization."""
+    feature_slug = "027-multi-dep-unmerged"
+    feature_dir = test_project / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    meta_file = feature_dir / "meta.json"
+    meta_file.write_text(
+        '{\n'
+        '  "spec_number": "027",\n'
+        '  "slug": "027-multi-dep-unmerged",\n'
+        '  "target_branch": "main",\n'
+        '  "vcs": "git"\n'
+        '}',
+        encoding="utf-8",
+    )
+
+    for wp_id in ("WP01", "WP02"):
+        (tasks_dir / f"{wp_id}-component.md").write_text(
+            "---\n"
+            f"work_package_id: {wp_id}\n"
+            f"title: {wp_id} Component\n"
+            "lane: done\n"
+            "dependencies: []\n"
+            "---\n"
+            f"# {wp_id}\n",
+            encoding="utf-8",
+        )
+
+    (tasks_dir / "WP03-integration.md").write_text(
+        "---\n"
+        "work_package_id: WP03\n"
+        "title: Integration\n"
+        "lane: planned\n"
+        "dependencies: [WP01, WP02]\n"
+        "---\n"
+        "# Integration\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run(["git", "add", "."], cwd=test_project, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature 027 with multi-parent dependency"],
+        cwd=test_project,
+        check=True,
+    )
+
+    subprocess.run(["git", "checkout", "-b", f"{feature_slug}-WP01"], cwd=test_project, check=True)
+    (test_project / "wp01-only.txt").write_text("from WP01 branch\n", encoding="utf-8")
+    subprocess.run(["git", "add", "wp01-only.txt"], cwd=test_project, check=True)
+    subprocess.run(["git", "commit", "-m", "WP01 branch-only commit"], cwd=test_project, check=True)
+    subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
+
+    subprocess.run(["git", "checkout", "-b", f"{feature_slug}-WP02"], cwd=test_project, check=True)
+    (test_project / "wp02-only.txt").write_text("from WP02 branch\n", encoding="utf-8")
+    subprocess.run(["git", "add", "wp02-only.txt"], cwd=test_project, check=True)
+    subprocess.run(["git", "commit", "-m", "WP02 branch-only commit"], cwd=test_project, check=True)
+    subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
+
+    result = run_cli(test_project, "implement", "WP03", "--feature", feature_slug, "--force")
+    assert result.returncode == 0, f"implement failed: {result.stderr}"
+    assert (
+        "marked done but not merged into main" in result.stdout
+        or "marked done but not merged into main" in result.stderr
+    ), "Should detect dependency branches are unmerged"
+    assert (
+        "Creating merge base to ensure dependency code is present" in result.stdout
+        or "Creating merge base to ensure dependency code is present" in result.stderr
+    ), "Should create merge base when deps are unmerged"
+
+    workspace_path = test_project / ".worktrees" / f"{feature_slug}-WP03"
+    assert workspace_path.exists(), "Workspace should be created"
+    assert (workspace_path / "wp01-only.txt").exists(), "Workspace should include WP01 branch content"
+    assert (workspace_path / "wp02-only.txt").exists(), "Workspace should include WP02 branch content"
