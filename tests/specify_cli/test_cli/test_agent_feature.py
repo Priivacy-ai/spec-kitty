@@ -501,6 +501,7 @@ class TestSetupPlanCommand:
         mock_locate.return_value = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
         mock_find.return_value = feature_dir
         mock_show_branch.return_value = (tmp_path, "main")
 
@@ -541,6 +542,7 @@ class TestSetupPlanCommand:
         mock_locate.return_value = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
         mock_find.return_value = feature_dir
         mock_show_branch.return_value = (tmp_path, "main")
 
@@ -570,6 +572,7 @@ class TestSetupPlanCommand:
         mock_locate.return_value = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
         mock_find.return_value = feature_dir
         mock_show_branch.return_value = (tmp_path, "main")
 

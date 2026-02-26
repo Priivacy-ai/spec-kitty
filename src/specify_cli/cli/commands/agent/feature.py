@@ -145,7 +145,13 @@ def _commit_to_branch(
             raise
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
+def _find_feature_directory(
+    repo_root: Path,
+    cwd: Path,
+    explicit_feature: str | None = None,
+    *,
+    allow_latest_incomplete_fallback: bool = True,
+) -> Path:
     """Find the current feature directory using centralized detection.
 
     This function now uses the centralized feature detection module
@@ -164,15 +170,108 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
         FeatureDetectionError: If detection fails
     """
     try:
-        return detect_feature_directory(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict"  # Raise error if ambiguous
-        )
+        kwargs: dict[str, object] = {
+            "explicit_feature": explicit_feature,
+            "cwd": cwd,
+            "mode": "strict",
+        }
+        if allow_latest_incomplete_fallback:
+            kwargs["allow_latest_incomplete_fallback"] = True
+        try:
+            return detect_feature_directory(repo_root, **kwargs)
+        except TypeError as exc:
+            # Backward compatibility: older feature_detection APIs do not accept
+            # allow_latest_incomplete_fallback.
+            if "allow_latest_incomplete_fallback" not in str(exc):
+                raise
+            kwargs.pop("allow_latest_incomplete_fallback", None)
+            return detect_feature_directory(repo_root, **kwargs)
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e
+
+
+def _get_main_repo_root(repo_root: Path) -> Path:
+    """Resolve the main repository root when running from worktree context."""
+    git_marker = repo_root / ".git"
+    if git_marker.is_file():
+        git_dir_content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
+        if git_dir_content.startswith("gitdir: "):
+            git_dir = Path(git_dir_content[8:])
+            if len(git_dir.parents) >= 2:
+                main_git_dir = git_dir.parent.parent
+                return main_git_dir.parent
+    return repo_root
+
+
+def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
+    """List candidate features with absolute spec.md paths for remediation output."""
+    main_repo_root = _get_main_repo_root(repo_root)
+    kitty_specs_dir = main_repo_root / "kitty-specs"
+    if not kitty_specs_dir.is_dir():
+        return []
+
+    candidates: list[dict[str, object]] = []
+    for feature_dir in sorted(kitty_specs_dir.iterdir()):
+        if not feature_dir.is_dir() or not re.match(r"^\d{3}-.+$", feature_dir.name):
+            continue
+        spec_file = feature_dir / "spec.md"
+        candidates.append(
+            {
+                "feature_slug": feature_dir.name,
+                "feature_dir": str(feature_dir.resolve()),
+                "spec_file": str(spec_file.resolve()),
+                "spec_exists": spec_file.exists(),
+            }
+        )
+    return candidates
+
+
+def _build_setup_plan_detection_error(
+    repo_root: Path,
+    base_error: str,
+    feature_flag: str | None,
+    *,
+    error_code: str = "PLAN_CONTEXT_UNRESOLVED",
+    command_name: str = "setup-plan",
+    command_args: list[str] | None = None,
+) -> dict[str, object]:
+    """Build structured feature-context detection error payload."""
+    candidates = _list_feature_spec_candidates(repo_root)
+    command_args = command_args if command_args is not None else ["--json"]
+    payload: dict[str, object] = {
+        "error_code": error_code,
+        "error": base_error,
+        "feature_flag": feature_flag,
+    }
+
+    if not candidates:
+        payload["remediation"] = [
+            "Run /spec-kitty.specify first to create a feature and spec.md",
+            "Or run: spec-kitty agent feature create-feature <feature-name> --json",
+        ]
+        return payload
+
+    candidate_lines = []
+    suggested_commands = []
+    for candidate in candidates[:10]:
+        status = "present" if candidate["spec_exists"] else "missing"
+        candidate_lines.append(
+            f"{candidate['feature_slug']} -> {candidate['spec_file']} [{status}]"
+        )
+        suggested = f"spec-kitty agent feature {command_name} --feature {candidate['feature_slug']}"
+        if command_args:
+            suggested = f"{suggested} {' '.join(command_args)}"
+        suggested_commands.append(suggested)
+
+    payload["candidate_features"] = candidates
+    payload["remediation"] = [
+        f"Run {command_name} with an explicit feature slug.",
+        "Use one of the suggested commands.",
+    ]
+    payload["candidate_summary"] = candidate_lines
+    payload["suggested_commands"] = suggested_commands
+    return payload
 
 
 @app.command(name="create-feature")
@@ -453,6 +552,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 @app.command(name="check-prerequisites")
 def check_prerequisites(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
@@ -467,7 +567,7 @@ def check_prerequisites(
 
     Examples:
         spec-kitty agent feature check-prerequisites --json
-        spec-kitty agent feature check-prerequisites --paths-only --json
+        spec-kitty agent feature check-prerequisites --feature 020-my-feature --paths-only --json
     """
     try:
         if require_tasks and not include_tasks:
@@ -486,7 +586,39 @@ def check_prerequisites(
 
         # Determine feature directory (main repo or worktree)
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            command_args: list[str] = []
+            if json_output:
+                command_args.append("--json")
+            if paths_only:
+                command_args.append("--paths-only")
+            if include_tasks:
+                command_args.append("--include-tasks")
+
+            payload = _build_setup_plan_detection_error(
+                repo_root,
+                str(detection_error),
+                feature,
+                error_code="FEATURE_CONTEXT_UNRESOLVED",
+                command_name="check-prerequisites",
+                command_args=command_args,
+            )
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
 
@@ -543,13 +675,54 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # Determine feature directory using centralized detection
+        # Determine feature directory using centralized detection.
+        # For planning bootstrap, disallow latest-incomplete fallback so the agent
+        # cannot silently bind to the wrong feature in fresh sessions.
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
 
-        _, target_branch = _show_branch_context(repo_root, feature_dir.name, json_output)
+        feature_slug = feature_dir.name
+        _, target_branch = _show_branch_context(repo_root, feature_slug, json_output)
 
+        spec_file = feature_dir / "spec.md"
         plan_file = feature_dir / "plan.md"
+
+        if not spec_file.exists():
+            payload = {
+                "error_code": "SPEC_FILE_MISSING",
+                "error": f"Required spec not found for feature '{feature_slug}': {spec_file.resolve()}",
+                "feature_slug": feature_slug,
+                "feature_dir": str(feature_dir.resolve()),
+                "spec_file": str(spec_file.resolve()),
+                "remediation": [
+                    f"Restore the missing spec file at {spec_file.resolve()}",
+                    "Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                ],
+            }
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for step in payload["remediation"]:
+                    console.print(f"  - {step}")
+            raise typer.Exit(1)
 
         # Find plan template
         plan_template_candidates = [
@@ -1092,6 +1265,7 @@ def merge_feature(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
@@ -1101,6 +1275,7 @@ def finalize_tasks(
 
     Examples:
         spec-kitty agent feature finalize-tasks --json
+        spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -1114,8 +1289,34 @@ def finalize_tasks(
 
         # Determine feature directory
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd)
-        _, target_branch = _show_branch_context(repo_root, feature_dir.name, json_output)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            payload = _build_setup_plan_detection_error(
+                repo_root,
+                str(detection_error),
+                feature,
+                error_code="FEATURE_CONTEXT_UNRESOLVED",
+                command_name="finalize-tasks",
+                command_args=["--json"] if json_output else [],
+            )
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
+
+        feature_slug = feature_dir.name
+        _, target_branch = _show_branch_context(repo_root, feature_slug, json_output)
 
         tasks_dir = feature_dir / "tasks"
         if not tasks_dir.exists():
@@ -1126,13 +1327,29 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # Parse dependencies from tasks.md (if it exists)
+        spec_md = feature_dir / "spec.md"
+        if not spec_md.exists():
+            error_msg = f"spec.md not found: {spec_md}"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        spec_content = spec_md.read_text(encoding="utf-8")
+        spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+        all_spec_requirement_ids = set(spec_requirement_ids["all"])
+        functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
+
+        # Parse dependencies and requirement refs from tasks.md (if it exists)
         tasks_md = feature_dir / "tasks.md"
         wp_dependencies = {}
+        wp_requirement_refs = {}
         if tasks_md.exists():
-            # Read tasks.md and parse dependencies
+            # Read tasks.md and parse dependency + requirement mapping
             tasks_content = tasks_md.read_text(encoding="utf-8")
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
+            wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
@@ -1161,9 +1378,69 @@ def finalize_tasks(
                             console.print(f"  - {err}")
                     raise typer.Exit(1)
 
-        # Update each WP file's frontmatter with dependencies
+        # Validate requirement mapping
         wp_files = list(tasks_dir.glob("WP*.md"))
+        wp_ids: list[str] = []
+        for wp_file in wp_files:
+            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            if wp_id_match:
+                wp_ids.append(wp_id_match.group(1))
+
+        missing_requirement_refs_wps: list[str] = []
+        unknown_requirement_refs: dict[str, list[str]] = {}
+        mapped_requirement_ids: set[str] = set()
+
+        for wp_id in sorted(set(wp_ids)):
+            refs = wp_requirement_refs.get(wp_id, [])
+            if not refs:
+                missing_requirement_refs_wps.append(wp_id)
+                continue
+
+            unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
+            if unknown_refs:
+                unknown_requirement_refs[wp_id] = unknown_refs
+            else:
+                mapped_requirement_ids.update(refs)
+
+        unmapped_functional_requirements = sorted(
+            functional_spec_requirement_ids - mapped_requirement_ids
+        )
+
+        if (
+            missing_requirement_refs_wps
+            or unknown_requirement_refs
+            or unmapped_functional_requirements
+        ):
+            error_msg = "Requirement mapping validation failed"
+            payload = {
+                "error": error_msg,
+                "missing_requirement_refs_wps": missing_requirement_refs_wps,
+                "unknown_requirement_refs": unknown_requirement_refs,
+                "unmapped_functional_requirements": unmapped_functional_requirements,
+                "dependencies_parsed": wp_dependencies,
+                "requirement_refs_parsed": wp_requirement_refs,
+            }
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+                if missing_requirement_refs_wps:
+                    console.print("[red]Missing requirement refs:[/red]")
+                    for wp_id in missing_requirement_refs_wps:
+                        console.print(f"  - {wp_id}")
+                if unknown_requirement_refs:
+                    console.print("[red]Unknown requirement refs:[/red]")
+                    for wp_id, refs in unknown_requirement_refs.items():
+                        console.print(f"  - {wp_id}: {', '.join(refs)}")
+                if unmapped_functional_requirements:
+                    console.print("[red]Unmapped functional requirements:[/red]")
+                    for req_id in unmapped_functional_requirements:
+                        console.print(f"  - {req_id}")
+            raise typer.Exit(1)
+
+        # Update each WP file's frontmatter with dependencies + requirement refs
         updated_count = 0
+        work_packages: list[dict[str, object]] = []
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -1176,12 +1453,16 @@ def finalize_tasks(
             # Detect whether dependencies field exists in raw frontmatter
             raw_content = wp_file.read_text(encoding="utf-8")
             has_dependencies_line = False
+            has_requirement_refs_line = False
             if raw_content.startswith("---"):
                 parts = raw_content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter_text = parts[1]
                     has_dependencies_line = re.search(
                         r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE
+                    ) is not None
+                    has_requirement_refs_line = re.search(
+                        r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE
                     ) is not None
 
             # Read current frontmatter
@@ -1193,17 +1474,37 @@ def finalize_tasks(
 
             # Get dependencies for this WP (default to empty list)
             deps = wp_dependencies.get(wp_id, [])
+            requirement_refs = wp_requirement_refs.get(wp_id, [])
+            title = (frontmatter.get("title") or "").strip() or wp_id
+            work_packages.append(
+                {
+                    "id": wp_id,
+                    "title": title,
+                    "dependencies": deps,
+                    "requirement_refs": requirement_refs,
+                }
+            )
 
-            # Update frontmatter with dependencies
+            frontmatter_changed = False
+
+            # Update frontmatter with dependencies + requirement refs
             if not has_dependencies_line or frontmatter.get("dependencies") != deps:
                 frontmatter["dependencies"] = deps
+                frontmatter_changed = True
 
+            if (
+                not has_requirement_refs_line
+                or frontmatter.get("requirement_refs") != requirement_refs
+            ):
+                frontmatter["requirement_refs"] = requirement_refs
+                frontmatter_changed = True
+
+            if frontmatter_changed:
                 # Write updated frontmatter
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
 
         # Commit tasks.md and WP files to target branch
-        feature_slug = feature_dir.name
         commit_created = False
         commit_hash = None
         files_committed = []
@@ -1268,13 +1569,18 @@ def finalize_tasks(
         if json_output:
             print(json.dumps({
                 "result": "success",
+                "wp_count": len(work_packages),
                 "updated_wp_count": updated_count,
                 "tasks_dir": str(tasks_dir),
                 "commit_created": commit_created,
                 "commit_hash": commit_hash,
-                "files_committed": files_committed
+                "files_committed": files_committed,
+                "dependencies_parsed": wp_dependencies,
+                "requirement_refs_parsed": wp_requirement_refs,
             }))
 
+    except typer.Exit:
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
@@ -1283,49 +1589,85 @@ def finalize_tasks(
         raise typer.Exit(1)
 
 
+def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
+    """Extract WP sections from tasks.md keyed by WP ID."""
+    sections: dict[str, str] = {}
+    matches = list(
+        re.finditer(
+            r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)",
+            tasks_content,
+        )
+    )
+
+    for idx, match in enumerate(matches):
+        wp_id = match.group(1)
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
+        sections[wp_id] = tasks_content[start:end]
+
+    return sections
+
+
 def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Parse WP dependencies from tasks.md content.
+    """Parse WP dependencies from tasks.md content."""
+    dependencies: dict[str, list[str]] = {}
 
-    Parsing strategy (priority order):
-    1. Explicit dependency markers ("Depends on WP01", "Dependencies: WP01, WP02")
-    2. Phase grouping (Phase 2 WPs depend on Phase 1 WPs)
-    3. Default to empty list if ambiguous
-
-    Returns:
-        Dict mapping WP ID to list of dependencies
-        Example: {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
-    """
-    dependencies = {}
-
-    # Split into WP sections
-    wp_sections = re.split(r'##\s+Work Package (WP\d{2})', tasks_content)
-
-    # Process sections (they come in pairs: WP ID, then content)
-    for i in range(1, len(wp_sections), 2):
-        if i + 1 >= len(wp_sections):
-            break
-
-        wp_id = wp_sections[i]
-        section_content = wp_sections[i + 1]
-
-        # Method 1: Explicit "Depends on" or "Dependencies:"
-        explicit_deps = []
+    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
+        explicit_deps: list[str] = []
 
         # Pattern: "Depends on WP01" or "Depends on WP01, WP02"
-        depends_matches = re.findall(r'Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)', section_content, re.IGNORECASE)
+        depends_matches = re.findall(
+            r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)",
+            section_content,
+            re.IGNORECASE,
+        )
         for match in depends_matches:
-            explicit_deps.extend(re.findall(r'WP\d{2}', match))
+            explicit_deps.extend(re.findall(r"WP\d{2}", match))
 
-        # Pattern: "Dependencies: WP01, WP02"
-        deps_line = re.search(r'Dependencies:\s*(.+)', section_content)
-        if deps_line:
-            explicit_deps.extend(re.findall(r'WP\d{2}', deps_line.group(1)))
+        # Pattern: "**Dependencies**: WP01" or "Dependencies: WP01, WP02"
+        deps_line_matches = re.findall(
+            r"\*?\*?Dependencies\*?\*?\s*:\s*(.+)",
+            section_content,
+            re.IGNORECASE,
+        )
+        for match in deps_line_matches:
+            explicit_deps.extend(re.findall(r"WP\d{2}", match))
 
-        if explicit_deps:
-            # Remove duplicates and sort
-            dependencies[wp_id] = sorted(list(set(explicit_deps)))
-        else:
-            # Default to empty
-            dependencies[wp_id] = []
+        dependencies[wp_id] = list(dict.fromkeys(explicit_deps))
 
     return dependencies
+
+
+def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
+    """Parse requirement references per WP from tasks.md content."""
+    requirement_refs: dict[str, list[str]] = {}
+
+    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
+        refs: list[str] = []
+        ref_line_matches = re.findall(
+            r"\*?\*?Requirement\s+Refs\*?\*?\s*:\s*(.+)",
+            section_content,
+            re.IGNORECASE,
+        )
+        for match in ref_line_matches:
+            refs.extend(
+                ref_id.upper()
+                for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE)
+            )
+        requirement_refs[wp_id] = list(dict.fromkeys(refs))
+
+    return requirement_refs
+
+
+def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
+    """Parse requirement IDs from spec.md content."""
+    all_ids = {
+        req_id.upper()
+        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
+    }
+    functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
+
+    return {
+        "all": sorted(all_ids),
+        "functional": sorted(functional_ids),
+    }
