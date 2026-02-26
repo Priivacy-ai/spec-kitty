@@ -154,6 +154,21 @@ class TestFeatureState:
         assert data["success"] is False
         assert data["error_code"] == "FEATURE_NOT_FOUND"
 
+    def test_feature_state_does_not_write_status_snapshot(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+        status_path = feature_dir / "status.json"
+        assert not status_path.exists()
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["feature-state", "--feature", feature_slug])
+
+        assert result.exit_code == 0, result.output
+        assert not status_path.exists()
+
 
 # ── list-ready ────────────────────────────────────────────────────
 
@@ -196,6 +211,21 @@ class TestListReady:
         ready_ids = {wp["wp_id"] for wp in data["data"]["ready_work_packages"]}
         assert "WP01" not in ready_ids
         assert "WP02" in ready_ids
+
+    def test_list_ready_does_not_write_status_snapshot(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+        status_path = feature_dir / "status.json"
+        assert not status_path.exists()
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["list-ready", "--feature", feature_slug])
+
+        assert result.exit_code == 0, result.output
+        assert not status_path.exists()
 
 
 # ── start-implementation ──────────────────────────────────────────
