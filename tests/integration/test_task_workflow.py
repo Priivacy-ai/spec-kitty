@@ -258,6 +258,27 @@ class TestFullWorkflow:
         output3 = _parse_json_output(result3.stdout)
         assert "requires review feedback" in output3["error"]
 
+    def test_reject_planned_rollback_with_force_without_feedback_file(self, task_repo: Path, monkeypatch):
+        """--force must not bypass review feedback file requirement for planned rollbacks."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # for_review -> planned with --force still requires --review-feedback-file
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "planned", "--feature", "001-test-feature", "--force", "--json"],
+        )
+        assert result.exit_code == 1
+        output = _parse_json_output(result.stdout)
+        assert "requires review feedback" in output["error"]
+
     def test_persist_feedback_content_and_feedback_file_path(self, task_repo: Path, monkeypatch):
         """Should persist feedback text and source file path deterministically."""
         monkeypatch.chdir(task_repo)
