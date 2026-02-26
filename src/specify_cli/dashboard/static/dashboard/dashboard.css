@@ -62,6 +62,33 @@ body {
     color: var(--dark-text);
 }
 
+.docs-site-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(123, 182, 97, 0.35);
+    background: rgba(123, 182, 97, 0.12);
+    color: var(--grassy-green);
+    font-size: 0.85em;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.docs-site-link:hover {
+    background: rgba(123, 182, 97, 0.2);
+    border-color: rgba(123, 182, 97, 0.55);
+    color: #5a9447;
+}
+
+.docs-site-link:focus-visible {
+    outline: 2px solid var(--grassy-green);
+    outline-offset: 2px;
+}
+
 .header-logo-wrapper {
     display: flex;
     align-items: center;
