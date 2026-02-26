@@ -87,15 +87,6 @@ app = typer.Typer(
 )
 
 
-def _resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main, master, etc.).
-
-    Delegates to the centralized implementation in core.git_ops.
-    """
-    from specify_cli.core.git_ops import resolve_primary_branch
-    return resolve_primary_branch(repo_root)
-
-
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
 
@@ -115,12 +106,11 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
     # Resolve branch routing (unified logic, no auto-checkout)
     resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
 
-    # Show notification if branches differ
-    if resolution.should_notify:
-        print(
-            f"Note: You are on '{resolution.current}', feature targets '{resolution.target}'. "
-            f"Operations will use '{resolution.current}'."
-        )
+    # Show branch context
+    if not resolution.should_notify:
+        print(f"Branch: {current_branch} (target for this feature)")
+    else:
+        print(f"Branch: on '{resolution.current}', feature targets '{resolution.target}'")
 
     # Return current branch (no checkout performed)
     return main_repo_root, resolution.current

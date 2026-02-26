@@ -18,7 +18,7 @@ If no WP ID is provided, it will automatically find the first work package with 
 
 ## Dependency checks (required)
 
-- dependency_check: If the WP frontmatter lists `dependencies`, confirm each dependency WP is merged to main before you review this WP.
+- dependency_check: If the WP frontmatter lists `dependencies`, confirm each dependency WP is merged to the target branch before you review this WP.
 - dependent_check: Identify any WPs that list this WP as a dependency and note their current lanes.
 - rebase_warning: If you request changes AND any dependents exist, warn those agents to rebase and provide a concrete command (example: `cd .worktrees/FEATURE-WP02 && git rebase FEATURE-WP01`).
 - verify_instruction: Confirm dependency declarations match actual code coupling (imports, shared modules, API contracts).

@@ -868,8 +868,8 @@ class TestValidateReadyForReview:
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
                 return Mock(returncode=1, stdout="")
-            elif "rev-list" in cmd and "HEAD..main" in cmd:
-                # Not behind main
+            elif "rev-list" in cmd and any("HEAD.." in c for c in cmd):
+                # Not behind primary branch (branch name is dynamic)
                 return Mock(returncode=0, stdout="0\n")
             elif "rev-list" in cmd:
                 # Has implementation commits

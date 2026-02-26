@@ -1,11 +1,11 @@
 ---
-description: Merge a completed feature into the main branch and clean up worktree
+description: Merge a completed feature into the target branch and clean up worktree
 ---
 
-# /spec-kitty.merge - Merge Feature to Main
+# /spec-kitty.merge - Merge Feature to Target Branch
 
 **Version**: 0.11.0+
-**Purpose**: Merge ALL completed work packages for a feature into main branch.
+**Purpose**: Merge ALL completed work packages for a feature into the target branch.
 
 ## CRITICAL: Workspace-per-WP Model (0.11.0)
 
@@ -204,7 +204,7 @@ spec-kitty merge --strategy rebase
 | `--delete-branch` / `--keep-branch` | Delete feature branch after merge | delete |
 | `--remove-worktree` / `--keep-worktree` | Remove feature worktree after merge | remove |
 | `--push` | Push to origin after merge | no push |
-| `--target` | Target branch to merge into | `main` |
+| `--target` | Target branch to merge into | from meta.json |
 | `--dry-run` | Show what would be done without executing | off |
 | `--feature` | Feature slug when merging from main branch | none |
 | `--resume` | Resume an interrupted merge | off |
@@ -232,7 +232,7 @@ my-project/                              # Main repo (main branch)
 **Merge behavior for workspace-per-WP**:
 - Run `spec-kitty merge` from **any** WP worktree for the feature
 - The command automatically detects all WP branches (WP01, WP02, WP03, etc.)
-- Merges each WP branch into main in sequence
+- Merges each WP branch into the target branch in sequence
 - Cleans up all WP worktrees and branches
 
 ### Legacy Pattern (0.10.x)
@@ -375,7 +375,7 @@ Or combine conceptually:
 ```
 
 The `/spec-kitty.accept` command **verifies** your feature is complete.
-The `/spec-kitty.merge` command **integrates** your feature into main.
+The `/spec-kitty.merge` command **integrates** your feature into the target branch.
 
 Together they complete the workflow:
 ```

@@ -88,7 +88,9 @@ def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeV
         )
 
     current_branch = result.stdout.strip()
-    is_main_branch = current_branch in {"main", "master"}
+    from specify_cli.core.git_ops import resolve_primary_branch
+    primary = resolve_primary_branch(project_root)
+    is_main_branch = current_branch == primary
     is_feature_branch = bool(re.match(r"^\d{3}-[\w-]+$", current_branch))
 
     errors: List[str] = []

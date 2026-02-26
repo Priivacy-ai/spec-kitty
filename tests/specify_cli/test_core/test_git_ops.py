@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -508,12 +509,54 @@ def test_resolve_primary_branch_custom_branch_via_origin(tmp_path):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_fallback_no_branches(tmp_path):
-    """resolve_primary_branch falls back to 'main' when nothing can be detected."""
+    """resolve_primary_branch returns current branch when no origin/HEAD."""
     # Create a repo with a non-standard branch and no remote
     repo = _init_repo_with_branch(tmp_path, "some_random_branch")
 
-    # No origin/HEAD, no main/master/develop → fallback
+    # No origin/HEAD → current branch wins over hardcoded list
+    assert resolve_primary_branch(repo) == "some_random_branch"
+
+
+def test_resolve_primary_branch_detects_2x_branch(tmp_path):
+    """resolve_primary_branch detects 2.x as primary when it's the current branch."""
+    repo = _init_repo_with_branch(tmp_path, "2.x")
+    assert resolve_primary_branch(repo) == "2.x"
+
+
+def test_resolve_primary_branch_detects_2x_even_when_main_exists(tmp_path):
+    """CRITICAL: current branch (2.x) wins over hardcoded 'main' that also exists."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    subprocess.run(["git", "branch", "2.x"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
+    assert resolve_primary_branch(repo) == "2.x"
+
+
+def test_resolve_primary_branch_detects_release_branch(tmp_path):
+    """resolve_primary_branch detects release/v3 as primary."""
+    repo = _init_repo_with_branch(tmp_path, "release/v3")
+    assert resolve_primary_branch(repo) == "release/v3"
+
+
+def test_resolve_primary_branch_origin_head_wins_over_current(tmp_path):
+    """origin/HEAD takes priority over current branch."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    remote_dir = tmp_path / "remote"
+    remote_dir.mkdir()
+    subprocess.run(["git", "clone", "--bare", str(repo), str(remote_dir)], check=True, capture_output=True)
+    subprocess.run(["git", "remote", "add", "origin", str(remote_dir)], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "fetch", "origin"], cwd=repo, check=True, capture_output=True)
+    # origin/HEAD points to main; checkout a different branch
+    subprocess.run(["git", "checkout", "-b", "some-other"], cwd=repo, check=True, capture_output=True)
     assert resolve_primary_branch(repo) == "main"
+
+
+def test_resolve_primary_branch_current_branch_wins_over_hardcoded_list(tmp_path):
+    """When no origin/HEAD, current branch (2.x) wins over hardcoded main."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    subprocess.run(["git", "branch", "2.x"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
+    # No origin/HEAD → current branch (2.x) wins over "main" in hardcoded list
+    assert resolve_primary_branch(repo) == "2.x"
 
 
 # ============================================================================

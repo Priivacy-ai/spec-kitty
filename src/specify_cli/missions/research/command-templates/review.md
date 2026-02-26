@@ -4,7 +4,7 @@ description: Perform structured research review with citation validation.
 
 ## Research Review Overview
 
-Research WPs produce deliverables in a **worktree**, which merge to main like code.
+Research WPs produce deliverables in a **worktree**, which merge to the target branch like code.
 
 ### Two Types of Artifacts
 
