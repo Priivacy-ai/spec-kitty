@@ -131,3 +131,64 @@ def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:
     assert base_output.exists()
     assert "Mission override for codex." in demo_output.read_text(encoding="utf-8")
     assert "Base-only template." in base_output.read_text(encoding="utf-8")
+
+
+def test_prepare_command_templates_inherits_scripts_from_base(tmp_path: Path) -> None:
+    base_dir = tmp_path / "base"
+    mission_dir = tmp_path / "missions" / "software-dev" / "command-templates"
+    base_dir.mkdir(parents=True)
+    mission_dir.mkdir(parents=True)
+
+    (base_dir / "analyze.md").write_text(
+        """---
+description: Base
+scripts:
+  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
+---
+Run {SCRIPT}
+""",
+        encoding="utf-8",
+    )
+    (mission_dir / "analyze.md").write_text(
+        """---
+description: Mission
+---
+Mission body uses {SCRIPT}
+""",
+        encoding="utf-8",
+    )
+
+    merged_dir = prepare_command_templates(base_dir, mission_dir)
+    rendered = render_command_template(
+        merged_dir / "analyze.md",
+        script_type="sh",
+        agent_key="codex",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+    assert "spec-kitty agent feature check-prerequisites" in rendered
+
+
+def test_render_command_template_fails_when_script_missing_and_required(tmp_path: Path) -> None:
+    template_path = tmp_path / "broken.md"
+    template_path.write_text(
+        """---
+description: Broken
+---
+Run {SCRIPT}
+""",
+        encoding="utf-8",
+    )
+
+    try:
+        render_command_template(
+            template_path,
+            script_type="sh",
+            agent_key="codex",
+            arg_format="$ARGUMENTS",
+            extension="md",
+        )
+    except ValueError as exc:
+        assert "requires scripts.sh" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for missing scripts.sh")
