@@ -184,14 +184,14 @@ class TestMoveTaskPreflightCheck:
                 elif "rev-parse" in args and "--verify" in args:
                     # git rev-parse --verify for merge/rebase/cherry-pick - not in progress
                     return MagicMock(returncode=1, stdout="", stderr="")
-                elif "rev-list" in args and "HEAD..main" in args:
-                    # git rev-list HEAD..main - not behind main
+                elif "rev-list" in args and any("HEAD.." in a for a in args):
+                    # git rev-list HEAD..<branch> - not behind primary branch
                     return MagicMock(returncode=0, stdout="0\n", stderr="")
                 elif "status" in args and "--porcelain" in args:
                     # git status for worktree - HAS uncommitted changes
                     return MagicMock(returncode=0, stdout="M  src/test.py\n?? test_new.py\n", stderr="")
-                elif "rev-list" in args and "main..HEAD" in args:
-                    # git rev-list main..HEAD - has commits
+                elif "rev-list" in args and any("..HEAD" in a for a in args):
+                    # git rev-list <branch>..HEAD - has commits
                     return MagicMock(returncode=0, stdout="2\n", stderr="")
                 else:
                     # Default
@@ -244,14 +244,14 @@ class TestMoveTaskPreflightCheck:
                 elif "rev-parse" in args and "--verify" in args:
                     # git rev-parse --verify for merge/rebase/cherry-pick - not in progress
                     return MagicMock(returncode=1, stdout="", stderr="")
-                elif "rev-list" in args and "HEAD..main" in args:
-                    # git rev-list HEAD..main - not behind main
+                elif "rev-list" in args and any("HEAD.." in a for a in args):
+                    # git rev-list HEAD..<branch> - not behind primary branch
                     return MagicMock(returncode=0, stdout="0\n", stderr="")
                 elif "status" in args and "--porcelain" in args:
                     # git status for worktree - clean
                     return MagicMock(returncode=0, stdout="", stderr="")
-                elif "rev-list" in args and "main..HEAD" in args:
-                    # git rev-list main..HEAD - has commits
+                elif "rev-list" in args and any("..HEAD" in a for a in args):
+                    # git rev-list <branch>..HEAD - has commits
                     return MagicMock(returncode=0, stdout="5\n", stderr="")
                 else:
                     # Default

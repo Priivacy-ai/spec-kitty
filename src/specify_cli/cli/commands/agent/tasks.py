@@ -80,15 +80,19 @@ def _ensure_target_branch_checked_out(
     # Resolve branch routing (unified logic, no auto-checkout)
     resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
 
-    # Show notification if branches differ
-    if resolution.should_notify and not json_output:
-        console.print(
-            f"[yellow]Note:[/yellow] You are on '{resolution.current}', "
-            f"feature targets '{resolution.target}'. "
-            f"Operations will use '{resolution.current}'."
-        )
+    # Show branch context
+    if not json_output:
+        if not resolution.should_notify:
+            console.print(
+                f"[bold cyan]Branch:[/bold cyan] {current_branch} "
+                f"(target for this feature)"
+            )
+        else:
+            console.print(
+                f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
+                f"feature targets '{resolution.target}'"
+            )
 
-    # Return current branch (no checkout performed)
     return main_repo_root, resolution.current
 
 

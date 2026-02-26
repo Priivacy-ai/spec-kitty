@@ -793,7 +793,7 @@ def accept_feature(
 @app.command(name="merge-feature")
 def merge_feature(
     feature: str = typer.Option(..., "--feature", help="Feature slug"),
-    target: str = typer.Option("main", "--target", help="Target branch to merge into"),
+    target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge or squash"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
@@ -811,6 +811,11 @@ def merge_feature(
         return
 
     main_repo_root = _get_main_repo_root()
+
+    if target is None:
+        from specify_cli.core.feature_detection import get_feature_target_branch
+        target = get_feature_target_branch(main_repo_root, feature)
+
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
     if feature_dir is None:
         _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
