@@ -109,7 +109,7 @@ Test content here.
 
 
 class TestMoveTaskGitValidation:
-    """Tests for git validation when moving tasks to done."""
+    """Tests for git validation and merge ancestry guardrails for done transitions."""
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
@@ -125,7 +125,10 @@ class TestMoveTaskGitValidation:
         (worktree / "uncommitted.txt").write_text("Uncommitted work\n")
 
         # Try to move to done (should fail)
-        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--json"])
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "done", "--force", "--json"],
+        )
 
         # Verify failure
         assert result.exit_code == 1
@@ -133,14 +136,19 @@ class TestMoveTaskGitValidation:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert "error" in output
-        assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
+        error_text = output["error"].lower()
+        assert (
+            "uncommitted" in error_text
+            or "changes" in error_text
+            or "merge ancestry" in error_text
+        )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_to_done_with_committed_changes_succeeds(
+    def test_move_to_done_with_committed_changes_but_unmerged_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
-        """Should succeed when moving to done with all changes committed."""
+        """Should fail when moving to done if branch is not merged and no override provided."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -156,21 +164,25 @@ class TestMoveTaskGitValidation:
         )
         assert result_status.stdout.strip() == ""
 
-        # Move to done (should succeed)
-        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--json"])
+        # Move to done (should fail: branch has not been merged to target)
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "done", "--force", "--json"],
+        )
 
-        # Verify success
-        assert result.exit_code == 0
-        output = json.loads(result.stdout)
-        assert output["result"] == "success"
-        assert output["new_lane"] == "done"
+        # Verify failure
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "error" in output
+        assert "merge ancestry" in output["error"].lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_to_done_with_force_bypasses_validation(
+    def test_move_to_done_with_force_requires_override_reason_when_unmerged(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
-        """Should succeed when using --force flag even with uncommitted changes."""
+        """Even with --force, done transition should require explicit override reason when unmerged."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -178,13 +190,71 @@ class TestMoveTaskGitValidation:
         # Create uncommitted file in worktree
         (worktree / "uncommitted.txt").write_text("Uncommitted work\n")
 
-        # Move to done with --force (should succeed)
+        # Move to done with --force (should still fail without explicit override reason)
         result = runner.invoke(
             app, ["move-task", "WP01", "--to", "done", "--force", "--json"]
         )
 
-        # Verify success despite uncommitted changes
+        # Verify failure
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "error" in output
+        assert "done-override-reason" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_to_done_with_override_reason_succeeds_when_unmerged(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Should allow done transition when unmerged only with explicit override reason."""
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # Worktree already has committed changes (from fixture)
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "done",
+                "--done-override-reason",
+                "Validated manually in post-merge audit",
+                "--json",
+            ],
+        )
+
         assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["new_lane"] == "done"
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_to_done_after_branch_merged_succeeds_without_override(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Should allow done transition without override when ancestry is verified."""
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # Merge WP branch into main while keeping branch ref so ancestry can be verified.
+        subprocess.run(["git", "checkout", "main"], cwd=repo_root, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "merge", "--no-ff", "017-test-feature-WP01", "-m", "Merge WP01"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "done", "--force", "--json"],
+        )
+        assert result.exit_code == 0, result.stdout
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert output["new_lane"] == "done"

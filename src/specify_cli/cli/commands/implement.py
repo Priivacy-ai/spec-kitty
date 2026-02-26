@@ -263,6 +263,57 @@ def resolve_feature_target_branch(feature_slug: str, repo_root: Path) -> str:
     return resolution.target
 
 
+def _branch_exists(repo_root: Path, branch_name: str) -> bool:
+    """Return True when branch_name resolves in this repository."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", branch_name],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _branch_tip_reachable_from_target(repo_root: Path, branch_name: str, target_branch: str) -> bool:
+    """Return True when branch tip is reachable from target_branch."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", branch_name, target_branch],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _partition_dependencies_by_merge_state(
+    repo_root: Path,
+    feature_slug: str,
+    dependencies: list[str],
+    target_branch: str,
+) -> tuple[list[str], list[str], list[str]]:
+    """Classify dependency WPs by whether their branch tips are in target_branch.
+
+    Returns:
+        (merged, unmerged, missing_branch) as lists of WP IDs.
+    """
+    merged: list[str] = []
+    unmerged: list[str] = []
+    missing_branch: list[str] = []
+
+    for dep in dependencies:
+        dep_branch = f"{feature_slug}-{dep}"
+        if not _branch_exists(repo_root, dep_branch):
+            missing_branch.append(dep)
+            continue
+
+        if _branch_tip_reachable_from_target(repo_root, dep_branch, target_branch):
+            merged.append(dep)
+        else:
+            unmerged.append(dep)
+
+    return merged, unmerged, missing_branch
+
+
 def display_rebase_warning(
     workspace_path: Path,
     wp_id: str,
@@ -790,17 +841,43 @@ def implement(
             dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
 
             if dep_status.all_done:
-                # All merged - branch from target (skip expensive merge base creation)
                 from specify_cli.core.feature_detection import get_feature_target_branch
 
                 target_branch = get_feature_target_branch(repo_root, feature_slug)
-                deps_str = ", ".join(declared_deps)
-                console.print(f"\n[cyan]→ All dependencies ({deps_str}) are done (merged)[/cyan]")
-                console.print(f"[cyan]→ Branching from {target_branch} (contains all changes)[/cyan]")
-                base_branch = target_branch
-                auto_merge_base = False  # Skip merge base creation
-            else:
-                # Create merge base combining in-progress dependencies
+                merged_deps, unmerged_deps, missing_deps = _partition_dependencies_by_merge_state(
+                    repo_root=repo_root,
+                    feature_slug=feature_slug,
+                    dependencies=declared_deps,
+                    target_branch=target_branch,
+                )
+
+                if not unmerged_deps:
+                    deps_str = ", ".join(declared_deps)
+                    console.print(
+                        f"\n[cyan]→ Dependencies ({deps_str}) are done and reachable from {target_branch}[/cyan]"
+                    )
+                    if missing_deps:
+                        missing_str = ", ".join(missing_deps)
+                        console.print(
+                            f"[yellow]→ Missing branch refs for: {missing_str} (assuming already merged/cleaned)[/yellow]"
+                        )
+                    console.print(f"[cyan]→ Branching from {target_branch}[/cyan]")
+                    base_branch = target_branch
+                    auto_merge_base = False  # Skip merge base creation
+                else:
+                    unmerged_str = ", ".join(unmerged_deps)
+                    console.print(
+                        f"\n[yellow]→ Dependencies marked done but not merged into {target_branch}: {unmerged_str}[/yellow]"
+                    )
+                    if merged_deps:
+                        console.print(f"[dim]  Already merged: {', '.join(merged_deps)}[/dim]")
+                    if missing_deps:
+                        console.print(
+                            f"[dim]  Missing branch refs (assumed merged): {', '.join(missing_deps)}[/dim]"
+                        )
+                    console.print("[cyan]→ Creating merge base to ensure dependency code is present[/cyan]")
+            if auto_merge_base:
+                # Create merge base when dependencies are in-progress OR done-but-unmerged.
                 merge_result = create_multi_parent_base(
                     feature_slug=feature_slug,
                     wp_id=wp_id,
@@ -861,12 +938,27 @@ def implement(
                 raise typer.Exit(1)
 
             if base_lane == "done":
-                # Base merged - use target branch (contains base's changes already)
                 from specify_cli.core.feature_detection import get_feature_target_branch
 
                 target_branch = get_feature_target_branch(repo_root, feature_slug)
-                console.print(f"\n[cyan]→ Base {base} is done (merged) - branching from {target_branch}[/cyan]")
-                base_branch = target_branch
+                base_dependency_branch = f"{feature_slug}-{base}"
+
+                if not _branch_exists(repo_root, base_dependency_branch):
+                    console.print(
+                        f"\n[yellow]→ Base {base} is done; branch {base_dependency_branch} not found[/yellow]"
+                    )
+                    console.print(f"[yellow]→ Assuming it was already merged; branching from {target_branch}[/yellow]")
+                    base_branch = target_branch
+                elif _branch_tip_reachable_from_target(repo_root, base_dependency_branch, target_branch):
+                    console.print(
+                        f"\n[cyan]→ Base {base} is done and merged into {target_branch} - branching from {target_branch}[/cyan]"
+                    )
+                    base_branch = target_branch
+                else:
+                    console.print(
+                        f"\n[yellow]→ Base {base} is done but not merged into {target_branch} - branching from {base_dependency_branch}[/yellow]"
+                    )
+                    base_branch = base_dependency_branch
             else:
                 # Base in progress - use workspace branch
                 base_branch = f"{feature_slug}-{base}"

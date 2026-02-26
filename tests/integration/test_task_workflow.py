@@ -149,6 +149,7 @@ class TestFullWorkflow:
         result5 = runner.invoke(
             app, [
                 "move-task", "WP01", "--to", "done",
+                "--done-override-reason", "Integration test finalization without merge step",
                 "--feature", "001-test-feature",
                 "--json"
             ]
