@@ -162,8 +162,8 @@ class TestMoveTaskPreflightCheck:
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
         
-        # Create meta.json for software-dev mission
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev"}')
+        # Create meta.json for software-dev mission (target_branch required for branch resolution)
+        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
         
         # Create worktree directory
         worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
@@ -225,8 +225,8 @@ class TestMoveTaskPreflightCheck:
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
         
-        # Create meta.json for software-dev mission
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev"}')
+        # Create meta.json for software-dev mission (target_branch required for branch resolution)
+        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
         
         # Create worktree directory
         worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"

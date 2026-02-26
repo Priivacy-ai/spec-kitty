@@ -102,6 +102,7 @@ def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_pa
         return types.SimpleNamespace(stdout='feature/testing\n', returncode=0)
 
     monkeypatch.setattr(diagnostics.subprocess, "run", fake_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
     result = diagnostics.run_diagnostics(project_dir)
 
@@ -127,6 +128,7 @@ def test_run_diagnostics_records_git_branch_errors(monkeypatch, tmp_path: Path) 
         raise subprocess.CalledProcessError(1, ['git', 'branch', '--show-current'])
 
     monkeypatch.setattr(diagnostics.subprocess, "run", failing_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
     result = diagnostics.run_diagnostics(project_dir)
 

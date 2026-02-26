@@ -127,7 +127,9 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
 
     observations = []
 
-    if diagnostics['git_branch'] == 'main' and diagnostics['in_worktree']:
+    from specify_cli.core.git_ops import resolve_primary_branch
+    primary = resolve_primary_branch(repo_root)
+    if diagnostics['git_branch'] == primary and diagnostics['in_worktree']:
         observations.append("Unusual: In worktree but on main branch")
 
     current_feature = diagnostics.get('current_feature') or {}

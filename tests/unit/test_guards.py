@@ -43,6 +43,7 @@ def test_validate_worktree_on_feature_branch(monkeypatch: pytest.MonkeyPatch, fa
         return _make_completed_process(stdout="001-test-feature\n")
 
     monkeypatch.setattr("specify_cli.guards.subprocess.run", mock_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
     result = validate_worktree_location(project_root=fake_project_root)
 
@@ -59,6 +60,7 @@ def test_validate_worktree_on_main_branch(monkeypatch: pytest.MonkeyPatch, fake_
         return _make_completed_process(stdout="main\n")
 
     monkeypatch.setattr("specify_cli.guards.subprocess.run", mock_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
     result = validate_worktree_location(project_root=fake_project_root)
 
