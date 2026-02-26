@@ -201,10 +201,12 @@ def feature_state(
         )
         return
 
-    from specify_cli.status.reducer import materialize
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
     from specify_cli.core.dependency_graph import build_dependency_graph
 
-    snapshot = materialize(feature_dir)
+    # Query endpoint: reduce from event log without rewriting status.json.
+    snapshot = reduce(read_events(feature_dir))
     dep_graph = build_dependency_graph(feature_dir)
 
     # Build the full WP set from task files + dep graph + snapshot
@@ -263,10 +265,12 @@ def list_ready(
         )
         return
 
-    from specify_cli.status.reducer import materialize
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
     from specify_cli.core.dependency_graph import build_dependency_graph
 
-    snapshot = materialize(feature_dir)
+    # Query endpoint: reduce from event log without rewriting status.json.
+    snapshot = reduce(read_events(feature_dir))
     dep_graph = build_dependency_graph(feature_dir)
     wp_states = snapshot.work_packages
 
