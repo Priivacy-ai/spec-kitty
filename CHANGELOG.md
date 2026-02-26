@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-26
+
+### 🐛 Fixed
+
+- **Main bias fix**: `resolve_primary_branch()` now checks the current branch before the hardcoded `[main, master, develop]` list. Repos on non-standard primary branches (e.g., `2.x`) no longer get blocked by `spec-kitty specify`.
+- `create_feature()` records the current branch as `target_branch` in `meta.json` instead of guessing via heuristics. Added `--target-branch` CLI option for explicit override.
+- `guards.py` uses `resolve_primary_branch()` instead of hardcoded `{"main", "master"}` set.
+- `merge-feature --target` auto-detects from `meta.json` when not specified.
+- Template references to "main" replaced with "target branch" throughout command templates.
+
+### 🔧 Changed
+
+- **Dashboard `--open` flag**: Browser auto-open is now disabled by default. Pass `--open` to open the dashboard URL in your browser. Prevents browser windows from spawning during tests or CI.
+- Consolidated 3 ad-hoc branch-check functions into `_show_branch_context()` for consistent branch banners across all planning commands.
+
 ## [2.0.0] - 2026-02-22
 
 ### 🔧 Changed
