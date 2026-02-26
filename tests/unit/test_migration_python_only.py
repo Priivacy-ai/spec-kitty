@@ -246,7 +246,7 @@ Use tasks_cli.py list to list tasks.
 
     content = test_template.read_text()
     assert "spec-kitty agent create-feature" in content
-    assert "spec-kitty agent check-prerequisites" in content
+    assert "spec-kitty agent feature check-prerequisites" in content
     # Migration replaces tasks_cli.py move/list with spec-kitty agent commands
     assert "spec-kitty agent move-task" in content
     assert "spec-kitty agent list-tasks" in content
