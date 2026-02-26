@@ -253,6 +253,37 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_to_planned_force_still_requires_feedback_file(
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_emit: Mock, mock_task_file: Path
+    ):
+        """--force must not bypass review feedback capture on planned rollbacks."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+        mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
+
+        # Simulate review-in-progress state (workflow review auto-moves to doing)
+        mock_task_file.write_text(
+            mock_task_file.read_text().replace('lane: "planned"', 'lane: "doing"'),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app, ["move-task", "WP01", "--to", "planned", "--force", "--json", "--no-auto-commit"]
+        )
+
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "requires review feedback" in output["error"]
+        assert "cannot be bypassed with --force" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_to_planned_rejects_missing_feedback_file(
         self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
         mock_emit: Mock, mock_task_file: Path, tmp_path: Path
