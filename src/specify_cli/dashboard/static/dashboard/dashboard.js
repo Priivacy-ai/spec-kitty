@@ -322,7 +322,7 @@ return `
 
     const artifacts = feature.artifacts;
     const artifactList = [
-        {name: 'Constitution', key: 'constitution', icon: '⚖️'},
+        {name: 'Project Constitution', key: 'constitution', icon: '⚖️'},
         {name: 'Specification', key: 'spec', icon: '📄'},
         {name: 'Plan', key: 'plan', icon: '🏗️'},
         {name: 'Tasks', key: 'tasks', icon: '📋'},

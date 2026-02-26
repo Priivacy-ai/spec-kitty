@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
 from specify_cli.core.feature_detection import detect_feature
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
@@ -158,10 +159,26 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
     }
 
 
-def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
-    """Return which artifacts exist for a feature with modification info."""
+def get_feature_artifacts(
+    feature_dir: Path,
+    project_dir: Optional[Path] = None,
+) -> Dict[str, Dict[str, any]]:
+    """Return which artifacts exist for a feature with modification info.
+
+    Constitution status is project-level. If project_dir is omitted, we fall back
+    to feature_dir.parent.parent for compatibility with older call sites.
+    """
+    project_root = project_dir if project_dir is not None else feature_dir.parent.parent
+    constitution_path = resolve_project_constitution_path(project_root)
+
+    constitution_info = (
+        _get_artifact_info(constitution_path)
+        if constitution_path is not None
+        else {"exists": False, "mtime": None, "size": None}
+    )
+
     return {
-        "constitution": _get_artifact_info(feature_dir / "constitution.md"),
+        "constitution": constitution_info,
         "spec": _get_artifact_info(feature_dir / "spec.md"),
         "plan": _get_artifact_info(feature_dir / "plan.md"),
         "tasks": _get_artifact_info(feature_dir / "tasks.md"),
@@ -307,7 +324,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             except json.JSONDecodeError:
                 meta_data = None
 
-        artifacts = get_feature_artifacts(feature_dir)
+        artifacts = get_feature_artifacts(feature_dir, project_dir)
         workflow = get_workflow_status(artifacts)
 
         kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "done": 0}
