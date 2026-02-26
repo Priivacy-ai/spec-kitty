@@ -19,7 +19,7 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 Execution steps:
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only` from the repository root and parse JSON for:
-   - `FEATURE_DIR` - Absolute path to feature directory (e.g., `/path/to/kitty-specs/017-my-feature/`)
+   - `feature_dir` - Absolute path to feature directory (e.g., `/path/to/kitty-specs/017-my-feature/`)
    - `FEATURE_SPEC` - Absolute path to spec.md file
    - If command fails or JSON parsing fails, abort and instruct user to run `/spec-kitty.specify` first or verify they are in a spec-kitty-initialized repository.
 

@@ -1,8 +1,8 @@
 ---
 description: Perform structured code review and kanban transitions for completed task prompt files.
 scripts:
-  sh: spec-kitty agent check-prerequisites --json --include-tasks
-  ps: spec-kitty agent -Json -IncludeTasks
+  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
+  ps: spec-kitty agent feature -Json -IncludeTasks
 ---
 *Path: [templates/commands/review.md](templates/commands/review.md)*
 
@@ -25,7 +25,7 @@ Before proceeding with review, verify you are in the correct working directory b
 **What this validates**:
 - Current branch follows the feature pattern like `001-feature-name`
 - You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- The validator prints clear navigation instructions if you're outside the primary repository checkout
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -33,7 +33,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 ## Outline
 
-1. Run `{SCRIPT}` from repo root; capture `FEATURE_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
+1. Run `{SCRIPT}` from repo root; capture `feature_dir`, `available_docs`, and `tasks.md` path.
 
 2. Determine the review target:
    - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).
