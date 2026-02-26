@@ -358,6 +358,7 @@ class TestMoveTaskBehaviorMatchesPreRefactor:
         result3 = runner.invoke(
             app, [
                 "move-task", "WP01", "--to", "done",
+                "--done-override-reason", "Integration test finalization without merge step",
                 "--feature", "001-test-feature",
                 "--agent", "test-agent",
                 "--approval-ref", "PR#42",
@@ -407,6 +408,7 @@ class TestMoveTaskBehaviorMatchesPreRefactor:
             app,
             [
                 "move-task", "WP01", "--to", "done",
+                "--done-override-reason", "Integration test finalization without merge step",
                 "--feature", "001-test-feature",
                 "--agent", "test-agent",
                 "--json",

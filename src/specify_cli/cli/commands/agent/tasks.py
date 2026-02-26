@@ -633,6 +633,52 @@ def _validate_ready_for_review(
     return True, []
 
 
+def _wp_branch_merged_into_target(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    target_branch: str,
+) -> tuple[bool, str]:
+    """Check whether a WP branch tip is reachable from the target branch.
+
+    Returns:
+        (is_merged, message)
+    """
+    wp_branch = f"{feature_slug}-{wp_id}"
+
+    branch_exists = subprocess.run(
+        ["git", "rev-parse", "--verify", wp_branch],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    if branch_exists.returncode != 0:
+        return (
+            False,
+            (
+                f"Cannot verify merge ancestry: branch '{wp_branch}' not found.\n"
+                f"Either merge and keep branch ref available, or provide --done-override-reason."
+            ),
+        )
+
+    merged_check = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", wp_branch, target_branch],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    if merged_check.returncode == 0:
+        return True, f"Merge ancestry verified: {wp_branch} is merged into {target_branch}."
+
+    return (
+        False,
+        (
+            f"Merge ancestry check failed: {wp_branch} is not merged into {target_branch}.\n"
+            f"Merge first, or provide --done-override-reason to record a conscious exception."
+        ),
+    )
+
+
 def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -> List[str]:
     """Return kitty-specs/ files changed on the WP branch compared to its base."""
     merge_base_result = subprocess.run(
@@ -725,6 +771,7 @@ def move_task(
     review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
     approval_ref: Annotated[Optional[str], typer.Option("--approval-ref", help="Approval reference for done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
+    done_override_reason: Annotated[Optional[str], typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -735,6 +782,7 @@ def move_task(
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
         spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
+        spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
     try:
@@ -849,6 +897,39 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
+        # Guardrail: done transitions require merge ancestry or explicit override reason.
+        user_note = note.strip() if isinstance(note, str) else note
+        note_text = user_note
+        override_reason = done_override_reason.strip() if isinstance(done_override_reason, str) else done_override_reason
+        if target_lane == "done":
+            merged, merge_msg = _wp_branch_merged_into_target(
+                repo_root=main_repo_root,
+                feature_slug=feature_slug,
+                wp_id=task_id,
+                target_branch=target_branch,
+            )
+            if not merged:
+                if not override_reason:
+                    _output_error(
+                        json_output,
+                        (
+                            f"Cannot move {task_id} to done without verified merge ancestry.\n"
+                            f"{merge_msg}\n"
+                            f"To proceed anyway, provide --done-override-reason \"<why this is acceptable>\"."
+                        ),
+                    )
+                    raise typer.Exit(1)
+
+                override_note = f"Done override: {override_reason}"
+                if note_text:
+                    note_text = f"{note_text} | {override_note}"
+                else:
+                    note_text = override_note
+                if not json_output:
+                    console.print(
+                        "[yellow]⚠️  Proceeding with done override; reason recorded in history/events.[/yellow]"
+                    )
+
         # --- Canonical emit pipeline (WP09 delegation) ---
         # Build evidence dict for done transitions
         evidence_dict = None
@@ -869,8 +950,8 @@ def move_task(
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     effective_reviewer = "unknown"
             effective_approval_ref = approval_ref
-            if not effective_approval_ref and note:
-                effective_approval_ref = note
+            if not effective_approval_ref and user_note:
+                effective_approval_ref = user_note
             if not effective_approval_ref:
                 effective_approval_ref = (
                     f"auto-approval:{task_id}:{datetime.now(timezone.utc).strftime('%Y%m%d')}"
@@ -897,7 +978,7 @@ def move_task(
         actor = agent or "user"
 
         # Build reason for emit (used by force transitions and some guards)
-        emit_reason = note if note else None
+        emit_reason = note_text if note_text else None
         if force and not emit_reason:
             emit_reason = f"Force move to {target_lane}"
 
@@ -1077,7 +1158,7 @@ def move_task(
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
         shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
-        note_text = note or f"Moved to {target_lane}"
+        note_text = note_text or f"Moved to {target_lane}"
 
         shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
         history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
