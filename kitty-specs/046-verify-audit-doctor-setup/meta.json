@@ -1,0 +1,11 @@
+{
+  "feature_number": "046",
+  "slug": "046-verify-audit-doctor-setup",
+  "feature_slug": "046-verify-audit-doctor-setup",
+  "friendly_name": "Verify Audit & Doctor Setup",
+  "mission": "software-dev",
+  "source_description": "Repurpose spec-kitty verify into mission audit report command, migrate setup checks to doctor setup, wire post-merge audit artifact/event emission into local dossier authority. Command taxonomy: verify => mission audit report, doctor setup => environment/setup diagnostics, verify-setup => deprecation alias. Preserve agent status doctor. Add merge-time audit trigger, persist audit metadata, emit canonical lifecycle events, materialize audit artifact under feature artifacts indexed in dossier. Replace NullEmitter in runtime bridge mission-audit path. Add dashboard/local APIs for latest audit summary and artifact. Tests for command migration, alias behavior, merge integration, metadata updates, report format.",
+  "created_at": "2026-02-25T17:30:17.057471+00:00",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
