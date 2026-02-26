@@ -5,8 +5,13 @@ from datetime import timedelta
 from io import StringIO
 from pathlib import Path
 import tempfile
-import os
-from specify_cli.sync.queue import OfflineQueue, QueueStats
+from specify_cli.sync.queue import (
+    OfflineQueue,
+    QueueStats,
+    build_queue_scope,
+    default_queue_db_path,
+    scope_db_path,
+)
 
 
 @pytest.fixture
@@ -301,23 +306,51 @@ class TestOfflineQueueRetry:
 class TestOfflineQueueDefaultPath:
     """Test default path behavior"""
 
-    def test_default_path_uses_home_directory(self):
+    def test_default_path_uses_home_directory(self, monkeypatch, tmp_path):
         """Test that default path is ~/.spec-kitty/queue.db"""
-        # Don't actually create file, just check path logic
-        queue = OfflineQueue.__new__(OfflineQueue)
-        queue.db_path = None
+        monkeypatch.setenv("HOME", str(tmp_path))
 
-        expected_path = Path.home() / '.spec-kitty' / 'queue.db'
+        expected_path = tmp_path / ".spec-kitty" / "queue.db"
 
-        # Verify the default path logic (without fully initializing)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_queue = OfflineQueue(Path(tmpdir) / 'test.db')
-            # The real default path check
-            default_queue = OfflineQueue()
-            assert default_queue.db_path == expected_path
-            # Clean up
-            if default_queue.db_path.exists():
-                default_queue.clear()
+        assert default_queue_db_path() == expected_path
+        default_queue = OfflineQueue()
+        assert default_queue.db_path == expected_path
+        if default_queue.db_path.exists():
+            default_queue.clear()
+
+    def test_default_path_uses_scoped_queue_when_authenticated(self, monkeypatch, tmp_path):
+        """Authenticated users should default to a scope-isolated queue file."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        spec_kitty_dir = tmp_path / ".spec-kitty"
+        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
+        credentials_path = spec_kitty_dir / "credentials"
+        credentials_path.write_text(
+            """
+[tokens]
+access = "test"
+refresh = "test"
+access_expires_at = "2099-01-01T00:00:00"
+refresh_expires_at = "2099-01-01T00:00:00"
+
+[user]
+username = "test@example.com"
+team_slug = "team-red"
+
+[server]
+url = "https://test.example.com"
+""".strip()
+        )
+
+        scope = build_queue_scope(
+            server_url="https://test.example.com",
+            username="test@example.com",
+            team_slug="team-red",
+        )
+        expected_path = scope_db_path(scope)
+
+        assert default_queue_db_path() == expected_path
+        default_queue = OfflineQueue()
+        assert default_queue.db_path == expected_path
 
 
 class TestQueueStats:
