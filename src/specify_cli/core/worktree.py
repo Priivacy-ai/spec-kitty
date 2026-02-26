@@ -461,7 +461,10 @@ def validate_feature_structure(
     """
     errors = []
     warnings = []
-    paths = {}
+    paths: dict[str, str] = {}
+    artifact_files: dict[str, str] = {}
+    artifact_dirs: dict[str, str] = {}
+    available_docs: list[str] = []
 
     # Check if feature directory exists
     if not feature_dir.exists():
@@ -470,7 +473,12 @@ def validate_feature_structure(
             "valid": False,
             "errors": errors,
             "warnings": warnings,
-            "paths": paths
+            "paths": paths,
+            "artifact_files": artifact_files,
+            "artifact_dirs": artifact_dirs,
+            "available_docs": available_docs,
+            "FEATURE_DIR": "",
+            "AVAILABLE_DOCS": available_docs,
         }
 
     # Check required files exist
@@ -478,7 +486,17 @@ def validate_feature_structure(
     if not spec_file.exists():
         errors.append("Missing required file: spec.md")
     else:
-        paths["spec_file"] = str(spec_file)
+        spec_file_str = str(spec_file)
+        paths["spec_file"] = spec_file_str
+        artifact_files["spec_file"] = spec_file_str
+        available_docs.append("spec.md")
+
+    plan_file = feature_dir / "plan.md"
+    if plan_file.exists():
+        plan_file_str = str(plan_file)
+        paths["plan_file"] = plan_file_str
+        artifact_files["plan_file"] = plan_file_str
+        available_docs.append("plan.md")
 
     # Check directory structure
     recommended_dirs = ["checklists", "research", "tasks"]
@@ -487,7 +505,9 @@ def validate_feature_structure(
         if not dir_path.exists():
             warnings.append(f"Missing recommended directory: {dir_name}/")
         else:
-            paths[f"{dir_name}_dir"] = str(dir_path)
+            dir_path_str = str(dir_path)
+            paths[f"{dir_name}_dir"] = dir_path_str
+            artifact_dirs[f"{dir_name}_dir"] = dir_path_str
 
     # Check task files if requested
     if check_tasks:
@@ -495,14 +515,50 @@ def validate_feature_structure(
         if not tasks_file.exists():
             errors.append("Missing required file: tasks.md")
         else:
-            paths["tasks_file"] = str(tasks_file)
+            tasks_file_str = str(tasks_file)
+            paths["tasks_file"] = tasks_file_str
+            artifact_files["tasks_file"] = tasks_file_str
+            if "tasks.md" not in available_docs:
+                available_docs.append("tasks.md")
+    else:
+        tasks_file = feature_dir / "tasks.md"
+        if tasks_file.exists():
+            tasks_file_str = str(tasks_file)
+            paths["tasks_file"] = tasks_file_str
+            artifact_files["tasks_file"] = tasks_file_str
+            available_docs.append("tasks.md")
 
     # Always include feature_dir in paths
-    paths["feature_dir"] = str(feature_dir)
+    feature_dir_str = str(feature_dir)
+    paths["feature_dir"] = feature_dir_str
+    artifact_dirs["feature_dir"] = feature_dir_str
+
+    checklists_dir = feature_dir / "checklists"
+    if checklists_dir.exists():
+        checklists_dir_str = str(checklists_dir)
+        artifact_dirs.setdefault("checklists_dir", checklists_dir_str)
+
+    research_dir = feature_dir / "research"
+    if research_dir.exists():
+        research_dir_str = str(research_dir)
+        artifact_dirs.setdefault("research_dir", research_dir_str)
+
+    tasks_dir = feature_dir / "tasks"
+    if tasks_dir.exists():
+        tasks_dir_str = str(tasks_dir)
+        artifact_dirs.setdefault("tasks_dir", tasks_dir_str)
+
+    available_docs = sorted(set(available_docs))
 
     return {
         "valid": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
-        "paths": paths
+        "paths": paths,
+        "artifact_files": artifact_files,
+        "artifact_dirs": artifact_dirs,
+        "available_docs": available_docs,
+        # Compatibility aliases for older templates/prompts
+        "FEATURE_DIR": feature_dir_str,
+        "AVAILABLE_DOCS": available_docs,
     }
