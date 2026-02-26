@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ..constitution_path import resolve_project_constitution_path
 from ..diagnostics import run_diagnostics
 from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
 from ..templates import get_dashboard_html
@@ -107,12 +108,9 @@ class APIHandler(DashboardHandler):
     def handle_constitution(self) -> None:
         """Serve project-level constitution from new path with legacy fallback."""
         try:
-            project_root = Path(self.project_dir)
-            constitution_path = project_root / ".kittify" / "constitution" / "constitution.md"
-            if not constitution_path.exists():
-                constitution_path = project_root / ".kittify" / "memory" / "constitution.md"
+            constitution_path = resolve_project_constitution_path(Path(self.project_dir))
 
-            if not constitution_path.exists():
+            if not constitution_path:
                 self.send_response(404)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
