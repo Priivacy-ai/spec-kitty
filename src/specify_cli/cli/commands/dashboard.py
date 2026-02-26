@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import webbrowser
 from typing import Optional
 
@@ -22,6 +21,11 @@ def dashboard(
         False,
         "--kill",
         help="Stop the running dashboard for this project and clear its metadata.",
+    ),
+    open_browser: bool = typer.Option(
+        False,
+        "--open",
+        help="Open dashboard URL in your default browser (disabled by default).",
     ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
@@ -100,10 +104,7 @@ def dashboard(
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    if os.environ.get("SPEC_KITTY_TEST_MODE") or os.environ.get("PWHEADLESS"):
-        console.print(f"[green]✅ Dashboard ready at:[/green] [cyan]{dashboard_url}[/cyan]")
-        console.print()
-    else:
+    if open_browser:
         try:
             webbrowser.open(dashboard_url)
             console.print("[green]✅ Opening dashboard in your browser...[/green]")
@@ -112,6 +113,10 @@ def dashboard(
             console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
             console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
             console.print()
+    else:
+        console.print("[dim]Browser auto-open is disabled by default.[/dim]")
+        console.print(f"[dim]Open manually: [cyan]{dashboard_url}[/cyan] (or use --open)[/dim]")
+        console.print()
 
 
 __all__ = ["dashboard"]
