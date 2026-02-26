@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import webbrowser
 from typing import Optional
 
@@ -99,14 +100,18 @@ def dashboard(
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    try:
-        webbrowser.open(dashboard_url)
-        console.print("[green]✅ Opening dashboard in your browser...[/green]")
+    if os.environ.get("SPEC_KITTY_TEST_MODE") or os.environ.get("PWHEADLESS"):
+        console.print(f"[green]✅ Dashboard ready at:[/green] [cyan]{dashboard_url}[/cyan]")
         console.print()
-    except Exception:
-        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
-        console.print()
+    else:
+        try:
+            webbrowser.open(dashboard_url)
+            console.print("[green]✅ Opening dashboard in your browser...[/green]")
+            console.print()
+        except Exception:
+            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+            console.print()
 
 
 __all__ = ["dashboard"]

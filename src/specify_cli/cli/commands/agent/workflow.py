@@ -75,20 +75,11 @@ app = typer.Typer(
 )
 
 
-def _resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main, master, etc.).
-
-    Delegates to the centralized implementation in core.git_ops.
-    """
-    from specify_cli.core.git_ops import resolve_primary_branch
-    return resolve_primary_branch(repo_root)
-
-
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
 
     Returns the planning repo root and the user's current branch.
-    Shows notification if current branch differs from feature target.
+    Shows a consistent branch banner.
     """
     from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
 
@@ -97,17 +88,18 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
     # Check for detached HEAD using robust branch detection
     current_branch = get_current_branch(main_repo_root)
     if current_branch is None:
-        print("Error: Planning repo is in detached HEAD state. Checkout a branch before continuing.")
+        print("Error: Detached HEAD — checkout a branch before continuing.")
         raise typer.Exit(1)
 
     # Resolve branch routing (unified logic, no auto-checkout)
     resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
 
-    # Show notification if branches differ
-    if resolution.should_notify:
+    # Show consistent branch banner
+    if not resolution.should_notify:
+        print(f"Branch: {current_branch} (target for this feature)")
+    else:
         print(
-            f"Note: You are on '{resolution.current}', feature targets '{resolution.target}'. "
-            f"Operations will use '{resolution.current}'."
+            f"Branch: on '{resolution.current}', feature targets '{resolution.target}'"
         )
 
     # Return current branch (no checkout performed)

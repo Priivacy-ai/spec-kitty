@@ -169,13 +169,13 @@ Given that feature description, do this:
      "mission": "<selected-mission>",
      "source_description": "$ARGUMENTS",
      "created_at": "<ISO timestamp>",
-     "target_branch": "main",
+     "target_branch": "<current-branch>",
      "vcs": "git"
    }
    ```
 
    **CRITICAL**: Always set these fields explicitly:
-   - `target_branch`: Set to "main" by default (user can change to "2.x" for dual-branch features)
+   - `target_branch`: Set to the current branch (detected via `git branch --show-current`). The branch the user is on when they start is the target branch. Do NOT hardcode "main".
    - `vcs`: Set to "git" by default (enables VCS locking and prevents jj fallback)
 
 6. Generate the specification content by following this flow:

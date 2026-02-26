@@ -50,58 +50,41 @@ app = typer.Typer(
 console = Console()
 
 
-def _resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main, master, etc.).
-
-    Delegates to the centralized implementation in core.git_ops.
-    """
-    from specify_cli.core.git_ops import resolve_primary_branch
-    return resolve_primary_branch(repo_root)
-
-
-def _resolve_planning_branch(repo_root: Path, feature_dir: Path | None = None) -> str:
-    """Resolve the planning branch for a feature (target_branch if set, else current branch)."""
-    current_branch = get_current_branch(repo_root) or _resolve_primary_branch(repo_root)
-    if feature_dir is None:
-        return current_branch
-
-    meta_file = feature_dir / "meta.json"
-    if not meta_file.exists():
-        return current_branch
-
-    try:
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return current_branch
-
-    target_branch = meta.get("target_branch")
-    return target_branch or current_branch
-
-
-def _ensure_branch_checked_out(
+def _show_branch_context(
     repo_root: Path,
-    target_branch: str,
+    feature_slug: str,
     json_output: bool = False,
-) -> None:
-    """Check branch context without auto-checkout (respects user's current branch).
+) -> tuple[Path, str]:
+    """Show branch context banner. Returns (main_repo_root, current_branch).
 
-    Shows notification if current branch differs from target branch.
-    Does NOT perform git checkout.
+    Uses the canonical resolve_target_branch() from core.git_ops.
+    Shows a consistent, visible banner at the start of every command.
     """
-    current_branch = get_current_branch(repo_root)
-    if current_branch is None:
-        raise RuntimeError("Not in a git repository")
-    if current_branch == "HEAD":
-        raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
+    from specify_cli.core.git_ops import resolve_target_branch
+    from specify_cli.core.paths import get_main_repo_root
 
-    # If branches differ, show notification (no auto-checkout)
-    if current_branch != target_branch:
-        if not json_output:
+    main_repo_root = get_main_repo_root(repo_root)
+    current_branch = get_current_branch(main_repo_root)
+    if current_branch is None:
+        raise RuntimeError("Detached HEAD — checkout a branch before continuing")
+
+    resolution = resolve_target_branch(
+        feature_slug, main_repo_root, current_branch, respect_current=True
+    )
+
+    if not json_output:
+        if not resolution.should_notify:
             console.print(
-                f"[yellow]Note:[/yellow] You are on '{current_branch}', "
-                f"feature targets '{target_branch}'. "
-                f"Operations will use '{current_branch}'."
+                f"[bold cyan]Branch:[/bold cyan] {current_branch} "
+                f"(target for this feature)"
             )
+        else:
+            console.print(
+                f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
+                f"feature targets '{resolution.target}'"
+            )
+
+    return main_repo_root, resolution.current
 
 
 def _commit_to_branch(
@@ -287,6 +270,7 @@ def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
     """Create new feature directory structure in planning repository.
 
@@ -364,19 +348,16 @@ def create_feature(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        primary_branch = _resolve_primary_branch(repo_root)
-        if current_branch != primary_branch:
-            error_msg = (
-                f"Feature creation must run on '{primary_branch}' branch "
-                f"(current: '{current_branch}')."
+        # Use explicit --target-branch if provided, otherwise current branch
+        if target_branch:
+            planning_branch = target_branch
+        else:
+            planning_branch = current_branch
+        if not json_output:
+            console.print(
+                f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
+                f"(target for this feature)"
             )
-            if json_output:
-                print(json.dumps({"error": error_msg}))
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        planning_branch = current_branch
 
         # Get next feature number
         feature_number = get_next_feature_number(repo_root)
@@ -713,10 +694,9 @@ def setup_plan(
                     console.print(f"  {cmd}")
             raise typer.Exit(1)
 
-        target_branch = _resolve_planning_branch(repo_root, feature_dir)
-        _ensure_branch_checked_out(repo_root, target_branch, json_output)
-
         feature_slug = feature_dir.name
+        _, target_branch = _show_branch_context(repo_root, feature_slug, json_output)
+
         spec_file = feature_dir / "spec.md"
         plan_file = feature_dir / "plan.md"
 
@@ -945,8 +925,9 @@ def _get_current_branch(repo_root: Path) -> str:
         repo_root: Repository root directory
 
     Returns:
-        Current branch name, or 'main' if not in a git repo
+        Current branch name, or detected primary branch if not in a git repo
     """
+    from specify_cli.core.git_ops import resolve_primary_branch
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_root,
@@ -956,7 +937,7 @@ def _get_current_branch(repo_root: Path) -> str:
         errors="replace",
         check=False
     )
-    return result.stdout.strip() if result.returncode == 0 else _resolve_primary_branch(repo_root)
+    return result.stdout.strip() if result.returncode == 0 else resolve_primary_branch(repo_root)
 
 
 @app.command(name="accept")
@@ -1136,7 +1117,12 @@ def merge_feature(
 
         # Resolve target branch dynamically if not specified
         if target is None:
-            target = _resolve_primary_branch(repo_root)
+            from specify_cli.core.feature_detection import get_feature_target_branch
+            if feature:
+                target = get_feature_target_branch(repo_root, feature)
+            else:
+                from specify_cli.core.git_ops import resolve_primary_branch
+                target = resolve_primary_branch(repo_root)
 
         # Auto-retry logic: Check if we're on a feature branch
         if auto_retry and not os.environ.get("SPEC_KITTY_AUTORETRY"):
@@ -1266,8 +1252,8 @@ def finalize_tasks(
                     console.print(f"  {cmd}")
             raise typer.Exit(1)
 
-        target_branch = _resolve_planning_branch(repo_root, feature_dir)
-        _ensure_branch_checked_out(repo_root, target_branch, json_output)
+        feature_slug = feature_dir.name
+        _, target_branch = _show_branch_context(repo_root, feature_slug, json_output)
 
         tasks_dir = feature_dir / "tasks"
         if not tasks_dir.exists():

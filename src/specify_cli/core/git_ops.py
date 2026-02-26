@@ -264,14 +264,15 @@ def resolve_primary_branch(repo_root: Path) -> str:
 
     Tries multiple methods in order:
     1. origin/HEAD symbolic ref (most reliable for cloned repos)
-    2. Check which common branch exists (main, master, develop)
-    3. Fallback to "main"
+    2. Current branch (the user is standing on it for a reason)
+    3. Check which common branch exists (main, master, develop)
+    4. Fallback to "main"
 
     Args:
         repo_root: Repository root path
 
     Returns:
-        Primary branch name (e.g., "main", "master", "develop")
+        Primary branch name (e.g., "main", "master", "develop", "2.x")
     """
     # Method 1: Get from origin's HEAD
     try:
@@ -294,7 +295,12 @@ def resolve_primary_branch(repo_root: Path) -> str:
     except subprocess.TimeoutExpired:
         pass
 
-    # Method 2: Check which common branch exists
+    # Method 2: Current branch (the user is standing on it for a reason)
+    current = get_current_branch(repo_root)
+    if current and current != "HEAD":
+        return current
+
+    # Method 3: Check which common branch exists
     for branch in ["main", "master", "develop"]:
         try:
             result = subprocess.run(
@@ -309,7 +315,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
         except subprocess.TimeoutExpired:
             continue
 
-    # Method 3: Fallback
+    # Method 4: Fallback
     return "main"
 
 

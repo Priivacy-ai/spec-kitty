@@ -32,7 +32,12 @@ class StaleCheckResult:
 
 def get_default_branch(repo_path: Path) -> str:
     """
-    Get the default branch name for the repository.
+    Get the default/base branch name for the repository (for stale detection).
+
+    This is used to find the branch that feature branches diverged FROM.
+    Unlike resolve_primary_branch() in git_ops, this does NOT use the current
+    branch because stale detection always runs from worktrees where the current
+    branch is always the feature branch, never the base branch.
 
     Tries multiple methods to detect the default branch:
     1. Check origin's HEAD symbolic ref

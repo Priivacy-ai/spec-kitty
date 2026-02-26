@@ -483,12 +483,65 @@ def test_resolve_primary_branch_custom_branch_via_origin(tmp_path):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_fallback_no_branches(tmp_path):
-    """resolve_primary_branch falls back to 'main' when nothing can be detected."""
+    """resolve_primary_branch returns current branch when no remote and no common branches."""
     # Create a repo with a non-standard branch and no remote
     repo = _init_repo_with_branch(tmp_path, "some_random_branch")
 
-    # No origin/HEAD, no main/master/develop → fallback
-    assert resolve_primary_branch(repo) == "main"
+    # No origin/HEAD, but current branch is "some_random_branch" → current branch wins
+    assert resolve_primary_branch(repo) == "some_random_branch"
+
+
+# ============================================================================
+# resolve_primary_branch: current branch wins over hardcoded list
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_2x_branch(tmp_path):
+    """resolve_primary_branch returns '2.x' when that's the only branch."""
+    repo = _init_repo_with_branch(tmp_path, "2.x")
+    assert resolve_primary_branch(repo) == "2.x"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_2x_even_when_main_exists(tmp_path):
+    """resolve_primary_branch returns '2.x' when user is on 2.x, even if main also exists.
+
+    THIS IS THE CRITICAL BUG FIX TEST — the exact scenario that was broken.
+    """
+    repo = _init_repo_with_branch(tmp_path, "main")
+    # Create 2.x branch and switch to it
+    run_command(["git", "branch", "2.x"], cwd=repo)
+    run_command(["git", "checkout", "2.x"], cwd=repo)
+    # Current branch is 2.x, main also exists → 2.x should win
+    assert resolve_primary_branch(repo) == "2.x"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_release_branch(tmp_path):
+    """resolve_primary_branch returns a release branch name."""
+    repo = _init_repo_with_branch(tmp_path, "release/v3")
+    assert resolve_primary_branch(repo) == "release/v3"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_origin_head_wins_over_current(tmp_path):
+    """resolve_primary_branch prefers origin/HEAD over current branch."""
+    repo, _ = _create_remote_with_branch(tmp_path, "2.x")
+    # Clone is on 2.x, origin/HEAD points to 2.x — create and switch to another branch
+    run_command(["git", "checkout", "-b", "some-other-branch"], cwd=repo)
+    # origin/HEAD should win even though current is some-other-branch
+    assert resolve_primary_branch(repo) == "2.x"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_current_branch_wins_over_hardcoded_list(tmp_path):
+    """resolve_primary_branch returns current branch over hardcoded main/master/develop."""
+    repo = _init_repo_with_branch(tmp_path, "2.x")
+    # Also create a "main" branch (but stay on 2.x)
+    run_command(["git", "branch", "main"], cwd=repo)
+    # Should still return 2.x since that's where we are
+    assert resolve_primary_branch(repo) == "2.x"
 
 
 # ============================================================================

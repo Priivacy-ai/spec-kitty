@@ -14,6 +14,16 @@ from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # HARDCODED: Never open browser windows during tests.
+    # Propagates to subprocesses too (e.g. dashboard CLI spawned by tests).
+    os.environ["PWHEADLESS"] = "1"
+
+    # Block webbrowser.open() in the test process itself.
+    import webbrowser
+    webbrowser.open = lambda *args, **kwargs: None  # type: ignore[assignment]
+    webbrowser.open_new = lambda *args, **kwargs: None  # type: ignore[assignment]
+    webbrowser.open_new_tab = lambda *args, **kwargs: None  # type: ignore[assignment]
+
     config.addinivalue_line(
         "markers",
         "adversarial: adversarial scenarios for merge and dependency handling",
