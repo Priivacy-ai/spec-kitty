@@ -1057,6 +1057,9 @@ def review(
             lines.append("─" * 80)
             lines.append("")
 
+        # Create unique temp file path for review feedback (avoids conflicts between agents)
+        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
+
         # Next steps
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
@@ -1065,8 +1068,8 @@ def review(
         lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Add feedback to the WP file's '## Review Feedback' section")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        lines.append(f"  1. Write feedback to: {review_feedback_path}")
+        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
@@ -1105,9 +1108,6 @@ def review(
         lines.append(f"✅ APPROVE (no issues found):")
         lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
         lines.append("")
-        # Create unique temp file path for review feedback (avoids conflicts between agents)
-        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
-
         lines.append(f"❌ REQUEST CHANGES (issues found):")
         lines.append(f"   1. Write feedback:")
         lines.append(f"      cat > {review_feedback_path} <<'EOF'")
@@ -1125,9 +1125,6 @@ def review(
         # Write full prompt to file
         full_content = "\n".join(lines)
         prompt_file = _write_prompt_to_file("review", normalized_wp_id, full_content)
-
-        # Create unique temp file path for review feedback (same as in prompt)
-        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
 
         # Output concise summary with directive to read the prompt
         print()

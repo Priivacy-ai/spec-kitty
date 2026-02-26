@@ -854,9 +854,9 @@ def move_task(
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
-    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned unless --force)")] = None,
+    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
-    force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks or missing feedback")] = False,
+    force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -925,13 +925,14 @@ def move_task(
         review_feedback_content: Optional[str] = None
 
         # Strictly enforce deterministic review feedback capture on planned rollbacks.
-        if target_lane == "planned" and not force:
+        # This requirement is never bypassed, including with --force.
+        if target_lane == "planned":
             if not review_feedback_file:
                 error_msg = f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
                 error_msg += "Please provide feedback:\n"
                 error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
                 error_msg += f"  2. Run: spec-kitty agent tasks move-task {task_id} --to planned --review-feedback-file feedback.md\n\n"
-                error_msg += "OR use --force to skip feedback (not recommended)"
+                error_msg += "This requirement cannot be bypassed with --force."
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
