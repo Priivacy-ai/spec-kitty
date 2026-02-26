@@ -456,16 +456,25 @@ def check_prerequisites(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
+    require_tasks: Annotated[
+        bool,
+        typer.Option("--require-tasks", hidden=True, help="Deprecated alias for --include-tasks"),
+    ] = False,
 ) -> None:
     """Validate feature structure and prerequisites.
 
     This command is designed for AI agents to call programmatically.
 
     Examples:
-        spec-kitty agent check-prerequisites --json
-        spec-kitty agent check-prerequisites --paths-only --json
+        spec-kitty agent feature check-prerequisites --json
+        spec-kitty agent feature check-prerequisites --paths-only --json
     """
     try:
+        if require_tasks and not include_tasks:
+            include_tasks = True
+            if not json_output:
+                console.print("[yellow]Warning:[/yellow] --require-tasks is deprecated; use --include-tasks.")
+
         repo_root = locate_project_root()
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."
@@ -500,6 +509,8 @@ def check_prerequisites(
                 for warning in validation_result["warnings"]:
                     console.print(f"   • {warning}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
@@ -519,8 +530,8 @@ def setup_plan(
     Creates plan.md and commits to target branch.
 
     Examples:
-        spec-kitty agent setup-plan --json
-        spec-kitty agent setup-plan --feature 020-my-feature --json
+        spec-kitty agent feature setup-plan --json
+        spec-kitty agent feature setup-plan --feature 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -683,6 +694,8 @@ def setup_plan(
         else:
             console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}))

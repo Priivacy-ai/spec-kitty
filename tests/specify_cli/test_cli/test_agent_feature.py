@@ -356,6 +356,134 @@ class TestCheckPrerequisitesCommand:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_emits_single_json_object_on_detection_error(
+        self,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Regression guard: detection errors should not emit duplicate JSON payloads."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        result = runner.invoke(app, ["check-prerequisites", "--json"])
+
+        assert result.exit_code == 1
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+
+
+class TestFinalizeTasksCommand:
+    """Tests for finalize-tasks command."""
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._show_branch_context")
+    def test_passes_explicit_feature_to_detection(
+        self,
+        mock_show_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Should pass --feature to detection with strict context fallback disabled."""
+        mock_locate.return_value = tmp_path
+        mock_show_branch.return_value = (tmp_path, "main")
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mock_find.return_value = feature_dir
+
+        result = runner.invoke(app, ["finalize-tasks", "--feature", "001-test", "--json"])
+
+        # Command exits because tasks/ is missing, but detection should be explicit and strict.
+        assert result.exit_code == 1
+        mock_find.assert_called_once()
+        args, kwargs = mock_find.call_args
+        assert args[0] == tmp_path
+        assert isinstance(args[1], Path)
+        assert kwargs["explicit_feature"] == "001-test"
+        assert kwargs["allow_latest_incomplete_fallback"] is False
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_returns_context_remediation_payload_when_ambiguous(
+        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+    ):
+        """Should return deterministic remediation payload on ambiguous context."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        feature_a = tmp_path / "kitty-specs" / "001-alpha"
+        feature_b = tmp_path / "kitty-specs" / "002-beta"
+        feature_a.mkdir(parents=True)
+        feature_b.mkdir(parents=True)
+        (feature_a / "spec.md").write_text("# Alpha", encoding="utf-8")
+        (feature_b / "spec.md").write_text("# Beta", encoding="utf-8")
+
+        result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert len(payload["candidate_features"]) == 2
+        assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
+        assert any(
+            "finalize-tasks --feature" in command
+            for command in payload["suggested_commands"]
+        )
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
+    def test_fails_when_requirement_refs_missing(
+        self,
+        mock_show_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Should fail with explicit payload when a WP has no requirement refs."""
+        mock_locate.return_value = tmp_path
+
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        mock_find.return_value = feature_dir
+
+        (feature_dir / "spec.md").write_text(
+            """# Spec
+## Functional Requirements
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Test requirement | Covered by WP01. | proposed |
+""",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n**Dependencies**: None\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP01-test.md").write_text(
+            """---
+work_package_id: "WP01"
+title: "WP01"
+---
+
+# WP01
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["finalize-tasks", "--json"])
+        assert result.exit_code == 1
+
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error"] == "Requirement mapping validation failed"
+        assert payload["missing_requirement_refs_wps"] == ["WP01"]
+
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
@@ -476,6 +604,26 @@ class TestSetupPlanCommand:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert "error" in output
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_setup_plan_emits_single_json_object_on_detection_error(
+        self,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Regression guard: setup-plan detection errors should not emit duplicate JSON payloads."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 1
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
 
 
 class TestFindFeatureDirectory:
