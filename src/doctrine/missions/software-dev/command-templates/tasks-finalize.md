@@ -36,8 +36,13 @@ spec-kitty agent feature finalize-tasks --json
 This command will:
 
 - Parse dependencies from tasks.md
-- Update WP frontmatter with `dependencies` field
+- Parse `Requirement Refs` from tasks.md
+- Update WP frontmatter with `dependencies` and `requirement_refs` fields
 - Validate dependencies (check for cycles, invalid references)
+- Validate requirement mapping:
+  - Every WP has at least one requirement reference
+  - Referenced requirement IDs exist in spec.md
+  - Every FR-### in spec.md is mapped to at least one WP
 - Commit all tasks to target branch
 
 ### 2. Check Output
@@ -48,6 +53,8 @@ The JSON output includes:
 - `"commit_hash"` — the commit hash if created
 - `"wp_count"` — number of WP files processed
 - `"dependencies_parsed"` — dependency relationships found
+- `"requirement_refs_parsed"` — requirement reference mapping found
+- Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`)
 
 ### 3. Verify
 
@@ -74,7 +81,9 @@ Provide a concise outcome summary:
 After completing this step:
 
 - All WP files have `dependencies` field in frontmatter
+- All WP files have `requirement_refs` field in frontmatter
 - Dependencies are validated (no cycles, no invalid references)
+- Requirement references are validated against spec.md
 - Task artifacts are committed to the target branch
 
 **Next step**: `spec-kitty next --agent <name>` will advance to implementation.

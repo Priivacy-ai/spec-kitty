@@ -87,7 +87,8 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 - Root in a single user story or cohesive subsystem
 - Ensure every subtask appears in exactly one work package
 - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
-- Record metadata: priority, success criteria, risks, dependencies, included subtasks
+- Record metadata: priority, success criteria, risks, dependencies, included subtasks, and requirement references
+- Every WP must include a `Requirement Refs` line listing IDs from `spec.md` (FR/NFR/C)
 
 ### 5. Write `tasks.md`
 
@@ -95,10 +96,12 @@ Write to `FEATURE_DIR/tasks.md` using the bundled tasks template (`.kittify/miss
 - Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
 - Under each work package include:
   - Summary (goal, priority, independent test)
+  - Requirement references (`Requirement Refs: FR-001, NFR-001, C-001`)
   - Included subtasks (checkbox list referencing `Txxx`)
   - Implementation sketch (high-level sequence)
   - Parallel opportunities, dependencies, and risks
   - **Estimated prompt size** (e.g., "~400 lines")
+- Add a `Requirements Coverage Summary` section mapping every requirement ID in `spec.md` to one or more WPs
 - Preserve the checklist style so implementers can mark progress
 
 **DO NOT generate WP prompt files in this step.** That happens in the next step.

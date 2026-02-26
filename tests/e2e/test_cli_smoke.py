@@ -114,6 +114,31 @@ class TestFullCLIWorkflow:
         assert plan_output["result"] == "success"
         assert (feature_dir / "plan.md").exists()
 
+        # Populate spec requirements referenced by tasks.md
+        (feature_dir / "spec.md").write_text(
+            """# E2E Smoke Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Deliver WP01 hello-world implementation. | WP01 maps to FR-001 and finalizes successfully. | proposed |
+
+## Non-Functional Requirements
+
+| ID | Requirement | Measurable Threshold | Status |
+| --- | --- | --- | --- |
+| NFR-001 | Finalization remains repeatable. | Running finalize twice yields stable output. | proposed |
+
+## Constraints
+
+| ID | Constraint | Rationale | Status |
+| --- | --- | --- | --- |
+| C-001 | Keep artifacts under kitty-specs. | Preserve planning workflow conventions. | fixed |
+""",
+            encoding="utf-8",
+        )
+
         # === Step 3: Simulate LLM task generation (write tasks.md + WP files) ===
         tasks_dir = feature_dir / "tasks"
 
@@ -121,6 +146,7 @@ class TestFullCLIWorkflow:
 
 ## Work Package WP01: Hello World
 **Dependencies**: None
+**Requirement Refs**: FR-001, NFR-001, C-001
 
 ### Included Subtasks
 - T001 Create hello module

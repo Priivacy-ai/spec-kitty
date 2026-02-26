@@ -79,22 +79,36 @@
 ## Requirements *(mandatory)*
 
 <!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
+  ACTION REQUIRED:
+  1) Keep requirement types separated (Functional / Non-Functional / Constraints)
+  2) Use unique IDs per type (FR-###, NFR-###, C-###)
+  3) Keep Status populated for every row
+  4) Non-functional requirements must include measurable thresholds
 -->
 
 ### Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+| ID | Title | User Story | Priority | Status |
+|----|-------|------------|----------|--------|
+| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open |
+| FR-002 | [Short title] | As a [role], I want [goal] so that [benefit]. | Medium | Open |
+| FR-003 | [Short title] | As a [role], I want [goal] so that [benefit]. | Low | Open |
 
-*Example of marking unclear requirements:*
+### Non-Functional Requirements
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+| ID | Title | Requirement | Category | Priority | Status |
+|----|-------|-------------|----------|----------|--------|
+| NFR-001 | [Short title] | [Measurable threshold, e.g., p95 latency under 300ms] | Performance | High | Open |
+| NFR-002 | [Short title] | [Measurable threshold] | Security | High | Open |
+| NFR-003 | [Short title] | [Measurable threshold] | Reliability | Medium | Open |
+
+### Constraints
+
+| ID | Title | Constraint | Category | Priority | Status |
+|----|-------|------------|----------|----------|--------|
+| C-001 | [Short title] | [Required boundary or limitation] | Technical | High | Open |
+| C-002 | [Short title] | [Required boundary or limitation] | Business | Medium | Open |
+| C-003 | [Short title] | [Required boundary or limitation] | Regulatory | Medium | Open |
 
 ### Key Entities *(include if feature involves data)*
 

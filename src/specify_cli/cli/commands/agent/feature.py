@@ -1278,13 +1278,29 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # Parse dependencies from tasks.md (if it exists)
+        spec_md = feature_dir / "spec.md"
+        if not spec_md.exists():
+            error_msg = f"spec.md not found: {spec_md}"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        spec_content = spec_md.read_text(encoding="utf-8")
+        spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+        all_spec_requirement_ids = set(spec_requirement_ids["all"])
+        functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
+
+        # Parse dependencies and requirement refs from tasks.md (if it exists)
         tasks_md = feature_dir / "tasks.md"
         wp_dependencies = {}
+        wp_requirement_refs = {}
         if tasks_md.exists():
-            # Read tasks.md and parse dependencies
+            # Read tasks.md and parse dependency + requirement mapping
             tasks_content = tasks_md.read_text(encoding="utf-8")
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
+            wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
@@ -1313,8 +1329,66 @@ def finalize_tasks(
                             console.print(f"  - {err}")
                     raise typer.Exit(1)
 
-        # Update each WP file's frontmatter with dependencies
+        # Update each WP file's frontmatter with dependencies + requirement refs
         wp_files = list(tasks_dir.glob("WP*.md"))
+        wp_ids: list[str] = []
+        for wp_file in wp_files:
+            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            if wp_id_match:
+                wp_ids.append(wp_id_match.group(1))
+
+        missing_requirement_refs_wps: list[str] = []
+        unknown_requirement_refs: dict[str, list[str]] = {}
+        mapped_requirement_ids: set[str] = set()
+
+        for wp_id in sorted(set(wp_ids)):
+            refs = wp_requirement_refs.get(wp_id, [])
+            if not refs:
+                missing_requirement_refs_wps.append(wp_id)
+                continue
+
+            unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
+            if unknown_refs:
+                unknown_requirement_refs[wp_id] = unknown_refs
+            else:
+                mapped_requirement_ids.update(refs)
+
+        unmapped_functional_requirements = sorted(
+            functional_spec_requirement_ids - mapped_requirement_ids
+        )
+
+        if (
+            missing_requirement_refs_wps
+            or unknown_requirement_refs
+            or unmapped_functional_requirements
+        ):
+            error_msg = "Requirement mapping validation failed"
+            payload = {
+                "error": error_msg,
+                "missing_requirement_refs_wps": missing_requirement_refs_wps,
+                "unknown_requirement_refs": unknown_requirement_refs,
+                "unmapped_functional_requirements": unmapped_functional_requirements,
+                "dependencies_parsed": wp_dependencies,
+                "requirement_refs_parsed": wp_requirement_refs,
+            }
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+                if missing_requirement_refs_wps:
+                    console.print("[red]Missing requirement refs:[/red]")
+                    for wp_id in missing_requirement_refs_wps:
+                        console.print(f"  - {wp_id}")
+                if unknown_requirement_refs:
+                    console.print("[red]Unknown requirement refs:[/red]")
+                    for wp_id, refs in unknown_requirement_refs.items():
+                        console.print(f"  - {wp_id}: {', '.join(refs)}")
+                if unmapped_functional_requirements:
+                    console.print("[red]Unmapped functional requirements:[/red]")
+                    for req_id in unmapped_functional_requirements:
+                        console.print(f"  - {req_id}")
+            raise typer.Exit(1)
+
         updated_count = 0
         work_packages: list[dict[str, object]] = []
 
@@ -1329,12 +1403,16 @@ def finalize_tasks(
             # Detect whether dependencies field exists in raw frontmatter
             raw_content = wp_file.read_text(encoding="utf-8")
             has_dependencies_line = False
+            has_requirement_refs_line = False
             if raw_content.startswith("---"):
                 parts = raw_content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter_text = parts[1]
                     has_dependencies_line = re.search(
                         r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE
+                    ) is not None
+                    has_requirement_refs_line = re.search(
+                        r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE
                     ) is not None
 
             # Read current frontmatter
@@ -1346,19 +1424,32 @@ def finalize_tasks(
 
             # Get dependencies for this WP (default to empty list)
             deps = wp_dependencies.get(wp_id, [])
+            requirement_refs = wp_requirement_refs.get(wp_id, [])
             title = (frontmatter.get("title") or "").strip() or wp_id
             work_packages.append(
                 {
                     "id": wp_id,
                     "title": title,
                     "dependencies": deps,
+                    "requirement_refs": requirement_refs,
                 }
             )
 
-            # Update frontmatter with dependencies
+            frontmatter_changed = False
+
+            # Update frontmatter with dependencies + requirement refs
             if not has_dependencies_line or frontmatter.get("dependencies") != deps:
                 frontmatter["dependencies"] = deps
+                frontmatter_changed = True
 
+            if (
+                not has_requirement_refs_line
+                or frontmatter.get("requirement_refs") != requirement_refs
+            ):
+                frontmatter["requirement_refs"] = requirement_refs
+                frontmatter_changed = True
+
+            if frontmatter_changed:
                 # Write updated frontmatter
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
@@ -1485,11 +1576,14 @@ def finalize_tasks(
         if json_output:
             print(json.dumps({
                 "result": "success",
+                "wp_count": len(work_packages),
                 "updated_wp_count": updated_count,
                 "tasks_dir": str(tasks_dir),
                 "commit_created": commit_created,
                 "commit_hash": commit_hash,
-                "files_committed": files_committed
+                "files_committed": files_committed,
+                "dependencies_parsed": wp_dependencies,
+                "requirement_refs_parsed": wp_requirement_refs,
             }))
 
     except typer.Exit:
@@ -1502,51 +1596,85 @@ def finalize_tasks(
         raise typer.Exit(1)
 
 
+def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
+    """Extract WP sections from tasks.md keyed by WP ID."""
+    sections: dict[str, str] = {}
+    matches = list(
+        re.finditer(
+            r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)",
+            tasks_content,
+        )
+    )
+
+    for idx, match in enumerate(matches):
+        wp_id = match.group(1)
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
+        sections[wp_id] = tasks_content[start:end]
+
+    return sections
+
+
 def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Parse WP dependencies from tasks.md content.
+    """Parse WP dependencies from tasks.md content."""
+    dependencies: dict[str, list[str]] = {}
 
-    Parsing strategy (priority order):
-    1. Explicit dependency markers ("Depends on WP01", "Dependencies: WP01, WP02")
-    2. Phase grouping (Phase 2 WPs depend on Phase 1 WPs)
-    3. Default to empty list if ambiguous
-
-    Returns:
-        Dict mapping WP ID to list of dependencies
-        Example: {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
-    """
-    dependencies = {}
-
-    # Split into WP sections - handle both formats:
-    # - "## Work Package WP01" (older format)
-    # - "### WP01: ..." (newer format)
-    wp_sections = re.split(r'(?:##\s+Work Package\s+|###\s+)(WP\d{2})', tasks_content)
-
-    # Process sections (they come in pairs: WP ID, then content)
-    for i in range(1, len(wp_sections), 2):
-        if i + 1 >= len(wp_sections):
-            break
-
-        wp_id = wp_sections[i]
-        section_content = wp_sections[i + 1]
-
-        # Method 1: Explicit "Depends on" or "Dependencies:"
-        explicit_deps = []
+    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
+        explicit_deps: list[str] = []
 
         # Pattern: "Depends on WP01" or "Depends on WP01, WP02"
-        depends_matches = re.findall(r'Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)', section_content, re.IGNORECASE)
+        depends_matches = re.findall(
+            r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)",
+            section_content,
+            re.IGNORECASE,
+        )
         for match in depends_matches:
-            explicit_deps.extend(re.findall(r'WP\d{2}', match))
+            explicit_deps.extend(re.findall(r"WP\d{2}", match))
 
-        # Pattern: "**Dependencies**: WP01" or "Dependencies: WP01, WP02" (handle bold markdown)
-        deps_line = re.search(r'\*?\*?Dependencies\*?\*?\s*:\s*(.+)', section_content)
-        if deps_line:
-            explicit_deps.extend(re.findall(r'WP\d{2}', deps_line.group(1)))
+        # Pattern: "**Dependencies**: WP01" or "Dependencies: WP01, WP02"
+        deps_line_matches = re.findall(
+            r"\*?\*?Dependencies\*?\*?\s*:\s*(.+)",
+            section_content,
+            re.IGNORECASE,
+        )
+        for match in deps_line_matches:
+            explicit_deps.extend(re.findall(r"WP\d{2}", match))
 
-        if explicit_deps:
-            # Remove duplicates and sort
-            dependencies[wp_id] = sorted(list(set(explicit_deps)))
-        else:
-            # Default to empty
-            dependencies[wp_id] = []
+        dependencies[wp_id] = list(dict.fromkeys(explicit_deps))
 
     return dependencies
+
+
+def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
+    """Parse requirement references per WP from tasks.md content."""
+    requirement_refs: dict[str, list[str]] = {}
+
+    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
+        refs: list[str] = []
+        ref_line_matches = re.findall(
+            r"\*?\*?Requirement\s+Refs\*?\*?\s*:\s*(.+)",
+            section_content,
+            re.IGNORECASE,
+        )
+        for match in ref_line_matches:
+            refs.extend(
+                ref_id.upper()
+                for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE)
+            )
+        requirement_refs[wp_id] = list(dict.fromkeys(refs))
+
+    return requirement_refs
+
+
+def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
+    """Parse requirement IDs from spec.md content."""
+    all_ids = {
+        req_id.upper()
+        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
+    }
+    functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
+
+    return {
+        "all": sorted(all_ids),
+        "functional": sorted(functional_ids),
+    }

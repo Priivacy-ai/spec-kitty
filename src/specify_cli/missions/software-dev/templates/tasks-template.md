@@ -32,6 +32,7 @@ description: "Work package task list template for feature implementation"
 **Goal**: Establish project skeleton and shared tooling.
 **Independent Test**: Project bootstraps locally with linting and formatter tooling configured.
 **Prompt**: `/tasks/WP01-setup-and-environment.md`
+**Requirement Refs**: C-001
 
 ### Included Subtasks
 - [ ] T001 Create project structure per implementation plan
@@ -57,6 +58,7 @@ description: "Work package task list template for feature implementation"
 **Goal**: Deliver shared services all user stories depend on.
 **Independent Test**: Foundational services pass smoke tests; downstream work packages can start.
 **Prompt**: `/tasks/WP02-foundational-platform.md`
+**Requirement Refs**: FR-001, NFR-001, C-001
 
 ### Included Subtasks
 - [ ] T004 Setup database schema and migrations framework
@@ -85,6 +87,7 @@ description: "Work package task list template for feature implementation"
 **Goal**: [Brief description of story outcome]
 **Independent Test**: [Describe how to validate the story independently]
 **Prompt**: `/tasks/WP03-user-story-1.md`
+**Requirement Refs**: FR-002, NFR-002
 
 ### Included Subtasks
 - [ ] T010 [P] Contract test for [endpoint] in `tests/contract/test_[name].py`
@@ -115,6 +118,7 @@ description: "Work package task list template for feature implementation"
 **Goal**: Cross-story improvements and hardening work.
 **Independent Test**: Regression suite passes; observability and documentation updated.
 **Prompt**: `/tasks/WP0N-polish-and-cross-cutting.md`
+**Requirement Refs**: FR-003, NFR-003, C-002
 
 ### Included Subtasks
 - [ ] T0XX Documentation updates in `docs/`
@@ -142,6 +146,18 @@ description: "Work package task list template for feature implementation"
 - **Sequence**: WP01 → WP02 → Story-driven packages (priority order) → WP0N polish.
 - **Parallelization**: Highlight safe parallel combinations once prerequisites complete.
 - **MVP Scope**: Call out which work packages constitute the minimal release.
+
+---
+
+## Requirements Coverage Summary
+
+| Requirement ID | Covered By Work Package(s) |
+|----------------|----------------------------|
+| FR-001 | WP02 |
+| FR-002 | WP03 |
+| NFR-001 | WP02 |
+| NFR-002 | WP03 |
+| C-001 | WP01, WP02 |
 
 ---
 

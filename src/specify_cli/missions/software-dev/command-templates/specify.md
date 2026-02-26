@@ -30,6 +30,14 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## DO NOT
+
+- Do not mix functional, non-functional, and constraint requirements in one list.
+- Do not emit requirements without stable IDs (`FR-###`, `NFR-###`, `C-###`).
+- Do not leave requirement status fields empty.
+- Do not write non-functional requirements without measurable thresholds.
+- Do not proceed to planning with unresolved requirement quality checklist failures.
+
 ## Constitution Context Bootstrap (required)
 
 Before discovery questions, load constitution context for this action:
@@ -188,7 +196,8 @@ Given that feature description, do this:
       * Record any interim assumption in the Assumptions section
       * Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
     - Fill User Scenarios & Testing section (ERROR if no clear user flow can be determined)
-    - Generate Functional Requirements (each requirement must be testable)
+    - Generate separated requirement tables: Functional (`FR-###`), Non-Functional (`NFR-###`), and Constraints (`C-###`)
+    - Ensure each requirement entry has a status value and testable wording
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 
@@ -216,6 +225,10 @@ Given that feature description, do this:
       
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
+      - [ ] Requirement types are separated (Functional / Non-Functional / Constraints)
+      - [ ] IDs are unique across FR-###, NFR-###, and C-### entries
+      - [ ] All requirement rows include a non-empty Status value
+      - [ ] Non-functional requirements include measurable thresholds
       - [ ] Success criteria are measurable
       - [ ] Success criteria are technology-agnostic (no implementation details)
       - [ ] All acceptance scenarios are defined

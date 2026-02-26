@@ -71,9 +71,41 @@ def create_test_feature(repo: Path) -> Path:
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
+    # Create spec.md with requirement IDs used by tasks.md
+    (feature_dir / "spec.md").write_text(
+        """# Feature Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | The workflow supports finalize task metadata updates. | finalize-tasks updates WP frontmatter. | proposed |
+
+## Non-Functional Requirements
+
+| ID | Requirement | Measurable Threshold | Status |
+| --- | --- | --- | --- |
+| NFR-001 | Finalization remains deterministic. | Re-running does not change committed files. | proposed |
+
+## Constraints
+
+| ID | Constraint | Rationale | Status |
+| --- | --- | --- | --- |
+| C-001 | Keep backward-compatible output fields. | Existing agents rely on commit fields. | fixed |
+""",
+        encoding="utf-8",
+    )
+
     # Create tasks.md
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01\n\nSetup\n\n## WP02\n\nDepends on WP01\n"
+        "# Tasks\n\n"
+        "## WP01\n\n"
+        "**Requirement Refs**: FR-001, C-001\n\n"
+        "Setup\n\n"
+        "## WP02\n\n"
+        "**Dependencies**: Depends on WP01\n"
+        "**Requirement Refs**: FR-001, NFR-001\n\n"
+        "Depends on WP01\n"
     )
 
     # Create WP files
