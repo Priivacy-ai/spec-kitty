@@ -4,6 +4,12 @@ on:
   pull_request:
     branches:
       - 2.x
+    paths:
+      - pyproject.toml
+      - CHANGELOG.md
+      - scripts/release/**
+      - RELEASE_CHECKLIST.md
+      - .github/workflows/release-readiness.yml
   workflow_dispatch:
     inputs:
       tag:
