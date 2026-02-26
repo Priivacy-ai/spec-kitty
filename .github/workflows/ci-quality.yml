@@ -24,11 +24,13 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    outputs:
+      commitlint_has_failures: ${{ steps.commitlint.outputs.has_failures }}
+      markdownlint_has_failures: ${{ steps.markdownlint.outputs.has_failures }}
 
     steps:
       - name: Check out repository
@@ -86,6 +88,7 @@ jobs:
           
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping commitlint."
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           
@@ -106,6 +109,7 @@ jobs:
           
           if [ "${#COMMITS_AFTER_CUTOFF[@]}" -eq 0 ]; then
             echo "No commits after cutoff date ($CUTOFF_DATE). Skipping commitlint."
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           
@@ -143,6 +147,7 @@ jobs:
           
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping markdownlint."
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -152,6 +157,7 @@ jobs:
           mapfile -d '' CHANGED_MD_FILES < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- '*.md' '*.mdx')
           if [ "${#CHANGED_MD_FILES[@]}" -eq 0 ]; then
             echo "No changed markdown files in commit range."
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           
@@ -169,6 +175,7 @@ jobs:
           
           if [ "${#FILES_TO_CHECK[@]}" -eq 0 ]; then
             echo "No markdown files modified after cutoff date ($CUTOFF_DATE)."
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           
@@ -231,53 +238,23 @@ jobs:
           name: lint-reports
           path: out/reports/
 
-      - name: Post PR comment on linting failures
+      - name: Persist linting failure details
         if: always() && github.event_name == 'pull_request' && (steps.commitlint.outputs.has_failures == 'true' || steps.markdownlint.outputs.has_failures == 'true')
-        uses: actions/github-script@v7
+        run: |
+          mkdir -p out/reports/lint-failures
+          if [ -f /tmp/commitlint-failures.txt ]; then
+            cp /tmp/commitlint-failures.txt out/reports/lint-failures/commitlint-failures.txt
+          fi
+          if [ -f /tmp/markdownlint-failures.txt ]; then
+            cp /tmp/markdownlint-failures.txt out/reports/lint-failures/markdownlint-failures.txt
+          fi
+
+      - name: Upload linting failure details
+        if: always() && github.event_name == 'pull_request' && (steps.commitlint.outputs.has_failures == 'true' || steps.markdownlint.outputs.has_failures == 'true')
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            let comment = '## ⚠️ Linting Issues Detected\n\n';
-            comment += 'The following linting issues were found in files/commits created after the cutoff date (2026-02-25):\n\n';
-            
-            // Check commitlint failures
-            const commitlintFailed = '${{ steps.commitlint.outputs.has_failures }}' === 'true';
-            if (commitlintFailed) {
-              const fs = require('fs');
-              let failedCommits = '';
-              try {
-                failedCommits = fs.readFileSync('/tmp/commitlint-failures.txt', 'utf8');
-              } catch (e) {
-                failedCommits = 'Unable to read commit failures';
-              }
-              comment += '### 📝 Commit Message Issues\n\n';
-              comment += 'The following commits do not follow the conventional commit format:\n\n';
-              comment += '```\n' + failedCommits + '```\n\n';
-            }
-            
-            // Check markdownlint failures
-            const markdownlintFailed = '${{ steps.markdownlint.outputs.has_failures }}' === 'true';
-            if (markdownlintFailed) {
-              const fs = require('fs');
-              let failedFiles = '';
-              try {
-                failedFiles = fs.readFileSync('/tmp/markdownlint-failures.txt', 'utf8');
-              } catch (e) {
-                failedFiles = 'Unable to read markdown failures';
-              }
-              comment += '### 📄 Markdown Style Issues\n\n';
-              comment += 'The following markdown files have style issues:\n\n';
-              comment += '```\n' + failedFiles + '```\n\n';
-            }
-            
-            comment += '**Note:** These are informational warnings and do not block the workflow. ';
-            comment += 'Please address these issues when convenient.\n';
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+          name: lint-failure-details
+          path: out/reports/lint-failures/
 
       - name: Fail job if required checks failed
         if: always()
@@ -295,6 +272,66 @@ jobs:
             echo "One or more checks failed."
             exit 1
           fi
+
+  lint-feedback:
+    runs-on: ubuntu-latest
+    needs: lint
+    if: always() && github.event_name == 'pull_request' && (needs.lint.outputs.commitlint_has_failures == 'true' || needs.lint.outputs.markdownlint_has_failures == 'true')
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Download linting failure details
+        uses: actions/download-artifact@v4
+        with:
+          name: lint-failure-details
+          path: /tmp/lint-failures
+        continue-on-error: true
+
+      - name: Post PR comment on linting failures
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## ⚠️ Linting Issues Detected\n\n';
+            comment += 'The following linting issues were found in files/commits created after the cutoff date (2026-02-25):\n\n';
+
+            const commitlintFailed = '${{ needs.lint.outputs.commitlint_has_failures }}' === 'true';
+            if (commitlintFailed) {
+              let failedCommits = '';
+              try {
+                failedCommits = fs.readFileSync('/tmp/lint-failures/commitlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedCommits = 'Unable to read commit failures';
+              }
+              comment += '### 📝 Commit Message Issues\n\n';
+              comment += 'The following commits do not follow the conventional commit format:\n\n';
+              comment += '```\n' + failedCommits + '```\n\n';
+            }
+
+            const markdownlintFailed = '${{ needs.lint.outputs.markdownlint_has_failures }}' === 'true';
+            if (markdownlintFailed) {
+              let failedFiles = '';
+              try {
+                failedFiles = fs.readFileSync('/tmp/lint-failures/markdownlint-failures.txt', 'utf8');
+              } catch (e) {
+                failedFiles = 'Unable to read markdown failures';
+              }
+              comment += '### 📄 Markdown Style Issues\n\n';
+              comment += 'The following markdown files have style issues:\n\n';
+              comment += '```\n' + failedFiles + '```\n\n';
+            }
+
+            comment += '**Note:** These are informational warnings and do not block the workflow. ';
+            comment += 'Please address these issues when convenient.\n';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
 
   unit-tests:
     runs-on: ubuntu-latest

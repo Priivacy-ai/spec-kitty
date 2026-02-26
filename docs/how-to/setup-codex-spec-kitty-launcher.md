@@ -54,11 +54,17 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 export CODEX_HOME="${REPO_ROOT}/.codex"
+CODEX_BIN="$(type -P codex || true)"
+
+if [[ -z "${CODEX_BIN}" ]]; then
+  echo "codex executable was not found in PATH" >&2
+  exit 127
+fi
 
 . "${SCRIPT_DIR}/python_environment.sh"
 activate_python_environment "${REPO_ROOT}"
 
-exec codex "$@"
+exec "${CODEX_BIN}" "$@"
 ```
 
 Make it executable:
@@ -120,13 +126,15 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\\..")
 
 $env:CODEX_HOME = Join-Path $RepoRoot ".codex"
+$CodexCommand = Get-Command codex -CommandType Application -ErrorAction Stop
+$CodexPath = $CodexCommand.Source
 
 $activate = Join-Path $RepoRoot ".venv\\Scripts\\Activate.ps1"
 if (Test-Path $activate) {
     . $activate
 }
 
-codex @args
+& $CodexPath @args
 ```
 
 ### 2. Add a `kitty_cdx` function in your PowerShell profile
