@@ -6,6 +6,7 @@ divergence before any merge operation begins.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,7 +15,10 @@ import re
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.dependency_graph import build_dependency_graph
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "WPStatus",
@@ -79,7 +83,7 @@ def check_worktree_status(worktree_path: Path, wp_id: str, branch_name: str) -> 
             is_clean=is_clean,
             error=error,
         )
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         return WPStatus(
             wp_id=wp_id,
             worktree_path=worktree_path,
@@ -135,13 +139,18 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
 
         return False, None
 
-    except Exception:
-        return False, None  # Assume OK if check fails
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        logger.warning(
+            "Target divergence check failed for %s: %s",
+            target_branch,
+            exc,
+        )
+        return False, None  # Non-fatal: preserve merge UX if remote checks fail
 
 
 def _wp_lane_from_feature(repo_root: Path, feature_slug: str, wp_id: str) -> str | None:
     """Read lane value for a WP prompt file from kitty-specs."""
-    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    tasks_dir = repo_root / KITTY_SPECS_DIR / feature_slug / "tasks"
     if not tasks_dir.exists():
         return None
 
@@ -179,7 +188,7 @@ def run_preflight(
     result = PreflightResult(passed=True)
 
     # Check for missing worktrees based on tasks in kitty-specs
-    expected_graph = build_dependency_graph(repo_root / "kitty-specs" / feature_slug)
+    expected_graph = build_dependency_graph(repo_root / KITTY_SPECS_DIR / feature_slug)
     expected_wps = set(expected_graph.keys())
     discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}
     missing_wps = sorted(expected_wps - discovered_wps)
@@ -193,7 +202,7 @@ def run_preflight(
                 continue
 
             result.passed = False
-            expected_path = repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+            expected_path = repo_root / WORKTREES_DIR / f"{feature_slug}-{wp_id}"
             error = f"Missing worktree for {wp_id}. Expected at {expected_path.name}. Run: spec-kitty agent workflow implement {wp_id}"
             result.wp_statuses.append(
                 WPStatus(

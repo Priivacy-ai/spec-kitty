@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
+
+from .constants import KITTIFY_DIR, WORKTREES_DIR
 
 
 def locate_project_root(start: Path | None = None) -> Optional[Path]:
@@ -39,7 +40,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
     # Tier 1: Check environment variable (allows override for CI/CD)
     if env_root := os.getenv("SPECIFY_REPO_ROOT"):
         env_path = Path(env_root).resolve()
-        if env_path.exists() and (env_path / ".kittify").is_dir():
+        if env_path.exists() and (env_path / KITTIFY_DIR).is_dir():
             return env_path
         # Invalid env var - fall through to other methods
 
@@ -59,7 +60,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
                     # Navigate: .git/worktrees/name -> .git -> main repo root
                     main_git_dir = gitdir.parent.parent
                     main_repo = main_git_dir.parent
-                    if main_repo.exists() and (main_repo / ".kittify").is_dir():
+                    if main_repo.exists() and (main_repo / KITTIFY_DIR).is_dir():
                         return main_repo
             except (OSError, ValueError):
                 # If we can't read or parse the .git file, continue searching
@@ -67,11 +68,11 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
 
         elif git_path.is_dir():
             # This is the main repo (or a regular git repo)
-            if (candidate / ".kittify").is_dir():
+            if (candidate / KITTIFY_DIR).is_dir():
                 return candidate
 
         # Also check for .kittify marker (fallback for non-git scenarios)
-        kittify_path = candidate / ".kittify"
+        kittify_path = candidate / KITTIFY_DIR
         if kittify_path.is_symlink() and not kittify_path.exists():
             # Broken symlink - skip this candidate
             continue
@@ -100,7 +101,7 @@ def is_worktree_context(path: Path) -> bool:
         >>> is_worktree_context(Path("/repo/kitty-specs"))
         False
     """
-    return ".worktrees" in path.parts
+    return WORKTREES_DIR in path.parts
 
 
 def resolve_with_context(start: Path | None = None) -> Tuple[Optional[Path], bool]:
