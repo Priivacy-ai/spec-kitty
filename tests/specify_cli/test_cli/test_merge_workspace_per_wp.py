@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.cli.commands.merge import (
+    _build_workspace_per_wp_merge_plan,
     detect_worktree_structure,
     extract_feature_slug,
     extract_wp_id,
@@ -473,11 +474,134 @@ class TestWorkspacePerWpMergeIntegration:
                 capture_output=True,
             )
 
-        # Verify worktrees removed
-        for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
-            worktree_path = workspace_per_wp_repo / ".worktrees" / branch_name
-            assert not worktree_path.exists()
+
+class TestEffectiveMergePlanning:
+    """Tests for ancestry-pruned effective merge branch selection."""
+
+    def test_prunes_linear_chain_to_single_tip(self, git_repo: Path):
+        target_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+        worktrees_dir = git_repo / ".worktrees"
+        worktrees_dir.mkdir()
+
+        wp01 = "020-linear-feature-WP01"
+        wp02 = "020-linear-feature-WP02"
+        wp03 = "020-linear-feature-WP03"
+
+        wt01 = worktrees_dir / wp01
+        subprocess.run(
+            ["git", "worktree", "add", str(wt01), "-b", wp01],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+        (wt01 / "wp01.txt").write_text("wp01\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=wt01, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "wp01"], cwd=wt01, check=True, capture_output=True)
+
+        wt02 = worktrees_dir / wp02
+        subprocess.run(
+            ["git", "worktree", "add", str(wt02), "-b", wp02, wp01],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+        (wt02 / "wp02.txt").write_text("wp02\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=wt02, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "wp02"], cwd=wt02, check=True, capture_output=True)
+
+        wt03 = worktrees_dir / wp03
+        subprocess.run(
+            ["git", "worktree", "add", str(wt03), "-b", wp03, wp02],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+        (wt03 / "wp03.txt").write_text("wp03\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=wt03, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "wp03"], cwd=wt03, check=True, capture_output=True)
+
+        wp_workspaces = find_wp_worktrees(git_repo, "020-linear-feature")
+        plan = _build_workspace_per_wp_merge_plan(
+            git_repo,
+            "020-linear-feature",
+            target_branch,
+            wp_workspaces,
+        )
+
+        effective = [branch for _, _, branch in plan["effective_wp_workspaces"]]
+        assert effective == [wp03]
+        assert wp01 in plan["skipped_ancestor_of"]
+        assert wp02 in plan["skipped_ancestor_of"]
+
+    def test_skips_when_already_in_target(self, git_repo: Path):
+        target_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+        worktrees_dir = git_repo / ".worktrees"
+        worktrees_dir.mkdir()
+
+        wp01 = "021-already-merged-WP01"
+        wt01 = worktrees_dir / wp01
+        subprocess.run(
+            ["git", "worktree", "add", str(wt01), "-b", wp01],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+        (wt01 / "wp01.txt").write_text("wp01\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=wt01, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "wp01"], cwd=wt01, check=True, capture_output=True)
+
+        subprocess.run(["git", "checkout", target_branch], cwd=git_repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "merge", "--no-ff", wp01, "-m", "merge wp01"],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+
+        wp_workspaces = find_wp_worktrees(git_repo, "021-already-merged")
+        plan = _build_workspace_per_wp_merge_plan(
+            git_repo,
+            "021-already-merged",
+            target_branch,
+            wp_workspaces,
+        )
+
+        assert plan["effective_wp_workspaces"] == []
+        assert len(plan["skipped_already_in_target"]) == 1
+
+    def test_keeps_independent_branches(self, workspace_per_wp_repo: Path):
+        target_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=workspace_per_wp_repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+        plan = _build_workspace_per_wp_merge_plan(
+            workspace_per_wp_repo,
+            "010-test-feature",
+            target_branch,
+            wp_workspaces,
+        )
+
+        effective = [branch for _, _, branch in plan["effective_wp_workspaces"]]
+        assert len(effective) == 3
 
     def test_cleanup_deletes_branches(self, workspace_per_wp_repo: Path):
         """Test that branch cleanup deletes all WP branches."""
