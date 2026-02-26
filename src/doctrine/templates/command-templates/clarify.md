@@ -1,8 +1,8 @@
 ---
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
 scripts:
-   sh: spec-kitty agent check-prerequisites --json --paths-only
-   ps: spec-kitty agent -Json -PathsOnly
+   sh: spec-kitty agent feature check-prerequisites --json --paths-only
+   ps: spec-kitty agent feature -Json -PathsOnly
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -20,7 +20,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+**BEFORE PROCEEDING:** Verify you are working in the primary repository checkout.
 
 ```bash
 pwd
@@ -29,18 +29,18 @@ git branch --show-current
 
 **Expected output:**
 
-- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
 - Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
 
 **If you see the main branch or main repository path:**
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command updates your feature's spec.md file. You must be in the feature worktree to ensure changes go to the correct location.
+This command updates your feature's spec.md file. You must be in the primary repository checkout to ensure changes go to the correct location.
 
 **Correct the issue:**
 
-1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+1. Navigate to your primary repository checkout: `cd primary repository checkout`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this clarify command again
 
@@ -50,7 +50,7 @@ This command updates your feature's spec.md file. You must be in the feature wor
 
 After running `{SCRIPT}`, you will have paths to:
 
-- **FEATURE_DIR**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
+- **feature_dir**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
 - **FEATURE_SPEC**: Absolute path to spec.md (the file you'll be clarifying)
 
 You may also have:
@@ -90,7 +90,7 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 Execution steps:
 
 1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
-   - `FEATURE_DIR`
+   - `feature_dir`
    - `FEATURE_SPEC`
    - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
    - If JSON parsing fails, abort and instruct user to re-run `/spec-kitty.specify` or verify feature branch environment.

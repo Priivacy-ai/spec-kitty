@@ -27,26 +27,26 @@ $ARGUMENTS
 
 ### 1. Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `FEATURE_DIR`. All paths must be absolute.
+Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir`. All paths must be absolute.
 
 ### 2. Load tasks.md
 
-Read `FEATURE_DIR/tasks.md` — this must already exist from the previous step.
+Read `feature_dir/tasks.md` — this must already exist from the previous step.
 Parse the work package definitions, subtask lists, and dependencies.
 
 ### 3. Generate Prompt Files
 
 For each work package defined in `tasks.md`:
 
-**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
+**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
 
-- Correct: `FEATURE_DIR/tasks/WPxx-slug.md` (flat, no subdirectories)
-- WRONG: `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
+- Correct: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+- WRONG: `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY lane subdirectories
 
 **For each WP**:
 1. Derive a kebab-case slug from the title
 2. Filename: `WPxx-slug.md` (e.g., `WP01-create-html-page.md`)
-3. Full path: `FEATURE_DIR/tasks/WP01-create-html-page.md`
+3. Full path: `feature_dir/tasks/WP01-create-html-page.md`
 4. Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`)
 5. Include frontmatter with:
    - `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
@@ -91,7 +91,7 @@ After generating each prompt:
 ## Output
 
 After completing this step:
-- `FEATURE_DIR/tasks/WP*.md` prompt files exist for all work packages
+- `feature_dir/tasks/WP*.md` prompt files exist for all work packages
 - Each has proper frontmatter with `work_package_id`, `lane`, `dependencies`
 - `tasks.md` references all prompt filenames
 

@@ -38,8 +38,8 @@ A real-time, read-only web interface showing the health and status of all featur
 
 **You can run this**:
 
-- From main repository root
-- From inside a feature worktree (dashboard still shows all projects)
+- From primary repository checkout root
+- From inside a primary repository checkout (dashboard still shows all projects)
 - At any point during feature development
 - Multiple times (each run can start/reuse the dashboard)
 
@@ -59,7 +59,7 @@ The dashboard shows ALL features across the project. This command launches the S
 
 ## Important: Worktree Handling
 
-**If you're in a feature worktree**, the dashboard automatically detects the main repository location.
+**If you're in a primary repository checkout**, the dashboard automatically detects the main repository location.
 
 The dashboard is project-wide (shows all features) and the CLI handles worktree detection automatically.
 

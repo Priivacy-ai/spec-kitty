@@ -12,7 +12,7 @@ scripts:
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+**BEFORE PROCEEDING:** Verify you are working in the primary repository checkout.
 
 ```bash
 pwd
@@ -20,17 +20,17 @@ git branch --show-current
 ```
 
 **Expected output:**
-- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
 - Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
 
 **If you see the main branch or main repository path:**
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command creates research artifacts in your feature directory. You must be in the feature worktree.
+This command creates research artifacts in your feature directory. You must be in the primary repository checkout.
 
 **Correct the issue:**
-1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+1. Navigate to your primary repository checkout: `cd primary repository checkout`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this research command again
 
@@ -71,7 +71,7 @@ Create `research.md`, `data-model.md`, and supporting CSV stubs based on the act
 
 ## What to do
 
-1. You should already be in the correct feature worktree (verified above with pre-flight check).
+1. You should already be in the correct primary repository checkout (verified above with pre-flight check).
 2. Run `{SCRIPT}` to generate the mission-specific research artifacts. (Add `--force` only when it is acceptable to overwrite existing drafts.)
 3. Open the generated files and fill in the required content:
    - `research.md` – capture decisions, rationale, and supporting evidence.
