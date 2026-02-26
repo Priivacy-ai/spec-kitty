@@ -50,6 +50,7 @@ For each work package defined in `tasks.md`:
 4. Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`)
 5. Include frontmatter with:
    - `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
+   - `requirement_refs` array from the WP's `Requirement Refs` line in `tasks.md`
 6. Include in body:
    - Objective, context, detailed guidance per subtask
    - Test strategy (only if requested)
@@ -71,6 +72,7 @@ work_package_id: "WP02"
 title: "Build API"
 lane: "planned"
 dependencies: ["WP01"]  # From tasks.md
+requirement_refs: ["FR-001", "NFR-001"]  # From tasks.md Requirement Refs
 subtasks: ["T001", "T002"]
 ---
 ```

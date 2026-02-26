@@ -249,6 +249,34 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
     assert result.returncode == 0, "Plan setup failed"
     assert (feature_dir / "plan.md").exists(), "plan.md not created"
 
+    # Populate spec requirements referenced by tasks.md
+    spec_md = feature_dir / "spec.md"
+    spec_md.write_text(
+        """# Full Workflow Test Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Foundation tasks are implemented first. | WP01 is planned and finalized. | proposed |
+| FR-002 | API tasks can depend on foundation tasks. | WP02 depends on WP01. | proposed |
+
+## Non-Functional Requirements
+
+| ID | Requirement | Measurable Threshold | Status |
+| --- | --- | --- | --- |
+| NFR-001 | Finalization must be deterministic. | Re-running finalize does not rewrite unchanged files. | proposed |
+| NFR-002 | Dependency parsing must remain explicit. | Dependency links are represented in WP frontmatter. | proposed |
+
+## Constraints
+
+| ID | Constraint | Rationale | Status |
+| --- | --- | --- | --- |
+| C-001 | Keep generated artifacts in kitty-specs. | Maintains planning workflow structure. | fixed |
+""",
+        encoding="utf-8",
+    )
+
     # Step 3: Generate sample WP files and tasks.md (simulating /spec-kitty.tasks LLM output)
     tasks_dir = feature_dir / "tasks"
 
@@ -258,6 +286,7 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
 ## Work Package WP01: Foundation
 **Dependencies**: None
+**Requirement Refs**: FR-001, NFR-001, C-001
 
 ### Included Subtasks
 - T001 Setup infrastructure
@@ -267,6 +296,7 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
 ## Work Package WP02: API Layer
 **Dependencies**: Depends on WP01
+**Requirement Refs**: FR-002, NFR-002
 
 ### Included Subtasks
 - T003 Build REST endpoints

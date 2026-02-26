@@ -303,14 +303,28 @@ def test_finalize_tasks_emits_wp_created_only(monkeypatch: pytest.MonkeyPatch, t
     feature_dir = repo_root / "kitty-specs" / "001-demo-feature"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text("## Work Package WP01\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text(
+        """# Demo spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Emit WP created events during finalize. | finalize-tasks succeeds with WP refs. | proposed |
+""",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "## Work Package WP01\n**Requirement Refs**: FR-001\n",
+        encoding="utf-8",
+    )
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp(wp_path, "WP01")
 
     monkeypatch.setattr("specify_cli.cli.commands.agent.feature.locate_project_root", lambda: repo_root)
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.feature._find_feature_directory",
-        lambda _repo_root, _cwd: feature_dir,
+        lambda _repo_root, _cwd, **_kwargs: feature_dir,
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.feature._resolve_planning_branch",
