@@ -15,6 +15,7 @@
 ## Context and Problem Statement
 
 Current merge flow emits WP lifecycle transitions but does not produce a dedicated post-merge audit lifecycle, and does not persist audit status in feature metadata.
+At the same time, dossier contracts already exist in `spec-kitty-events` and SaaS dossier projection exists, but current SaaS ingestion is focused on `MissionDossierArtifactIndexed` dispatch and not a post-merge mission-audit lifecycle.
 
 As a result:
 

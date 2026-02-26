@@ -19,6 +19,7 @@ Spec Kitty 2.x treats Mission as the central control entity, but primitive harde
 1. Built-in missions are not uniformly runtime-template compatible.
 2. Primitive context mutability and bridge wiring are functional but not yet uniformly constrained by compatibility gates.
 3. New post-merge audit behavior must be mission-declarable, deterministic, and portable across local + SaaS projections.
+4. Current built-in mission template baseline is mixed (for example, some missions still rely on legacy `mission.yaml` state-machine shape while others have runtime sidecars).
 
 At the same time, product policy requires no new feature work on 1.x.
 
@@ -133,3 +134,4 @@ Ship quickly, refactor later.
    `src/specify_cli/next/runtime_bridge.py`
 4. Built-in mission runtime templates:
    `src/doctrine/missions/*/mission-runtime.yaml`
+   `src/doctrine/missions/*/mission.yaml`

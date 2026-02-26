@@ -15,6 +15,7 @@
 ## Context and Problem Statement
 
 In current CLI behavior, `spec-kitty verify-setup` is the setup diagnostics entrypoint and the root command function name (`verify_setup`) maps to `spec-kitty verify-setup`.
+Current command registration still binds `verify_setup` at top level, and the only existing `doctor` surface is nested under `spec-kitty agent status doctor`.
 
 For 2.x, product intent is that `verify` should represent implementation-vs-artifact validation (post-merge mission audit), not environment diagnostics.
 
