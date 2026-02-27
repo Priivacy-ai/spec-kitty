@@ -33,7 +33,7 @@ python scripts/release/validate_release.py \
   - Validates:
     * Version in `pyproject.toml` is valid semantic version (X.Y.Z)
     * CHANGELOG.md contains a populated section for the current version
-    * New version > latest git tag (monotonic progression)
+    * Current version is not behind the latest git tag in the same major stream
   - Does NOT require a tag to be present
   - Exit code: 0 (success) or 1 (validation failed)
 
@@ -192,8 +192,9 @@ python scripts/release/extract_changelog.py 0.2.4
 **Problem**: Your version is equal to or less than an existing tag.
 
 **Solution**:
-1. Check latest tag: `git tag --list 'v*' --sort=-version:refname | head -1`
-2. Bump version in `pyproject.toml` to be higher
+1. Check latest tag in your stream: `git tag --list 'v1*' --sort=-version:refname | head -1` (replace `1` with your major)
+2. In branch mode, ensure version is at least the latest tag in that major stream
+3. In tag mode, ensure version is greater than the latest published tag in that major stream
 3. Re-run validator
 
 ### "CHANGELOG.md lacks a populated section"

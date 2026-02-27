@@ -127,6 +127,77 @@ def test_branch_mode_fails_without_changelog_entry(tmp_path: Path) -> None:
     assert "CHANGELOG.md lacks a populated section for 0.2.4" in result.stderr
 
 
+def test_branch_mode_ignores_newer_other_major_tags(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "2.0.1",
+        changelog_for_versions(("2.0.1", "- Stable 2.x release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 2.0.1")
+    tag(tmp_path, "v2.0.1")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(
+            ("1.0.0", "- Maintain 1.x stream"),
+            ("2.0.1", "- Stable 2.x release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0 on main")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
+def test_branch_mode_allows_equal_version_to_latest_same_major(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(("1.0.0", "- Stable 1.x release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 1.0.0")
+    tag(tmp_path, "v1.0.0")
+
+    (tmp_path / "README.md").write_text("# No release bump required\n", encoding="utf-8")
+    stage_and_commit(tmp_path, "chore: non-release maintenance")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
+def test_branch_mode_fails_when_behind_latest_same_major(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.0.1",
+        changelog_for_versions(("1.0.1", "- Stable 1.x release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 1.0.1")
+    tag(tmp_path, "v1.0.1")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(
+            ("1.0.0", "- Older 1.x version"),
+            ("1.0.1", "- Stable 1.x release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: regress 1.x version")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 1
+    assert "Version 1.0.0 is behind latest tag v1.0.1" in result.stderr
+
+
 def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
@@ -174,6 +245,33 @@ def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Tag: v0.2.4" in result.stdout
+
+
+def test_tag_mode_ignores_newer_other_major_tags(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "2.0.1",
+        changelog_for_versions(("2.0.1", "- Stable 2.x release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 2.0.1")
+    tag(tmp_path, "v2.0.1")
+
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(
+            ("1.0.0", "- Maintain 1.x stream"),
+            ("2.0.1", "- Stable 2.x release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.0")
+    tag(tmp_path, "v1.0.0")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v1.0.0")
+
+    assert result.returncode == 0, result.stderr
+    assert "Tag: v1.0.0" in result.stdout
 
 
 def test_tag_mode_fails_on_regression(tmp_path: Path) -> None:

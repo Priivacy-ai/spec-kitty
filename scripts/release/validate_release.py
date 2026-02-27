@@ -263,16 +263,40 @@ def detect_tag_from_env() -> Optional[str]:
 
 
 def validate_version_progression(
-    current_version: str, existing_tags: Sequence[str]
+    current_version: str,
+    existing_tags: Sequence[str],
+    *,
+    same_major_only: bool = False,
+    require_strict_progression: bool = True,
 ) -> Optional[ValidationIssue]:
-    if not existing_tags:
-        return None
     current_version_parsed = parse_release_version(current_version)
-    latest_version_parsed = parse_release_version(existing_tags[0].lstrip("v"))
-    if current_version_parsed <= latest_version_parsed:
+    comparable_tags = list(existing_tags)
+    if same_major_only:
+        current_major = current_version_parsed.release[0]
+        comparable_tags = [
+            tag
+            for tag in existing_tags
+            if parse_release_version(tag.lstrip("v")).release[0] == current_major
+        ]
+
+    if not comparable_tags:
+        return None
+
+    comparable_tags.sort(
+        key=lambda tag: parse_release_version(tag.lstrip("v")),
+        reverse=True,
+    )
+    latest_version_parsed = parse_release_version(comparable_tags[0].lstrip("v"))
+    if require_strict_progression:
+        if current_version_parsed <= latest_version_parsed:
+            return ValidationIssue(
+                message=f"Version {current_version} does not advance beyond latest tag {comparable_tags[0]}.",
+                hint="Select a release version greater than previously published tags.",
+            )
+    elif current_version_parsed < latest_version_parsed:
         return ValidationIssue(
-            message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
-            hint="Select a release version greater than previously published tags.",
+            message=f"Version {current_version} is behind latest tag {comparable_tags[0]}.",
+            hint="Select a release version equal to or greater than previously published tags in this major stream.",
         )
     return None
 
@@ -341,12 +365,22 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         existing_tags = discover_release_tags(
             repo_root, tag_pattern=args.tag_pattern, exclude=tag
         )
-        progression_issue = validate_version_progression(version, existing_tags)
+        progression_issue = validate_version_progression(
+            version,
+            existing_tags,
+            same_major_only=True,
+            require_strict_progression=True,
+        )
         if progression_issue:
             issues.append(progression_issue)
     else:
         existing_tags = discover_release_tags(repo_root, tag_pattern=args.tag_pattern)
-        progression_issue = validate_version_progression(version, existing_tags)
+        progression_issue = validate_version_progression(
+            version,
+            existing_tags,
+            same_major_only=True,
+            require_strict_progression=False,
+        )
         if progression_issue:
             issues.append(progression_issue)
 
