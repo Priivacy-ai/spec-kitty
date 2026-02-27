@@ -78,6 +78,61 @@ def test_run_git_preflight_detects_worktree_listing_failure(tmp_path: Path) -> N
     assert result.first_error.code == "WORKTREE_LIST_FAILED"
 
 
+def test_run_git_preflight_detects_dubious_ownership_in_worktree_listing(tmp_path: Path) -> None:
+    """Worktree listing dubious-ownership error should be reported as UNTRUSTED_REPOSITORY."""
+    responses = iter(
+        [
+            _FakeCmdResult(returncode=0, stdout="true\n", stderr=""),
+            _FakeCmdResult(
+                returncode=128,
+                stdout="",
+                stderr="fatal: detected dubious ownership in repository at '/tmp/repo'",
+            ),
+        ]
+    )
+    with patch("specify_cli.core.git_preflight._run_git", side_effect=lambda *_args, **_kwargs: next(responses)):
+        result = run_git_preflight(tmp_path, check_worktree_list=True)
+
+    assert not result.passed
+    assert result.first_error is not None
+    assert result.first_error.code == "UNTRUSTED_REPOSITORY"
+    assert result.first_error.check == "repository_trust"
+    assert "safe.directory" in (result.first_error.command or "")
+
+
+def test_run_git_handles_file_not_found(tmp_path: Path) -> None:
+    """_run_git should return code 127 when git executable is missing."""
+    from specify_cli.core.git_preflight import _run_git
+
+    with patch("specify_cli.core.git_preflight.subprocess.run", side_effect=FileNotFoundError("git")):
+        cmd_result = _run_git(tmp_path, ["status"])
+
+    assert cmd_result.returncode == 127
+    assert "not found" in cmd_result.stderr
+
+
+def test_run_git_handles_timeout(tmp_path: Path) -> None:
+    """_run_git should return code 124 when command times out."""
+    from specify_cli.core.git_preflight import _run_git
+
+    with patch(
+        "specify_cli.core.git_preflight.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="git status", timeout=15),
+    ):
+        cmd_result = _run_git(tmp_path, ["status"])
+
+    assert cmd_result.returncode == 124
+    assert "timed out" in cmd_result.stderr
+
+
+def test_first_line_returns_empty_for_blank_text() -> None:
+    """_first_line should return empty string for whitespace-only input."""
+    from specify_cli.core.git_preflight import _first_line
+
+    assert _first_line("") == ""
+    assert _first_line("   \n  \n") == ""
+
+
 def test_build_git_preflight_failure_payload_contains_remediation(tmp_path: Path) -> None:
     result = run_git_preflight(tmp_path)
     payload = build_git_preflight_failure_payload(result, command_name="spec-kitty merge")
@@ -85,3 +140,14 @@ def test_build_git_preflight_failure_payload_contains_remediation(tmp_path: Path
     assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
     assert payload["command"] == "spec-kitty merge"
     assert isinstance(payload["remediation"], list)
+
+
+def test_build_git_preflight_failure_payload_no_errors(tmp_path: Path) -> None:
+    """Payload should still be valid when there are no errors (defensive)."""
+    from specify_cli.core.git_preflight import GitPreflightResult
+
+    result = GitPreflightResult(repo_root=tmp_path)
+    payload = build_git_preflight_failure_payload(result, command_name="test")
+
+    assert payload["error"] == "Git preflight failed."
+    assert payload["remediation"] == []
