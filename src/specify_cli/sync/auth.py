@@ -109,14 +109,17 @@ class CredentialStore:
         return self.credentials_path.exists()
 
     def _parse_expiry(self, value: str) -> Optional[datetime]:
-        """Parse expiry timestamp, normalizing to naive UTC datetime."""
+        """Parse expiry timestamp, normalizing to timezone-aware UTC datetime."""
         try:
             if isinstance(value, str) and value.endswith("Z"):
                 value = value[:-1] + "+00:00"
             parsed = datetime.fromisoformat(value)
-            # Normalize to naive UTC for consistent comparison with utcnow()
+            # Normalize to timezone-aware UTC for consistent comparison
             if parsed.tzinfo is not None:
-                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                parsed = parsed.astimezone(timezone.utc)
+            else:
+                # Assume naive datetimes are UTC
+                parsed = parsed.replace(tzinfo=timezone.utc)
             return parsed
         except (TypeError, ValueError):
             return None
@@ -132,7 +135,7 @@ class CredentialStore:
             return None
 
         expires_at = self._parse_expiry(tokens["access_expires_at"])
-        if not expires_at or datetime.utcnow() >= expires_at:
+        if not expires_at or datetime.now(timezone.utc) >= expires_at:
             return None
 
         return tokens["access"]
@@ -148,7 +151,7 @@ class CredentialStore:
             return None
 
         expires_at = self._parse_expiry(tokens["refresh_expires_at"])
-        if not expires_at or datetime.utcnow() >= expires_at:
+        if not expires_at or datetime.now(timezone.utc) >= expires_at:
             return None
 
         return tokens["refresh"]
@@ -304,8 +307,8 @@ class AuthClient:
         refresh_lifetime = self._coerce_lifetime(
             data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
         )
-        access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
-        refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
+        access_expires_at = datetime.now(timezone.utc) + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_lifetime)
 
         # Get team_slug from server response if available (post-MVP feature)
         team_slug = data.get("team_slug")
@@ -377,8 +380,8 @@ class AuthClient:
         refresh_lifetime = self._coerce_lifetime(
             data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
         )
-        access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
-        refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
+        access_expires_at = datetime.now(timezone.utc) + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_lifetime)
 
         self.credential_store.save(
             access_token=new_access_token,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import toml
@@ -36,8 +36,8 @@ class TestCredentialStoreSave:
         credential_store.save(
             access_token="test_access",
             refresh_token="test_refresh",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -49,8 +49,8 @@ class TestCredentialStoreSave:
         credential_store.save(
             access_token="test_access",
             refresh_token="test_refresh",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -67,8 +67,8 @@ class TestCredentialStoreSave:
         credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -89,8 +89,8 @@ class TestCredentialStoreLoad:
         credential_store.save(
             access_token="test_access",
             refresh_token="test_refresh",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -115,8 +115,8 @@ class TestCredentialStoreClear:
         credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -137,8 +137,8 @@ class TestCredentialStoreTokenExpiry:
         credential_store.save(
             access_token="valid_access",
             refresh_token="test",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -150,8 +150,8 @@ class TestCredentialStoreTokenExpiry:
         credential_store.save(
             access_token="expired_access",
             refresh_token="test",
-            access_expires_at=datetime.utcnow() - timedelta(minutes=1),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
@@ -163,8 +163,8 @@ class TestCredentialStoreTokenExpiry:
         credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
-            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             username="test@example.com",
             server_url="https://test.example.com",
         )
