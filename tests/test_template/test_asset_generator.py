@@ -169,6 +169,74 @@ Mission body uses {SCRIPT}
     assert "spec-kitty agent feature check-prerequisites" in rendered
 
 
+def test_prepare_command_templates_inherits_agent_scripts_from_base(tmp_path: Path) -> None:
+    base_dir = tmp_path / "base"
+    mission_dir = tmp_path / "missions" / "software-dev" / "command-templates"
+    base_dir.mkdir(parents=True)
+    mission_dir.mkdir(parents=True)
+
+    (base_dir / "analyze.md").write_text(
+        """---
+description: Base
+scripts:
+  sh: spec-kitty run
+agent_scripts:
+  sh: source .kittify/env.sh
+---
+Run {SCRIPT} {AGENT_SCRIPT}
+""",
+        encoding="utf-8",
+    )
+    (mission_dir / "analyze.md").write_text(
+        """---
+description: Mission
+scripts:
+  sh: spec-kitty run
+---
+Mission body uses {SCRIPT} {AGENT_SCRIPT}
+""",
+        encoding="utf-8",
+    )
+
+    merged_dir = prepare_command_templates(base_dir, mission_dir)
+    rendered = render_command_template(
+        merged_dir / "analyze.md",
+        script_type="sh",
+        agent_key="codex",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+    assert "source .kittify/env.sh" in rendered
+
+
+def test_prepare_command_templates_handles_non_dict_frontmatter(tmp_path: Path) -> None:
+    base_dir = tmp_path / "base"
+    mission_dir = tmp_path / "missions" / "software-dev" / "command-templates"
+    base_dir.mkdir(parents=True)
+    mission_dir.mkdir(parents=True)
+
+    (base_dir / "demo.md").write_text(
+        """---
+- not-a-dict
+---
+Base body should be ignored.
+""",
+        encoding="utf-8",
+    )
+    (mission_dir / "demo.md").write_text(
+        """---
+- also-not-a-dict
+---
+Mission-only body.
+""",
+        encoding="utf-8",
+    )
+
+    merged_dir = prepare_command_templates(base_dir, mission_dir)
+    merged_text = (merged_dir / "demo.md").read_text(encoding="utf-8")
+    assert merged_text.strip() == "Mission-only body."
+
+
 def test_render_command_template_fails_when_script_missing_and_required(tmp_path: Path) -> None:
     template_path = tmp_path / "broken.md"
     template_path.write_text(

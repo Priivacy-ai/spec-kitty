@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+import specify_cli.cli.commands.merge as merge_module
 from specify_cli.cli.commands.merge import (
     _build_workspace_per_wp_merge_plan,
     detect_worktree_structure,
     extract_feature_slug,
     extract_wp_id,
     find_wp_worktrees,
+    merge_workspace_per_wp,
     validate_wp_ready_for_merge,
 )
 from specify_cli.core.vcs import VCSBackend
@@ -610,6 +613,109 @@ class TestEffectiveMergePlanning:
         assert "010-test-feature-WP01" not in result.stdout
         assert "010-test-feature-WP02" not in result.stdout
         assert "010-test-feature-WP03" not in result.stdout
+
+
+class TestMergeWorkspacePerWpDryRun:
+    """Focused dry-run coverage for workspace-per-WP merge command paths."""
+
+    def test_json_dry_run_when_no_wp_workspaces(self, git_repo: Path, capsys):
+        from specify_cli.cli import StepTracker
+
+        tracker = StepTracker("Merge")
+        tracker.add("merge", "Merge feature branch")
+
+        merge_workspace_per_wp(
+            repo_root=git_repo,
+            merge_root=git_repo,
+            feature_slug="999-missing-feature",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="merge",
+            delete_branch=False,
+            remove_worktree=False,
+            push=False,
+            dry_run=True,
+            json_output=True,
+            tracker=tracker,
+        )
+
+        payload = capsys.readouterr().out.strip().splitlines()[-1]
+        data = json.loads(payload)
+        assert data["feature_slug"] == "999-missing-feature"
+        assert data["effective_wp_branches"] == []
+        assert "No WP branches/worktrees found" in data["reason_summary"][0]
+
+    def test_human_dry_run_includes_squash_push_and_cleanup_steps(
+        self, git_repo: Path, monkeypatch, capsys
+    ):
+        from specify_cli.cli import StepTracker
+
+        existing = git_repo / ".worktrees" / "030-dryrun-feature-WP01"
+        existing.parent.mkdir(exist_ok=True)
+        existing.mkdir()
+        missing = git_repo / ".worktrees" / "030-dryrun-feature-WP02"
+
+        wp_workspaces = [
+            (existing, "WP01", "030-dryrun-feature-WP01"),
+            (missing, "WP02", "030-dryrun-feature-WP02"),
+        ]
+        merge_plan = {
+            "all_wp_workspaces": wp_workspaces,
+            "effective_wp_workspaces": wp_workspaces,
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {},
+            "reason_summary": ["Dry-run coverage"],
+        }
+
+        monkeypatch.setattr(
+            merge_module,
+            "validate_wp_ready_for_merge",
+            lambda *_args, **_kwargs: (True, ""),
+        )
+        monkeypatch.setattr(
+            merge_module,
+            "find_wp_worktrees",
+            lambda *_args, **_kwargs: wp_workspaces,
+        )
+        monkeypatch.setattr(
+            merge_module,
+            "_build_workspace_per_wp_merge_plan",
+            lambda *_args, **_kwargs: merge_plan,
+        )
+
+        tracker = StepTracker("Merge")
+        tracker.add("verify", "Verify merge readiness")
+        tracker.add("checkout", "Switch to main")
+        tracker.add("merge", "Merge feature branch")
+        tracker.add("worktree", "Remove worktrees")
+        tracker.add("branch", "Delete branches")
+
+        merge_workspace_per_wp(
+            repo_root=git_repo,
+            merge_root=git_repo,
+            feature_slug="030-dryrun-feature",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="squash",
+            delete_branch=True,
+            remove_worktree=True,
+            push=True,
+            dry_run=True,
+            json_output=False,
+            tracker=tracker,
+        )
+
+        output = capsys.readouterr().out
+        assert "Dry run - would execute" in output
+        assert "git merge --squash 030-dryrun-feature-WP01" in output
+        assert "git merge --squash 030-dryrun-feature-WP02" in output
+        assert "git push origin main" in output
+        normalized_output = output.replace("\n", "").replace(" ", "")
+        expected_remove = f"git worktree remove {existing}".replace(" ", "")
+        assert expected_remove in normalized_output
+        assert "# skip worktree removal for WP02 (path not present)" in output
+        assert "git branch -d 030-dryrun-feature-WP01" in output
+        assert "git branch -d 030-dryrun-feature-WP02" in output
 
 
 class TestVCSAbstractionIntegration:

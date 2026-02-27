@@ -484,6 +484,20 @@ class TestValidateFeatureStructure:
         assert result["valid"] is False
         assert "Missing required file: tasks.md" in result["errors"]
 
+    def test_includes_tasks_file_when_present_without_strict_tasks_check(self, tmp_path: Path):
+        """Should expose tasks.md path when present even if check_tasks=False."""
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        (feature_dir / "spec.md").write_text("spec")
+        (feature_dir / "tasks.md").write_text("tasks")
+
+        result = validate_feature_structure(feature_dir, check_tasks=False)
+
+        assert result["valid"] is True
+        assert result["paths"]["tasks_file"] == str(feature_dir / "tasks.md")
+        assert result["artifact_files"]["tasks_file"] == str(feature_dir / "tasks.md")
+        assert "tasks.md" in result["available_docs"]
+
     def test_includes_paths_in_result(self, tmp_path: Path):
         """Should include important paths in validation result."""
         # Setup

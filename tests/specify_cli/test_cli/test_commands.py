@@ -234,6 +234,99 @@ def test_merge_dry_run_outputs_steps(monkeypatch, tmp_path: Path) -> None:
     assert "git checkout main" in result.stdout
 
 
+def test_merge_json_dry_run_requires_feature_on_target_branch(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return 0, "2.x", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--target", "2.x"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout.strip())
+    assert "Already on 2.x" in payload["error"]
+
+
+def test_merge_json_dry_run_workspace_per_wp_plan(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    existing = tmp_path / "worktree-existing"
+    existing.mkdir()
+    missing = tmp_path / "worktree-missing"
+
+    wp_workspaces = [
+        (existing, "WP01", "010-test-feature-WP01"),
+        (missing, "WP02", "010-test-feature-WP02"),
+    ]
+    merge_plan = {
+        "all_wp_workspaces": wp_workspaces,
+        "effective_wp_workspaces": wp_workspaces,
+        "skipped_already_in_target": [],
+        "skipped_ancestor_of": {},
+        "reason_summary": ["plan"],
+    }
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return 0, "010-test-feature-WP99", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
+    monkeypatch.setattr(merge_module, "detect_worktree_structure", lambda *_args, **_kwargs: "workspace-per-wp")
+    monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *_args, **_kwargs: wp_workspaces)
+    monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *_args, **_kwargs: merge_plan)
+    monkeypatch.setattr(merge_module, "get_main_repo_root", lambda path: path)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _repo: "2.x")
+
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--json", "--dry-run", "--strategy", "squash", "--push", "--feature", "010-test-feature"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout.strip())
+    assert payload["target_branch"] == "2.x"
+    assert payload["effective_wp_branches"] == ["010-test-feature-WP01", "010-test-feature-WP02"]
+    assert "git merge --squash 010-test-feature-WP01" in payload["planned_steps"]
+    assert "git merge --squash 010-test-feature-WP02" in payload["planned_steps"]
+    assert "git push origin 2.x" in payload["planned_steps"]
+    assert f"git worktree remove {existing}" in payload["planned_steps"]
+    assert "# skip worktree removal for WP02 (path not present)" in payload["planned_steps"]
+    assert "git branch -d 010-test-feature-WP01" in payload["planned_steps"]
+    assert "git branch -d 010-test-feature-WP02" in payload["planned_steps"]
+
+
+def test_merge_json_dry_run_legacy_plan(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return 0, "feature/test", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
+    monkeypatch.setattr(merge_module, "detect_worktree_structure", lambda *_args, **_kwargs: "legacy")
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _repo: "main")
+
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--strategy", "rebase"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout.strip())
+    assert payload["target_branch"] == "main"
+    assert "git merge --ff-only feature/test (after rebase)" in payload["planned_steps"]
+    assert payload["reason_summary"] == ["Legacy/single-branch merge plan generated."]
+
+
 def test_merge_skips_pull_when_target_has_no_tracking(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

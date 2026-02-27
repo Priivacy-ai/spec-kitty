@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.upgrade.migrations.m_2_0_1_fix_generated_command_templates import (
@@ -87,3 +88,49 @@ def test_noop_when_files_are_already_clean(tmp_path: Path) -> None:
     result = migration.apply(project, dry_run=False)
     assert result.success is True
     assert result.changes_made == ["No generated prompt files needed repair"]
+
+
+def test_detect_skips_unreadable_generated_prompt(tmp_path: Path) -> None:
+    project = _make_project(tmp_path)
+    stale = project / ".codex" / "prompts" / "spec-kitty.analyze.md"
+    stale.write_text("spec-kitty agent check-prerequisites --json --require-tasks\n", encoding="utf-8")
+
+    migration = FixGeneratedCommandTemplatesMigration()
+    with patch.object(Path, "read_text", side_effect=OSError("permission denied")):
+        assert migration.detect(project) is False
+
+
+def test_apply_records_warning_for_unreadable_file(tmp_path: Path) -> None:
+    project = _make_project(tmp_path)
+    stale = project / ".codex" / "prompts" / "spec-kitty.merge.md"
+    stale.write_text("spec-kitty agent check-prerequisites --json --require-tasks\n", encoding="utf-8")
+
+    migration = FixGeneratedCommandTemplatesMigration()
+    with patch.object(Path, "read_text", side_effect=OSError("permission denied")):
+        result = migration.apply(project, dry_run=False)
+
+    assert result.success is True
+    assert any("Skipped unreadable file" in warning for warning in result.warnings)
+
+
+def test_apply_records_error_when_write_fails(tmp_path: Path) -> None:
+    project = _make_project(tmp_path)
+    stale = project / ".codex" / "prompts" / "spec-kitty.merge.md"
+    stale.write_text("spec-kitty agent check-prerequisites --json --require-tasks\n", encoding="utf-8")
+
+    migration = FixGeneratedCommandTemplatesMigration()
+    with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+        result = migration.apply(project, dry_run=False)
+
+    assert result.success is False
+    assert any("Failed to update" in error for error in result.errors)
+
+
+def test_iter_generated_prompt_files_skips_missing_agent_dir(tmp_path: Path) -> None:
+    project = _make_project(tmp_path)
+    opencode_dir = project / ".opencode" / "command"
+    opencode_dir.rmdir()
+
+    migration = FixGeneratedCommandTemplatesMigration()
+    files = migration._iter_generated_prompt_files(project)
+    assert all(str(path).startswith(str(project / ".codex")) for path in files) or files == []
