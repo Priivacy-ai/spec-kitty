@@ -366,6 +366,83 @@ class TestStartReviewAndTransition:
         payload = json.loads(result.output)
         assert payload["error_code"] == "POLICY_METADATA_REQUIRED"
 
+    def test_transition_rejects_for_review_to_planned_without_review_ref(
+        self, tmp_path: Path
+    ) -> None:
+        """for_review -> planned (reject) must require --review-ref."""
+        repo_root = tmp_path / "repo"
+        feature_dir = repo_root / "kitty-specs" / "099-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        _write_wp(tasks_dir, "WP01", lane="for_review", agent="claude")
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"status_phase": 1}), encoding="utf-8"
+        )
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "planned",
+                    "--actor",
+                    "reviewer",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.output)
+        assert payload["error_code"] == "TRANSITION_REJECTED"
+        assert "review-ref" in payload["data"]["message"]
+
+    def test_transition_for_review_to_planned_with_review_ref_succeeds(
+        self, tmp_path: Path
+    ) -> None:
+        """for_review -> planned with --review-ref is the valid review-reject path."""
+        repo_root = tmp_path / "repo"
+        feature_dir = repo_root / "kitty-specs" / "099-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        wp_path = _write_wp(tasks_dir, "WP01", lane="for_review", agent="claude")
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"status_phase": 1}), encoding="utf-8"
+        )
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "planned",
+                    "--actor",
+                    "reviewer",
+                    "--review-ref",
+                    "feedback-reject-001",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["data"]["from_lane"] == "for_review"
+        assert payload["data"]["to_lane"] == "planned"
+        assert _lane_of(wp_path) == "planned"
+
 
 class TestAppendAcceptMerge:
     def test_append_history_returns_history_id(self, tmp_path: Path) -> None:
