@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from specify_cli.core.paths import get_main_repo_root, locate_project_root
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -72,30 +74,21 @@ def find_repo_root(start: Optional[Path] = None) -> Path:
     """
     current = (start or Path.cwd()).resolve()
 
+    detected_root = locate_project_root(current)
+    if detected_root is not None:
+        return get_main_repo_root(detected_root)
+
+    # Fallback: support plain git repositories that do not contain .kittify yet.
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
+        if git_path.is_dir():
+            return get_main_repo_root(candidate)
+
         if git_path.is_file():
-            # This is a worktree! The .git file contains a pointer to the main
-            # repo.  Format: "gitdir: /path/to/main/.git/worktrees/name"
-            try:
-                content = git_path.read_text().strip()
-                if content.startswith("gitdir:"):
-                    gitdir = Path(content.split(":", 1)[1].strip())
-                    # Navigate: .git/worktrees/name -> .git -> main repo root
-                    main_git_dir = gitdir.parent.parent
-                    main_repo = main_git_dir.parent
-                    if main_repo.exists():
-                        return main_repo
-            except (OSError, ValueError):
-                pass
-
-        elif git_path.is_dir():
-            return candidate
-
-        # Also check for .kittify marker (fallback for non-git scenarios)
-        if (candidate / ".kittify").exists():
-            return candidate
+            resolved = get_main_repo_root(candidate)
+            if resolved != candidate:
+                return resolved
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
