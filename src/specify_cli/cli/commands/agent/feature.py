@@ -33,7 +33,7 @@ from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
     run_git_preflight,
 )
-from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
     detect_feature_directory,
     FeatureDetectionError,

@@ -64,6 +64,7 @@ def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
             return False
     return True
 
+
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     """Run git preflight checks and stop early with deterministic remediation."""
     if not (repo_root / ".git").exists():
