@@ -1,7 +1,7 @@
 """Tests for dossier REST API endpoints (WP06)."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -53,7 +53,7 @@ def sample_artifacts():
             required_status="required",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.utcnow(),
+            indexed_at=datetime.now(timezone.utc),
         ),
         ArtifactRef(
             artifact_key="output.tasks.per_wp",
@@ -66,7 +66,7 @@ def sample_artifacts():
             required_status="required",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.utcnow(),
+            indexed_at=datetime.now(timezone.utc),
         ),
         ArtifactRef(
             artifact_key="evidence.review.notes",
@@ -79,7 +79,7 @@ def sample_artifacts():
             required_status="optional",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.utcnow(),
+            indexed_at=datetime.now(timezone.utc),
         ),
         ArtifactRef(
             artifact_key="policy.manifest",
@@ -92,7 +92,7 @@ def sample_artifacts():
             required_status="required",
             is_present=False,
             error_reason="not_found",
-            indexed_at=datetime.utcnow(),
+            indexed_at=datetime.now(timezone.utc),
         ),
     ]
 
@@ -108,8 +108,8 @@ def sample_dossier(sample_artifacts):
         artifacts=sample_artifacts,
         manifest={"required": ["input.spec.main", "output.tasks.per_wp", "policy.manifest"]},
         latest_snapshot=None,
-        dossier_created_at=datetime.utcnow(),
-        dossier_updated_at=datetime.utcnow(),
+        dossier_created_at=datetime.now(timezone.utc),
+        dossier_updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -134,7 +134,7 @@ def sample_snapshot():
             {"artifact_key": "evidence.review.notes", "artifact_class": "evidence"},
             {"artifact_key": "policy.manifest", "artifact_class": "policy"},
         ],
-        computed_at=datetime.utcnow(),
+        computed_at=datetime.now(timezone.utc),
     )
 
 

@@ -9,7 +9,7 @@ Tests cover:
 
 import json
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import ValidationError
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
@@ -393,7 +393,7 @@ class TestArtifactRefSerialization:
 
     def test_datetime_serialization(self):
         """Datetime fields serialize to ISO format."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         artifact = ArtifactRef(
             artifact_key="test",
             artifact_class="input",

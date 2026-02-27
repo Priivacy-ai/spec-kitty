@@ -22,7 +22,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -487,7 +487,7 @@ def capture_baseline(
         baseline_key=current_key,
         baseline_key_hash=current_key.compute_hash(),
         parity_hash_sha256=current_snapshot.parity_hash_sha256,
-        captured_at=datetime.utcnow(),
+        captured_at=datetime.now(timezone.utc),
         captured_by=project_identity.node_id or "unknown",
     )
 
