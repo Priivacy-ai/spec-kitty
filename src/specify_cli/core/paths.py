@@ -9,6 +9,25 @@ from typing import Optional, Tuple
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
 
+def _is_worktree_gitdir(gitdir: Path) -> bool:
+    """Check if a gitdir path has the .git/worktrees/<name> topology.
+
+    True git worktrees point to ``<main>/.git/worktrees/<wt-name>``.
+    Bare-repo worktrees point to ``<repo>.git/worktrees/<wt-name>``.
+    Submodules point to ``../.git/modules/<mod>`` and separate-git-dir
+    clones point to an arbitrary directory.  Only the first two cases
+    are worktrees.
+    """
+    # gitdir = …/.git/worktrees/<name>        (non-bare)
+    # gitdir = …/<repo>.git/worktrees/<name>  (bare)
+    #   gitdir.parent.name  == "worktrees"
+    #   gitdir.parent.parent.name endswith ".git"
+    return (
+        gitdir.parent.name == "worktrees"
+        and gitdir.parent.parent.name.endswith(".git")
+    )
+
+
 def locate_project_root(start: Path | None = None) -> Optional[Path]:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
@@ -51,17 +70,19 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
         git_path = candidate / ".git"
 
         if git_path.is_file():
-            # This is a worktree! The .git file contains a pointer to the main repo.
-            # Format: "gitdir: /path/to/main/.git/worktrees/worktree-name"
+            # .git files with gitdir: pointers appear in worktrees,
+            # submodules, and separate-git-dir clones.  Only follow the
+            # pointer when it has the .git/worktrees/<name> topology.
             try:
                 content = git_path.read_text().strip()
                 if content.startswith("gitdir:"):
                     gitdir = Path(content.split(":", 1)[1].strip())
-                    # Navigate: .git/worktrees/name -> .git -> main repo root
-                    main_git_dir = gitdir.parent.parent
-                    main_repo = main_git_dir.parent
-                    if main_repo.exists() and (main_repo / KITTIFY_DIR).is_dir():
-                        return main_repo
+                    if _is_worktree_gitdir(gitdir):
+                        # Navigate: .git/worktrees/name -> .git -> main repo root
+                        main_git_dir = gitdir.parent.parent
+                        main_repo = main_git_dir.parent
+                        if main_repo.exists() and (main_repo / KITTIFY_DIR).is_dir():
+                            return main_repo
             except (OSError, ValueError):
                 # If we can't read or parse the .git file, continue searching
                 pass
@@ -86,22 +107,50 @@ def is_worktree_context(path: Path) -> bool:
     """
     Detect if the given path is within a git worktree directory.
 
-    Checks if '.worktrees' appears in the path hierarchy, indicating
-    execution from within a feature worktree.
+    Checks two conditions:
+    1. '.worktrees' appears in the path hierarchy (spec-kitty managed worktrees)
+    2. The nearest .git entry is a file with a gitdir: pointer (generic git worktree)
 
     Args:
         path: Path to check (typically current working directory)
 
     Returns:
-        True if path is within .worktrees/ directory, False otherwise
+        True if path is within any git worktree, False otherwise
 
     Examples:
         >>> is_worktree_context(Path("/repo/.worktrees/feature-001"))
         True
         >>> is_worktree_context(Path("/repo/kitty-specs"))
         False
+        >>> # Also detects external worktrees (e.g. under /tmp)
+        >>> is_worktree_context(Path("/tmp/my-worktree"))  # if .git is a gitdir pointer
+        True
     """
-    return WORKTREES_DIR in path.parts
+    # Fast path: spec-kitty managed worktrees
+    if WORKTREES_DIR in path.parts:
+        return True
+
+    # Generic detection: walk up to find .git file with gitdir pointer
+    # Only recognise true worktrees (.git/worktrees/<name> topology),
+    # NOT submodules (.git/modules/<mod>) or separate-git-dir clones.
+    resolved = path.resolve()
+    for candidate in [resolved, *resolved.parents]:
+        git_path = candidate / ".git"
+        if git_path.is_file():
+            try:
+                content = git_path.read_text().strip()
+                if content.startswith("gitdir:"):
+                    gitdir = Path(content.split(":", 1)[1].strip())
+                    if _is_worktree_gitdir(gitdir):
+                        return True
+            except OSError:
+                pass
+            break
+        elif git_path.is_dir():
+            # Main repo .git directory — not a worktree
+            break
+
+    return False
 
 
 def resolve_with_context(start: Path | None = None) -> Tuple[Optional[Path], bool]:
