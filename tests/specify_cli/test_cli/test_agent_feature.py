@@ -121,6 +121,52 @@ class TestCreateFeatureCommand:
         assert "Error:" in result.stdout
         assert "Could not locate project root" in result.stdout
 
+    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
+    def test_blocks_create_feature_from_worktree_with_main_repo_hint(
+        self,
+        mock_cwd: Mock,
+        mock_locate: Mock,
+        mock_is_worktree: Mock,
+    ) -> None:
+        """Should print main repo hint when worktree context is detected."""
+        mock_cwd.return_value = Path("/tmp/external-worktree")
+        mock_is_worktree.return_value = True
+        mock_locate.return_value = Path("/tmp/main-repo")
+
+        result = runner.invoke(app, ["create-feature", "test-feature"])
+
+        assert result.exit_code == 1
+        assert "Cannot create features from inside a worktree" in result.stdout
+        assert "Run from the main repository instead:" in result.stdout
+        assert "cd " in result.stdout
+        assert "/main-repo" in result.stdout
+        assert "spec-kitty agent create-feature test-feature" in result.stdout
+
+    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
+    def test_blocks_create_feature_from_worktree_with_worktrees_fallback_hint(
+        self,
+        mock_cwd: Mock,
+        mock_locate: Mock,
+        mock_is_worktree: Mock,
+    ) -> None:
+        """Should fall back to .worktrees path slicing when main repo lookup fails."""
+        mock_cwd.return_value = Path("/tmp/main-repo/.worktrees/feature-001")
+        mock_is_worktree.return_value = True
+        mock_locate.return_value = None
+
+        result = runner.invoke(app, ["create-feature", "test-feature"])
+
+        assert result.exit_code == 1
+        assert "Cannot create features from inside a worktree" in result.stdout
+        assert "Run from the main repository instead:" in result.stdout
+        assert "cd " in result.stdout
+        assert "/main-repo" in result.stdout
+        assert "spec-kitty agent create-feature test-feature" in result.stdout
+
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")

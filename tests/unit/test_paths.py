@@ -106,6 +106,22 @@ def test_is_worktree_context_external_worktree(tmp_path: Path) -> None:
     assert is_worktree_context(nested) is True
 
 
+def test_locate_project_root_from_external_worktree_pointer(tmp_path: Path) -> None:
+    """locate_project_root should resolve external worktree pointers to main repo root."""
+    main_repo = tmp_path / "main-repo"
+    main_repo.mkdir()
+    (main_repo / ".kittify").mkdir()
+
+    external_wt = tmp_path / "external-wt"
+    external_wt.mkdir()
+    (external_wt / ".git").write_text(
+        f"gitdir: {main_repo}/.git/worktrees/external-wt\n",
+        encoding="utf-8",
+    )
+
+    assert locate_project_root(external_wt) == main_repo
+
+
 def test_is_worktree_context_bare_repo_worktree(tmp_path: Path) -> None:
     """Bare-repo worktree (gitdir: /path/repo.git/worktrees/<wt>) IS a worktree."""
     bare_wt = tmp_path / "bare-worktree"
@@ -170,6 +186,26 @@ def test_is_worktree_context_separate_git_dir(tmp_path: Path) -> None:
     nested = repo / "src"
     nested.mkdir()
     assert is_worktree_context(nested) is False
+
+
+def test_is_worktree_context_handles_gitfile_read_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Should return False when .git pointer cannot be read."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git_file = repo / ".git"
+    git_file.write_text("gitdir: /some/repo/.git/worktrees/wt\n", encoding="utf-8")
+
+    original_read_text = Path.read_text
+
+    def _broken_read_text(self: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self == git_file:
+            raise OSError("simulated read failure")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _broken_read_text)
+    assert is_worktree_context(repo) is False
 
 
 def test_resolve_with_context_main_repo(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
