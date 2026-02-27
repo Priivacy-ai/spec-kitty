@@ -17,7 +17,7 @@ from typing import Any
 import typer
 
 from specify_cli.core.dependency_graph import build_dependency_graph
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.git.commit_helpers import safe_commit
 from specify_cli.merge import get_merge_order, run_preflight
 from specify_cli.tasks_support import (
@@ -65,9 +65,10 @@ def _fail(command: str, error_code: str, message: str, data: dict[str, Any] | No
 
 
 def _get_main_repo_root() -> Path:
-    root = locate_project_root()
+    cwd = Path.cwd()
+    root = locate_project_root(cwd)
     if root is None:
-        return Path.cwd()
+        return get_main_repo_root(cwd)
     return root
 
 

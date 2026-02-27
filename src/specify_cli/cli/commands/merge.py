@@ -16,6 +16,7 @@ import typer
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
+from specify_cli.core.paths import get_main_repo_root
 from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
@@ -34,34 +35,6 @@ from specify_cli.merge.state import (
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-
-
-def _list_wp_branches(repo_root: Path, feature_slug: str) -> list[tuple[str, str]]:
-    """List local WP branches for a feature, returning (wp_id, branch_name)."""
-    main_repo = get_main_repo_root(repo_root)
-    pattern = re.compile(rf"^{re.escape(feature_slug)}-(WP\d{{2}})$")
-    result = subprocess.run(
-        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"],
-        cwd=str(main_repo),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return []
-
-    branches: list[tuple[str, str]] = []
-    for raw in result.stdout.splitlines():
-        branch = raw.strip()
-        if not branch:
-            continue
-        match = pattern.match(branch)
-        if match:
-            branches.append((match.group(1), branch))
-    branches.sort(key=lambda item: item[0])
-    return branches
 
 
 def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
@@ -86,41 +59,6 @@ def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
         if lane_match.group(1).strip().lower() != "done":
             return False
     return True
-
-
-def get_main_repo_root(repo_root: Path) -> Path:
-    """Get the main repository root, even if called from a worktree.
-
-    If repo_root is a worktree, find its main repository.
-    Otherwise, return repo_root as-is.
-    """
-    git_dir = repo_root / ".git"
-
-    # If .git is a directory, we're in the main repo
-    if git_dir.is_dir():
-        return repo_root
-
-    # If .git is a file, we're in a worktree - read it to find main repo
-    if git_dir.is_file():
-        git_file_content = git_dir.read_text().strip()
-        # Format: "gitdir: /path/to/main/repo/.git/worktrees/feature-name"
-        if git_file_content.startswith("gitdir: "):
-            gitdir_path = Path(git_file_content[8:])  # Remove "gitdir: " prefix
-            # Go up from .git/worktrees/feature-name to main repo root
-            # gitdir_path points to: /main/repo/.git/worktrees/feature-name
-            # We want: /main/repo
-            if "worktrees" in gitdir_path.parts:
-                # Find the .git parent
-                main_git_dir = gitdir_path
-                while main_git_dir.name != ".git":
-                    main_git_dir = main_git_dir.parent
-                    if main_git_dir == main_git_dir.parent:
-                        # Reached root without finding .git
-                        break
-                return main_git_dir.parent
-
-    # Fallback: return as-is
-    return repo_root
 
 
 def _wp_sort_key(wp_id: str) -> tuple[int, str]:
