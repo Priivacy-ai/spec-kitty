@@ -232,6 +232,7 @@ def _validate_transition(
         ("planned", "in_progress"),
         ("in_progress", "for_review"),
         ("for_review", "in_progress"),
+        ("for_review", "planned"),
         ("for_review", "done"),
     }
 
@@ -243,6 +244,9 @@ def _validate_transition(
 
     if from_api_lane == "for_review" and to_api_lane == "in_progress" and not review_ref:
         return "--review-ref is required for for_review -> in_progress"
+
+    if from_api_lane == "for_review" and to_api_lane == "planned" and not review_ref:
+        return "--review-ref is required for for_review -> planned (review rejection)"
 
     return None
 
