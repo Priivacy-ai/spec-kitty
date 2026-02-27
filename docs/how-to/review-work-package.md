@@ -31,13 +31,19 @@ The review command:
 ## Providing Feedback
 
 If changes are required:
-1. Add feedback in the **Review Feedback** section of the WP file.
-2. Move the WP back to `planned` so the implementer can pick it up again.
+1. Write feedback to a temporary file (the review prompt shows a unique suggested path).
+2. Move the WP back to `planned` with `--review-feedback-file`.
+3. The command persists feedback in shared git common-dir and stores a pointer in frontmatter `review_feedback`.
 
 In your terminal:
 
 ```bash
-spec-kitty agent tasks move-task WP01 --to planned --note "Changes requested: <summary>"
+cat > /tmp/spec-kitty-review-feedback-WP01.md <<'EOF'
+**Issue 1**: <description and how to fix>
+**Issue 2**: <description and how to fix>
+EOF
+
+spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file /tmp/spec-kitty-review-feedback-WP01.md --note "Changes requested: <summary>"
 ```
 
 ## Passing Review

@@ -38,5 +38,6 @@ If no WP ID is provided, it will automatically find the first work package with 
 - ❌ Reject: Write feedback to the temp file path shown in the prompt, then run `spec-kitty agent tasks move-task WP## --to planned --review-feedback-file <temp-file-path>`
 
 **The prompt will provide a unique temp file path for feedback - use that exact path to avoid conflicts with other agents!**
+`move-task` will persist the feedback artifact in shared git common-dir and write a `review_feedback: "feedback://..."` pointer into the WP frontmatter.
 
 **The Python script handles all file updates automatically - no manual editing required!**

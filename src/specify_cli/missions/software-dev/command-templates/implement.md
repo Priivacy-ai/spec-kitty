@@ -61,6 +61,8 @@ spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 
 If no WP ID is provided, it will automatically find the first work package with `lane: "planned"` and move it to "doing" for you.
 
+If the workflow prompt indicates `review_status: "has_feedback"`, read the frontmatter `review_feedback` pointer first (`feedback://...`). That pointer is the canonical reviewer feedback artifact.
+
 ---
 
 ## Commit Workflow

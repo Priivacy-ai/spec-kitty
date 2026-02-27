@@ -278,8 +278,8 @@ class TestFullWorkflow:
         output = _parse_json_output(result.stdout)
         assert "requires review feedback" in output["error"]
 
-    def test_persist_feedback_content_and_feedback_file_path(self, task_repo: Path, monkeypatch):
-        """Should persist feedback text and source file path deterministically."""
+    def test_persist_feedback_pointer_and_common_dir_artifact(self, task_repo: Path, monkeypatch):
+        """Should persist review feedback in git common-dir and store feedback:// pointer only."""
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
@@ -299,7 +299,6 @@ class TestFullWorkflow:
 
         feedback_file = task_repo / "feedback.md"
         feedback_file.write_text("**Issue 1**: deterministic feedback persistence\n", encoding="utf-8")
-        resolved_feedback = str(feedback_file.resolve())
 
         result = runner.invoke(
             app,
@@ -313,12 +312,46 @@ class TestFullWorkflow:
         assert result.exit_code == 0, f"stdout: {result.stdout}"
         output = _parse_json_output(result.stdout)
         assert output["new_lane"] == "planned"
+        assert output["review_feedback"].startswith("feedback://001-test-feature/WP01/")
+
+        git_common_raw = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=task_repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        git_common_dir = Path(git_common_raw)
+        if not git_common_dir.is_absolute():
+            git_common_dir = (task_repo / git_common_dir).resolve()
+        persisted_dir = git_common_dir / "spec-kitty" / "feedback" / "001-test-feature" / "WP01"
+        persisted_files = list(persisted_dir.glob("*.md"))
+        assert len(persisted_files) == 1
+        assert persisted_files[0].read_text(encoding="utf-8") == feedback_file.read_text(encoding="utf-8")
 
         content = task_file.read_text(encoding="utf-8")
-        assert "## Review Feedback" in content
-        assert "**Issue 1**: deterministic feedback persistence" in content
-        assert f"**Feedback file**: `{resolved_feedback}`" in content
-        assert f'review_feedback_file: "{resolved_feedback}"' in content
+        assert f'review_feedback: "{output["review_feedback"]}"' in content
+        assert "**Issue 1**: deterministic feedback persistence" not in content
+        assert "review_feedback_file:" not in content
+
+        events_file = task_repo / "kitty-specs" / "001-test-feature" / "status.events.jsonl"
+        assert events_file.exists()
+        event_rows = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        assert any(
+            row.get("to_lane") == "planned" and row.get("review_ref") == output["review_feedback"]
+            for row in event_rows
+        )
+
+        # Feedback artifacts are stored in git common-dir only; no extra tracked files.
+        status_output = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=task_repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        status_lines = [line.strip() for line in status_output.splitlines() if line.strip()]
+        assert not any("kitty-specs/001-test-feature/feedback/" in line for line in status_lines)
 
 
 class TestLocationIndependence:
