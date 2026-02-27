@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-02-27
+
+### ✅ Added
+
+- **Flag-gated tracker command group**: added `spec-kitty tracker ...` commands behind `SPEC_KITTY_ENABLE_SAAS_SYNC`, including provider listing, bind/unbind, mapping, local sync pull/push/run, and snapshot publish.
+- **Tracker host-local persistence + credentials support**: added CLI-owned tracker SQLite cache/checkpoints and provider credential handling consistent with existing Spec Kitty host persistence patterns.
+
+### 🔧 Changed
+
+- **Dependency floor hardening for 2.x installs**: added explicit lower bounds for previously unbounded core CLI direct dependencies to reduce resolver drift in fresh environments.
+- **Workflow review lane guard**: review start now requires a valid `for_review` lane state before progressing.
+
 ## [2.0.1] - 2026-02-26
 
 ### 🐛 Fixed

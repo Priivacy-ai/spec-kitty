@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "2.0.1"
+version = "2.0.2"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -49,11 +49,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "typer",
-    "rich",
-    "httpx[socks]",
-    "platformdirs",
-    "readchar",
+    "typer>=0.24.1",
+    "rich>=14.3.3",
+    "httpx[socks]>=0.28.1",
+    "platformdirs>=4.9.2",
+    "readchar>=4.2.1",
     "truststore>=0.10.4",
     "pyyaml>=6.0",
     "ruamel.yaml>=0.18.0",
