@@ -173,7 +173,7 @@ def test_status_routes_to_main_for_legacy_features(dual_branch_repo):
     assert result.returncode == 0, f"Failed to move task: {result.stderr}\n{result.stdout}"
 
     # Verify status commit on main
-    assert_commit_on_branch(repo, "main", "Move WP01 to doing")
+    assert_commit_on_branch(repo, "main", "Move WP01 to in_progress")
 
     # Verify 2.x branch unaffected (should only have initial commits)
     result_2x = subprocess.run(
@@ -219,7 +219,7 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
     assert result.returncode == 0, f"Failed to move task: {result.stderr}\n{result.stdout}"
 
     # Verify status commit on 2.x
-    assert_commit_on_branch(repo, "2.x", "Move WP01 to doing")
+    assert_commit_on_branch(repo, "2.x", "Move WP01 to in_progress")
 
     # Verify main branch does NOT have this status commit
     # Main should only have the "Add 025-saas-feature" commit
@@ -236,7 +236,7 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
 
     # Should have feature creation commit but NOT status move commit
     assert any("Add 025-saas-feature" in msg for msg in main_commits), "Feature creation commit missing"
-    assert not any("Move WP01 to doing" in msg for msg in main_commits), "Status commit leaked to main"
+    assert not any("Move WP01 to in_progress" in msg for msg in main_commits), "Status commit leaked to main"
 
 
 def test_status_routing_from_worktree_context(dual_branch_repo):
@@ -510,7 +510,7 @@ def test_fallback_when_target_missing(dual_branch_repo):
         "Should warn about missing target branch"
 
     # Commit should land on current branch (main)
-    assert_commit_on_branch(repo, "main", "Move WP01 to doing")
+    assert_commit_on_branch(repo, "main", "Move WP01 to in_progress")
 
 
 def test_migration_detection_and_routing(dual_branch_repo):
@@ -546,7 +546,7 @@ def test_migration_detection_and_routing(dual_branch_repo):
     assert result.returncode == 0, f"Failed to move task: {result.stderr}"
 
     # Verify commit on main
-    assert_commit_on_branch(repo, "main", "Move WP01 to doing")
+    assert_commit_on_branch(repo, "main", "Move WP01 to in_progress")
 
 
 def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
@@ -634,7 +634,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
         assert result.returncode == 0, f"Failed to move {wp_id}: {result.stderr}"
 
         # Verify commit on 2.x
-        assert_commit_on_branch(repo, "2.x", f"Move {wp_id} to doing")
+        assert_commit_on_branch(repo, "2.x", f"Move {wp_id} to in_progress")
 
         # Sync main to avoid file conflicts in next iteration
         subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
@@ -647,7 +647,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
 
     # Verify: All 3 status commits originated on 2.x
     commits_2x = get_commits_on_branch(repo, "2.x")
-    status_commits = [c for c in commits_2x if "Move WP0" in c and "to doing" in c]
+    status_commits = [c for c in commits_2x if "Move WP0" in c and "to in_progress" in c]
     assert len(status_commits) == 3, f"Expected 3 status commits on 2.x, found {len(status_commits)}"
 
 
@@ -703,7 +703,7 @@ def test_target_branch_detection_from_worktree_path(dual_branch_repo):
     assert result.returncode == 0, f"Failed from worktree: {result.stderr}"
 
     # Verify commit on 2.x (target detection worked)
-    assert_commit_on_branch(repo, "2.x", "Move WP01 to doing")
+    assert_commit_on_branch(repo, "2.x", "Move WP01 to in_progress")
 
     # Cleanup
     subprocess.run(
