@@ -7,7 +7,7 @@ including ArtifactRef (individual artifact metadata) and MissionDossier
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
 import uuid
@@ -96,7 +96,7 @@ class ArtifactRef(BaseModel):
 
     # Timestamps
     indexed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=datetime.utcnow,
         description="When this artifact was indexed",
     )
 
@@ -219,11 +219,11 @@ class MissionDossier(BaseModel):
 
     # Timestamps
     dossier_created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=datetime.utcnow,
         description="When dossier was created",
     )
     dossier_updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=datetime.utcnow,
         description="When dossier was last updated",
     )
 
@@ -362,7 +362,7 @@ class MissionDossierSnapshot(BaseModel):
 
     # Timestamp
     computed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=datetime.utcnow,
         description="When snapshot was computed (UTC)",
     )
 

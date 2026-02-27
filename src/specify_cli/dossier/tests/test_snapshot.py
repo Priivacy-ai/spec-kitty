@@ -10,7 +10,7 @@ Test coverage:
 
 import json
 import random
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -715,7 +715,7 @@ class TestSnapshotEquality:
 
     def test_snapshot_equality_ignores_timestamp(self):
         """Equality should ignore timestamp differences."""
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         snapshot1 = MissionDossierSnapshot(
             feature_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,

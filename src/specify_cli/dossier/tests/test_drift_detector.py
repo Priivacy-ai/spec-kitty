@@ -12,7 +12,7 @@ Tests cover:
 
 import json
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 from unittest.mock import MagicMock, patch
@@ -542,7 +542,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.utcnow(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -582,7 +582,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,  # Baseline hash
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.utcnow(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -648,7 +648,7 @@ class TestDriftDetection:
             baseline_key=old_key,
             baseline_key_hash=old_key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.now(timezone.utc),
+            captured_at=datetime.utcnow(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -762,7 +762,7 @@ class TestCaptureBaseline:
             feature_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
-        before = datetime.now(timezone.utc)
+        before = datetime.utcnow()
         baseline = capture_baseline(
             feature_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
@@ -772,7 +772,7 @@ class TestCaptureBaseline:
             mission_key="software-dev",
             manifest_version="1",
         )
-        after = datetime.now(timezone.utc)
+        after = datetime.utcnow()
         assert before <= baseline.captured_at <= after
 
 
