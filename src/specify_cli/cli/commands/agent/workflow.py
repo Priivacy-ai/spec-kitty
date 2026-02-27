@@ -839,8 +839,16 @@ def review(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "for_review"
+        # Move to "doing" lane if not already there.
+        # Explicit WP review requests must target for_review (or already-claimed doing).
+        current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "for_review"
+        current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
+        if current_lane not in {"for_review", "doing"}:
+            print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
+            print("Only work packages in 'for_review' can start workflow review.")
+            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
+            raise typer.Exit(1)
+
         if current_lane != "doing":
             # Require --agent parameter to track who is reviewing
             if not agent:
