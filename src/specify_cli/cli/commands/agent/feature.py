@@ -1328,18 +1328,14 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         spec_md = feature_dir / "spec.md"
-        if not spec_md.exists():
-            error_msg = f"spec.md not found: {spec_md}"
-            if json_output:
-                print(json.dumps({"error": error_msg}))
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        spec_content = spec_md.read_text(encoding="utf-8")
-        spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
-        all_spec_requirement_ids = set(spec_requirement_ids["all"])
-        functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
+        validate_requirement_mapping = spec_md.exists()
+        all_spec_requirement_ids: set[str] = set()
+        functional_spec_requirement_ids: set[str] = set()
+        if validate_requirement_mapping:
+            spec_content = spec_md.read_text(encoding="utf-8")
+            spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+            all_spec_requirement_ids = set(spec_requirement_ids["all"])
+            functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
         # Parse dependencies and requirement refs from tasks.md (if it exists)
         tasks_md = feature_dir / "tasks.md"
@@ -1378,65 +1374,66 @@ def finalize_tasks(
                             console.print(f"  - {err}")
                     raise typer.Exit(1)
 
-        # Validate requirement mapping
         wp_files = list(tasks_dir.glob("WP*.md"))
-        wp_ids: list[str] = []
-        for wp_file in wp_files:
-            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
-            if wp_id_match:
-                wp_ids.append(wp_id_match.group(1))
+        # Validate requirement mapping only when spec.md is present.
+        if validate_requirement_mapping:
+            wp_ids: list[str] = []
+            for wp_file in wp_files:
+                wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+                if wp_id_match:
+                    wp_ids.append(wp_id_match.group(1))
 
-        missing_requirement_refs_wps: list[str] = []
-        unknown_requirement_refs: dict[str, list[str]] = {}
-        mapped_requirement_ids: set[str] = set()
+            missing_requirement_refs_wps: list[str] = []
+            unknown_requirement_refs: dict[str, list[str]] = {}
+            mapped_requirement_ids: set[str] = set()
 
-        for wp_id in sorted(set(wp_ids)):
-            refs = wp_requirement_refs.get(wp_id, [])
-            if not refs:
-                missing_requirement_refs_wps.append(wp_id)
-                continue
+            for wp_id in sorted(set(wp_ids)):
+                refs = wp_requirement_refs.get(wp_id, [])
+                if not refs:
+                    missing_requirement_refs_wps.append(wp_id)
+                    continue
 
-            unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
-            if unknown_refs:
-                unknown_requirement_refs[wp_id] = unknown_refs
-            else:
-                mapped_requirement_ids.update(refs)
+                unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
+                if unknown_refs:
+                    unknown_requirement_refs[wp_id] = unknown_refs
+                else:
+                    mapped_requirement_ids.update(refs)
 
-        unmapped_functional_requirements = sorted(
-            functional_spec_requirement_ids - mapped_requirement_ids
-        )
+            unmapped_functional_requirements = sorted(
+                functional_spec_requirement_ids - mapped_requirement_ids
+            )
 
-        if (
-            missing_requirement_refs_wps
-            or unknown_requirement_refs
-            or unmapped_functional_requirements
-        ):
-            error_msg = "Requirement mapping validation failed"
-            payload = {
-                "error": error_msg,
-                "missing_requirement_refs_wps": missing_requirement_refs_wps,
-                "unknown_requirement_refs": unknown_requirement_refs,
-                "unmapped_functional_requirements": unmapped_functional_requirements,
-                "dependencies_parsed": wp_dependencies,
-                "requirement_refs_parsed": wp_requirement_refs,
-            }
-            if json_output:
-                print(json.dumps(payload))
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-                if missing_requirement_refs_wps:
-                    console.print("[red]Missing requirement refs:[/red]")
-                    for wp_id in missing_requirement_refs_wps:
-                        console.print(f"  - {wp_id}")
-                if unknown_requirement_refs:
-                    console.print("[red]Unknown requirement refs:[/red]")
-                    for wp_id, refs in unknown_requirement_refs.items():
-                        console.print(f"  - {wp_id}: {', '.join(refs)}")
-                if unmapped_functional_requirements:
-                    console.print("[red]Unmapped functional requirements:[/red]")
-                    for req_id in unmapped_functional_requirements:
-                        console.print(f"  - {req_id}")
-            raise typer.Exit(1)
+            if (
+                missing_requirement_refs_wps
+                or unknown_requirement_refs
+                or unmapped_functional_requirements
+            ):
+                error_msg = "Requirement mapping validation failed"
+                payload = {
+                    "error": error_msg,
+                    "missing_requirement_refs_wps": missing_requirement_refs_wps,
+                    "unknown_requirement_refs": unknown_requirement_refs,
+                    "unmapped_functional_requirements": unmapped_functional_requirements,
+                    "dependencies_parsed": wp_dependencies,
+                    "requirement_refs_parsed": wp_requirement_refs,
+                }
+                if json_output:
+                    print(json.dumps(payload))
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                    if missing_requirement_refs_wps:
+                        console.print("[red]Missing requirement refs:[/red]")
+                        for wp_id in missing_requirement_refs_wps:
+                            console.print(f"  - {wp_id}")
+                    if unknown_requirement_refs:
+                        console.print("[red]Unknown requirement refs:[/red]")
+                        for wp_id, refs in unknown_requirement_refs.items():
+                            console.print(f"  - {wp_id}: {', '.join(refs)}")
+                    if unmapped_functional_requirements:
+                        console.print("[red]Unmapped functional requirements:[/red]")
+                        for req_id in unmapped_functional_requirements:
+                            console.print(f"  - {req_id}")
+                raise typer.Exit(1)
 
         # Update each WP file's frontmatter with dependencies + requirement refs
         updated_count = 0

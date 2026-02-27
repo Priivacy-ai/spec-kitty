@@ -484,6 +484,63 @@ title: "WP01"
         assert payload["error"] == "Requirement mapping validation failed"
         assert payload["missing_requirement_refs_wps"] == ["WP01"]
 
+    def test_succeeds_without_spec_md_when_tasks_exist(self, tmp_path: Path):
+        """Should finalize tasks without spec.md and skip requirement-mapping validation."""
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n**Dependencies**: None\n",
+            encoding="utf-8",
+        )
+        wp_file = tasks_dir / "WP01-test.md"
+        wp_file.write_text(
+            """---
+work_package_id: "WP01"
+title: "WP01"
+---
+
+# WP01
+""",
+            encoding="utf-8",
+        )
+
+        with (
+            patch(
+                "specify_cli.cli.commands.agent.feature.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature._find_feature_directory",
+                return_value=feature_dir,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature._show_branch_context",
+                return_value=(None, "main"),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature.safe_commit",
+                return_value=True,
+            ) as mock_safe_commit,
+            patch(
+                "specify_cli.cli.commands.agent.feature.run_command",
+                return_value=(0, "a" * 40, ""),
+            ),
+        ):
+            result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["result"] == "success"
+        assert payload["wp_count"] == 1
+        assert payload["commit_created"] is True
+        mock_safe_commit.assert_called_once()
+
+        updated = wp_file.read_text(encoding="utf-8")
+        assert "dependencies:" in updated
+        assert "requirement_refs:" in updated
+
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
