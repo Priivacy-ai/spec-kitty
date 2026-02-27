@@ -17,7 +17,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 import fnmatch
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
@@ -93,7 +93,7 @@ class Indexer:
         dossier.artifacts.extend(missing)
 
         # Update timestamp
-        dossier.dossier_updated_at = datetime.utcnow()
+        dossier.dossier_updated_at = datetime.now(timezone.utc)
 
         return dossier
 
@@ -364,7 +364,7 @@ class Indexer:
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
-                    indexed_at=datetime.utcnow(),
+                    indexed_at=datetime.now(timezone.utc),
                 )
                 missing.append(ghost)
 

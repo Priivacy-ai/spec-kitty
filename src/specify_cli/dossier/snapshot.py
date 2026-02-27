@@ -15,7 +15,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -142,7 +142,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
             }
             for a in sorted_artifacts
         ],
-        computed_at=datetime.utcnow(),
+        computed_at=datetime.now(timezone.utc),
     )
 
 
