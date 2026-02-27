@@ -364,6 +364,7 @@ class TestCheckTargetDivergence:
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(local)
 
         # Add commit to local
         (local / "new.txt").write_text("local ahead")
