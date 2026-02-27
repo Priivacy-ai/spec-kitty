@@ -1,10 +1,10 @@
 """Machine-contract API commands for external orchestrators.
 
 All commands emit a single JSON object to stdout via the canonical envelope.
-Non-zero exit on any failure. The --json flag is always available (and
-orchestrator-api is JSON-first by design; prose output is secondary).
+Non-zero exit on any failure. Output is always JSON (no prose mode).
 
 Error codes used:
+  USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
   FEATURE_NOT_FOUND           -- feature slug does not resolve to a kitty-specs dir
@@ -22,11 +22,9 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -41,10 +39,62 @@ from .envelope import (
     policy_to_dict,
 )
 
+import click
+from typer.core import TyperGroup
+
+
+class _JSONErrorGroup(TyperGroup):
+    """Click Group that converts parse/usage errors to JSON envelopes.
+
+    Click/Typer normally prints plain-text usage errors and exits with code 2.
+    The orchestrator-api contract requires *every* stdout emission to be a
+    single JSON envelope, including parser-level failures (missing required
+    args, unknown options, etc.).
+
+    This overrides ``main()`` with ``standalone_mode=False`` so that
+    ``click.UsageError`` propagates as an exception instead of being
+    formatted as prose text.  The handler then emits a ``USAGE_ERROR``
+    envelope and exits non-zero.
+    """
+
+    def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]
+        try:
+            rv = super().main(*args, standalone_mode=False, **kwargs)
+            # With standalone_mode=False, typer.Exit(code) is caught by
+            # Typer's _main() and returned as an integer.  Re-raise it so
+            # that CliRunner (and real invocations) see the correct exit code.
+            if isinstance(rv, int) and rv != 0:
+                raise SystemExit(rv)
+            return rv
+        except click.UsageError as exc:
+            envelope = make_envelope(
+                command="unknown",
+                success=False,
+                data={"message": exc.format_message()},
+                error_code="USAGE_ERROR",
+            )
+            _emit(envelope)
+            raise SystemExit(2) from exc
+        except click.Abort:
+            envelope = make_envelope(
+                command="unknown",
+                success=False,
+                data={"message": "Command aborted"},
+                error_code="USAGE_ERROR",
+            )
+            _emit(envelope)
+            raise SystemExit(2)
+        except SystemExit:
+            raise
+
+
+# The public ``app`` used by the main CLI to register orchestrator-api.
+# Uses _JSONErrorGroup so that Click/Typer parse errors become JSON envelopes.
 app = typer.Typer(
     name="orchestrator-api",
     help="Machine-contract API for external orchestrators (JSON-first)",
     no_args_is_help=True,
+    cls=_JSONErrorGroup,
 )
 
 # Lanes that require --policy (run-affecting)
@@ -139,7 +189,6 @@ def contract_version(
         "--provider-version",
         help="Caller's provider version; returns CONTRACT_VERSION_MISMATCH if below minimum",
     ),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Return the current API contract version.
 
@@ -189,7 +238,6 @@ def contract_version(
 @app.command(name="feature-state")
 def feature_state(
     feature: str = typer.Option(..., "--feature", help="Feature slug (e.g. 034-my-feature)"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Return the full state of a feature (all WPs, lanes, dependencies)."""
     main_repo_root = _get_main_repo_root()
@@ -253,7 +301,6 @@ def feature_state(
 @app.command(name="list-ready")
 def list_ready(
     feature: str = typer.Option(..., "--feature", help="Feature slug"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
     main_repo_root = _get_main_repo_root()
@@ -322,7 +369,6 @@ def start_implementation(
     wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Composite transition: planned→claimed→in_progress (idempotent)."""
     cmd = "start-implementation"
@@ -460,7 +506,6 @@ def start_review(
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
     review_ref: str = typer.Option(None, "--review-ref", help="Review feedback reference (required)"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Transition a WP from for_review back to in_progress (reviewer rollback)."""
     cmd = "start-review"
@@ -502,7 +547,7 @@ def start_review(
     prompt_path = str(wp_path)
 
     try:
-        event = emit_status_transition(
+        emit_status_transition(
             feature_dir,
             feature,
             wp,
@@ -544,7 +589,6 @@ def transition(
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required for run-affecting lanes)"),
     force: bool = typer.Option(False, "--force", help="Force the transition"),
     review_ref: str = typer.Option(None, "--review-ref", help="Review reference"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
@@ -636,7 +680,6 @@ def append_history(
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     note: str = typer.Option(..., "--note", help="History note to append"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Append a history entry to a WP prompt file."""
     cmd = "append-history"
@@ -695,7 +738,6 @@ def append_history(
 def accept_feature(
     feature: str = typer.Option(..., "--feature", help="Feature slug"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Accept a feature after all WPs are done."""
     cmd = "accept-feature"
@@ -766,7 +808,6 @@ def merge_feature(
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
-    json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
     cmd = "merge-feature"

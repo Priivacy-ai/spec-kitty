@@ -17,9 +17,9 @@
 ## Baseline commands
 
 ```bash
-spec-kitty orchestrator-api contract-version --json
-spec-kitty orchestrator-api feature-state --feature 034-my-feature --json
-spec-kitty orchestrator-api list-ready --feature 034-my-feature --json
+spec-kitty orchestrator-api contract-version
+spec-kitty orchestrator-api feature-state --feature 034-my-feature
+spec-kitty orchestrator-api list-ready --feature 034-my-feature
 ```
 
 ## Reference provider
