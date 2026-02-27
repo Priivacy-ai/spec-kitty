@@ -149,9 +149,6 @@ class JujutsuVCS:
             WorkspaceCreateResult with workspace info or error
         """
         try:
-            # jj does not use sparse-checkout semantics; keep arg for protocol parity.
-            _ = sparse_exclude
-
             # Ensure parent directory exists
             workspace_path.parent.mkdir(parents=True, exist_ok=True)
 
