@@ -348,13 +348,17 @@ def create_feature(
             else:
                 console.print(f"[bold red]Error:[/bold red] {error_msg}")
                 # Find and suggest the main repo path
-                for i, part in enumerate(cwd.parts):
-                    if part == ".worktrees":
-                        main_repo = Path(*cwd.parts[:i])
-                        console.print("\n[cyan]Run from the main repository instead:[/cyan]")
-                        console.print(f"  cd {main_repo}")
-                        console.print(f"  spec-kitty agent create-feature {feature_slug}")
-                        break
+                main_repo = locate_project_root(cwd)
+                if main_repo is None:
+                    # Fallback: try .worktrees path heuristic
+                    for i, part in enumerate(cwd.parts):
+                        if part == ".worktrees":
+                            main_repo = Path(*cwd.parts[:i])
+                            break
+                if main_repo is not None:
+                    console.print("\n[cyan]Run from the main repository instead:[/cyan]")
+                    console.print(f"  cd {main_repo}")
+                    console.print(f"  spec-kitty agent create-feature {feature_slug}")
             raise typer.Exit(1)
 
         repo_root = locate_project_root()
