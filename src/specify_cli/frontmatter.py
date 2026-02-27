@@ -50,6 +50,7 @@ class FrontmatterManager:
         "shell_pid",
         "review_status",
         "reviewed_by",
+        "review_feedback",  # feedback:// pointer to persisted review artifact
         "history",
     ]
 

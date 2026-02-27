@@ -49,6 +49,8 @@ WHEN YOU'RE DONE:
   spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 ```
 
+If the prompt shows `review_status: "has_feedback"`, read frontmatter `review_feedback` first. The `feedback://...` pointer is the canonical reviewer feedback artifact.
+
 **Step 2**: Create the workspace (if needed) and implement according to the prompt
 ```bash
 spec-kitty implement WP##              # No dependencies (branches from main)

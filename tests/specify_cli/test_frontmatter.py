@@ -228,6 +228,19 @@ subtasks:
         assert dep_line > lane_line, "dependencies should come after lane"
         assert dep_line < subtasks_line, "dependencies should come before subtasks"
 
+    def test_field_order_includes_review_feedback(self):
+        """Test WP_FIELD_ORDER includes review_feedback in correct position."""
+        manager = FrontmatterManager()
+
+        assert "review_feedback" in manager.WP_FIELD_ORDER
+
+        reviewed_by_idx = manager.WP_FIELD_ORDER.index("reviewed_by")
+        review_feedback_idx = manager.WP_FIELD_ORDER.index("review_feedback")
+        history_idx = manager.WP_FIELD_ORDER.index("history")
+
+        assert review_feedback_idx > reviewed_by_idx, "review_feedback should come after reviewed_by"
+        assert review_feedback_idx < history_idx, "review_feedback should come before history"
+
 
 class TestScopeRestriction:
     """Test that dependencies field is only added to WP files."""

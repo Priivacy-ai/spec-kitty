@@ -256,21 +256,19 @@ For each documentation file, verify it follows principles for its declared type:
    - Proceed to next WP
 
    **If issues found**:
-   - Populate Review Feedback section in WP prompt
+   - Write feedback to a file (use the unique path shown by `workflow review`)
    - List specific issues with locations and fix guidance
-   - Set `review_status: has_feedback`
-   - Move WP back to "planned" or "doing"
+   - Run `spec-kitty agent tasks move-task <TASK_ID> --to planned --review-feedback-file <feedback-file> --note "Returned for documentation fixes"`
+   - This persists feedback in shared git common-dir and writes frontmatter `review_feedback: "feedback://..."`
    - Notify implementer
 
 ---
 
 ## Review Feedback Format
 
-When returning work for changes, use this format:
+When returning work for changes, use this format in the feedback file:
 
 ```markdown
-## Review Feedback
-
 ### Divio Type Compliance
 
 **Issue**: docs/tutorials/getting-started.md is classified as tutorial but reads like how-to (assumes too much prior knowledge).

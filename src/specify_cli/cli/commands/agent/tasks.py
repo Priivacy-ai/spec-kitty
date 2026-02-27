@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shutil
 import subprocess
 import traceback
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Tuple, List
@@ -139,7 +141,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         raise typer.Exit(1)
 
 
-def _output_result(json_mode: bool, data: dict, success_message: str = None):
+def _output_result(json_mode: bool, data: dict, success_message: Optional[str] = None):
     """Output result in JSON or human-readable format.
 
     Args:
@@ -164,6 +166,61 @@ def _output_error(json_mode: bool, error_message: str):
         print(json.dumps({"error": error_message}))
     else:
         console.print(f"[red]Error:[/red] {error_message}")
+
+
+def _detect_reviewer_name() -> str:
+    """Detect reviewer name from git config, with safe fallback."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.name"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip() or "unknown"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+def _resolve_git_common_dir(main_repo_root: Path) -> Path:
+    """Resolve absolute git common-dir for the repository."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=main_repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    raw_value = result.stdout.strip()
+    if not raw_value:
+        raise RuntimeError("Unable to resolve git common directory")
+    common_dir = Path(raw_value)
+    if not common_dir.is_absolute():
+        common_dir = (main_repo_root / common_dir).resolve()
+    return common_dir
+
+
+def _persist_review_feedback(
+    *,
+    main_repo_root: Path,
+    feature_slug: str,
+    task_id: str,
+    feedback_source: Path,
+) -> tuple[Path, str]:
+    """Persist review feedback in git common-dir and return pointer."""
+    git_common_dir = _resolve_git_common_dir(main_repo_root)
+    feedback_dir = git_common_dir / "spec-kitty" / "feedback" / feature_slug / task_id
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    unique_id = uuid.uuid4().hex[:8]
+    suffix = feedback_source.suffix or ".md"
+    filename = f"{timestamp}-{unique_id}{suffix}"
+    persisted_path = feedback_dir / filename
+
+    shutil.copy2(feedback_source, persisted_path)
+    pointer = f"feedback://{feature_slug}/{task_id}/{filename}"
+    return persisted_path, pointer
 
 
 def _check_unchecked_subtasks(
@@ -722,43 +779,6 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
     return files
 
 
-def _upsert_review_feedback_section(
-    body: str,
-    reviewer: str,
-    feedback_date: str,
-    feedback_path: str,
-    feedback_content: str,
-) -> str:
-    """Insert or replace the `## Review Feedback` section deterministically."""
-    section = (
-        "## Review Feedback\n\n"
-        f"**Reviewed by**: {reviewer}\n"
-        "**Status**: ❌ Changes Requested\n"
-        f"**Date**: {feedback_date}\n"
-        f"**Feedback file**: `{feedback_path}`\n\n"
-        f"{feedback_content}\n\n"
-    )
-
-    review_header = "## Review Feedback"
-    review_section_start = body.find(review_header)
-    if review_section_start != -1:
-        next_section_start = body.find("\n##", review_section_start + len(review_header))
-        if next_section_start == -1:
-            return body[:review_section_start] + section
-        return body[:review_section_start] + section + body[next_section_start:]
-
-    activity_log_start = body.find("\n## Activity Log")
-    if activity_log_start != -1:
-        before = body[:activity_log_start].rstrip()
-        after = body[activity_log_start:]
-        return f"{before}\n\n{section}{after}"
-
-    body_without_trailing = body.rstrip()
-    if body_without_trailing:
-        return f"{body_without_trailing}\n\n{section}"
-    return section
-
-
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -838,13 +858,36 @@ def move_task(
             _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
             raise typer.Exit(1)
 
-        resolved_review_feedback_file: Optional[Path] = None
-        review_feedback_content: Optional[str] = None
+        resolved_feedback_source: Optional[Path] = None
+        if review_feedback_file is not None:
+            feedback_candidate = review_feedback_file.expanduser()
+            if not feedback_candidate.is_absolute():
+                feedback_candidate = (Path.cwd() / feedback_candidate).resolve()
+            else:
+                feedback_candidate = feedback_candidate.resolve()
+
+            if not feedback_candidate.exists():
+                _output_error(
+                    json_output,
+                    f"Review feedback file not found: {feedback_candidate}",
+                )
+                raise typer.Exit(1)
+
+            if not feedback_candidate.is_file():
+                _output_error(
+                    json_output,
+                    f"Review feedback path is not a file: {feedback_candidate}",
+                )
+                raise typer.Exit(1)
+
+            resolved_feedback_source = feedback_candidate
+
+        review_feedback_pointer: Optional[str] = None
 
         # Strictly enforce deterministic review feedback capture on planned rollbacks.
         # This requirement is never bypassed, including with --force.
         if target_lane == "planned":
-            if not review_feedback_file:
+            if not resolved_feedback_source:
                 error_msg = f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
                 error_msg += "Please provide feedback:\n"
                 error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
@@ -853,22 +896,20 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
-            if not review_feedback_file.exists() or not review_feedback_file.is_file():
+            feedback_content = resolved_feedback_source.read_text(encoding="utf-8").strip()
+            if not feedback_content:
                 _output_error(
                     json_output,
-                    f"Review feedback file not found: {review_feedback_file}",
+                    f"Review feedback file is empty: {resolved_feedback_source}",
                 )
                 raise typer.Exit(1)
 
-            review_feedback_content = review_feedback_file.read_text(encoding="utf-8").strip()
-            if not review_feedback_content:
-                _output_error(
-                    json_output,
-                    f"Review feedback file is empty: {review_feedback_file}",
-                )
-                raise typer.Exit(1)
-
-            resolved_review_feedback_file = review_feedback_file.resolve()
+            _, review_feedback_pointer = _persist_review_feedback(
+                main_repo_root=main_repo_root,
+                feature_slug=feature_slug,
+                task_id=task_id,
+                feedback_source=resolved_feedback_source,
+            )
 
         # Validate subtasks are complete when moving to for_review or done (Issue #72)
         if target_lane in ("for_review", "done") and not force:
@@ -937,18 +978,7 @@ def move_task(
             # Auto-detect reviewer if not provided
             effective_reviewer = reviewer
             if not effective_reviewer:
-                try:
-                    result = subprocess.run(
-                        ["git", "config", "user.name"],
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        check=True
-                    )
-                    effective_reviewer = result.stdout.strip() or "unknown"
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    effective_reviewer = "unknown"
+                effective_reviewer = _detect_reviewer_name()
             effective_approval_ref = approval_ref
             if not effective_approval_ref and user_note:
                 effective_approval_ref = user_note
@@ -966,12 +996,10 @@ def move_task(
 
         # Build review_ref for for_review -> in_progress transitions
         emit_review_ref = None
-        if target_lane == "planned" and resolved_review_feedback_file:
-            emit_review_ref = str(resolved_review_feedback_file)
+        if target_lane == "planned" and review_feedback_pointer:
+            emit_review_ref = review_feedback_pointer
         elif old_lane == "for_review" and resolve_lane_alias(target_lane) in ("in_progress", "planned"):
-            if review_feedback_file and review_feedback_file.exists():
-                emit_review_ref = str(review_feedback_file.resolve())
-            elif force:
+            if force:
                 emit_review_ref = "force-override"
 
         # Map --agent to actor; default to "user" if not provided
@@ -1100,57 +1128,20 @@ def move_task(
         if shell_pid:
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-        # Handle review feedback insertion if moving to planned with feedback
-        if target_lane == "planned" and review_feedback_content is not None and resolved_review_feedback_file is not None:
-            # Auto-detect reviewer if not provided
-            effective_reviewer = reviewer
-            if not effective_reviewer:
-                try:
-                    result = subprocess.run(
-                        ["git", "config", "user.name"],
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        check=True
-                    )
-                    effective_reviewer = result.stdout.strip() or "unknown"
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    effective_reviewer = "unknown"
-
-            feedback_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-            updated_body = _upsert_review_feedback_section(
-                body=updated_body,
-                reviewer=effective_reviewer,
-                feedback_date=feedback_date,
-                feedback_path=str(resolved_review_feedback_file),
-                feedback_content=review_feedback_content,
-            )
+        # Store canonical review feedback pointer in frontmatter (no body duplication).
+        if target_lane == "planned" and review_feedback_pointer is not None:
+            effective_reviewer = reviewer or _detect_reviewer_name()
             updated_front = set_scalar(updated_front, "review_status", "has_feedback")
             updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
             updated_front = set_scalar(
                 updated_front,
-                "review_feedback_file",
-                str(resolved_review_feedback_file),
+                "review_feedback",
+                review_feedback_pointer,
             )
 
         # Update reviewed_by when moving to done (approved)
-        if target_lane == "done" and not extract_scalar(updated_front, "reviewed_by"):
-            effective_reviewer = reviewer
-            if not effective_reviewer:
-                try:
-                    result = subprocess.run(
-                        ["git", "config", "user.name"],
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        check=True
-                    )
-                    effective_reviewer = result.stdout.strip() or "unknown"
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    effective_reviewer = "unknown"
-
+        if target_lane == "done":
+            effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
             updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
             updated_front = set_scalar(updated_front, "review_status", "approved")
 
@@ -1214,6 +1205,8 @@ def move_task(
             "new_lane": target_lane,
             "path": str(wp.path)
         }
+        if review_feedback_pointer is not None:
+            result["review_feedback"] = review_feedback_pointer
 
         _output_result(
             json_output,

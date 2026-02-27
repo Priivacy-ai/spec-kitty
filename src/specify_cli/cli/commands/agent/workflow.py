@@ -59,6 +59,55 @@ def _write_prompt_to_file(
     return prompt_file
 
 
+def _resolve_git_common_dir(repo_root: Path) -> Path | None:
+    """Resolve absolute git common-dir path."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+    raw_value = result.stdout.strip()
+    if not raw_value:
+        return None
+    common_dir = Path(raw_value)
+    if not common_dir.is_absolute():
+        common_dir = (repo_root / common_dir).resolve()
+    return common_dir
+
+
+def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | None:
+    """Resolve a `feedback://` pointer (or legacy absolute path) to a file path."""
+    value = pointer.strip()
+    if not value:
+        return None
+
+    if value.startswith("feedback://"):
+        relative = value[len("feedback://") :]
+        parts = [p for p in relative.split("/") if p]
+        if len(parts) != 3:
+            return None
+        common_dir = _resolve_git_common_dir(repo_root)
+        if common_dir is None:
+            return None
+        candidate = common_dir / "spec-kitty" / "feedback" / parts[0] / parts[1] / parts[2]
+    else:
+        legacy = Path(value).expanduser()
+        candidate = legacy if legacy.is_absolute() else (repo_root / legacy)
+
+    candidate = candidate.resolve()
+    if candidate.exists() and candidate.is_file():
+        return candidate
+    return None
+
+
 def _render_constitution_context(repo_root: Path, action: str) -> str:
     """Render constitution context for workflow prompts."""
     try:
@@ -476,6 +525,15 @@ def implement(
         # Check review status
         review_status = extract_scalar(wp.frontmatter, "review_status")
         has_feedback = review_status == "has_feedback"
+        review_feedback_ref = (
+            extract_scalar(wp.frontmatter, "review_feedback")
+            or extract_scalar(wp.frontmatter, "review_feedback_file")
+        )
+        review_feedback_file = (
+            _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
+            if review_feedback_ref
+            else None
+        )
 
         # Detect mission type and get deliverables_path for research missions
         feature_dir = repo_root / "kitty-specs" / feature_slug
@@ -567,7 +625,17 @@ def implement(
         lines.append("")
 
         if has_feedback:
-            lines.append("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
+            lines.append("⚠️  This work package has review feedback.")
+            if review_feedback_ref:
+                lines.append(f"   Canonical feedback reference: {review_feedback_ref}")
+                if review_feedback_file is not None:
+                    lines.append(f"   Read it first: cat \"{review_feedback_file}\"")
+                else:
+                    lines.append("   WARNING: review feedback reference is set, but the artifact is missing/unreadable.")
+                    lines.append("   Ask reviewer to re-run move-task with --review-feedback-file.")
+            else:
+                lines.append("   WARNING: review_status=has_feedback but no review_feedback reference is set.")
+                lines.append("   Ask reviewer to re-run move-task with --review-feedback-file.")
             lines.append("")
 
         # Research mission: Show deliverables path prominently
@@ -636,7 +704,10 @@ def implement(
         print()
         print(f"📍 Workspace: cd {workspace_path}")
         if has_feedback:
-            print(f"⚠️  Has review feedback - check prompt file")
+            if review_feedback_ref:
+                print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
+            else:
+                print("⚠️  Has review feedback - but no review_feedback reference is set")
         if mission_key == "research" and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
             print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
@@ -1079,6 +1150,7 @@ def review(
         lines.append(f"⚠️  Changes requested:")
         lines.append(f"  1. Write feedback to: {review_feedback_path}")
         lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        lines.append("  3. move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")

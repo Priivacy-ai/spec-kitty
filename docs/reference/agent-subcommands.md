@@ -188,7 +188,7 @@ spec-kitty agent feature finalize-tasks --json
 | `--assignee TEXT` | Assignee name (sets assignee when moving to doing) |
 | `--shell-pid TEXT` | Shell PID |
 | `--note TEXT` | History note |
-| `--review-feedback-file PATH` | Path to review feedback file (required when moving to planned from review) |
+| `--review-feedback-file PATH` | Path to review feedback file (required when moving to planned; persisted to shared git common-dir and recorded as `review_feedback: "feedback://..."`) |
 | `--reviewer TEXT` | Reviewer name (auto-detected from git if omitted) |
 | `--force` | Force move even with unchecked subtasks or missing feedback |
 | `--auto-commit`, `--no-auto-commit` | Automatically commit WP file changes to main branch (default: auto-commit) |
@@ -200,6 +200,7 @@ spec-kitty agent feature finalize-tasks --json
 spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
 spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
 spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
+spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file /tmp/spec-kitty-review-feedback-WP03.md --note "Changes requested"
 ```
 
 ### spec-kitty agent tasks mark-status
