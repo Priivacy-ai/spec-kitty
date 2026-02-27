@@ -17,8 +17,8 @@ import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
-from .paths import locate_project_root
-from .vcs import VCSBackend, get_vcs
+from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
+from .vcs import get_vcs
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -100,9 +100,9 @@ def get_next_feature_number(repo_root: Path) -> int:
     max_number = 0
 
     # Scan kitty-specs/ for feature numbers
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if specs_dir.exists():
-        for item in specs_dir.iterdir():
+        for item in sorted(specs_dir.iterdir(), key=lambda p: p.name):
             if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
                 try:
                     number = int(item.name[:3])
@@ -112,9 +112,9 @@ def get_next_feature_number(repo_root: Path) -> int:
                     continue
 
     # Also scan .worktrees/ for feature numbers
-    worktrees_dir = repo_root / ".worktrees"
+    worktrees_dir = repo_root / WORKTREES_DIR
     if worktrees_dir.exists():
-        for item in worktrees_dir.iterdir():
+        for item in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
             if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
                 try:
                     number = int(item.name[:3])
@@ -163,7 +163,7 @@ def create_feature_worktree(
     branch_name = f"{feature_number:03d}-{feature_slug}"
 
     # Create worktree at .worktrees/001-test-feature
-    worktree_path = repo_root / ".worktrees" / branch_name
+    worktree_path = repo_root / WORKTREES_DIR / branch_name
 
     # Ensure .worktrees directory exists
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,7 +186,7 @@ def create_feature_worktree(
             is_valid_workspace = git_marker.exists()
 
         if is_valid_workspace:
-            feature_dir = worktree_path / "kitty-specs" / branch_name
+            feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
             return (worktree_path, feature_dir)
 
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
@@ -210,7 +210,8 @@ def create_feature_worktree(
     except Exception as e:
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
-            "VCS abstraction failed, falling back to direct git commands. "
+            f"VCS abstraction failed ({type(e).__name__}: {e}); "
+            "falling back to direct git commands. "
             "See: kitty-specs/015-first-class-jujutsu-vcs-integration/",
             DeprecationWarning,
             stacklevel=2,
@@ -231,7 +232,7 @@ def create_feature_worktree(
             ) from git_error
 
     # Create feature directory structure
-    feature_dir = worktree_path / "kitty-specs" / branch_name
+    feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup feature directory (symlinks, subdirectories, etc.)
@@ -352,7 +353,7 @@ spec-kitty agent tasks move-task WP01 --to doing
     (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
 
     # Create worktree .kittify directory if it doesn't exist
-    worktree_kittify = worktree_path / ".kittify"
+    worktree_kittify = worktree_path / KITTIFY_DIR
     worktree_kittify.mkdir(exist_ok=True)
 
     # Setup shared constitution and AGENTS.md via symlink (or copy on Windows)
@@ -380,7 +381,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
     if use_copy:
         # Copy memory directory
-        main_memory = repo_root / ".kittify" / "memory"
+        main_memory = repo_root / KITTIFY_DIR / "memory"
         if main_memory.exists() and main_memory.is_dir():
             shutil.copytree(main_memory, worktree_memory)
     else:
@@ -389,7 +390,7 @@ spec-kitty agent tasks move-task WP01 --to doing
             worktree_memory.symlink_to(relative_memory_path, target_is_directory=True)
         except (OSError, NotImplementedError):
             # Symlink failed, fall back to copy
-            main_memory = repo_root / ".kittify" / "memory"
+            main_memory = repo_root / KITTIFY_DIR / "memory"
             if main_memory.exists() and main_memory.is_dir():
                 shutil.copytree(main_memory, worktree_memory)
 
@@ -397,7 +398,7 @@ spec-kitty agent tasks move-task WP01 --to doing
     if worktree_agents.exists():
         worktree_agents.unlink()
 
-    main_agents = repo_root / ".kittify" / "AGENTS.md"
+    main_agents = repo_root / KITTIFY_DIR / "AGENTS.md"
     if main_agents.exists():
         if use_copy:
             shutil.copy2(main_agents, worktree_agents)
@@ -416,7 +417,7 @@ spec-kitty agent tasks move-task WP01 --to doing
     if not spec_file.exists():
         # Try to find spec template
         spec_template_candidates = [
-            repo_root / ".kittify" / "templates" / "spec-template.md",
+            repo_root / KITTIFY_DIR / "templates" / "spec-template.md",
             repo_root / "templates" / "spec-template.md",
         ]
 

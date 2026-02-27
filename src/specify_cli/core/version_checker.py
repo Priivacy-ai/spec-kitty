@@ -42,14 +42,14 @@ def get_cli_version() -> str:
         return override_version
 
     try:
-        from importlib.metadata import version as get_version
+        from importlib.metadata import PackageNotFoundError, version as get_version
         return get_version("spec-kitty-cli")
-    except Exception:
+    except PackageNotFoundError:
         # Fall back to __version__ from __init__.py
         try:
             from specify_cli import __version__
             return __version__
-        except Exception:
+        except (ImportError, AttributeError):
             return "unknown"
 
 
@@ -129,7 +129,7 @@ def format_version_error(
             cli_ver = Version(cli_version)
             proj_ver = Version(project_version)
             is_090_upgrade = cli_ver >= Version("0.9.0") and proj_ver < Version("0.9.0")
-        except Exception:
+        except (InvalidVersion, TypeError):
             is_090_upgrade = False
 
         if is_090_upgrade:

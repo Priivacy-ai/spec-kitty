@@ -132,6 +132,7 @@ class JujutsuVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
+        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new jj workspace.
@@ -142,6 +143,7 @@ class JujutsuVCS:
             base_branch: Branch/revision to base on
             base_commit: Specific commit/change to base on
             repo_root: Root of the jj repository (auto-detected if not provided)
+            sparse_exclude: Unused for jj (kept for protocol compatibility)
 
         Returns:
             WorkspaceCreateResult with workspace info or error
@@ -282,7 +284,7 @@ class JujutsuVCS:
             workspace_name = workspace_path.name
 
             # Use jj workspace forget to unregister
-            result = subprocess.run(
+            subprocess.run(
                 ["jj", "workspace", "forget", workspace_name],
                 capture_output=True,
                 text=True,

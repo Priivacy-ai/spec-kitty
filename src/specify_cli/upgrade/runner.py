@@ -11,6 +11,8 @@ from typing import List, Optional
 
 from rich.console import Console
 
+from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
+
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
 from .migrations.base import BaseMigration, MigrationResult
@@ -42,7 +44,7 @@ class MigrationRunner:
             console: Optional Rich console for output
         """
         self.project_path = project_path
-        self.kittify_dir = project_path / ".kittify"
+        self.kittify_dir = project_path / KITTIFY_DIR
         self.console = console or Console()
         self.detector = VersionDetector(project_path)
 
@@ -208,15 +210,16 @@ class MigrationRunner:
         """
         result: dict = {"warnings": [], "errors": []}
 
-        worktrees_dir = self.project_path / ".worktrees"
+        worktrees_dir = self.project_path / WORKTREES_DIR
         if not worktrees_dir.exists():
             return result
 
-        for worktree in worktrees_dir.iterdir():
+        # Use deterministic ordering so migrations and logs are reproducible.
+        for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
             if not worktree.is_dir():
                 continue
 
-            wt_kittify = worktree / ".kittify"
+            wt_kittify = worktree / KITTIFY_DIR
             if not wt_kittify.exists():
                 continue
 
