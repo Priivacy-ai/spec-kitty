@@ -24,6 +24,22 @@ from specify_cli.merge.preflight import (
 )
 
 
+def _configure_test_git_identity(repo: Path) -> None:
+    """Configure local git identity for temp repos in CI."""
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 class TestWPStatus:
     """Tests for WPStatus dataclass."""
 
@@ -278,6 +294,7 @@ class TestCheckTargetDivergence:
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(local)
 
         # Add commit to origin
         (origin / "new.txt").write_text("new commit")
@@ -776,6 +793,7 @@ dependencies: []
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(repo)
 
         # Add commit to origin
         (origin / "new.txt").write_text("new commit")
