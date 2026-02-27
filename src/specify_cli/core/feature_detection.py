@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Mapping, Optional
 
+from specify_cli.core.paths import get_main_repo_root as _resolve_main_repo_root
+
 
 # ============================================================================
 # Error Types
@@ -124,19 +126,7 @@ def _get_main_repo_root(repo_root: Path) -> Path:
     Returns:
         Main repository root path
     """
-    # Check if we're in a worktree
-    git_common_dir = repo_root / ".git"
-    if git_common_dir.is_file():
-        # Worktree: .git is a file pointing to actual git dir
-        git_dir_content = git_common_dir.read_text().strip()
-        if git_dir_content.startswith("gitdir: "):
-            git_dir = Path(git_dir_content[8:])  # Remove "gitdir: " prefix
-            # Git dir for worktree is: <main-repo>/.git/worktrees/<name>
-            # Navigate up two levels to get main repo
-            main_git_dir = git_dir.parent.parent
-            return main_git_dir.parent  # Parent of .git is main repo root
-
-    return repo_root
+    return _resolve_main_repo_root(repo_root)
 
 
 def _list_all_features(repo_root: Path) -> list[str]:

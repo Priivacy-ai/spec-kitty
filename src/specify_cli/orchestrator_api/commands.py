@@ -70,12 +70,13 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
 
 def _get_main_repo_root() -> Path:
     """Resolve main repository root from current working directory."""
-    from specify_cli.core.paths import locate_project_root
+    from specify_cli.core.paths import get_main_repo_root, locate_project_root
 
-    root = locate_project_root()
+    cwd = Path.cwd()
+    root = locate_project_root(cwd)
     if root is None:
-        # Fall back to cwd
-        return Path.cwd()
+        # Fall back to canonical resolver for worktree-aware behavior.
+        return get_main_repo_root(cwd)
     return root
 
 
