@@ -505,6 +505,28 @@ class TestValidateFeatureStructure:
         assert result["paths"]["tasks_dir"] == str(feature_dir / "tasks")
         assert result["paths"]["feature_dir"] == str(feature_dir)
 
+    def test_includes_typed_artifact_maps_and_compat_aliases(self, tmp_path: Path):
+        """Should expose deterministic file/dir maps with compatibility aliases."""
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        (feature_dir / "spec.md").write_text("spec")
+        (feature_dir / "plan.md").write_text("plan")
+        (feature_dir / "tasks.md").write_text("tasks")
+        (feature_dir / "checklists").mkdir()
+        (feature_dir / "research").mkdir()
+        (feature_dir / "tasks").mkdir()
+
+        result = validate_feature_structure(feature_dir, check_tasks=True)
+
+        assert result["artifact_files"]["spec_file"] == str(feature_dir / "spec.md")
+        assert result["artifact_files"]["plan_file"] == str(feature_dir / "plan.md")
+        assert result["artifact_files"]["tasks_file"] == str(feature_dir / "tasks.md")
+        assert result["artifact_dirs"]["feature_dir"] == str(feature_dir)
+        assert result["artifact_dirs"]["tasks_dir"] == str(feature_dir / "tasks")
+        assert sorted(result["available_docs"]) == ["plan.md", "spec.md", "tasks.md"]
+        assert result["FEATURE_DIR"] == str(feature_dir)
+        assert sorted(result["AVAILABLE_DOCS"]) == ["plan.md", "spec.md", "tasks.md"]
+
 
 class TestVCSAbstraction:
     """Tests for VCS abstraction layer integration in worktree module."""

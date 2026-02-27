@@ -6,6 +6,7 @@ Supports both git and jujutsu backends through the VCS abstraction layer.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import warnings
@@ -20,6 +21,7 @@ from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_comman
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.merge.executor import execute_legacy_merge, execute_merge
+from specify_cli.merge.ordering import MergeOrderError, get_merge_order
 from specify_cli.merge.preflight import (
     display_preflight_result,
     run_preflight,
@@ -33,34 +35,6 @@ from specify_cli.merge.state import (
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-
-
-def _list_wp_branches(repo_root: Path, feature_slug: str) -> list[tuple[str, str]]:
-    """List local WP branches for a feature, returning (wp_id, branch_name)."""
-    main_repo = get_main_repo_root(repo_root)
-    pattern = re.compile(rf"^{re.escape(feature_slug)}-(WP\d{{2}})$")
-    result = subprocess.run(
-        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"],
-        cwd=str(main_repo),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return []
-
-    branches: list[tuple[str, str]] = []
-    for raw in result.stdout.splitlines():
-        branch = raw.strip()
-        if not branch:
-            continue
-        match = pattern.match(branch)
-        if match:
-            branches.append((match.group(1), branch))
-    branches.sort(key=lambda item: item[0])
-    return branches
 
 
 def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
@@ -87,6 +61,121 @@ def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
     return True
 
 
+def _wp_sort_key(wp_id: str) -> tuple[int, str]:
+    """Stable sort key for WP IDs."""
+    match = re.match(r"^WP(\d+)$", wp_id)
+    if match:
+        return (int(match.group(1)), wp_id)
+    return (9999, wp_id)
+
+
+def _list_wp_branches(repo_root: Path, feature_slug: str) -> list[tuple[str, str]]:
+    """List existing local WP branches for a feature as (wp_id, branch_name)."""
+    result = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname:short)", f"refs/heads/{feature_slug}-WP*"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+
+    rows: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        branch = line.strip()
+        if not branch:
+            continue
+        match = re.search(r"-(WP\d{2})$", branch)
+        if not match:
+            continue
+        rows.append((match.group(1), branch))
+
+    return sorted(rows, key=lambda row: _wp_sort_key(row[0]))
+
+
+def _branch_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    """Return True when `ancestor` tip is reachable from `descendant`."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=str(repo_root),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _order_wp_workspaces(
+    repo_root: Path,
+    feature_slug: str,
+    wp_workspaces: list[tuple[Path, str, str]],
+) -> list[tuple[Path, str, str]]:
+    """Prefer dependency/topological order, then deterministic WP sorting."""
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    if feature_dir.exists():
+        try:
+            return get_merge_order(wp_workspaces, feature_dir)
+        except MergeOrderError:
+            pass
+
+    return sorted(wp_workspaces, key=lambda row: _wp_sort_key(row[1]))
+
+
+def _build_workspace_per_wp_merge_plan(
+    repo_root: Path,
+    feature_slug: str,
+    target_branch: str,
+    wp_workspaces: list[tuple[Path, str, str]],
+) -> dict[str, object]:
+    """Build deterministic effective merge set using branch ancestry."""
+    ordered = _order_wp_workspaces(repo_root, feature_slug, wp_workspaces)
+
+    skipped_already_in_target: list[dict[str, str]] = []
+    candidates: list[tuple[Path, str, str]] = []
+    for wt_path, wp_id, branch in ordered:
+        if _branch_is_ancestor(repo_root, branch, target_branch):
+            skipped_already_in_target.append({"wp_id": wp_id, "branch": branch})
+            continue
+        candidates.append((wt_path, wp_id, branch))
+
+    skipped_ancestor_of: dict[str, list[str]] = {}
+    effective: list[tuple[Path, str, str]] = []
+    for wt_path, wp_id, branch in candidates:
+        superseding = [
+            other_branch
+            for _, _, other_branch in candidates
+            if other_branch != branch and _branch_is_ancestor(repo_root, branch, other_branch)
+        ]
+        if superseding:
+            skipped_ancestor_of[branch] = sorted(set(superseding))
+            continue
+        effective.append((wt_path, wp_id, branch))
+
+    reason_summary: list[str] = []
+    if skipped_already_in_target:
+        reason_summary.append(
+            f"Skipped {len(skipped_already_in_target)} branch(es) already integrated into {target_branch}."
+        )
+    if skipped_ancestor_of:
+        reason_summary.append(
+            f"Skipped {len(skipped_ancestor_of)} branch(es) that are ancestors of another candidate tip."
+        )
+    if not effective:
+        reason_summary.append("No effective branches remain; feature appears already integrated.")
+    elif len(effective) == 1 and len(ordered) > 1:
+        reason_summary.append("Single effective tip contains all remaining work-package commits.")
+
+    return {
+        "all_wp_workspaces": ordered,
+        "effective_wp_workspaces": effective,
+        "skipped_already_in_target": skipped_already_in_target,
+        "skipped_ancestor_of": skipped_ancestor_of,
+        "reason_summary": reason_summary,
+    }
+
+
 def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
     """Detect if feature uses legacy or workspace-per-WP model.
 
@@ -108,7 +197,7 @@ def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
     if wp_pattern:
         return "workspace-per-wp"
 
-    # Fallback: worktree directories may be missing/pruned while branches still exist.
+    # Worktree directories may be missing while branches still exist.
     if _list_wp_branches(main_repo, feature_slug):
         return "workspace-per-wp"
 
@@ -152,14 +241,14 @@ def find_wp_worktrees(repo_root: Path, feature_slug: str) -> list[tuple[Path, st
             branch_name = wt_path.name  # Directory name = branch name
             workspace_map[wp_id] = (wt_path, wp_id, branch_name)
 
-    # Branch fallback: merge should still work when worktree directories are gone.
+    # Branch fallback: merge should still work even when worktree dirs were pruned.
     for wp_id, branch_name in _list_wp_branches(main_repo, feature_slug):
         if wp_id in workspace_map:
             continue
         expected_path = worktrees_dir / branch_name
         workspace_map[wp_id] = (expected_path, wp_id, branch_name)
 
-    return sorted(workspace_map.values(), key=lambda item: item[1])
+    return sorted(workspace_map.values(), key=lambda item: _wp_sort_key(item[1]))
 
 
 def extract_feature_slug(branch_name: str) -> str:
@@ -185,7 +274,7 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
     if result.returncode != 0:
         return False, f"Branch {branch_name} does not exist"
 
-    # Check 2: No uncommitted changes in worktree (if present)
+    # Check 2: No uncommitted changes in worktree (if path still exists)
     if not worktree_path.exists():
         return True, ""
 
@@ -214,6 +303,7 @@ def merge_workspace_per_wp(
     remove_worktree: bool,
     push: bool,
     dry_run: bool,
+    json_output: bool,
     tracker: StepTracker,
     resume_state: MergeState | None = None,
 ) -> None:
@@ -239,6 +329,20 @@ def merge_workspace_per_wp(
         console.print(f"[cyan]Resuming merge:[/cyan] {len(resume_state.completed_wps)} WPs already merged")
 
     if not wp_workspaces:
+        if json_output and dry_run:
+            print(json.dumps({
+                "feature_slug": feature_slug,
+                "target_branch": target_branch,
+                "all_wp_branches": [],
+                "effective_wp_branches": [],
+                "skipped_already_in_target": [],
+                "skipped_ancestor_of": {},
+                "planned_steps": [],
+                "reason_summary": [
+                    f"No WP branches/worktrees found for feature {feature_slug}."
+                ],
+            }))
+            return
         console.print(tracker.render())
         console.print(f"\n[yellow]Warning:[/yellow] No WP worktrees found for feature {feature_slug}")
         console.print("Feature may already be merged or not yet implemented")
@@ -266,15 +370,21 @@ def merge_workspace_per_wp(
 
     console.print(f"[green]✓[/green] All WP workspaces validated")
 
+    merge_plan = _build_workspace_per_wp_merge_plan(
+        main_repo,
+        feature_slug,
+        target_branch,
+        wp_workspaces,
+    )
+    effective_workspaces = merge_plan["effective_wp_workspaces"]  # type: ignore[assignment]
+
     # Dry run: show what would be done
     if dry_run:
-        console.print(tracker.render())
-        console.print("\n[cyan]Dry run - would execute:[/cyan]")
         steps = [
             f"git checkout {target_branch}",
             "git pull --ff-only",
         ]
-        for wt_path, wp_id, branch in wp_workspaces:
+        for wt_path, wp_id, branch in effective_workspaces:
             if strategy == "squash":
                 steps.extend([
                     f"git merge --squash {branch}",
@@ -297,8 +407,36 @@ def merge_workspace_per_wp(
             for wt_path, wp_id, branch in wp_workspaces:
                 steps.append(f"git branch -d {branch}")
 
+        if json_output:
+            payload = {
+                "feature_slug": feature_slug,
+                "target_branch": target_branch,
+                "all_wp_branches": [branch for _, _, branch in merge_plan["all_wp_workspaces"]],  # type: ignore[index]
+                "effective_wp_branches": [branch for _, _, branch in effective_workspaces],
+                "skipped_already_in_target": merge_plan["skipped_already_in_target"],
+                "skipped_ancestor_of": merge_plan["skipped_ancestor_of"],
+                "planned_steps": steps,
+                "reason_summary": merge_plan["reason_summary"],
+            }
+            print(json.dumps(payload))
+            return
+
+        console.print(tracker.render())
+        console.print("\n[cyan]Dry run - would execute:[/cyan]")
         for idx, step in enumerate(steps, start=1):
             console.print(f"  {idx}. {step}")
+        if merge_plan["reason_summary"]:
+            console.print("\n[dim]Planning summary:[/dim]")
+            for line in merge_plan["reason_summary"]:  # type: ignore[index]
+                console.print(f"[dim]  - {line}[/dim]")
+        return
+
+    if not effective_workspaces:
+        tracker.complete("merge", f"{feature_slug} already integrated into {target_branch}")
+        console.print(tracker.render())
+        console.print(
+            f"\n[yellow]Nothing to merge:[/yellow] Feature '{feature_slug}' already appears integrated into {target_branch}."
+        )
         return
 
     # Checkout and update target branch
@@ -340,7 +478,10 @@ def merge_workspace_per_wp(
     # Merge all WP branches
     tracker.start("merge")
     try:
-        for wt_path, wp_id, branch in wp_workspaces:
+        merged_count = 0
+        skipped_count = 0
+        skipped_count += len(merge_plan["skipped_already_in_target"]) + len(merge_plan["skipped_ancestor_of"])  # type: ignore[arg-type,index]
+        for wt_path, wp_id, branch in effective_workspaces:
             console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
 
             if strategy == "squash":
@@ -362,8 +503,12 @@ def merge_workspace_per_wp(
                 )
 
             console.print(f"[green]✓[/green] {wp_id} merged")
+            merged_count += 1
 
-        tracker.complete("merge", f"merged {len(wp_workspaces)} work packages")
+        summary = f"merged {merged_count} work packages"
+        if skipped_count:
+            summary += f", skipped {skipped_count} redundant/already-integrated"
+        tracker.complete("merge", summary)
     except Exception as exc:
         tracker.error("merge", str(exc))
         console.print(tracker.render())
@@ -434,7 +579,9 @@ def merge_workspace_per_wp(
             tracker.complete("branch", f"deleted {len(wp_workspaces)} branches")
 
     console.print(tracker.render())
-    console.print(f"\n[bold green]✓ Feature {feature_slug} ({len(wp_workspaces)} WPs) successfully merged into {target_branch}[/bold green]")
+    console.print(
+        f"\n[bold green]✓ Feature {feature_slug} ({len(effective_workspaces)}/{len(wp_workspaces)} effective WPs) successfully merged into {target_branch}[/bold green]"
+    )
 
 
 @require_main_repo
@@ -446,21 +593,23 @@ def merge(
     push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
     target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+    json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
 ) -> None:
     """Merge a completed feature branch into the target branch and clean up resources.
 
-    For workspace-per-WP features (0.11.0+), merges all WP branches
-    (010-feature-WP01, 010-feature-WP02, etc.) to main in sequence.
+    For workspace-per-WP features (0.11.0+), computes an effective branch tip set
+    using ancestry pruning, then merges only non-redundant tips.
 
     For legacy features (0.10.x), merges single feature branch.
 
     Use --resume to continue an interrupted merge from saved state.
     Use --abort to clear merge state and abort any in-progress git merge.
     """
-    show_banner()
+    if not json_output:
+        show_banner()
 
     # Handle --abort flag early (before any other processing)
     if abort:
@@ -532,6 +681,99 @@ def merge(
     if target_branch is None:
         from specify_cli.core.git_ops import resolve_primary_branch
         target_branch = resolve_primary_branch(repo_root)
+
+    if json_output and not dry_run:
+        print(json.dumps({
+            "error": "--json is currently supported with --dry-run only.",
+        }))
+        raise typer.Exit(1)
+
+    if json_output and dry_run:
+        _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
+        if current_branch == target_branch and not feature:
+            print(json.dumps({
+                "error": f"Already on {target_branch}; pass --feature <slug> for workspace-per-WP planning.",
+            }))
+            raise typer.Exit(1)
+
+        feature_slug = feature or extract_feature_slug(current_branch)
+        structure = detect_worktree_structure(repo_root, feature_slug)
+        main_repo = get_main_repo_root(repo_root)
+
+        if structure == "workspace-per-wp":
+            wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+            merge_plan = _build_workspace_per_wp_merge_plan(
+                main_repo,
+                feature_slug,
+                target_branch,
+                wp_workspaces,
+            )
+            effective_workspaces = merge_plan["effective_wp_workspaces"]  # type: ignore[assignment]
+            steps = [
+                f"git checkout {target_branch}",
+                "git pull --ff-only",
+            ]
+            for _, wp_id, branch in effective_workspaces:
+                if strategy == "squash":
+                    steps.extend([
+                        f"git merge --squash {branch}",
+                        f"git commit -m 'Merge {wp_id} from {feature_slug}'",
+                    ])
+                else:
+                    steps.append(f"git merge --no-ff {branch} -m 'Merge {wp_id} from {feature_slug}'")
+            if push:
+                steps.append(f"git push origin {target_branch}")
+            if remove_worktree:
+                for wt_path, wp_id, _ in wp_workspaces:
+                    if wt_path.exists():
+                        steps.append(f"git worktree remove {wt_path}")
+                    else:
+                        steps.append(f"# skip worktree removal for {wp_id} (path not present)")
+            if delete_branch:
+                for _, _, branch in wp_workspaces:
+                    steps.append(f"git branch -d {branch}")
+
+            print(json.dumps({
+                "feature_slug": feature_slug,
+                "target_branch": target_branch,
+                "all_wp_branches": [branch for _, _, branch in merge_plan["all_wp_workspaces"]],  # type: ignore[index]
+                "effective_wp_branches": [branch for _, _, branch in effective_workspaces],
+                "skipped_already_in_target": merge_plan["skipped_already_in_target"],
+                "skipped_ancestor_of": merge_plan["skipped_ancestor_of"],
+                "planned_steps": steps,
+                "reason_summary": merge_plan["reason_summary"],
+            }))
+            return
+
+        planned_steps = [
+            f"git checkout {target_branch}",
+            "git pull --ff-only",
+        ]
+        if strategy == "squash":
+            planned_steps.extend([
+                f"git merge --squash {feature_slug}",
+                f"git commit -m 'Merge feature {feature_slug}'",
+            ])
+        elif strategy == "rebase":
+            planned_steps.append(f"git merge --ff-only {feature_slug} (after rebase)")
+        else:
+            planned_steps.append(f"git merge --no-ff {feature_slug}")
+        if push:
+            planned_steps.append(f"git push origin {target_branch}")
+        if delete_branch:
+            planned_steps.append(f"git branch -d {feature_slug}")
+
+        print(json.dumps({
+            "feature_slug": feature_slug,
+            "target_branch": target_branch,
+            "all_wp_branches": [],
+            "effective_wp_branches": [],
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {},
+            "planned_steps": planned_steps,
+            "reason_summary": ["Legacy/single-branch merge plan generated."],
+        }))
+        return
 
     tracker = StepTracker("Feature Merge")
     tracker.add("detect", "Detect current feature and branch")
@@ -631,6 +873,7 @@ def merge(
                     remove_worktree=remove_worktree,
                     push=push,
                     dry_run=dry_run,
+                    json_output=json_output,
                     tracker=tracker,
                     resume_state=resume_state,
                 )
@@ -698,6 +941,7 @@ def merge(
             remove_worktree=remove_worktree,
             push=push,
             dry_run=dry_run,
+            json_output=json_output,
             tracker=tracker,
             resume_state=resume_state,
         )

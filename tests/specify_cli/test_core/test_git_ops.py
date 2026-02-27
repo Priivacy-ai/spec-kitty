@@ -517,12 +517,14 @@ def test_resolve_primary_branch_fallback_no_branches(tmp_path):
     assert resolve_primary_branch(repo) == "some_random_branch"
 
 
+@pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_detects_2x_branch(tmp_path):
     """resolve_primary_branch detects 2.x as primary when it's the current branch."""
     repo = _init_repo_with_branch(tmp_path, "2.x")
     assert resolve_primary_branch(repo) == "2.x"
 
 
+@pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_detects_2x_even_when_main_exists(tmp_path):
     """CRITICAL: current branch (2.x) wins over hardcoded 'main' that also exists."""
     repo = _init_repo_with_branch(tmp_path, "main")
@@ -531,12 +533,14 @@ def test_resolve_primary_branch_detects_2x_even_when_main_exists(tmp_path):
     assert resolve_primary_branch(repo) == "2.x"
 
 
+@pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_detects_release_branch(tmp_path):
     """resolve_primary_branch detects release/v3 as primary."""
     repo = _init_repo_with_branch(tmp_path, "release/v3")
     assert resolve_primary_branch(repo) == "release/v3"
 
 
+@pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_origin_head_wins_over_current(tmp_path):
     """origin/HEAD takes priority over current branch."""
     repo = _init_repo_with_branch(tmp_path, "main")
@@ -550,6 +554,7 @@ def test_resolve_primary_branch_origin_head_wins_over_current(tmp_path):
     assert resolve_primary_branch(repo) == "main"
 
 
+@pytest.mark.usefixtures("_git_identity")
 def test_resolve_primary_branch_current_branch_wins_over_hardcoded_list(tmp_path):
     """When no origin/HEAD, current branch (2.x) wins over hardcoded main."""
     repo = _init_repo_with_branch(tmp_path, "main")

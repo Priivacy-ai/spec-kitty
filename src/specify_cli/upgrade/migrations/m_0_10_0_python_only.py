@@ -54,8 +54,8 @@ class PythonOnlyMigration(BaseMigration):
         # Feature management
         r"\.kittify/scripts/bash/create-new-feature\.sh": "spec-kitty agent create-feature",
         r"scripts/bash/create-new-feature\.sh": "spec-kitty agent create-feature",
-        r"\.kittify/scripts/bash/check-prerequisites\.sh": "spec-kitty agent check-prerequisites",
-        r"scripts/bash/check-prerequisites\.sh": "spec-kitty agent check-prerequisites",
+        r"\.kittify/scripts/bash/check-prerequisites\.sh": "spec-kitty agent feature check-prerequisites",
+        r"scripts/bash/check-prerequisites\.sh": "spec-kitty agent feature check-prerequisites",
         r"\.kittify/scripts/bash/setup-plan\.sh": "spec-kitty agent setup-plan",
         r"scripts/bash/setup-plan\.sh": "spec-kitty agent setup-plan",
         r"\.kittify/scripts/bash/update-agent-context\.sh": "spec-kitty agent update-context",

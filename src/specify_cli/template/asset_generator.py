@@ -7,8 +7,10 @@ import shutil
 from pathlib import Path
 from typing import Dict, Mapping
 
+import yaml
+
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.template.renderer import render_template, rewrite_paths
+from specify_cli.template.renderer import parse_frontmatter, render_template, rewrite_paths
 
 
 def prepare_command_templates(
@@ -29,7 +31,33 @@ def prepare_command_templates(
 
     shutil.copytree(base_templates_dir, merged_dir)
     for template_path in mission_templates_dir.glob("*.md"):
-        shutil.copy2(template_path, merged_dir / template_path.name)
+        destination = merged_dir / template_path.name
+        base_template = base_templates_dir / template_path.name
+        if not base_template.exists():
+            shutil.copy2(template_path, destination)
+            continue
+
+        mission_text = template_path.read_text(encoding="utf-8-sig")
+        base_text = base_template.read_text(encoding="utf-8-sig")
+        mission_meta, mission_body, _ = parse_frontmatter(mission_text)
+        base_meta, _, _ = parse_frontmatter(base_text)
+
+        if not isinstance(mission_meta, dict):
+            mission_meta = {}
+        if not isinstance(base_meta, dict):
+            base_meta = {}
+
+        merged_meta = dict(mission_meta)
+        if "scripts" not in merged_meta and isinstance(base_meta.get("scripts"), dict):
+            merged_meta["scripts"] = base_meta["scripts"]
+        if "agent_scripts" not in merged_meta and isinstance(base_meta.get("agent_scripts"), dict):
+            merged_meta["agent_scripts"] = base_meta["agent_scripts"]
+
+        if merged_meta:
+            meta_text = yaml.safe_dump(merged_meta, sort_keys=False).strip()
+            destination.write_text(f"---\n{meta_text}\n---\n\n{mission_body}", encoding="utf-8")
+        else:
+            destination.write_text(mission_body, encoding="utf-8")
 
     return merged_dir
 
@@ -76,6 +104,8 @@ def render_command_template(
     extension: str,
 ) -> str:
     """Render a single command template for an agent."""
+    template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
+    requires_script = "{SCRIPT}" in template_text
 
     def build_variables(metadata: Dict[str, object]) -> Mapping[str, str]:
         scripts = metadata.get("scripts") or {}
@@ -84,12 +114,14 @@ def render_command_template(
             scripts = {}
         if not isinstance(agent_scripts, dict):
             agent_scripts = {}
-        script_command = scripts.get(
-            script_type, f"(Missing script command for {script_type})"
-        )
+        script_command = scripts.get(script_type)
+        if requires_script and not script_command:
+            raise ValueError(
+                f"Template {template_path} requires scripts.{script_type} but none was provided."
+            )
         agent_script_command = agent_scripts.get(script_type)
         return {
-            "{SCRIPT}": script_command,
+            "{SCRIPT}": script_command or "",
             "{AGENT_SCRIPT}": agent_script_command or "",
             "{ARGS}": arg_format,
             "__AGENT__": agent_key,
