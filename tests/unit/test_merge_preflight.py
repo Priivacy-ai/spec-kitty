@@ -24,6 +24,22 @@ from specify_cli.merge.preflight import (
 )
 
 
+def _configure_test_git_identity(repo: Path) -> None:
+    """Configure local git identity for temp repos in CI."""
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 class TestWPStatus:
     """Tests for WPStatus dataclass."""
 
@@ -278,6 +294,7 @@ class TestCheckTargetDivergence:
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(local)
 
         # Add commit to origin
         (origin / "new.txt").write_text("new commit")
@@ -314,7 +331,6 @@ class TestCheckTargetDivergence:
         assert "behind origin" in msg
         assert "git pull" in msg
 
-    @pytest.mark.xfail(reason="CI git environment does not have user configured for commits")
     def test_target_ahead_of_origin(self, tmp_path: Path):
         """Test target branch that is ahead of origin (should not be diverged)."""
         # Create origin and clone
@@ -348,6 +364,7 @@ class TestCheckTargetDivergence:
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(local)
 
         # Add commit to local
         (local / "new.txt").write_text("local ahead")
@@ -738,7 +755,6 @@ dependencies: []
         assert "Uncommitted changes" in result.wp_statuses[0].error
         assert len(result.errors) >= 1
 
-    @pytest.mark.xfail(reason="CI git environment does not have user configured for commits")
     def test_detects_target_divergence(self, tmp_path: Path):
         """Test preflight detects target branch divergence."""
         # Create origin
@@ -778,6 +794,7 @@ dependencies: []
             check=True,
             capture_output=True,
         )
+        _configure_test_git_identity(repo)
 
         # Add commit to origin
         (origin / "new.txt").write_text("new commit")
