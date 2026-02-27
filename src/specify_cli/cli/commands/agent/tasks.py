@@ -357,7 +357,7 @@ def _check_dependent_warnings(
             frontmatter, _, _ = split_frontmatter(content)
             lane = extract_scalar(frontmatter, "lane") or "planned"
 
-            if lane in ["planned", "doing"]:
+            if resolve_lane_alias(lane) in ["planned", "in_progress", "claimed"]:
                 incomplete.append(dep_id)
         except Exception:
             # Skip if we can't read the dependent
@@ -1875,7 +1875,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = extract_scalar(front, "lane") or "unknown"
+            lane = resolve_lane_alias(extract_scalar(front, "lane") or "unknown")
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""
@@ -1899,7 +1899,7 @@ def status(
             # Check for stale WPs first (need to do this before JSON output too)
             from specify_cli.core.stale_detection import check_doing_wps_for_staleness
 
-            doing_wps = [wp for wp in work_packages if wp["lane"] == "doing"]
+            doing_wps = [wp for wp in work_packages if wp["lane"] == "in_progress"]
             stale_results = check_doing_wps_for_staleness(
                 main_repo_root=main_repo_root,
                 feature_slug=feature_slug,
@@ -1909,7 +1909,7 @@ def status(
 
             # Add staleness info to WPs
             for wp in work_packages:
-                if wp["lane"] == "doing" and wp["id"] in stale_results:
+                if wp["lane"] == "in_progress" and wp["id"] in stale_results:
                     result = stale_results[wp["id"]]
                     wp["is_stale"] = result.is_stale
                     wp["minutes_since_commit"] = result.minutes_since_commit
@@ -1930,7 +1930,7 @@ def status(
 
         # Rich table output
         # Group by lane
-        by_lane = {"planned": [], "doing": [], "for_review": [], "done": []}
+        by_lane = {"planned": [], "in_progress": [], "for_review": [], "done": []}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:
@@ -1944,12 +1944,12 @@ def status(
         stale_results = check_doing_wps_for_staleness(
             main_repo_root=main_repo_root,
             feature_slug=feature_slug,
-            doing_wps=by_lane["doing"],
+            doing_wps=by_lane["in_progress"],
             threshold_minutes=stale_threshold,
         )
 
         # Add staleness info to WPs
-        for wp in by_lane["doing"]:
+        for wp in by_lane["in_progress"]:
             wp_id = wp["id"]
             if wp_id in stale_results:
                 result = stale_results[wp_id]
@@ -1962,7 +1962,7 @@ def status(
         # Calculate metrics
         total = len(work_packages)
         done_count = len(by_lane["done"])
-        in_progress = len(by_lane["doing"]) + len(by_lane["for_review"])
+        in_progress = len(by_lane["in_progress"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
         progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
 
@@ -1997,19 +1997,19 @@ def status(
         table.add_column("✅ Done", style="green", no_wrap=False, width=25)
 
         # Find max length for rows
-        max_rows = max(len(by_lane["planned"]), len(by_lane["doing"]),
+        max_rows = max(len(by_lane["planned"]), len(by_lane["in_progress"]),
                        len(by_lane["for_review"]), len(by_lane["done"]))
 
         # Add rows
         for i in range(max_rows):
             row = []
-            for lane in ["planned", "doing", "for_review", "done"]:
+            for lane in ["planned", "in_progress", "for_review", "done"]:
                 if i < len(by_lane[lane]):
                     wp = by_lane[lane][i]
                     title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
 
-                    # Add stale indicator for doing WPs
-                    if lane == "doing" and wp.get("is_stale"):
+                    # Add stale indicator for in_progress WPs
+                    if lane == "in_progress" and wp.get("is_stale"):
                         cell = f"[red]⚠️ {wp['id']}[/red]\n{title_truncated}"
                     else:
                         cell = f"{wp['id']}\n{title_truncated}"
@@ -2021,7 +2021,7 @@ def status(
         # Add count row
         table.add_row(
             f"[bold]{len(by_lane['planned'])} WPs[/bold]",
-            f"[bold]{len(by_lane['doing'])} WPs[/bold]",
+            f"[bold]{len(by_lane['in_progress'])} WPs[/bold]",
             f"[bold]{len(by_lane['for_review'])} WPs[/bold]",
             f"[bold]{len(by_lane['done'])} WPs[/bold]",
             style="dim"
@@ -2037,10 +2037,10 @@ def status(
                 console.print(f"  • {wp['id']} - {wp['title']}")
             console.print()
 
-        if by_lane["doing"]:
+        if by_lane["in_progress"]:
             console.print("[bold blue]🔄 In Progress:[/bold blue]")
             stale_wps = []
-            for wp in by_lane["doing"]:
+            for wp in by_lane["in_progress"]:
                 if wp.get("is_stale"):
                     mins = wp.get("minutes_since_commit", "?")
                     agent = wp.get("agent", "unknown")
