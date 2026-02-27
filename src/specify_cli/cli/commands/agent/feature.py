@@ -25,7 +25,7 @@ from specify_cli.core.dependency_graph import (
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
-from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
     detect_feature,
     detect_feature_directory,
@@ -231,22 +231,9 @@ def _find_feature_directory(
         raise ValueError(str(e)) from e
 
 
-def _get_main_repo_root(repo_root: Path) -> Path:
-    """Resolve the main repository root when running from worktree context."""
-    git_marker = repo_root / ".git"
-    if git_marker.is_file():
-        git_dir_content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
-        if git_dir_content.startswith("gitdir: "):
-            git_dir = Path(git_dir_content[8:])
-            if len(git_dir.parents) >= 2:
-                main_git_dir = git_dir.parent.parent
-                return main_git_dir.parent
-    return repo_root
-
-
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
     """List candidate features with absolute spec.md paths for remediation output."""
-    main_repo_root = _get_main_repo_root(repo_root)
+    main_repo_root = get_main_repo_root(repo_root)
     kitty_specs_dir = main_repo_root / "kitty-specs"
     if not kitty_specs_dir.is_dir():
         return []
