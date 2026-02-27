@@ -120,7 +120,7 @@ jobs:
             echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
             echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
-            echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
+            echo "- Version progression is monotonic within its major stream" >> $GITHUB_STEP_SUMMARY
             echo "- Tests pass" >> $GITHUB_STEP_SUMMARY
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
           else
@@ -132,7 +132,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
             echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` or \`## [X.Y.ZaN/bN/rcN]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
-            echo "3. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Version Progression** - Ensure version is not behind the latest tag in the same major stream" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
