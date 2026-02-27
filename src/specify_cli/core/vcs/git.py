@@ -34,6 +34,7 @@ from .types import (
 )
 
 # Import existing git helpers where they provide reusable functionality
+from ..git_preflight import run_git_preflight
 from ..git_ops import get_current_branch, is_git_repo, run_command
 
 
@@ -95,6 +96,18 @@ class GitVCS:
                         workspace=None,
                         error="Could not find git repository root",
                     )
+
+            preflight = run_git_preflight(repo_root, check_worktree_list=True)
+            if not preflight.passed:
+                issue = preflight.first_error
+                detail = issue.message if issue else "Git preflight failed."
+                if issue and issue.command:
+                    detail = f"{detail} Run: {issue.command}"
+                return WorkspaceCreateResult(
+                    success=False,
+                    workspace=None,
+                    error=detail,
+                )
 
             # Build the git worktree add command
             cmd = ["git", "worktree", "add"]

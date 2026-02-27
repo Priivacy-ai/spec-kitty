@@ -208,6 +208,14 @@ def create_feature_worktree(
             raise RuntimeError(f"Failed to create workspace: {result.error}")
 
     except Exception as e:
+        deterministic_preflight_markers = (
+            "Git repository check failed:",
+            "Git rejected repository ownership trust",
+            "Git worktree discovery failed:",
+        )
+        if any(marker in str(e) for marker in deterministic_preflight_markers):
+            raise
+
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
             f"VCS abstraction failed ({type(e).__name__}: {e}); "

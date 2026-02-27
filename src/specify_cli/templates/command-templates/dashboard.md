@@ -3,7 +3,7 @@ description: Open the Spec Kitty dashboard in your browser.
 ---
 **⚠️ CRITICAL: Read the project's AGENTS.md for universal rules (paths, UTF-8 encoding, context management, quality expectations).**
 
-**Finding AGENTS.md**: Look for `.kittify/AGENTS.md` in your current directory. If not found (e.g., in a worktree), find the main repo via `git worktree list --porcelain` (first "worktree" entry is the main repo) and read `.kittify/AGENTS.md` from there.
+**Finding AGENTS.md**: Look for `.kittify/AGENTS.md` in your current directory. If not found (e.g., in a worktree), resolve the primary checkout root with `git rev-parse --show-toplevel`, then read `<repo-root>/.kittify/AGENTS.md`. If Git reports safe.directory trust errors, run `git config --global --add safe.directory <repo-root>` once and retry.
 
 *Path: [templates/commands/dashboard.md](templates/commands/dashboard.md)*
 
