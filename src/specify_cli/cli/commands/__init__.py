@@ -23,10 +23,16 @@ from specify_cli import orchestrator_api as orchestrator_api_module
 from . import repair as repair_module
 from . import research as research_module
 from . import sync as sync_module
+from specify_cli.tracker.feature_flags import is_saas_sync_enabled
 from . import upgrade as upgrade_module
 from . import validate_encoding as validate_encoding_module
 from . import validate_tasks as validate_tasks_module
 from . import verify as verify_module
+
+if is_saas_sync_enabled():
+    from . import tracker as tracker_module
+else:  # pragma: no cover - deterministic environment gate
+    tracker_module = None
 
 
 def register_commands(app: typer.Typer) -> None:
@@ -52,6 +58,8 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
     app.command()(research_module.research)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
+    if tracker_module is not None:
+        app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
     app.command()(upgrade_module.upgrade)
     app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
