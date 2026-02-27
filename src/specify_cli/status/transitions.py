@@ -1,6 +1,6 @@
 """Transition matrix, guard conditions, alias resolution, and validation.
 
-Implements the 7-lane state machine with 16 legal transition pairs,
+Implements the 7-lane state machine with 17 legal transition pairs,
 guard condition functions, alias resolution, and force-override logic.
 """
 
@@ -31,6 +31,7 @@ ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         ("in_progress", "for_review"),
         ("for_review", "done"),
         ("for_review", "in_progress"),
+        ("for_review", "planned"),
         ("in_progress", "planned"),
         ("planned", "blocked"),
         ("claimed", "blocked"),
@@ -52,6 +53,7 @@ _GUARDED_TRANSITIONS: dict[tuple[str, str], str] = {
     ("in_progress", "for_review"): "subtasks_complete_or_force",
     ("for_review", "done"): "reviewer_approval",
     ("for_review", "in_progress"): "review_ref_required",
+    ("for_review", "planned"): "review_ref_required",
     ("in_progress", "planned"): "reason_required",
 }
 
@@ -140,11 +142,11 @@ def _guard_reviewer_approval(
 def _guard_review_ref_required(
     review_ref: str | None,
 ) -> tuple[bool, str | None]:
-    """Guard: for_review -> in_progress requires review feedback reference."""
+    """Guard: for_review -> in_progress/planned requires review feedback reference."""
     if not review_ref or not review_ref.strip():
         return (
             False,
-            "Transition for_review -> in_progress requires review_ref "
+            "Transition from for_review requires review_ref "
             "(review feedback reference)",
         )
     return True, None
