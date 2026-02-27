@@ -7,6 +7,13 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-02-27
+
+### 🔧 Changed
+
+- **Dependency floor hardening for PyPI installs**: added explicit lower bounds for previously unbounded core CLI dependencies (`typer`, `rich`, `httpx[socks]`, `platformdirs`, `readchar`) to reduce resolver drift across clean environments.
+- **Release validation robustness**: release-readiness validation now remains scoped to valid version tags for the active major stream and supports `a`/`b`/`rc` tag parity checks.
+
 ## [1.0.0] - 2026-02-24
 
 ### 🔧 Changed
