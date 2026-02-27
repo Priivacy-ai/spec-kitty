@@ -31,6 +31,7 @@ from specify_cli.core.feature_detection import (
 from specify_cli.core.vcs import get_vcs
 from specify_cli.git import safe_commit
 from specify_cli.mission_system import get_deliverables_path, get_feature_mission_key
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
@@ -903,6 +904,7 @@ def review(
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             # Update lane, agent, and shell_pid in frontmatter
+            feature_dir = main_repo_root / "kitty-specs" / feature_slug
             updated_front = set_scalar(wp.frontmatter, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
@@ -918,13 +920,14 @@ def review(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to target branch when git is available.
+            # Atomic commit: WP file + all status artifacts (#211, #212).
             # Some tests/fixtures intentionally run without git.
             if _is_git_repo(main_repo_root):
                 actual_wp_path = wp.path.resolve()
+                status_artifacts = _collect_status_artifacts(feature_dir)
                 commit_success = safe_commit(
                     repo_path=main_repo_root,
-                    files_to_commit=[actual_wp_path],
+                    files_to_commit=[actual_wp_path] + status_artifacts,
                     commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
                     allow_empty=True,  # OK if already in this state
                 )
