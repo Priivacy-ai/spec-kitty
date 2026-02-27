@@ -1,8 +1,8 @@
 ---
 description: Generate a custom checklist for the current feature based on user requirements.
 scripts:
-  sh: spec-kitty agent check-prerequisites --json
-  ps: spec-kitty agent -Json
+  sh: spec-kitty agent feature check-prerequisites --json
+  ps: spec-kitty agent feature -Json
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -41,7 +41,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+**BEFORE PROCEEDING:** Verify you are working in the primary repository checkout.
 
 ```bash
 pwd
@@ -50,18 +50,18 @@ git branch --show-current
 
 **Expected output:**
 
-- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
 - Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
 
 **If you see the main branch or main repository path:**
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command creates checklists in your feature directory. You must be in the feature worktree.
+This command creates checklists in your feature directory. You must be in the primary repository checkout.
 
 **Correct the issue:**
 
-1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+1. Navigate to your primary repository checkout: `cd primary repository checkout`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this checklist command again
 
@@ -71,12 +71,12 @@ This command creates checklists in your feature directory. You must be in the fe
 
 After running `{SCRIPT}`, you will have paths to:
 
-- **FEATURE_DIR**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
-- **AVAILABLE_DOCS**: List of available documents (spec.md, plan.md, tasks.md, etc.)
+- **feature_dir**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
+- **available_docs**: List of available documents (spec.md, plan.md, tasks.md, etc.)
 
 Your checklist will be created at:
 
-- **FEATURE_DIR/checklists/[domain].md** (e.g., `ux.md`, `api.md`, `security.md`)
+- **feature_dir/checklists/[domain].md** (e.g., `ux.md`, `api.md`, `security.md`)
 
 ---
 
@@ -103,7 +103,7 @@ Your checklist will be created at:
 
 ## Execution Steps
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list.
+1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for feature_dir and available_docs list.
    - All file paths must be absolute.
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
@@ -144,7 +144,7 @@ Your checklist will be created at:
    - Map focus selections to category scaffolding
    - Infer any missing context from spec/plan/tasks (do NOT hallucinate)
 
-4. **Load feature context**: Read from FEATURE_DIR:
+4. **Load feature context**: Read from feature_dir:
    - spec.md: Feature requirements and scope
    - plan.md (if exists): Technical details, dependencies
    - tasks.md (if exists): Implementation tasks
@@ -156,7 +156,7 @@ Your checklist will be created at:
    - If source docs are large, generate interim summary items instead of embedding raw text
 
 5. **Generate checklist** - Create "Unit Tests for Requirements":
-   - Create `FEATURE_DIR/checklists/` directory if it doesn't exist
+   - Create `feature_dir/checklists/` directory if it doesn't exist
    - Generate unique checklist filename:
      - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`)
      - Format: `[domain].md`

@@ -9,7 +9,7 @@ description: Validate feature readiness and guide final acceptance steps.
 
 ## 📍 WORKING DIRECTORY: Run from MAIN repository
 
-**IMPORTANT**: Accept runs from the main repository root, NOT from a WP worktree.
+**IMPORTANT**: Accept runs from the primary repository checkout root, NOT from a WP worktree.
 
 ```bash
 # If you're in a worktree, return to main first:

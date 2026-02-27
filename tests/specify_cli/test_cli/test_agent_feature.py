@@ -453,6 +453,26 @@ class TestCheckPrerequisitesCommand:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_emits_single_json_object_on_detection_error(
+        self,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Regression guard: detection errors should not emit duplicate JSON payloads."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        result = runner.invoke(app, ["check-prerequisites", "--json"])
+
+        assert result.exit_code == 1
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+
 
 class TestFinalizeTasksCommand:
     """Tests for finalize-tasks command."""
@@ -514,19 +534,16 @@ class TestFinalizeTasksCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
-    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
     def test_fails_when_requirement_refs_missing(
         self,
-        mock_ensure_branch: Mock,
-        mock_resolve_branch: Mock,
+        mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
     ):
         """Should fail with explicit payload when a WP has no requirement refs."""
         mock_locate.return_value = tmp_path
-        mock_resolve_branch.return_value = "main"
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"
@@ -731,6 +748,26 @@ class TestSetupPlanCommand:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert "error" in output
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_setup_plan_emits_single_json_object_on_detection_error(
+        self,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Regression guard: setup-plan detection errors should not emit duplicate JSON payloads."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 1
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
 
 
 class TestFindFeatureDirectory:
