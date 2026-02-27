@@ -16,6 +16,10 @@ import typer
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
+from specify_cli.core.git_preflight import (
+    build_git_preflight_failure_payload,
+    run_git_preflight,
+)
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
@@ -57,6 +61,26 @@ def _safe_emit_wp_status_changed(
             f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
         )
 
+def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
+    """Run git preflight checks and stop early with deterministic remediation."""
+    if not (repo_root / ".git").exists():
+        return
+
+    preflight = run_git_preflight(repo_root, check_worktree_list=True)
+    if preflight.passed:
+        return
+
+    payload = build_git_preflight_failure_payload(
+        preflight,
+        command_name="spec-kitty merge",
+    )
+    if json_output:
+        print(json.dumps(payload))
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        for cmd in payload.get("remediation", []):
+            console.print(f"  - Run: {cmd}")
+    raise typer.Exit(1)
 
 
 def _wp_sort_key(wp_id: str) -> tuple[int, str]:
@@ -688,6 +712,8 @@ def merge(
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+    _enforce_git_preflight(repo_root, json_output=json_output)
 
     # Resolve target branch dynamically if not specified
     if target_branch is None:

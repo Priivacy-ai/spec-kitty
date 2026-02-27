@@ -25,6 +25,10 @@ from specify_cli.core.dependency_graph import (
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
+from specify_cli.core.git_preflight import (
+    build_git_preflight_failure_payload,
+    run_git_preflight,
+)
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
     detect_feature,
@@ -48,6 +52,30 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _enforce_git_preflight(
+    repo_root: Path,
+    *,
+    json_output: bool,
+    command_name: str,
+) -> None:
+    """Run git preflight and exit with deterministic remediation payload on failure."""
+    if not (repo_root / ".git").exists():
+        return
+
+    preflight = run_git_preflight(repo_root, check_worktree_list=True)
+    if preflight.passed:
+        return
+
+    payload = build_git_preflight_failure_payload(preflight, command_name=command_name)
+    if json_output:
+        print(json.dumps(payload))
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        for cmd in payload.get("remediation", []):
+            console.print(f"  - Run: {cmd}")
+    raise typer.Exit(1)
 
 
 def _show_branch_context(
@@ -627,6 +655,12 @@ def check_prerequisites(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+        _enforce_git_preflight(
+            repo_root,
+            json_output=json_output,
+            command_name="spec-kitty agent feature check-prerequisites",
+        )
+
         # Determine feature directory (main repo or worktree)
         cwd = Path.cwd().resolve()
         try:
@@ -717,6 +751,12 @@ def setup_plan(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        _enforce_git_preflight(
+            repo_root,
+            json_output=json_output,
+            command_name="spec-kitty agent feature setup-plan",
+        )
 
         # Determine feature directory using centralized detection.
         # For planning bootstrap, disallow latest-incomplete fallback so the agent

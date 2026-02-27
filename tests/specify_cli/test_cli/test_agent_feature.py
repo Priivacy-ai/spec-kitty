@@ -474,6 +474,98 @@ class TestCheckPrerequisitesCommand:
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
 
 
+class TestGitPreflightEnforcement:
+    """Tests for _enforce_git_preflight integration in feature commands."""
+
+    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    def test_check_prerequisites_exits_on_preflight_failure_json(
+        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
+    ):
+        """check-prerequisites should emit JSON remediation payload on preflight failure."""
+        from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
+
+        (tmp_path / ".git").mkdir()
+        mock_locate.return_value = tmp_path
+
+        failed_result = GitPreflightResult(repo_root=tmp_path)
+        failed_result.errors.append(
+            GitPreflightIssue(
+                code="UNTRUSTED_REPOSITORY",
+                check="repository_trust",
+                message="Git rejected repository ownership trust (safe.directory).",
+                remediation="Mark the repository as trusted.",
+                command=f"git config --global --add safe.directory '{tmp_path}'",
+            )
+        )
+        mock_preflight.return_value = failed_result
+
+        result = runner.invoke(app, ["check-prerequisites", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
+        assert isinstance(payload["remediation"], list)
+        assert len(payload["remediation"]) >= 1
+
+    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    def test_check_prerequisites_exits_on_preflight_failure_human(
+        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
+    ):
+        """check-prerequisites should print human-readable error on preflight failure."""
+        from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
+
+        (tmp_path / ".git").mkdir()
+        mock_locate.return_value = tmp_path
+
+        failed_result = GitPreflightResult(repo_root=tmp_path)
+        failed_result.errors.append(
+            GitPreflightIssue(
+                code="UNTRUSTED_REPOSITORY",
+                check="repository_trust",
+                message="Git rejected repository ownership trust (safe.directory).",
+                remediation="Mark the repository as trusted.",
+                command="git config --global --add safe.directory /repo",
+            )
+        )
+        mock_preflight.return_value = failed_result
+
+        result = runner.invoke(app, ["check-prerequisites"])
+
+        assert result.exit_code == 1
+        assert "Git rejected repository ownership trust" in result.stdout
+
+    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    def test_setup_plan_exits_on_preflight_failure_json(
+        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
+    ):
+        """setup-plan should emit JSON remediation payload on preflight failure."""
+        from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
+
+        (tmp_path / ".git").mkdir()
+        mock_locate.return_value = tmp_path
+
+        failed_result = GitPreflightResult(repo_root=tmp_path)
+        failed_result.errors.append(
+            GitPreflightIssue(
+                code="UNTRUSTED_REPOSITORY",
+                check="repository_trust",
+                message="Git rejected repository ownership trust (safe.directory).",
+                remediation="Mark the repository as trusted.",
+                command="git config --global --add safe.directory /repo",
+            )
+        )
+        mock_preflight.return_value = failed_result
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
+
+
 class TestFinalizeTasksCommand:
     """Tests for finalize-tasks command."""
 
