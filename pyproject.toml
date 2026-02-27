@@ -97,6 +97,9 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
+exclude = [
+    "src/specify_cli/**/tests/**",
+]
 # Include all non-Python files (templates, configs, etc.)
 artifacts = [
     "src/specify_cli/**/*.md",
@@ -117,6 +120,7 @@ include = [
 ]
 exclude = [
     ".kittify/active-mission",
+    "src/specify_cli/**/tests/**",
 ]
 
 [tool.pytest.ini_options]
