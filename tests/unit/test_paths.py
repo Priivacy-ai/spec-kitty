@@ -73,7 +73,7 @@ def test_locate_project_root_from_nested_dir(mock_main_repo: Path, monkeypatch: 
 
 
 def test_is_worktree_context(mock_worktree: dict[str, Path]) -> None:
-    """Test worktree context detection."""
+    """Test worktree context detection via .worktrees path heuristic."""
     # Test worktree path
     assert is_worktree_context(mock_worktree["worktree_path"]) is True
 
@@ -82,6 +82,94 @@ def test_is_worktree_context(mock_worktree: dict[str, Path]) -> None:
 
     # Test feature dir (within worktree)
     assert is_worktree_context(mock_worktree["feature_dir"]) is True
+
+
+def test_is_worktree_context_external_worktree(tmp_path: Path) -> None:
+    """Test worktree context detection via .git file with gitdir pointer.
+
+    Simulates an external worktree (e.g. under /tmp) where .git is a file
+    pointing to the main repo, NOT under a .worktrees directory.
+    """
+    # Create a fake external worktree directory (no .worktrees in path)
+    external_wt = tmp_path / "external-worktree"
+    external_wt.mkdir()
+
+    # Write .git file with gitdir pointer (what git worktree add creates)
+    git_file = external_wt / ".git"
+    git_file.write_text("gitdir: /some/repo/.git/worktrees/external-worktree\n")
+
+    assert is_worktree_context(external_wt) is True
+
+    # A subdirectory inside the external worktree should also be detected
+    nested = external_wt / "src" / "deep"
+    nested.mkdir(parents=True)
+    assert is_worktree_context(nested) is True
+
+
+def test_is_worktree_context_bare_repo_worktree(tmp_path: Path) -> None:
+    """Bare-repo worktree (gitdir: /path/repo.git/worktrees/<wt>) IS a worktree."""
+    bare_wt = tmp_path / "bare-worktree"
+    bare_wt.mkdir()
+
+    # Write .git file with gitdir pointer to a bare repo topology
+    git_file = bare_wt / ".git"
+    git_file.write_text("gitdir: /srv/repos/myproject.git/worktrees/bare-worktree\n")
+
+    assert is_worktree_context(bare_wt) is True
+
+    # Nested path inside the bare-repo worktree
+    nested = bare_wt / "src" / "lib"
+    nested.mkdir(parents=True)
+    assert is_worktree_context(nested) is True
+
+
+def test_is_worktree_context_main_repo(tmp_path: Path) -> None:
+    """Test that a main repo with .git directory is NOT detected as worktree."""
+    # Create a fake main repo with .git directory
+    main_repo = tmp_path / "main-repo"
+    main_repo.mkdir()
+    (main_repo / ".git").mkdir()
+
+    assert is_worktree_context(main_repo) is False
+
+    # Nested path inside main repo
+    nested = main_repo / "src" / "lib"
+    nested.mkdir(parents=True)
+    assert is_worktree_context(nested) is False
+
+
+def test_is_worktree_context_submodule_gitdir(tmp_path: Path) -> None:
+    """Submodule .git file (gitdir: ../.git/modules/foo) must NOT be a worktree."""
+    sub = tmp_path / "parent-repo" / "sub"
+    sub.mkdir(parents=True)
+
+    git_file = sub / ".git"
+    git_file.write_text("gitdir: ../.git/modules/sub\n")
+
+    assert is_worktree_context(sub) is False
+
+    # Nested path inside the submodule
+    nested = sub / "src" / "lib"
+    nested.mkdir(parents=True)
+    assert is_worktree_context(nested) is False
+
+
+def test_is_worktree_context_separate_git_dir(tmp_path: Path) -> None:
+    """Separate-git-dir clone (gitdir: /some/external/dir) must NOT be a worktree."""
+    repo = tmp_path / "my-clone"
+    repo.mkdir()
+
+    external_gitdir = tmp_path / "external-gitdirs" / "my-clone.git"
+    external_gitdir.mkdir(parents=True)
+
+    git_file = repo / ".git"
+    git_file.write_text(f"gitdir: {external_gitdir}\n")
+
+    assert is_worktree_context(repo) is False
+
+    nested = repo / "src"
+    nested.mkdir()
+    assert is_worktree_context(nested) is False
 
 
 def test_resolve_with_context_main_repo(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
