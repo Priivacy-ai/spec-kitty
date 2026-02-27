@@ -321,6 +321,130 @@ class TestFullWorkflow:
         assert f'review_feedback_file: "{resolved_feedback}"' in content
 
 
+class TestReviewRejectToPlanned:
+    """Integration tests for the for_review -> planned reject flow (issue #223).
+
+    Verifies that the exact reject command shown in review templates works
+    end-to-end: spec-kitty agent tasks move-task WP## --to planned --review-feedback-file <file>
+    """
+
+    def test_for_review_to_planned_with_feedback_file(self, task_repo: Path, monkeypatch):
+        """Should allow for_review -> planned when review feedback file is provided."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # Create review feedback file (simulates reviewer writing feedback)
+        feedback_file = task_repo / "review-feedback.md"
+        feedback_file.write_text(
+            "## Review Feedback\n\n"
+            "**Issue 1**: Missing error handling in edge case\n"
+            "**Issue 2**: Test coverage insufficient for new path\n",
+            encoding="utf-8",
+        )
+
+        # Execute the exact reject command from the review template
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "planned",
+                "--feature", "001-test-feature",
+                "--review-feedback-file", str(feedback_file),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
+        output = _parse_json_output(result.stdout)
+        assert output["new_lane"] == "planned"
+
+    def test_for_review_to_planned_without_feedback_file_rejected(self, task_repo: Path, monkeypatch):
+        """Should reject for_review -> planned when no feedback file is provided."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # Attempt to move to planned without feedback file
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "planned", "--feature", "001-test-feature", "--json"],
+        )
+        assert result.exit_code == 1
+        output = _parse_json_output(result.stdout)
+        assert "requires review feedback" in output["error"]
+
+    def test_for_review_to_planned_force_still_requires_feedback(self, task_repo: Path, monkeypatch):
+        """--force must not bypass feedback file requirement for for_review -> planned."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # --force without --review-feedback-file must still fail
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "planned", "--feature", "001-test-feature", "--force", "--json"],
+        )
+        assert result.exit_code == 1
+        output = _parse_json_output(result.stdout)
+        assert "requires review feedback" in output["error"]
+
+    def test_for_review_to_planned_persists_feedback(self, task_repo: Path, monkeypatch):
+        """Should persist review feedback content in the WP file body and frontmatter."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # Create feedback file
+        feedback_file = task_repo / "reject-feedback.md"
+        feedback_file.write_text(
+            "**Critical**: The implementation does not handle the null case.\n",
+            encoding="utf-8",
+        )
+        resolved_path = str(feedback_file.resolve())
+
+        # Move to planned with feedback
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "planned",
+                "--feature", "001-test-feature",
+                "--review-feedback-file", str(feedback_file),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
+
+        # Verify feedback persisted in WP file
+        task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
+        content = task_file.read_text(encoding="utf-8")
+        assert "## Review Feedback" in content
+        assert "does not handle the null case" in content
+        assert f'review_feedback_file: "{resolved_path}"' in content
+
+
 class TestLocationIndependence:
     """Tests for running commands from different locations."""
 

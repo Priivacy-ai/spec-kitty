@@ -21,7 +21,7 @@ class TestConstants:
         assert len(CANONICAL_LANES) == 7
 
     def test_allowed_transitions_count(self) -> None:
-        assert len(ALLOWED_TRANSITIONS) == 16
+        assert len(ALLOWED_TRANSITIONS) == 17
 
     def test_terminal_lanes(self) -> None:
         assert TERMINAL_LANES == frozenset({"done", "canceled"})
@@ -91,6 +91,7 @@ class TestLegalTransitions:
                 },
             ),
             ("for_review", "in_progress", {"review_ref": "feedback-123"}),
+            ("for_review", "planned", {"review_ref": "feedback-456"}),
             ("in_progress", "planned", {"reason": "reassigning"}),
             ("planned", "blocked", {}),
             ("claimed", "blocked", {}),
@@ -205,8 +206,34 @@ class TestGuardConditions:
         ok, error = validate_transition("planned", "claimed", actor="")
         assert ok is False
 
-    def test_review_ref_for_rollback(self) -> None:
+    def test_review_ref_for_rollback_to_in_progress(self) -> None:
         ok, error = validate_transition("for_review", "in_progress")
+        assert ok is False
+        assert "review_ref" in error.lower()
+
+    def test_review_ref_for_rollback_to_planned(self) -> None:
+        ok, error = validate_transition("for_review", "planned")
+        assert ok is False
+        assert "review_ref" in error.lower()
+
+    def test_review_ref_for_rollback_to_planned_accepted(self) -> None:
+        ok, error = validate_transition(
+            "for_review", "planned", review_ref="feedback-789"
+        )
+        assert ok is True
+        assert error is None
+
+    def test_review_ref_for_rollback_to_planned_empty_rejected(self) -> None:
+        ok, error = validate_transition(
+            "for_review", "planned", review_ref=""
+        )
+        assert ok is False
+        assert "review_ref" in error.lower()
+
+    def test_review_ref_for_rollback_to_planned_whitespace_rejected(self) -> None:
+        ok, error = validate_transition(
+            "for_review", "planned", review_ref="   "
+        )
         assert ok is False
         assert "review_ref" in error.lower()
 
