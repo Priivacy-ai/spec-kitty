@@ -9,12 +9,13 @@ description: Contract reference for external orchestration providers that integr
 
 - Core CLI does not include `spec-kitty orchestrate`.
 - External providers (for example `spec-kitty-orchestrator`) must use this API.
-- Commands are JSON-first: exactly one JSON envelope on stdout; non-zero exit on failure.
+- Commands always emit JSON: exactly one JSON envelope on stdout; non-zero exit on failure.
+- Parser/usage errors (missing required args, unknown options) also return a JSON envelope with error code `USAGE_ERROR`.
 
 ## Contract Version
 
 - `CONTRACT_VERSION`: `1.0.0`
-- Command: `spec-kitty orchestrator-api contract-version --json`
+- Command: `spec-kitty orchestrator-api contract-version`
 
 ## Canonical Envelope
 
@@ -91,16 +92,14 @@ Returns host `api_version` and minimum supported provider version.
 ### feature-state
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug> --json
-```
+spec-kitty orchestrator-api feature-state --feature <slug>```
 
 Returns WP states, dependency data, and lane summary.
 
 ### list-ready
 
 ```bash
-spec-kitty orchestrator-api list-ready --feature <slug> --json
-```
+spec-kitty orchestrator-api list-ready --feature <slug>```
 
 Returns WPs in `planned` with all dependencies in `done`.
 
@@ -108,8 +107,7 @@ Returns WPs in `planned` with all dependencies in `done`.
 
 ```bash
 spec-kitty orchestrator-api start-implementation \
-  --feature <slug> --wp <WP##> --actor <actor-id> --policy '<json>' --json
-```
+  --feature <slug> --wp <WP##> --actor <actor-id> --policy '<json>'```
 
 Composite transition into `in_progress` for implementation. Returns `workspace_path` and `prompt_path`.
 
@@ -118,8 +116,7 @@ Composite transition into `in_progress` for implementation. Returns `workspace_p
 ```bash
 spec-kitty orchestrator-api start-review \
   --feature <slug> --wp <WP##> --actor <actor-id> --policy '<json>' \
-  --review-ref <ref> --json
-```
+  --review-ref <ref>```
 
 Moves a rejected WP from `for_review` back to `in_progress`.
 
@@ -128,8 +125,7 @@ Moves a rejected WP from `for_review` back to `in_progress`.
 ```bash
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp <WP##> --to <lane> --actor <actor-id> \
-  [--note <text>] [--policy '<json>'] [--review-ref <ref>] [--force] --json
-```
+  [--note <text>] [--policy '<json>'] [--review-ref <ref>] [--force]```
 
 Applies one lane transition with deterministic validation errors.
 
@@ -137,16 +133,14 @@ Applies one lane transition with deterministic validation errors.
 
 ```bash
 spec-kitty orchestrator-api append-history \
-  --feature <slug> --wp <WP##> --actor <actor-id> --note <text> --json
-```
+  --feature <slug> --wp <WP##> --actor <actor-id> --note <text>```
 
 Appends an activity entry to the WP prompt history.
 
 ### accept-feature
 
 ```bash
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor <actor-id> --json
-```
+spec-kitty orchestrator-api accept-feature --feature <slug> --actor <actor-id>```
 
 Accepts a feature when all WPs are `done`.
 
@@ -154,13 +148,13 @@ Accepts a feature when all WPs are `done`.
 
 ```bash
 spec-kitty orchestrator-api merge-feature \
-  --feature <slug> [--target main] [--strategy merge|squash] [--push] --json
-```
+  --feature <slug> [--target main] [--strategy merge|squash] [--push]```
 
 Runs preflight and merges WP branches in dependency order.
 
 ## Common Error Codes
 
+- `USAGE_ERROR`
 - `CONTRACT_VERSION_MISMATCH`
 - `FEATURE_NOT_FOUND`
 - `WP_NOT_FOUND`

@@ -11,7 +11,7 @@ Use this guide to implement your own orchestration strategy while keeping `spec-
 
 Your orchestrator must:
 
-- Call only `spec-kitty orchestrator-api ... --json` for workflow state.
+- Call only `spec-kitty orchestrator-api ...` subcommands for workflow state (output is always JSON).
 - Treat `spec-kitty` as source of truth for lane state and dependencies.
 - Never write `kitty-specs/<feature>/tasks/*.md` lanes directly.
 
@@ -26,15 +26,12 @@ Your orchestrator must:
 ### 1. Check compatibility
 
 ```bash
-spec-kitty orchestrator-api contract-version --json
-```
+spec-kitty orchestrator-api contract-version```
 
 ### 2. Discover work
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug> --json
-spec-kitty orchestrator-api list-ready --feature <slug> --json
-```
+spec-kitty orchestrator-api feature-state --feature <slug>spec-kitty orchestrator-api list-ready --feature <slug>```
 
 ### 3. Start implementation
 
@@ -44,8 +41,7 @@ spec-kitty orchestrator-api start-implementation \
   --wp WP01 \
   --actor my-orchestrator \
   --policy '<json>' \
-  --json
-```
+ ```
 
 Use returned `workspace_path` and `prompt_path` to run your agent process.
 
@@ -55,25 +51,20 @@ Use returned `workspace_path` and `prompt_path` to run your agent process.
 # implementation complete
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to for_review \
-  --actor my-orchestrator --policy '<json>' --json
-
+  --actor my-orchestrator --policy '<json>'
 # review approved
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to done \
-  --actor reviewer-bot --json
-
+  --actor reviewer-bot
 # review rejected -> rework
 spec-kitty orchestrator-api start-review \
   --feature <slug> --wp WP01 --actor my-orchestrator \
-  --policy '<json>' --review-ref review/WP01/attempt-2 --json
-```
+  --policy '<json>' --review-ref review/WP01/attempt-2```
 
 ### 5. Finalize
 
 ```bash
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestrator --json
-spec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge --json
-```
+spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestratorspec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge```
 
 ## Policy JSON Template
 

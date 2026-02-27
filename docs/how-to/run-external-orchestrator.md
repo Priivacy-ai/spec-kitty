@@ -23,7 +23,7 @@ This is the supported automation model in `1.x` and `2.x`:
 ## 1. Verify Host Contract
 
 ```bash
-spec-kitty orchestrator-api contract-version --json
+spec-kitty orchestrator-api contract-version
 ```
 
 Expected result:
@@ -66,7 +66,7 @@ Use `resume` after interruption. Use `abort` to mark the provider run as stopped
 ## 5. Confirm Host State
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature 034-my-feature --json
+spec-kitty orchestrator-api feature-state --feature 034-my-feature
 ```
 
 This is the authoritative source of lane state.

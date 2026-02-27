@@ -15,7 +15,7 @@
 ## Recommended operator flow
 
 ```bash
-spec-kitty orchestrator-api contract-version --json
+spec-kitty orchestrator-api contract-version
 spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
 spec-kitty-orchestrator orchestrate --feature 034-my-feature
 ```
