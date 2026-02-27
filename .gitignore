@@ -49,6 +49,10 @@ env/
 .kittify/workspaces/
 .kittify/missions/
 .kittify/scripts/
+.kittify/constitution/context-state.json
+.kittify/constitution/directives.yaml
+.kittify/constitution/governance.yaml
+.kittify/constitution/metadata.yaml
 node_modules/
 
 # Spec Kit-specific files
@@ -101,7 +105,6 @@ src/doctrine/curation/imports/**
 work
 out
 .nvimlog
-.claude/
 
 tmp/**
 !tmp/.gitkeep
