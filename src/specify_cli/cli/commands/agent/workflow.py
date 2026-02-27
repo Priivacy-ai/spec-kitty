@@ -27,6 +27,10 @@ from specify_cli.core.feature_detection import (
 )
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.transitions import resolve_lane_alias
+from specify_cli.status.store import read_events
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
@@ -866,8 +870,51 @@ def review(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Update lane, agent, and shell_pid in frontmatter
-            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            # --- Route through canonical emit pipeline (#211) ---
+            feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+            # Sync canonical event log if frontmatter lane disagrees
+            current_canonical = resolve_lane_alias(current_lane_raw)
+            current_event_lane = None
+            for existing_event in reversed(read_events(feature_dir)):
+                if existing_event.wp_id == normalized_wp_id:
+                    current_event_lane = str(existing_event.to_lane)
+                    break
+
+            if (
+                current_canonical != "planned"
+                and current_event_lane != current_canonical
+            ):
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=normalized_wp_id,
+                    to_lane=current_canonical,
+                    actor=agent,
+                    force=True,
+                    reason="sync from frontmatter before workflow review claim",
+                    workspace_context=f"workflow-review:{main_repo_root}",
+                    repo_root=main_repo_root,
+                )
+
+            # Emit the actual for_review -> in_progress transition
+            emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=normalized_wp_id,
+                to_lane="in_progress",
+                actor=agent,
+                force=True,  # review claim is always allowed
+                reason="Started review via workflow command",
+                review_ref="workflow-review-claim",
+                workspace_context=f"workflow-review:{main_repo_root}",
+                repo_root=main_repo_root,
+            )
+
+            # Post-emit: apply metadata fields to WP file
+            wp_content = wp.path.read_text(encoding="utf-8-sig")
+            updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+            updated_front = set_scalar(updated_front, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
@@ -876,17 +923,18 @@ def review(
             history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
 
             # Add history entry to body
-            updated_body = append_activity_log(wp.body, history_entry)
+            updated_body = append_activity_log(updated_body, history_entry)
 
             # Build and write updated document
-            updated_doc = build_document(updated_front, updated_body, wp.padding)
+            updated_doc = build_document(updated_front, updated_body, updated_padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to target branch (enables instant status sync)
+            # Atomic commit: WP file + all status artifacts (#211, #212)
             actual_wp_path = wp.path.resolve()
+            status_artifacts = _collect_status_artifacts(feature_dir)
             commit_success = safe_commit(
                 repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path],
+                files_to_commit=[actual_wp_path] + status_artifacts,
                 commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
                 allow_empty=True,  # OK if already in this state
             )
