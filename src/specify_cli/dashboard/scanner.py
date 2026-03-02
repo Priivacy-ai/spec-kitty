@@ -465,6 +465,11 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 task_data = _process_wp_file(prompt_file, project_dir, "planned")
                 if task_data is not None:
                     lane = task_data.get("lane", "planned")
+                    # Normalise canonical status-model name → dashboard lane key.
+                    # The status model writes "in_progress" (canonical); the kanban
+                    # dict and dashboard frontend use "doing" (display alias).
+                    if lane == "in_progress":
+                        lane = "doing"
                     if lane not in lanes:
                         lane = "planned"
                     lanes[lane].append(task_data)

@@ -74,7 +74,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
             # submodules, and separate-git-dir clones.  Only follow the
             # pointer when it has the .git/worktrees/<name> topology.
             try:
-                content = git_path.read_text().strip()
+                content = git_path.read_text(encoding="utf-8", errors="replace").strip()
                 if content.startswith("gitdir:"):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
@@ -138,7 +138,7 @@ def is_worktree_context(path: Path) -> bool:
         git_path = candidate / ".git"
         if git_path.is_file():
             try:
-                content = git_path.read_text().strip()
+                content = git_path.read_text(encoding="utf-8", errors="replace").strip()
                 if content.startswith("gitdir:"):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
@@ -226,17 +226,21 @@ def get_main_repo_root(current_path: Path) -> Path:
 
     if git_file.is_file():
         try:
-            git_content = git_file.read_text().strip()
+            git_content = git_file.read_text(encoding="utf-8", errors="replace").strip()
             if git_content.startswith("gitdir:"):
-                gitdir = Path(git_content.split(":", 1)[1].strip())
-                # Navigate: .git/worktrees/name -> .git -> main repo root
-                main_git_dir = gitdir.parent.parent
-                main_repo_root = main_git_dir.parent
-                return main_repo_root
+                gitdir_str = git_content.split(":", 1)[1].strip()
+                # Validate the gitdir path is not empty (bug discovered via mutation testing)
+                if gitdir_str:
+                    gitdir = Path(gitdir_str)
+                    # Navigate: .git/worktrees/name -> .git -> main repo root
+                    main_git_dir = gitdir.parent.parent
+                    main_repo_root = main_git_dir.parent
+                    return main_repo_root
         except (OSError, ValueError):
             pass
 
-    return current_path
+    # Not a worktree - return the resolved current path
+    return current_path.resolve()
 
 
 # DEPRECATED: find_feature_slug() has been removed
