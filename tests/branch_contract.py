@@ -49,6 +49,10 @@ def _is_2x_context(
         return True
     if normalized.startswith("codex/2x-") or normalized.startswith("codex/2.x-"):
         return True
+    # Handle scoped feature branches created by automated workflows:
+    # e.g. "feature/2.x-mutants-20260303", "fix/2.x-status-edge-cases"
+    if "/2.x-" in normalized or "/2.x/" in normalized:
+        return True
     if github_base_ref.strip() in _2X_INTEGRATION_BRANCHES:
         return True
     if github_ref_name.strip() in _2X_INTEGRATION_BRANCHES:
