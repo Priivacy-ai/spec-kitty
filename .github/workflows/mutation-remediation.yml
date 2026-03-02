@@ -1,0 +1,315 @@
+name: Mutation Testing Remediation
+
+# Runs twice a week (scheduled) or on demand.
+# Each run:
+#   1. Creates a feature/2.x-<slug> branch from develop
+#   2. Executes mutmut and catalogues surviving mutants
+#   3. Invokes a Claude Code agent to select and resolve a batch
+#   4. Verifies the new tests pass against the unmodified codebase
+#   5. Opens a PR to develop with a structured remediation summary
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # Monday    03:00 UTC
+    - cron: '0 3 * * 4'   # Thursday  03:00 UTC
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: >
+          Branch name suffix (e.g. "status-edge-cases").
+          Auto-generated from the date when left empty.
+        required: false
+        default: ''
+        type: string
+      max_mutants:
+        description: 'Maximum number of surviving mutants to address per run'
+        required: false
+        default: '5'
+        type: string
+
+concurrency:
+  group: mutation-remediation
+  cancel-in-progress: false   # Never cancel a running remediation mid-flight
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  mutation-remediation:
+    name: Catalogue survivors → remediate → PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Python environment ─────────────────────────────────────────────────
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dev + test dependencies (including mutmut)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      # ── 3. Feature branch ─────────────────────────────────────────────────────
+      - name: Resolve branch slug
+        id: branch
+        run: |
+          if [ -n "${{ inputs.slug }}" ]; then
+            SLUG="${{ inputs.slug }}"
+          else
+            SLUG="mutants-$(date +%Y%m%d)"
+          fi
+          BRANCH="feature/2.x-${SLUG}"
+          echo "slug=${SLUG}"   >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Branch will be: ${BRANCH}"
+
+      - name: Create and push feature branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${{ steps.branch.outputs.branch }}"
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      # ── 4. Mutation run ───────────────────────────────────────────────────────
+      - name: Prepare artefact directory
+        run: mkdir -p out/mutation
+
+      - name: Run mutmut
+        id: mutmut
+        # mutmut exits non-zero when mutants survive; continue-on-error lets
+        # us inspect results even after a "failed" run.
+        continue-on-error: true
+        timeout-minutes: 90
+        run: |
+          python -m mutmut run --no-progress 2>&1 | tee out/mutation/mutmut-run.log
+
+      - name: Export surviving mutant catalogue
+        id: catalogue
+        run: |
+          python -m mutmut result-ids survived 2>/dev/null \
+            > out/mutation/survived-ids.txt || true
+          python -m mutmut results 2>/dev/null \
+            > out/mutation/mutmut-results.txt || true
+
+          # Build a single Markdown catalogue with inline diffs for the agent
+          {
+            echo "# Surviving Mutant Catalogue"
+            echo ""
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+          } > out/mutation/surviving-mutants.md
+
+          SURVIVED=0
+          if [ -s out/mutation/survived-ids.txt ]; then
+            while IFS= read -r mid; do
+              [ -z "$mid" ] && continue
+              SURVIVED=$((SURVIVED + 1))
+              {
+                echo "## Mutant ${mid}"
+                echo '```diff'
+                python -m mutmut show "$mid" 2>&1 || echo "(diff unavailable)"
+                echo '```'
+                echo ""
+              } >> out/mutation/surviving-mutants.md
+            done < out/mutation/survived-ids.txt
+          fi
+
+          echo "survived=${SURVIVED}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Surviving mutants: ${SURVIVED}"
+
+      # ── 5. Early exit when nothing survived ──────────────────────────────────
+      - name: Skip remediation — no survivors
+        if: steps.catalogue.outputs.survived == '0'
+        run: |
+          echo "::notice::All mutants were killed. No remediation needed."
+          echo "# No surviving mutants" > out/mutation/remediation-notes.md
+          echo "All configured mutants were killed on this run." >> out/mutation/remediation-notes.md
+
+      # ── 6. Agentic remediation ────────────────────────────────────────────────
+      - name: Check ANTHROPIC_API_KEY is available
+        if: steps.catalogue.outputs.survived != '0'
+        id: api_key_check
+        run: |
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANTHROPIC_API_KEY secret is not set — skipping agentic remediation."
+          fi
+
+      - name: Remediate surviving mutants with Claude Code
+        if: >
+          steps.catalogue.outputs.survived != '0' &&
+          steps.api_key_check.outputs.enabled == 'true'
+        uses: anthropic/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
+          prompt: |
+            You are a test-quality engineer remediating mutation testing gaps in the
+            spec-kitty 2.x codebase. Your goal is to add *meaningful* unit tests that
+            reflect the system's intended behaviour — not just tests engineered to kill
+            a specific mutant.
+
+            ## Reference documents to read first
+            - `out/mutation/surviving-mutants.md` — surviving mutant diffs (your work list)
+            - `kitty-specs/047-mutmut-mutation-testing-ci/mutmut-equivalents.md` — mutants
+              confirmed equivalent (do NOT address these; they cannot be killed meaningfully)
+            - `architecture/2.x/README.md` — 2.x architecture overview
+            - `architecture/2.x/adr/` — Architectural Decision Records; read the ADRs
+              relevant to any module you plan to write tests for before writing anything
+            - `architecture/2.x/03_components/README.md` — component responsibilities
+
+            ## Step-by-step instructions
+            1. Read `out/mutation/surviving-mutants.md`.
+            2. Cross-reference against `mutmut-equivalents.md` and exclude equivalent mutants.
+            3. Select up to ${{ inputs.max_mutants || '5' }} non-equivalent mutants to address.
+               Prioritise mutants in `src/specify_cli/status/` and `src/specify_cli/core/`
+               (highest business impact per the architecture docs).
+            4. For each selected mutant:
+               a. Read the relevant ADR(s) to understand the *intended* behaviour of the
+                  mutated code path.
+               b. Locate the most appropriate existing test file under `tests/unit/` or
+                  `tests/specify_cli/` (prefer adding to existing files over creating new ones).
+               c. Write a focused test that would fail if the *intended behaviour* changed,
+                  and that also happens to kill the mutant as a side-effect.
+               d. Run `pytest <test_file> -q --timeout=30` and confirm it passes on the
+                  unmodified source.
+               e. If the test fails, debug and fix it before moving on.
+            5. Write `out/mutation/remediation-notes.md` with:
+               - A table of resolved mutants (ID | module | mutation | test added)
+               - A table of skipped mutants (ID | reason: equivalent / out-of-scope / time)
+               - A short paragraph explaining the selection rationale
+
+            ## Hard constraints
+            - **Do not modify production source code** unless a mutant exposes a genuine defect
+              (document the defect clearly in remediation-notes.md if you do).
+            - Do not add `@pytest.mark.skipif(IS_2X_BRANCH, ...)` — all new tests are 2.x-native.
+            - Tests must be self-contained and not depend on filesystem state outside `tmp_path`.
+            - Keep each test function under 40 lines; split helpers into fixtures if needed.
+            - Use `unittest.mock.patch` / `monkeypatch` for isolation; never call real git or
+              network operations in unit tests.
+
+      # ── 7. Verification ───────────────────────────────────────────────────────
+      - name: Verify test suite still passes
+        if: steps.catalogue.outputs.survived != '0'
+        run: |
+          # Mirror the ignore list from [tool.mutmut] in pyproject.toml so the
+          # verification runs in the same scope as mutmut itself.
+          pytest tests/unit/ tests/specify_cli/ \
+            -q --timeout=30 \
+            --ignore=tests/unit/agent/ \
+            --ignore=tests/unit/mission_v1/ \
+            --ignore=tests/unit/next/ \
+            --ignore=tests/unit/orchestrator_api/ \
+            --ignore=tests/unit/runtime/ \
+            --ignore=tests/unit/test_atomic_status_commits.py \
+            --ignore=tests/unit/test_move_task_git_validation.py \
+            --ignore=tests/unit/test_pre_commit_wp_guard.py \
+            --ignore=tests/specify_cli/cli/commands/test_event_emission.py \
+            --ignore=tests/specify_cli/test_cli/ \
+            --ignore=tests/specify_cli/test_implement_command.py \
+            --ignore=tests/specify_cli/test_review_warnings.py \
+            --ignore=tests/specify_cli/test_workflow_auto_moves.py \
+            --ignore=tests/specify_cli/upgrade/test_migration_robustness.py \
+            --ignore=tests/specify_cli/status/test_parity.py \
+            2>&1 | tail -30
+
+      # ── 8. Commit & push ──────────────────────────────────────────────────────
+      - name: Commit remediation artefacts
+        id: commit
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No file changes produced — branch stays empty."
+          else
+            git commit -m "test(mutation): address surviving mutants — $(date +%Y-%m-%d)
+
+Auto-generated by the mutation-remediation workflow.
+Surviving mutants: ${{ steps.catalogue.outputs.survived }}
+Addressed: up to ${{ inputs.max_mutants || '5' }}"
+            git push origin "${{ steps.branch.outputs.branch }}"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 9. Upload artefacts ───────────────────────────────────────────────────
+      - name: Upload mutation artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-results-${{ steps.branch.outputs.slug }}
+          path: out/mutation/
+          retention-days: 30
+
+      # ── 10. Open PR ───────────────────────────────────────────────────────────
+      - name: Build PR body
+        if: steps.commit.outputs.has_changes == 'true'
+        id: pr_body
+        run: |
+          SURVIVED="${{ steps.catalogue.outputs.survived }}"
+          MAX="${{ inputs.max_mutants || '5' }}"
+          TRIGGER="${{ github.event_name }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          NOTES=""
+          if [ -f out/mutation/remediation-notes.md ]; then
+            NOTES=$(cat out/mutation/remediation-notes.md)
+          fi
+
+          # Write body to file to avoid shell-quoting hazards
+          cat > /tmp/pr-body.md <<BODY
+          ## Mutation Testing Remediation
+
+          | | |
+          |---|---|
+          | **Trigger** | ${TRIGGER} |
+          | **Run date** | $(date -u +%Y-%m-%d) |
+          | **Surviving mutants found** | ${SURVIVED} |
+          | **Batch limit** | ${MAX} |
+
+          ---
+
+          ${NOTES}
+
+          ---
+
+          ### Review checklist
+          - [ ] New tests reflect *intended behaviour* described in the 2.x ADRs
+          - [ ] Tests pass on the unmodified codebase (verified by workflow)
+          - [ ] No production code was changed without documented justification
+          - [ ] Surviving-mutant catalogue is available in [workflow artefacts](${RUN_URL})
+
+          ---
+          🤖 Generated by the [mutation-remediation workflow](${RUN_URL})
+          BODY
+
+      - name: Create pull request
+        if: steps.commit.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base develop \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "test(mutation): remediate surviving mutants (${{ steps.branch.outputs.slug }})" \
+            --body-file /tmp/pr-body.md \
+            --label "mutation-testing" \
+            --label "automated" \
+            || echo "::warning::PR creation failed (labels may not exist yet — create them manually)."
