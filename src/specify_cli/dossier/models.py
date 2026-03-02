@@ -9,7 +9,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import uuid
 
 
@@ -100,12 +100,14 @@ class ArtifactRef(BaseModel):
         description="When this artifact was indexed",
     )
 
-    @validator("artifact_key")
+    model_config = ConfigDict()
+
+    @field_validator("artifact_key")
+    @classmethod
     def validate_artifact_key(cls, v):
         """Validate artifact_key format (alphanumeric + dots/underscores)."""
         if not v:
             raise ValueError("artifact_key cannot be empty")
-        # Allow alphanumeric, dots, underscores, hyphens
         import re
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
             raise ValueError(
@@ -113,7 +115,8 @@ class ArtifactRef(BaseModel):
             )
         return v
 
-    @validator("artifact_class")
+    @field_validator("artifact_class")
+    @classmethod
     def validate_artifact_class(cls, v):
         """Validate artifact_class is one of the allowed types."""
         allowed_classes = {
@@ -131,7 +134,8 @@ class ArtifactRef(BaseModel):
             )
         return v
 
-    @validator("required_status")
+    @field_validator("required_status")
+    @classmethod
     def validate_required_status(cls, v):
         """Validate required_status is 'required' or 'optional'."""
         allowed_values = {"required", "optional"}
@@ -141,7 +145,8 @@ class ArtifactRef(BaseModel):
             )
         return v
 
-    @validator("content_hash_sha256")
+    @field_validator("content_hash_sha256")
+    @classmethod
     def validate_content_hash_sha256(cls, v):
         """Validate content_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
@@ -156,11 +161,6 @@ class ArtifactRef(BaseModel):
                     f"content_hash_sha256 must be valid hexadecimal; got '{v}'"
                 )
         return v
-
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class MissionDossier(BaseModel):
@@ -269,10 +269,7 @@ class MissionDossier(BaseModel):
         missing = self.get_missing_required_artifacts()
         return "complete" if not missing else "incomplete"
 
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict()
 
 
 class MissionDossierSnapshot(BaseModel):
@@ -366,7 +363,10 @@ class MissionDossierSnapshot(BaseModel):
         description="When snapshot was computed (UTC)",
     )
 
-    @validator("completeness_status")
+    model_config = ConfigDict()
+
+    @field_validator("completeness_status")
+    @classmethod
     def validate_completeness_status(cls, v):
         """Validate completeness_status is one of the allowed values."""
         allowed_values = {"complete", "incomplete", "unknown"}
@@ -376,7 +376,8 @@ class MissionDossierSnapshot(BaseModel):
             )
         return v
 
-    @validator("parity_hash_sha256")
+    @field_validator("parity_hash_sha256")
+    @classmethod
     def validate_parity_hash_sha256(cls, v):
         """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
@@ -428,8 +429,3 @@ class MissionDossierSnapshot(BaseModel):
             Hash of parity_hash_sha256
         """
         return hash(self.parity_hash_sha256)
-
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
