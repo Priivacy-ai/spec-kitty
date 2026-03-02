@@ -24,6 +24,9 @@ def _current_branch() -> str:
     return result.stdout.strip()
 
 
+_2X_INTEGRATION_BRANCHES = frozenset({"2.x", "develop"})
+
+
 def _is_2x_context(
     branch_name: str,
     *,
@@ -35,17 +38,20 @@ def _is_2x_context(
     Local development commonly uses helper branch names (for example
     ``codex/2x-foo``) while CI pull_request jobs expose the target branch in
     ``GITHUB_BASE_REF``.
+
+    Integration branches: ``2.x`` (canonical) and ``develop`` (working
+    integration branch for the 2.x release line).
     """
     normalized = branch_name.strip()
-    if normalized == "2.x":
+    if normalized in _2X_INTEGRATION_BRANCHES:
         return True
     if normalized.startswith("2.x-") or normalized.startswith("2.x/"):
         return True
     if normalized.startswith("codex/2x-") or normalized.startswith("codex/2.x-"):
         return True
-    if github_base_ref.strip() == "2.x":
+    if github_base_ref.strip() in _2X_INTEGRATION_BRANCHES:
         return True
-    if github_ref_name.strip() == "2.x":
+    if github_ref_name.strip() in _2X_INTEGRATION_BRANCHES:
         return True
     return False
 
