@@ -35,6 +35,9 @@ def research_task_file(tmp_path: Path) -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
+    # Create spec.md (required file)
+    (feature_dir / "spec.md").write_text("# Research Feature\n\nTest research feature content")
+
     # Create meta.json with research mission and deliverables_path
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(json.dumps({
@@ -146,6 +149,9 @@ class TestResearchMissionDetection:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        # Create spec.md (required file)
+        (feature_dir / "spec.md").write_text("# SW Feature\n\nSoftware development feature")
+
         # Create meta.json with software-dev mission
         meta_file = feature_dir / "meta.json"
         meta_file.write_text(json.dumps({
@@ -237,6 +243,9 @@ class TestDeliverablesPathInPrompt:
         feature_dir = repo_root / "kitty-specs" / "009-research-no-path"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+
+        # Create spec.md (required file)
+        (feature_dir / "spec.md").write_text("# Research No Path\n\nResearch with default path")
 
         # Create meta.json with research mission but NO deliverables_path
         meta_file = feature_dir / "meta.json"

@@ -9,6 +9,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Definition** | Project-level policy document that captures the HiC's operating constraints, quality rules, and doctrine selections for a repository. Compiled from interview answers and doctrine catalog choices. |
 | **Context** | Governance |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Project Constitution](./configuration-project-structure.md#project-constitution), [Constitution Interview](#constitution-interview), [Constitution Compiler](#constitution-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
@@ -20,7 +21,8 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Definition** | Immutable record of a significant technical/domain decision, with context and consequences. |
 | **Context** | Governance |
 | **Status** | canonical |
-| **Location** | `architecture/adrs/` |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location** | `architecture/1.x/adr/` and `architecture/2.x/adr/` |
 
 ---
 
@@ -31,6 +33,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Definition** | Governance rule for how semantic conflicts are treated (`warn` vs `block`) under each strictness mode. |
 | **Context** | Governance |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Default** | `medium` |
 
 ---
@@ -42,6 +45,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Definition** | Rule that limits clarification interruption by prioritizing highest-impact conflicts first and capping prompt count per burst. |
 | **Context** | Governance |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Cap** | 3 prompts per burst |
 
 ---
@@ -53,6 +57,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Definition** | Ordering used when policy settings conflict. |
 | **Context** | Governance |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Operational order (strictness)** | CLI override > step metadata > mission config > global default |
 
 ---
@@ -63,7 +68,8 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 |---|---|
 | **Definition** | A guided question-and-answer process that walks the HiC through their project's preferences, constraints, and doctrine selections. Answers are saved to `answers.yaml` and used to compile the constitution. |
 | **Context** | Governance |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution](#constitution), [Constitution Compiler](#constitution-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
@@ -74,7 +80,8 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 |---|---|
 | **Definition** | The processor that takes the HiC's interview answers and their selected doctrine artifacts, and combines them into a finalized constitution document and supporting governance files. |
 | **Context** | Governance |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution](#constitution), [Constitution Interview](#constitution-interview), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
 
 ---
@@ -85,5 +92,6 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 |---|---|
 | **Definition** | The result of checking the HiC's constitution selections against available doctrine catalogs — confirming that the referenced paradigms, directives, and tools actually exist and are compatible with each other. |
 | **Context** | Governance |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution Compiler](#constitution-compiler), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |

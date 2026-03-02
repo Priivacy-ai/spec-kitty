@@ -4,6 +4,9 @@
 **Author**: System Architecture
 **Last Updated**: 2026-01-27
 
+> ADR index note: ADRs are now versioned under `architecture/1.x/adr/` and `architecture/2.x/adr/`.
+> Legacy links through `architecture/adrs/` are kept for compatibility.
+
 ## Problem Statement
 
 Prior to v0.14.0, the spec-kitty codebase had **10 different implementations** of feature detection scattered across multiple modules. This led to:

@@ -9,6 +9,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Standard wrapper for an emitted event, including identity, ordering, and payload fields. |
 | **Context** | System Events |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Common fields** | `event_id`, `event_type`, `aggregate_id`, `lamport_clock`, `payload` |
 
 ---
@@ -20,6 +21,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Append-only sequence of glossary-related events that records candidate extraction, semantic checks, clarifications, and sense updates. |
 | **Context** | System Events |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Semantic Check](./execution.md#semantic-check), [Clarification Prompt](./execution.md#clarification-prompt) |
 
 ---
@@ -31,6 +33,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Bounded semantic scope used for term/sense resolution. |
 | **Context** | System Events |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Allowed values** | `spec_kitty_core`, `team_domain`, `audience_domain`, `mission_local` |
 
 ---
@@ -42,6 +45,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Deterministic pre-generation evaluation of extracted terms against active glossary scopes. |
 | **Context** | System Events |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Block rule** | Unresolved high-severity conflicts block generation |
 
 ---
@@ -53,6 +57,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Reconstructing effective glossary state and decisions from canonical append-only events. |
 | **Context** | System Events |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Invariant** | No side-channel state may be required for correctness |
 
 ---
@@ -64,6 +69,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | Optional usage/cost analytics and operational observability fields layered on top of core event contracts. |
 | **Context** | System Events |
 | **Status** | candidate |
+| **Applicable to** | `1.x`, `2.x` |
 | **Note** | Not required for glossary semantic integrity in this 2.x adoption slice |
 
 ---
@@ -75,6 +81,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | An event emitted during dossier operations. Four types: `ArtifactIndexed` (artifact scanned), `SnapshotComputed` (snapshot created), `ArtifactMissing` (required artifact not found), `ParityDriftDetected` (content changed since baseline). |
 | **Context** | System Events |
 | **Status** | candidate |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Mission Dossier](./dossier.md#mission-dossier), [Anomaly Event](#anomaly-event), [Event Envelope](#event-envelope) |
 
 ---
@@ -86,6 +93,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Definition** | An event that is only emitted when something unexpected happens — such as a required artifact being missing or parity drift being detected. Unlike routine lifecycle events, anomaly events signal conditions that may need the Human-in-Charge's attention. |
 | **Context** | System Events |
 | **Status** | candidate |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Dossier Event](#dossier-event), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
@@ -96,7 +104,8 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 |---|---|
 | **Definition** | The standard event emitted when a work package moves from one lane to another (e.g., from `planned` to `in_progress`). Part of the status model's event contract. |
 | **Context** | System Events |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Work Package](./orchestration.md#work-package), [Lane](./orchestration.md#lane), [Event Envelope](#event-envelope) |
 
 ---
@@ -107,5 +116,6 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 |---|---|
 | **Definition** | A logical counter included in event envelopes that tracks the order events happened in, without relying on wall-clock time. Each new event increments the counter, ensuring events can be reliably ordered even across different machines. |
 | **Context** | System Events |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Event Envelope](#event-envelope), [Replay](#replay) |

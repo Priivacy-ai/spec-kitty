@@ -319,16 +319,21 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._resolve_git_common_dir")
     def test_move_task_to_planned_persists_feedback_content_and_path(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        self, mock_git_dir: Mock, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
         mock_emit: Mock, mock_task_file: Path, tmp_path: Path
     ):
-        """Should persist both review feedback text and its source path deterministically."""
+        """Should persist review feedback via git-common-dir and store pointer in frontmatter."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
         mock_branch.return_value = (repo_root, "main")
         mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
+        # Point git-common-dir to a tmp location so shutil.copy2 has a real destination.
+        fake_git_dir = tmp_path / ".git-common"
+        fake_git_dir.mkdir()
+        mock_git_dir.return_value = fake_git_dir
 
         mock_task_file.write_text(
             mock_task_file.read_text().replace('lane: "planned"', 'lane: "for_review"'),
@@ -337,7 +342,6 @@ class TestMoveTask:
 
         feedback_file = tmp_path / "review-feedback.md"
         feedback_file.write_text("**Issue 1**: Deterministic rollback regression.\n", encoding="utf-8")
-        resolved_feedback = str(feedback_file.resolve())
 
         result = runner.invoke(
             app,
@@ -352,16 +356,26 @@ class TestMoveTask:
         output = json.loads(result.stdout)
         assert output["new_lane"] == "planned"
 
+        # Frontmatter stores the feedback:// pointer (set by _persist_review_feedback).
         updated_content = mock_task_file.read_text(encoding="utf-8")
-        assert "## Review Feedback" in updated_content
-        assert "**Issue 1**: Deterministic rollback regression." in updated_content
-        assert f"**Feedback file**: `{resolved_feedback}`" in updated_content
-        assert f'review_feedback_file: "{resolved_feedback}"' in updated_content
+        assert 'review_feedback: "feedback://008-test-feature/WP01/' in updated_content
 
-        # Ensure the canonical emit event receives a deterministic review_ref path.
-        call_kwargs = mock_emit.call_args.kwargs
-        assert call_kwargs["to_lane"] == "planned"
-        assert call_kwargs["review_ref"] == resolved_feedback
+        # The feedback file is copied into the fake git-common-dir.
+        persisted_files = list(fake_git_dir.rglob("*.md"))
+        assert len(persisted_files) == 1
+        assert "**Issue 1**: Deterministic rollback regression." in persisted_files[0].read_text()
+
+        # The canonical emit call for the planned transition includes a feedback:// review_ref.
+        # mock_emit may be called multiple times (sync + transition); find the planned call.
+        planned_call = next(
+            (c for c in mock_emit.call_args_list if c.kwargs.get("to_lane") == "planned"),
+            None,
+        )
+        assert planned_call is not None, "No emit call with to_lane='planned' found"
+        review_ref = planned_call.kwargs.get("review_ref", "")
+        assert review_ref is not None and review_ref.startswith("feedback://"), (
+            f"Expected feedback:// URI, got: {review_ref!r}"
+        )
 
 
 class TestMarkStatus:
