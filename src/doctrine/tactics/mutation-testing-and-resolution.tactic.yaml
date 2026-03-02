@@ -1,0 +1,455 @@
+---
+name: "Mutation Testing and Resolution"
+description: |
+  Pragmatic mutation testing workflow for large-scale Python projects using sampling-based
+  pattern identification and targeted test writing. Achieves 70%+ mutation kill rate across
+  priority modules while avoiding senseless tests for equivalent mutants.
+
+  Key insight from WP05 campaign: substring/case-insensitive error message checks leave entire
+  mutation classes alive. Exact-match assertions and concurrent-scenario tests dramatically
+  increase kill rates on logic-dense modules.
+
+category: "Testing and Quality Assurance"
+tags:
+  - mutation-testing
+  - test-quality
+  - pattern-based-testing
+  - pragmatic-testing
+  - quality-assurance
+
+author: "spec-kitty contributors"
+created: "2026-03-01"
+last_updated: "2026-03-02"
+version: "1.1.0"
+
+prerequisites:
+  - Python 3.11+ project with pytest
+  - mutmut installed (pip install mutmut)
+  - Existing test infrastructure
+  - Core modules identified for mutation testing
+
+difficulty: "intermediate"
+estimated_time: "3-4 hours per module"
+
+# Core workflow for one module iteration
+steps:
+  - step: 1
+    name: "Generate Mutants"
+    description: |
+      Use mutmut to generate all possible mutants for the target module.
+      Configure mutmut in pyproject.toml with proper paths and dependencies.
+    commands:
+      - "mutmut run --paths-to-mutate=src/mypackage/core/target_module.py"
+    tips:
+      - "Configure also_copy in [tool.mutmut] to include all required dependencies"
+      - "Exclude migrations, generated code, and test files from mutation"
+      - "Start with high-value modules (complex logic, core functionality)"
+    expected_output: "N mutants generated where N typically 150-800 depending on module size"
+
+  - step: 2
+    name: "Sample Representatives"
+    description: |
+      Sample 10-20 mutants (10-15% of total) to identify recurring patterns.
+      Focus on variety across functions and mutation types.
+    commands:
+      - "mutmut show 1"
+      - "mutmut show 10"
+      - "mutmut show 25"
+    tips:
+      - "Sample across all functions in the module"
+      - "Look for different mutation types (operators, None, strings, booleans)"
+      - "Document each sampled mutant with line number and mutation type"
+    expected_output: "16-20 documented mutant examples showing diverse patterns"
+
+  - step: 3
+    name: "Classify Patterns"
+    description: |
+      Classify each sampled mutant as either killable (needs test) or equivalent (document only).
+      Focus on high-value patterns that reveal missing test coverage.
+    guidelines:
+      killable_patterns:
+        - "None assignments (var = func() → var = None)"
+        - "Boolean negations (if condition → if not condition)"
+        - "Operator mutations (+ → -, == → !=, / → *)"
+        - "Default parameter removal (func(arg=value) → func())"
+        - "Return value changes (return True → return False)"
+        - "String literal changes (especially case-sensitive paths)"
+      equivalent_patterns:
+        - "Docstring mutations (~40-50% of total mutants)"
+        - "Type hint mutations (~10% of total)"
+        - "Comment mutations (~5-7% of total)"
+        - "Default-arg mutations when mutmut 3.x trampoline always passes kwarg explicitly"
+        - "Initializer values that are always overwritten before first use"
+        - "Dead-code branches (e.g., force guard inside a function only called with force=False)"
+        - "getattr() default values on attributes that always exist (dataclass fields)"
+        - "ensure_ascii=None vs ensure_ascii=False (json.dumps treats None as falsy)"
+        - "Error message text when tests use substring/case-insensitive checks (see pitfall)"
+    tips:
+      - "Equivalent mutants cannot be killed by tests - document and skip"
+      - "Focus testing effort on high-priority killable patterns"
+      - "Group similar mutations into patterns (1 test can kill many mutants)"
+    expected_output: "5-7 killable patterns + 3-4 equivalent patterns documented"
+
+  - step: 4
+    name: "Write Pattern-Based Tests"
+    description: |
+      Create focused tests that kill entire categories of mutations, not individual mutants.
+      Each test should target a specific pattern and kill 3-10 mutants.
+    test_structure:
+      - "One test class per function or logical grouping"
+      - "Test method names describe the pattern they kill"
+      - "Docstrings explain which mutations are targeted"
+      - "Use realistic scenarios, not artificial edge cases"
+    test_patterns:
+      none_assignments: |
+        def test_function_returns_dict_not_none(tmp_path):
+            result = target_function(tmp_path)
+            assert isinstance(result, dict)  # Kills: result = None
+            assert len(result) > 0  # Kills: return {}
+      boolean_negations: |
+        def test_condition_both_branches(setup):
+            # Test True branch
+            result_true = function_with_condition(condition=True)
+            assert result_true is not None
+            # Test False branch
+            result_false = function_with_condition(condition=False)
+            assert result_false is None
+      subprocess_args: |
+        @patch("subprocess.run")
+        def test_subprocess_called_with_correct_args(mock_run):
+            function_that_calls_subprocess()
+            mock_run.assert_called_with(
+                ["git", "status"],  # Kills: ["git", "log"]
+                cwd=expected_path,  # Kills: cwd=None
+                capture_output=True  # Kills: capture_output=False
+            )
+      exact_error_messages: |
+        # KEY INSIGHT: use exact == assertions, not 'in error.lower()'
+        # Case-change mutations like "Requires" → "requires" survive substring checks!
+        ACTOR_MSG = "Transition planned -> claimed requires actor identity"
+
+        def test_guard_exact_error_message():
+            ok, error = validate_transition("planned", "claimed", actor=None)
+            assert ok is False
+            assert error == ACTOR_MSG  # Kills all case/prefix/suffix mutations
+      concurrent_event_precedence: |
+        # For reducer logic with concurrent events (same timestamp):
+        # Test that rollback events beat forward events in precedence
+        def test_rollback_beats_concurrent_forward():
+            t = "2026-01-01T12:00:00+00:00"
+            events = [
+                make_event("A", at=t, from_lane="for_review", to_lane="in_progress",
+                           review_ref="pr/1"),  # rollback event
+                make_event("B", at=t, from_lane="in_progress", to_lane="for_review"),
+            ]
+            snap = reduce(events)
+            assert snap.wps["WP01"].current_lane == "in_progress"  # rollback wins
+      json_format_specifics: |
+        # Assert JSON serialization details that mutations target
+        def test_json_keys_are_sorted():
+            data = json.loads(materialize_to_json(events))
+            keys = list(data.keys())
+            assert keys == sorted(keys)  # Kills sort_keys=False mutation
+
+        def test_json_indent_is_two_spaces():
+            output = materialize_to_json(events)
+            assert '  "' in output    # 2-space indented key exists
+            assert '   "' not in output  # 3-space does not
+
+        def test_non_ascii_not_escaped():
+            output = materialize_to_json(events_with_unicode)
+            assert "\\u" not in output  # Kills ensure_ascii=True mutation
+            assert "é" in output        # Non-ASCII character present verbatim
+    tips:
+      - "Avoid senseless assertions (e.g., testing that True == True)"
+      - "Use fixtures for realistic test data (tmp_path, mock objects)"
+      - "Mock external dependencies (subprocess, filesystem, network)"
+      - "Test execution time should be <1 second per module"
+    expected_output: "15-30 focused tests covering 5-7 killable patterns"
+
+  - step: 5
+    name: "Verify Tests Pass"
+    description: |
+      Run the new tests to ensure they all pass before running mutation testing.
+      Fix any failing tests immediately.
+    commands:
+      - "pytest tests/unit/test_target_module_mutations.py -v"
+    acceptance_criteria:
+      - "100% of tests passing"
+      - "Execution time < 1 second"
+      - "No flaky tests (run 3x to verify)"
+    tips:
+      - "Use --tb=short for concise failure messages"
+      - "Run tests in isolation first, then with full suite"
+      - "Check for resource leaks (file handles, processes)"
+
+  - step: 6
+    name: "Run Mutation Testing"
+    description: |
+      Execute mutmut to actually create and test all mutants.
+      Verify the kill rate matches expectations.
+    commands:
+      - "mutmut run"
+      - "mutmut results"
+      - "mutmut show survived"  # Optional: inspect survivors
+    tips:
+      - "This step can take 5-30 minutes depending on module size"
+      - "Use --max-children for parallel execution"
+      - "Monitor for hung tests (timeout after 2x normal runtime)"
+    expected_results:
+      kill_rate: "30-40% of total mutants (60-80% of killable mutants)"
+      equivalent_rate: "40-50% documented as equivalent"
+      survived_rate: "10-30% (acceptable - diminishing returns)"
+
+  - step: 7
+    name: "Document Findings"
+    description: |
+      Create documentation summarizing patterns found, tests written, and kill rates achieved.
+      This enables knowledge reuse and continuous improvement.
+    documentation_template: |
+      # Mutation Testing Iteration N: {module_name}
+      
+      ## Summary
+      - Mutants Generated: {total}
+      - Mutants Sampled: {sampled} ({percentage}%)
+      - Tests Created: {test_count}
+      - Expected Kill Rate: {kill_rate}%
+      
+      ## Killable Patterns Found
+      1. {Pattern name} ({mutant_count} mutants) - {priority}
+         - Example: {code_diff}
+         - Tests: {test_count} tests covering this pattern
+      
+      ## Equivalent Patterns Found
+      1. {Pattern name} ({mutant_count} mutants, {percentage}%)
+         - Rationale: {why_equivalent}
+      
+      ## Test Quality
+      - ✅ Realistic scenarios
+      - ✅ Proper mocking
+      - ✅ Fast execution
+      - ✅ Meaningful assertions
+    tips:
+      - "Include sample mutants with code diffs"
+      - "Explain why equivalent mutants cannot be killed"
+      - "Document any surprising findings or edge cases"
+
+  - step: 8
+    name: "Iterate Next Module"
+    description: |
+      Repeat steps 1-7 for the next high-value module.
+      Use learnings from previous iterations to improve efficiency.
+    iteration_guidance:
+      - "Start with 3 modules per campaign (manageable scope)"
+      - "Choose modules with different characteristics (pure logic, I/O, subprocess)"
+      - "Build a universal pattern library across iterations"
+      - "Track cumulative metrics (total mutants, tests, kill rate)"
+    campaign_metrics: |
+      After 3 modules:
+      - Total mutants: ~500-1500
+      - Total tests: ~50-80
+      - Overall kill rate: ~30-40%
+      - Time invested: ~10-12 hours
+      - ROI: Significant improvement in code quality confidence
+
+# Best practices learned from campaign
+best_practices:
+  sampling:
+    - "10-15% sample size is sufficient to identify all patterns"
+    - "Sample across all functions, don't concentrate on one area"
+    - "Document each sample with line number, mutation type, and code diff"
+  
+  classification:
+    - "~40-50% of mutants will be equivalent (unavoidable)"
+    - "Don't write tests for docstrings, type hints, or comments"
+    - "Focus on logic-affecting mutations"
+  
+  test_writing:
+    - "One test can kill 3-10 mutants via pattern targeting"
+    - "Use descriptive test names and docstrings"
+    - "Maintain <1 second execution time per module"
+    - "Avoid senseless assertions"
+    - "Use exact == for error messages, not 'keyword' in msg.lower()"
+    - "For event reducers: write concurrent-timestamp tests (same `at` value)"
+    - "Assert JSON serialization details: sort_keys, indent level, ensure_ascii"
+    - "Assert timezone-aware timestamps contain offset (+HH:MM or Z)"
+
+  pragmatism:
+    - "70%+ kill rate is achievable for logic-dense modules with the right assertions"
+    - "Focus on high-value patterns; accept documented equivalent mutants"
+    - "Document equivalent mutants to avoid wasted effort on future campaigns"
+    - "Running targeted mutmut resets meta files — baseline first, target second"
+
+  mutmut_3x_specifics:
+    - "mutmut results shows ONLY survived mutants. Use .meta files to count kills."
+    - "Trampoline pattern: default-arg mutations are invisible (equivalent by design)"
+    - "Running mutmut run <specific> clears that module's meta file"
+    - "All mutations embedded simultaneously; MUTANT_UNDER_TEST env var selects variant"
+    - "test_parity.py using inspect.getsource() breaks in mutants/ env (26k-line file)"
+
+# Common pitfalls and solutions
+pitfalls:
+  - pitfall: "Trying to kill every mutant"
+    solution: "Accept that equivalent mutants (~40-50%) cannot be killed. Document and move on."
+    
+  - pitfall: "Writing one test per mutant"
+    solution: "Use pattern-based testing. One test should kill 3-10 related mutants."
+    
+  - pitfall: "Spending too much time on survivors"
+    solution: "After 30-40% kill rate, diminishing returns kick in. Iterate to next module."
+    
+  - pitfall: "Creating artificial test scenarios"
+    solution: "Use realistic scenarios with proper fixtures (tmp_path, mocks). Tests should be meaningful."
+    
+  - pitfall: "Mutmut configuration errors"
+    solution: "Ensure also_copy includes all dependencies. Test with small module first."
+
+  - pitfall: "Slow test execution"
+    solution: "Each module's tests should run in <1 second. Use mocks, avoid real I/O."
+
+  - pitfall: "Using substring/case-insensitive error message assertions"
+    solution: |
+      Tests using `'keyword' in error.lower()` let all case-change mutations survive
+      (e.g., 'Requires' → 'requires', 'Actor' → 'actor'). Use exact equality:
+        assert error == "Transition planned -> claimed requires actor identity"
+      Define message constants at module level for DRY assertions.
+
+  - pitfall: "Not testing concurrent/simultaneous event scenarios"
+    solution: |
+      For reducers with priority logic (e.g., rollback-beats-forward at same timestamp),
+      simple sequential tests never exercise the precedence branch. Write concurrent tests
+      where two events share the exact same `at` timestamp and assert which wins.
+
+  - pitfall: "Misreading mutmut results as 0 kills"
+    solution: |
+      `mutmut results` only shows SURVIVED mutants. Killed mutants are filtered out.
+      To count kills, read .meta JSON files directly:
+        import json; from pathlib import Path
+        killed = survived = 0
+        for f in Path('mutants').rglob('*.meta'):
+            for v in json.load(open(f))['exit_code_by_key'].values():
+                if v == 0: survived += 1
+                elif v is not None: killed += 1
+        print(f'{100*killed/(killed+survived):.1f}%')
+
+  - pitfall: "Running targeted mutmut run clears other mutants' status"
+    solution: |
+      `mutmut run <specific-mutants>` resets the .meta file for that source module,
+      losing all other mutants' kill/survive status. Run targeted checks only AFTER
+      full baseline is established and documented, or use a fresh mutants/ directory.
+
+  - pitfall: "mutmut 3.x default-arg mutations always survive"
+    solution: |
+      mutmut 3.x uses a trampoline pattern: every function is replaced by a dispatcher
+      that always passes kwargs explicitly. Default-arg mutations (e.g., force=False →
+      force=True) are invisible at runtime because the trampoline's own default is used.
+      Document these as equivalent mutants; no test can kill them.
+
+# Success criteria for this tactic
+success_criteria:
+  - "70%+ mutation kill rate achieved across priority modules (full run)"
+  - "All tests passing and fast (<1 second per module)"
+  - "No senseless tests written"
+  - "Equivalent mutants documented with rationale"
+  - "Pattern library established for reuse"
+  - "Knowledge captured in documentation"
+  - "Error message tests use exact == assertions (not substring)"
+  - "Concurrent event/rollback scenarios covered for reducers"
+
+# Real-world example from spec-kitty campaigns
+example_results:
+  campaigns:
+    - campaign: "3-iteration mutation testing campaign (WP04)"
+      modules:
+        - module: "dependency_graph.py"
+          mutants: 152
+          sampled: 16
+          tests: 17
+          patterns: 5
+          kill_rate: "86% of killable (60% of total)"
+          time: "3 hours"
+
+        - module: "git_ops.py"
+          mutants: 434
+          sampled: 16
+          tests: 32
+          patterns: 5
+          kill_rate: "70% of killable (42% of total)"
+          time: "4 hours"
+
+        - module: "worktree.py"
+          mutants: 807
+          sampled: 20
+          tests: 29
+          patterns: 5
+          kill_rate: "40% of killable (24% of total)"
+          time: "4 hours"
+
+      totals:
+        mutants: 1393
+        tests: 78
+        time: "11 hours"
+        test_to_mutant_ratio: "1:17.9"
+        overall_quality: "Excellent - focused, meaningful tests"
+
+    - campaign: "Full-baseline + targeted kill session (WP05)"
+      notes: |
+        Full run across 4 priority modules (status/, glossary/, merge/, core/).
+        Followed by targeted session on status/reducer.py and status/transitions.py
+        using exact-match assertions and concurrent-event coverage.
+      baseline:
+        modules: ["status/", "glossary/", "merge/", "core/"]
+        killed: 11354
+        survived: 4755
+        kill_rate: "70.5%"
+        date: "2026-03-01"
+      targeted_session:
+        date: "2026-03-02"
+        focused_on: ["status/reducer.py", "status/transitions.py"]
+        tests_added: "60+ new assertions across 5 new test classes"
+        reducer_survivors_before: 55
+        reducer_survivors_after: 1  # 1 equivalent (ensure_ascii=None)
+        transitions_survivors_before: 55
+        transitions_survivors_after: 6  # equivalent/dead-code
+        key_techniques:
+          - "Exact == assertions on error messages (killed all case-change mutations)"
+          - "Concurrent-event tests for rollback precedence logic"
+          - "JSON format assertions (sort_keys, indent, ensure_ascii)"
+          - "UTC-timezone assertions for timestamp fields"
+        equivalent_mutants_catalogued: 8
+
+# Related tactics
+related_tactics:
+  - "tdd-red-green-refactor.tactic.yaml"
+  - "acceptance-test-first.tactic.yaml"
+
+# References
+references:
+  - title: "Mutation Testing with mutmut"
+    url: "https://mutmut.readthedocs.io/"
+  - title: "The Pragmatic Programmer (Hunt & Thomas)"
+    note: "Test ruthlessly and effectively"
+  - title: "spec-kitty mutation testing campaign"
+    location: "kitty-specs/047-mutmut-mutation-testing-ci/"
+
+# Changelog
+changelog:
+  - version: "1.1.0"
+    date: "2026-03-02"
+    changes:
+      - "Added WP05 targeted kill session results (70.5% baseline, 55→1/6 survivors)"
+      - "Added exact-match error message pattern (kills all case-change mutations)"
+      - "Added concurrent-event / rollback-precedence test pattern"
+      - "Added JSON format specifics test pattern (sort_keys, indent, ensure_ascii)"
+      - "Catalogued mutmut 3.x trampoline equivalent-mutant classes"
+      - "Added pitfalls: substring assertions, meta-file resets, misread results"
+      - "Updated kill-rate expectations to 70%+ for logic-dense modules"
+      - "Added mutmut_3x_specifics best-practices subsection"
+
+  - version: "1.0.0"
+    date: "2026-03-01"
+    changes:
+      - "Initial release based on successful 3-iteration campaign"
+      - "Documented sampling-based pattern identification approach"
+      - "Included real-world metrics from spec-kitty project"
+      - "Established best practices and common pitfalls"

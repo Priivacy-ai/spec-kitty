@@ -339,3 +339,208 @@ class TestUnknownLanes:
         ok, error = validate_transition("planned", "nonexistent")
         assert ok is False
         assert "Unknown lane" in error
+
+
+class TestGuardActorRequired:
+    """Tests for _guard_actor_required to kill mutation survivors."""
+    
+    def test_empty_string_actor_fails(self) -> None:
+        """Empty string should fail - kills mutant changing 'or' to 'and'."""
+        ok, error = validate_transition("planned", "claimed", actor="")
+        assert ok is False
+        assert "actor identity" in error.lower()
+    
+    def test_whitespace_only_actor_fails(self) -> None:
+        """Whitespace-only actor should fail - kills mutations in strip() check."""
+        ok, error = validate_transition("planned", "claimed", actor="   ")
+        assert ok is False
+        assert "actor identity" in error.lower()
+    
+    def test_none_actor_fails(self) -> None:
+        """None actor should fail - kills mutations in None check."""
+        ok, error = validate_transition("planned", "claimed", actor=None)
+        assert ok is False
+        assert "actor identity" in error.lower()
+
+
+class TestResolveLaneAliasEdgeCases:
+    """Tests for resolve_lane_alias edge cases to kill survivors."""
+
+    def test_unknown_alias_returns_normalized_input(self) -> None:
+        """Unknown aliases return normalized input - kills get(None) mutation."""
+        result = resolve_lane_alias("unknown")
+        assert result == "unknown"
+
+    def test_empty_string_returns_empty(self) -> None:
+        """Empty string should return empty after normalization."""
+        result = resolve_lane_alias("")
+        assert result == ""
+
+    def test_whitespace_becomes_empty(self) -> None:
+        """Whitespace-only input becomes empty after strip."""
+        result = resolve_lane_alias("   ")
+        assert result == ""
+
+
+class TestExactErrorMessages:
+    """Tests that assert exact error message text.
+
+    Kills mutations that change message casing, add XX prefixes/suffixes,
+    or change 'or' to 'and' in the force-validation logic.
+    """
+
+    ACTOR_REQUIRED_MSG = "Transition planned -> claimed requires actor identity"
+    WORKSPACE_CONTEXT_MSG = "Transition claimed -> in_progress requires workspace context"
+    SUBTASKS_MSG = (
+        "Transition in_progress -> for_review requires completed subtasks "
+        "or force with reason"
+    )
+    IMPL_EVIDENCE_MSG = (
+        "Transition in_progress -> for_review requires implementation evidence "
+        "or force with reason"
+    )
+    REVIEWER_APPROVAL_MSG = (
+        "Transition for_review -> done requires evidence "
+        "(reviewer identity and approval reference)"
+    )
+    REVIEW_REF_MSG = (
+        "Transition from for_review requires review_ref "
+        "(review feedback reference)"
+    )
+    REASON_REQUIRED_MSG = "Transition in_progress -> planned requires reason"
+    FORCE_MSG = "Force transitions require actor and reason"
+
+    def test_actor_required_exact_message(self) -> None:
+        ok, error = validate_transition("planned", "claimed")
+        assert ok is False
+        assert error == self.ACTOR_REQUIRED_MSG
+
+    def test_actor_required_empty_exact_message(self) -> None:
+        ok, error = validate_transition("planned", "claimed", actor="")
+        assert ok is False
+        assert error == self.ACTOR_REQUIRED_MSG
+
+    def test_workspace_context_exact_message(self) -> None:
+        ok, error = validate_transition("claimed", "in_progress")
+        assert ok is False
+        assert error == self.WORKSPACE_CONTEXT_MSG
+
+    def test_workspace_context_empty_exact_message(self) -> None:
+        ok, error = validate_transition("claimed", "in_progress", workspace_context="")
+        assert ok is False
+        assert error == self.WORKSPACE_CONTEXT_MSG
+
+    def test_subtasks_incomplete_exact_message(self) -> None:
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            implementation_evidence_present=True,
+        )
+        assert ok is False
+        assert error == self.SUBTASKS_MSG
+
+    def test_impl_evidence_missing_exact_message(self) -> None:
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            subtasks_complete=True,
+        )
+        assert ok is False
+        assert error == self.IMPL_EVIDENCE_MSG
+
+    def test_reviewer_approval_no_evidence_exact_message(self) -> None:
+        ok, error = validate_transition("for_review", "done")
+        assert ok is False
+        assert error == self.REVIEWER_APPROVAL_MSG
+
+    def test_reviewer_approval_no_reviewer_exact_message(self) -> None:
+        evidence = DoneEvidence(
+            review=ReviewApproval(reviewer="", verdict="approved", reference="ref-1")
+        )
+        ok, error = validate_transition("for_review", "done", evidence=evidence)
+        assert ok is False
+        assert error == self.REVIEWER_APPROVAL_MSG
+
+    def test_reviewer_approval_no_reference_exact_message(self) -> None:
+        evidence = DoneEvidence(
+            review=ReviewApproval(reviewer="alice", verdict="approved", reference="")
+        )
+        ok, error = validate_transition("for_review", "done", evidence=evidence)
+        assert ok is False
+        assert error == self.REVIEWER_APPROVAL_MSG
+
+    def test_review_ref_required_exact_message(self) -> None:
+        ok, error = validate_transition("for_review", "in_progress")
+        assert ok is False
+        assert error == self.REVIEW_REF_MSG
+
+    def test_review_ref_empty_exact_message(self) -> None:
+        ok, error = validate_transition("for_review", "planned", review_ref="")
+        assert ok is False
+        assert error == self.REVIEW_REF_MSG
+
+    def test_reason_required_exact_message(self) -> None:
+        ok, error = validate_transition("in_progress", "planned")
+        assert ok is False
+        assert error == self.REASON_REQUIRED_MSG
+
+    def test_force_without_actor_exact_message(self) -> None:
+        ok, error = validate_transition(
+            "done", "planned", force=True, reason="reopening"
+        )
+        assert ok is False
+        assert error == self.FORCE_MSG
+
+    def test_force_without_reason_exact_message(self) -> None:
+        ok, error = validate_transition(
+            "done", "planned", force=True, actor="admin"
+        )
+        assert ok is False
+        assert error == self.FORCE_MSG
+
+    def test_force_on_allowed_without_actor_exact_message(self) -> None:
+        """Force on an allowed transition also requires actor and reason."""
+        ok, error = validate_transition(
+            "planned", "claimed", force=True, reason="overriding"
+        )
+        assert ok is False
+        assert error == self.FORCE_MSG
+
+    def test_force_on_allowed_without_reason_exact_message(self) -> None:
+        ok, error = validate_transition(
+            "planned", "claimed", force=True, actor="admin"
+        )
+        assert ok is False
+        assert error == self.FORCE_MSG
+
+    def test_force_default_is_false(self) -> None:
+        """Default force=False means guards run normally."""
+        ok, error = validate_transition("planned", "claimed")
+        assert ok is False
+        assert error == self.ACTOR_REQUIRED_MSG
+
+    def test_force_whitespace_reason_rejected(self) -> None:
+        """Whitespace-only reason is treated as empty — kills 'and' vs 'or' mutation."""
+        ok, error = validate_transition(
+            "done", "planned", force=True, actor="admin", reason="   "
+        )
+        assert ok is False
+        assert error == self.FORCE_MSG
+
+    def test_run_guard_unknown_transition_returns_true(self) -> None:
+        """Transitions with no guard entry return (True, None) — kills return False mutation."""
+        ok, error = validate_transition("planned", "blocked")
+        assert ok is True
+        assert error is None
+
+    def test_force_passes_correctly_to_subtasks_guard(self) -> None:
+        """force=True bypasses subtasks guard — kills force=None mutation."""
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            force=True,
+            actor="admin",
+            reason="emergency",
+        )
+        assert ok is True
+        assert error is None
