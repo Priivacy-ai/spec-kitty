@@ -1,0 +1,35 @@
+# GENERATED FILE — do not edit manually.
+# Run: python scripts/generate_contextive_glossaries.py generate
+#
+# Source: glossary/contexts/execution.md
+
+contexts:
+  - name: "Execution"
+    domainVisionStatement: "Terms describing tool invocation and semantic safety gates during generation."
+    terms:
+      - name: "Checkpoint/Resume"
+        definition: "A mechanism that lets a glossary pipeline pause at a generation boundary and pick up where it left off in a later session. The pause point and its context are saved so no work is lost."
+      - name: "Clarification Prompt"
+        definition: "Targeted question emitted when conflict severity/confidence requires human input before continuing generation."
+      - name: "Collaboration Mode"
+        definition: "The level of Human-in-Charge involvement during a mission step or workflow. Determines how much real-time oversight the HiC provides versus delegating to agents."
+      - name: "Fully Delegated Mode"
+        definition: "The agentic stack operates asynchronously without the HiC present. Work proceeds until a final Accept/Decline decision point, where the HiC returns to approve or reject the outcome. Also known as \"AFK mode.\""
+      - name: "Generation Boundary"
+        definition: "Point where text/code generation would begin and semantic gate policy is enforced."
+      - name: "Glossary Strictness"
+        definition: "Policy mode controlling warning/block behavior for semantic conflicts."
+      - name: "Hands-off with Review Mode"
+        definition: "Agents operate independently during execution, but the HiC reviews results at defined checkpoints before work is accepted or advanced. The HiC is absent during execution but present for review."
+      - name: "Interactive Mode"
+        definition: "The HiC works alongside agents in real time — conducting interviews, pair-developing, micro-prompting, or making decisions as they arise. The HiC is present and actively steering."
+      - name: "Middleware Pipeline"
+        definition: "An ordered chain of processing steps that run before a mission step produces output. Each layer in the chain can extract terms, check for semantic conflicts, gate generation, prompt the Human-in-Charge for clarification, or resume from a checkpoint."
+      - name: "Seed File"
+        definition: "An optional YAML file (`.kittify/glossaries/{scope}.yaml`) that pre-loads domain glossary terms before the runtime starts extracting new ones. Gives teams a head start by defining known terminology upfront."
+      - name: "Semantic Check"
+        definition: "Deterministic validation step that compares extracted terms with active glossary scope(s) before generation proceeds."
+      - name: "Slash Command"
+        definition: "User-facing command surface that triggers a lifecycle operation (for example specify, plan, tasks, review, merge)."
+      - name: "Tool"
+        definition: "Concrete runtime product used to execute commands (for example Claude Code, Codex, opencode)."

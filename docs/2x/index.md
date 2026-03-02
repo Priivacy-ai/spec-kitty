@@ -1,6 +1,7 @@
 # 2.x Documentation (Current Track)
 
-`2.x` is the current architecture track, centered on doctrine-backed governance, living glossary semantics, and runtime-owned mission execution.
+`2.x` is the current architecture track, centered on doctrine-backed governance,
+living glossary semantics, and runtime-owned mission execution.
 
 ## Key 2.x Shifts
 
@@ -16,3 +17,11 @@
 3. [Runtime and Missions](runtime-and-missions.md)
 4. [Orchestration and API Boundary](orchestration-and-api.md)
 5. [ADR Coverage](adr-coverage.md)
+
+## Architecture Repository Layout
+
+- 2.x domain map: `architecture/2.x/README.md#domain-breakdown`
+- 2.x C4 docs: `architecture/2.x/01_context/`, `architecture/2.x/02_containers/`, `architecture/2.x/03_components/`
+- 2.x ADRs: `architecture/2.x/adr/`
+- 2.x user journeys: `architecture/2.x/user_journey/`
+- architecture personas: `architecture/audience/`

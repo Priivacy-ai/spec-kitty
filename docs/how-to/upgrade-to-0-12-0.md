@@ -22,7 +22,7 @@ This change gives you **explicit control** over your agent configuration:
 - **Cleaner projects**: Remove agents you don't use without them reappearing
 - **Multi-agent workflows**: Configure exactly which agents are available
 
-See [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) for technical details.
+See [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) for technical details.
 
 ## Migration Steps
 
