@@ -1,0 +1,84 @@
+name: Test Setup Spec Kitty Action
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/setup-spec-kitty/**'
+      - '.github/workflows/test-setup-action.yml'
+  workflow_dispatch:
+
+jobs:
+  test-basic:
+    name: Test basic installation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Spec Kitty
+        id: setup
+        uses: ./.github/actions/setup-spec-kitty
+      
+      - name: Verify installation
+        run: |
+          spec-kitty --version
+          echo "Cache hit: ${{ steps.setup.outputs.cache-hit }}"
+          echo "Version: ${{ steps.setup.outputs.spec-kitty-version }}"
+  
+  test-with-tests:
+    name: Test with test dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Spec Kitty
+        uses: ./.github/actions/setup-spec-kitty
+        with:
+          install-test-deps: true
+      
+      - name: Verify pytest installed
+        run: |
+          pytest --version
+          python -c "import pytest; print(f'pytest: {pytest.__version__}')"
+  
+  test-with-mutmut:
+    name: Test with mutation testing
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Spec Kitty
+        uses: ./.github/actions/setup-spec-kitty
+        with:
+          install-test-deps: true
+          install-mutmut: true
+      
+      - name: Verify mutmut installed
+        run: |
+          mutmut --version
+  
+  test-python-versions:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Spec Kitty
+        uses: ./.github/actions/setup-spec-kitty
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Verify Python version
+        run: |
+          python --version
+          spec-kitty --version

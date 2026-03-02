@@ -87,6 +87,12 @@ sdd-*/
 doctrine_ref
 /work/
 
+# mutmut mutation testing
+mutmut.db
+mutmut-cache/
+.mutmut-cache
+mutants/  # mutmut 3.x working directory (SQLite, meta files, cicd-stats)
+
 # CI report outputs
 .coverage
 out/reports/**
@@ -109,3 +115,8 @@ out
 tmp/**
 !tmp/.gitkeep
 .kittify/missions/__pycache__/
+# .gitignore entry for mutants
+
+# Mutation testing artifacts
+mutants/
+.mutmut-cache

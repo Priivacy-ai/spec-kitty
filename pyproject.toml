@@ -81,8 +81,10 @@ test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
+    "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "mutmut>=3.5.0",  # Mutation testing
 ]
 
 [project.scripts]
@@ -162,3 +164,68 @@ module = [
     "specify_cli.verify_enhanced",
 ]
 ignore_errors = true
+
+[tool.mutmut]
+# WP05 scope: all 4 priority modules — final floor measurement
+paths_to_mutate = [
+    "src/specify_cli/status/",
+    "src/specify_cli/glossary/",
+    "src/specify_cli/merge/",
+    "src/specify_cli/core/",
+]
+tests_dir = ["tests/unit/", "tests/specify_cli/"]
+pytest_add_cli_args = [
+    "--timeout=30",
+    # tests/unit/ subdirs that fail in the mutants environment
+    "--ignore=tests/unit/agent/",
+    "--ignore=tests/unit/mission_v1/",
+    "--ignore=tests/unit/next/",
+    "--ignore=tests/unit/orchestrator_api/",
+    "--ignore=tests/unit/runtime/",
+    # tests/unit/ flat files that fail in the mutants environment
+    "--ignore=tests/unit/test_atomic_status_commits.py",
+    "--ignore=tests/unit/test_move_task_git_validation.py",
+    # tests/unit/ file that uses inspect.getsource() on multi-mutation files
+    "--ignore=tests/unit/test_pre_commit_wp_guard.py",
+    # tests/specify_cli/ files that fail in the mutants environment
+    "--ignore=tests/specify_cli/cli/commands/test_event_emission.py",
+    "--ignore=tests/specify_cli/test_cli/",
+    "--ignore=tests/specify_cli/test_implement_command.py",
+    "--ignore=tests/specify_cli/test_review_warnings.py",
+    "--ignore=tests/specify_cli/test_workflow_auto_moves.py",
+    "--ignore=tests/specify_cli/upgrade/test_migration_robustness.py",
+    "--ignore=tests/specify_cli/status/test_parity.py",
+]
+also_copy = [
+    "LICENSE",
+    "README.md",
+    ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
+    "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
+    "src/doctrine/",         # Copy doctrine package for imports
+    "src/specify_cli/status/",  # Copy status module for status transitions
+    "src/specify_cli/glossary/",  # Copy glossary module
+    "src/specify_cli/cli/",   # Copy CLI commands
+    "src/specify_cli/agent_utils/",  # Copy agent utilities
+    "src/specify_cli/git/",  # Copy git utilities
+    "src/specify_cli/sync/",  # Copy sync module
+    "src/specify_cli/next/",  # Copy next module
+    "src/specify_cli/validators/",  # Copy validators
+    "src/specify_cli/template/",  # Copy template utilities
+    "src/specify_cli/constitution/",  # Copy constitution
+    "src/specify_cli/missions/",  # Copy missions
+    "src/specify_cli/upgrade/",  # Copy upgrade system
+    "src/specify_cli/runtime/",  # Copy runtime
+    "src/specify_cli/tracker/",  # Copy tracker
+    "src/specify_cli/events/",  # Copy events
+    "src/specify_cli/dossier/",  # Copy dossier
+    "src/specify_cli/dashboard/",  # Copy dashboard
+    "src/specify_cli/orchestrator_api/",  # Copy orchestrator API
+    "src/specify_cli/spec_kitty_events/",  # Copy spec kitty events
+    "src/specify_cli/templates/",  # Copy templates
+    "src/specify_cli/mission_v1/",  # Copy mission v1
+    "src/specify_cli/scripts/",  # Copy scripts
+]
+# Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
+do_not_mutate = [
+    "src/specify_cli/upgrade/migrations/",
+]
