@@ -1,47 +1,75 @@
-# Architecture Documentation
+# Architecture
 
-This directory is the canonical ADR corpus for Spec Kitty.
+This directory is the canonical architecture corpus for Spec Kitty.
 
-## Purpose
+## Structure
 
-ADRs in `architecture/adrs/` record architectural decisions, alternatives, and consequences.  
-Implementation details live in code and tests; ADRs capture why.
-
-## Current 2.x Coverage Highlights
-
-| Area | ADRs |
+| Path | Purpose |
 |---|---|
-| Runtime mission loop and discovery | [2026-02-17-1](adrs/2026-02-17-1-canonical-next-command-runtime-loop.md), [2026-02-17-2](adrs/2026-02-17-2-runtime-owned-mission-discovery-loading.md), [2026-02-17-3](adrs/2026-02-17-3-events-contract-parity-and-vendor-deprecation.md) |
-| Status model and event semantics | [2026-02-09-1](adrs/2026-02-09-1-canonical-wp-status-model.md), [2026-02-09-2](adrs/2026-02-09-2-wp-lifecycle-state-machine.md), [2026-02-09-3](adrs/2026-02-09-3-event-log-merge-semantics.md), [2026-02-09-4](adrs/2026-02-09-4-cross-repo-evidence-completion.md) |
-| Doctrine/governance model | [2026-02-23-1](adrs/2026-02-23-1-doctrine-artifact-governance-model.md) |
-| Living glossary model | [2026-02-23-2](adrs/2026-02-23-2-living-glossary-context-and-curation-model.md) |
-| Versioned docs strategy | [2026-02-23-3](adrs/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md) |
+| `architecture/1.x/` | Legacy architecture track (1.x), including 1.x ADRs |
+| `architecture/2.x/` | Current architecture track (2.x), including ADRs, user journeys, initiatives, and C4/domain models |
+| `architecture/audience/` | Persona catalog for architecture audiences and actor links |
+| `architecture/glossary/` | Architecture-level glossary landing page and pointers |
+| `architecture/adrs/` | Backward-compatibility links to moved ADR files |
+| `architecture/adr-template.md` | ADR template used by both tracks |
 
-## ADR Naming
+## Versioned ADR Locations
 
-- Path: `architecture/adrs/`
-- Format: `YYYY-MM-DD-N-descriptive-title-with-dashes.md`
-- `N` increments within the same day.
+- 1.x ADRs: `architecture/1.x/adr/`
+- 2.x ADRs: `architecture/2.x/adr/`
+- Legacy path compatibility: `architecture/adrs/` (symlink aliases)
 
-## ADR Lifecycle
+## 2.x Architecture Model
 
-1. Create ADR as `Proposed`.
-2. Review and either accept or replace.
-3. After acceptance, do not mutate decision history; supersede with a new ADR if needed.
+2.x architecture docs are split intentionally:
+
+1. `architecture/2.x/README.md#domain-breakdown` - cross-cutting responsibility and behavior domains.
+2. `architecture/2.x/01_context/README.md` - external boundaries and authority contracts.
+3. `architecture/2.x/02_containers/README.md` - runtime/governance container responsibilities.
+4. `architecture/2.x/03_components/README.md` - component-level behavior sequences.
+5. `architecture/audience/internal/*.md` and `architecture/audience/external/*.md` - persona references linked from user journey actor tables.
+
+## Brainstorm Alignment Outcome
+
+The brainstorming proposal was applied with two guardrails.
+Source corpus: `architecture/2.x/initiatives/2026-02-architecture-discovery-and-restructure/`.
+
+1. Adopted:
+   - Versioned architecture split (`1.x` and `2.x`)
+   - Dedicated 2.x `user_journey/` area
+   - Dedicated 2.x `initiatives/` area
+   - C4-oriented 2.x directories (`01_context`, `02_containers`, `03_components`)
+   - Domain and audience expansion (`architecture/2.x/README.md#domain-breakdown`, `architecture/audience/`)
+2. Deferred:
+   - `archive/` lifecycle structure (can be introduced later once process is formalized)
+3. Rejected for now:
+   - C4 `04_code` architecture docs in this repo, because code-level tracking already lives in `src/` README and package docs
+
+## Migration Notes
+
+1. Brainstorm proposals were normalized to repository reality:
+   - versioned docs live in `docs/1x` and `docs/2x`
+   - versioned architecture lives in `architecture/1.x` and `architecture/2.x`
+2. Legacy ADR links are intentionally preserved via `architecture/adrs/` compatibility aliases.
+3. Deprecated architecture docs were moved from `docs/architecture/` to `architecture/1.x/notes/`.
+4. Ongoing `next` mapping tracking moved from `docs/development/tracking/next-mission-mappings/` to `architecture/2.x/initiatives/next-mission-mappings/`.
 
 ## Creating a New ADR
 
+Use the shared template:
+
 ```bash
-cp architecture/adr-template.md architecture/adrs/YYYY-MM-DD-N-your-decision.md
+cp architecture/adr-template.md architecture/2.x/adr/YYYY-MM-DD-N-your-decision.md
 ```
 
-Then fill context, options, outcome, and consequences. Keep it concise and include direct code/test references.
+Use `architecture/1.x/adr/` only when documenting legacy 1.x behavior.
 
 ## Find ADRs
 
 ```bash
-ls -1 architecture/adrs | sort
-rg -n "Status:|Decision Outcome|Technical Story" architecture/adrs
+ls -1 architecture/1.x/adr | sort
+ls -1 architecture/2.x/adr | sort
+rg -n "Status:|Decision Outcome|Technical Story" architecture/1.x/adr architecture/2.x/adr
 ```
 
 See also:

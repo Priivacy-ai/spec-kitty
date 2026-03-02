@@ -64,7 +64,7 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - Verify examples still work
 
 - [ ] Check ADRs (Architecture Decision Records):
-  - If new ADR added, verify it's in `architecture/adrs/`
+  - If new ADR added, verify it's in `architecture/1.x/adr/` or `architecture/2.x/adr/` as appropriate
   - Ensure ADR is linked from relevant docs
 
 ### Migration Testing (if migrations included)

@@ -69,6 +69,17 @@ class TestWorkflowImplementInstructions:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        # Create meta.json to make this a valid feature
+        import json
+        (feature_dir / "meta.json").write_text(json.dumps({
+            "feature_number": 1,
+            "feature_slug": feature_slug,
+            "title": "Test Feature"
+        }))
+        
+        # Create spec.md (required file)
+        (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
+
         write_tasks_md(feature_dir, "WP01", ["T001"], done=True)
         wp_path = tasks_dir / "WP01-test.md"
         write_wp_file(wp_path, "WP01", lane="planned")
@@ -101,6 +112,17 @@ class TestWorkflowImplementInstructions:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        # Create meta.json to make this a valid feature
+        import json
+        (feature_dir / "meta.json").write_text(json.dumps({
+            "feature_number": 1,
+            "feature_slug": feature_slug,
+            "title": "Test Feature"
+        }))
+        
+        # Create spec.md (required file)
+        (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
+
         write_tasks_md(feature_dir, "WP01", ["T001"], done=True)
         wp_path = tasks_dir / "WP01-test.md"
         write_wp_file(wp_path, "WP01", lane="planned")
@@ -128,6 +150,17 @@ class TestWorkflowImplementInstructions:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+
+        # Create meta.json to make this a valid feature
+        import json
+        (feature_dir / "meta.json").write_text(json.dumps({
+            "feature_number": 1,
+            "feature_slug": feature_slug,
+            "title": "Test Feature"
+        }))
+        
+        # Create spec.md (required file)
+        (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
 
         write_tasks_md(feature_dir, "WP01", ["T001"], done=True)
         wp_path = tasks_dir / "WP01-test.md"
