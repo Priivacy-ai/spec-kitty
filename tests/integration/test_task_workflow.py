@@ -470,12 +470,14 @@ class TestReviewRejectToPlanned:
         )
         assert result.exit_code == 0, f"stdout: {result.stdout}"
 
-        # Verify feedback persisted in WP file
+        # Verify feedback persisted via pointer in WP frontmatter (not inline).
+        # The implementation stores feedback in git common-dir and writes a
+        # feedback:// pointer; it does NOT embed the feedback text in the WP body.
         task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
         content = task_file.read_text(encoding="utf-8")
-        assert "## Review Feedback" in content
-        assert "does not handle the null case" in content
-        assert f'review_feedback_file: "{resolved_path}"' in content
+        assert 'review_status: "has_feedback"' in content
+        assert 'review_feedback: "feedback://' in content
+        assert "review_feedback_file:" not in content
 
 
 class TestLocationIndependence:

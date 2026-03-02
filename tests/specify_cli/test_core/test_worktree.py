@@ -645,10 +645,12 @@ class TestVCSAbstraction:
         mock_vcs.create_workspace.return_value = mock_result
         mock_vcs.is_repo.return_value = False
 
-        # VCS fails, fallback fails (not a git repo), should raise
+        # VCS fails, fallback fails (not a git repo), should raise.
+        # The VCS fallback path emits a DeprecationWarning before raising RuntimeError.
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            with pytest.raises(RuntimeError, match="Failed to create workspace"):
-                create_feature_worktree(tmp_path, "fail-test", feature_number=88)
+            with pytest.warns(DeprecationWarning, match="VCS abstraction failed"):
+                with pytest.raises(RuntimeError, match="Failed to create workspace"):
+                    create_feature_worktree(tmp_path, "fail-test", feature_number=88)
 
     def test_create_worktree_detects_existing_vcs_workspace(self, tmp_path: Path):
         """Should detect and reuse existing VCS workspace."""

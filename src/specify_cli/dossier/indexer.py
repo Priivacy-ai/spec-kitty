@@ -85,7 +85,7 @@ class Indexer:
             feature_slug=self._extract_feature_slug(feature_dir),
             feature_dir=str(feature_dir),
             artifacts=self.artifacts,
-            manifest=manifest.dict() if manifest else None,
+            manifest=manifest.model_dump() if manifest else None,
         )
 
         # Detect missing artifacts
