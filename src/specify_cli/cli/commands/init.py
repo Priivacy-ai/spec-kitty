@@ -1130,7 +1130,7 @@ def register_init_command(
 
     # Ensure app is in multi-command mode by checking if there are existing commands
     # If not, add a hidden dummy command to force subcommand mode
-    if not hasattr(app, "registered_commands") or not getattr(app, "registered_commands"):
+    if not hasattr(app, "registered_commands") or not app.registered_commands:
 
         @app.command("__force_multi_command_mode__", hidden=True)
         def _dummy() -> None:

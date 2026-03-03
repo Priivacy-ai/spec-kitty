@@ -249,7 +249,7 @@ class ManifestRegistry:
     def validate_manifest(
         manifest: ExpectedArtifactManifest,
         mission_dir: Path,
-    ) -> Tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """Validate manifest against mission structure.
 
         Checks:
