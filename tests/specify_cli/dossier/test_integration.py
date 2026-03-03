@@ -733,7 +733,7 @@ class TestIntegrationSummary:
         # This is validated by test_no_silent_failures_all_artifacts_recorded
         # and other unreadable artifact tests that explicitly check all artifacts
         # are indexed and recorded with error reasons
-        assert True  # Implicit validation through other tests
+        pass  # Implicit validation through other tests
 
 
 class TestDossierHTTPAPI:

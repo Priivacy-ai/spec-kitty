@@ -834,7 +834,7 @@ class JujutsuVCS:
         self,
         workspace_path: Path,
         message: str,
-        paths: list[Path] | None = None,
+        paths: list[Path] | None = None,  # noqa: ARG002
     ) -> ChangeInfo | None:
         """
         Set the commit message for the current change.

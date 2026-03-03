@@ -178,7 +178,7 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
             match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", branch_name)
             if match:
                 return cwd, match.group(1)
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
     # Not in a recognized workspace

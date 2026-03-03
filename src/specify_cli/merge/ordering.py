@@ -35,7 +35,7 @@ def has_dependency_info(graph: dict[str, list[str]]) -> bool:
     Returns:
         True if at least one WP has non-empty dependencies
     """
-    return any(deps for deps in graph.values())
+    return any(graph.values())
 
 
 def get_merge_order(

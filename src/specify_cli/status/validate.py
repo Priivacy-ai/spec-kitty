@@ -83,9 +83,8 @@ def validate_event_schema(event: dict) -> list[str]:
 
     # ISO 8601 timestamp check
     at_val = event.get("at")
-    if at_val is not None:
-        if not _is_valid_iso8601(str(at_val)):
-            findings.append(f"Event {event_id}: invalid ISO 8601 timestamp: {at_val}")
+    if at_val is not None and not _is_valid_iso8601(str(at_val)):
+        findings.append(f"Event {event_id}: invalid ISO 8601 timestamp: {at_val}")
 
     # force must be boolean
     force_val = event.get("force")

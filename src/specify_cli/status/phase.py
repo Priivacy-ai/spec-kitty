@@ -54,7 +54,7 @@ def _read_meta_phase(repo_root: Path, feature_slug: str) -> int | None:
             logger.warning("Invalid status_phase %d in %s, ignoring", phase, meta_path)
             return None
         return phase
-    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+    except (ValueError, TypeError) as exc:
         logger.warning("Failed to read status_phase from %s: %s", meta_path, exc)
         return None
 
@@ -109,5 +109,5 @@ def is_01x_branch(repo_root: Path) -> bool:
         if branch.startswith("034-"):
             return False
         return True
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+    except Exception:
         return False

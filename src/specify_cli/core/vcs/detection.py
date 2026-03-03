@@ -181,7 +181,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                     meta = json.loads(meta_path.read_text())
                     if "vcs" in meta:
                         return VCSBackend(meta["vcs"])
-                except (json.JSONDecodeError, ValueError, OSError):
+                except (ValueError, OSError):
                     pass
             # Path is in a feature dir but no valid meta.json
             return None
@@ -218,7 +218,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                                     meta = json.loads(meta_path.read_text())
                                     if "vcs" in meta:
                                         return VCSBackend(meta["vcs"])
-                                except (json.JSONDecodeError, ValueError, OSError):
+                                except (ValueError, OSError):
                                     pass
                             # Found feature dir but no valid meta.json
                             return None

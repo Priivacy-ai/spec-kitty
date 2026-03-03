@@ -49,7 +49,7 @@ class APIHandler(DashboardHandler):
                     'description': mission.config.description or '',
                     'path': format_path_for_display(str(mission.path)),
                 }
-        except (MissionError, Exception):
+        except Exception:
             pass  # Keep default "No active feature" context
 
         self.send_response(200)

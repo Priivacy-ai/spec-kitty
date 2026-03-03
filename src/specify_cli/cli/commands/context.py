@@ -24,7 +24,7 @@ console = Console()
 app = typer.Typer(help="Query workspace context information")
 
 
-def detect_current_workspace(cwd: Path, repo_root: Path) -> str | None:
+def detect_current_workspace(cwd: Path, _repo_root: Path) -> str | None:
     """Detect if current directory is inside a worktree.
 
     Args:

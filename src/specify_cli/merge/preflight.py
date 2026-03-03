@@ -132,7 +132,7 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
         if len(parts) != 2:
             return False, None  # Unexpected output, assume OK
 
-        ahead, behind = map(int, parts)
+        _, behind = map(int, parts)
 
         if behind > 0:
             return True, f"{target_branch} is {behind} commit(s) behind origin. Run: git checkout {target_branch} && git pull"

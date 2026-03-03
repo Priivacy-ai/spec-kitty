@@ -886,7 +886,7 @@ def reconcile(
     if not dry_run:
         from specify_cli.status.phase import resolve_phase
 
-        phase, source = resolve_phase(main_repo_root, feature_slug)
+        phase, _ = resolve_phase(main_repo_root, feature_slug)
         if phase < 1:
             msg = (
                 "Cannot apply reconciliation events at Phase 0. "

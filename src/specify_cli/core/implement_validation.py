@@ -24,8 +24,8 @@ def validate_and_resolve_base(
     wp_id: str,
     wp_file: Path,
     base: str | None,
-    feature_slug: str,
-    repo_root: Path
+    feature_slug: str,  # noqa: ARG001
+    repo_root: Path,  # noqa: ARG001
 ) -> tuple[str | None, bool]:
     """Validate dependencies and resolve base workspace.
 

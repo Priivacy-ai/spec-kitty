@@ -408,17 +408,13 @@ def implement(
         # This will error if:
         # - WP has single dependency but --base not provided
         # - Provided base doesn't match declared dependencies (warning only)
-        try:
-            resolved_base, auto_merge = validate_and_resolve_base(
-                wp_id=normalized_wp_id,
-                wp_file=wp.path,
-                base=base,  # May be None
-                feature_slug=feature_slug,
-                repo_root=repo_root
-            )
-        except typer.Exit:
-            # Validation failed (e.g., missing --base for single dependency)
-            raise
+        resolved_base, _ = validate_and_resolve_base(
+            wp_id=normalized_wp_id,
+            wp_file=wp.path,
+            base=base,  # May be None
+            feature_slug=feature_slug,
+            repo_root=repo_root
+        )
 
         # If validation resolved a base (or auto-merge mode), validate base workspace exists
         if resolved_base:

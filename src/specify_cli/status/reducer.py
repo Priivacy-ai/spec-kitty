@@ -104,9 +104,8 @@ def _should_apply_event(
                     break
             if current_setter is not None and _is_rollback_event(
                 current_setter
-            ):
-                if not _is_rollback_event(new_event):
-                    return False  # Forward does not beat rollback
+            ) and not _is_rollback_event(new_event):
+                return False  # Forward does not beat rollback
 
     # Default: apply the event (later in sort order wins)
     return True

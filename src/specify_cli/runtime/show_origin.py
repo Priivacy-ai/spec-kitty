@@ -67,7 +67,7 @@ def _discover_mission_names() -> list[str]:
     try:
         pkg_root = get_package_asset_root()
         return sorted(d.name for d in pkg_root.iterdir() if d.is_dir() and (d / "mission.yaml").is_file())
-    except (FileNotFoundError, OSError) as exc:
+    except OSError as exc:
         logger.debug("Cannot discover missions from package: %s", exc)
         return ["software-dev", "research", "documentation"]
 
@@ -86,7 +86,7 @@ def _discover_command_names(mission: str) -> list[str]:
         pkg_cmd_dir = pkg_root / mission / "command-templates"
         if pkg_cmd_dir.is_dir():
             names.update(f.name for f in pkg_cmd_dir.iterdir() if f.is_file() and f.suffix == ".md")
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
     if not names:
@@ -105,7 +105,7 @@ def _discover_template_names(mission: str) -> list[str]:
         if pkg_tpl_dir.is_dir():
             # Only top-level .md files (not subdirectory templates like divio/)
             names.update(f.name for f in pkg_tpl_dir.iterdir() if f.is_file() and f.suffix == ".md")
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
     if not names:
