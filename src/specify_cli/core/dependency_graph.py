@@ -156,7 +156,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
         >>> print(cycles)  # None (acyclic)
     """
     WHITE, GRAY, BLACK = 0, 1, 2
-    color = {wp: WHITE for wp in graph}
+    color = dict.fromkeys(graph, WHITE)
     cycles = []
 
     def dfs(node: str, path: list[str]) -> None:

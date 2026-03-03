@@ -116,7 +116,7 @@ class FileManifest:
                                     script_path = script_path.replace('.kittify/', '', 1)
                                     scripts.add(script_path)
 
-        return sorted(list(scripts))
+        return sorted(scripts)
 
     def check_files(self) -> Dict[str, Dict[str, str]]:
         """
@@ -187,7 +187,7 @@ class WorktreeStatus:
                 if feature_dir.is_dir() and feature_dir.name[0].isdigit() and '-' in feature_dir.name:
                     features.add(feature_dir.name)
 
-        return sorted(list(features))
+        return sorted(features)
 
     def get_feature_status(self, feature: str) -> Dict[str, any]:
         """Get comprehensive status for a feature."""
