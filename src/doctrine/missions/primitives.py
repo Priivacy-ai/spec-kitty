@@ -105,6 +105,18 @@ class PrimitiveExecutionContext:
                 return None
         return None
 
+    def _glossary_enabled_from_metadata(self, value: object) -> Optional[bool]:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lower = value.lower()
+            if lower in ("disabled", "false"):
+                return False
+            return True
+        if value is not None:
+            return True
+        return None
+
     def is_glossary_enabled(self) -> bool:
         """Determine if glossary checks are enabled for this step.
 
@@ -123,21 +135,9 @@ class PrimitiveExecutionContext:
         """
         # Step metadata (highest precedence)
         if "glossary_check" in self.metadata:
-            value = self.metadata["glossary_check"]
-            if value is None:
-                pass  # Treat null as unset, fall through
-            elif isinstance(value, bool):
-                return value
-            elif isinstance(value, str):
-                lower = value.lower()
-                if lower in ("disabled", "false"):
-                    return False
-                if lower in ("enabled", "true"):
-                    return True
-                # Unknown string value -> treat as enabled (safe default)
-                return True
-            else:
-                return True  # Any explicit non-null, non-bool, non-string value = enabled
+            result = self._glossary_enabled_from_metadata(self.metadata["glossary_check"])
+            if result is not None:
+                return result
 
         # Mission config
         if "glossary" in self.config:

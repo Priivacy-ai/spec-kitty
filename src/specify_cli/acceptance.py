@@ -172,6 +172,45 @@ class AcceptanceResult:
         }
 
 
+def _iter_legacy_wps(feature: str, tasks_dir: Path) -> Iterable[WorkPackage]:
+    for lane_dir in sorted(tasks_dir.iterdir()):
+        if not lane_dir.is_dir():
+            continue
+        lane = lane_dir.name
+        if lane not in LANES:
+            continue
+        for path in sorted(lane_dir.rglob("*.md")):
+            text = path.read_text(encoding="utf-8-sig")
+            front, body, padding = split_frontmatter(text)
+            yield WorkPackage(
+                feature=feature,
+                path=path,
+                current_lane=lane,
+                relative_subpath=path.relative_to(lane_dir),
+                frontmatter=front,
+                body=body,
+                padding=padding,
+            )
+
+
+def _iter_flat_wps(feature: str, tasks_dir: Path) -> Iterable[WorkPackage]:
+    for path in sorted(tasks_dir.glob("*.md")):
+        if path.name.lower() == "readme.md":
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        front, body, padding = split_frontmatter(text)
+        lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+        yield WorkPackage(
+            feature=feature,
+            path=path,
+            current_lane=lane,
+            relative_subpath=path.relative_to(tasks_dir),
+            frontmatter=front,
+            body=body,
+            padding=padding,
+        )
+
+
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     """Iterate over work packages, supporting both legacy and new formats.
 
@@ -182,49 +221,10 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
-
-    use_legacy = is_legacy_format(feature_path)
-
-    if use_legacy:
-        # Legacy format: iterate over lane subdirectories
-        for lane_dir in sorted(tasks_dir.iterdir()):
-            if not lane_dir.is_dir():
-                continue
-            lane = lane_dir.name
-            if lane not in LANES:
-                continue
-            for path in sorted(lane_dir.rglob("*.md")):
-                text = path.read_text(encoding="utf-8-sig")
-                front, body, padding = split_frontmatter(text)
-                relative = path.relative_to(lane_dir)
-                yield WorkPackage(
-                    feature=feature,
-                    path=path,
-                    current_lane=lane,
-                    relative_subpath=relative,
-                    frontmatter=front,
-                    body=body,
-                    padding=padding,
-                )
+    if is_legacy_format(feature_path):
+        yield from _iter_legacy_wps(feature, tasks_dir)
     else:
-        # New format: flat tasks/ directory, lane from frontmatter
-        for path in sorted(tasks_dir.glob("*.md")):
-            if path.name.lower() == "readme.md":
-                continue
-            text = path.read_text(encoding="utf-8-sig")
-            front, body, padding = split_frontmatter(text)
-            # Get lane from frontmatter
-            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
-            relative = path.relative_to(tasks_dir)
-            yield WorkPackage(
-                feature=feature,
-                path=path,
-                current_lane=lane,
-                relative_subpath=relative,
-                frontmatter=front,
-                body=body,
-                padding=padding,
-            )
+        yield from _iter_flat_wps(feature, tasks_dir)
 
 
 def detect_feature_slug(
@@ -301,6 +301,73 @@ def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
     return missing_required, missing_optional
 
 
+def _get_git_context(repo_root: Path) -> tuple[Optional[str], Path, Path]:
+    branch: Optional[str] = None
+    try:
+        branch_value = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True).stdout.strip()
+        if branch_value and branch_value != "HEAD":
+            branch = branch_value
+    except TaskCliError:
+        pass
+
+    try:
+        worktree_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()).resolve()
+    except TaskCliError:
+        worktree_root = repo_root
+
+    try:
+        git_common_dir = Path(run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()).resolve()
+        primary_repo_root = git_common_dir.parent
+    except TaskCliError:
+        primary_repo_root = repo_root
+
+    return branch, worktree_root, primary_repo_root
+
+
+def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> List[str]:
+    issues: List[str] = []
+    lane_value = (wp.lane or "").strip()
+    if not lane_value:
+        issues.append(f"{wp_id}: missing lane in frontmatter")
+    elif use_legacy and lane_value != wp.current_lane:
+        issues.append(
+            f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
+        )
+    if not wp.agent:
+        issues.append(f"{wp_id}: missing agent in frontmatter")
+    if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
+        issues.append(f"{wp_id}: missing assignee in frontmatter")
+    if not wp.shell_pid:
+        issues.append(f"{wp_id}: missing shell_pid in frontmatter")
+    return issues
+
+
+def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: List[Dict[str, object]]) -> List[str]:
+    if not entries:
+        return [f"{wp_id}: Activity Log missing entries"]
+    issues: List[str] = []
+    lanes_logged = {entry["lane"] for entry in entries}
+    if wp.current_lane not in lanes_logged:
+        issues.append(f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}")
+    if wp.current_lane == "done" and entries[-1]["lane"] != "done":
+        issues.append(f"{wp_id}: latest Activity Log entry not lane=done")
+    return issues
+
+
+def _get_path_violations(feature_dir: Path, repo_root: Path) -> List[str]:
+    violations: List[str] = []
+    try:
+        mission = get_mission_for_feature(feature_dir)
+    except MissionError:
+        return violations
+    if mission and mission.config.paths:
+        try:
+            validate_mission_paths(mission, repo_root, strict=True)
+        except PathValidationError as exc:
+            violations.append(exc.result.format_errors() or str(exc))
+    return violations
+
+
 def collect_feature_summary(
     repo_root: Path,
     feature: str,
@@ -312,33 +379,7 @@ def collect_feature_summary(
     if not feature_dir.exists():
         raise AcceptanceError(f"Feature directory not found: {feature_dir}")
 
-    branch: Optional[str] = None
-    try:
-        branch_value = (
-            run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True)
-            .stdout.strip()
-        )
-        if branch_value and branch_value != "HEAD":
-            branch = branch_value
-    except TaskCliError:
-        branch = None
-
-    try:
-        worktree_root = Path(
-            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True)
-            .stdout.strip()
-        ).resolve()
-    except TaskCliError:
-        worktree_root = repo_root
-
-    try:
-        git_common_dir = Path(
-            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True)
-            .stdout.strip()
-        ).resolve()
-        primary_repo_root = git_common_dir.parent
-    except TaskCliError:
-        primary_repo_root = repo_root
+    branch, worktree_root, primary_repo_root = _get_git_context(repo_root)
 
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
@@ -353,9 +394,8 @@ def collect_feature_summary(
         lanes[wp.current_lane].append(wp_id)
 
         entries = activity_entries(wp.body)
-        lanes_logged = {entry["lane"] for entry in entries}
         latest_lane = entries[-1]["lane"] if entries else None
-        has_lane_entry = wp.current_lane in lanes_logged
+        has_lane_entry = wp.current_lane in {entry["lane"] for entry in entries}
 
         metadata: Dict[str, Optional[str]] = {
             "lane": wp.lane,
@@ -365,31 +405,8 @@ def collect_feature_summary(
         }
 
         if strict_metadata:
-            lane_value = (wp.lane or "").strip()
-            if not lane_value:
-                metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
-            elif use_legacy and lane_value != wp.current_lane:
-                # Only check directory/frontmatter mismatch in legacy format
-                metadata_issues.append(
-                    f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
-                )
-
-            if not wp.agent:
-                metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
-                metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
-            if not wp.shell_pid:
-                metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
-
-        if not entries:
-            activity_issues.append(f"{wp_id}: Activity Log missing entries")
-        else:
-            if wp.current_lane not in lanes_logged:
-                activity_issues.append(
-                    f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}"
-                )
-            if wp.current_lane == "done" and entries[-1]["lane"] != "done":
-                activity_issues.append(f"{wp_id}: latest Activity Log entry not lane=done")
+            metadata_issues.extend(_check_wp_metadata(wp, wp_id, use_legacy))
+        activity_issues.extend(_check_wp_activity(wp, wp_id, entries))
 
         work_packages.append(
             WorkPackageState(
@@ -421,24 +438,11 @@ def collect_feature_summary(
     except TaskCliError:
         git_dirty = []
 
-    path_violations: List[str] = []
-    try:
-        mission = get_mission_for_feature(feature_dir)
-    except MissionError:
-        mission = None
-
-    if mission and mission.config.paths:
-        try:
-            validate_mission_paths(mission, repo_root, strict=True)
-        except PathValidationError as exc:
-            message = exc.result.format_errors() or str(exc)
-            path_violations.append(message)
+    path_violations = _get_path_violations(feature_dir, repo_root)
 
     warnings: List[str] = []
     if missing_optional:
-        warnings.append(
-            "Optional artifacts missing: " + ", ".join(missing_optional)
-        )
+        warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
@@ -478,6 +482,89 @@ def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
     return "local"
 
 
+def _persist_acceptance_commit(
+    summary: AcceptanceSummary,
+    actor_name: str,
+    mode: AcceptanceMode,
+    parent_commit: Optional[str],
+    timestamp: str,
+    tests: Optional[Sequence[str]],
+) -> tuple[Optional[str], bool]:
+    meta_path = summary.feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8-sig")) if meta_path.exists() else {}
+
+    acceptance_record: Dict[str, object] = {
+        "accepted_at": timestamp,
+        "accepted_by": actor_name,
+        "mode": mode,
+        "branch": summary.branch,
+        "accepted_from_commit": parent_commit,
+    }
+    if tests:
+        acceptance_record["validation_commands"] = list(tests)
+
+    meta.update({
+        "accepted_at": timestamp,
+        "accepted_by": actor_name,
+        "acceptance_mode": mode,
+        "accepted_from_commit": parent_commit,
+        "accept_commit": None,
+    })
+
+    history: List[Dict[str, object]] = meta.setdefault("acceptance_history", [])
+    history.append(acceptance_record)
+    if len(history) > 20:
+        meta["acceptance_history"] = history[-20:]
+
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    run_git(["add", str(meta_path.relative_to(summary.repo_root))], cwd=summary.repo_root, check=True)
+
+    staged_files = [
+        line.strip()
+        for line in run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True).stdout.splitlines()
+        if line.strip()
+    ]
+    if not staged_files:
+        return None, False
+
+    run_git(["commit", "-m", f"Accept {summary.feature}"], cwd=summary.repo_root, check=True)
+    try:
+        accept_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True).stdout.strip()
+    except TaskCliError:
+        accept_commit = None
+    return accept_commit, True
+
+
+def _build_acceptance_instructions(
+    mode: AcceptanceMode,
+    branch: str,
+    summary: AcceptanceSummary,
+) -> tuple[List[str], List[str]]:
+    if mode == "pr":
+        instructions: List[str] = [
+            f"Review the acceptance commit on branch `{branch}`.",
+            f"Push your branch: `git push origin {branch}`",
+            "Open a pull request referencing spec/plan/tasks artifacts.",
+            "Include acceptance summary and test evidence in the PR description.",
+        ]
+    elif mode == "local":
+        instructions = [
+            "Switch to your integration branch (e.g., `git checkout main`).",
+            "Synchronize it (e.g., `git pull --ff-only`).",
+            f"Merge the feature: `git merge {branch}`",
+        ]
+    else:
+        instructions = ["All checks passed. Proceed with your manual acceptance workflow."]
+
+    cleanup_instructions: List[str] = []
+    if summary.worktree_root != summary.primary_repo_root:
+        cleanup_instructions.append(
+            f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
+        )
+    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    return instructions, cleanup_instructions
+
+
 def perform_acceptance(
     summary: AcceptanceSummary,
     *,
@@ -496,102 +583,21 @@ def perform_acceptance(
 
     parent_commit: Optional[str] = None
     accept_commit: Optional[str] = None
+    commit_created = False
 
     if auto_commit and mode != "checklist":
         try:
             parent_commit = (
-                run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False)
-                .stdout.strip()
-                or None
+                run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
             )
         except TaskCliError:
             parent_commit = None
-
-        meta_path = summary.feature_dir / "meta.json"
-        if meta_path.exists():
-            meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-        else:
-            meta = {}
-
-        acceptance_record: Dict[str, object] = {
-            "accepted_at": timestamp,
-            "accepted_by": actor_name,
-            "mode": mode,
-            "branch": summary.branch,
-            "accepted_from_commit": parent_commit,
-        }
-        if tests:
-            acceptance_record["validation_commands"] = list(tests)
-
-        meta["accepted_at"] = timestamp
-        meta["accepted_by"] = actor_name
-        meta["acceptance_mode"] = mode
-        meta["accepted_from_commit"] = parent_commit
-        meta["accept_commit"] = None
-
-        history: List[Dict[str, object]] = meta.setdefault("acceptance_history", [])
-        history.append(acceptance_record)
-        # limit history to last 20 entries
-        if len(history) > 20:
-            meta["acceptance_history"] = history[-20:]
-
-        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        run_git(
-            ["add", str(meta_path.relative_to(summary.repo_root))],
-            cwd=summary.repo_root,
-            check=True,
+        accept_commit, commit_created = _persist_acceptance_commit(
+            summary, actor_name, mode, parent_commit, timestamp, tests
         )
-
-        status = run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True)
-        staged_files = [line.strip() for line in status.stdout.splitlines() if line.strip()]
-        commit_created = False
-        if staged_files:
-            commit_msg = f"Accept {summary.feature}"
-            run_git(["commit", "-m", commit_msg], cwd=summary.repo_root, check=True)
-            commit_created = True
-            try:
-                accept_commit = (
-                    run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True)
-                    .stdout.strip()
-                )
-            except TaskCliError:
-                accept_commit = None
-        else:
-            commit_created = False
-    else:
-        commit_created = False
-
-    instructions: List[str] = []
-    cleanup_instructions: List[str] = []
 
     branch = summary.branch or summary.feature
-    if mode == "pr":
-        instructions.extend(
-            [
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
-            ]
-        )
-    elif mode == "local":
-        instructions.extend(
-            [
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
-            ]
-        )
-    else:  # checklist
-        instructions.append(
-            "All checks passed. Proceed with your manual acceptance workflow."
-        )
-
-    if summary.worktree_root != summary.primary_repo_root:
-        cleanup_instructions.append(
-            f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
-        )
-    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    instructions, cleanup_instructions = _build_acceptance_instructions(mode, branch, summary)
 
     notes: List[str] = []
     if accept_commit:
