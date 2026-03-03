@@ -323,9 +323,12 @@ def upgrade(
         # Build detailed migrations array
         migrations_detail = []
         for migration in migrations_needed:
-            status = "applied" if migration.migration_id in result.migrations_applied else (
-                "skipped" if migration.migration_id in result.migrations_skipped else "pending"
-            )
+            if migration.migration_id in result.migrations_applied:
+                status = "applied"
+            elif migration.migration_id in result.migrations_skipped:
+                status = "skipped"
+            else:
+                status = "pending"
             migrations_detail.append({
                 "id": migration.migration_id,
                 "description": migration.description,

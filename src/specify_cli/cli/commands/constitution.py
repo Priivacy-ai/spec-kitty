@@ -246,10 +246,7 @@ def generate(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
-    except FileExistsError as e:
-        console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
-    except (TaskCliError, ValueError, RuntimeError) as e:
+    except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1)
     except Exception as e:

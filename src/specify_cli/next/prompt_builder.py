@@ -218,9 +218,10 @@ def _legacy_governance_context(repo_root: Path) -> str:
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
-    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
-    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+    _NONE = "(none)"
+    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else _NONE
+    directives = ", ".join(resolution.directives) if resolution.directives else _NONE
+    tools = ", ".join(resolution.tools) if resolution.tools else _NONE
 
     lines = [
         "Governance:",

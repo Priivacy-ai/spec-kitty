@@ -737,7 +737,7 @@ class EventEmitter:
                     import asyncio
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.ensure_future(self.ws_client.send_event(event))
+                        _task = asyncio.ensure_future(self.ws_client.send_event(event))  # prevent GC
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True

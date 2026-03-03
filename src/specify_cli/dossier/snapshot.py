@@ -160,7 +160,7 @@ def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
 
     snapshot_file = dossier_dir / "snapshot-latest.json"
     with open(snapshot_file, "w") as f:
-        json.dump(snapshot.dict(), f, indent=2, default=str)
+        json.dump(snapshot.model_dump(), f, indent=2, default=str)
 
 
 def load_snapshot(

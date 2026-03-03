@@ -107,11 +107,11 @@ def validate_event_schema(event: dict) -> list[str]:
     if (
         event.get("from_lane") == "for_review"
         and event.get("to_lane") == "in_progress"
+        and not event.get("review_ref")
     ):
-        if not event.get("review_ref"):
-            findings.append(
-                f"Event {event_id}: for_review->in_progress without review_ref"
-            )
+        findings.append(
+            f"Event {event_id}: for_review->in_progress without review_ref"
+        )
 
     return findings
 

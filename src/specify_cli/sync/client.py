@@ -255,7 +255,7 @@ class WebSocketClient:
                 await self._handle_message(data)
         except asyncio.CancelledError:
             # Expected during explicit disconnect/shutdown.
-            pass
+            raise
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
