@@ -310,7 +310,7 @@ def emit_status_transition(
 def _saas_fan_out(
     event: StatusEvent,
     feature_slug: str,
-    repo_root: Path | None,
+    _repo_root: Path | None,
     *,
     policy_metadata: dict | None = None,
 ) -> None:

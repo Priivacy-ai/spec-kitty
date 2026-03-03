@@ -303,7 +303,7 @@ def _is_guard_expression(s: str) -> bool:
     return "(" in s and s.rstrip().endswith(")")
 
 
-def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> dict[str, Any]:
+def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> dict[str, Any]:  # noqa: ARG001
     """Process a v1 config dict, compiling guard expression strings into callables.
 
     For each transition in ``config["transitions"]``, this function inspects

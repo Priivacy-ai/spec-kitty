@@ -354,7 +354,7 @@ class Extractor:
 
 def extract_with_ai(
     prose_sections: list[ConstitutionSection],
-    schema_hint: dict[str, Any],
+    _schema_hint: dict[str, Any],
 ) -> dict[str, Any]:
     """Send prose sections to configured AI agent for structured extraction.
 

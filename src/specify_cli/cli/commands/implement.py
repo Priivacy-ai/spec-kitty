@@ -498,9 +498,9 @@ def _ensure_planning_artifacts_committed_git(
 def _ensure_planning_artifacts_committed_jj(
     repo_root: Path,
     feature_dir: Path,
-    feature_slug: str,
-    wp_id: str,
-    primary_branch: str,
+    _feature_slug: str,
+    _wp_id: str,
+    _primary_branch: str,
 ) -> None:
     """Verify planning artifacts exist for jj repos.
 
@@ -543,7 +543,7 @@ def _ensure_planning_artifacts_committed_jj(
     console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
     Always locks to git (jj support removed due to sparse checkout incompatibility).

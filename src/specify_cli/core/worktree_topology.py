@@ -71,7 +71,7 @@ class FeatureTopology:
 
 def _resolve_base_wp(
     base_branch: str,
-    feature_slug: str,
+    _feature_slug: str,
     wp_branches: dict[str, str],
 ) -> Optional[str]:
     """Determine if base_branch is another WP's branch.

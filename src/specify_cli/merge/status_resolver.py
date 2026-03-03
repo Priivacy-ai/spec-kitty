@@ -34,7 +34,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 CONFLICT_PATTERN = re.compile(
-    r"^<<<<<<< .*?\n(.*?)^=======\n(.*?)^>>>>>>> .*?\n",
+    r"^<<<<<<< [^\n]*\n(.*?)^=======\n(.*?)^>>>>>>> [^\n]*\n",
     re.MULTILINE | re.DOTALL,
 )
 CHECKBOX_PATTERN = re.compile(r"^(\s*-\s*\[)([x ])\](.*)$", re.MULTILINE)
@@ -395,7 +395,7 @@ def resolve_history_conflict(ours: str, theirs: str) -> str | None:
     return base[: match.start()] + history_block + base[match.end() :]
 
 
-def _resolve_jsonl_file(file_path: Path, content: str) -> tuple[str, bool]:
+def _resolve_jsonl_file(_file_path: Path, content: str) -> tuple[str, bool]:
     """Resolve JSONL file conflicts by merging both sides.
 
     Returns (resolved_content, success).

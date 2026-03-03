@@ -268,7 +268,7 @@ def _detect_default_vcs() -> VCSBackend:
         raise VCSNotFoundError("git is not available. Please install git.")
 
 
-def _display_vcs_info(detected_vcs: VCSBackend, console: Console) -> None:
+def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
     """Display informational message about VCS selection.
 
     Args:
@@ -278,7 +278,7 @@ def _display_vcs_info(detected_vcs: VCSBackend, console: Console) -> None:
     console.print("[green]✓ git detected[/green] - will be used for version control")
 
 
-def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
+def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
     """Save VCS preference to config.yaml.
 
     Args:

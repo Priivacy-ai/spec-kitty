@@ -211,7 +211,7 @@ class ClarificationMiddleware:
     def _handle_custom_sense(
         self,
         conflict: Any,
-        conflict_id: str,
+        _conflict_id: str,
         custom_definition: str,
         context: Any,
     ) -> None:

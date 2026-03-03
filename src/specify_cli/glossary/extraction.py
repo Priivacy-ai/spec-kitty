@@ -18,7 +18,7 @@ ACRONYM_PATTERN = re.compile(r'\b[A-Z]{2,5}\b')
 SNAKE_CASE_PATTERN = re.compile(r'\b[a-z]+_[a-z_]+\b')
 CAMEL_CASE_PATTERN = re.compile(r'\b[a-z]+[A-Z][a-zA-Z]+\b')
 # Simple word pattern for validation
-WORD_PATTERN = re.compile(r'^[a-z][a-z]*$')
+WORD_PATTERN = re.compile(r'^[a-z]+$')
 
 # Common English words to exclude (top 100 most common)
 COMMON_WORDS = {

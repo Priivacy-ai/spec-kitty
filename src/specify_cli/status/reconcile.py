@@ -443,7 +443,7 @@ def reconcile(
         try:
             data = json.loads(snapshot_path.read_text(encoding="utf-8"))
             snapshot = StatusSnapshot.from_dict(data)
-        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        except (KeyError, ValueError) as exc:
             # Re-materialize from events
             try:
                 events = read_events(feature_dir)

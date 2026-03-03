@@ -166,7 +166,7 @@ def _commit_to_branch(
     feature_slug: str,
     artifact_type: str,
     repo_root: Path,
-    target_branch: str,
+    _target_branch: str,
     json_output: bool = False,
 ) -> None:
     """Commit planning artifact to current branch (respects user context).

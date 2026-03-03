@@ -102,12 +102,10 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 
     for wp_file in wp_files:
         lane = _read_lane_from_frontmatter(wp_file) or "planned"
-        if step_id == "implement":
-            if lane not in ("done", "for_review"):
-                return False
-        elif step_id == "review":
-            if lane != "done":
-                return False
+        if step_id == "implement" and lane not in ("done", "for_review"):
+            return False
+        elif step_id == "review" and lane != "done":
+            return False
 
     return True
 

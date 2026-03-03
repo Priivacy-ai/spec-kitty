@@ -1861,7 +1861,7 @@ def status(
         # Collect all work packages
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
-            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
+            front, _, _ = split_frontmatter(wp_file.read_text(encoding="utf-8"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")

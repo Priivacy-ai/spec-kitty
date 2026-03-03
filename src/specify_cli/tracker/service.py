@@ -125,7 +125,7 @@ class TrackerService:
                 "spec-kitty-tracker is not installed. Install it to use tracker commands."
             ) from exc
 
-        config, credentials, store = self._load_runtime()
+        config, _, store = self._load_runtime()
         ref = ExternalRef(
             system=str(config.provider),
             workspace=str(config.workspace),

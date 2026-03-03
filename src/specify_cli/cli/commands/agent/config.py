@@ -207,7 +207,7 @@ def remove_agents(
             errors.append(f"Unknown agent: {agent_key}")
             continue
 
-        agent_root, subdir = agent_dir_info
+        agent_root, _ = agent_dir_info
 
         # Delete directory
         agent_path = repo_root / agent_root

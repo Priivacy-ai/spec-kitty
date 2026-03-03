@@ -990,7 +990,7 @@ class GitVCS:
     # Repository Operations
     # =========================================================================
 
-    def init_repo(self, path: Path, colocate: bool = True) -> bool:
+    def init_repo(self, path: Path, colocate: bool = True) -> bool:  # noqa: ARG002
         """
         Initialize a new git repository.
 

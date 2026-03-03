@@ -244,7 +244,7 @@ def load_baseline(
         with open(baseline_file) as f:
             data = json.load(f)
         return BaselineSnapshot.from_dict(data)
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
+    except (KeyError, ValueError) as e:
         logger.error(f"Failed to load baseline from {baseline_file}: {e}")
         return None
 

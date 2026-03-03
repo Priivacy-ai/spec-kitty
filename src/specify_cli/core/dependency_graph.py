@@ -277,7 +277,7 @@ def topological_sort(graph: dict[str, list[str]]) -> list[str]:
         ['WP01', 'WP02', 'WP03']
     """
     # Build in-degree map and reverse adjacency
-    in_degree: dict[str, int] = {node: 0 for node in graph}
+    in_degree: dict[str, int] = dict.fromkeys(graph, 0)
     reverse_adj: dict[str, list[str]] = {node: [] for node in graph}
 
     for node, deps in graph.items():

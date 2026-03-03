@@ -394,7 +394,7 @@ sys.path.insert(0, os.path.abspath('..'))
         except OSError as e:
             raise GeneratorError(f"Failed to write conf.py: {e}")
 
-    def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:
+    def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:  # noqa: ARG002
         """Run Sphinx to generate documentation.
 
         Args:

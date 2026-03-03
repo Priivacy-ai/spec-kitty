@@ -150,7 +150,7 @@ class Indexer:
                 # UTF-8 validation failed or I/O error
                 try:
                     size_bytes = file_path.stat().st_size
-                except (OSError, FileNotFoundError):
+                except OSError:
                     size_bytes = 0
 
                 logger.warning(

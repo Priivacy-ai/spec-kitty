@@ -68,7 +68,7 @@ class DoctorResult:
 
 def _load_or_reduce_snapshot(
     feature_dir: Path,
-    feature_slug: str,
+    _feature_slug: str,
 ) -> dict | None:
     """Load snapshot from status.json or reduce from events.
 
@@ -97,7 +97,7 @@ def _load_or_reduce_snapshot(
 
 
 def check_stale_claims(
-    feature_dir: Path,
+    _feature_dir: Path,
     snapshot: dict,
     *,
     claimed_threshold_days: int = 7,
