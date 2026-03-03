@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Mapping
+from collections.abc import Mapping
 
 import yaml
 
@@ -107,7 +107,7 @@ def render_command_template(
     template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
     requires_script = "{SCRIPT}" in template_text
 
-    def build_variables(metadata: Dict[str, object]) -> Mapping[str, str]:
+    def build_variables(metadata: dict[str, object]) -> Mapping[str, str]:
         scripts = metadata.get("scripts") or {}
         agent_scripts = metadata.get("agent_scripts") or {}
         if not isinstance(scripts, dict):

@@ -19,7 +19,6 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -161,7 +160,7 @@ def _yaml_quote(text: str) -> str:
     return f'"{escaped}"'
 
 
-def render_context_yaml(ctx: GlossaryContext, repo_root: Optional[Path] = None) -> str:
+def render_context_yaml(ctx: GlossaryContext, repo_root: Path | None = None) -> str:
     """Render a GlossaryContext as a Contextive YAML string."""
     _root = repo_root or REPO_ROOT
     try:

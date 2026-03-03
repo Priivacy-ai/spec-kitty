@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -89,8 +88,8 @@ class FixMemoryStructureMigration(BaseMigration):
 
     def apply(self, project_path: Path, *, dry_run: bool = False) -> MigrationResult:
         """Move memory/ and fix broken symlinks."""
-        warnings: List[str] = []
-        changes_made: List[str] = []
+        warnings: list[str] = []
+        changes_made: list[str] = []
 
         root_memory = project_path / "memory"
         kittify_dir = project_path / ".kittify"

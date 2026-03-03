@@ -6,7 +6,7 @@ semantic conflicts detected during term resolution.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 from .extraction import ExtractedTerm
 from .models import ConflictType, Severity, TermSense, TermSurface, SenseRef, SenseStatus
@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 def classify_conflict(
     term: ExtractedTerm,
-    resolution_results: List[TermSense],
+    resolution_results: list[TermSense],
     is_critical_step: bool = False,
-    llm_output_text: Optional[str] = None,
-) -> Optional[ConflictType]:
+    llm_output_text: str | None = None,
+) -> ConflictType | None:
     """Classify conflict type based on resolution results.
 
     Args:
@@ -262,9 +262,9 @@ def create_conflict(
     term: ExtractedTerm,
     conflict_type: ConflictType,
     severity: Severity,
-    candidate_senses: List[TermSense],
+    candidate_senses: list[TermSense],
     context: str = "",
-) -> "models.SemanticConflict":
+) -> models.SemanticConflict:
     """Create a SemanticConflict from classification results.
 
     Args:

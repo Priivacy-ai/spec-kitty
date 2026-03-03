@@ -6,7 +6,6 @@ import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -140,7 +139,7 @@ def upgrade(
         False, "--dry-run", help="Preview changes without applying"
     ),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-    target: Optional[str] = typer.Option(
+    target: str | None = typer.Option(
         None, "--target", help="Target version (defaults to current CLI version)"
     ),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),

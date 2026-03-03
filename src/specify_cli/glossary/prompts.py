@@ -8,7 +8,6 @@ import logging
 import os
 import sys
 from enum import StrEnum
-from typing import List, Tuple
 
 import typer
 
@@ -73,8 +72,8 @@ def log_non_interactive_context() -> None:
 
 
 def auto_defer_conflicts(
-    conflicts: List[SemanticConflict],
-) -> List[Tuple[SemanticConflict, PromptChoice, None]]:
+    conflicts: list[SemanticConflict],
+) -> list[tuple[SemanticConflict, PromptChoice, None]]:
     """Auto-defer all conflicts in non-interactive mode.
 
     Args:
@@ -93,7 +92,7 @@ def auto_defer_conflicts(
 
 def prompt_conflict_resolution(
     conflict: SemanticConflict,
-) -> Tuple[PromptChoice, int | str | None]:
+) -> tuple[PromptChoice, int | str | None]:
     """Prompt user to resolve a semantic conflict.
 
     Displays options:
@@ -116,7 +115,7 @@ def prompt_conflict_resolution(
     num_candidates = len(conflict.candidate_senses)
 
     # Build prompt message
-    options: List[str] = []
+    options: list[str] = []
     if num_candidates > 0:
         options.append(f"  1-{num_candidates}: Choose candidate sense")
     options.append("  C: Provide custom definition")
@@ -182,7 +181,7 @@ def prompt_conflict_resolution(
 
 def prompt_conflict_resolution_safe(
     conflict: SemanticConflict,
-) -> Tuple[PromptChoice, int | str | None]:
+) -> tuple[PromptChoice, int | str | None]:
     """Safe prompt that auto-defers in non-interactive mode.
 
     Args:

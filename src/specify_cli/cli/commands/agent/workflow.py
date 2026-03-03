@@ -7,10 +7,9 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.constitution.context import build_constitution_context
@@ -38,6 +37,7 @@ from specify_cli.tasks_support import (
     set_scalar,
     split_frontmatter,
 )
+from datetime import UTC
 
 
 def _write_prompt_to_file(
@@ -296,7 +296,7 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
     return True
 
 
-def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
+def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> str | None:
     """Find the first WP file with lane: "planned".
 
     Args:
@@ -351,10 +351,10 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 
 @app.command(name="implement")
 def implement(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
-    base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    base: Annotated[str | None, typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -471,7 +471,7 @@ def implement(
                     print("This tracks WHO is working on the WP (prevents abandoned tasks).")
                     raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             # Capture current shell PID
@@ -485,7 +485,7 @@ def implement(
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != "doing":
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
             else:
@@ -811,7 +811,7 @@ def _resolve_review_context(
     return ctx
 
 
-def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
+def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> str | None:
     """Find the first WP file with lane: "for_review".
 
     Args:
@@ -866,9 +866,9 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 
 @app.command(name="review")
 def review(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -929,7 +929,7 @@ def review(
                 print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
                 raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             # Capture current shell PID
@@ -984,7 +984,7 @@ def review(
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
 
             # Add history entry to body

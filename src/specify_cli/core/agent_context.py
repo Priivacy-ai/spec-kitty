@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 import re
 
 
@@ -23,7 +22,7 @@ AGENT_CONFIGS = {
 }
 
 
-def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
+def parse_plan_for_tech_stack(plan_path: Path) -> dict[str, str | None]:
     """
     Extract tech stack information from plan.md Technical Context section.
 
@@ -48,7 +47,7 @@ def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
     content = plan_path.read_text()
 
     # Extract fields from Technical Context section using markdown patterns
-    def extract_field(pattern: str) -> Optional[str]:
+    def extract_field(pattern: str) -> str | None:
         # Match pattern like "**Language/Version**: Python 3.11+"
         match = re.search(rf"\*\*{pattern}\*\*:\s*(.+?)(?:\n|$)", content, re.MULTILINE)
         if match:
@@ -67,7 +66,7 @@ def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
     }
 
 
-def format_technology_stack(tech_stack: Dict[str, Optional[str]], feature_slug: str) -> List[str]:
+def format_technology_stack(tech_stack: dict[str, str | None], feature_slug: str) -> list[str]:
     """
     Format tech stack data into markdown bullet points for Active Technologies section.
 
@@ -149,10 +148,10 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 
 def update_agent_context(
     agent_type: str,
-    tech_stack: Dict[str, Optional[str]],
+    tech_stack: dict[str, str | None],
     feature_slug: str,
     repo_root: Path,
-    feature_dir: Optional[Path] = None,
+    feature_dir: Path | None = None,
 ) -> None:
     """
     Update agent context file with tech stack from plan.md.
@@ -283,7 +282,7 @@ def update_agent_context(
     agent_file_path.write_text(final_content, encoding='utf-8')
 
 
-def get_supported_agent_types() -> List[str]:
+def get_supported_agent_types() -> list[str]:
     """Return list of supported agent types."""
     return list(AGENT_CONFIGS.keys())
 

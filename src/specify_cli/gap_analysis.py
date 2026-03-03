@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -80,7 +80,7 @@ class DivioType(Enum):
     UNCLASSIFIED = "unclassified"
 
 
-def parse_frontmatter(content: str) -> Optional[Dict[str, Any]]:
+def parse_frontmatter(content: str) -> dict[str, Any] | None:
     """Parse YAML frontmatter from markdown file.
 
     Args:
@@ -203,7 +203,7 @@ def classify_by_content_heuristics(content: str) -> DivioType:
     return DivioType.UNCLASSIFIED
 
 
-def classify_divio_type(content: str) -> Tuple[DivioType, float]:
+def classify_divio_type(content: str) -> tuple[DivioType, float]:
     """Classify document into Divio type.
 
     Uses multi-strategy approach:
@@ -245,15 +245,15 @@ class CoverageMatrix:
     documentation for each Divio type (tutorial, how-to, reference, explanation).
     """
 
-    project_areas: List[str] = field(default_factory=list)  # e.g., ["auth", "api", "cli"]
-    divio_types: List[str] = field(
+    project_areas: list[str] = field(default_factory=list)  # e.g., ["auth", "api", "cli"]
+    divio_types: list[str] = field(
         default_factory=lambda: ["tutorial", "how-to", "reference", "explanation"]
     )
 
     # Maps (area, type) to doc file path (None if missing)
-    cells: Dict[Tuple[str, str], Optional[Path]] = field(default_factory=dict)
+    cells: dict[tuple[str, str], Path | None] = field(default_factory=dict)
 
-    def get_coverage_for_area(self, area: str) -> Dict[str, Optional[Path]]:
+    def get_coverage_for_area(self, area: str) -> dict[str, Path | None]:
         """Get all Divio type coverage for one project area.
 
         Args:
@@ -264,7 +264,7 @@ class CoverageMatrix:
         """
         return {dtype: self.cells.get((area, dtype)) for dtype in self.divio_types}
 
-    def get_coverage_for_type(self, divio_type: str) -> Dict[str, Optional[Path]]:
+    def get_coverage_for_type(self, divio_type: str) -> dict[str, Path | None]:
         """Get all project area coverage for one Divio type.
 
         Args:
@@ -277,7 +277,7 @@ class CoverageMatrix:
             area: self.cells.get((area, divio_type)) for area in self.project_areas
         }
 
-    def get_gaps(self) -> List[Tuple[str, str]]:
+    def get_gaps(self) -> list[tuple[str, str]]:
         """Return list of (area, type) tuples with missing documentation.
 
         Returns:
@@ -369,10 +369,10 @@ class DocumentationGap:
 
 
 def prioritize_gaps(
-    gaps: List[Tuple[str, str]],
-    project_areas: List[str],
-    existing_docs: Dict[Path, DivioType],
-) -> List[DocumentationGap]:
+    gaps: list[tuple[str, str]],
+    project_areas: list[str],
+    existing_docs: dict[Path, DivioType],
+) -> list[DocumentationGap]:
     """Assign priorities to documentation gaps based on user impact.
 
     Prioritization rules (from research):
@@ -438,7 +438,7 @@ def prioritize_gaps(
     return prioritized
 
 
-def extract_public_api_from_python(source_dir: Path) -> List[str]:
+def extract_public_api_from_python(source_dir: Path) -> list[str]:
     """Extract public API elements from Python source.
 
     Finds:
@@ -462,12 +462,7 @@ def extract_public_api_from_python(source_dir: Path) -> List[str]:
 
             for node in ast.walk(tree):
                 # Extract public functions
-                if isinstance(node, ast.FunctionDef):
-                    if not node.name.startswith("_"):
-                        api_elements.append(node.name)
-
-                # Extract public classes
-                elif isinstance(node, ast.ClassDef):
+                if isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef):
                     if not node.name.startswith("_"):
                         api_elements.append(node.name)
 
@@ -478,7 +473,7 @@ def extract_public_api_from_python(source_dir: Path) -> List[str]:
     return sorted(set(api_elements))  # Unique, sorted
 
 
-def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
+def extract_documented_api_from_sphinx(docs_dir: Path) -> list[str]:
     """Extract documented API elements from Sphinx documentation.
 
     Parses generated Sphinx HTML or source .rst files for documented APIs.
@@ -510,7 +505,7 @@ def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
 
 def detect_version_mismatch(
     code_dir: Path, docs_dir: Path, language: str = "python"
-) -> List[str]:
+) -> list[str]:
     """Detect API elements in code that are missing from documentation.
 
     Args:
@@ -550,11 +545,11 @@ class GapAnalysis:
     analysis_date: datetime
     framework: DocFramework
     coverage_matrix: CoverageMatrix
-    gaps: List[DocumentationGap]
-    outdated: List[Tuple[Path, str]] = field(
+    gaps: list[DocumentationGap]
+    outdated: list[tuple[Path, str]] = field(
         default_factory=list
     )  # (file, reason)
-    existing: Dict[Path, Tuple[DivioType, float]] = field(
+    existing: dict[Path, tuple[DivioType, float]] = field(
         default_factory=dict
     )  # (type, confidence)
 
@@ -632,7 +627,7 @@ class GapAnalysis:
             lines.append("")
 
             # Group by Divio type
-            by_type: Dict[DivioType, List[Tuple[Path, float]]] = {}
+            by_type: dict[DivioType, list[tuple[Path, float]]] = {}
             for path, (dtype, confidence) in self.existing.items():
                 if dtype not in by_type:
                     by_type[dtype] = []
@@ -704,7 +699,7 @@ class GapAnalysis:
         return "\n".join(lines)
 
 
-def detect_project_areas(docs_dir: Path, project_root: Path) -> List[str]:
+def detect_project_areas(docs_dir: Path, project_root: Path) -> list[str]:
     """Detect project areas from directory structure.
 
     Heuristics:
@@ -740,7 +735,7 @@ def detect_project_areas(docs_dir: Path, project_root: Path) -> List[str]:
     return sorted(areas)
 
 
-def infer_area_from_path(doc_path: Path, project_areas: List[str]) -> Optional[str]:
+def infer_area_from_path(doc_path: Path, project_areas: list[str]) -> str | None:
     """Infer which project area a doc file belongs to.
 
     Args:
@@ -761,7 +756,7 @@ def infer_area_from_path(doc_path: Path, project_areas: List[str]) -> Optional[s
 
 
 def build_coverage_matrix(
-    classified: Dict[Path, Tuple[DivioType, float]], project_areas: List[str]
+    classified: dict[Path, tuple[DivioType, float]], project_areas: list[str]
 ) -> CoverageMatrix:
     """Build coverage matrix from classified documents.
 
@@ -788,7 +783,7 @@ def build_coverage_matrix(
 
 
 def analyze_documentation_gaps(
-    docs_dir: Path, project_root: Optional[Path] = None
+    docs_dir: Path, project_root: Path | None = None
 ) -> GapAnalysis:
     """Analyze documentation directory and identify gaps.
 
@@ -849,7 +844,7 @@ def analyze_documentation_gaps(
 
 
 def generate_gap_analysis_report(
-    docs_dir: Path, output_file: Path, project_root: Optional[Path] = None
+    docs_dir: Path, output_file: Path, project_root: Path | None = None
 ) -> GapAnalysis:
     """Analyze documentation and generate gap analysis report.
 

@@ -9,7 +9,6 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 import hashlib
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 
 def hash_file(file_path: Path) -> str:
@@ -52,13 +51,13 @@ def hash_file(file_path: Path) -> str:
         raise FileNotFoundError(f"File not found: {file_path}") from e
     except PermissionError as e:
         raise PermissionError(f"Permission denied reading file: {file_path}") from e
-    except IOError as e:
-        raise IOError(f"I/O error reading file: {file_path}") from e
+    except OSError as e:
+        raise OSError(f"I/O error reading file: {file_path}") from e
 
     return hasher.hexdigest()
 
 
-def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[str]]:
+def hash_file_with_validation(file_path: Path) -> tuple[str | None, str | None]:
     """Hash file with UTF-8 validation, return (hash_or_none, error_reason).
 
     Attempts to read file as UTF-8 text (validates encoding), then hashes
@@ -121,7 +120,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
         return None, "unreadable"
     except PermissionError:
         return None, "unreadable"
-    except IOError:
+    except OSError:
         return None, "unreadable"
 
 
@@ -153,7 +152,7 @@ class Hasher:
 
     def __init__(self):
         """Initialize empty hash pool."""
-        self.hashes: List[str] = []
+        self.hashes: list[str] = []
 
     def add_artifact_hash(self, artifact_hash: str) -> None:
         """Add artifact hash to pool.
@@ -211,7 +210,7 @@ class Hasher:
 
         return parity_hasher.hexdigest()
 
-    def get_sorted_hashes(self) -> List[str]:
+    def get_sorted_hashes(self) -> list[str]:
         """Get sorted artifact hashes (for audit/debugging).
 
         Returns:

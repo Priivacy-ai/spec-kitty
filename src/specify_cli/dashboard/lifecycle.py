@@ -15,7 +15,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Optional, Tuple
 
 import psutil
 
@@ -32,7 +31,7 @@ __all__ = [
 ]
 
 
-def _parse_dashboard_file(dashboard_file: Path) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
+def _parse_dashboard_file(dashboard_file: Path) -> tuple[str | None, int | None, str | None, int | None]:
     """Read dashboard metadata from disk.
 
     Format:
@@ -77,8 +76,8 @@ def _write_dashboard_file(
     dashboard_file: Path,
     url: str,
     port: int,
-    token: Optional[str],
-    pid: Optional[int] = None,
+    token: str | None,
+    pid: int | None = None,
 ) -> None:
     """Persist dashboard metadata to disk.
 
@@ -219,7 +218,7 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
 def _check_dashboard_health(
     port: int,
     project_dir: Path,
-    expected_token: Optional[str],
+    expected_token: str | None,
     timeout: float = 0.5,
 ) -> bool:
     """Verify that the dashboard on the port belongs to the provided project."""
@@ -229,7 +228,7 @@ def _check_dashboard_health(
             if response.status != 200:
                 return False
             payload = response.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError, socket.error):
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError):
         return False
     except Exception:
         return False
@@ -265,9 +264,9 @@ def _check_dashboard_health(
 
 def ensure_dashboard_running(
     project_dir: Path,
-    preferred_port: Optional[int] = None,
+    preferred_port: int | None = None,
     background_process: bool = True,
-) -> Tuple[str, int, bool]:
+) -> tuple[str, int, bool]:
     """
     Ensure a dashboard server is running for the provided project directory.
 
@@ -421,7 +420,7 @@ def ensure_dashboard_running(
     raise RuntimeError(f"Dashboard failed to start on port {port} for project {project_dir_resolved}")
 
 
-def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
+def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
     """
     Attempt to stop the dashboard server for the provided project directory.
 
@@ -447,7 +446,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
 
     shutdown_url = f"http://127.0.0.1:{port}/api/shutdown"
 
-    def _attempt_get() -> Tuple[bool, Optional[str]]:
+    def _attempt_get() -> tuple[bool, str | None]:
         params = {}
         if token:
             params['token'] = token
@@ -462,12 +461,12 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
             if exc.code in (404, 405, 501):
                 return False, None
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (urllib.error.URLError, TimeoutError, ConnectionError, socket.error) as exc:
+        except (OSError, urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"
 
-    def _attempt_post() -> Tuple[bool, Optional[str]]:
+    def _attempt_post() -> tuple[bool, str | None]:
         payload = json.dumps({'token': token}).encode('utf-8')
         request = urllib.request.Request(
             shutdown_url,
@@ -484,7 +483,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
             if exc.code == 501:
                 return False, "Dashboard does not support remote shutdown (upgrade required)."
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (urllib.error.URLError, TimeoutError, ConnectionError, socket.error) as exc:
+        except (OSError, urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"

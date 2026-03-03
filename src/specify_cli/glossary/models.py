@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, List
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -84,7 +84,7 @@ class SemanticConflict:
     conflict_type: ConflictType
     severity: Severity
     confidence: float  # 0.0-1.0 (confidence in conflict detection)
-    candidate_senses: List[SenseRef] = field(default_factory=list)
+    candidate_senses: list[SenseRef] = field(default_factory=list)
     context: str = ""  # Usage location (e.g., "step input: description field")
 
     def __post_init__(self) -> None:

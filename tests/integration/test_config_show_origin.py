@@ -231,12 +231,11 @@ class TestShowOriginExtendedAssets:
         with patch(
             "specify_cli.runtime.resolver.get_package_asset_root",
             return_value=pkg_root,
+        ), patch(
+            "specify_cli.runtime.show_origin.get_package_asset_root",
+            return_value=pkg_root,
         ):
-            with patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
-            ):
-                entries = collect_origins(project)
+            entries = collect_origins(project)
 
         mission_entries = [e for e in entries if e.asset_type == "mission"]
         mission_names = {e.name for e in mission_entries}
@@ -253,12 +252,11 @@ class TestShowOriginExtendedAssets:
         with patch(
             "specify_cli.runtime.resolver.get_package_asset_root",
             side_effect=FileNotFoundError("no pkg"),
+        ), patch(
+            "specify_cli.runtime.show_origin.get_package_asset_root",
+            side_effect=FileNotFoundError("no pkg"),
         ):
-            with patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ):
-                entries = collect_origins(project)
+            entries = collect_origins(project)
 
         asset_types = {e.asset_type for e in entries}
         # Must have templates, commands, missions, and file (AGENTS.md)

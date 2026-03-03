@@ -24,7 +24,7 @@ class TestConstants:
         assert len(ALLOWED_TRANSITIONS) == 17
 
     def test_terminal_lanes(self) -> None:
-        assert TERMINAL_LANES == frozenset({"done", "canceled"})
+        assert frozenset({"done", "canceled"}) == TERMINAL_LANES
 
     def test_doing_alias(self) -> None:
         assert LANE_ALIASES == {"doing": "in_progress"}
@@ -343,19 +343,19 @@ class TestUnknownLanes:
 
 class TestGuardActorRequired:
     """Tests for _guard_actor_required to kill mutation survivors."""
-    
+
     def test_empty_string_actor_fails(self) -> None:
         """Empty string should fail - kills mutant changing 'or' to 'and'."""
         ok, error = validate_transition("planned", "claimed", actor="")
         assert ok is False
         assert "actor identity" in error.lower()
-    
+
     def test_whitespace_only_actor_fails(self) -> None:
         """Whitespace-only actor should fail - kills mutations in strip() check."""
         ok, error = validate_transition("planned", "claimed", actor="   ")
         assert ok is False
         assert "actor identity" in error.lower()
-    
+
     def test_none_actor_fails(self) -> None:
         """None actor should fail - kills mutations in None check."""
         ok, error = validate_transition("planned", "claimed", actor=None)

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
@@ -28,7 +27,7 @@ def _is_worktree_gitdir(gitdir: Path) -> bool:
     )
 
 
-def locate_project_root(start: Path | None = None) -> Optional[Path]:
+def locate_project_root(start: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -153,7 +152,7 @@ def is_worktree_context(path: Path) -> bool:
     return False
 
 
-def resolve_with_context(start: Path | None = None) -> Tuple[Optional[Path], bool]:
+def resolve_with_context(start: Path | None = None) -> tuple[Path | None, bool]:
     """
     Resolve project root and detect worktree context in one call.
 

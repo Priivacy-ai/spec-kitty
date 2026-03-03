@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from io import StringIO
 from pathlib import Path
 import re
@@ -402,7 +402,7 @@ def _render_constitution_markdown(
     available_tools: list[str],
     references: list[ConstitutionReference],
 ) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     testing = interview.answers.get("testing_requirements", "Use pytest with measurable coverage goals.")
     quality = interview.answers.get("quality_gates", "Tests, lint, and type checks must pass before merge.")
@@ -492,7 +492,7 @@ def _render_directives(interview: ConstitutionInterview, selected_directives: li
 def _write_references_yaml(path: Path, compiled: CompiledConstitution) -> None:
     payload = {
         "schema_version": "1.0.0",
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mission": compiled.mission,
         "template_set": compiled.template_set,
         "references": [

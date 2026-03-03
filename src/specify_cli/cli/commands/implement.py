@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
@@ -582,7 +582,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
             console.print("[yellow]Converting to git...[/yellow]")
             # Override to git
             meta["vcs"] = "git"
-            meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+            meta["vcs_locked_at"] = datetime.now(UTC).isoformat()
             meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
             return VCSBackend.GIT
         # Already git
@@ -590,7 +590,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
 
     # VCS not yet locked - lock to git (only supported VCS)
     meta["vcs"] = "git"
-    meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+    meta["vcs_locked_at"] = datetime.now(UTC).isoformat()
 
     # Write updated meta.json
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -1033,7 +1033,7 @@ def implement(
 
         # Step 3.6: Update WP frontmatter with base tracking
         try:
-            created_at = datetime.now(timezone.utc).isoformat()
+            created_at = datetime.now(UTC).isoformat()
 
             # Update frontmatter with base tracking fields
             update_fields(wp_file, {

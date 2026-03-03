@@ -113,7 +113,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     yaml.preserve_quotes = True
 
     try:
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             data = yaml.load(f) or {}
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
@@ -174,7 +174,7 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
 
     # Load existing config or create new
     if config_file.exists():
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             data = yaml.load(f) or {}
     else:
         data = {}

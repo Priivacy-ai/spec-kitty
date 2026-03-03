@@ -12,7 +12,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Protocol
+from typing import Any, Protocol
 
 
 class DocGenerator(Protocol):
@@ -23,7 +23,7 @@ class DocGenerator(Protocol):
     """
 
     name: str  # Generator identifier (e.g., "jsdoc", "sphinx", "rustdoc")
-    languages: List[str]  # Supported languages (e.g., ["javascript", "typescript"])
+    languages: list[str]  # Supported languages (e.g., ["javascript", "typescript"])
 
     def detect(self, project_root: Path) -> bool:
         """Detect if this generator is applicable to the project.
@@ -36,7 +36,7 @@ class DocGenerator(Protocol):
         """
         ...
 
-    def configure(self, output_dir: Path, options: Dict[str, Any]) -> Path:
+    def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate configuration file for this generator.
 
         Args:
@@ -51,7 +51,7 @@ class DocGenerator(Protocol):
         """
         ...
 
-    def generate(self, source_dir: Path, output_dir: Path) -> 'GeneratorResult':
+    def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:
         """Run generator to produce documentation.
 
         Args:
@@ -115,9 +115,9 @@ class GeneratorResult:
     """
     success: bool
     output_dir: Path
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    generated_files: List[Path] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    generated_files: list[Path] = field(default_factory=list)
 
     def __repr__(self) -> str:
         """Human-readable representation."""
@@ -142,7 +142,7 @@ class JSDocGenerator:
     """
 
     name: str = "jsdoc"
-    languages: List[str] = field(default_factory=lambda: ["javascript", "typescript"])
+    languages: list[str] = field(default_factory=lambda: ["javascript", "typescript"])
 
     def detect(self, project_root: Path) -> bool:
         """Detect if project uses JavaScript/TypeScript.
@@ -169,7 +169,7 @@ class JSDocGenerator:
 
         return False
 
-    def configure(self, output_dir: Path, options: Dict[str, Any]) -> Path:
+    def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate jsdoc.json configuration file.
 
         Args:
@@ -298,7 +298,7 @@ class SphinxGenerator:
     """
 
     name: str = "sphinx"
-    languages: List[str] = field(default_factory=lambda: ["python"])
+    languages: list[str] = field(default_factory=lambda: ["python"])
 
     def detect(self, project_root: Path) -> bool:
         """Detect if project uses Python.
@@ -326,7 +326,7 @@ class SphinxGenerator:
 
         return False
 
-    def configure(self, output_dir: Path, options: Dict[str, Any]) -> Path:
+    def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate Sphinx conf.py configuration file.
 
         Args:
@@ -486,7 +486,7 @@ class RustdocGenerator:
     """
 
     name: str = "rustdoc"
-    languages: List[str] = field(default_factory=lambda: ["rust"])
+    languages: list[str] = field(default_factory=lambda: ["rust"])
 
     def detect(self, project_root: Path) -> bool:
         """Detect if project uses Rust.
@@ -511,7 +511,7 @@ class RustdocGenerator:
 
         return False
 
-    def configure(self, output_dir: Path, options: Dict[str, Any]) -> Path:
+    def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate rustdoc configuration (updates Cargo.toml).
 
         For Rust projects, configuration is typically done in Cargo.toml metadata.

@@ -1,11 +1,10 @@
 """State-machine merge logic with priority-based conflict resolution."""
-from typing import List, Dict
 from .models import Event, ConflictResolution, ValidationError
 
 
 def state_machine_merge(
-    events: List[Event],
-    priority_map: Dict[str, int],
+    events: list[Event],
+    priority_map: dict[str, int],
     state_key: str = "state"
 ) -> ConflictResolution:
     """Merge concurrent state-machine events using priority-based selection.
@@ -53,7 +52,7 @@ def state_machine_merge(
             )
 
     # Extract state values and validate against priority_map
-    event_priorities: List[tuple[int, str, Event]] = []
+    event_priorities: list[tuple[int, str, Event]] = []
     for event in events:
         state_value = event.payload.get(state_key)
         # Fallback to "status" if using default "state" key and "state" not found

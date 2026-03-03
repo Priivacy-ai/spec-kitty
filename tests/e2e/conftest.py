@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 import yaml
@@ -121,7 +121,7 @@ def e2e_project(tmp_path: Path) -> Path:
     # Align metadata version with source to avoid version mismatch errors
     metadata_file = project / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         current_version = get_installed_version()

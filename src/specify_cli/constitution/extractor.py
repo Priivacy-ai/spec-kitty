@@ -8,7 +8,7 @@ Maps parsed constitution sections to validated Pydantic models:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -318,7 +318,7 @@ class Extractor:
         constitution_hash = hash_content(content)
 
         # ISO timestamp
-        extracted_at = datetime.now(timezone.utc).isoformat()
+        extracted_at = datetime.now(UTC).isoformat()
 
         return ExtractionMetadata(
             schema_version="1.0.0",

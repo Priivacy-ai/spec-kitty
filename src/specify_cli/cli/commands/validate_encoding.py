@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -17,7 +16,7 @@ from specify_cli.text_sanitization import detect_problematic_characters, sanitiz
 
 
 def validate_encoding(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
     fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),

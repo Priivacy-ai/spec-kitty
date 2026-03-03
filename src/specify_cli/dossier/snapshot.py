@@ -15,9 +15,8 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import List, Optional
 
 from .models import MissionDossier, MissionDossierSnapshot
 
@@ -57,7 +56,7 @@ def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
     return parity_hash
 
 
-def get_parity_hash_components(dossier: MissionDossier) -> List[str]:
+def get_parity_hash_components(dossier: MissionDossier) -> list[str]:
     """Return sorted list of artifact hashes (for audit).
 
     Args:
@@ -142,7 +141,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
             }
             for a in sorted_artifacts
         ],
-        computed_at=datetime.now(timezone.utc),
+        computed_at=datetime.now(UTC),
     )
 
 
@@ -165,7 +164,7 @@ def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
 
 def load_snapshot(
     feature_dir: Path, feature_slug: str
-) -> Optional[MissionDossierSnapshot]:
+) -> MissionDossierSnapshot | None:
     """Load snapshot from JSON file.
 
     Args:
@@ -188,7 +187,7 @@ def load_snapshot(
 
 def get_latest_snapshot(
     feature_dir: Path, feature_slug: str
-) -> Optional[MissionDossierSnapshot]:
+) -> MissionDossierSnapshot | None:
     """Get most recent snapshot (convenience alias).
 
     Args:

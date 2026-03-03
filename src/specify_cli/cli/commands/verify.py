@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from rich.panel import Panel
@@ -35,7 +35,7 @@ TOOL_LABELS = [
 
 
 def verify_setup(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
     check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
     check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),

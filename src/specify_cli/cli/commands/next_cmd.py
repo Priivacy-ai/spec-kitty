@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Optional
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.feature_detection import (
@@ -26,10 +25,10 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 def next_step(
     agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
     result: Annotated[str, typer.Option("--result", help="Result of previous step: success|failed|blocked")] = "success",
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
-    answer: Annotated[Optional[str], typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
+    answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
+    decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 

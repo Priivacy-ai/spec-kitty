@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Type
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
@@ -14,15 +14,15 @@ if TYPE_CHECKING:
 class MigrationRegistry:
     """Registry of all available migrations, ordered by target version."""
 
-    _migrations: Dict[str, Type["BaseMigration"]] = {}
+    _migrations: dict[str, type[BaseMigration]] = {}
 
     # Required fields for all migrations
     REQUIRED_FIELDS = ['migration_id', 'description', 'target_version']
 
     @classmethod
     def register(
-        cls, migration_class: Type["BaseMigration"]
-    ) -> Type["BaseMigration"]:
+        cls, migration_class: type[BaseMigration]
+    ) -> type[BaseMigration]:
         """Decorator to register a migration class.
 
         Args:
@@ -58,7 +58,7 @@ class MigrationRegistry:
         return migration_class
 
     @classmethod
-    def get_all(cls) -> List["BaseMigration"]:
+    def get_all(cls) -> list[BaseMigration]:
         """Get all migrations as instances, ordered by target version.
 
         Returns:
@@ -69,8 +69,8 @@ class MigrationRegistry:
 
     @classmethod
     def get_applicable(
-        cls, from_version: str, to_version: str, project_path: "Path | None" = None
-    ) -> List["BaseMigration"]:
+        cls, from_version: str, to_version: str, project_path: Path | None = None
+    ) -> list[BaseMigration]:
         """Get migrations needed to go from one version to another.
 
         Args:
@@ -99,7 +99,7 @@ class MigrationRegistry:
         return applicable
 
     @classmethod
-    def get_by_id(cls, migration_id: str) -> "BaseMigration | None":
+    def get_by_id(cls, migration_id: str) -> BaseMigration | None:
         """Get a specific migration by ID.
 
         Args:

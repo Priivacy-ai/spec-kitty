@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import CompleteLaneMigration
 
 
-def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
+def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
     """Get list of agent directories that should exist based on config.
 
     This respects user configuration (which agents they want) rather than

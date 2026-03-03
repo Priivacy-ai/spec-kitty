@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -69,7 +68,7 @@ def is_blocking_pattern(line: str) -> bool:
     return False
 
 
-def find_blocking_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
+def find_blocking_entries(gitignore_path: Path) -> list[tuple[int, str]]:
     """Find all lines that block kitty-specs/ entirely.
 
     Returns list of (line_number, line_content) tuples.
@@ -88,13 +87,13 @@ def find_blocking_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
     return blocking_entries
 
 
-def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> Tuple[List[str], List[str]]:
+def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> tuple[list[str], list[str]]:
     """Remove entries that block kitty-specs/ from .gitignore.
 
     Returns (changes, errors) tuple.
     """
-    changes: List[str] = []
-    errors: List[str] = []
+    changes: list[str] = []
+    errors: list[str] = []
 
     if not gitignore_path.exists():
         changes.append("No .gitignore file found")

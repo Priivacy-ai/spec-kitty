@@ -120,7 +120,7 @@ class TestMergeStateEdgeCases:
             started_at="2026-03-01T10:00:00+00:00",
             updated_at="2026-03-01T10:00:00+00:00",
         )
-        
+
         state.set_pending_conflicts(True)
         assert state.has_pending_conflicts is True
 
@@ -144,7 +144,7 @@ class TestStatePersistenceEdgeCases:
             started_at="2026-03-01T10:00:00+00:00",
             updated_at="2026-03-01T10:00:00+00:00",
         )
-        
+
         # Save initial state
         save_state(state, tmp_path)
         initial_updated = state.updated_at
@@ -227,7 +227,7 @@ class TestStatePersistenceEdgeCases:
         )
 
         data = state.to_dict()
-        
+
         required_fields = [
             "feature_slug",
             "target_branch",
@@ -239,7 +239,7 @@ class TestStatePersistenceEdgeCases:
             "started_at",
             "updated_at",
         ]
-        
+
         for field in required_fields:
             assert field in data
 

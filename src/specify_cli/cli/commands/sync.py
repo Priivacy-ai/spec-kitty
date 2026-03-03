@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -38,7 +37,7 @@ from specify_cli.sync.feature_flags import (
 console = Console()
 
 
-def humanize_timedelta(td: "timedelta") -> str:
+def humanize_timedelta(td: timedelta) -> str:
     """Convert a timedelta into a concise human-readable string.
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
@@ -613,7 +612,7 @@ def sync_server(
 
 @app.command()
 def now(
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Export per-event failure details to a JSON file",

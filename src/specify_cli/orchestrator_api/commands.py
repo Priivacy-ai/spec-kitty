@@ -23,7 +23,7 @@ import json
 import re
 import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
@@ -702,7 +702,7 @@ def append_history(
     raw = wp_path.read_text(encoding="utf-8")
     fm, body, padding = split_frontmatter(raw)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry_text = f"- [{timestamp}] {actor}: {note}"
     new_body = append_activity_log(body, entry_text)
 
@@ -779,7 +779,7 @@ def accept_feature(
         except Exception:
             meta = {}
 
-    accepted_at = datetime.now(timezone.utc).isoformat()
+    accepted_at = datetime.now(UTC).isoformat()
     meta["accepted_at"] = accepted_at
     meta["accepted_by"] = actor
     meta_path.write_text(_json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")

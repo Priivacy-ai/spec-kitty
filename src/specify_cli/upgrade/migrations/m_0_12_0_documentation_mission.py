@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -135,7 +134,7 @@ class InstallDocumentationMission(BaseMigration):
 
         return MigrationResult(success=True, changes_made=changes)
 
-    def _find_source_mission(self) -> Optional[Path]:
+    def _find_source_mission(self) -> Path | None:
         """Find the documentation mission in spec-kitty's installation.
 
         Returns:

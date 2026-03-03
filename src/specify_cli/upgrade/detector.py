@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from .metadata import ProjectMetadata
 
@@ -146,7 +145,7 @@ class VersionDetector:
         # Default to oldest .kittify-based version
         return "0.2.0"
 
-    def get_needed_migrations(self, target_version: str) -> List[str]:
+    def get_needed_migrations(self, target_version: str) -> list[str]:
         """Get list of migration IDs needed to reach target version.
 
         Args:

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from specify_cli.glossary.exceptions import (
     AbortResume,
@@ -69,7 +69,7 @@ def prompt_conflict_resolution_safe(
         print("  [c] Provide a custom definition")
         print("  [d] Defer resolution")
 
-        choice = input("Select [1-{}/c/d]: ".format(len(candidates))).strip().lower()
+        choice = input(f"Select [1-{len(candidates)}/c/d]: ").strip().lower()
 
         if choice == "d" or choice == "":
             return ("defer", None)
@@ -134,7 +134,7 @@ class GlossaryMiddlewarePipeline:
 
     def __init__(
         self,
-        middleware: List[GlossaryMiddleware],
+        middleware: list[GlossaryMiddleware],
         skip_on_disabled: bool = True,
     ) -> None:
         """Initialize the pipeline.
@@ -251,7 +251,7 @@ def create_standard_pipeline(
     # This ensures users can resolve conflicts interactively before the
     # gate decides whether to block. Without this ordering, the gate would
     # raise BlockedByConflict immediately and clarification would never run.
-    middleware: List[GlossaryMiddleware] = [
+    middleware: list[GlossaryMiddleware] = [
         # Layer 1: Extract term candidates from step inputs
         GlossaryCandidateExtractionMiddleware(repo_root=repo_root),
         # Layer 2: Resolve terms and detect conflicts
@@ -277,7 +277,7 @@ def create_standard_pipeline(
     return GlossaryMiddlewarePipeline(middleware=middleware)
 
 
-def _load_seed_files_into_store(repo_root: Path, store: "GlossaryStore") -> None:
+def _load_seed_files_into_store(repo_root: Path, store: GlossaryStore) -> None:
     """Load seed files from .kittify/glossaries/ into the glossary store.
 
     Args:

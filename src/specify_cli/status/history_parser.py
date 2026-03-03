@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from .models import DoneEvidence, ReviewApproval
@@ -79,7 +79,7 @@ def normalize_entries(history: list[dict[str, Any]]) -> list[NormalizedHistoryEn
 
         lane = resolve_lane_alias(str(raw_lane).strip())
         timestamp = str(entry.get("timestamp", "")) or datetime.now(
-            timezone.utc
+            UTC
         ).isoformat()
         actor = str(entry.get("agent", "")) or "migration"
 
@@ -255,7 +255,7 @@ def build_transition_chain(
     if collapsed:
         fallback_timestamp = collapsed[-1].timestamp
     else:
-        fallback_timestamp = datetime.now(timezone.utc).isoformat()
+        fallback_timestamp = datetime.now(UTC).isoformat()
 
     final_transitions = gap_fill(
         transitions, last_history_lane, current_lane, fallback_timestamp

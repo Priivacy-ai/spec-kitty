@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -75,7 +75,7 @@ def render_template(
 
 
 def _resolve_variables(
-    variables: VariablesResolver | None, metadata: Dict[str, Any]
+    variables: VariablesResolver | None, metadata: dict[str, Any]
 ) -> Mapping[str, str]:
     if variables is None:
         return {}

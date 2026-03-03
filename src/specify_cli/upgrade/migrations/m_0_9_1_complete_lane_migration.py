@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -57,7 +56,7 @@ class CompleteLaneMigration(BaseMigration):
     # All known agent command directories (imported from agent_utils)
     AGENT_DIRS = _AGENT_DIRS
 
-    LANE_DIRS: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+    LANE_DIRS: tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
     # System files to ignore when determining if a directory is empty
     # These files are created automatically by operating systems and should not
@@ -93,7 +92,7 @@ class CompleteLaneMigration(BaseMigration):
         return False
 
     @classmethod
-    def _get_real_contents(cls, directory: Path) -> List[Path]:
+    def _get_real_contents(cls, directory: Path) -> list[Path]:
         """Get directory contents, excluding system files.
 
         Args:
@@ -157,11 +156,7 @@ class CompleteLaneMigration(BaseMigration):
             if lane_path.is_dir():
                 # Check for real contents (ignoring system files)
                 real_contents = self._get_real_contents(lane_path)
-                if real_contents:
-                    return True
-                # Even if only system files, still need migration to remove the directory
-                # (The directory itself shouldn't exist in new format)
-                elif any(lane_path.iterdir()):
+                if real_contents or any(lane_path.iterdir()):
                     return True
 
         return False
@@ -172,9 +167,9 @@ class CompleteLaneMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Apply both lane migration and worktree cleanup."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Part 1: Complete lane migration
         changes.append("=== Part 1: Complete Lane Migration ===")
@@ -228,9 +223,9 @@ class CompleteLaneMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _find_features_with_lanes(self, project_path: Path) -> List[Tuple[Path, str]]:
+    def _find_features_with_lanes(self, project_path: Path) -> list[tuple[Path, str]]:
         """Find all features with remaining lane subdirectories."""
-        features: List[Tuple[Path, str]] = []
+        features: list[tuple[Path, str]] = []
 
         # Scan main kitty-specs/
         main_specs = project_path / "kitty-specs"
@@ -257,11 +252,11 @@ class CompleteLaneMigration(BaseMigration):
         feature_dir: Path,
         location_label: str,
         dry_run: bool,
-    ) -> Tuple[List[str], List[str], List[str], int, int]:
+    ) -> tuple[list[str], list[str], list[str], int, int]:
         """Migrate all remaining files from a feature's lane subdirectories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
         migrated = 0
         dirs_removed = 0
 
@@ -397,10 +392,10 @@ class CompleteLaneMigration(BaseMigration):
         result_lines = ["---"] + updated_lines + ["---"] + body_lines
         return "\n".join(result_lines)
 
-    def _cleanup_worktrees(self, project_path: Path, dry_run: bool) -> Tuple[List[str], List[str]]:
+    def _cleanup_worktrees(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
         """Clean up agent command directories and scripts from all worktrees."""
-        changes: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        errors: list[str] = []
 
         worktrees_dir = project_path / ".worktrees"
         if not worktrees_dir.exists():
@@ -496,7 +491,7 @@ class CompleteLaneMigration(BaseMigration):
 
     def _normalize_all_frontmatter(
         self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str], List[str]]:
+    ) -> tuple[list[str], list[str], list[str]]:
         """Normalize frontmatter in all markdown files for consistency.
 
         This ensures:
@@ -504,12 +499,12 @@ class CompleteLaneMigration(BaseMigration):
         - Consistent field ordering
         - Proper ruamel.yaml formatting
         """
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Find all markdown files in kitty-specs/
-        md_files: List[Path] = []
+        md_files: list[Path] = []
 
         # Main kitty-specs/
         main_specs = project_path / "kitty-specs"

@@ -6,7 +6,6 @@ import re
 from importlib.resources.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from specify_cli.template.manager import get_local_repo_root
 
@@ -21,13 +20,13 @@ MISSION_NAME = "software-dev"
 TEMPLATE_FILES = ("specify.md", "plan.md", "tasks.md", "implement.md")
 
 
-def detect_legacy_worktrees(project_root: Path) -> List[Path]:
+def detect_legacy_worktrees(project_root: Path) -> list[Path]:
     """Find legacy worktrees (pre-0.11.0)."""
     worktrees_dir = project_root / ".worktrees"
     if not worktrees_dir.exists():
         return []
 
-    legacy_worktrees: List[Path] = []
+    legacy_worktrees: list[Path] = []
     for item in sorted(worktrees_dir.iterdir()):
         if not item.is_dir():
             continue
@@ -42,7 +41,7 @@ def detect_legacy_worktrees(project_root: Path) -> List[Path]:
     return legacy_worktrees
 
 
-def validate_upgrade(project_root: Path) -> Tuple[bool, List[str]]:
+def validate_upgrade(project_root: Path) -> tuple[bool, list[str]]:
     """Validate project is ready for 0.11.0 upgrade."""
     legacy_worktrees = detect_legacy_worktrees(project_root)
     if not legacy_worktrees:
@@ -74,8 +73,8 @@ def _resource_exists(resource: Path | Traversable) -> bool:
     return resource.is_file() or resource.is_dir()
 
 
-def _load_template_sources(base: Path | Traversable) -> Optional[Dict[str, str]]:
-    contents: Dict[str, str] = {}
+def _load_template_sources(base: Path | Traversable) -> dict[str, str] | None:
+    contents: dict[str, str] = {}
     for name in TEMPLATE_FILES:
         resource = base.joinpath(name)
         if not _resource_exists(resource):
@@ -84,7 +83,7 @@ def _load_template_sources(base: Path | Traversable) -> Optional[Dict[str, str]]
     return contents
 
 
-def _resolve_template_sources() -> Optional[Dict[str, str]]:
+def _resolve_template_sources() -> dict[str, str] | None:
     local_repo = get_local_repo_root()
     if local_repo:
         candidates = [
@@ -108,10 +107,10 @@ def _resolve_template_sources() -> Optional[Dict[str, str]]:
     return None
 
 
-def update_template_sources(project_root: Path, dry_run: bool = False) -> Tuple[List[str], List[str]]:
+def update_template_sources(project_root: Path, dry_run: bool = False) -> tuple[list[str], list[str]]:
     """Update mission command templates with workspace-per-WP workflow text."""
-    changes: List[str] = []
-    errors: List[str] = []
+    changes: list[str] = []
+    errors: list[str] = []
 
     templates_dir = project_root / ".kittify" / "missions" / MISSION_NAME / "command-templates"
     if not templates_dir.exists():

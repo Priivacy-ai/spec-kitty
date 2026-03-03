@@ -28,9 +28,10 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +182,7 @@ def read_events(
     if not event_log_path.exists():
         return
 
-    with open(event_log_path, "r") as f:
+    with open(event_log_path) as f:
         for line in f:
             stripped = line.strip()
             if not stripped:
@@ -205,7 +206,7 @@ def read_events(
 
 def _now_iso() -> str:
     """Return current UTC timestamp as ISO string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def build_glossary_scope_activated(
@@ -726,7 +727,7 @@ def emit_semantic_check_evaluated(
     # Keep the latest semantic check reference on context for downstream
     # clarification events.
     if event is not None:
-        setattr(context, "semantic_check_event_id", event.get("event_id"))
+        context.semantic_check_event_id = event.get("event_id")
 
     return event
 

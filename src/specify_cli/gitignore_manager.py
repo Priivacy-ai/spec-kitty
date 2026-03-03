@@ -9,7 +9,6 @@ It replaces the fragmented approach where only .codex/ was protected.
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 
 @dataclass
@@ -39,16 +38,16 @@ class ProtectionResult:
     modified: bool
     """Whether .gitignore was modified"""
 
-    entries_added: List[str] = field(default_factory=list)
+    entries_added: list[str] = field(default_factory=list)
     """New entries added to .gitignore"""
 
-    entries_skipped: List[str] = field(default_factory=list)
+    entries_skipped: list[str] = field(default_factory=list)
     """Entries already present in .gitignore"""
 
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     """Error messages if any occurred"""
 
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     """Warning messages if any were generated"""
 
 
@@ -102,7 +101,7 @@ class GitignoreManager:
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
         self._line_ending = None
 
-    def ensure_entries(self, entries: List[str]) -> bool:
+    def ensure_entries(self, entries: list[str]) -> bool:
         """
         Core method to add entries to .gitignore.
 
@@ -177,7 +176,7 @@ class GitignoreManager:
             return '\n'
 
     @classmethod
-    def get_agent_directories(cls) -> List[AgentDirectory]:
+    def get_agent_directories(cls) -> list[AgentDirectory]:
         """
         Get a copy of the registry of all known agent directories.
 
@@ -242,7 +241,7 @@ class GitignoreManager:
 
         return result
 
-    def protect_selected_agents(self, agents: List[str]) -> ProtectionResult:
+    def protect_selected_agents(self, agents: list[str]) -> ProtectionResult:
         """
         Add specific agent directories to .gitignore based on selection.
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -130,8 +130,8 @@ class ClarificationMiddleware:
 
         # Remove resolved conflicts from context
         remaining = [c for c in conflicts if c not in resolved_conflicts]
-        setattr(context, "conflicts", remaining)
-        setattr(context, "resolved_conflicts", resolved_conflicts)
+        context.conflicts = remaining
+        context.resolved_conflicts = resolved_conflicts
 
         return context
 
@@ -241,7 +241,7 @@ class ClarificationMiddleware:
                 actor_id = getattr(context, "actor_id", "unknown")
                 provenance = Provenance(
                     actor_id=str(actor_id),
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     source="user_clarification",
                 )
                 term_sense = TermSense(

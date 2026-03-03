@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from packaging.version import Version, InvalidVersion
 
@@ -53,7 +53,7 @@ def get_cli_version() -> str:
             return "unknown"
 
 
-def get_project_version(project_root: Path) -> Optional[str]:
+def get_project_version(project_root: Path) -> str | None:
     """Get the project's spec-kitty version from metadata.
 
     Args:

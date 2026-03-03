@@ -3,7 +3,7 @@ import asyncio
 import json
 import random
 from contextlib import suppress
-from typing import Optional, Callable
+from collections.abc import Callable
 import websockets
 from websockets import ConnectionClosed
 
@@ -43,8 +43,8 @@ class WebSocketClient:
     def __init__(
         self,
         server_url: str,
-        token: Optional[str] = None,
-        auth_client: Optional[AuthClient] = None,
+        token: str | None = None,
+        auth_client: AuthClient | None = None,
     ):
         """
         Initialize WebSocket client.
@@ -62,12 +62,12 @@ class WebSocketClient:
         self.server_url = server_url
         self._direct_token = token
         self._auth_client = auth_client
-        self.ws: Optional[websockets.ClientConnection] = None
+        self.ws: websockets.ClientConnection | None = None
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
-        self.message_handler: Optional[Callable] = None
+        self.message_handler: Callable | None = None
         self.reconnect_attempts = 0
-        self._listen_task: Optional[asyncio.Task] = None
+        self._listen_task: asyncio.Task | None = None
 
     def _get_ws_token(self) -> str:
         """

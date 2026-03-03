@@ -115,7 +115,7 @@ def load_global_strictness(repo_root: Path) -> Strictness:
 
 def should_block(
     strictness: Strictness,
-    conflicts: list["SemanticConflict"],
+    conflicts: list[SemanticConflict],
 ) -> bool:
     """Determine if generation should be blocked.
 
@@ -171,8 +171,8 @@ def should_block(
 
 
 def categorize_conflicts(
-    conflicts: list["SemanticConflict"],
-) -> dict["Severity", list["SemanticConflict"]]:
+    conflicts: list[SemanticConflict],
+) -> dict[Severity, list[SemanticConflict]]:
     """Group conflicts by severity level for reporting.
 
     This helper function organizes conflicts into severity buckets,
@@ -207,7 +207,7 @@ def categorize_conflicts(
     # Import inside function to avoid circular dependency
     from .models import Severity
 
-    categorized: dict[Severity, list["SemanticConflict"]] = {
+    categorized: dict[Severity, list[SemanticConflict]] = {
         Severity.LOW: [],
         Severity.MEDIUM: [],
         Severity.HIGH: [],

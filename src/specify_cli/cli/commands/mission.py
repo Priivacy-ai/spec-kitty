@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 import typer
 from rich.panel import Panel
@@ -46,13 +46,13 @@ def _resolve_primary_repo_root(project_root: Path) -> Path:
     return base
 
 
-def _list_active_worktrees(repo_root: Path) -> List[str]:
+def _list_active_worktrees(repo_root: Path) -> list[str]:
     """Return list of active worktree directories relative to the repo root."""
     worktrees_dir = repo_root / ".worktrees"
     if not worktrees_dir.exists():
         return []
 
-    active: List[str] = []
+    active: list[str] = []
     for entry in sorted(worktrees_dir.iterdir()):
         if not entry.is_dir():
             continue
@@ -64,9 +64,9 @@ def _list_active_worktrees(repo_root: Path) -> List[str]:
     return active
 
 
-def _mission_details_lines(mission: Mission, include_description: bool = True) -> List[str]:
+def _mission_details_lines(mission: Mission, include_description: bool = True) -> list[str]:
     """Return formatted mission details."""
-    details: List[str] = [
+    details: list[str] = [
         f"[cyan]Name:[/cyan] {mission.name}",
         f"[cyan]Domain:[/cyan] {mission.domain}",
         f"[cyan]Version:[/cyan] {mission.version}",
@@ -159,7 +159,7 @@ def list_cmd() -> None:
         raise typer.Exit(1)
 
 
-def _detect_current_feature(project_root: Path) -> Optional[str]:
+def _detect_current_feature(project_root: Path) -> str | None:
     """Detect feature slug from current working directory using centralized detection.
 
     This function uses lenient mode to return None on failure (UI convenience).
@@ -184,7 +184,7 @@ def _detect_current_feature(project_root: Path) -> Optional[str]:
 
 @app.command("current")
 def current_cmd(
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None,
         "--feature",
         "-f",

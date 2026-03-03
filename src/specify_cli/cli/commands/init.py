@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import typer
 from rich.console import Console
@@ -292,7 +292,7 @@ def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
 
     # Load existing config or create new
     if config_file.exists():
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.load(f) or {}
     else:
         config = {}
@@ -648,7 +648,7 @@ def init(
     # New tree-based progress (no emojis); include earlier substeps
     tracker = StepTracker("Initialize Specify Project")
     # Flag to allow suppressing legacy headings
-    setattr(sys, "_specify_tracker_active", True)
+    sys._specify_tracker_active = True
     # Pre steps recorded as completed before live rendering
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")

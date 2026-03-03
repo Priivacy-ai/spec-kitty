@@ -406,4 +406,4 @@ class TestValidEventTypesOnlyGatesOutgoing:
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
         }
-        assert VALID_EVENT_TYPES == expected
+        assert expected == VALID_EVENT_TYPES

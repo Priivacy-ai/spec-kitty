@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from pydantic import BaseModel, Field
 
 from .models import ArtifactRef, MissionDossier
@@ -49,14 +49,14 @@ class DossierOverviewResponse(BaseModel):
     parity_hash_sha256: str = Field(
         ..., description="SHA256 hash of sorted artifact hashes"
     )
-    artifact_counts: Dict[str, int] = Field(
+    artifact_counts: dict[str, int] = Field(
         ...,
         description="Artifact counts: {total, required, required_present, required_missing, optional, optional_present}",
     )
     missing_required_count: int = Field(
         ..., description="Number of required artifacts that are missing"
     )
-    last_scanned_at: Optional[datetime] = Field(
+    last_scanned_at: datetime | None = Field(
         None, description="When the dossier was last scanned"
     )
 
@@ -74,17 +74,17 @@ class ArtifactListItem(BaseModel):
         ..., description="Relative path from feature directory"
     )
     size_bytes: int = Field(..., description="File size in bytes")
-    wp_id: Optional[str] = Field(
+    wp_id: str | None = Field(
         None, description="Work package ID if linked (e.g., 'WP01')"
     )
-    step_id: Optional[str] = Field(
+    step_id: str | None = Field(
         None, description="Mission step (e.g., 'planning')"
     )
     required_status: str = Field(
         ..., description="'required' | 'optional' (from manifest)"
     )
     is_present: bool = Field(..., description="True if file currently exists")
-    error_reason: Optional[str] = Field(
+    error_reason: str | None = Field(
         None, description="Error reason if not present"
     )
 
@@ -94,8 +94,8 @@ class ArtifactListResponse(BaseModel):
 
     total_count: int = Field(..., description="Total number of artifacts")
     filtered_count: int = Field(..., description="Number of artifacts after filtering")
-    artifacts: List[ArtifactListItem] = Field(..., description="Filtered artifact list")
-    filters_applied: Dict[str, Any] = Field(
+    artifacts: list[ArtifactListItem] = Field(..., description="Filtered artifact list")
+    filters_applied: dict[str, Any] = Field(
         ..., description="Filters applied: {class, wp_id, step_id, required_only}"
     )
 
@@ -106,24 +106,24 @@ class ArtifactDetailResponse(BaseModel):
     artifact_key: str = Field(..., description="Stable, unique key")
     artifact_class: str = Field(..., description="Classification")
     relative_path: str = Field(..., description="Relative path from feature directory")
-    content_hash_sha256: Optional[str] = Field(
+    content_hash_sha256: str | None = Field(
         None, description="SHA256 hash of content"
     )
     size_bytes: int = Field(..., description="File size in bytes")
-    wp_id: Optional[str] = Field(None, description="Work package ID if linked")
-    step_id: Optional[str] = Field(None, description="Mission step")
+    wp_id: str | None = Field(None, description="Work package ID if linked")
+    step_id: str | None = Field(None, description="Mission step")
     required_status: str = Field(
         ..., description="'required' | 'optional' (from manifest)"
     )
     is_present: bool = Field(..., description="True if file exists")
-    error_reason: Optional[str] = Field(None, description="Error reason if not present")
-    content: Optional[str] = Field(
+    error_reason: str | None = Field(None, description="Error reason if not present")
+    content: str | None = Field(
         None, description="Full text content (if <5MB and readable)"
     )
     content_truncated: bool = Field(
         ..., description="True if content was truncated"
     )
-    truncation_notice: Optional[str] = Field(
+    truncation_notice: str | None = Field(
         None, description="Explanation if content truncated or unreadable"
     )
     media_type_hint: str = Field(
@@ -145,7 +145,7 @@ class SnapshotExportResponse(BaseModel):
     optional_present: int = Field(..., description="Count of present optional artifacts")
     completeness_status: str = Field(..., description="'complete'|'incomplete'|'unknown'")
     parity_hash_sha256: str = Field(..., description="SHA256 parity hash")
-    artifact_summaries: List[Dict[str, Any]] = Field(
+    artifact_summaries: list[dict[str, Any]] = Field(
         ..., description="Artifact metadata summaries"
     )
     computed_at: str = Field(..., description="ISO timestamp when snapshot was computed")
@@ -167,7 +167,7 @@ class DossierHandlerAdapter:
 
     def handle_dossier_overview(
         self, feature_slug: str
-    ) -> DossierOverviewResponse | Dict[str, Any]:
+    ) -> DossierOverviewResponse | dict[str, Any]:
         """GET /api/dossier/overview?feature={feature_slug}
 
         Returns:
@@ -177,7 +177,7 @@ class DossierHandlerAdapter:
 
     def handle_dossier_artifacts(
         self, feature_slug: str, **filters
-    ) -> ArtifactListResponse | Dict[str, Any]:
+    ) -> ArtifactListResponse | dict[str, Any]:
         """GET /api/dossier/artifacts?feature={feature_slug}&class=...&wp_id=...&step_id=...&required_only=...
 
         Returns:
@@ -187,7 +187,7 @@ class DossierHandlerAdapter:
 
     def handle_dossier_artifact_detail(
         self, feature_slug: str, artifact_key: str
-    ) -> ArtifactDetailResponse | Dict[str, Any]:
+    ) -> ArtifactDetailResponse | dict[str, Any]:
         """GET /api/dossier/artifacts/{artifact_key}
 
         Returns:
@@ -197,7 +197,7 @@ class DossierHandlerAdapter:
 
     def handle_dossier_snapshot_export(
         self, feature_slug: str
-    ) -> SnapshotExportResponse | Dict[str, Any]:
+    ) -> SnapshotExportResponse | dict[str, Any]:
         """GET /api/dossier/snapshots/export?feature={feature_slug}
 
         Returns:
@@ -211,7 +211,7 @@ class DossierHandlerAdapter:
 # ============================================================================
 
 
-def error_response(message: str, status_code: int) -> Dict[str, Any]:
+def error_response(message: str, status_code: int) -> dict[str, Any]:
     """Create a standardized error response.
 
     Args:
@@ -260,7 +260,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
     def handle_dossier_overview(
         self, feature_slug: str
-    ) -> DossierOverviewResponse | Dict[str, Any]:
+    ) -> DossierOverviewResponse | dict[str, Any]:
         """Return high-level dossier summary.
 
         Args:
@@ -299,7 +299,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
     def handle_dossier_artifacts(
         self, feature_slug: str, **filters
-    ) -> ArtifactListResponse | Dict[str, Any]:
+    ) -> ArtifactListResponse | dict[str, Any]:
         """List all artifacts with filtering and stable ordering.
 
         Filters:
@@ -384,7 +384,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
     def handle_dossier_artifact_detail(
         self, feature_slug: str, artifact_key: str
-    ) -> ArtifactDetailResponse | Dict[str, Any]:
+    ) -> ArtifactDetailResponse | dict[str, Any]:
         """Return artifact detail with full-text content (or truncation notice).
 
         Args:
@@ -451,7 +451,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
     def handle_dossier_snapshot_export(
         self, feature_slug: str
-    ) -> SnapshotExportResponse | Dict[str, Any]:
+    ) -> SnapshotExportResponse | dict[str, Any]:
         """Export snapshot JSON for SaaS import.
 
         Args:
@@ -486,7 +486,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error exporting snapshot: {str(exc)}", 500)
 
-    def _load_dossier(self, feature_slug: str) -> Optional[MissionDossier]:
+    def _load_dossier(self, feature_slug: str) -> MissionDossier | None:
         """Load dossier for a feature from snapshot artifact summaries.
 
         Reconstructs a MissionDossier from the latest snapshot by converting

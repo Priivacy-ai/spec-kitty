@@ -27,7 +27,8 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Mapping, Optional
+from typing import Literal
+from collections.abc import Mapping
 
 from specify_cli.core.paths import get_main_repo_root as _resolve_main_repo_root
 
@@ -189,7 +190,7 @@ def _resolve_numeric_feature_slug(
     return None
 
 
-def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
+def _detect_from_git_branch(repo_root: Path) -> str | None:
     """Detect feature from git branch name.
 
     Args:
@@ -229,7 +230,7 @@ def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
     return None
 
 
-def _detect_from_cwd(cwd: Path, repo_root: Path) -> Optional[str]:
+def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
     """Detect feature from current working directory.
 
     Walks up the directory tree looking for ###-feature-name pattern.
@@ -340,7 +341,7 @@ def _is_feature_runnable(feature_dir: Path) -> bool:
     return any(tasks_dir.glob("WP*.md"))
 
 
-def find_latest_incomplete_feature(repo_root: Path) -> Optional[str]:
+def find_latest_incomplete_feature(repo_root: Path) -> str | None:
     """Find the highest numbered incomplete feature.
 
     An incomplete feature is one where at least one WP has lane != 'done'
@@ -444,7 +445,7 @@ def detect_feature(
     env = env or os.environ
     cwd = cwd or Path.cwd()
 
-    detected_slug: Optional[str] = None
+    detected_slug: str | None = None
     detection_method: str = ""
 
     # Priority 1: Explicit --feature parameter

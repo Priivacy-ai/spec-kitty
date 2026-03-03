@@ -6,7 +6,7 @@ checks, and per-event-type payload validation using ``_PAYLOAD_RULES``.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from specify_cli.sync.diagnose import DiagnoseResult, diagnose_events
 
@@ -40,7 +40,7 @@ def _make_valid_event(**overrides) -> dict:
             "actor": "test-agent",
             "feature_slug": "039-test",
         },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "node_id": "test-node",
         "lamport_clock": 1,
         "causation_id": None,

@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
@@ -29,7 +29,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     # Setup mutants environment if we're running in mutants directory
     _setup_mutants_environment()
-    
+
     # HARDCODED: Never open browser windows during tests.
     # Propagates to subprocesses too (e.g. dashboard CLI spawned by tests).
     os.environ["PWHEADLESS"] = "1"
@@ -55,14 +55,14 @@ def _setup_mutants_environment() -> None:
     cwd = Path.cwd()
     if cwd.name != "mutants":
         return  # Not in mutants directory
-    
+
     repo_root = cwd.parent
     src_dir = repo_root / "src"
     mutants_src = cwd / "src"
-    
+
     if not src_dir.exists() or not mutants_src.exists():
         return
-    
+
     # Copy non-mutated top-level packages in src/
     # (e.g., doctrine, and non-mutated parts of specify_cli)
     for package_dir in src_dir.iterdir():
@@ -222,13 +222,7 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     rebuild = False
-    if not venv_dir.exists():
-        rebuild = True
-    elif not venv_marker.exists():
-        rebuild = True
-    elif venv_marker.read_text(encoding="utf-8").strip() != source_version:
-        rebuild = True
-    elif not _venv_has_required_runtime(venv_dir):
+    if not venv_dir.exists() or not venv_marker.exists() or venv_marker.read_text(encoding="utf-8").strip() != source_version or not _venv_has_required_runtime(venv_dir):
         rebuild = True
 
     if rebuild:

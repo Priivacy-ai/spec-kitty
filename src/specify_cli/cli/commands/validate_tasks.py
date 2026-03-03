@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -21,13 +20,13 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def validate_tasks(
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None, "--feature", help="Feature slug to validate (auto-detected when omitted)"
     ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
-    agent: Optional[str] = typer.Option(None, "--agent", help="Agent name for activity log"),
-    shell_pid: Optional[str] = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
+    agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
+    shell_pid: str | None = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
 ) -> None:
     """Validate and optionally fix task metadata inconsistencies.
 

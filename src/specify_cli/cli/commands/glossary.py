@@ -12,7 +12,6 @@ Commands:
 import json as json_lib
 import logging
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -134,8 +133,8 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
 
 def _get_all_terms_from_store(
     store: GlossaryStore,
-    scope_filter: Optional[GlossaryScope] = None,
-    status_filter: Optional[str] = None,
+    scope_filter: GlossaryScope | None = None,
+    status_filter: str | None = None,
 ) -> list:
     """Retrieve all terms from a GlossaryStore.
 
@@ -168,9 +167,9 @@ def _get_all_terms_from_store(
 
 def _extract_conflicts_from_events(
     events: list[dict],
-    mission_filter: Optional[str] = None,
+    mission_filter: str | None = None,
     unresolved_only: bool = False,
-    strictness_filter: Optional[str] = None,
+    strictness_filter: str | None = None,
 ) -> list[dict]:
     """Extract conflict records from event log.
 
@@ -290,12 +289,12 @@ def _extract_conflicts_from_events(
 
 @app.command("list")
 def list_terms(
-    scope: Optional[str] = typer.Option(
+    scope: str | None = typer.Option(
         None,
         "--scope",
         help="Filter by scope (mission_local, team_domain, audience_domain, spec_kitty_core)",
     ),
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None,
         "--status",
         help="Filter by status (active, deprecated, draft)",
@@ -310,7 +309,7 @@ def list_terms(
     repo_root = Path.cwd()
 
     # Validate scope
-    scope_enum: Optional[GlossaryScope] = None
+    scope_enum: GlossaryScope | None = None
     if scope:
         if scope not in _VALID_SCOPES:
             console.print(
@@ -399,7 +398,7 @@ def list_terms(
 
 @app.command()
 def conflicts(
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Filter conflicts by mission ID",
@@ -409,7 +408,7 @@ def conflicts(
         "--unresolved",
         help="Show only unresolved conflicts",
     ),
-    strictness: Optional[str] = typer.Option(
+    strictness: str | None = typer.Option(
         None,
         "--strictness",
         help="Filter by effective strictness level (off, medium, max)",
@@ -522,7 +521,7 @@ def conflicts(
 @app.command()
 def resolve(
     conflict_id: str = typer.Argument(..., help="Conflict ID to resolve"),
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Mission ID for event log (auto-detected if omitted)",
@@ -542,9 +541,9 @@ def resolve(
 
     # Find the conflict by UUID in GlossaryClarificationRequested events
     # (canonical source of conflict_id UUIDs)
-    requested_event: Optional[dict] = None
-    conflict_finding: Optional[dict] = None
-    conflict_mission_id: Optional[str] = None
+    requested_event: dict | None = None
+    conflict_finding: dict | None = None
+    conflict_mission_id: str | None = None
 
     # Index SemanticCheckEvaluated findings for enrichment
     finding_index: dict[tuple[str, str], dict] = {}

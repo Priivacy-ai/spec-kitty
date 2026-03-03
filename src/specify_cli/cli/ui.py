@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
 
 import readchar
 import typer
@@ -35,12 +34,12 @@ def get_key() -> str:
     return key
 
 
-def _resolve_console(console: Optional[Console]) -> Console:
+def _resolve_console(console: Console | None) -> Console:
     return console or Console()
 
 
 def select_with_arrows(
-    options: Dict,
+    options: dict,
     prompt_text: str = "Select an option",
     default_key: str | None = None,
     console: Console | None = None,
@@ -114,11 +113,11 @@ def select_with_arrows(
 
 
 def multi_select_with_arrows(
-    options: Dict[str, str],
+    options: dict[str, str],
     prompt_text: str = "Select options",
-    default_keys: Optional[List[str]] = None,
+    default_keys: list[str] | None = None,
     console: Console | None = None,
-) -> List[str]:
+) -> list[str]:
     """Allow selecting one or more options using arrow keys + space to toggle."""
 
     console = _resolve_console(console)
@@ -151,7 +150,7 @@ def multi_select_with_arrows(
 
         return Panel(table, title=f"[bold]{prompt_text}[/bold]", border_style="cyan", padding=(1, 2))
 
-    def normalize_selection() -> List[str]:
+    def normalize_selection() -> list[str]:
         return [option_keys[i] for i in range(len(option_keys)) if i in selected_indices]
 
     console.print()

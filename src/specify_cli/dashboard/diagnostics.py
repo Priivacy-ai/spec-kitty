@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["run_diagnostics"]
 
@@ -17,7 +17,7 @@ def _ensure_specify_cli_on_path() -> None:
         sys.path.insert(0, str(candidate))
 
 
-def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
+def run_diagnostics(project_dir: Path) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
@@ -34,7 +34,7 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
 
-    diagnostics: Dict[str, Any] = {
+    diagnostics: dict[str, Any] = {
         'project_path': str(project_dir),
         'current_working_directory': str(Path.cwd()),
         'git_branch': None,

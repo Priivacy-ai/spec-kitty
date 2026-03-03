@@ -22,9 +22,8 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional, Tuple
 
 from specify_cli.dossier.events import emit_parity_drift_detected
 from specify_cli.dossier.models import MissionDossierSnapshot
@@ -223,7 +222,7 @@ def save_baseline(
 
 def load_baseline(
     feature_slug: str, repo_root: Path
-) -> Optional[BaselineSnapshot]:
+) -> BaselineSnapshot | None:
     """Load baseline from JSON file.
 
     File location: {repo_root}/.kittify/dossiers/{feature_slug}/parity-baseline.json
@@ -253,7 +252,7 @@ def accept_baseline(
     loaded_baseline: BaselineSnapshot,
     current_key: BaselineKey,
     strict: bool = True,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Check if loaded baseline matches current context.
 
     Validates that the baseline was captured for the same project, node, feature,
@@ -318,7 +317,7 @@ def detect_drift(
     target_branch: str,
     mission_key: str,
     manifest_version: str,
-) -> Tuple[bool, Optional[dict]]:
+) -> tuple[bool, dict | None]:
     """Detect parity drift by comparing current snapshot against baseline.
 
     Works offline: no SaaS call required. Returns False if no baseline exists
@@ -404,8 +403,8 @@ async def emit_drift_if_detected(
     target_branch: str,
     mission_key: str,
     manifest_version: str,
-    actor: Optional[str] = None,
-) -> Optional[dict]:
+    actor: str | None = None,
+) -> dict | None:
     """Detect drift and emit event if found.
 
     Conditional emission: event only emitted if has_drift=True and baseline accepted.
@@ -487,7 +486,7 @@ def capture_baseline(
         baseline_key=current_key,
         baseline_key_hash=current_key.compute_hash(),
         parity_hash_sha256=current_snapshot.parity_hash_sha256,
-        captured_at=datetime.now(timezone.utc),
+        captured_at=datetime.now(UTC),
         captured_by=project_identity.node_id or "unknown",
     )
 

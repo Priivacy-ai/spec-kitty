@@ -146,7 +146,7 @@ class TrackerService:
             connector, engine = self._build_engine(config, credentials, store)
             checkpoint = store.get_checkpoint(checkpoint_key=f"{config.provider}:{config.workspace}")
             if checkpoint is not None:
-                setattr(engine, "_checkpoint", checkpoint)
+                engine._checkpoint = checkpoint
 
             result = await engine.pull(limit=limit)
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
@@ -171,7 +171,7 @@ class TrackerService:
             connector, engine = self._build_engine(config, credentials, store)
             checkpoint = store.get_checkpoint(checkpoint_key=f"{config.provider}:{config.workspace}")
             if checkpoint is not None:
-                setattr(engine, "_checkpoint", checkpoint)
+                engine._checkpoint = checkpoint
 
             result = await engine.sync(limit=limit)
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
@@ -213,7 +213,7 @@ class TrackerService:
 
         endpoint = server_url.rstrip("/") + "/api/v1/connectors/trackers/snapshots/"
         idempotency_key = hashlib.sha256(
-            f"{provider}|{workspace}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode("utf-8")
+            f"{provider}|{workspace}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode()
         ).hexdigest()
 
         token = auth_token or str(credentials.get("access_token") or credentials.get("token") or "").strip()

@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -102,9 +102,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 
     for wp_file in wp_files:
         lane = _read_lane_from_frontmatter(wp_file) or "planned"
-        if step_id == "implement" and lane not in ("done", "for_review"):
-            return False
-        elif step_id == "review" and lane != "done":
+        if step_id == "implement" and lane not in ("done", "for_review") or step_id == "review" and lane != "done":
             return False
 
     return True
@@ -380,7 +378,7 @@ def decide_next_via_runtime(
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
     feature_dir = repo_root / "kitty-specs" / feature_slug
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
         return Decision(
