@@ -9,15 +9,13 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 from task_helpers import (
     LANES,
     TaskCliError,
     WorkPackage,
     activity_entries,
-    extract_scalar,
-    find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
     is_legacy_format,
