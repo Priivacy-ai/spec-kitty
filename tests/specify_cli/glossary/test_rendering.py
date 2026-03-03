@@ -1,7 +1,7 @@
 """Tests for conflict rendering with Rich (WP06/T025)."""
 
 import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from rich.console import Console
 from rich.panel import Panel

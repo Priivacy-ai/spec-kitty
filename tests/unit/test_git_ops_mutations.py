@@ -20,7 +20,6 @@ import pytest
 from rich.console import Console
 
 from specify_cli.core.git_ops import (
-    BranchResolution,
     _resolve_console,
     run_command,
     is_git_repo,

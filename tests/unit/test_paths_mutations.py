@@ -15,11 +15,8 @@ Estimated mutants: ~109 mutation points
 Target: 23 tests covering 5 killable patterns
 """
 
-import os
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
 from specify_cli.core.paths import (
     _is_worktree_gitdir,

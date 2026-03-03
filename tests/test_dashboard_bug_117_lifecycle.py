@@ -34,7 +34,7 @@ class TestProcessDetectionWithHealthTimeout:
         with patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start, \
              patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
              patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
-             patch("specify_cli.dashboard.lifecycle._write_dashboard_file") as mock_write, \
+             patch("specify_cli.dashboard.lifecycle._write_dashboard_file"), \
              patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc:
 
             # Setup: Process starts successfully

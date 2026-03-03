@@ -4,11 +4,9 @@ Validates that migrations are auto-discovered from filesystem
 without requiring manual imports in __init__.py.
 """
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -160,7 +158,6 @@ class TestAutoDiscoveryIntegration:
     def test_upgrade_command_uses_auto_discovered_migrations(self, tmp_path):
         """The upgrade command can use auto-discovered migrations."""
         from specify_cli.upgrade.detector import VersionDetector
-        from specify_cli.upgrade.runner import MigrationRunner
 
         # Create a fake project
         kittify_dir = tmp_path / ".kittify"
@@ -172,7 +169,7 @@ class TestAutoDiscoveryIntegration:
 
         # Get applicable migrations
         detector = VersionDetector(tmp_path)
-        current_version = detector.detect_version()
+        detector.detect_version()
 
         # This should work with auto-discovered migrations
         applicable = MigrationRegistry.get_applicable(

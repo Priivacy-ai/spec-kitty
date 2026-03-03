@@ -2,15 +2,12 @@
 
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from specify_cli.dossier.api import (
     ArtifactDetailResponse,
-    ArtifactListItem,
     ArtifactListResponse,
     DossierAPIHandler,
     DossierOverviewResponse,

@@ -9,9 +9,7 @@ Tests cover:
 """
 
 import pytest
-import tempfile
 import os
-from pathlib import Path
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation, Hasher
 
 

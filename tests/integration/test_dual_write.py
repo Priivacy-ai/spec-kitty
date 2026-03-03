@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
-from specify_cli.status.emit import emit_status_transition, TransitionError
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize
+from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import Lane
+from specify_cli.status.store import read_events, read_events_raw
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
 
 
 # ── Helpers ──────────────────────────────────────────────────────

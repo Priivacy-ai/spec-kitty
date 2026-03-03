@@ -77,7 +77,7 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         # Collect all work packages with dependencies
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
-            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
+            front, _, _ = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
@@ -127,8 +127,6 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         done_count = len(by_lane["done"])
         in_progress = len(by_lane["claimed"]) + len(by_lane["in_progress"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
-        blocked_count = len(by_lane["blocked"])
-        canceled_count = len(by_lane["canceled"])
         progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
 
         # Analyze parallelization opportunities
@@ -232,7 +230,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
     """Display the rich-formatted status board."""
     # Create title panel
     title_text = Text()
-    title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+    title_text.append("📊 Work Package Status: ", style="bold cyan")
     title_text.append(feature_slug, style="bold white")
 
     console.print()
@@ -240,7 +238,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
 
     # Progress bar
     progress_text = Text()
-    progress_text.append(f"Progress: ", style="bold")
+    progress_text.append("Progress: ", style="bold")
     progress_text.append(f"{done_count}/{total}", style="bold green")
     progress_text.append(f" ({progress_pct}%)", style="dim")
 
@@ -335,13 +333,13 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
 
         for group in parallel_info["parallel_groups"]:
             if group["type"] == "parallel":
-                console.print(f"\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
+                console.print("\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
                 for wp in group["wps"]:
                     console.print(f"     • {wp['id']} - {wp['title']}")
-                console.print(f"  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
+                console.print("  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
 
                 # Show implementation commands
-                console.print(f"\n  [bold]Start commands:[/bold]")
+                console.print("\n  [bold]Start commands:[/bold]")
                 for wp in group["wps"]:
                     # Find best base for this WP
                     wp_deps = wp.get("dependencies", [])
@@ -349,7 +347,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
                     console.print(f"     spec-kitty implement {wp['id']} --base {base} &")
 
             elif group["type"] == "single":
-                console.print(f"\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
+                console.print("\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
                 for wp in group["wps"]:
                     console.print(f"     • {wp['id']} - {wp['title']}")
                     # Find best base for this WP
@@ -358,7 +356,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
                     console.print(f"     spec-kitty implement {wp['id']} --base {base}")
 
             elif group["type"] == "sequential":
-                console.print(f"\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
+                console.print("\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
                 for wp in group["wps"]:
                     deps_in_ready = [d for d in wp.get("dependencies", [])
                                     if d in {w["id"] for w in parallel_info["ready_wps"]}]

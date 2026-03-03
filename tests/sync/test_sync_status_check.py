@@ -10,7 +10,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
 from specify_cli.cli.commands.sync import _check_server_connection
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR

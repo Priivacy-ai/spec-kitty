@@ -80,7 +80,7 @@ def test_no_orphaned_find_feature_slug_functions(repo_root: Path):
         lines = result.stdout.strip().split("\n")
         if lines and lines[0]:  # Not empty
             pytest.fail(
-                f"Found imports of find_feature_slug from paths (should be removed):\n" + "\n".join(lines)
+                "Found imports of find_feature_slug from paths (should be removed):\n" + "\n".join(lines)
             )
 
     # Also check for direct calls to paths.find_feature_slug
@@ -95,7 +95,7 @@ def test_no_orphaned_find_feature_slug_functions(repo_root: Path):
         lines = result2.stdout.strip().split("\n")
         if lines and lines[0]:  # Not empty
             pytest.fail(
-                f"Found direct calls to paths.find_feature_slug:\n" + "\n".join(lines)
+                "Found direct calls to paths.find_feature_slug:\n" + "\n".join(lines)
             )
 
 
@@ -162,7 +162,7 @@ def test_all_imports_from_centralized_module(repo_root: Path):
             lines = result.stdout.strip().split("\n")
             if lines and lines[0]:  # Not empty
                 pytest.fail(
-                    f"Found bad imports (should use core.feature_detection):\n"
+                    "Found bad imports (should use core.feature_detection):\n"
                     + "\n".join(lines)
                 )
 
@@ -322,7 +322,7 @@ def test_agent_commands_accept_feature_parameter(repo_root: Path):
             )
 
             # If command uses _find_feature_slug, it should have --feature parameter
-            if f'_find_feature_slug(' in content and not has_feature_param:
+            if '_find_feature_slug(' in content and not has_feature_param:
                 # Get just the function body
                 func_start = match.end()
                 func_end = content.find('\ndef ', func_start)

@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import (
@@ -15,7 +14,7 @@ from specify_cli.status.reducer import (
     materialize_to_json,
     reduce,
 )
-from specify_cli.status.store import EVENTS_FILENAME, append_event
+from specify_cli.status.store import append_event
 
 
 def _make_event(

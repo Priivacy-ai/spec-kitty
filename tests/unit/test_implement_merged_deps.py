@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from specify_cli.core.dependency_resolver import check_dependency_status
 

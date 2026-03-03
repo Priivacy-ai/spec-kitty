@@ -249,6 +249,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           python -m ruff check src tests | tee out/reports/static-analysis/ruff-report.txt
 
       - name: Run mypy report
@@ -256,6 +257,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           python -m mypy --strict src/specify_cli | tee out/reports/static-analysis/mypy-report.txt
 
       - name: Run Bandit security scan

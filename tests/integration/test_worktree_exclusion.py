@@ -1,7 +1,6 @@
 """Integration tests for worktree exclusion from git index."""
 
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -39,7 +38,7 @@ def test_worktree_excluded_from_git(tmp_path):
     run_command(["git", "commit", "-m", "Add test file"], cwd=worktree)
 
     # Try explicit add from main repo (should be ignored due to exclusion)
-    result = subprocess.run(
+    subprocess.run(
         ["git", "add", ".worktrees/"],
         cwd=repo,
         capture_output=True,

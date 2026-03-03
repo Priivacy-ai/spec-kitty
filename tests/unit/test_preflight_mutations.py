@@ -9,14 +9,11 @@ Focuses on 5 key patterns identified in MUTATION_TESTING_ITERATION_4.md:
 5. PreflightResult state accumulation
 """
 
-import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from specify_cli.merge.preflight import (
-    PreflightResult,
     WPStatus,
     _wp_lane_from_feature,
     check_target_divergence,

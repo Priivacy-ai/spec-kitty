@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.config import app
-from specify_cli.core.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import save_agent_config
 
 runner = CliRunner()
 

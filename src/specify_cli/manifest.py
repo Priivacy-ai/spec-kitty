@@ -4,8 +4,7 @@ This module generates and checks expected files based on the active mission.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import yaml
+from typing import Dict, List, Optional
 import subprocess
 
 
@@ -97,7 +96,7 @@ class FileManifest:
             for line in lines:
                 if line.strip() == '---':
                     in_frontmatter = not in_frontmatter
-                    if not in_frontmatter and in_frontmatter == False:
+                    if not in_frontmatter:
                         break  # End of frontmatter
                 elif in_frontmatter:
                     # Only check for scripts relevant to this platform

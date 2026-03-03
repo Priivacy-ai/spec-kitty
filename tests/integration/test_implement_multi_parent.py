@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.implement import implement
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.workspace_context import load_context
 

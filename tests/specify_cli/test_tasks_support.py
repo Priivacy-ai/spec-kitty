@@ -1,6 +1,5 @@
 """Tests for tasks_support module, particularly git worktree handling."""
 
-from pathlib import Path
 import pytest
 from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
 

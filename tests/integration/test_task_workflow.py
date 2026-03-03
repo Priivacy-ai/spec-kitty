@@ -456,8 +456,6 @@ class TestReviewRejectToPlanned:
             "**Critical**: The implementation does not handle the null case.\n",
             encoding="utf-8",
         )
-        resolved_path = str(feedback_file.resolve())
-
         # Move to planned with feedback
         result = runner.invoke(
             app,

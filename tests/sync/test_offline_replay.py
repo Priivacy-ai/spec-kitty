@@ -13,11 +13,11 @@ import json
 import pytest
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch
 import tempfile
 
 from specify_cli.sync.queue import OfflineQueue
-from specify_cli.sync.batch import batch_sync, sync_all_queued_events, BatchSyncResult
+from specify_cli.sync.batch import batch_sync, sync_all_queued_events
 
 
 @pytest.fixture

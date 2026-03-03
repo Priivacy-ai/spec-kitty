@@ -8,14 +8,11 @@ from specify_cli.gap_analysis import (
     DocFramework,
     DivioType,
     GapPriority,
-    DocumentationGap,
     GapAnalysis,
     CoverageMatrix,
     detect_doc_framework,
     classify_divio_type,
     prioritize_gaps,
-    analyze_documentation_gaps,
-    generate_gap_analysis_report,
 )
 
 

@@ -56,9 +56,9 @@ def validate_and_resolve_base(
     if len(declared_deps) > 1:
         if base is None:
             # Auto-merge mode: Create merge commit combining all dependencies
-            console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+            console.print("\n[cyan]Multi-parent dependency detected:[/cyan]")
             console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
-            console.print(f"  Auto-creating merge base combining all dependencies...")
+            console.print("  Auto-creating merge base combining all dependencies...")
             return (None, True)  # Auto-merge mode
         else:
             # User provided explicit base - validate it's in dependencies
@@ -76,9 +76,9 @@ def validate_and_resolve_base(
         if base is None:
             # ERROR: Must provide --base for single dependency
             console.print(f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}")
-            console.print(f"\nSpecify base workspace:")
+            console.print("\nSpecify base workspace:")
             console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
-            console.print(f"\n[dim]Or for agent commands:[/dim]")
+            console.print("\n[dim]Or for agent commands:[/dim]")
             console.print(
                 f"  spec-kitty agent workflow implement {wp_id} "
                 f"--base {declared_deps[0]} --agent <name>"

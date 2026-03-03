@@ -28,24 +28,12 @@ Quality Bar: Zero silent failures (FR-009). Every anomaly explicit in events and
 """
 
 import os
-import json
 import pytest
-import tempfile
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
-import asyncio
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import (
     ManifestRegistry,
-    ExpectedArtifactManifest,
-    ExpectedArtifactSpec,
-    ArtifactClassEnum,
 )
-from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.dossier.snapshot import compute_snapshot
 from specify_cli.dossier.hasher import hash_file
 

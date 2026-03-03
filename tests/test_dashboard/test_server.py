@@ -1,5 +1,4 @@
 import socket
-from pathlib import Path
 
 from specify_cli.dashboard import server
 

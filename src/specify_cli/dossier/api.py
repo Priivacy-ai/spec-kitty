@@ -13,13 +13,12 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP06-ap
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-from .models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from .models import ArtifactRef, MissionDossier
 from .snapshot import load_snapshot
 
 __all__ = [

@@ -1,7 +1,5 @@
 import sys
-from pathlib import Path
 
-import pytest
 
 from specify_cli.cli.step_tracker import StepTracker
 import specify_cli.core.tool_checker as tool_checker

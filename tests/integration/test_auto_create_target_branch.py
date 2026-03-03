@@ -101,7 +101,7 @@ def test_auto_create_target_branch_on_first_implement(tmp_path):
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
     # Create feature targeting non-existent 3.x branch
-    feature_dir = create_feature_with_target(repo, "002-test-feature", "3.x")
+    create_feature_with_target(repo, "002-test-feature", "3.x")
 
     # Verify 3.x doesn't exist yet
     result = subprocess.run(
@@ -257,7 +257,7 @@ def test_status_commits_route_to_auto_created_branch(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
-    feature_dir = create_feature_with_target(repo, "002-test", "3.x")
+    create_feature_with_target(repo, "002-test", "3.x")
 
     # Implement WP01 (should auto-create 3.x)
     result = run_cli(repo, "implement", "WP01")
@@ -288,17 +288,7 @@ def test_status_commits_route_to_auto_created_branch(tmp_path):
 
     assert "Move WP01 to doing" in log_3x.stdout, f"Status commit should be on 3.x. Log:\n{log_3x.stdout}"
 
-    # Verify main doesn't have status commit (before we sync)
-    log_main = subprocess.run(
-        ["git", "log", "main", "--oneline", "-5"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
     # Main shouldn't have the status commit YET (it's only on 3.x)
-    status_on_main = "Move WP01 to doing" in log_main.stdout
     # Note: This might be false if branches haven't been synced
     # The important thing is that 3.x HAS it
 
@@ -339,29 +329,9 @@ def test_main_as_target_doesnt_recreate(tmp_path):
     # Create feature targeting "main" (normal case)
     create_feature_with_target(repo, "001-test", "main")
 
-    # Get main commit before implement
-    result_before = subprocess.run(
-        ["git", "rev-parse", "main"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    main_before = result_before.stdout.strip()
-
     # Implement WP01
     result = run_cli(repo, "implement", "WP01")
     assert result.returncode == 0
-
-    # Verify main unchanged (not recreated)
-    result_after = subprocess.run(
-        ["git", "rev-parse", "main"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    main_after = result_after.stdout.strip()
 
     # Should be same (or advanced by status commit, but not recreated)
     # The key is that git branch main shouldn't have been attempted

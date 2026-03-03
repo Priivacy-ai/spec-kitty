@@ -26,10 +26,6 @@ from specify_cli.glossary.events import (
     read_events,
 )
 from specify_cli.glossary.models import (
-    ConflictType,
-    SenseRef,
-    SemanticConflict,
-    Severity,
     TermSense,
     TermSurface,
 )
@@ -464,7 +460,7 @@ def conflicts(
             print("[]")
         else:
             console.print("[dim]No conflicts found[/dim]")
-            console.print(f"\n[dim]Total: 0 conflict(s)[/dim]")
+            console.print("\n[dim]Total: 0 conflict(s)[/dim]")
         return
 
     # JSON output (use print() to avoid Rich markup)
@@ -538,7 +534,6 @@ def resolve(
     # Collect events from all mission event logs
     events_dir = repo_root / ".kittify" / "events" / "glossary"
     all_events: list[dict] = []
-    event_mission_map: dict[str, str] = {}  # conflict_id -> mission_id
 
     if events_dir.exists():
         for event_file in sorted(events_dir.glob("*.events.jsonl")):

@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.runtime.resolver import (
-    ResolutionResult,
     ResolutionTier,
     _is_global_runtime_configured,
     _reset_migrate_nudge,

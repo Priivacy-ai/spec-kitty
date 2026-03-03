@@ -841,7 +841,7 @@ class TestSemanticCheckMiddleware:
         self, semantic_check_store: GlossaryStore
     ):
         """Middleware extends existing conflicts list."""
-        from specify_cli.glossary.models import SemanticConflict, SenseRef
+        from specify_cli.glossary.models import SemanticConflict
 
         middleware = SemanticCheckMiddleware(semantic_check_store)
 

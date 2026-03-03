@@ -10,14 +10,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
-
 import ulid
 from rich.console import Console
 
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .auth import AuthClient
@@ -97,7 +98,6 @@ def _load_contract_schema() -> dict | None:
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")

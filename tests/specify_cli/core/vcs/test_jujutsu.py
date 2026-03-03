@@ -479,7 +479,7 @@ class TestConflictOperations:
         assert result.returncode == 0 or "Conflict" in result.stderr
 
         # Check for conflicts
-        has_conflict = jj_vcs.has_conflicts(jj_repo)
+        jj_vcs.has_conflicts(jj_repo)
         # The merge may or may not have conflicts depending on jj version
         # but it should not fail
 
