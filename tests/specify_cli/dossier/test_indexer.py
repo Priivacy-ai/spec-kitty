@@ -13,7 +13,7 @@ Tests cover:
 import os
 import pytest
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from unittest.mock import patch
 
@@ -514,9 +514,9 @@ class TestMissionDossierBuilder:
         (tmp_path / "spec.md").write_text("# Specification")
 
         indexer = Indexer(ManifestRegistry())
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         dossier = indexer.index_feature(tmp_path, "software-dev")
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert dossier.dossier_updated_at is not None
         assert before <= dossier.dossier_updated_at <= after

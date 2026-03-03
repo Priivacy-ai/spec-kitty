@@ -1,11 +1,10 @@
 """Version detection utilities for spec-kitty CLI."""
 
 from pathlib import Path
-from typing import Optional
 import re
 
 
-def read_version_from_pyproject() -> Optional[str]:
+def read_version_from_pyproject() -> str | None:
     """Read version from pyproject.toml as fallback.
 
     Returns:

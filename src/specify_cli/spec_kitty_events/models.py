@@ -3,7 +3,7 @@ import re
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any
 from dataclasses import dataclass
 
 _UUID_HYPHEN_RE = re.compile(
@@ -81,7 +81,7 @@ class Event(BaseModel):
         min_length=1,
         description="Identifier of the entity this event modifies"
     )
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         default_factory=dict,
         description="Event-specific data (opaque to library)"
     )
@@ -99,7 +99,7 @@ class Event(BaseModel):
         ge=0,
         description="Lamport logical clock value (monotonically increasing)"
     )
-    causation_id: Optional[str] = Field(
+    causation_id: str | None = Field(
         None,
         min_length=26,
         max_length=36,
@@ -123,12 +123,12 @@ class Event(BaseModel):
             f"lamport={self.lamport_clock})"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary (for storage)."""
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Event":
+    def from_dict(cls, data: dict[str, Any]) -> "Event":
         """Deserialize event from dictionary."""
         return cls(**data)
 
@@ -175,7 +175,7 @@ class ConflictResolution:
     merged_event: Event
     resolution_note: str
     requires_manual_review: bool
-    conflicting_events: List[Event]
+    conflicting_events: list[Event]
 
     def __repr__(self) -> str:
         """Human-readable representation."""

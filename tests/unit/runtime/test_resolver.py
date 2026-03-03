@@ -189,10 +189,9 @@ class TestResolutionPrecedence:
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
-            ),
+            ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
         ):
-            with pytest.raises(FileNotFoundError, match="not found in any resolution tier"):
-                resolve_template("nonexistent.md", project)
+            resolve_template("nonexistent.md", project)
 
 
 # ---------------------------------------------------------------------------
@@ -314,10 +313,9 @@ class TestResolveMission:
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
-            ),
+            ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
         ):
-            with pytest.raises(FileNotFoundError, match="not found in any resolution tier"):
-                resolve_mission("nonexistent", project)
+            resolve_mission("nonexistent", project)
 
 
 # ---------------------------------------------------------------------------

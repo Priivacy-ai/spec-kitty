@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
@@ -62,7 +62,7 @@ class FrontmatterManager:
         self.yaml.width = 4096  # Prevent line wrapping
         self.yaml.indent(mapping=2, sequence=2, offset=0)
 
-    def read(self, file_path: Path) -> tuple[Dict[str, Any], str]:
+    def read(self, file_path: Path) -> tuple[dict[str, Any], str]:
         """Read frontmatter and body from a markdown file.
 
         Args:
@@ -111,7 +111,7 @@ class FrontmatterManager:
 
         return frontmatter, body
 
-    def write(self, file_path: Path, frontmatter: Dict[str, Any], body: str) -> None:
+    def write(self, file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
         """Write frontmatter and body to a markdown file.
 
         Args:
@@ -145,7 +145,7 @@ class FrontmatterManager:
         frontmatter[field] = value
         self.write(file_path, frontmatter, body)
 
-    def update_fields(self, file_path: Path, updates: Dict[str, Any]) -> None:
+    def update_fields(self, file_path: Path, updates: dict[str, Any]) -> None:
         """Update multiple fields in frontmatter.
 
         Args:
@@ -174,8 +174,8 @@ class FrontmatterManager:
         self,
         file_path: Path,
         action: str,
-        agent: Optional[str] = None,
-        note: Optional[str] = None
+        agent: str | None = None,
+        note: str | None = None
     ) -> None:
         """Add an entry to the history field.
 
@@ -207,7 +207,7 @@ class FrontmatterManager:
 
         self.write(file_path, frontmatter, body)
 
-    def _normalize_frontmatter(self, frontmatter: Dict[str, Any]) -> CommentedMap:
+    def _normalize_frontmatter(self, frontmatter: dict[str, Any]) -> CommentedMap:
         """Normalize frontmatter for consistent output.
 
         Args:
@@ -310,12 +310,12 @@ _manager = FrontmatterManager()
 
 
 # Convenience functions that use the global manager
-def read_frontmatter(file_path: Path) -> tuple[Dict[str, Any], str]:
+def read_frontmatter(file_path: Path) -> tuple[dict[str, Any], str]:
     """Read frontmatter and body from a markdown file."""
     return _manager.read(file_path)
 
 
-def write_frontmatter(file_path: Path, frontmatter: Dict[str, Any], body: str) -> None:
+def write_frontmatter(file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
     """Write frontmatter and body to a markdown file."""
     _manager.write(file_path, frontmatter, body)
 
@@ -325,7 +325,7 @@ def update_field(file_path: Path, field: str, value: Any) -> None:
     _manager.update_field(file_path, field, value)
 
 
-def update_fields(file_path: Path, updates: Dict[str, Any]) -> None:
+def update_fields(file_path: Path, updates: dict[str, Any]) -> None:
     """Update multiple fields in frontmatter."""
     _manager.update_fields(file_path, updates)
 
@@ -338,8 +338,8 @@ def get_field(file_path: Path, field: str, default: Any = None) -> Any:
 def add_history_entry(
     file_path: Path,
     action: str,
-    agent: Optional[str] = None,
-    note: Optional[str] = None
+    agent: str | None = None,
+    note: str | None = None
 ) -> None:
     """Add an entry to the history field."""
     _manager.add_history_entry(file_path, action, agent, note)

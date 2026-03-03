@@ -7,7 +7,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 from rich.console import Console
 
@@ -26,17 +25,17 @@ class UpgradeResult:
     success: bool
     from_version: str
     to_version: str
-    migrations_applied: List[str] = field(default_factory=list)
-    migrations_skipped: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    migrations_applied: list[str] = field(default_factory=list)
+    migrations_skipped: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
 
 
 class MigrationRunner:
     """Orchestrates the migration process."""
 
-    def __init__(self, project_path: Path, console: Optional[Console] = None):
+    def __init__(self, project_path: Path, console: Console | None = None):
         """Initialize the runner.
 
         Args:
@@ -195,7 +194,7 @@ class MigrationRunner:
     def _upgrade_worktrees(
         self,
         target_version: str,
-        migrations: List[BaseMigration],
+        migrations: list[BaseMigration],
         dry_run: bool,
     ) -> dict:
         """Upgrade all worktrees in .worktrees/ directory.

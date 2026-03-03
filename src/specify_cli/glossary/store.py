@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List
 
 from .models import TermSense
 
@@ -14,7 +13,7 @@ class GlossaryStore:
 
     def __init__(self, event_log_path: Path):
         self.event_log_path = event_log_path
-        self._cache: Dict[str, Dict[str, List[TermSense]]] = {}
+        self._cache: dict[str, dict[str, list[TermSense]]] = {}
         # Format: {scope: {surface: [senses]}}
         # Create instance-specific cached lookup function
         self._lookup_cached = lru_cache(maxsize=10000)(self._lookup_impl)
@@ -51,13 +50,13 @@ class GlossaryStore:
 
         Returns tuple instead of list for immutability (required for caching).
         """
-        results: List[TermSense] = []
+        results: list[TermSense] = []
         for scope in scopes:
             if scope in self._cache and surface in self._cache[scope]:
                 results.extend(self._cache[scope][surface])
         return tuple(results)
 
-    def lookup(self, surface: str, scopes: tuple[str, ...]) -> List[TermSense]:
+    def lookup(self, surface: str, scopes: tuple[str, ...]) -> list[TermSense]:
         """
         Look up term in scope hierarchy (with LRU cache).
 

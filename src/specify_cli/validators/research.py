@@ -15,7 +15,8 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, List, Literal
+from typing import Literal
+from collections.abc import Iterable
 
 BIBTEX_PATTERN = r"@\w+\{[\w-]+,"
 APA_PATTERN = r"^[\w\s\.,&]+?,\s?.+\(\d{4}\)\."
@@ -75,7 +76,7 @@ class CitationValidationResult:
     file_path: Path
     total_entries: int
     valid_entries: int
-    issues: List[CitationIssue]
+    issues: list[CitationIssue]
 
     @property
     def has_errors(self) -> bool:

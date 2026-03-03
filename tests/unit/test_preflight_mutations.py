@@ -38,9 +38,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(stdout="", returncode=0)
-            
+
             result = check_worktree_status(tmp_path, "WP01", "feature-WP01")
-            
+
             assert result.is_clean is True
             assert result.error is None
             assert result.wp_id == "WP01"
@@ -56,9 +56,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(stdout=" M file.py\n", returncode=0)
-            
+
             result = check_worktree_status(tmp_path, "WP02", "feature-WP02")
-            
+
             assert result.is_clean is False
             assert result.error is not None
             assert "Uncommitted changes" in result.error
@@ -74,9 +74,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = OSError("Command not found")
-            
+
             result = check_worktree_status(tmp_path, "WP03", "feature-WP03")
-            
+
             assert result.is_clean is False
             assert result.error == "Command not found"
 
@@ -89,9 +89,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(stdout="", returncode=0)
-            
+
             check_worktree_status(tmp_path, "WP01", "branch")
-            
+
             mock_run.assert_called_once()
             call_kwargs = mock_run.call_args[1]
             assert call_kwargs["cwd"] == str(tmp_path)
@@ -105,9 +105,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(stdout="", returncode=0)
-            
+
             check_worktree_status(tmp_path, "WP01", "branch")
-            
+
             mock_run.assert_called_once()
             call_args = mock_run.call_args[0][0]
             assert call_args == ["git", "status", "--porcelain"]
@@ -121,9 +121,9 @@ class TestCheckWorktreeStatus:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(stdout="", returncode=0)
-            
+
             check_worktree_status(tmp_path, "WP01", "branch")
-            
+
             call_kwargs = mock_run.call_args[1]
             assert call_kwargs["text"] is True
             assert call_kwargs["encoding"] == "utf-8"
@@ -137,9 +137,9 @@ class TestCheckWorktreeStatus:
         with patch("subprocess.run") as mock_run:
             # If result=None mutant, this will fail with AttributeError
             mock_run.return_value = Mock(stdout="test", returncode=0)
-            
+
             result = check_worktree_status(tmp_path, "WP01", "branch")
-            
+
             # Should not raise AttributeError accessing result.stdout
             assert result.is_clean is not None
 
@@ -165,9 +165,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),  # fetch
                 Mock(stdout="0\t0\n", returncode=0),  # rev-list
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             assert diverged is False
             assert msg is None
 
@@ -184,9 +184,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),  # fetch
                 Mock(stdout="0\t3\n", returncode=0),  # ahead=0, behind=3
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             assert diverged is True
             assert msg is not None
             assert "3 commit(s) behind" in msg
@@ -204,9 +204,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),  # fetch
                 Mock(stdout="5\t0\n", returncode=0),  # ahead=5, behind=0
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             assert diverged is False
             assert msg is None
 
@@ -222,9 +222,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),  # fetch succeeds
                 Mock(stdout="", returncode=128),  # rev-list fails (no remote)
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             # Should return False (assume OK) not True
             assert diverged is False
             assert msg is None
@@ -238,9 +238,9 @@ class TestCheckTargetDivergence:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = OSError("Network error")
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             # Should not raise, returns (False, None)
             assert diverged is False
             assert msg is None
@@ -257,9 +257,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),  # fetch
                 Mock(stdout="invalid output\n", returncode=0),  # malformed
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             assert diverged is False
             assert msg is None
 
@@ -274,9 +274,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),
                 Mock(stdout="0\t0\n", returncode=0),
             ]
-            
+
             check_target_divergence("develop", tmp_path)
-            
+
             fetch_call = mock_run.call_args_list[0]
             assert fetch_call[0][0] == ["git", "fetch", "origin", "develop"]
 
@@ -293,9 +293,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),
                 Mock(stdout="0\t0\n", returncode=0),
             ]
-            
+
             check_target_divergence("main", tmp_path)
-            
+
             revlist_call = mock_run.call_args_list[1]
             args = revlist_call[0][0]
             assert "--left-right" in args
@@ -314,9 +314,9 @@ class TestCheckTargetDivergence:
                 Mock(returncode=0),
                 Mock(stdout="7\t2\n", returncode=0),  # ahead=7, behind=2
             ]
-            
+
             diverged, msg = check_target_divergence("main", tmp_path)
-            
+
             # behind=2 > 0, so should diverge
             assert diverged is True
             assert "2 commit(s) behind" in msg
@@ -340,7 +340,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP01-setup.md"
         task_file.write_text(
             "---\n"
@@ -349,9 +349,9 @@ class TestWPLaneFromFeature:
             "# Task content\n",
             encoding="utf-8"
         )
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
-        
+
         assert lane == "planned"
 
     def test_missing_tasks_directory_returns_none(self, tmp_path):
@@ -373,7 +373,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP99")
         assert lane is None
 
@@ -386,10 +386,10 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP01-setup.md"
         task_file.write_text("# No frontmatter\nJust content", encoding="utf-8")
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane is None
 
@@ -402,7 +402,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP01-setup.md"
         task_file.write_text(
             "---\n"
@@ -410,7 +410,7 @@ class TestWPLaneFromFeature:
             "---\n",
             encoding="utf-8"
         )
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane is None
 
@@ -423,7 +423,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP01-setup.md"
         task_file.write_text(
             "---\n"
@@ -431,7 +431,7 @@ class TestWPLaneFromFeature:
             "---\n",
             encoding="utf-8"
         )
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane == "planned"
 
@@ -444,7 +444,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP01-setup.md"
         task_file.write_text(
             "---\n"
@@ -452,7 +452,7 @@ class TestWPLaneFromFeature:
             "---\n",
             encoding="utf-8"
         )
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane == "doing"
 
@@ -466,7 +466,7 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create multiple files that match WP01*
         (tasks_dir / "WP01-a-first.md").write_text(
             "---\nlane: planned\n---\n", encoding="utf-8"
@@ -474,7 +474,7 @@ class TestWPLaneFromFeature:
         (tasks_dir / "WP01-z-last.md").write_text(
             "---\nlane: done\n---\n", encoding="utf-8"
         )
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         # Should use first alphabetically
         assert lane == "planned"
@@ -490,10 +490,10 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "002-test"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         task_file = tasks_dir / "WP05.md"
         task_file.write_text("---\nlane: for_review\n---\n", encoding="utf-8")
-        
+
         lane = _wp_lane_from_feature(tmp_path, "002-test", "WP05")
         assert lane == "for_review"
 
@@ -507,11 +507,11 @@ class TestWPLaneFromFeature:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create files with different WP IDs
         (tasks_dir / "WP01-task.md").write_text("---\nlane: doing\n---\n")
         (tasks_dir / "WP02-task.md").write_text("---\nlane: planned\n---\n")
-        
+
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP02")
         assert lane == "planned"  # Should match WP02, not WP01
 
@@ -533,13 +533,13 @@ class TestRunPreflight:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create task file so expected_wps has WP01
         (tasks_dir / "WP01.md").write_text("content")
-        
+
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
         worktree_path.mkdir(parents=True)
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
@@ -550,14 +550,14 @@ class TestRunPreflight:
                     error=None,
                 )
                 mock_diverge.return_value = (False, None)
-                
+
                 result = run_preflight(
                     "001-feature",
                     "main",
                     tmp_path,
                     [(worktree_path, "WP01", "branch")],
                 )
-                
+
                 assert result.passed is True
                 assert len(result.errors) == 0
 
@@ -572,16 +572,16 @@ class TestRunPreflight:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create task file with lane != done
         (tasks_dir / "WP01.md").write_text("---\nlane: planned\n---\n")
-        
+
         with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
             mock_diverge.return_value = (False, None)
-            
+
             # No worktrees provided, WP01 is missing
             result = run_preflight("001-feature", "main", tmp_path, [])
-            
+
             assert result.passed is False
             assert any("Missing worktree for WP01" in e for e in result.errors)
 
@@ -596,15 +596,15 @@ class TestRunPreflight:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create task file with lane=done
         (tasks_dir / "WP01.md").write_text("---\nlane: done\n---\n")
-        
+
         with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
             mock_diverge.return_value = (False, None)
-            
+
             result = run_preflight("001-feature", "main", tmp_path, [])
-            
+
             # Should pass (warning only, not error)
             assert result.passed is True
             assert any("lane=done" in w for w in result.warnings)
@@ -622,9 +622,9 @@ class TestRunPreflight:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("content")
-        
+
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
@@ -635,16 +635,16 @@ class TestRunPreflight:
                     error="Uncommitted changes",
                 )
                 mock_diverge.return_value = (False, None)
-                
+
                 result = run_preflight(
                     "001-feature",
                     "main",
                     tmp_path,
                     [(worktree_path, "WP01", "branch")],
                 )
-                
+
                 assert result.passed is False
-                assert any("Uncommitted changes" in e or "uncommitted changes" in e 
+                assert any("Uncommitted changes" in e or "uncommitted changes" in e
                           for e in result.errors)
 
     def test_target_diverged_fails_validation(self, tmp_path):
@@ -659,9 +659,9 @@ class TestRunPreflight:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("content")
-        
+
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
@@ -672,14 +672,14 @@ class TestRunPreflight:
                     error=None,
                 )
                 mock_diverge.return_value = (True, "main is 2 commits behind")
-                
+
                 result = run_preflight(
                     "001-feature",
                     "main",
                     tmp_path,
                     [(worktree_path, "WP01", "branch")],
                 )
-                
+
                 assert result.passed is False
                 assert result.target_diverged is True
                 assert result.target_divergence_msg == "main is 2 commits behind"
@@ -697,9 +697,9 @@ class TestRunPreflight:
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("---\nlane: planned\n---\n")
         (tasks_dir / "WP02.md").write_text("content")
-        
+
         wt1 = tmp_path / ".worktrees" / "001-feature-WP02"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
@@ -710,14 +710,14 @@ class TestRunPreflight:
                     error="Dirty worktree",
                 )
                 mock_diverge.return_value = (True, "Behind origin")
-                
+
                 result = run_preflight(
                     "001-feature",
                     "main",
                     tmp_path,
                     [(wt1, "WP02", "branch")],
                 )
-                
+
                 # Should have 3 errors: missing WP01, dirty WP02, target diverged
                 assert result.passed is False
                 assert len(result.errors) == 3
@@ -734,10 +734,10 @@ class TestRunPreflight:
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("content")
         (tasks_dir / "WP02.md").write_text("content")
-        
+
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
         wt2 = tmp_path / ".worktrees" / "001-feature-WP02"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.side_effect = [
@@ -745,14 +745,14 @@ class TestRunPreflight:
                     WPStatus("WP02", wt2, "b2", False, "Error"),
                 ]
                 mock_diverge.return_value = (False, None)
-                
+
                 result = run_preflight(
                     "001-feature",
                     "main",
                     tmp_path,
                     [(wt1, "WP01", "b1"), (wt2, "WP02", "b2")],
                 )
-                
+
                 assert len(result.wp_statuses) == 2
                 assert result.wp_statuses[0].wp_id == "WP01"
                 assert result.wp_statuses[1].wp_id == "WP02"
@@ -769,15 +769,15 @@ class TestRunPreflight:
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("content")
         (tasks_dir / "WP02.md").write_text("content")
-        
+
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
         wt2 = tmp_path / ".worktrees" / "001-feature-WP02"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus("WP", wt1, "b", True, None)
                 mock_diverge.return_value = (False, None)
-                
+
                 # Provide both WPs - should have no missing
                 result = run_preflight(
                     "001-feature",
@@ -785,7 +785,7 @@ class TestRunPreflight:
                     tmp_path,
                     [(wt1, "WP01", "b1"), (wt2, "WP02", "b2")],
                 )
-                
+
                 # If discovered_wps = None, this would fail with TypeError
                 assert result.passed is True
 
@@ -802,14 +802,14 @@ class TestRunPreflight:
         (tasks_dir / "WP01.md").write_text("---\nlane: planned\n---\n")
         (tasks_dir / "WP02.md").write_text("---\nlane: planned\n---\n")
         (tasks_dir / "WP03.md").write_text("---\nlane: planned\n---\n")
-        
+
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
-        
+
         with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus("WP01", wt1, "b", True, None)
                 mock_diverge.return_value = (False, None)
-                
+
                 # Only WP01 provided, WP02 and WP03 missing
                 result = run_preflight(
                     "001-feature",
@@ -817,7 +817,7 @@ class TestRunPreflight:
                     tmp_path,
                     [(wt1, "WP01", "b1")],
                 )
-                
+
                 # Should detect 2 missing worktrees
                 assert result.passed is False
                 missing_errors = [e for e in result.errors if "Missing worktree" in e]
@@ -834,12 +834,12 @@ class TestRunPreflight:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP99.md").write_text("---\nlane: planned\n---\n")
-        
+
         with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
             mock_diverge.return_value = (False, None)
-            
+
             result = run_preflight("001-feature", "main", tmp_path, [])
-            
+
             # Error should mention WP99 and expected path
             assert any("WP99" in e for e in result.errors)
             assert any("spec-kitty agent workflow implement" in e for e in result.errors)
@@ -854,12 +854,12 @@ class TestEdgeCases:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         # No task files created
-        
+
         with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
             mock_diverge.return_value = (False, None)
-            
+
             result = run_preflight("001-feature", "main", tmp_path, [])
-            
+
             assert result.passed is True
 
     def test_subprocess_error_in_lane_check_handled(self, tmp_path):
@@ -867,16 +867,16 @@ class TestEdgeCases:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # Create a file that will cause read error
         task_file = tasks_dir / "WP01.md"
         task_file.write_text("---\nlane: planned\n---\n")
-        
+
         # The function doesn't currently catch read_text() exceptions
         # This test verifies the current behavior (exception propagates)
         with patch("pathlib.Path.read_text") as mock_read:
             mock_read.side_effect = OSError("Permission denied")
-            
+
             # Should raise OSError (current implementation doesn't catch it)
             with pytest.raises(OSError):
                 _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
@@ -887,12 +887,12 @@ class TestEdgeCases:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "WP01.md").write_text("---\nlane: done\n---\n")
-        
+
         with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
             mock_diverge.return_value = (False, None)
-            
+
             result = run_preflight("001-feature", "main", tmp_path, [])
-            
+
             # Should pass despite warnings
             assert result.passed is True
             assert len(result.warnings) > 0

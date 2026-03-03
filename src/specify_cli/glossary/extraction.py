@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Set
+from typing import Any
 
 # Compiled regex patterns for performance
 QUOTED_PHRASE_PATTERN = re.compile(r'"([^"]+)"')
@@ -44,7 +44,7 @@ class ExtractedTerm:
     original: str = ""  # Original surface before normalization
 
 
-def extract_metadata_hints(metadata: Dict[str, Any]) -> List[ExtractedTerm]:
+def extract_metadata_hints(metadata: dict[str, Any]) -> list[ExtractedTerm]:
     """Extract terms from metadata hints (highest confidence).
 
     Args:
@@ -62,8 +62,8 @@ def extract_metadata_hints(metadata: Dict[str, Any]) -> List[ExtractedTerm]:
         Malformed metadata (wrong types) is silently ignored to ensure graceful
         degradation. Invalid entries are skipped rather than causing crashes.
     """
-    terms: Set[str] = set()
-    exclude_terms: Set[str] = set()
+    terms: set[str] = set()
+    exclude_terms: set[str] = set()
 
     # Explicit exclusions (validate list[str])
     if "glossary_exclude_terms" in metadata:
@@ -104,7 +104,7 @@ def extract_metadata_hints(metadata: Dict[str, Any]) -> List[ExtractedTerm]:
     ]
 
 
-def extract_quoted_phrases(text: str) -> List[ExtractedTerm]:
+def extract_quoted_phrases(text: str) -> list[ExtractedTerm]:
     """Extract terms from quoted phrases.
 
     Args:
@@ -113,7 +113,7 @@ def extract_quoted_phrases(text: str) -> List[ExtractedTerm]:
     Returns:
         List of ExtractedTerm with source="quoted_phrase" and confidence=0.8
     """
-    terms: Set[str] = set()
+    terms: set[str] = set()
 
     for match in QUOTED_PHRASE_PATTERN.finditer(text):
         phrase = match.group(1)
@@ -133,7 +133,7 @@ def extract_quoted_phrases(text: str) -> List[ExtractedTerm]:
     ]
 
 
-def extract_acronyms(text: str) -> List[ExtractedTerm]:
+def extract_acronyms(text: str) -> list[ExtractedTerm]:
     """Extract acronyms (2-5 uppercase letters).
 
     Args:
@@ -142,7 +142,7 @@ def extract_acronyms(text: str) -> List[ExtractedTerm]:
     Returns:
         List of ExtractedTerm with source="acronym" and confidence=0.8
     """
-    terms: Set[str] = set()
+    terms: set[str] = set()
 
     for match in ACRONYM_PATTERN.finditer(text):
         acronym = match.group(0)
@@ -165,7 +165,7 @@ def extract_acronyms(text: str) -> List[ExtractedTerm]:
     ]
 
 
-def extract_casing_patterns(text: str) -> List[ExtractedTerm]:
+def extract_casing_patterns(text: str) -> list[ExtractedTerm]:
     """Extract snake_case and camelCase terms.
 
     Args:
@@ -174,7 +174,7 @@ def extract_casing_patterns(text: str) -> List[ExtractedTerm]:
     Returns:
         List of ExtractedTerm with source="casing_pattern" and confidence=0.8
     """
-    terms: Set[str] = set()
+    terms: set[str] = set()
 
     # Snake case
     for match in SNAKE_CASE_PATTERN.finditer(text):
@@ -201,7 +201,7 @@ def extract_casing_patterns(text: str) -> List[ExtractedTerm]:
     ]
 
 
-def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> List[ExtractedTerm]:
+def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> list[ExtractedTerm]:
     """Extract noun phrases that appear multiple times.
 
     Args:
@@ -217,7 +217,7 @@ def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> List[Extracte
     words = re.findall(r'\b[a-z]{3,}\b', text.lower())
 
     # Count occurrences
-    word_counts: Dict[str, int] = {}
+    word_counts: dict[str, int] = {}
     for word in words:
         if word not in COMMON_WORDS:
             word_counts[word] = word_counts.get(word, 0) + 1
@@ -352,9 +352,9 @@ def score_confidence(term: str, source: str) -> float:
 
 def extract_all_terms(
     text: str,
-    metadata: Dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
     limit_words: int = 1000
-) -> List[ExtractedTerm]:
+) -> list[ExtractedTerm]:
     """Extract all terms from text using metadata hints and heuristics.
 
     Args:
@@ -372,7 +372,7 @@ def extract_all_terms(
     if len(words) > limit_words:
         text = ' '.join(words[:limit_words])
 
-    terms_by_surface: Dict[str, ExtractedTerm] = {}
+    terms_by_surface: dict[str, ExtractedTerm] = {}
 
     # 1. Extract from metadata hints (highest confidence)
     if metadata:

@@ -29,7 +29,8 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import TypeVar
+from collections.abc import Callable
 
 import typer
 from rich.console import Console

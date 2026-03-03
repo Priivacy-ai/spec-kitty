@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter
 
@@ -112,7 +111,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
     return graph
 
 
-def extract_wp_id_from_filename(filename: str) -> Optional[str]:
+def extract_wp_id_from_filename(filename: str) -> str | None:
     """Extract WP ID from filename.
 
     Args:

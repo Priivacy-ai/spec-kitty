@@ -3,9 +3,9 @@ import json
 import sqlite3
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import toml
 
@@ -27,7 +27,7 @@ class QueueStats:
 
     total_queued: int = 0
     total_retried: int = 0
-    oldest_event_age: Optional[timedelta] = None
+    oldest_event_age: timedelta | None = None
     retry_distribution: dict[str, int] = field(default_factory=dict)
     top_event_types: list[tuple[str, int]] = field(default_factory=list)
 
@@ -65,7 +65,7 @@ def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
     return f"{server}|{user}|{team}"
 
 
-def read_queue_scope_from_credentials(credentials_path: Optional[Path] = None) -> Optional[str]:
+def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
     """Read queue scope from credentials file.
 
     Returns None when credentials are missing, invalid, or incomplete.
@@ -99,7 +99,7 @@ def scope_db_path(scope: str) -> Path:
     return _scoped_queue_dir() / f"queue-{digest}.db"
 
 
-def default_queue_db_path(credentials_path: Optional[Path] = None) -> Path:
+def default_queue_db_path(credentials_path: Path | None = None) -> Path:
     """Resolve default queue DB path.
 
     Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
@@ -111,7 +111,7 @@ def default_queue_db_path(credentials_path: Optional[Path] = None) -> Path:
     return _legacy_queue_db_path()
 
 
-def read_active_scope(path: Optional[Path] = None) -> Optional[str]:
+def read_active_scope(path: Path | None = None) -> str | None:
     """Read previously active queue scope marker."""
     marker = path or _active_scope_path()
     if not marker.exists():
@@ -123,7 +123,7 @@ def read_active_scope(path: Optional[Path] = None) -> Optional[str]:
     return value or None
 
 
-def write_active_scope(scope: str, path: Optional[Path] = None) -> None:
+def write_active_scope(scope: str, path: Path | None = None) -> None:
     """Persist active queue scope marker."""
     marker = path or _active_scope_path()
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -155,7 +155,7 @@ class OfflineQueue:
 
     MAX_QUEUE_SIZE = 10000
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Path | None = None) -> None:
         """
         Initialize offline queue.
 
@@ -410,10 +410,10 @@ class OfflineQueue:
             # Oldest event age
             oldest_ts_row = conn.execute("SELECT MIN(timestamp) FROM queue").fetchone()
             oldest_ts = oldest_ts_row[0] if oldest_ts_row is not None else None
-            oldest_event_age: Optional[timedelta] = None
+            oldest_event_age: timedelta | None = None
             if oldest_ts is not None:
-                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=timezone.utc)
-                now_dt = datetime.now(tz=timezone.utc)
+                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=UTC)
+                now_dt = datetime.now(tz=UTC)
                 oldest_event_age = now_dt - oldest_dt
 
             # Retry distribution buckets

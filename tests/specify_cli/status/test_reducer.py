@@ -647,7 +647,7 @@ class TestNowUtcTimezone:
 class TestMaterializeToJsonFormat:
     """Tests for materialize_to_json JSON formatting specifics."""
 
-    def _make_snapshot(self) -> "StatusSnapshot":
+    def _make_snapshot(self) -> StatusSnapshot:
         return StatusSnapshot(
             feature_slug="034-feature",
             materialized_at="2026-02-08T15:00:00Z",

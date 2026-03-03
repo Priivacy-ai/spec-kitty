@@ -4,7 +4,6 @@ Enhanced verify_setup implementation for spec-kitty.
 
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
 
@@ -15,11 +14,11 @@ def run_enhanced_verify(
     repo_root: Path,
     project_root: Path,
     cwd: Path,
-    feature: Optional[str],
+    feature: str | None,
     json_output: bool,
     check_files: bool,
     console: Console
-) -> Dict:
+) -> dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
 

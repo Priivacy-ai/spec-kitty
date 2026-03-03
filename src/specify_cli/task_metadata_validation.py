@@ -7,9 +7,8 @@ and their frontmatter metadata.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -31,7 +30,7 @@ class TaskMetadataError(Exception):
     pass
 
 
-def detect_lane_mismatch(task_file: Path) -> tuple[bool, Optional[str], Optional[str]]:
+def detect_lane_mismatch(task_file: Path) -> tuple[bool, str | None, str | None]:
     """Detect if task file's lane metadata doesn't match its directory.
 
     Args:
@@ -83,7 +82,7 @@ def repair_lane_mismatch(
     shell_pid: str = "",
     add_history: bool = True,
     dry_run: bool = False,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Repair lane mismatch by updating frontmatter to match directory.
 
     Args:
@@ -126,7 +125,7 @@ def repair_lane_mismatch(
 
     # Add activity log entry if requested
     if add_history:
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         history_entry = (
             f"  - timestamp: \"{timestamp}\"\n"
             f"    lane: \"{expected_lane}\"\n"
@@ -233,7 +232,7 @@ def validate_task_metadata(task_file: Path) -> list[str]:
 
 def scan_all_tasks_for_mismatches(
     feature_dir: Path,
-) -> dict[str, tuple[bool, Optional[str], Optional[str]]]:
+) -> dict[str, tuple[bool, str | None, str | None]]:
     """Scan all task files in a feature for lane mismatches.
 
     Args:

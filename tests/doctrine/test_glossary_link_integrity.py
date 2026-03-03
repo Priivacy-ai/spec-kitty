@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -25,7 +25,7 @@ def _slugify_heading(text: str) -> str:
     return heading
 
 
-@lru_cache(maxsize=None)
+@cache
 def _anchors_for(path: Path) -> set[str]:
     anchors: set[str] = set()
     for line in path.read_text(encoding="utf-8").splitlines():

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, UTC
 
 import typer
 
@@ -20,7 +19,7 @@ from specify_cli.sync.queue import (
 app = typer.Typer(help="Authentication commands")
 
 
-def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+def _parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
@@ -30,8 +29,8 @@ def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _format_duration(delta: timedelta) -> str:
@@ -68,8 +67,8 @@ def _handle_auth_error(message: str, server_url: str) -> None:
 
 @app.command()
 def login(
-    username: Optional[str] = typer.Option(None, "--username", "-u", help="Your username or email"),
-    password: Optional[str] = typer.Option(
+    username: str | None = typer.Option(None, "--username", "-u", help="Your username or email"),
+    password: str | None = typer.Option(
         None,
         "--password",
         "-p",
@@ -204,7 +203,7 @@ def status() -> None:
         console.print(f"   Username: {username}")
         console.print(f"   Server:   {server_url}")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         access_exp = _parse_datetime(expiry_info.get("access_expires_at"))
         if access_exp:

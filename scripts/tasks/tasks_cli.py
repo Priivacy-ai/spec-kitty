@@ -9,8 +9,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
+from typing import Any
+from datetime import datetime, UTC
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -374,14 +374,14 @@ def rollback_command(args: argparse.Namespace) -> None:
     update_command(args_for_update)
 
 
-def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
+def _resolve_feature(repo_root: Path, requested: str | None) -> str:
     if requested:
         return requested
     return detect_feature_slug(repo_root)
 
 
-def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
-    lines: List[str] = []
+def _summary_to_text(summary: AcceptanceSummary) -> list[str]:
+    lines: list[str] = []
     lines.append(f"Feature: {summary.feature}")
     lines.append(f"Branch: {summary.branch or 'N/A'}")
     lines.append(f"Worktree: {summary.worktree_root}")
@@ -528,15 +528,15 @@ def _prepare_merge_metadata(
     target: str,
     strategy: str,
     pushed: bool,
-) -> Optional[Path]:
+) -> Path | None:
     feature_dir = repo_root / "kitty-specs" / feature
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     merged_by = _merge_actor(repo_root)
 
-    entry: Dict[str, Any] = {
+    entry: dict[str, Any] = {
         "merged_at": timestamp,
         "merged_by": merged_by,
         "target": target,
@@ -545,7 +545,7 @@ def _prepare_merge_metadata(
         "merge_commit": None,
     }
 
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
@@ -570,7 +570,7 @@ def _prepare_merge_metadata(
     return meta_path
 
 
-def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> None:
+def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
     if not meta_path or not meta_path.exists():
         return
 
@@ -661,7 +661,7 @@ def merge_command(args: argparse.Namespace) -> None:
         print("\n".join(steps))
         return
 
-    def git(cmd: List[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
+    def git(cmd: list[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
         return run_git(cmd, cwd=cwd, check=check)
 
     git(["checkout", args.target])
@@ -681,8 +681,8 @@ def merge_command(args: argparse.Namespace) -> None:
             "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
         )
 
-    meta_path: Optional[Path] = None
-    meta_rel: Optional[str] = None
+    meta_path: Path | None = None
+    meta_rel: str | None = None
 
     if args.strategy == "squash":
         merge_proc = git(["merge", "--squash", feature], check=False)
@@ -822,7 +822,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

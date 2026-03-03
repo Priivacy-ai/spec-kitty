@@ -3,7 +3,6 @@
 import typer
 from pathlib import Path
 from rich.console import Console
-from typing import Optional
 
 from specify_cli.upgrade.migrations.m_0_10_9_repair_templates import RepairTemplatesMigration
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
@@ -79,7 +78,7 @@ def repair_worktree(
         "--all",
         help="Check all worktrees in .worktrees/ directory"
     ),
-    worktree_path: Optional[Path] = typer.Argument(
+    worktree_path: Path | None = typer.Argument(
         None,
         help="Specific worktree path to check (defaults to current directory if in a worktree)"
     ),

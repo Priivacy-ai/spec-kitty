@@ -20,7 +20,6 @@ agent directories.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 try:
     from importlib.resources import files
@@ -88,9 +87,9 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update implement slash command across all agent directories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Load template from packaged missions or legacy location
         template_content = None

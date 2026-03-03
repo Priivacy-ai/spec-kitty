@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
@@ -38,14 +37,14 @@ class CredentialStore:
         """Create a file lock with a timeout."""
         return FileLock(self.lock_path, timeout=10)
 
-    def load(self) -> Optional[dict]:
+    def load(self) -> dict | None:
         """Load credentials from TOML file. Returns None if not exists or invalid."""
         if not self.credentials_path.exists():
             return None
 
         try:
             with self._acquire_lock():
-                with open(self.credentials_path, "r") as handle:
+                with open(self.credentials_path) as handle:
                     return toml.load(handle)
         except (toml.TomlDecodeError, OSError):
             return None
@@ -58,7 +57,7 @@ class CredentialStore:
         refresh_expires_at: datetime,
         username: str,
         server_url: str,
-        team_slug: Optional[str] = None,
+        team_slug: str | None = None,
     ):
         """Save credentials to TOML file with 600 permissions."""
         self._ensure_directory()
@@ -108,7 +107,7 @@ class CredentialStore:
         """Check if credentials file exists."""
         return self.credentials_path.exists()
 
-    def _parse_expiry(self, value: str) -> Optional[datetime]:
+    def _parse_expiry(self, value: str) -> datetime | None:
         """Parse expiry timestamp, normalizing to timezone-aware UTC datetime."""
         try:
             if isinstance(value, str) and value.endswith("Z"):
@@ -116,15 +115,15 @@ class CredentialStore:
             parsed = datetime.fromisoformat(value)
             # Normalize to timezone-aware UTC for consistent comparison
             if parsed.tzinfo is not None:
-                parsed = parsed.astimezone(timezone.utc)
+                parsed = parsed.astimezone(UTC)
             else:
                 # Assume naive datetimes are UTC
-                parsed = parsed.replace(tzinfo=timezone.utc)
+                parsed = parsed.replace(tzinfo=UTC)
             return parsed
         except (TypeError, ValueError):
             return None
 
-    def get_access_token(self) -> Optional[str]:
+    def get_access_token(self) -> str | None:
         """Get access token if valid (not expired). Returns None if expired or missing."""
         data = self.load()
         if not data or "tokens" not in data:
@@ -135,12 +134,12 @@ class CredentialStore:
             return None
 
         expires_at = self._parse_expiry(tokens["access_expires_at"])
-        if not expires_at or datetime.now(timezone.utc) >= expires_at:
+        if not expires_at or datetime.now(UTC) >= expires_at:
             return None
 
         return tokens["access"]
 
-    def get_refresh_token(self) -> Optional[str]:
+    def get_refresh_token(self) -> str | None:
         """Get refresh token if valid (not expired). Returns None if expired or missing."""
         data = self.load()
         if not data or "tokens" not in data:
@@ -151,7 +150,7 @@ class CredentialStore:
             return None
 
         expires_at = self._parse_expiry(tokens["refresh_expires_at"])
-        if not expires_at or datetime.now(timezone.utc) >= expires_at:
+        if not expires_at or datetime.now(UTC) >= expires_at:
             return None
 
         return tokens["refresh"]
@@ -164,14 +163,14 @@ class CredentialStore:
         """Check if refresh token exists and is not expired."""
         return self.get_refresh_token() is not None
 
-    def get_username(self) -> Optional[str]:
+    def get_username(self) -> str | None:
         """Get stored username."""
         data = self.load()
         if not data or "user" not in data:
             return None
         return data["user"].get("username")
 
-    def get_server_url(self) -> Optional[str]:
+    def get_server_url(self) -> str | None:
         """Get stored server URL."""
         data = self.load()
         if not data or "server" not in data:
@@ -190,7 +189,7 @@ class CredentialStore:
             "refresh_expires_at": tokens.get("refresh_expires_at"),
         }
 
-    def get_team_slug(self) -> Optional[str]:
+    def get_team_slug(self) -> str | None:
         """Get stored team slug. Returns None if not available."""
         data = self.load()
         if not data or "user" not in data:
@@ -208,7 +207,7 @@ class AuthClient:
     def __init__(self):
         self.credential_store = CredentialStore()
         self.config = SyncConfig()
-        self._http_client: Optional[httpx.Client] = None
+        self._http_client: httpx.Client | None = None
 
     def _validate_server_url(self, url: str) -> str:
         parsed = urlparse(url)
@@ -218,7 +217,7 @@ class AuthClient:
             )
         return url
 
-    def _coerce_lifetime(self, value: Optional[str | int], default: int) -> int:
+    def _coerce_lifetime(self, value: str | int | None, default: int) -> int:
         """Coerce lifetime value to int, handling string responses from server."""
         if value is None:
             return default
@@ -307,8 +306,8 @@ class AuthClient:
         refresh_lifetime = self._coerce_lifetime(
             data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
         )
-        access_expires_at = datetime.now(timezone.utc) + timedelta(seconds=access_lifetime)
-        refresh_expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_lifetime)
+        access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
 
         # Get team_slug from server response if available (post-MVP feature)
         team_slug = data.get("team_slug")
@@ -380,8 +379,8 @@ class AuthClient:
         refresh_lifetime = self._coerce_lifetime(
             data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
         )
-        access_expires_at = datetime.now(timezone.utc) + timedelta(seconds=access_lifetime)
-        refresh_expires_at = datetime.now(timezone.utc) + timedelta(seconds=refresh_lifetime)
+        access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
 
         self.credential_store.save(
             access_token=new_access_token,
@@ -446,7 +445,7 @@ class AuthClient:
         except KeyError as exc:
             raise AuthenticationError("Invalid server response") from exc
 
-    def get_access_token(self) -> Optional[str]:
+    def get_access_token(self) -> str | None:
         """
         Get valid access token, refreshing silently if expired.
 
@@ -483,7 +482,7 @@ class AuthClient:
         """Clear all stored credentials."""
         self.credential_store.clear()
 
-    def get_team_slug(self) -> Optional[str]:
+    def get_team_slug(self) -> str | None:
         """Return stored team slug, or None if not authenticated."""
         if not self.is_authenticated():
             return None

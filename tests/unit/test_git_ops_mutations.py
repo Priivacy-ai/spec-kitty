@@ -43,7 +43,7 @@ class TestResolveConsole:
         Expected: Should return new Console(), not return None
         """
         result = _resolve_console(None)
-        
+
         # If mutated to "console if console is None", would return None
         assert result is not None
         assert isinstance(result, Console)
@@ -56,7 +56,7 @@ class TestResolveConsole:
         """
         provided_console = Console()
         result = _resolve_console(provided_console)
-        
+
         # If mutated, would create new Console instead of returning provided
         assert result is provided_console
         assert isinstance(result, Console)
@@ -75,15 +75,15 @@ class TestRunCommand:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="test output", stderr="")
-            
+
             returncode, stdout, stderr = run_command(["git", "--version"], capture=True)
-            
+
             # Verify subprocess.run was called with correct command
             mock_run.assert_called_once()
             call_args = mock_run.call_args
             assert call_args[0][0] == ["git", "--version"]  # cmd parameter
             assert call_args[1]["capture_output"] is True
-            
+
             # Verify return values
             assert returncode == 0
             assert stdout == "test output"
@@ -100,12 +100,12 @@ class TestRunCommand:
                 stdout="captured stdout",
                 stderr="captured stderr"
             )
-            
+
             returncode, stdout, stderr = run_command(
                 ["echo", "test"],
                 capture=True
             )
-            
+
             # If capture_output was removed, stdout/stderr would be empty
             assert stdout == "captured stdout"
             assert stderr == "captured stderr"
@@ -122,9 +122,9 @@ class TestRunCommand:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
             test_path = Path("/test/dir")
-            
+
             run_command(["git", "status"], cwd=test_path)
-            
+
             # If cwd was mutated to None, this would fail
             call_args = mock_run.call_args
             assert call_args[1]["cwd"] == str(test_path)
@@ -137,14 +137,14 @@ class TestRunCommand:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=1, stdout="", stderr="error")
-            
+
             # Should not raise exception with check_return=False
             returncode, stdout, stderr = run_command(
                 ["false"],
                 check_return=False,
                 capture=True
             )
-            
+
             assert returncode == 1
             assert stderr == "error"
             assert mock_run.call_args[1]["check"] is False
@@ -161,11 +161,11 @@ class TestIsGitRepo:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0)
-            
+
             # Create temp dir and test
             with patch.object(Path, "is_dir", return_value=True):
                 result = is_git_repo(Path("/test/repo"))
-            
+
             # If target was mutated to None, would crash on target.is_dir()
             assert result is True
             mock_run.assert_called_once()
@@ -178,13 +178,13 @@ class TestIsGitRepo:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0)
-            
+
             with patch.object(Path, "cwd") as mock_cwd, \
                  patch.object(Path, "is_dir", return_value=True):
                 mock_cwd.return_value = Path("/current/dir")
-                
+
                 result = is_git_repo(None)
-                
+
                 # Verify Path.cwd() was called
                 mock_cwd.assert_called()
                 assert result is True
@@ -197,10 +197,10 @@ class TestIsGitRepo:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(128, "git")
-            
+
             with patch.object(Path, "is_dir", return_value=True):
                 result = is_git_repo(Path("/not/a/repo"))
-            
+
             assert result is False
 
 
@@ -220,9 +220,9 @@ class TestGetCurrentBranch:
                 returncode=0,
                 stdout="  main  \n"
             )
-            
+
             result = get_current_branch(Path("/test/repo"))
-            
+
             # If repo_path was mutated to None, would crash
             assert result == "main"
             # Verify cwd was passed correctly
@@ -239,9 +239,9 @@ class TestGetCurrentBranch:
              patch.object(Path, "cwd") as mock_cwd:
             mock_run.return_value = Mock(returncode=0, stdout="develop")
             mock_cwd.return_value = Path("/current/dir")
-            
+
             result = get_current_branch(None)
-            
+
             # Verify Path.cwd() was called for resolution
             mock_cwd.assert_called()
             assert result == "develop"
@@ -259,9 +259,9 @@ class TestGetCurrentBranch:
                 subprocess.CalledProcessError(128, "git"),
                 Mock(returncode=0, stdout="HEAD")
             ]
-            
+
             result = get_current_branch(Path("/test/repo"))
-            
+
             # Should return None for detached HEAD
             assert result is None
 
@@ -278,9 +278,9 @@ class TestHasRemote:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0)
-            
+
             result = has_remote(Path("/test/repo"))
-            
+
             # Verify "origin" was used (not "XXoriginXX")
             call_args = mock_run.call_args
             assert "origin" in call_args[0][0]
@@ -294,9 +294,9 @@ class TestHasRemote:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0)
-            
+
             result = has_remote(Path("/test/repo"), remote_name="upstream")
-            
+
             # Verify custom remote name was used
             call_args = mock_run.call_args
             assert "upstream" in call_args[0][0]
@@ -310,9 +310,9 @@ class TestHasRemote:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=128)
-            
+
             result = has_remote(Path("/test/repo"))
-            
+
             # Non-zero returncode should return False
             assert result is False
 
@@ -328,9 +328,9 @@ class TestHasTrackingBranch:
         """
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="origin/main")
-            
+
             result = has_tracking_branch(Path("/test/repo"))
-            
+
             # If result was mutated to None, would crash on result.returncode
             assert result is True
             mock_run.assert_called_once()
@@ -344,10 +344,10 @@ class TestHasTrackingBranch:
         with patch("subprocess.run") as mock_run:
             # Test non-zero returncode
             mock_run.return_value = Mock(returncode=128, stdout="")
-            
+
             result = has_tracking_branch(Path("/test/repo"))
             assert result is False
-            
+
             # Test empty output
             mock_run.return_value = Mock(returncode=0, stdout="  ")
             result = has_tracking_branch(Path("/test/repo"))
@@ -370,10 +370,10 @@ class TestExcludeFromGitIndex:
              patch.object(Path, "open", create=True) as mock_open:
             mock_file = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
-            
+
             repo_path = Path("/test/repo")
             exclude_from_git_index(repo_path, [".worktrees/"])
-            
+
             # Verify correct path construction
             # If exclude_file was None, this would crash
             # If "exclude" was "EXCLUDE", path would be wrong
@@ -390,12 +390,12 @@ class TestExcludeFromGitIndex:
         git_info.mkdir(parents=True)
         exclude_file = git_info / "exclude"
         exclude_file.write_text("# Existing content\n.vscode/\n")
-        
+
         # Add new patterns
         exclude_from_git_index(tmp_path, [".worktrees/", ".vscode/", "build/"])
-        
+
         content = exclude_file.read_text()
-        
+
         # Verify new patterns added
         assert ".worktrees/" in content
         assert "build/" in content
@@ -410,7 +410,7 @@ class TestExcludeFromGitIndex:
         """
         # No .git directory exists
         exclude_from_git_index(tmp_path, [".worktrees/"])
-        
+
         # Should return silently without creating file
         exclude_file = tmp_path / ".git" / "info" / "exclude"
         assert not exclude_file.exists()
@@ -432,9 +432,9 @@ class TestResolvePrimaryBranch:
                 returncode=0,
                 stdout="refs/remotes/origin/main"
             )
-            
+
             result = resolve_primary_branch(Path("/test/repo"))
-            
+
             # If result was None, would crash on result.returncode
             # If command was "XXsymbolic-refXX", would fail
             assert result == "main"
@@ -453,9 +453,9 @@ class TestResolvePrimaryBranch:
             mock_run.return_value = Mock(returncode=128, stdout="")
             # Method 2 succeeds
             mock_get_branch.return_value = "develop"
-            
+
             result = resolve_primary_branch(Path("/test/repo"))
-            
+
             assert result == "develop"
             mock_get_branch.assert_called_once()
 
@@ -476,9 +476,9 @@ class TestResolvePrimaryBranch:
                 Mock(returncode=128),  # main doesn't exist
                 Mock(returncode=0)     # master exists
             ]
-            
+
             result = resolve_primary_branch(Path("/test/repo"))
-            
+
             assert result == "master"
 
     def test_resolve_primary_branch_fallback_to_main(self):
@@ -492,9 +492,9 @@ class TestResolvePrimaryBranch:
             # All methods fail
             mock_run.return_value = Mock(returncode=128)
             mock_get_branch.return_value = None
-            
+
             result = resolve_primary_branch(Path("/test/repo"))
-            
+
             # Ultimate fallback
             assert result == "main"
 
@@ -516,16 +516,16 @@ class TestResolveTargetBranch:
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
         meta_file.write_text('{"target_branch": "develop"}')
-        
+
         with patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
             mock_get_branch.return_value = "develop"
-            
+
             result = resolve_target_branch(
                 "test-feature",
                 tmp_path,
                 current_branch="develop"
             )
-            
+
             # If meta_file was None, would crash
             # If path was "KITTY-SPECS", wouldn't find file
             # If target was None, result would be wrong
@@ -542,7 +542,7 @@ class TestResolveTargetBranch:
             tmp_path,
             current_branch="main"
         )
-        
+
         # When branches match
         if result.current == result.target:
             assert result.action == "proceed"
@@ -559,7 +559,7 @@ class TestResolveTargetBranch:
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
         meta_file.write_text('{"target_branch": "main"}')
-        
+
         # User is on develop, respect_current=True (default)
         result = resolve_target_branch(
             "test-feature",
@@ -567,7 +567,7 @@ class TestResolveTargetBranch:
             current_branch="develop",
             respect_current=True
         )
-        
+
         # Should stay on current branch
         assert result.action == "stay_on_current"
         assert result.should_notify is True
@@ -585,7 +585,7 @@ class TestResolveTargetBranch:
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
         meta_file.write_text('{"target_branch": "main"}')
-        
+
         # User is on develop, respect_current=False
         result = resolve_target_branch(
             "test-feature",
@@ -593,7 +593,7 @@ class TestResolveTargetBranch:
             current_branch="develop",
             respect_current=False
         )
-        
+
         # Should allow checkout
         assert result.action == "checkout_target"
         assert result.should_notify is True
@@ -606,7 +606,7 @@ class TestResolveTargetBranch:
         """
         with patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
             mock_get_branch.return_value = None
-            
+
             with pytest.raises(RuntimeError, match="Could not determine current branch"):
                 resolve_target_branch(
                     "test-feature",
@@ -629,9 +629,9 @@ class TestInitGitRepo:
              patch.object(Path, "cwd", return_value=Path("/current")):
             mock_run.return_value = Mock(returncode=0)
             mock_console = Mock(spec=Console)
-            
+
             init_git_repo(Path("/test/repo"), quiet=False, console=mock_console)
-            
+
             # If quiet was mutated to True, console.print would not be called
             assert mock_console.print.call_count >= 2
             # Check for initialization messages
@@ -649,9 +649,9 @@ class TestInitGitRepo:
              patch.object(Path, "cwd", return_value=Path("/current")):
             mock_run.return_value = Mock(returncode=0)
             mock_console = Mock(spec=Console)
-            
+
             init_git_repo(Path("/test/repo"), quiet=True, console=mock_console)
-            
+
             # With quiet=True, console should not be used
             mock_console.print.assert_not_called()
 
@@ -665,13 +665,13 @@ class TestInitGitRepo:
              patch("os.chdir"), \
              patch.object(Path, "cwd", return_value=Path("/current")):
             mock_run.return_value = Mock(returncode=0)
-            
+
             result = init_git_repo(Path("/test/repo"), quiet=True)
-            
+
             # Verify git commands were executed
             assert result is True
             assert mock_run.call_count == 3
-            
+
             # Check command sequence
             calls = [call[0][0] for call in mock_run.call_args_list]
             assert calls[0][0] == "git" and calls[0][1] == "init"

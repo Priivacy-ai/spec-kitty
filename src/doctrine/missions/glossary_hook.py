@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from specify_cli.glossary.attachment import (
     GlossaryAwarePrimitiveRunner,
@@ -43,7 +44,7 @@ def execute_with_glossary(
     primitive_fn: Callable[..., Any],
     context: Any,
     repo_root: Path,
-    runtime_strictness: Optional[Strictness] = None,
+    runtime_strictness: Strictness | None = None,
     interaction_mode: str = "interactive",
     *args: Any,
     **kwargs: Any,

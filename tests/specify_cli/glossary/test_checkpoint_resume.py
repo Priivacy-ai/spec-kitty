@@ -10,7 +10,7 @@ import contextlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -94,12 +94,12 @@ class MockPrimitiveContext:
     step_id: str = "step-specify-001"
     mission_id: str = "041-mission"
     run_id: str = "run-001"
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
-    extracted_terms: List[Any] = field(default_factory=list)
-    conflicts: List[SemanticConflict] = field(default_factory=list)
-    inputs: Dict[str, Any] = field(default_factory=lambda: {
+    metadata: dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
+    extracted_terms: list[Any] = field(default_factory=list)
+    conflicts: list[SemanticConflict] = field(default_factory=list)
+    inputs: dict[str, Any] = field(default_factory=lambda: {
         "description": "Implement feature X",
         "requirements": ["req1", "req2"],
     })
@@ -107,7 +107,7 @@ class MockPrimitiveContext:
     step_strictness: Strictness | None = None
     effective_strictness: Strictness | None = None
     retry_token: str | None = None
-    active_scopes: Dict[Any, str] | None = None
+    active_scopes: dict[Any, str] | None = None
     checkpoint: Any = None
     resumed_from_checkpoint: bool = False
     checkpoint_cursor: str | None = None

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -64,9 +63,9 @@ class RepairTemplatesMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Regenerate templates from correct source."""
-        changes: List[str] = []
-        errors: List[str] = []
-        warnings: List[str] = []
+        changes: list[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         # Step 1: Remove broken templates from .kittify/templates/
         kittify_templates = project_path / ".kittify" / "templates"

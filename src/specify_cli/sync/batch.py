@@ -7,9 +7,8 @@ import gzip
 import json
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -66,8 +65,8 @@ class BatchEventResult:
     """
     event_id: str
     status: str  # "success", "duplicate", "rejected"
-    error: Optional[str] = None
-    error_category: Optional[str] = None
+    error: str | None = None
+    error_category: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +153,7 @@ def generate_failure_report(result: BatchSyncResult) -> dict:
     """
     failed = result.failed_results
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "summary": {
             "total_events": result.total_events,
             "synced": result.synced_count,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -78,9 +77,9 @@ class UpdateSlashCommandsMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update slash commands with latest templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         missions_dir = project_path / ".kittify" / "missions"
 

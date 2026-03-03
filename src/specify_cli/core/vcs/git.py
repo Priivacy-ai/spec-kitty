@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .exceptions import VCSSyncError
@@ -1188,7 +1188,7 @@ class GitVCS:
         start_line = 0
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(file_path, encoding="utf-8", errors="replace") as f:
                 for i, line in enumerate(f, 1):
                     if line.startswith("<<<<<<<"):
                         in_conflict = True
@@ -1207,11 +1207,7 @@ class GitVCS:
             return ConflictType.CONTENT
         elif status == "AA":
             return ConflictType.ADD_ADD
-        elif status == "DD":
-            return ConflictType.MODIFY_DELETE
-        elif status in ("AU", "UA"):
-            return ConflictType.MODIFY_DELETE
-        elif status in ("DU", "UD"):
+        elif status == "DD" or status in ("AU", "UA") or status in ("DU", "UD"):
             return ConflictType.MODIFY_DELETE
         return ConflictType.CONTENT
 
@@ -1225,7 +1221,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
             message = parts[4]
             parents = parts[5].split() if parts[5] else []
             message_full = parts[6] if len(parts) > 6 else message
@@ -1256,7 +1252,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
             message = parts[4]
             parents = parts[5].split() if len(parts) > 5 and parts[5] else []
 
@@ -1335,7 +1331,7 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
                         timestamp_str.replace(" ", "T").replace(" ", "")
                     )
                 except ValueError:
-                    timestamp = datetime.now(timezone.utc)
+                    timestamp = datetime.now(UTC)
 
                 operations.append(
                     OperationInfo(

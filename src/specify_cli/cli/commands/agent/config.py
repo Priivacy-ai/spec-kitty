@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 import typer
 from rich.console import Console
@@ -86,7 +85,7 @@ def list_agents():
 
 @app.command(name="add")
 def add_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
 ):
     """Add agents to the project.
 
@@ -167,7 +166,7 @@ def add_agents(
 
 @app.command(name="remove")
 def remove_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to remove"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to remove"),
     keep_config: bool = typer.Option(
         False,
         "--keep-config",

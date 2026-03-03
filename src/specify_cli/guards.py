@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
 import re
 import subprocess
 
@@ -20,8 +19,8 @@ class WorktreeValidationResult:
     current_branch: str
     is_feature_branch: bool
     is_main_branch: bool
-    worktree_path: Optional[Path]
-    errors: List[str]
+    worktree_path: Path | None
+    errors: list[str]
 
     @property
     def is_valid(self) -> bool:
@@ -61,7 +60,7 @@ class WorktreeValidationResult:
         return "\n".join(output)
 
 
-def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeValidationResult:
+def validate_worktree_location(project_root: Path | None = None) -> WorktreeValidationResult:
     """Validate that commands run from a feature worktree."""
     project_root = Path(project_root) if project_root is not None else Path.cwd()
 
@@ -93,7 +92,7 @@ def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeV
     is_main_branch = current_branch == primary
     is_feature_branch = bool(re.match(r"^\d{3}-[\w-]+$", current_branch))
 
-    errors: List[str] = []
+    errors: list[str] = []
     if not current_branch:
         errors.append("Unable to determine current git branch.")
     elif is_main_branch:
@@ -114,7 +113,7 @@ def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeV
     )
 
 
-def validate_git_clean(project_root: Optional[Path] = None) -> WorktreeValidationResult:
+def validate_git_clean(project_root: Path | None = None) -> WorktreeValidationResult:
     """Validate git repository has no uncommitted changes."""
     project_root = Path(project_root) if project_root is not None else Path.cwd()
 
@@ -131,7 +130,7 @@ def validate_git_clean(project_root: Optional[Path] = None) -> WorktreeValidatio
     except FileNotFoundError as exc:
         raise GuardValidationError("git executable not found") from exc
 
-    errors: List[str] = []
+    errors: list[str] = []
     if result.returncode != 0:
         errors.append("Unable to read git status.")
     else:

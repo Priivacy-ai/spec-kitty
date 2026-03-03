@@ -38,9 +38,9 @@ class TestBuildDependencyGraph:
         feature_dir = tmp_path / "001-test-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         result = build_dependency_graph(feature_dir)
-        
+
         # Kill mutation: graph = {} → graph = None
         assert result is not None
         assert isinstance(result, dict)
@@ -56,21 +56,21 @@ class TestBuildDependencyGraph:
         feature_dir = tmp_path / "002-feature"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        
+
         # WP01 with no dependencies
         wp01 = tasks_dir / "WP01-setup.md"
         wp01.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# Setup")
-        
+
         # WP02 depends on WP01
         wp02 = tasks_dir / "WP02-core.md"
         wp02.write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# Core")
-        
+
         # WP03 depends on WP01 and WP02
         wp03 = tasks_dir / "WP03-final.md"
         wp03.write_text("---\nwork_package_id: WP03\ndependencies: [WP01, WP02]\n---\n# Final")
-        
+
         result = build_dependency_graph(feature_dir)
-        
+
         # Verify correct graph structure
         assert isinstance(result, dict)
         assert len(result) == 3
@@ -87,9 +87,9 @@ class TestBuildDependencyGraph:
         # Create feature directory WITHOUT tasks/ subdirectory
         feature_dir = tmp_path / "003-missing-tasks"
         feature_dir.mkdir()
-        
+
         result = build_dependency_graph(feature_dir)
-        
+
         # Kill mutation: if not exists() → if exists()
         assert isinstance(result, dict)
         assert len(result) == 0
@@ -107,9 +107,9 @@ class TestParseDependencies:
         # Create WP file WITHOUT dependencies field
         wp_file = tmp_path / "WP01-test.md"
         wp_file.write_text("---\nwork_package_id: WP01\ntitle: Test\n---\n# Content")
-        
+
         result = parse_wp_dependencies(wp_file)
-        
+
         # Kill mutation: .get("dependencies", []) → .get("dependencies", None)
         assert result is not None
         assert isinstance(result, list)
@@ -130,9 +130,9 @@ class TestParseDependencies:
             "---\n"
             "# Content"
         )
-        
+
         result = parse_wp_dependencies(wp_file)
-        
+
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0] == "WP01"
@@ -151,7 +151,7 @@ class TestExtractWpId:
         assert extract_wp_id_from_filename("WP01-setup.md") == "WP01"
         assert extract_wp_id_from_filename("WP02.md") == "WP02"
         assert extract_wp_id_from_filename("WP99-final-task.md") == "WP99"
-        
+
         # Kill parameter removal mutations (re.match needs filename arg)
         result = extract_wp_id_from_filename("WP03-test.md")
         assert result is not None
@@ -184,14 +184,14 @@ class TestDetectCycles:
             "WP01": ["WP02"],
             "WP02": ["WP01"]
         }
-        
+
         cycles = detect_cycles(graph)
-        
+
         # Kill mutations in cycle detection (color[node] = BLACK → None, etc.)
         assert cycles is not None
         assert isinstance(cycles, list)
         assert len(cycles) > 0
-        
+
         # Verify cycle contains both nodes
         cycle = cycles[0]
         assert "WP01" in cycle
@@ -209,9 +209,9 @@ class TestDetectCycles:
             "WP02": ["WP01"],
             "WP03": ["WP02"]
         }
-        
+
         cycles = detect_cycles(graph)
-        
+
         # Kill mutation: default parameter .get(neighbor, WHITE) → .get(neighbor, None)
         assert cycles is None
 
@@ -227,14 +227,14 @@ class TestDetectCycles:
             "WP02": ["WP03"],
             "WP03": ["WP01"]
         }
-        
+
         cycles = detect_cycles(graph)
-        
+
         # Kill mutations: WHITE, GRAY, BLACK = 0, 1, 2 → None
         assert cycles is not None
         assert isinstance(cycles, list)
         assert len(cycles) > 0
-        
+
         # Verify all three nodes in cycle
         cycle = cycles[0]
         assert "WP01" in cycle
@@ -252,10 +252,10 @@ class TestValidateDependencies:
         Expected: Validation fails with self-dependency error
         """
         graph = {"WP01": [], "WP02": []}
-        
+
         # Try to make WP01 depend on itself
         is_valid, errors = validate_dependencies("WP01", ["WP01"], graph)
-        
+
         # Kill mutation: if dep == wp_id → if dep != wp_id
         assert is_valid is False
         assert len(errors) > 0
@@ -268,10 +268,10 @@ class TestValidateDependencies:
         Expected: Validation fails with 'not found' error
         """
         graph = {"WP01": [], "WP02": []}
-        
+
         # Try to depend on non-existent WP99
         is_valid, errors = validate_dependencies("WP02", ["WP99"], graph)
-        
+
         # Kill mutation: errors = [] → errors = None
         assert is_valid is False
         assert errors is not None
@@ -290,10 +290,10 @@ class TestValidateDependencies:
             "WP02": ["WP01"],
             "WP03": ["WP01", "WP02"]
         }
-        
+
         # Validate WP03's dependencies
         is_valid, errors = validate_dependencies("WP03", ["WP01", "WP02"], graph)
-        
+
         assert is_valid is True
         assert isinstance(errors, list)
         assert len(errors) == 0
@@ -312,14 +312,14 @@ class TestTopologicalSort:
             "WP01": [],
             "WP02": ["WP01"]
         }
-        
+
         result = topological_sort(graph)
-        
+
         # Kill mutation: in_degree = {...} → in_degree = None
         assert result is not None
         assert isinstance(result, list)
         assert len(result) == 2
-        
+
         # WP01 must come before WP02
         wp01_idx = result.index("WP01")
         wp02_idx = result.index("WP02")
@@ -343,24 +343,24 @@ class TestTopologicalSort:
             "WP03": ["WP01"],
             "WP04": ["WP02", "WP03"]
         }
-        
+
         result = topological_sort(graph)
-        
+
         # Kill mutation: sorted(None) → parameter removal
         assert isinstance(result, list)
         assert len(result) == 4
-        
+
         # Verify ordering constraints
         wp01_idx = result.index("WP01")
         wp02_idx = result.index("WP02")
         wp03_idx = result.index("WP03")
         wp04_idx = result.index("WP04")
-        
+
         # WP01 must be first
         assert wp01_idx < wp02_idx
         assert wp01_idx < wp03_idx
         assert wp01_idx < wp04_idx
-        
+
         # WP02 and WP03 must come before WP04
         assert wp02_idx < wp04_idx
         assert wp03_idx < wp04_idx
@@ -381,9 +381,9 @@ class TestGetDependents:
             "WP02": ["WP01"],
             "WP03": ["WP01"]
         }
-        
+
         result = get_dependents("WP01", graph)
-        
+
         # Kill mutation: inverse_graph = {...} → inverse_graph = None
         assert result is not None
         assert isinstance(result, list)
@@ -403,9 +403,9 @@ class TestGetDependents:
             "WP02": ["WP01"],
             "WP03": ["WP01", "WP02"]
         }
-        
+
         result = get_dependents("WP03", graph)
-        
+
         # Kill mutation: inverse_graph.get(None, []) → wrong argument
         assert result is not None
         assert isinstance(result, list)

@@ -38,7 +38,7 @@ class TrackerProjectConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object] | None) -> "TrackerProjectConfig":
+    def from_dict(cls, data: dict[str, object] | None) -> TrackerProjectConfig:
         if not isinstance(data, dict):
             return cls()
 

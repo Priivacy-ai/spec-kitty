@@ -9,7 +9,7 @@ from typing import Dict, Optional
 __all__ = ["get_dashboard_html"]
 
 _TEMPLATE_PATH = Path(__file__).with_name('index.html')
-_DASHBOARD_HTML_CACHE: Optional[str] = None
+_DASHBOARD_HTML_CACHE: str | None = None
 _MISSION_PLACEHOLDER = "window.__INITIAL_MISSION__ = null;"
 
 
@@ -23,7 +23,7 @@ def _load_dashboard_template() -> str:
     return _DASHBOARD_HTML_CACHE
 
 
-def get_dashboard_html(*, mission_context: Optional[Dict[str, str]] = None) -> str:
+def get_dashboard_html(*, mission_context: dict[str, str] | None = None) -> str:
     """Return dashboard HTML with optional inline mission context."""
     base_html = _load_dashboard_template()
     if not mission_context:

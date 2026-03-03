@@ -7,9 +7,9 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from collections.abc import Iterable, Mapping, Sequence
 
 from .tasks_support import (
     LANES,
@@ -45,8 +45,8 @@ class WorkPackageState:
     title: str
     path: str
     has_lane_entry: bool
-    latest_lane: Optional[str]
-    metadata: Dict[str, Optional[str]] = field(default_factory=dict)
+    latest_lane: str | None
+    metadata: dict[str, str | None] = field(default_factory=dict)
 
 
 @dataclass
@@ -55,20 +55,20 @@ class AcceptanceSummary:
     repo_root: Path
     feature_dir: Path
     tasks_dir: Path
-    branch: Optional[str]
+    branch: str | None
     worktree_root: Path
     primary_repo_root: Path
-    lanes: Dict[str, List[str]]
-    work_packages: List[WorkPackageState]
-    metadata_issues: List[str]
-    activity_issues: List[str]
-    unchecked_tasks: List[str]
-    needs_clarification: List[str]
-    missing_artifacts: List[str]
-    optional_missing: List[str]
-    git_dirty: List[str]
-    path_violations: List[str]
-    warnings: List[str]
+    lanes: dict[str, list[str]]
+    work_packages: list[WorkPackageState]
+    metadata_issues: list[str]
+    activity_issues: list[str]
+    unchecked_tasks: list[str]
+    needs_clarification: list[str]
+    missing_artifacts: list[str]
+    optional_missing: list[str]
+    git_dirty: list[str]
+    path_violations: list[str]
+    warnings: list[str]
 
     @property
     def all_done(self) -> bool:
@@ -91,7 +91,7 @@ class AcceptanceSummary:
             and not self.path_violations
         )
 
-    def outstanding(self) -> Dict[str, List[str]]:
+    def outstanding(self) -> dict[str, list[str]]:
         buckets = {
             "not_done": [
                 *self.lanes.get("planned", []),
@@ -108,7 +108,7 @@ class AcceptanceSummary:
         }
         return {key: value for key, value in buckets.items() if value}
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "feature": self.feature,
             "branch": self.branch,
@@ -150,14 +150,14 @@ class AcceptanceResult:
     mode: AcceptanceMode
     accepted_at: str
     accepted_by: str
-    parent_commit: Optional[str]
-    accept_commit: Optional[str]
+    parent_commit: str | None
+    accept_commit: str | None
     commit_created: bool
-    instructions: List[str]
-    cleanup_instructions: List[str]
-    notes: List[str] = field(default_factory=list)
+    instructions: list[str]
+    cleanup_instructions: list[str]
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "accepted_at": self.accepted_at,
             "accepted_by": self.accepted_by,
@@ -230,8 +230,8 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
 def detect_feature_slug(
     repo_root: Path,
     *,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
     announce_fallback: bool = True,
 ) -> str:
     """Detect feature slug using centralized detection.
@@ -267,19 +267,19 @@ def _read_file(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig") if path.exists() else ""
 
 
-def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
+def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
     if not tasks_file.exists():
         return [f"{_TASKS_MD} missing"]
 
-    unchecked: List[str] = []
+    unchecked: list[str] = []
     for line in tasks_file.read_text(encoding="utf-8-sig").splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
 
 
-def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
-    results: List[str] = []
+def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
+    results: list[str] = []
     for file_path in files:
         if file_path.exists():
             text = file_path.read_text(encoding="utf-8-sig")
@@ -288,7 +288,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     return results
 
 
-def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
+def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
     required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / _TASKS_MD]
     optional = [
         feature_dir / "quickstart.md",
@@ -301,8 +301,8 @@ def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
     return missing_required, missing_optional
 
 
-def _get_git_context(repo_root: Path) -> tuple[Optional[str], Path, Path]:
-    branch: Optional[str] = None
+def _get_git_context(repo_root: Path) -> tuple[str | None, Path, Path]:
+    branch: str | None = None
     try:
         branch_value = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True).stdout.strip()
         if branch_value and branch_value != "HEAD":
@@ -324,8 +324,8 @@ def _get_git_context(repo_root: Path) -> tuple[Optional[str], Path, Path]:
     return branch, worktree_root, primary_repo_root
 
 
-def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> List[str]:
-    issues: List[str] = []
+def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> list[str]:
+    issues: list[str] = []
     lane_value = (wp.lane or "").strip()
     if not lane_value:
         issues.append(f"{wp_id}: missing lane in frontmatter")
@@ -342,10 +342,10 @@ def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> List[st
     return issues
 
 
-def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: List[Dict[str, object]]) -> List[str]:
+def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: list[dict[str, object]]) -> list[str]:
     if not entries:
         return [f"{wp_id}: Activity Log missing entries"]
-    issues: List[str] = []
+    issues: list[str] = []
     lanes_logged = {entry["lane"] for entry in entries}
     if wp.current_lane not in lanes_logged:
         issues.append(f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}")
@@ -354,8 +354,8 @@ def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: List[Dict[str, obje
     return issues
 
 
-def _get_path_violations(feature_dir: Path, repo_root: Path) -> List[str]:
-    violations: List[str] = []
+def _get_path_violations(feature_dir: Path, repo_root: Path) -> list[str]:
+    violations: list[str] = []
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
@@ -381,10 +381,10 @@ def collect_feature_summary(
 
     branch, worktree_root, primary_repo_root = _get_git_context(repo_root)
 
-    lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
-    work_packages: List[WorkPackageState] = []
-    metadata_issues: List[str] = []
-    activity_issues: List[str] = []
+    lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
+    work_packages: list[WorkPackageState] = []
+    metadata_issues: list[str] = []
+    activity_issues: list[str] = []
 
     use_legacy = is_legacy_format(feature_dir)
 
@@ -397,7 +397,7 @@ def collect_feature_summary(
         latest_lane = entries[-1]["lane"] if entries else None
         has_lane_entry = wp.current_lane in {entry["lane"] for entry in entries}
 
-        metadata: Dict[str, Optional[str]] = {
+        metadata: dict[str, str | None] = {
             "lane": wp.lane,
             "agent": wp.agent,
             "assignee": wp.assignee,
@@ -440,7 +440,7 @@ def collect_feature_summary(
 
     path_violations = _get_path_violations(feature_dir, repo_root)
 
-    warnings: List[str] = []
+    warnings: list[str] = []
     if missing_optional:
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
@@ -468,7 +468,7 @@ def collect_feature_summary(
     )
 
 
-def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
+def choose_mode(preference: str | None, repo_root: Path) -> AcceptanceMode:
     if preference in {"pr", "local", "checklist"}:
         return preference
     try:
@@ -486,14 +486,14 @@ def _persist_acceptance_commit(
     summary: AcceptanceSummary,
     actor_name: str,
     mode: AcceptanceMode,
-    parent_commit: Optional[str],
+    parent_commit: str | None,
     timestamp: str,
-    tests: Optional[Sequence[str]],
-) -> tuple[Optional[str], bool]:
+    tests: Sequence[str] | None,
+) -> tuple[str | None, bool]:
     meta_path = summary.feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8-sig")) if meta_path.exists() else {}
 
-    acceptance_record: Dict[str, object] = {
+    acceptance_record: dict[str, object] = {
         "accepted_at": timestamp,
         "accepted_by": actor_name,
         "mode": mode,
@@ -511,7 +511,7 @@ def _persist_acceptance_commit(
         "accept_commit": None,
     })
 
-    history: List[Dict[str, object]] = meta.setdefault("acceptance_history", [])
+    history: list[dict[str, object]] = meta.setdefault("acceptance_history", [])
     history.append(acceptance_record)
     if len(history) > 20:
         meta["acceptance_history"] = history[-20:]
@@ -539,9 +539,9 @@ def _build_acceptance_instructions(
     mode: AcceptanceMode,
     branch: str,
     summary: AcceptanceSummary,
-) -> tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     if mode == "pr":
-        instructions: List[str] = [
+        instructions: list[str] = [
             f"Review the acceptance commit on branch `{branch}`.",
             f"Push your branch: `git push origin {branch}`",
             "Open a pull request referencing spec/plan/tasks artifacts.",
@@ -556,7 +556,7 @@ def _build_acceptance_instructions(
     else:
         instructions = ["All checks passed. Proceed with your manual acceptance workflow."]
 
-    cleanup_instructions: List[str] = []
+    cleanup_instructions: list[str] = []
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
@@ -569,8 +569,8 @@ def perform_acceptance(
     summary: AcceptanceSummary,
     *,
     mode: AcceptanceMode,
-    actor: Optional[str],
-    tests: Optional[Sequence[str]] = None,
+    actor: str | None,
+    tests: Sequence[str] | None = None,
     auto_commit: bool = True,
 ) -> AcceptanceResult:
     if mode != "checklist" and not summary.ok:
@@ -579,10 +579,10 @@ def perform_acceptance(
         )
 
     actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    parent_commit: Optional[str] = None
-    accept_commit: Optional[str] = None
+    parent_commit: str | None = None
+    accept_commit: str | None = None
     commit_created = False
 
     if auto_commit and mode != "checklist":
@@ -599,7 +599,7 @@ def perform_acceptance(
     branch = summary.branch or summary.feature
     instructions, cleanup_instructions = _build_acceptance_instructions(mode, branch, summary)
 
-    notes: List[str] = []
+    notes: list[str] = []
     if accept_commit:
         notes.append(f"Acceptance commit: {accept_commit}")
     if parent_commit:

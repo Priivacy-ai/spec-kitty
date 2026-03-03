@@ -18,7 +18,7 @@ Tests cover:
 import json
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass, field
 
@@ -74,11 +74,11 @@ class MockContext:
     mission_id: str = "041-mission"
     run_id: str = "run-001"
     actor_id: str = "user:alice"
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
-    extracted_terms: List[Any] = field(default_factory=list)
-    conflicts: List[SemanticConflict] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
+    extracted_terms: list[Any] = field(default_factory=list)
+    conflicts: list[SemanticConflict] = field(default_factory=list)
     effective_strictness: str = "medium"
 
 

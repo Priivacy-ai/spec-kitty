@@ -17,9 +17,9 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 import fnmatch
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Iterator, List, Optional
+from collections.abc import Iterator
 
 from specify_cli.dossier.hasher import hash_file_with_validation
 from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
@@ -47,11 +47,11 @@ class Indexer:
             manifest_registry: ManifestRegistry instance for loading manifests
         """
         self.manifest_registry = manifest_registry
-        self.artifacts: List[ArtifactRef] = []
-        self.errors: List[dict] = []
+        self.artifacts: list[ArtifactRef] = []
+        self.errors: list[dict] = []
 
     def index_feature(
-        self, feature_dir: Path, mission_type: str, step_id: Optional[str] = None
+        self, feature_dir: Path, mission_type: str, step_id: str | None = None
     ) -> MissionDossier:
         """Scan feature directory and build MissionDossier.
 
@@ -93,7 +93,7 @@ class Indexer:
         dossier.artifacts.extend(missing)
 
         # Update timestamp
-        dossier.dossier_updated_at = datetime.now(timezone.utc)
+        dossier.dossier_updated_at = datetime.now(UTC)
 
         return dossier
 
@@ -115,7 +115,7 @@ class Indexer:
 
     def _index_file(
         self, file_path: Path, feature_dir: Path, mission_type: str
-    ) -> Optional[ArtifactRef]:
+    ) -> ArtifactRef | None:
         """Index single file, return ArtifactRef or None if unindexable.
 
         Handles errors gracefully: permission errors, UTF-8 validation failures,
@@ -197,7 +197,7 @@ class Indexer:
                 is_present=False,
                 error_reason="unreadable",
             )
-        except (IOError, OSError) as e:
+        except OSError as e:
             logger.error(f"I/O error reading {relative_path}: {e}")
             return ArtifactRef(
                 artifact_key=artifact_key,
@@ -215,8 +215,8 @@ class Indexer:
     def _classify_artifact(
         self,
         file_path: Path,
-        manifest: Optional[ExpectedArtifactManifest],
-        feature_dir: Optional[Path] = None,
+        manifest: ExpectedArtifactManifest | None,
+        feature_dir: Path | None = None,
     ) -> str:
         """Deterministically classify artifact into one of 6 classes.
 
@@ -294,7 +294,7 @@ class Indexer:
         )
 
     def _matches_pattern(
-        self, file_path: Path, pattern: str, feature_dir: Optional[Path] = None
+        self, file_path: Path, pattern: str, feature_dir: Path | None = None
     ) -> bool:
         """Check if file_path matches feature-relative glob pattern.
 
@@ -314,8 +314,8 @@ class Indexer:
         return fnmatch.fnmatch(relative, pattern)
 
     def _detect_missing_artifacts(
-        self, dossier: MissionDossier, step_id: Optional[str] = None
-    ) -> List[ArtifactRef]:
+        self, dossier: MissionDossier, step_id: str | None = None
+    ) -> list[ArtifactRef]:
         """Detect required artifacts that are not present.
 
         Compares indexed artifacts against manifest requirements. Creates
@@ -364,7 +364,7 @@ class Indexer:
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
-                    indexed_at=datetime.now(timezone.utc),
+                    indexed_at=datetime.now(UTC),
                 )
                 missing.append(ghost)
 
@@ -402,7 +402,7 @@ class Indexer:
         return f"artifact.{key}"
 
     def _get_required_status(
-        self, artifact_key: str, manifest: Optional[ExpectedArtifactManifest]
+        self, artifact_key: str, manifest: ExpectedArtifactManifest | None
     ) -> str:
         """Determine if artifact is required or optional.
 

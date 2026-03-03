@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -68,9 +67,9 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update implement and review slash commands with improved templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         missions_dir = project_path / ".kittify" / "missions"
         software_dev_templates = missions_dir / "software-dev" / "command-templates"

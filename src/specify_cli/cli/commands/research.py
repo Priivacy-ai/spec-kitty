@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -20,7 +19,7 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""

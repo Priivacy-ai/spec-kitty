@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import webbrowser
-from typing import Optional
 
 import typer
 
@@ -12,7 +11,7 @@ from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 
 
 def dashboard(
-    port: Optional[int] = typer.Option(
+    port: int | None = typer.Option(
         None,
         "--port",
         help="Preferred port for the dashboard (falls back to the first available port).",

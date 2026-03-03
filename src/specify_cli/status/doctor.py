@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from enum import StrEnum
 from pathlib import Path
 
@@ -105,7 +105,7 @@ def check_stale_claims(
 ) -> list[Finding]:
     """Check for WPs stuck in claimed or in_progress."""
     findings: list[Finding] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     work_packages = snapshot.get("work_packages", {})
     for wp_id, wp_state in work_packages.items():

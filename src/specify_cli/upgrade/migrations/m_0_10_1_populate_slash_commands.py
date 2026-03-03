@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -72,9 +71,9 @@ class PopulateSlashCommandsMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Populate slash commands from mission templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Find mission templates
         missions_dir = project_path / ".kittify" / "missions"
@@ -140,7 +139,7 @@ class PopulateSlashCommandsMigration(BaseMigration):
         output_dir: Path,
         extension: str,
         dry_run: bool,
-        changes: List[str]
+        changes: list[str]
     ) -> int:
         """Copy command templates to agent directory."""
         created_count = 0

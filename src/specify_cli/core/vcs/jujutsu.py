@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .exceptions import VCSSyncError
@@ -79,16 +79,10 @@ def _extract_jj_error(stderr: str) -> str | None:
         stripped = line.strip()
 
         # Actual jj errors start with "Error:"
-        if stripped.startswith("Error:"):
-            error_lines.append(stripped)
-        # Also capture "Caused by:" lines that follow errors
-        elif stripped.startswith("Caused by:") and error_lines:
+        if stripped.startswith("Error:") or stripped.startswith("Caused by:") and error_lines:
             error_lines.append(stripped)
         # Skip benign patterns
-        elif any(pattern in stripped for pattern in JJ_BENIGN_STDERR_PATTERNS):
-            continue
-        # Skip empty lines
-        elif not stripped:
+        elif any(pattern in stripped for pattern in JJ_BENIGN_STDERR_PATTERNS) or not stripped:
             continue
 
     if error_lines:
@@ -1017,7 +1011,7 @@ class JujutsuVCS:
             try:
                 timestamp = datetime.fromisoformat(timestamp_str)
             except ValueError:
-                timestamp = datetime.now(timezone.utc)
+                timestamp = datetime.now(UTC)
 
             # Parse parents
             parents = [p for p in parents_str.split(",") if p]
@@ -1059,7 +1053,7 @@ class JujutsuVCS:
             try:
                 timestamp = datetime.fromisoformat(timestamp_str)
             except ValueError:
-                timestamp = datetime.now(timezone.utc)
+                timestamp = datetime.now(UTC)
 
             # Parse parents
             parents = [p for p in parents_str.split(",") if p]
@@ -1139,7 +1133,7 @@ def jj_get_operation_log(repo_path: Path, limit: int = 20) -> list[OperationInfo
                     op_id = parts[start_idx] if start_idx < len(parts) else ""
 
                     # Try to parse timestamp from "X ago" format
-                    timestamp = datetime.now(timezone.utc)
+                    timestamp = datetime.now(UTC)
 
                     current_op = OperationInfo(
                         operation_id=op_id,

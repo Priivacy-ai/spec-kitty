@@ -7,8 +7,8 @@ including ArtifactRef (individual artifact metadata) and MissionDossier
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from datetime import datetime, UTC
+from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 import uuid
 
@@ -65,11 +65,11 @@ class ArtifactRef(BaseModel):
     )
 
     # Metadata
-    wp_id: Optional[str] = Field(
+    wp_id: str | None = Field(
         None,
         description="Work package ID if linked (e.g., 'WP01', None if not WP-specific)",
     )
-    step_id: Optional[str] = Field(
+    step_id: str | None = Field(
         None,
         description="Mission step (e.g., 'planning', 'implementation', None if not step-specific)",
     )
@@ -79,7 +79,7 @@ class ArtifactRef(BaseModel):
     )
 
     # Provenance
-    provenance: Optional[dict] = Field(
+    provenance: dict | None = Field(
         default=None,
         description="Source info: {source_kind: 'git'|'runtime'|'generated'|'manual', actor_id, captured_at}",
     )
@@ -89,14 +89,14 @@ class ArtifactRef(BaseModel):
         default=True,
         description="True if file currently exists and readable",
     )
-    error_reason: Optional[str] = Field(
+    error_reason: str | None = Field(
         None,
         description="If not present: 'not_found' | 'unreadable' | 'invalid_format' | 'deleted_after_scan'",
     )
 
     # Timestamps
     indexed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When this artifact was indexed",
     )
 
@@ -200,34 +200,34 @@ class MissionDossier(BaseModel):
     )
 
     # Artifacts
-    artifacts: List[ArtifactRef] = Field(
+    artifacts: list[ArtifactRef] = Field(
         default_factory=list,
         description="All indexed artifacts",
     )
 
     # Completeness (manifest from WP02)
-    manifest: Optional[dict] = Field(
+    manifest: dict | None = Field(
         None,
         description="Loaded manifest for this mission type (None if not found)",
     )
 
     # Snapshot (from WP05)
-    latest_snapshot: Optional[dict] = Field(
+    latest_snapshot: dict | None = Field(
         None,
         description="Most recent snapshot (after all artifacts indexed)",
     )
 
     # Timestamps
     dossier_created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When dossier was created",
     )
     dossier_updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When dossier was last updated",
     )
 
-    def get_required_artifacts(self, step_id: Optional[str] = None) -> List[ArtifactRef]:
+    def get_required_artifacts(self, step_id: str | None = None) -> list[ArtifactRef]:
         """Return required artifacts for step (or all required if step_id=None).
 
         Args:
@@ -242,8 +242,8 @@ class MissionDossier(BaseModel):
         return required
 
     def get_missing_required_artifacts(
-        self, step_id: Optional[str] = None
-    ) -> List[ArtifactRef]:
+        self, step_id: str | None = None
+    ) -> list[ArtifactRef]:
         """Return required artifacts that are not present.
 
         Args:
@@ -346,20 +346,20 @@ class MissionDossierSnapshot(BaseModel):
         ...,
         description="SHA256 hash of sorted artifact content hashes (order-independent)",
     )
-    parity_hash_components: List[str] = Field(
+    parity_hash_components: list[str] = Field(
         default_factory=list,
         description="Sorted list of artifact hashes (audit trail)",
     )
 
     # Artifact details
-    artifact_summaries: List[Dict[str, Any]] = Field(
+    artifact_summaries: list[dict[str, Any]] = Field(
         default_factory=list,
         description="List of artifact metadata summaries for audit",
     )
 
     # Timestamp
     computed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When snapshot was computed (UTC)",
     )
 

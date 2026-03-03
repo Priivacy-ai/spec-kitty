@@ -9,7 +9,7 @@ import os
 import socket
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 
@@ -66,7 +66,7 @@ class LamportClock:
         data = {
             "value": self.value,
             "node_id": self.node_id,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         # Atomic write: write to temp file in same directory, then rename

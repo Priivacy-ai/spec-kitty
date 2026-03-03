@@ -105,7 +105,7 @@ class TestLocateProjectRoot:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-        
+
         # Should use env var, not cwd
         result = locate_project_root()
         assert result == tmp_path
@@ -118,7 +118,7 @@ class TestLocateProjectRoot:
         """
         # No .kittify dir
         monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-        
+
         result = locate_project_root(tmp_path)
         assert result is None  # Invalid env var, no fallback
 
@@ -131,7 +131,7 @@ class TestLocateProjectRoot:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         monkeypatch.chdir(tmp_path)
-        
+
         result = locate_project_root()  # No args
         assert result == tmp_path
 
@@ -146,7 +146,7 @@ class TestLocateProjectRoot:
         main_repo.mkdir()
         (main_repo / ".git").mkdir()
         (main_repo / ".kittify").mkdir()
-        
+
         result = locate_project_root(main_repo)
         assert result == main_repo
 
@@ -165,13 +165,13 @@ class TestLocateProjectRoot:
         worktrees_dir = main_git / "worktrees"
         worktrees_dir.mkdir(parents=True)
         (main_repo / ".kittify").mkdir()
-        
+
         # Setup worktree with .git file
         worktree_dir = tmp_path / ".worktrees" / "feature-001"
         worktree_dir.mkdir(parents=True)
         worktree_git_file = worktree_dir / ".git"
         worktree_git_file.write_text(f"gitdir: {worktrees_dir}/feature-001\n")
-        
+
         # Should resolve to main repo, not worktree
         result = locate_project_root(worktree_dir)
         assert result == main_repo
@@ -185,7 +185,7 @@ class TestLocateProjectRoot:
         project = tmp_path / "project"
         project.mkdir()
         (project / ".kittify").mkdir()
-        
+
         result = locate_project_root(project)
         assert result == project
 
@@ -197,11 +197,11 @@ class TestLocateProjectRoot:
         """
         project = tmp_path / "project"
         project.mkdir()
-        
+
         # Create broken symlink
         broken_kittify = project / ".kittify"
         broken_kittify.symlink_to("/nonexistent/path")
-        
+
         # Should skip broken symlink, not find root
         result = locate_project_root(project)
         assert result is None
@@ -214,7 +214,7 @@ class TestLocateProjectRoot:
         """
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
-        
+
         result = locate_project_root(empty_dir)
         assert result is None
         assert not isinstance(result, str)  # Ensure type correctness
@@ -250,7 +250,7 @@ class TestIsWorktreeContext:
         worktree_dir.mkdir()
         git_file = worktree_dir / ".git"
         git_file.write_text("gitdir: /main/.git/worktrees/my-worktree\n")
-        
+
         assert is_worktree_context(worktree_dir) is True
 
     def test_main_repo_returns_false(self, tmp_path):
@@ -263,7 +263,7 @@ class TestIsWorktreeContext:
         main_repo = tmp_path / "repo"
         main_repo.mkdir()
         (main_repo / ".git").mkdir()
-        
+
         assert is_worktree_context(main_repo) is False
 
     def test_no_git_returns_false(self, tmp_path):
@@ -274,7 +274,7 @@ class TestIsWorktreeContext:
         """
         plain_dir = tmp_path / "plain"
         plain_dir.mkdir()
-        
+
         assert is_worktree_context(plain_dir) is False
 
 
@@ -293,7 +293,7 @@ class TestResolveWithContext:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         monkeypatch.chdir(tmp_path)
-        
+
         root, in_worktree = resolve_with_context()  # No args
         assert root == tmp_path
         assert in_worktree is False
@@ -310,13 +310,13 @@ class TestResolveWithContext:
         worktrees_dir = main_git / "worktrees"
         worktrees_dir.mkdir(parents=True)
         (main_repo / ".kittify").mkdir()
-        
+
         # Setup worktree
         worktree_dir = tmp_path / ".worktrees" / "feature"
         worktree_dir.mkdir(parents=True)
         git_file = worktree_dir / ".git"
         git_file.write_text(f"gitdir: {worktrees_dir}/feature\n")
-        
+
         root, in_worktree = resolve_with_context(worktree_dir)
         assert root == main_repo
         assert in_worktree is True
@@ -337,7 +337,7 @@ class TestCheckBrokenSymlink:
         """
         link = tmp_path / "broken_link"
         link.symlink_to("/nonexistent/path")
-        
+
         assert check_broken_symlink(link) is True
 
     def test_valid_symlink_returns_false(self, tmp_path):
@@ -350,7 +350,7 @@ class TestCheckBrokenSymlink:
         target.write_text("data")
         link = tmp_path / "valid_link"
         link.symlink_to(target)
-        
+
         assert check_broken_symlink(link) is False
 
     def test_regular_file_returns_false(self, tmp_path):
@@ -361,7 +361,7 @@ class TestCheckBrokenSymlink:
         """
         regular_file = tmp_path / "regular.txt"
         regular_file.write_text("data")
-        
+
         assert check_broken_symlink(regular_file) is False
 
 
@@ -383,13 +383,13 @@ class TestGetMainRepoRoot:
         main_git = main_repo / ".git"
         worktrees_dir = main_git / "worktrees"
         worktrees_dir.mkdir(parents=True)
-        
+
         # Setup worktree
         worktree_dir = tmp_path / ".worktrees" / "feature"
         worktree_dir.mkdir(parents=True)
         git_file = worktree_dir / ".git"
         git_file.write_text(f"gitdir: {worktrees_dir}/feature\n")
-        
+
         result = get_main_repo_root(worktree_dir)
         assert result == main_repo
 
@@ -402,7 +402,7 @@ class TestGetMainRepoRoot:
         main_repo = tmp_path / "repo"
         main_repo.mkdir()
         (main_repo / ".git").mkdir()
-        
+
         result = get_main_repo_root(main_repo)
         assert result == main_repo
 
@@ -414,7 +414,7 @@ class TestGetMainRepoRoot:
         """
         plain_dir = tmp_path / "plain"
         plain_dir.mkdir()
-        
+
         result = get_main_repo_root(plain_dir)
         assert result == plain_dir
 
@@ -431,7 +431,7 @@ class TestPathResolutionEdgeCases:
         project = tmp_path / "project"
         project.mkdir()
         (project / ".kittify").mkdir()
-        
+
         result = locate_project_root(start=project)
         assert result == project
 
@@ -443,11 +443,11 @@ class TestPathResolutionEdgeCases:
         project = tmp_path / "project"
         project.mkdir()
         (project / ".kittify").mkdir()
-        
+
         # Start from subdirectory
         subdir = project / "src" / "modules"
         subdir.mkdir(parents=True)
-        
+
         result = locate_project_root(subdir)
         assert result == project
 
@@ -459,7 +459,7 @@ class TestPathResolutionEdgeCases:
         worktree_dir = tmp_path / ".worktrees" / "feature"
         subdir = worktree_dir / "src" / "modules"
         subdir.mkdir(parents=True)
-        
+
         # Fast path should catch .worktrees in path
         assert is_worktree_context(subdir) is True
 
@@ -472,51 +472,51 @@ class TestEncodingRobustness:
     
     Fix: Added encoding="utf-8", errors="replace" to all .read_text() calls.
     """
-    
+
     def test_locate_project_root_handles_non_utf8_git_file(self, tmp_path):
         """Verify .git file reading doesn't fail on encoding issues."""
         from specify_cli.core.paths import locate_project_root
-        
+
         # Create worktree with .git file containing potential non-UTF-8 bytes
         worktree = tmp_path / "worktree"
         worktree.mkdir()
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
-        
+
         git_file = worktree / ".git"
         # Write with explicit UTF-8 to ensure test consistency
         git_file.write_text("gitdir: /path/with/special/chars", encoding="utf-8")
-        
+
         # Should not raise UnicodeDecodeError
         result = locate_project_root(worktree)
         assert result is not None or result is None  # Just verify no exception
-    
+
     def test_is_worktree_context_handles_malformed_git_file(self, tmp_path):
         """Verify malformed .git files don't crash the detector."""
         from specify_cli.core.paths import is_worktree_context
-        
+
         worktree = tmp_path / "worktree"
         worktree.mkdir()
         git_file = worktree / ".git"
-        
+
         # Write malformed content (missing proper gitdir structure)
         git_file.write_text("not a valid gitdir pointer", encoding="utf-8")
-        
+
         # Should return False, not raise exception
         result = is_worktree_context(worktree)
         assert result is False
-    
+
     def test_get_main_repo_root_handles_corrupted_git_file(self, tmp_path):
         """Verify corrupted .git file doesn't crash main repo detection."""
         from specify_cli.core.paths import get_main_repo_root
-        
+
         repo = tmp_path / "repo"
         repo.mkdir()
         git_file = repo / ".git"
-        
+
         # Write invalid gitdir content (empty path after colon)
         git_file.write_text("gitdir:", encoding="utf-8")
-        
+
         # Should fall back to current path (resolved), not crash
         result = get_main_repo_root(repo)
         # The result should be the resolved repo path

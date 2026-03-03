@@ -38,7 +38,7 @@ class TestExcludeFromGit:
     - content.startswith("gitdir:") → content.startswith("XXgitdir:XX")
     - content[7:] → content[8:]
     """
-    
+
     def test_exclude_patterns_written_to_worktree(self, tmp_path):
         """Test that exclusion patterns are written to worktree .git/info/exclude.
         
@@ -50,18 +50,18 @@ class TestExcludeFromGit:
         # Setup: Create worktree with .git file pointing to git dir
         worktree = tmp_path / "worktree"
         worktree.mkdir()
-        
+
         git_dir = tmp_path / "main" / ".git" / "worktrees" / "test"
         git_dir.mkdir(parents=True)
-        
+
         # Worktree .git file contains gitdir: pointer
         git_file = worktree / ".git"
         git_file.write_text(f"gitdir: {git_dir}")
-        
+
         # Call function with patterns
         patterns = [".kittify/memory", ".kittify/AGENTS.md"]
         _exclude_from_git(worktree, patterns)
-        
+
         # Verify: Patterns written to exclude file
         exclude_file = git_dir / "info" / "exclude"
         assert exclude_file.exists()
@@ -69,7 +69,7 @@ class TestExcludeFromGit:
         assert ".kittify/memory" in content
         assert ".kittify/AGENTS.md" in content
         assert "# Added by spec-kitty (worktree symlinks)" in content
-    
+
     def test_exclude_handles_main_repo_git_directory(self, tmp_path):
         """Test that function works with .git directory (not file).
         
@@ -80,20 +80,20 @@ class TestExcludeFromGit:
         # Setup: Create main repo with .git directory
         repo = tmp_path / "repo"
         repo.mkdir()
-        
+
         git_dir = repo / ".git"
         git_dir.mkdir()
-        
+
         # Call function
         patterns = [".kittify/memory"]
         _exclude_from_git(repo, patterns)
-        
+
         # Verify: Exclude file created in .git/info/exclude
         exclude_file = git_dir / "info" / "exclude"
         assert exclude_file.exists()
         content = exclude_file.read_text()
         assert ".kittify/memory" in content
-    
+
     def test_exclude_parses_gitdir_from_worktree_git_file(self, tmp_path):
         """Test parsing 'gitdir:' prefix from worktree .git file.
         
@@ -104,24 +104,24 @@ class TestExcludeFromGit:
         # Setup: Create worktree with gitdir: prefix
         worktree = tmp_path / "worktree"
         worktree.mkdir()
-        
+
         git_dir = tmp_path / "main" / ".git" / "worktrees" / "test"
         git_dir.mkdir(parents=True)
-        
+
         # .git file with "gitdir: " prefix (7 characters)
         git_file = worktree / ".git"
         git_file.write_text(f"gitdir: {git_dir}")
-        
+
         # Call function
         patterns = ["test-pattern"]
         _exclude_from_git(worktree, patterns)
-        
+
         # Verify: Correct git_dir path parsed
         exclude_file = git_dir / "info" / "exclude"
         assert exclude_file.exists()
         content = exclude_file.read_text()
         assert "test-pattern" in content
-    
+
     def test_exclude_handles_file_write_errors_gracefully(self, tmp_path):
         """Test OSError handling during file write operations.
         
@@ -132,18 +132,18 @@ class TestExcludeFromGit:
         # Setup: Create worktree with read-only exclude file
         worktree = tmp_path / "worktree"
         worktree.mkdir()
-        
+
         git_dir = worktree / ".git"
         git_dir.mkdir()
-        
+
         exclude_file = git_dir / "info" / "exclude"
         exclude_file.parent.mkdir(parents=True)
         exclude_file.touch()
-        
+
         # Make file read-only
         import os
         os.chmod(exclude_file, 0o444)
-        
+
         # Call function - should NOT raise OSError
         try:
             patterns = ["test-pattern"]
@@ -167,7 +167,7 @@ class TestGetNextFeatureNumber:
     - item.name[:3] → item.name[:4]
     - len(item.name) >= 3 → len(item.name) > 3
     """
-    
+
     def test_returns_one_for_empty_repository(self, tmp_path):
         """Test that function returns 1 when no features exist.
         
@@ -180,13 +180,13 @@ class TestGetNextFeatureNumber:
         repo.mkdir()
         (repo / "kitty-specs").mkdir()
         (repo / ".worktrees").mkdir()
-        
+
         # Call function
         result = get_next_feature_number(repo)
-        
+
         # Verify: Returns 1 (not 0, not 2)
         assert result == 1
-    
+
     def test_returns_max_plus_one_with_existing_features(self, tmp_path):
         """Test that function returns next number after highest existing.
         
@@ -199,18 +199,18 @@ class TestGetNextFeatureNumber:
         repo = tmp_path / "repo"
         specs_dir = repo / "kitty-specs"
         specs_dir.mkdir(parents=True)
-        
+
         # Create features: 001, 003, 005 (gaps intentional)
         (specs_dir / "001-first-feature").mkdir()
         (specs_dir / "003-third-feature").mkdir()
         (specs_dir / "005-fifth-feature").mkdir()
-        
+
         # Call function
         result = get_next_feature_number(repo)
-        
+
         # Verify: Returns 6 (max + 1)
         assert result == 6
-    
+
     def test_scans_both_kitty_specs_and_worktrees(self, tmp_path):
         """Test that function checks both directories for feature numbers.
         
@@ -225,21 +225,21 @@ class TestGetNextFeatureNumber:
         worktrees_dir = repo / ".worktrees"
         specs_dir.mkdir(parents=True)
         worktrees_dir.mkdir(parents=True)
-        
+
         # kitty-specs has 001, 002
         (specs_dir / "001-feature-a").mkdir()
         (specs_dir / "002-feature-b").mkdir()
-        
+
         # .worktrees has 003, 004 (higher numbers)
         (worktrees_dir / "003-feature-c").mkdir()
         (worktrees_dir / "004-feature-d").mkdir()
-        
+
         # Call function
         result = get_next_feature_number(repo)
-        
+
         # Verify: Returns 5 (max from both directories + 1)
         assert result == 5
-    
+
     def test_skips_invalid_feature_names(self, tmp_path):
         """Test that non-numeric or invalid prefixes are skipped.
         
@@ -252,19 +252,19 @@ class TestGetNextFeatureNumber:
         repo = tmp_path / "repo"
         specs_dir = repo / "kitty-specs"
         specs_dir.mkdir(parents=True)
-        
+
         # Valid feature
         (specs_dir / "003-valid-feature").mkdir()
-        
+
         # Invalid features (should be skipped)
         (specs_dir / "abc-invalid").mkdir()  # Non-numeric
         (specs_dir / "12").mkdir()  # Too short
         (specs_dir / "README.md").touch()  # File, not directory
         # Note: "999x-malformed" has "999" as valid digit prefix, so it counts
-        
+
         # Call function
         result = get_next_feature_number(repo)
-        
+
         # Verify: Returns 4 (only 003 counted)
         assert result == 4
 
@@ -283,7 +283,7 @@ class TestCreateFeatureWorktree:
     - VCS fallback → subprocess.run() mutations
     - Exception marker string checks
     """
-    
+
     def test_auto_detects_feature_number_when_none(self, tmp_path):
         """Test that feature_number=None calls get_next_feature_number().
         
@@ -297,11 +297,11 @@ class TestCreateFeatureWorktree:
         worktrees_dir = repo / ".worktrees"
         specs_dir.mkdir(parents=True)
         worktrees_dir.mkdir(parents=True)
-        
+
         # Existing features
         (specs_dir / "001-feature-a").mkdir()
         (specs_dir / "002-feature-b").mkdir()
-        
+
         # Mock VCS to succeed
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
@@ -309,15 +309,15 @@ class TestCreateFeatureWorktree:
             mock_result.success = True
             mock_vcs.create_workspace.return_value = mock_result
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Call with feature_number=None
             worktree_path, feature_dir = create_feature_worktree(
                 repo, "test-feature", feature_number=None
             )
-            
+
             # Verify: Uses next number (3)
             assert "003-test-feature" in str(worktree_path)
-    
+
     def test_branch_name_formatting(self, tmp_path):
         """Test branch name formatted as 003-feature-slug.
         
@@ -329,7 +329,7 @@ class TestCreateFeatureWorktree:
         repo = tmp_path / "repo"
         (repo / "kitty-specs").mkdir(parents=True)
         (repo / ".worktrees").mkdir()
-        
+
         # Mock VCS
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
@@ -337,16 +337,16 @@ class TestCreateFeatureWorktree:
             mock_result.success = True
             mock_vcs.create_workspace.return_value = mock_result
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Call with explicit feature_number=5
             worktree_path, feature_dir = create_feature_worktree(
                 repo, "my-feature", feature_number=5
             )
-            
+
             # Verify: Branch name is 005-my-feature (zero-padded)
             assert "005-my-feature" in str(worktree_path)
             assert worktree_path == repo / ".worktrees" / "005-my-feature"
-    
+
     def test_vcs_abstraction_success_path(self, tmp_path):
         """Test workspace creation through VCS abstraction (no fallback).
         
@@ -359,7 +359,7 @@ class TestCreateFeatureWorktree:
         repo = tmp_path / "repo"
         (repo / "kitty-specs").mkdir(parents=True)
         (repo / ".worktrees").mkdir()
-        
+
         # Mock VCS success
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
@@ -367,18 +367,18 @@ class TestCreateFeatureWorktree:
             mock_result.success = True
             mock_vcs.create_workspace.return_value = mock_result
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Also mock setup_feature_directory to prevent file operations
             with patch("specify_cli.core.worktree.setup_feature_directory"):
                 worktree_path, feature_dir = create_feature_worktree(
                     repo, "test-feature", feature_number=1
                 )
-                
+
                 # Verify: VCS create_workspace was called
                 assert mock_vcs.create_workspace.called
                 # Verify: Worktree path returned
                 assert worktree_path == repo / ".worktrees" / "001-test-feature"
-    
+
     def test_fallback_to_direct_git_on_vcs_failure(self, tmp_path):
         """Test fallback to direct git command when VCS abstraction fails.
         
@@ -391,34 +391,34 @@ class TestCreateFeatureWorktree:
         repo = tmp_path / "repo"
         (repo / "kitty-specs").mkdir(parents=True)
         (repo / ".worktrees").mkdir()
-        
+
         # Mock VCS to fail (non-deterministic error)
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
             mock_vcs.create_workspace.side_effect = RuntimeError("VCS failed")
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Mock subprocess to succeed
             with patch("specify_cli.core.worktree.subprocess.run") as mock_run, \
                  patch("specify_cli.core.worktree.setup_feature_directory"), \
                  patch("specify_cli.core.worktree.warnings.warn") as mock_warn:
-                
+
                 mock_run.return_value = MagicMock(returncode=0)
-                
+
                 worktree_path, feature_dir = create_feature_worktree(
                     repo, "test-feature", feature_number=1
                 )
-                
+
                 # Verify: subprocess.run was called with git worktree add
                 assert mock_run.called
                 call_args = mock_run.call_args[0][0]
                 assert call_args[0] == "git"
                 assert call_args[1] == "worktree"
                 assert call_args[2] == "add"
-                
+
                 # Verify: Warning issued
                 assert mock_warn.called
-    
+
     def test_raises_on_deterministic_preflight_errors(self, tmp_path):
         """Test that deterministic errors (trust, ownership) are re-raised.
         
@@ -430,7 +430,7 @@ class TestCreateFeatureWorktree:
         repo = tmp_path / "repo"
         (repo / "kitty-specs").mkdir(parents=True)
         (repo / ".worktrees").mkdir()
-        
+
         # Mock VCS to raise deterministic error
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
@@ -438,11 +438,11 @@ class TestCreateFeatureWorktree:
                 "Git repository check failed: trust issue"
             )
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Call and expect error to propagate
             with pytest.raises(RuntimeError, match="Git repository check failed"):
                 create_feature_worktree(repo, "test-feature", feature_number=1)
-    
+
     def test_returns_existing_worktree_if_valid(self, tmp_path):
         """Test that existing valid worktree is returned without error.
         
@@ -456,31 +456,31 @@ class TestCreateFeatureWorktree:
         (repo / "kitty-specs").mkdir(parents=True)
         worktree = repo / ".worktrees" / "001-test-feature"
         worktree.mkdir(parents=True)
-        
+
         # Create .git marker
         (worktree / ".git").touch()
-        
+
         # Create feature dir
         feature_dir = worktree / "kitty-specs" / "001-test-feature"
         feature_dir.mkdir(parents=True)
-        
+
         # Mock VCS
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
             mock_vcs.is_repo.return_value = True
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Call function
             result_worktree, result_feature = create_feature_worktree(
                 repo, "test-feature", feature_number=1
             )
-            
+
             # Verify: Returns existing paths
             assert result_worktree == worktree
             assert result_feature == feature_dir
             # Verify: create_workspace NOT called (early return)
             assert not mock_vcs.create_workspace.called
-    
+
     def test_raises_file_exists_error_for_invalid_path(self, tmp_path):
         """Test FileExistsError raised when path exists but is not valid worktree.
         
@@ -493,15 +493,15 @@ class TestCreateFeatureWorktree:
         (repo / "kitty-specs").mkdir(parents=True)
         worktree = repo / ".worktrees" / "001-test-feature"
         worktree.mkdir(parents=True)
-        
+
         # NO .git marker (invalid worktree)
-        
+
         # Mock VCS
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
             mock_vcs.is_repo.return_value = False
             mock_get_vcs.return_value = mock_vcs
-            
+
             # Call and expect FileExistsError
             with pytest.raises(FileExistsError, match="Worktree path already exists"):
                 create_feature_worktree(repo, "test-feature", feature_number=1)
@@ -522,7 +522,7 @@ class TestSetupFeatureDirectory:
     - Path("../../../.kittify/memory") relative path mutations
     - shutil.copy2() template mutations
     """
-    
+
     def test_creates_all_subdirectories(self, tmp_path):
         """Test that checklists/, research/, tasks/ directories are created.
         
@@ -535,11 +535,11 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # Mock _exclude_from_git to avoid git operations
         with patch("specify_cli.core.worktree._exclude_from_git"):
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: All subdirectories created
         assert (feature_dir / "checklists").exists()
         assert (feature_dir / "checklists").is_dir()
@@ -547,7 +547,7 @@ class TestSetupFeatureDirectory:
         assert (feature_dir / "research").is_dir()
         assert (feature_dir / "tasks").exists()
         assert (feature_dir / "tasks").is_dir()
-    
+
     def test_creates_gitkeep_and_readme_in_tasks(self, tmp_path):
         """Test that .gitkeep and README.md are created in tasks/.
         
@@ -559,19 +559,19 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         with patch("specify_cli.core.worktree._exclude_from_git"):
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Files created
         assert (feature_dir / "tasks" / ".gitkeep").exists()
         assert (feature_dir / "tasks" / "README.md").exists()
-        
+
         # Verify: README has content
         readme_content = (feature_dir / "tasks" / "README.md").read_text()
         assert "Tasks Directory" in readme_content
         assert "work package" in readme_content.lower()
-    
+
     def test_creates_symlinks_on_unix(self, tmp_path):
         """Test that memory/ and AGENTS.md are symlinked on Unix platforms.
         
@@ -584,26 +584,26 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # Create .kittify/memory and AGENTS.md in main repo
         kittify_dir = repo_root / ".kittify"
         kittify_dir.mkdir(parents=True)
         (kittify_dir / "memory").mkdir()
         (kittify_dir / "AGENTS.md").touch()
-        
+
         # Force Unix behavior
         with patch("specify_cli.core.worktree.platform.system", return_value="Linux"), \
              patch("specify_cli.core.worktree._exclude_from_git"):
-            
+
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Symlinks created (not copies)
         worktree_memory = worktree / ".kittify" / "memory"
         worktree_agents = worktree / ".kittify" / "AGENTS.md"
-        
+
         assert worktree_memory.is_symlink()
         assert worktree_agents.is_symlink()
-    
+
     def test_copies_files_on_windows(self, tmp_path):
         """Test that files are copied (not symlinked) on Windows.
         
@@ -616,29 +616,29 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # Create .kittify/memory and AGENTS.md in main repo
         kittify_dir = repo_root / ".kittify"
         kittify_dir.mkdir(parents=True)
         (kittify_dir / "memory").mkdir()
         (kittify_dir / "AGENTS.md").write_text("test content")
-        
+
         # Force Windows behavior
         with patch("specify_cli.core.worktree.platform.system", return_value="Windows"), \
              patch("specify_cli.core.worktree._exclude_from_git"):
-            
+
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Files copied (not symlinked)
         worktree_memory = worktree / ".kittify" / "memory"
         worktree_agents = worktree / ".kittify" / "AGENTS.md"
-        
+
         assert worktree_memory.exists()
         assert not worktree_memory.is_symlink()
         assert worktree_agents.exists()
         assert not worktree_agents.is_symlink()
         assert worktree_agents.read_text() == "test content"
-    
+
     def test_relative_path_correctness(self, tmp_path):
         """Test that relative paths from worktree to main repo are correct.
         
@@ -651,30 +651,30 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "repo" / ".worktrees" / "001-feature"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # Create main repo .kittify/
         kittify_dir = repo_root / ".kittify"
         kittify_dir.mkdir(parents=True)
         (kittify_dir / "memory").mkdir()
         (kittify_dir / "AGENTS.md").write_text("test")
-        
+
         # Create symlinks
         with patch("specify_cli.core.worktree.platform.system", return_value="Linux"), \
              patch("specify_cli.core.worktree._exclude_from_git"):
-            
+
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Symlinks resolve to main repo
         worktree_memory = worktree / ".kittify" / "memory"
         worktree_agents = worktree / ".kittify" / "AGENTS.md"
-        
+
         assert worktree_memory.is_symlink()
         assert worktree_agents.is_symlink()
-        
+
         # Resolve and verify they point to main repo
         assert worktree_memory.resolve() == (kittify_dir / "memory").resolve()
         assert worktree_agents.resolve() == (kittify_dir / "AGENTS.md").resolve()
-    
+
     def test_copies_spec_template_if_exists(self, tmp_path):
         """Test that spec.md template is copied when available.
         
@@ -686,21 +686,21 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # Create template in .kittify/templates/
         template_dir = repo_root / ".kittify" / "templates"
         template_dir.mkdir(parents=True)
         template = template_dir / "spec-template.md"
         template.write_text("# Template Content")
-        
+
         with patch("specify_cli.core.worktree._exclude_from_git"):
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Template copied to spec.md
         spec_file = feature_dir / "spec.md"
         assert spec_file.exists()
         assert spec_file.read_text() == "# Template Content"
-    
+
     def test_creates_empty_spec_if_no_template(self, tmp_path):
         """Test that empty spec.md is created if no template found.
         
@@ -712,12 +712,12 @@ class TestSetupFeatureDirectory:
         worktree = tmp_path / "worktree"
         repo_root = tmp_path / "repo"
         feature_dir = worktree / "kitty-specs" / "001-feature"
-        
+
         # No .kittify/templates/ directory
-        
+
         with patch("specify_cli.core.worktree._exclude_from_git"):
             setup_feature_directory(feature_dir, worktree, repo_root)
-        
+
         # Verify: Empty spec.md created
         spec_file = feature_dir / "spec.md"
         assert spec_file.exists()
@@ -738,7 +738,7 @@ class TestValidateFeatureStructure:
     - if check_tasks → flag mutations
     - paths["spec_file"] = str(spec_file) → dictionary mutations
     """
-    
+
     def test_invalid_when_feature_directory_missing(self, tmp_path):
         """Test that validation fails when feature directory doesn't exist.
         
@@ -749,15 +749,15 @@ class TestValidateFeatureStructure:
         """
         # Setup: Non-existent directory
         feature_dir = tmp_path / "non-existent"
-        
+
         # Call validation
         result = validate_feature_structure(feature_dir)
-        
+
         # Verify: Invalid result
         assert result["valid"] is False
         assert len(result["errors"]) > 0
         assert "not found" in result["errors"][0].lower()
-    
+
     def test_invalid_when_spec_md_missing(self, tmp_path):
         """Test that validation fails when spec.md is missing.
         
@@ -768,14 +768,14 @@ class TestValidateFeatureStructure:
         # Setup: Directory exists but no spec.md
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
-        
+
         # Call validation
         result = validate_feature_structure(feature_dir)
-        
+
         # Verify: Invalid with specific error
         assert result["valid"] is False
         assert any("spec.md" in err for err in result["errors"])
-    
+
     def test_warnings_for_missing_recommended_dirs(self, tmp_path):
         """Test that missing checklists/, research/, tasks/ generate warnings.
         
@@ -788,20 +788,20 @@ class TestValidateFeatureStructure:
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
         (feature_dir / "spec.md").touch()
-        
+
         # Call validation
         result = validate_feature_structure(feature_dir)
-        
+
         # Verify: Valid but with warnings
         assert result["valid"] is True
         assert len(result["warnings"]) > 0
-        
+
         # Check for specific directory warnings
         warning_text = " ".join(result["warnings"])
         assert "checklists" in warning_text
         assert "research" in warning_text
         assert "tasks" in warning_text
-    
+
     def test_check_tasks_flag_behavior(self, tmp_path):
         """Test that check_tasks=True makes tasks.md required.
         
@@ -814,21 +814,21 @@ class TestValidateFeatureStructure:
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
         (feature_dir / "spec.md").touch()
-        
+
         # Test 1: check_tasks=False (default) → valid
         result_false = validate_feature_structure(feature_dir, check_tasks=False)
         assert result_false["valid"] is True
-        
+
         # Test 2: check_tasks=True → invalid (missing tasks.md)
         result_true = validate_feature_structure(feature_dir, check_tasks=True)
         assert result_true["valid"] is False
         assert any("tasks.md" in err for err in result_true["errors"])
-        
+
         # Test 3: Add tasks.md and check_tasks=True → valid
         (feature_dir / "tasks.md").touch()
         result_with_tasks = validate_feature_structure(feature_dir, check_tasks=True)
         assert result_with_tasks["valid"] is True
-    
+
     def test_return_dict_structure(self, tmp_path):
         """Test that return dict contains all expected keys and values.
         
@@ -846,10 +846,10 @@ class TestValidateFeatureStructure:
         (feature_dir / "checklists").mkdir()
         (feature_dir / "research").mkdir()
         (feature_dir / "tasks").mkdir()
-        
+
         # Call validation
         result = validate_feature_structure(feature_dir, check_tasks=True)
-        
+
         # Verify: All expected keys present
         assert "valid" in result
         assert "errors" in result
@@ -858,7 +858,7 @@ class TestValidateFeatureStructure:
         assert "artifact_files" in result
         assert "artifact_dirs" in result
         assert "available_docs" in result
-        
+
         # Verify: Types correct
         assert isinstance(result["valid"], bool)
         assert isinstance(result["errors"], list)
@@ -867,13 +867,13 @@ class TestValidateFeatureStructure:
         assert isinstance(result["artifact_files"], dict)
         assert isinstance(result["artifact_dirs"], dict)
         assert isinstance(result["available_docs"], list)
-        
+
         # Verify: Content
         assert result["valid"] is True
         assert "spec.md" in result["available_docs"]
         assert "plan.md" in result["available_docs"]
         assert "tasks.md" in result["available_docs"]
-        
+
         # Verify: String values in paths
         assert all(isinstance(v, str) for v in result["paths"].values())
         assert str(feature_dir) in result["paths"]["feature_dir"]
@@ -889,7 +889,7 @@ class TestWorktreeIntegration:
     These tests are optional but provide additional mutation coverage by testing
     workflows that span multiple functions.
     """
-    
+
     @pytest.mark.integration
     def test_create_and_validate_worktree_workflow(self, tmp_path):
         """Test complete workflow: create worktree → validate structure.
@@ -900,7 +900,7 @@ class TestWorktreeIntegration:
         - validate_feature_structure()
         """
         pass
-    
+
     @pytest.mark.integration
     def test_feature_numbering_with_existing_worktrees(self, tmp_path):
         """Test feature numbering when worktrees exist but not in kitty-specs.

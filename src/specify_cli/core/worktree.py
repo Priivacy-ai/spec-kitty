@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
@@ -129,8 +128,8 @@ def get_next_feature_number(repo_root: Path) -> int:
 def create_feature_worktree(
     repo_root: Path,
     feature_slug: str,
-    feature_number: Optional[int] = None
-) -> Tuple[Path, Path]:
+    feature_number: int | None = None
+) -> tuple[Path, Path]:
     """Create workspace (git worktree or jj workspace) for feature development.
 
     Creates a new workspace with a feature branch and sets up the

@@ -1,6 +1,6 @@
 """Tests for constitution extraction pipeline."""
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from unittest.mock import patch
 
 import pytest
@@ -143,7 +143,7 @@ class TestMetadataGeneration:
 
     @patch("specify_cli.constitution.extractor.datetime")
     def test_metadata_has_timestamp(self, mock_datetime, extractor: Extractor) -> None:
-        fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time
         mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
@@ -162,7 +162,7 @@ class TestIdempotency:
 
     @patch("specify_cli.constitution.extractor.datetime")
     def test_extract_twice_identical_results(self, mock_datetime, extractor: Extractor) -> None:
-        fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time
         mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 

@@ -9,7 +9,7 @@ strictness resolution, and checkpoint/resume across middleware layers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from specify_cli.glossary.checkpoint import ScopeRef
 from specify_cli.glossary.extraction import ExtractedTerm
@@ -45,22 +45,22 @@ class PrimitiveExecutionContext:
     step_id: str
     mission_id: str
     run_id: str
-    inputs: Dict[str, Any]
-    metadata: Dict[str, Any]
-    config: Dict[str, Any]
+    inputs: dict[str, Any]
+    metadata: dict[str, Any]
+    config: dict[str, Any]
 
     # --- Glossary middleware fields (populated by pipeline) ---
-    extracted_terms: List[ExtractedTerm] = field(default_factory=list)
-    conflicts: List[SemanticConflict] = field(default_factory=list)
-    effective_strictness: Optional[Strictness] = None
-    retry_token: Optional[str] = None
+    extracted_terms: list[ExtractedTerm] = field(default_factory=list)
+    conflicts: list[SemanticConflict] = field(default_factory=list)
+    effective_strictness: Strictness | None = None
+    retry_token: str | None = None
     # Backward-compat alias used by some callers; mirrors retry_token.
-    checkpoint_token: Optional[str] = None
-    scope_refs: List[ScopeRef] = field(default_factory=list)
+    checkpoint_token: str | None = None
+    scope_refs: list[ScopeRef] = field(default_factory=list)
 
     # --- Internal pipeline state ---
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Populate step_input from inputs for middleware compatibility."""
@@ -72,7 +72,7 @@ class PrimitiveExecutionContext:
             self.retry_token = self.checkpoint_token
 
     @property
-    def mission_strictness(self) -> Optional[Strictness]:
+    def mission_strictness(self) -> Strictness | None:
         """Extract mission-level strictness from config.
 
         Returns:
@@ -88,7 +88,7 @@ class PrimitiveExecutionContext:
         return None
 
     @property
-    def step_strictness(self) -> Optional[Strictness]:
+    def step_strictness(self) -> Strictness | None:
         """Extract step-level strictness from metadata.
 
         Returns:
@@ -105,7 +105,7 @@ class PrimitiveExecutionContext:
                 return None
         return None
 
-    def _glossary_enabled_from_metadata(self, value: object) -> Optional[bool]:
+    def _glossary_enabled_from_metadata(self, value: object) -> bool | None:
         if isinstance(value, bool):
             return value
         if isinstance(value, str):

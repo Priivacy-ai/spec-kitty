@@ -22,9 +22,9 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from specify_cli.glossary.scope import GlossaryScope
 from specify_cli.glossary.strictness import Strictness
@@ -127,7 +127,7 @@ def create_checkpoint(
         input_hash=compute_input_hash(inputs),
         cursor=cursor,
         retry_token=str(uuid.uuid4()),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -141,7 +141,7 @@ def load_checkpoint(
     step_id: str,
     mission_id: str | None = None,
     retry_token: str | None = None,
-) -> Optional[StepCheckpoint]:
+) -> StepCheckpoint | None:
     """Load latest checkpoint for step_id from event log.
 
     Reads StepCheckpointed events from event log and returns the most recent
@@ -164,7 +164,7 @@ def load_checkpoint(
         logger.info("No glossary events directory for step=%s", step_id)
         return None
 
-    latest: Optional[StepCheckpoint] = None
+    latest: StepCheckpoint | None = None
 
     # Scan all mission event logs in the glossary events directory
     for event_log_path in events_dir.glob("*.events.jsonl"):

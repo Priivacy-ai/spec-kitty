@@ -9,10 +9,9 @@ the new frontmatter-only lane system (flat tasks/ directory).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 # Lane directories that indicate legacy format when they contain .md files
-LEGACY_LANE_DIRS: List[str] = ["planned", "doing", "for_review", "done"]
+LEGACY_LANE_DIRS: list[str] = ["planned", "doing", "for_review", "done"]
 
 
 def is_legacy_format(feature_path: Path) -> bool:

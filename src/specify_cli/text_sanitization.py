@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 __all__ = [
     "sanitize_markdown_text",
@@ -48,7 +47,7 @@ PROBLEMATIC_CHARS = {
 
 # Compile regex for detecting any problematic character
 _PROBLEMATIC_PATTERN = re.compile(
-    "[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS.keys()) + "]"
+    "[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS) + "]"
 )
 
 
@@ -123,7 +122,7 @@ def sanitize_file(
     *,
     backup: bool = True,
     dry_run: bool = False,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Sanitize a markdown file in place.
 
     Args:
@@ -203,7 +202,7 @@ def sanitize_directory(
     pattern: str = "**/*.md",
     backup: bool = False,
     dry_run: bool = False,
-) -> dict[str, tuple[bool, Optional[str]]]:
+) -> dict[str, tuple[bool, str | None]]:
     """Sanitize all markdown files in a directory.
 
     Args:
@@ -215,7 +214,7 @@ def sanitize_directory(
     Returns:
         Dictionary mapping file paths to (was_modified, error_message) tuples
     """
-    results: dict[str, tuple[bool, Optional[str]]] = {}
+    results: dict[str, tuple[bool, str | None]] = {}
 
     for file_path in directory.glob(pattern):
         if file_path.is_file():

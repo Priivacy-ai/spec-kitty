@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 
@@ -17,7 +16,7 @@ class MigrationRecord:
     id: str
     applied_at: datetime
     result: str  # "success", "skipped", "failed"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @dataclass
@@ -26,14 +25,14 @@ class ProjectMetadata:
 
     version: str
     initialized_at: datetime
-    last_upgraded_at: Optional[datetime] = None
+    last_upgraded_at: datetime | None = None
     python_version: str = ""
     platform: str = ""
     platform_version: str = ""
-    applied_migrations: List[MigrationRecord] = field(default_factory=list)
+    applied_migrations: list[MigrationRecord] = field(default_factory=list)
 
     @classmethod
-    def load(cls, kittify_dir: Path) -> Optional["ProjectMetadata"]:
+    def load(cls, kittify_dir: Path) -> ProjectMetadata | None:
         """Load metadata from .kittify/metadata.yaml.
 
         Args:
@@ -47,7 +46,7 @@ class ProjectMetadata:
             return None
 
         try:
-            with open(metadata_path, "r", encoding="utf-8-sig") as f:
+            with open(metadata_path, encoding="utf-8-sig") as f:
                 data = yaml.safe_load(f)
         except (OSError, yaml.YAMLError):
             return None
@@ -163,7 +162,7 @@ class ProjectMetadata:
         )
 
     def record_migration(
-        self, migration_id: str, result: str, notes: Optional[str] = None
+        self, migration_id: str, result: str, notes: str | None = None
     ) -> None:
         """Record a migration application.
 
