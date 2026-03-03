@@ -114,6 +114,7 @@ out
 
 tmp/**
 !tmp/.gitkeep
+pytest-of-*/
 .kittify/missions/__pycache__/
 # .gitignore entry for mutants
 

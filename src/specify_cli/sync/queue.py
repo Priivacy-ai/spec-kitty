@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -201,7 +202,7 @@ class OfflineQueue:
             True if queued successfully, False if queue is full
         """
         if self.size() >= self.MAX_QUEUE_SIZE:
-            print(f"⚠️  Offline queue full ({self.MAX_QUEUE_SIZE:,} events). Cannot sync until reconnected.")
+            print(f"⚠️  Offline queue full ({self.MAX_QUEUE_SIZE:,} events). Cannot sync until reconnected.", file=sys.stderr)
             return False
 
         conn = sqlite3.connect(self.db_path)

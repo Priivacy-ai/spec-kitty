@@ -101,42 +101,39 @@ def main_callback(
         check_version_pin(project_root)
 
 
-def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
-    if os.name == "nt":
-        return  # Windows: skip silently
-    scripts_root = project_path / ".kittify" / "scripts"
-    if not scripts_root.is_dir():
-        return
-    failures: list[str] = []
-    updated = 0
-    for script in scripts_root.rglob("*.sh"):
+def _compute_execute_mode(mode: int) -> int:
+    new_mode = mode
+    if mode & 0o400:
+        new_mode |= 0o100
+    if mode & 0o040:
+        new_mode |= 0o010
+    if mode & 0o004:
+        new_mode |= 0o001
+    if not (new_mode & 0o100):
+        new_mode |= 0o100
+    return new_mode
+
+
+def _try_chmod_script(script: Path, scripts_root: Path) -> tuple[bool, str | None]:
+    try:
+        if script.is_symlink() or not script.is_file():
+            return False, None
         try:
-            if script.is_symlink() or not script.is_file():
-                continue
-            try:
-                with script.open("rb") as f:
-                    if f.read(2) != b"#!":
-                        continue
-            except Exception:
-                continue
-            st = script.stat()
-            mode = st.st_mode
-            if mode & 0o111:
-                continue
-            new_mode = mode
-            if mode & 0o400:
-                new_mode |= 0o100
-            if mode & 0o040:
-                new_mode |= 0o010
-            if mode & 0o004:
-                new_mode |= 0o001
-            if not (new_mode & 0o100):
-                new_mode |= 0o100
-            os.chmod(script, new_mode)
-            updated += 1
-        except Exception as e:
-            failures.append(f"{script.relative_to(scripts_root)}: {e}")
+            with script.open("rb") as f:
+                if f.read(2) != b"#!":
+                    return False, None
+        except Exception:
+            return False, None
+        mode = script.stat().st_mode
+        if mode & 0o111:
+            return False, None
+        os.chmod(script, _compute_execute_mode(mode))
+        return True, None
+    except Exception as e:
+        return False, f"{script.relative_to(scripts_root)}: {e}"
+
+
+def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: list[str]) -> None:
     if tracker:
         detail = f"{updated} updated" + (f", {len(failures)} failed" if failures else "")
         tracker.add("chmod", "Set script permissions recursively")
@@ -150,6 +147,24 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
                 console.print(f"  - {f}")
 
 
+def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
+    """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
+    if os.name == "nt":
+        return  # Windows: skip silently
+    scripts_root = project_path / ".kittify" / "scripts"
+    if not scripts_root.is_dir():
+        return
+    failures: list[str] = []
+    updated = 0
+    for script in scripts_root.rglob("*.sh"):
+        was_updated, error = _try_chmod_script(script, scripts_root)
+        if was_updated:
+            updated += 1
+        if error:
+            failures.append(error)
+    _report_chmod_results(tracker, updated, failures)
+
+
 # Register the init command with necessary dependencies
 register_init_command(
     app,
@@ -161,7 +176,7 @@ register_init_command(
 
 register_commands(app)
 
-def main():
+def main() -> None:
     import sys
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
