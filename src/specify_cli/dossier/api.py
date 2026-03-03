@@ -60,9 +60,6 @@ class DossierOverviewResponse(BaseModel):
         None, description="When the dossier was last scanned"
     )
 
-    class Config:
-        json_encoders = {datetime: lambda v: v.isoformat()}
-
 
 class ArtifactListItem(BaseModel):
     """Summary of a single artifact in list view."""
@@ -134,9 +131,6 @@ class ArtifactDetailResponse(BaseModel):
     )
     indexed_at: datetime = Field(..., description="When artifact was indexed")
 
-    class Config:
-        json_encoders = {datetime: lambda v: v.isoformat()}
-
 
 class SnapshotExportResponse(BaseModel):
     """Snapshot JSON for SaaS import."""
@@ -155,9 +149,6 @@ class SnapshotExportResponse(BaseModel):
         ..., description="Artifact metadata summaries"
     )
     computed_at: str = Field(..., description="ISO timestamp when snapshot was computed")
-
-    class Config:
-        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 # ============================================================================

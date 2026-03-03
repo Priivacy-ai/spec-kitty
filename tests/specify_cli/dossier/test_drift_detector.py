@@ -11,7 +11,7 @@ Tests cover:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from specify_cli.dossier.drift_detector import (
@@ -758,7 +758,7 @@ class TestCaptureBaseline:
             feature_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         baseline = capture_baseline(
             feature_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
@@ -768,7 +768,7 @@ class TestCaptureBaseline:
             mission_key="software-dev",
             manifest_version="1",
         )
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
         assert before <= baseline.captured_at <= after
 
 

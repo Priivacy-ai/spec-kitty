@@ -84,8 +84,6 @@ class _JSONErrorGroup(TyperGroup):
             )
             _emit(envelope)
             raise SystemExit(2)
-        except SystemExit:
-            raise
 
 
 # The public ``app`` used by the main CLI to register orchestrator-api.

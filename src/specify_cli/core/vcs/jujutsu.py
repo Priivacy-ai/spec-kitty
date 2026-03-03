@@ -132,7 +132,7 @@ class JujutsuVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
-        sparse_exclude: list[str] | None = None,
+        sparse_exclude: list[str] | None = None,  # noqa: ARG002 - protocol compat
     ) -> WorkspaceCreateResult:
         """
         Create a new jj workspace.

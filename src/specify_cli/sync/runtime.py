@@ -78,6 +78,7 @@ class SyncRuntime:
     background_service: BackgroundSyncService | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     emitter: EventEmitter | None = field(default=None, repr=False)
+    _connect_task: object | None = field(default=None, repr=False)
     started: bool = False
 
     def start(self) -> None:
@@ -128,7 +129,7 @@ class SyncRuntime:
                 try:
                     asyncio.get_running_loop()
                     # Running event loop available: connect non-blocking.
-                    asyncio.ensure_future(self.ws_client.connect())
+                    self._connect_task = asyncio.ensure_future(self.ws_client.connect())
                 except RuntimeError:
                     # Synchronous CLI context: skip auto WebSocket connect.
                     # Creating a temporary event loop here spawns a background
@@ -176,7 +177,7 @@ class SyncRuntime:
                 import asyncio
                 try:
                     loop = asyncio.get_running_loop()
-                    asyncio.ensure_future(self.ws_client.disconnect())
+                    _task = asyncio.ensure_future(self.ws_client.disconnect())  # prevent GC
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     try:

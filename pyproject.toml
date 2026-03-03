@@ -86,6 +86,12 @@ test = [
     "build>=1.0.0",  # Required for distribution tests (wheel building)
     "mutmut>=3.5.0",  # Mutation testing
 ]
+lint = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.7.0",
+]
 
 [project.scripts]
 spec-kitty = "specify_cli:main"

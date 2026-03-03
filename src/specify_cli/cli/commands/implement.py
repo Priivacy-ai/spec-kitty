@@ -315,7 +315,6 @@ def display_rebase_warning(
     workspace_path: Path,
     wp_id: str,
     base_branch: str,
-    feature_slug: str
 ) -> None:
     """Display warning about needing to rebase on changed base.
 
@@ -323,7 +322,6 @@ def display_rebase_warning(
         workspace_path: Path to workspace directory
         wp_id: Work package ID (e.g., "WP02")
         base_branch: Base branch name (e.g., "010-workspace-per-wp-WP01")
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
     """
     console.print(f"\n[bold yellow]⚠️  Base branch {base_branch} has changed[/bold yellow]")
     console.print(f"Your {wp_id} workspace may have outdated code from base\n")
@@ -809,7 +807,7 @@ def implement(
             if workspace_info.is_stale:
                 if base:
                     base_branch = f"{feature_slug}-{base}"
-                    display_rebase_warning(workspace_path, wp_id, base_branch, feature_slug)
+                    display_rebase_warning(workspace_path, wp_id, base_branch)
                 else:
                     # No explicit base, but workspace is stale (base changed)
                     console.print("\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")

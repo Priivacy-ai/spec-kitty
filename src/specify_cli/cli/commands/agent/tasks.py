@@ -246,7 +246,6 @@ def _check_unchecked_subtasks(
     repo_root: Path,
     feature_slug: str,
     wp_id: str,
-    force: bool
 ) -> list[str]:
     """Check for unchecked subtasks in tasks.md for a given WP.
 
@@ -254,13 +253,9 @@ def _check_unchecked_subtasks(
         repo_root: Repository root path
         feature_slug: Feature slug (e.g., "010-workspace-per-wp")
         wp_id: Work package ID (e.g., "WP01")
-        force: If True, only warn; if False, fail on unchecked tasks
 
     Returns:
         List of unchecked task IDs (empty if all checked or not found)
-
-    Raises:
-        typer.Exit: If unchecked tasks found and force=False
     """
     # Use planning repo root (worktrees have kitty-specs/ sparse-checked out)
     main_repo_root = get_main_repo_root(repo_root)
@@ -936,7 +931,7 @@ def move_task(
 
         # Validate subtasks are complete when moving to for_review or done (Issue #72)
         if target_lane in ("for_review", "done") and not force:
-            unchecked = _check_unchecked_subtasks(repo_root, feature_slug, task_id, force)
+            unchecked = _check_unchecked_subtasks(repo_root, feature_slug, task_id)
             if unchecked:
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
                 for task in unchecked:

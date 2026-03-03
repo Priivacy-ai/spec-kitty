@@ -171,7 +171,6 @@ class TestStatePersistenceEdgeCases:
         """Test clearing state when file doesn't exist succeeds silently."""
         # Should not raise an error
         clear_state(tmp_path)
-        assert True  # Test passes if no exception raised
 
     def test_has_active_merge_empty_directory(self, tmp_path):
         """Test has_active_merge with no state file."""
