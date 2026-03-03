@@ -16,12 +16,10 @@ Tests cover:
 """
 
 import json
-import logging
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from dataclasses import dataclass, field
 
 import pytest
@@ -386,7 +384,7 @@ class TestEventPersistence:
         _local_append_event({"event_type": "A"}, log_path)
         _local_append_event({"event_type": "B"}, log_path)
 
-        lines = [l for l in log_path.read_text().splitlines() if l.strip()]
+        lines = [line for line in log_path.read_text().splitlines() if line.strip()]
         assert len(lines) == 2
         assert json.loads(lines[0])["event_type"] == "A"
         assert json.loads(lines[1])["event_type"] == "B"

@@ -109,7 +109,7 @@ def hash_file_with_validation(file_path: Path) -> Tuple[Optional[str], Optional[
         # Validate UTF-8 encoding by attempting decode
         try:
             content_bytes.decode("utf-8")
-        except UnicodeDecodeError as e:
+        except UnicodeDecodeError:
             return None, "invalid_utf8"
 
         # Hash the bytes directly

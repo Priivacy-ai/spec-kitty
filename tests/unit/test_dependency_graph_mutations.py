@@ -12,9 +12,7 @@ Iteration 1 Target Patterns:
 """
 
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,

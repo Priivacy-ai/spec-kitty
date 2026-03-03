@@ -7,10 +7,8 @@ events (timestamp-wins), and deduplication determinism.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce

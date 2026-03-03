@@ -3,12 +3,11 @@
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
 from specify_cli.doc_generators import (
-    DocGenerator,
     GeneratorResult,
     GeneratorError,
     JSDocGenerator,

@@ -14,7 +14,6 @@ Tests cover all detection scenarios:
 10. Error messages and guidance
 """
 
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -22,7 +21,6 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from specify_cli.core.feature_detection import (
-    FeatureContext,
     FeatureDetectionError,
     MultipleFeaturesError,
     NoFeatureFoundError,

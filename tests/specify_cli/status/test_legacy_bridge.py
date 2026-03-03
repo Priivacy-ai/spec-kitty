@@ -72,7 +72,7 @@ def create_snapshot(
         feature_slug=feature_slug,
         materialized_at=materialized_at,
         event_count=len(wps),
-        last_event_id=f"ULID_LAST" if wps else None,
+        last_event_id="ULID_LAST" if wps else None,
         work_packages=work_packages,
         summary=summary,
     )

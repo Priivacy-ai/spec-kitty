@@ -160,11 +160,11 @@ def repair_worktree(
         if not has_kitty_specs:
             console.print("  [dim]No kitty-specs/ directory[/dim]")
         else:
-            console.print(f"  kitty-specs/: [green]present[/green]")
+            console.print("  kitty-specs/: [green]present[/green]")
             if has_tasks:
-                console.print(f"  tasks/*.md: [yellow]present (stale copies)[/yellow]")
+                console.print("  tasks/*.md: [yellow]present (stale copies)[/yellow]")
             else:
-                console.print(f"  tasks/*.md: [dim]none[/dim]")
+                console.print("  tasks/*.md: [dim]none[/dim]")
 
     console.print()
     console.print("[bold cyan]How WP operations work:[/bold cyan]")

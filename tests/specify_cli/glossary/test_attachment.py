@@ -1,7 +1,5 @@
 """Tests for glossary pipeline attachment (T042)."""
 
-import pytest
-from unittest.mock import MagicMock
 
 from specify_cli.glossary.attachment import (
     attach_glossary_pipeline,

@@ -9,7 +9,6 @@ Covers:
 - T009: --report flag JSON failure dump
 - T010: Integration / regression checks
 """
-import gzip
 import json
 import tempfile
 from pathlib import Path

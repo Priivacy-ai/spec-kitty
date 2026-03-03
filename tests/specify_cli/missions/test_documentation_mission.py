@@ -1,13 +1,9 @@
 """Tests for documentation mission configuration."""
 
-import pytest
 from pathlib import Path
 
 from specify_cli.mission import (
-    Mission,
-    MissionError,
-    get_mission_by_name,
-    list_available_missions
+    Mission
 )
 
 

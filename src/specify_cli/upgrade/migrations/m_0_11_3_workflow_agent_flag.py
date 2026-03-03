@@ -63,7 +63,6 @@ class WorkflowAgentFlagMigration(BaseMigration):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
                 continue
-            agent_name = self._agent_name(agent_root)
             for filename in self.TARGET_FILES:
                 path = agent_dir / filename
                 if not path.exists():

@@ -18,7 +18,6 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.sync.events import (
-    emit_wp_status_changed,
     emit_history_added,
     emit_error_logged,
 )
@@ -31,11 +30,20 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
-    get_feature_target_branch,
     FeatureDetectionError,
 )
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
+from specify_cli.tasks_support import (
+    LANES,
+    append_activity_log,
+    build_document,
+    ensure_lane,
+    extract_scalar,
+    locate_work_package,
+    set_scalar,
+    split_frontmatter,
+)
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -48,18 +56,6 @@ def resolve_primary_branch(repo_root: Path) -> str:
     """
     from specify_cli.core.git_ops import resolve_primary_branch as _resolve
     return _resolve(repo_root)
-from specify_cli.tasks_support import (
-    LANES,
-    WorkPackage,
-    activity_entries,
-    append_activity_log,
-    build_document,
-    ensure_lane,
-    extract_scalar,
-    locate_work_package,
-    set_scalar,
-    split_frontmatter,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +360,7 @@ def _check_dependent_warnings(
             continue
 
     if incomplete:
-        console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
+        console.print("\n[yellow]⚠️  Dependency Alert[/yellow]")
         console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
         console.print("\nIf changes are requested during review:")
         console.print("  1. Notify dependent WP agents")
@@ -945,11 +941,11 @@ def move_task(
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
                 for task in unchecked:
                     error_msg += f"  - [ ] {task}\n"
-                error_msg += f"\nMark these complete first:\n"
+                error_msg += "\nMark these complete first:\n"
                 for task in unchecked[:3]:  # Show first 3 examples
                     task_clean = task.split()[0] if ' ' in task else task
                     error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
-                error_msg += f"\nOr use --force to override (not recommended)"
+                error_msg += "\nOr use --force to override (not recommended)"
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
@@ -1217,7 +1213,7 @@ def move_task(
                         console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
                 else:
                     if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
+                        console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
 
             except Exception as e:
                 if not file_written:
@@ -1351,7 +1347,6 @@ def mark_status(
 
         # Auto-commit to TARGET branch (detects from feature meta.json)
         if auto_commit:
-            import subprocess
 
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
@@ -1378,7 +1373,7 @@ def mark_status(
                         console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
                 else:
                     if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
+                        console.print("[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
 
             except Exception as e:
                 if not json_output:
@@ -1789,7 +1784,7 @@ def validate_workflow(
                     console.print(f"  [red]Error:[/red] {error}")
 
             if warnings:
-                console.print(f"\n[yellow]Warnings:[/yellow]")
+                console.print("\n[yellow]Warnings:[/yellow]")
                 for warning in warnings:
                     console.print(f"  [yellow]•[/yellow] {warning}")
 
@@ -1968,7 +1963,7 @@ def status(
 
         # Create title panel
         title_text = Text()
-        title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+        title_text.append("📊 Work Package Status: ", style="bold cyan")
         title_text.append(feature_slug, style="bold white")
 
         console.print()
@@ -1976,7 +1971,7 @@ def status(
 
         # Progress bar
         progress_text = Text()
-        progress_text.append(f"Progress: ", style="bold")
+        progress_text.append("Progress: ", style="bold")
         progress_text.append(f"{done_count}/{total}", style="bold green")
         progress_text.append(f" ({progress_pct}%)", style="dim")
 

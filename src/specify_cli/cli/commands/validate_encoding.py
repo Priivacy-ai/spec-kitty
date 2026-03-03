@@ -13,7 +13,7 @@ from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory, sanitize_file
+from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 
 
 def validate_encoding(

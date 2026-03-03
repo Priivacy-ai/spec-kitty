@@ -3,7 +3,6 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 

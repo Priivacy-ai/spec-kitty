@@ -15,13 +15,12 @@ import pytest
 from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 from specify_cli.status.migrate import (
-    FeatureMigrationResult,
     migrate_feature,
 )
 from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
 from specify_cli.status.reducer import materialize, SNAPSHOT_FILENAME
-from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.emit import emit_status_transition
 
 
 # ── Helpers ──────────────────────────────────────────────────────

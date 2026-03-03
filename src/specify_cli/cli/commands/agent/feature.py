@@ -21,7 +21,6 @@ from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
     detect_cycles,
-    parse_wp_dependencies,
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
@@ -31,14 +30,12 @@ from specify_cli.core.git_preflight import (
 )
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
-    detect_feature,
     detect_feature_directory,
     FeatureDetectionError,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
     get_next_feature_number,
-    setup_feature_directory,
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
@@ -801,7 +798,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    f"Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                    "Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
                 ],
             }
             if json_output:
@@ -839,7 +836,6 @@ def setup_plan(
 
         # T014 + T016: Documentation mission wiring for plan
         mission_key = get_feature_mission_key(feature_dir)
-        gap_analysis_path = None
         generators_detected = []
 
         if mission_key == "documentation":
@@ -870,7 +866,6 @@ def setup_plan(
                             analysis = generate_gap_analysis_report(
                                 docs_dir, gap_analysis_output, project_root=repo_root
                             )
-                            gap_analysis_path = str(gap_analysis_output)
                             # Update documentation state with audit metadata
                             set_audit_metadata(
                                 meta_file,
@@ -1105,7 +1100,7 @@ def accept_feature(
             no_commit=no_commit,
             allow_fail=False,  # Agent commands use strict validation
         )
-    except typer.Exit as e:
+    except typer.Exit:
         # Propagate typer.Exit cleanly
         raise
     except Exception as e:
@@ -1396,7 +1391,7 @@ def finalize_tasks(
                 if json_output:
                     print(json.dumps({"error": error_msg, "cycles": cycles}))
                 else:
-                    console.print(f"[red]Error:[/red] Circular dependencies detected:")
+                    console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
                         console.print(f"  {' → '.join(cycle)}")
                 raise typer.Exit(1)
@@ -1542,10 +1537,9 @@ def finalize_tasks(
         # Prepare metadata for event emission
         feature_slug = feature_dir.name
         meta_path = feature_dir / "meta.json"
-        meta = None
         if meta_path.exists():
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                json.loads(meta_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
                 console.print(
                     f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}"
@@ -1596,7 +1590,7 @@ def finalize_tasks(
                 commit_hash = None
 
                 if not json_output:
-                    console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
+                    console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
                 # Commit with descriptive message (safe_commit preserves staging area)
                 commit_msg = f"Add tasks for feature {feature_slug}"

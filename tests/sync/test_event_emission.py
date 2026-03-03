@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.project_identity import ProjectIdentity
@@ -548,7 +547,6 @@ class TestPolicyMetadataPassthrough:
         self, emitter: EventEmitter, temp_queue: OfflineQueue
     ):
         """sync.events.emit_wp_status_changed() passes policy_metadata through to emitter."""
-        from unittest.mock import patch
 
         policy = {"orchestrator_id": "orch-1", "orchestrator_version": "0.1.0"}
         with patch(

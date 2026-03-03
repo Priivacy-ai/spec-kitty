@@ -5,10 +5,7 @@ These tests target specific boundary conditions and edge cases that may not be
 covered by the existing 25 tests in test_merge_state.py.
 """
 
-from pathlib import Path
-from datetime import datetime, timezone
 import time
-import pytest
 
 from specify_cli.merge.state import (
     MergeState,

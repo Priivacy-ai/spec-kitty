@@ -193,7 +193,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
 """
 
     if file_integrity.get("missing_files"):
-        file_info += f"\n[red]Missing:[/red]\n"
+        file_info += "\n[red]Missing:[/red]\n"
         for missing in file_integrity.get("missing_files", [])[:5]:
             file_info += f"  • {missing}\n"
         if len(file_integrity.get("missing_files", [])) > 5:
@@ -228,7 +228,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
 [bold]Responding:[/bold] {'[green]Yes[/green]' if responding else '[red]No[/red]'}
 """
         if not responding:
-            dashboard_info += f"[red]⚠️  Dashboard is not responding - may need restart[/red]\n"
+            dashboard_info += "[red]⚠️  Dashboard is not responding - may need restart[/red]\n"
     else:
         # No dashboard - show startup test results
         if startup_test == 'SUCCESS':

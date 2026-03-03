@@ -11,6 +11,7 @@ import re
 import subprocess
 from pathlib import Path
 from typing import Optional
+from datetime import timedelta
 from urllib.parse import urlparse
 
 import typer
@@ -42,7 +43,6 @@ def humanize_timedelta(td: "timedelta") -> str:
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
     """
-    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
 
     total_seconds = int(td.total_seconds())
     if total_seconds < 0:
@@ -386,7 +386,7 @@ def sync_workspace(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Backend:[/cyan] git")
+    console.print("[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode
@@ -466,7 +466,7 @@ def sync_workspace(
             _display_changes_integrated(result.changes_integrated)
 
     elif result.status == SyncStatus.FAILED:
-        console.print(f"\n[red]✗ Sync failed[/red]")
+        console.print("\n[red]✗ Sync failed[/red]")
         if result.message:
             console.print(f"[dim]{result.message}[/dim]")
 

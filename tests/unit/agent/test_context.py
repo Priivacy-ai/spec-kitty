@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.context import app
 from specify_cli.core.agent_context import (
     parse_plan_for_tech_stack,
     format_technology_stack,

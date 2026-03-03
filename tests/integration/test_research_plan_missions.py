@@ -20,7 +20,6 @@ import pytest
 import yaml
 
 from specify_cli.mission_v1.schema import (
-    MissionValidationError,
     is_v1_mission,
     validate_mission_v1,
 )

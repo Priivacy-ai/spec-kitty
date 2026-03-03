@@ -228,7 +228,6 @@ if __name__ == "__main__":
         test_gitignore_manager_handles_multiple_entries,
         test_protect_all_agents_adds_all_directories,
         test_protect_all_agents_with_existing_directory,
-        test_protect_all_agents_warns_about_github,
         test_protect_selected_agents,
         test_protect_selected_agents_with_unknown,
     ]

@@ -5,9 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-import pytest
 import yaml
-from transitions import MachineError
 
 from specify_cli.mission_v1 import PhaseMission, StateMachineMission, load_mission
 

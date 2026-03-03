@@ -78,7 +78,7 @@ def kill_dashboard_process(port: int):
                 try:
                     os.kill(int(pid), signal.SIGTERM)
                     time.sleep(0.5)  # Give it time to shut down
-                except:
+                except Exception:
                     pass
     except Exception:
         pass
@@ -99,7 +99,7 @@ def kill_all_spec_kitty_dashboards():
             for pid in pids:
                 try:
                     os.kill(int(pid), signal.SIGKILL)
-                except:
+                except Exception:
                     pass
             time.sleep(1)  # Give processes time to die
     except Exception:
@@ -181,7 +181,7 @@ class TestDashboardCLIStatusReporting:
                 else:
                     # Dashboard not running - CLI should report error
                     assert result.returncode != 0, \
-                        f"CLI should report error when dashboard doesn't start"
+                        "CLI should report error when dashboard doesn't start"
 
             finally:
                 # Cleanup: Kill the dashboard

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from specify_cli.glossary.scope import (
     GlossaryScope,
     SCOPE_RESOLUTION_ORDER,

@@ -8,7 +8,6 @@ to check and fix encoding issues in feature markdown files.
 Coverage Target: 85%+ for cli/commands/validate_encoding.py
 """
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import subprocess

@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -552,7 +551,6 @@ def test_resolve_primary_branch_current_branch_wins_over_hardcoded_list(tmp_path
 @pytest.mark.usefixtures("_git_identity")
 def test_resolve_target_branch_fallback_to_master(tmp_path):
     """When meta.json is missing and repo primary is 'master', fallback is 'master'."""
-    import json
 
     repo = _init_repo_with_branch(tmp_path, "master")
 

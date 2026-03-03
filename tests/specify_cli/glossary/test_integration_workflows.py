@@ -975,7 +975,6 @@ class TestEventEmissionEndToEnd:
             ConflictType,
             SemanticConflict,
             SenseRef,
-            Severity,
             TermSurface,
         )
 
@@ -1018,7 +1017,6 @@ class TestEventEmissionEndToEnd:
             ConflictType,
             SemanticConflict,
             SenseRef,
-            Severity,
             TermSurface,
         )
 
@@ -1054,7 +1052,6 @@ class TestEventEmissionEndToEnd:
             ConflictType,
             SemanticConflict,
             SenseRef,
-            Severity,
             TermSurface,
         )
 
@@ -1098,7 +1095,6 @@ class TestEventEmissionEndToEnd:
             ConflictType,
             SemanticConflict,
             SenseRef,
-            Severity,
             TermSurface,
         )
 

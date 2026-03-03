@@ -34,7 +34,6 @@ class TestPreflightBlocking:
 
         # Create feature directory for preflight
         feature_slug = "019-dirty-test"
-        feature_dir = repo_root / "kitty-specs" / feature_slug
 
         wp_workspaces = [(dirty_worktree, "WP01", f"{feature_slug}-WP01")]
 

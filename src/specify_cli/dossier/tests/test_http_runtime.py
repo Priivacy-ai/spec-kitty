@@ -17,12 +17,8 @@ Test Strategy:
 - Ensure no silent failures (explicit errors on data issues)
 """
 
-import json
 import pytest
-import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock
 
 from specify_cli.dossier.api import (
     DossierAPIHandler,
@@ -32,7 +28,7 @@ from specify_cli.dossier.api import (
     SnapshotExportResponse,
 )
 from specify_cli.dossier.snapshot import save_snapshot, compute_snapshot
-from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 
 class TestDossierHTTPRuntime:

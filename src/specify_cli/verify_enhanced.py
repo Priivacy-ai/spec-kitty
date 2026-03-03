@@ -2,13 +2,11 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
-import json
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
 
@@ -75,16 +73,16 @@ def run_enhanced_verify(
         console.print(f"   Repository root: {repo_root}")
 
         if in_worktree:
-            console.print(f"   [green]✓[/green] In worktree")
+            console.print("   [green]✓[/green] In worktree")
         else:
-            console.print(f"   [dim]○[/dim] Not in worktree")
+            console.print("   [dim]○[/dim] Not in worktree")
 
         if current_branch:
             console.print(f"   Current branch: {current_branch}")
             if current_branch in ("main", "master"):
                 console.print(f"   [yellow]⚠[/yellow] On {current_branch} branch")
         else:
-            console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
+            console.print("   [yellow]⚠[/yellow] Could not detect branch")
 
     # 2. File Integrity Check
     if check_files:
@@ -167,12 +165,12 @@ def run_enhanced_verify(
                 status_text = "merged" if feature_status["branch_merged"] else "active"
                 console.print(f"   [green]✓[/green] Branch exists ({status_text})")
             else:
-                console.print(f"   [dim]○[/dim] No branch")
+                console.print("   [dim]○[/dim] No branch")
 
             if feature_status["worktree_exists"]:
                 console.print(f"   [green]✓[/green] Worktree at: {feature_status['worktree_path']}")
             else:
-                console.print(f"   [dim]○[/dim] No worktree")
+                console.print("   [dim]○[/dim] No worktree")
 
             # Artifacts
             if feature_status["artifacts_in_main"]:

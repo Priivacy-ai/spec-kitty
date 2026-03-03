@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from specify_cli.frontmatter import (
     FrontmatterManager,
-    FrontmatterError,
     read_frontmatter,
     write_frontmatter,
     validate_frontmatter,

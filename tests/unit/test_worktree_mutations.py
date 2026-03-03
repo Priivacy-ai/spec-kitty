@@ -12,8 +12,7 @@ Target kills: ~280-400
 See: MUTATION_TESTING_ITERATION_3.md for complete analysis.
 """
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

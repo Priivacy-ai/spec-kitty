@@ -9,7 +9,6 @@ C. Token discipline — step-level references repeated in >=70% of steps
 
 from __future__ import annotations
 
-from collections import Counter
 from pathlib import Path
 
 import pytest

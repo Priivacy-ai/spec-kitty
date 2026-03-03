@@ -16,7 +16,7 @@ from transitions import MachineError
 from transitions.extensions.markup import MarkupMachine
 
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.mission_v1.schema import MissionValidationError, validate_mission_v1
+from specify_cli.mission_v1.schema import validate_mission_v1
 
 
 __all__ = [

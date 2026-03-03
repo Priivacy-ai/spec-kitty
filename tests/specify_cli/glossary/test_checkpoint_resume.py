@@ -10,8 +10,6 @@ import contextlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -25,9 +23,6 @@ from specify_cli.glossary.checkpoint import (
     checkpoint_to_dict,
     compute_input_hash,
     create_checkpoint,
-    handle_context_change,
-    load_checkpoint,
-    verify_input_hash,
 )
 from specify_cli.glossary.exceptions import AbortResume, BlockedByConflict
 from specify_cli.glossary.middleware import (
@@ -421,7 +416,7 @@ class TestGenerationGateCheckpointEmission:
         events_file = tmp_path / ".kittify" / "events" / "glossary" / "041-mission.events.jsonl"
         assert events_file.exists()
 
-        lines = [l for l in events_file.read_text().splitlines() if l.strip()]
+        lines = [line for line in events_file.read_text().splitlines() if line.strip()]
         assert len(lines) >= 1
 
         # First event should be the checkpoint
@@ -527,7 +522,6 @@ class TestGenerationGateCheckpointEmission:
         def track_checkpoint(checkpoint, project_root=None):
             emission_order.append("checkpoint")
             # Still persist to file
-            from specify_cli.glossary.events import emit_step_checkpointed as real_emit
             # Just track the order, actual persistence already happened
             pass
 
@@ -855,8 +849,8 @@ class TestCrossSessionResumeFlow:
 
         # Event log has entries (StepCheckpointed + GenerationBlocked per block)
         events_file = tmp_path / ".kittify" / "events" / "glossary" / "m.events.jsonl"
-        lines = [l for l in events_file.read_text().splitlines() if l.strip()]
-        checkpoint_lines = [l for l in lines if '"StepCheckpointed"' in l]
+        lines = [line for line in events_file.read_text().splitlines() if line.strip()]
+        checkpoint_lines = [line for line in lines if '"StepCheckpointed"' in line]
         assert len(checkpoint_lines) == 2
 
 

@@ -988,7 +988,6 @@ class TestValidateReadyForReview:
         # Simulate: main clean, worktree clean, but no commits beyond main
         def subprocess_side_effect(*args, **kwargs):
             cmd = args[0] if args else kwargs.get("args", [])
-            cwd = kwargs.get("cwd", tmp_path)
 
             if "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean

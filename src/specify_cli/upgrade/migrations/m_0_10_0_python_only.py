@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult

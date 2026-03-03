@@ -12,14 +12,13 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from specify_cli.sync.clock import LamportClock
-from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.client import WebSocketClient
 
 
 # ---------------------------------------------------------------------------

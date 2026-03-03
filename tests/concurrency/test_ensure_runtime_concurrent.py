@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import multiprocessing
 import os
-import shutil
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -46,7 +44,7 @@ def _run_ensure(args: tuple[str, str]) -> bool:
 
         ensure_runtime()
         return True
-    except Exception as exc:
+    except Exception:
         import traceback
 
         traceback.print_exc()

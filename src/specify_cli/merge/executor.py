@@ -316,7 +316,7 @@ def execute_merge(
         except Exception as exc:
             tracker.error("push", str(exc))
             console.print(
-                f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
+                "\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
             )
             console.print(f"Run manually: git push origin {target_branch}")
 
@@ -339,7 +339,7 @@ def execute_merge(
                 "worktree", f"could not remove {len(failed_removals)} worktrees"
             )
             console.print(
-                f"\n[yellow]Warning:[/yellow] Could not remove some worktrees:"
+                "\n[yellow]Warning:[/yellow] Could not remove some worktrees:"
             )
             for wp_id, wt_path in failed_removals:
                 console.print(f"  {wp_id}: git worktree remove {wt_path}")
@@ -367,7 +367,7 @@ def execute_merge(
                 "branch", f"could not delete {len(failed_deletions)} branches"
             )
             console.print(
-                f"\n[yellow]Warning:[/yellow] Could not delete some branches:"
+                "\n[yellow]Warning:[/yellow] Could not delete some branches:"
             )
             for wp_id, branch in failed_deletions:
                 console.print(f"  {wp_id}: git branch -D {branch}")
@@ -535,7 +535,7 @@ def execute_legacy_merge(
         except Exception as exc:
             tracker.error("push", str(exc))
             console.print(
-                f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
+                "\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
             )
             console.print(f"Run manually: git push origin {target_branch}")
 
@@ -550,7 +550,7 @@ def execute_legacy_merge(
         except Exception as exc:
             tracker.error("worktree", str(exc))
             console.print(
-                f"\n[yellow]Warning:[/yellow] Could not remove worktree."
+                "\n[yellow]Warning:[/yellow] Could not remove worktree."
             )
             console.print(f"Run manually: git worktree remove {feature_worktree_path}")
 

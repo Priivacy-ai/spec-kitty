@@ -157,8 +157,8 @@ def create_multi_parent_base(
                         if merge_base == branch_tip:
                             # Bug #1 Fix: Write to stderr to avoid corrupting JSON output
                             print(f"⚠️  Warning: Dependency branch '{branch}' has no commits beyond {target_branch}", file=sys.stderr)
-                            print(f"   This may indicate incomplete work or uncommitted changes", file=sys.stderr)
-                            print(f"   The merge-base will not include any work from this branch\n", file=sys.stderr)
+                            print("   This may indicate incomplete work or uncommitted changes", file=sys.stderr)
+                            print("   The merge-base will not include any work from this branch\n", file=sys.stderr)
 
             except subprocess.TimeoutExpired:
                 # Git command took too long - skip this check

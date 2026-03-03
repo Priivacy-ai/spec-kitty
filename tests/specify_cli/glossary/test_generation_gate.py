@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
@@ -449,7 +449,7 @@ class TestEventEmission:
         gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
         mock_context.conflicts = [low_severity_conflict]
 
-        result = gate.process(mock_context)
+        gate.process(mock_context)
 
         # No event should be emitted
         assert emission_count[0] == 0

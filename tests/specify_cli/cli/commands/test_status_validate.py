@@ -7,11 +7,9 @@ human-readable output, and JSON output.
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.status import app
@@ -133,7 +131,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -170,7 +168,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -207,7 +205,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -336,7 +334,7 @@ class TestValidateCommand:
             ),
         ]
         # WP file says "done" but canonical state is "claimed"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -372,7 +370,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -420,7 +418,7 @@ class TestValidateCommand:
                 at="2026-02-08T12:00:00Z",
             ),
         ]
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=events,
@@ -456,7 +454,7 @@ class TestValidateCommand:
     ):
         """No event log: no errors, exit 0."""
         feature_slug = "034-test-feature"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=None,
@@ -485,7 +483,7 @@ class TestValidateCommand:
     ):
         """No events + JSON output -> valid JSON, passed=true."""
         feature_slug = "034-test-feature"
-        feature_dir = _setup_feature(
+        _setup_feature(
             tmp_path,
             feature_slug,
             events=None,

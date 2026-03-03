@@ -9,15 +9,13 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from .tasks_support import (
     LANES,
     TaskCliError,
     WorkPackage,
     activity_entries,
-    extract_scalar,
-    find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
     is_legacy_format,
@@ -32,6 +30,8 @@ from specify_cli.core.feature_detection import (
 )
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
+
+_TASKS_MD = "tasks.md"
 
 
 class AcceptanceError(TaskCliError):
@@ -269,7 +269,7 @@ def _read_file(path: Path) -> str:
 
 def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
     if not tasks_file.exists():
-        return ["tasks.md missing"]
+        return [f"{_TASKS_MD} missing"]
 
     unchecked: List[str] = []
     for line in tasks_file.read_text(encoding="utf-8-sig").splitlines():
@@ -289,7 +289,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
 
 
 def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
-    required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / "tasks.md"]
+    required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / _TASKS_MD]
     optional = [
         feature_dir / "quickstart.md",
         feature_dir / "data-model.md",
@@ -403,7 +403,7 @@ def collect_feature_summary(
             )
         )
 
-    unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
+    unchecked_tasks = _find_unchecked_tasks(feature_dir / _TASKS_MD)
     needs_clarification = _check_needs_clarification(
         [
             feature_dir / "spec.md",

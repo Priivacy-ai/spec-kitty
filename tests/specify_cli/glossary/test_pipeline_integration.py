@@ -14,7 +14,6 @@ from specify_cli.glossary.models import (
     Severity,
 )
 from specify_cli.glossary.pipeline import (
-    GlossaryMiddlewarePipeline,
     create_standard_pipeline,
 )
 from specify_cli.glossary.strictness import Strictness

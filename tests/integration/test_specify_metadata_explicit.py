@@ -13,7 +13,6 @@ import os
 import subprocess
 from pathlib import Path
 
-import pytest
 
 # Get repo root for Python module invocation
 REPO_ROOT = Path(__file__).resolve().parents[2]

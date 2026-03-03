@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from specify_cli.status.models import DoneEvidence, ReviewApproval
 from specify_cli.status.transitions import validate_transition

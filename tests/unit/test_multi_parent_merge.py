@@ -15,7 +15,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.multi_parent_merge import (
-    MergeResult,
     cleanup_merge_base_branch,
     create_multi_parent_base,
 )

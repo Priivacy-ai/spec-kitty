@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -392,7 +391,7 @@ class TestReconcile:
         # Record files before
         files_before = set(feature_dir.rglob("*"))
 
-        result = reconcile(
+        reconcile(
             feature_dir=feature_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],
@@ -423,7 +422,7 @@ class TestReconcile:
         mock_merged.return_value = set()
         mock_phase.return_value = (1, "test")
 
-        result = reconcile(
+        reconcile(
             feature_dir=feature_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],

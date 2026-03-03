@@ -7,11 +7,8 @@ the WP04 mutation testing campaign:
 - Pattern 3: Parameter removal (parents=True, etc.)
 """
 
-import json
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from specify_cli.merge.state import (
     MergeState,
@@ -185,8 +182,6 @@ class TestEdgeCasesMutations:
             completed_wps=[],
             strategy="merge"
         )
-        
-        original_updated_at = state.updated_at
         
         # Small delay to ensure timestamp changes
         import time
