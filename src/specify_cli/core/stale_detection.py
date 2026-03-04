@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
-
+from typing import Any
 
 
 @dataclass
@@ -69,13 +69,13 @@ def get_default_branch(repo_path: Path) -> str:
 
     # Method 2: Check which common branch exists
     for branch in ["main", "master", "develop"]:
-        result = subprocess.run(
+        check = subprocess.run(
             ["git", "rev-parse", "--verify", branch],
             cwd=repo_path,
             capture_output=True,
             timeout=5,
         )
-        if result.returncode == 0:
+        if check.returncode == 0:
             return branch
 
     # Method 3: Fallback
@@ -288,7 +288,7 @@ def find_worktree_for_wp(
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
     feature_slug: str,
-    doing_wps: list[dict],
+    doing_wps: list[dict[str, Any]],
     threshold_minutes: int = 10,
 ) -> dict[str, StaleCheckResult]:
     """

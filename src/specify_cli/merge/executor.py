@@ -593,13 +593,13 @@ def _validate_wp_ready(
         Tuple of (is_valid, error_message)
     """
     # Check 1: Branch exists in git
-    result = subprocess.run(
+    check = subprocess.run(
         ["git", "rev-parse", "--verify", branch_name],
         cwd=str(repo_root),
         capture_output=True,
         check=False,
     )
-    if result.returncode != 0:
+    if check.returncode != 0:
         return False, f"Branch {branch_name} does not exist"
 
     # Check 2: No uncommitted changes in worktree

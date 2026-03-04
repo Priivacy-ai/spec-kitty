@@ -13,7 +13,7 @@ Key concepts:
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from pydantic import BaseModel, Field
 import logging
@@ -21,7 +21,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ArtifactClassEnum(str, Enum):
+class ArtifactClassEnum(StrEnum):
     """Classification of artifacts in the dossier system.
 
     - INPUT: Artifacts provided by user or external source (spec.md, requirements.txt)

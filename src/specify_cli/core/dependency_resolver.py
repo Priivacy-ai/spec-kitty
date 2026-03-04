@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from specify_cli.frontmatter import read_frontmatter
 
@@ -141,7 +142,7 @@ def predict_merge_conflicts(
         from specify_cli.core.git_ops import resolve_primary_branch
         target = resolve_primary_branch(repo_root)
 
-    conflicts = {}
+    conflicts: dict[str, list[str]] = {}
 
     # Check each branch against target
     for branch in branches:
@@ -176,7 +177,7 @@ def predict_merge_conflicts(
     return conflicts
 
 
-def get_merge_strategy_recommendation(status: DependencyStatus) -> dict:
+def get_merge_strategy_recommendation(status: DependencyStatus) -> dict[str, Any]:
     """Get recommended merge strategy for dependencies.
 
     Args:

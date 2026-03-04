@@ -13,7 +13,7 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 from collections.abc import Iterable
@@ -50,7 +50,7 @@ class ResearchValidationError(Exception):
     """Raised when research validation fails unexpectedly."""
 
 
-class CitationFormat(str, Enum):
+class CitationFormat(StrEnum):
     """Supported citation formats."""
 
     BIBTEX = "bibtex"

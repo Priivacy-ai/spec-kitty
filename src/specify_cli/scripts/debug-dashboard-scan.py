@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from specify_cli.dashboard.scanner import scan_all_features, gather_feature_paths
 
-def main():
+def main() -> None:
     project_dir = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
 
     print(f"Scanning project directory: {project_dir}")

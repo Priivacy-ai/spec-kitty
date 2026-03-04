@@ -303,14 +303,14 @@ def resolve_primary_branch(repo_root: Path) -> str:
     # Method 3: Check which common branch exists
     for branch in ["main", "master", "develop"]:
         try:
-            result = subprocess.run(
+            check = subprocess.run(
                 ["git", "rev-parse", "--verify", branch],
                 cwd=repo_root,
                 capture_output=True,
                 timeout=5,
                 check=False,
             )
-            if result.returncode == 0:
+            if check.returncode == 0:
                 return branch
         except subprocess.TimeoutExpired:
             continue

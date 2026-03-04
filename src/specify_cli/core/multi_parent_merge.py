@@ -174,6 +174,9 @@ def create_multi_parent_base(
             ["git", "rev-parse", "--verify", temp_branch],
             cwd=repo_root,
             capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode == 0:

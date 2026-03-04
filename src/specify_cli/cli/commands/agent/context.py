@@ -103,7 +103,11 @@ def update_context(
     try:
         # Locate repository root
         repo_root = locate_project_root()
+        if repo_root is None:
+            console.print("[red]Error:[/red] Not inside a spec-kitty project. Run 'spec-kitty init' first.")
+            sys.exit(1)
         cwd = Path.cwd()
+        resolved_agent_type = agent_type or "claude"
 
         # Find feature directory using centralized detection
         try:
@@ -127,7 +131,7 @@ def update_context(
             sys.exit(1)
 
         # Verify agent file exists
-        agent_file_path = get_agent_file_path(agent_type, repo_root)
+        agent_file_path = get_agent_file_path(resolved_agent_type, repo_root)
         if not agent_file_path.exists():
             error_msg = f"Agent file not found: {agent_file_path}"
             if json_output:
@@ -145,7 +149,7 @@ def update_context(
 
         # Update agent context file
         update_context_file(
-            agent_type=agent_type,
+            agent_type=resolved_agent_type,
             tech_stack=tech_stack,
             feature_slug=feature_slug,
             repo_root=repo_root,
@@ -156,7 +160,7 @@ def update_context(
         if json_output:
             result = {
                 "success": True,
-                "agent_type": agent_type,
+                "agent_type": resolved_agent_type,
                 "agent_file": str(agent_file_path),
                 "feature": feature_slug,
                 "tech_stack": {k: v for k, v in tech_stack.items() if v},

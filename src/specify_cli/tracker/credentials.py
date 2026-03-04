@@ -12,7 +12,7 @@ from typing import Any
 from collections.abc import Iterator
 
 try:  # pragma: no cover - optional dependency
-    import toml  # type: ignore
+    import toml
 except Exception:  # pragma: no cover - optional dependency
     toml = None  # type: ignore[assignment]
 

@@ -50,12 +50,7 @@ class InstallDocumentationMission(BaseMigration):
         doc_mission_dir = missions_dir / "documentation"
 
         # Check if documentation mission already exists
-        if doc_mission_dir.exists() and (doc_mission_dir / "mission.yaml").exists():
-            # Already installed
-            return False
-
-        # Documentation mission is missing, migration should run
-        return True
+        return not (doc_mission_dir.exists() and (doc_mission_dir / "mission.yaml").exists())
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if migration can be safely applied.

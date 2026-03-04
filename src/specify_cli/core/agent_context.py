@@ -84,11 +84,13 @@ def format_technology_stack(tech_stack: dict[str, str | None], feature_slug: str
     entries = []
 
     # Add language + dependencies as one line
-    parts = []
-    if tech_stack.get("language"):
-        parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        parts.append(tech_stack["dependencies"])
+    parts: list[str] = []
+    lang = tech_stack.get("language")
+    if lang:
+        parts.append(lang)
+    deps = tech_stack.get("dependencies")
+    if deps:
+        parts.append(deps)
 
     if parts:
         tech_line = " + ".join(parts)
@@ -191,13 +193,15 @@ def update_agent_context(
     new_tech_entries = format_technology_stack(tech_stack, feature_slug)
 
     # Prepare change entry for Recent Changes section
-    tech_parts = []
-    if tech_stack.get("language"):
-        tech_parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        tech_parts.append(tech_stack["dependencies"])
+    tech_parts: list[str] = []
+    t_lang = tech_stack.get("language")
+    if t_lang:
+        tech_parts.append(t_lang)
+    t_deps = tech_stack.get("dependencies")
+    if t_deps:
+        tech_parts.append(t_deps)
 
-    tech_description = " + ".join(tech_parts) if tech_parts else tech_stack.get("storage", "")
+    tech_description: str = " + ".join(tech_parts) if tech_parts else (tech_stack.get("storage") or "")
     new_change_entry = f"- {feature_slug}: Added {tech_description}" if tech_description else ""
 
     # Process file line by line to update sections

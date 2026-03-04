@@ -99,7 +99,7 @@ class GitignoreManager:
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
-        self._line_ending = None
+        self._line_ending: str = os.linesep
 
     def ensure_entries(self, entries: list[str]) -> bool:
         """

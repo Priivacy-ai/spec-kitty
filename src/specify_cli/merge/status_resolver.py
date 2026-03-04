@@ -485,8 +485,9 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
                 resolution_types.add("checkbox")
                 continue
 
-            resolved_region = resolve_history_conflict(region.ours, region.theirs)
-            if resolved_region is not None:
+            history_resolved: str | None = resolve_history_conflict(region.ours, region.theirs)
+            if history_resolved is not None:
+                resolved_region = history_resolved
                 # Use rollback-aware lane resolution
                 lane_resolved = _resolve_lane_with_rollback_awareness(region.ours, region.theirs)
                 if lane_resolved is not None:

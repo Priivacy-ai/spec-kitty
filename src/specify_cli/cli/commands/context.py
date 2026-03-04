@@ -236,7 +236,7 @@ def cleanup_command(
 
 # Default command when no subcommand specified
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(ctx: typer.Context) -> None:
     """Query workspace context information."""
     if ctx.invoked_subcommand is None:
         # No subcommand - default to "info"

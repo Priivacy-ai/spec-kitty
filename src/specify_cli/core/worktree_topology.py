@@ -18,6 +18,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.core.feature_detection import get_feature_target_branch
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
@@ -171,9 +172,9 @@ def materialize_worktree_topology(
     # Build topology entries
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        ctx = feature_contexts.get(wp_id)
-        branch_name = ctx.branch_name if ctx else None
-        base_branch = ctx.base_branch if ctx else None
+        wp_ctx = feature_contexts.get(wp_id)
+        branch_name = wp_ctx.branch_name if wp_ctx else None
+        base_branch = wp_ctx.base_branch if wp_ctx else None
         dependencies = graph.get(wp_id, [])
         lane = wp_lanes.get(wp_id, "planned")
 
@@ -240,7 +241,7 @@ def render_topology_json(
     # Build entries list
     entries_json = []
     for entry in topology.entries:
-        entry_data: dict = {
+        entry_data: dict[str, Any] = {
             "wp": entry.wp_id,
             "lane": entry.lane,
             "branch": entry.branch_name,

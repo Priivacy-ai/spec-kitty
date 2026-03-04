@@ -10,15 +10,16 @@ repository or existing worktree/workspace.
 
 from __future__ import annotations
 
+import contextlib
 import platform
 import shutil
 import subprocess
 import warnings
 from pathlib import Path
+from typing import Any
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
-import contextlib
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -440,7 +441,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 def validate_feature_structure(
     feature_dir: Path,
     check_tasks: bool = False
-) -> dict:
+) -> dict[str, Any]:
     """Validate feature directory structure and required files.
 
     Checks for:
@@ -467,8 +468,8 @@ def validate_feature_structure(
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
-    errors = []
-    warnings = []
+    errors: list[str] = []
+    warnings: list[str] = []
     paths: dict[str, str] = {}
     artifact_files: dict[str, str] = {}
     artifact_dirs: dict[str, str] = {}

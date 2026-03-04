@@ -342,7 +342,7 @@ def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> list[st
     return issues
 
 
-def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: list[dict[str, object]]) -> list[str]:
+def _check_wp_activity(wp: WorkPackage, wp_id: str, entries: list[dict[str, str]]) -> list[str]:
     if not entries:
         return [f"{wp_id}: Activity Log missing entries"]
     issues: list[str] = []

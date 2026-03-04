@@ -1,3 +1,6 @@
+# FUSE temporary files (created by filesystem-in-userspace on some Linux systems)
+.fuse_hidden*
+
 # Python
 __pycache__/
 *.py[cod]

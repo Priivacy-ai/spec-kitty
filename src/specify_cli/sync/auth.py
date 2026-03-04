@@ -43,9 +43,8 @@ class CredentialStore:
             return None
 
         try:
-            with self._acquire_lock():
-                with open(self.credentials_path) as handle:
-                    return toml.load(handle)
+            with self._acquire_lock(), open(self.credentials_path) as handle:
+                return toml.load(handle)
         except (toml.TomlDecodeError, OSError):
             return None
 

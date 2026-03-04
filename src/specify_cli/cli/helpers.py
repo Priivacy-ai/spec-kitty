@@ -7,6 +7,7 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+import click
 import typer
 from rich.align import Align
 from rich.console import Console
@@ -23,7 +24,7 @@ TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
-    def format_help(self, ctx, formatter):
+    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)
             return
@@ -41,7 +42,7 @@ def _should_use_simple_help() -> bool:
     return console.width < 100
 
 
-def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:
+def _format_simple_help(group: TyperGroup, ctx: click.Context, formatter: click.HelpFormatter) -> None:
     """Render machine-friendly help without Rich tables/banner noise."""
     formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
 

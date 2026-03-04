@@ -66,15 +66,10 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
         >>> graph = build_dependency_graph(feature_dir)
         >>> print(graph)  # {"WP01": [], "WP02": ["WP01"]}
     """
-    graph = {}
+    graph: dict[str, list[str]] = {}
 
     # Support both feature_dir and tasks_dir as input
-    if feature_dir.name == "tasks":
-        # Already pointing to tasks directory
-        tasks_dir = feature_dir
-    else:
-        # Pointing to feature directory, append tasks/
-        tasks_dir = feature_dir / "tasks"
+    tasks_dir = feature_dir if feature_dir.name == "tasks" else feature_dir / "tasks"
 
     if not tasks_dir.exists():
         return graph

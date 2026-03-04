@@ -86,7 +86,7 @@ class FixMemoryStructureMigration(BaseMigration):
 
         return True, "Ready to apply"
 
-    def apply(self, project_path: Path, *, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Move memory/ and fix broken symlinks."""
         warnings: list[str] = []
         changes_made: list[str] = []

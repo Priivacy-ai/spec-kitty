@@ -102,6 +102,7 @@ def render_conflict(
     ranked_candidates = sort_candidates(conflict.candidate_senses)
 
     # Create table for candidates
+    body: Table | str
     if ranked_candidates:
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("#", style="cyan", width=3)

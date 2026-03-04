@@ -73,7 +73,7 @@ def _extract_jj_error(stderr: str) -> str | None:
         return None
 
     lines = stderr.strip().split("\n")
-    error_lines = []
+    error_lines: list[str] = []
 
     for line in lines:
         stripped = line.strip()
@@ -430,7 +430,7 @@ class JujutsuVCS:
 
                 # For default workspace, the path is repo_root
                 if workspace_name == "default":
-                    workspace_path = repo_root
+                    workspace_path: Path = repo_root
                 else:
                     # For other workspaces, we need to find them
                     # jj workspace list doesn't show paths, so we check common locations
@@ -438,14 +438,15 @@ class JujutsuVCS:
                         repo_root.parent / workspace_name,
                         repo_root / ".worktrees" / workspace_name,
                     ]
-                    workspace_path = None
+                    found_path: Path | None = None
                     for path in potential_paths:
                         if path.exists() and (path / ".jj").exists():
-                            workspace_path = path
+                            found_path = path
                             break
 
-                    if workspace_path is None:
+                    if found_path is None:
                         continue
+                    workspace_path = found_path
 
                 info = self.get_workspace_info(workspace_path)
                 if info:

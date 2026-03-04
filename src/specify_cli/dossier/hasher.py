@@ -150,7 +150,7 @@ class Hasher:
         True
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty hash pool."""
         self.hashes: list[str] = []
 

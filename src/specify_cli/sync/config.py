@@ -1,12 +1,14 @@
 """Sync configuration management"""
 from pathlib import Path
+from typing import Any
+
 import toml
 
 
 class SyncConfig:
     """Manage sync configuration"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_dir = Path.home() / '.spec-kitty'
         self.config_file = self.config_dir / 'config.toml'
 
@@ -15,14 +17,15 @@ class SyncConfig:
         if not self.config_file.exists():
             return "https://spec-kitty-dev.fly.dev"  # Default
 
-        config = toml.load(self.config_file)
-        return config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
+        config: dict[str, Any] = toml.load(self.config_file)
+        url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
+        return str(url)
 
-    def set_server_url(self, url: str):
+    def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
         self.config_dir.mkdir(exist_ok=True)
 
-        config = {}
+        config: dict[str, Any] = {}
         if self.config_file.exists():
             config = toml.load(self.config_file)
 

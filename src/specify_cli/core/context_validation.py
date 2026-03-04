@@ -27,7 +27,7 @@ from __future__ import annotations
 import functools
 import os
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import TypeVar
 from collections.abc import Callable
@@ -38,7 +38,7 @@ from rich.console import Console
 console = Console()
 
 
-class ExecutionContext(str, Enum):
+class ExecutionContext(StrEnum):
     """Execution context for a command."""
 
     MAIN_REPO = "main"  # Command runs in main repository
