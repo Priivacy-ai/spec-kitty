@@ -27,7 +27,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get in 0.15.x
+## 🚀 Core Capabilities
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
