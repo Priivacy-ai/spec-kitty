@@ -70,6 +70,7 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
 def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
+        show_banner(force=True)
         console.print(f"spec-kitty-cli version {__version__}")
         raise typer.Exit()
 
