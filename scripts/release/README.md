@@ -125,6 +125,59 @@ Output:
 
 **Integration**: Used by `.github/workflows/release.yml` to populate GitHub Release body
 
+### `validate_dependency_matrix.py`
+
+Validates that `pyproject.toml` dependency pins for `spec-kitty-*` libraries match the release compatibility matrix in `docs/releases/dependency-compatibility-matrix.toml` and that all release-train libraries are explicitly recorded in the `.train` table.
+
+**Purpose**: Ensures every CLI release explicitly records which library versions it is pinned to.
+
+**Usage**:
+
+```bash
+python scripts/release/validate_dependency_matrix.py
+```
+
+### `validate_dependency_policy.py`
+
+Validates policy constraints for `spec-kitty-*` dependencies:
+
+- Must be exact `==` pins
+- Must resolve on PyPI (no hidden/unpublished versions)
+- Must have clear MIT metadata on PyPI
+- No direct URL references or prerelease pins unless explicitly approved
+
+**Usage**:
+
+```bash
+python scripts/release/validate_dependency_policy.py --allow-missing
+```
+
+Optional explicit approvals (for exceptional releases only):
+
+```bash
+python scripts/release/validate_dependency_policy.py \
+  --allow-missing \
+  --allow-prerelease \
+  --allow-direct-reference
+```
+
+### `validate_distribution_metadata.py`
+
+Validates built wheel/sdist metadata for explicit MIT licensing.
+
+Checks include:
+
+- Wheel METADATA exposes MIT classifier/license metadata
+- Wheel METADATA includes `License-File: LICENSE`
+- Source distribution contains `LICENSE`
+
+**Usage**:
+
+```bash
+python -m build
+python scripts/release/validate_distribution_metadata.py --package spec-kitty-cli
+```
+
 ## Workflow Integration
 
 ### Release Readiness (PR Checks)
@@ -133,6 +186,12 @@ Output:
 ```yaml
 - name: Validate release metadata
   run: python scripts/release/validate_release.py --mode branch
+
+- name: Validate dependency compatibility matrix
+  run: python scripts/release/validate_dependency_matrix.py
+
+- name: Validate spec-kitty library dependency policy
+  run: python scripts/release/validate_dependency_policy.py --allow-missing
 ```
 
 ### Release Publication (Tag Push)
@@ -141,6 +200,12 @@ Output:
 ```yaml
 - name: Validate release metadata
   run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}"
+
+- name: Validate dependency compatibility matrix
+  run: python scripts/release/validate_dependency_matrix.py
+
+- name: Validate spec-kitty library dependency policy
+  run: python scripts/release/validate_dependency_policy.py --allow-missing
 
 - name: Extract changelog for release
   run: |

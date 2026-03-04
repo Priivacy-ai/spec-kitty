@@ -1,0 +1,18 @@
+[release_train]
+order = [
+  "spec-kitty-events",
+  "spec-kitty-runtime",
+  "spec-kitty-tracker",
+  "spec-kitty-cli",
+]
+
+[cli."1.0.1".dependencies]
+"spec-kitty-events" = "0.4.0a0"
+
+[cli."1.0.1".train]
+"spec-kitty-events" = "0.4.0a0"
+"spec-kitty-runtime" = "not-used"
+"spec-kitty-tracker" = "0.1.0"
+
+[cli."1.0.1"]
+notes = "Legacy release with prerelease events pin; do not copy for new releases."
