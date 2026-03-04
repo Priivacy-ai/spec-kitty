@@ -69,8 +69,21 @@ def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:
             formatter.write_dl(commands)
 
 
-def show_banner() -> None:
+def _should_render_banner_for_invocation(argv: list[str] | None = None) -> bool:
+    """Return True only for invocations that should render ASCII art."""
+    tokens = [token.strip().lower() for token in (argv if argv is not None else sys.argv[1:]) if token.strip()]
+    if "--version" in tokens or "-v" in tokens:
+        return True
+
+    command = next((token for token in tokens if not token.startswith("-")), None)
+    return command == "init"
+
+
+def show_banner(force: bool = False) -> None:
     """Display the ASCII art banner with gradient styling."""
+    if not force and not _should_render_banner_for_invocation():
+        return
+
     banner_lines = BANNER.strip().split("\n")
     colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
     max_width = max((len(line) for line in banner_lines), default=0)
