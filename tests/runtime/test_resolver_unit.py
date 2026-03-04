@@ -20,6 +20,8 @@ from specify_cli.runtime.resolver import (
     resolve_mission,
     resolve_template,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -638,6 +640,7 @@ class TestInitResolverIntegration:
     def test_empty_result_when_no_tiers_have_templates(self, tmp_path: Path) -> None:
         """Returns an empty directory when no templates exist anywhere."""
         from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
+
 
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)

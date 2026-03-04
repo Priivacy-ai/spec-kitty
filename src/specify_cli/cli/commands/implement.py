@@ -13,6 +13,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli import StepTracker
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
@@ -42,7 +43,7 @@ from specify_cli.core.feature_detection import (
 from specify_cli.feature_metadata import set_vcs_lock
 from specify_cli.git import safe_commit
 from specify_cli.sync.events import emit_wp_status_changed
-from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.tool_config import get_auto_commit_default
 
 console = Console()
 
@@ -559,7 +560,8 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
-    feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
+    mission: str = typer.Option(None, "--mission", help="Mission slug (e.g., 001-my-feature)"),
+    feature: str = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     auto_commit: Annotated[
         bool | None,
@@ -583,11 +585,14 @@ def implement(
         spec-kitty implement WP06 --force
 
         # Explicit feature specification
-        spec-kitty implement WP01 --feature 001-my-feature
+        spec-kitty implement WP01 --mission 001-my-feature
 
         # JSON output for scripting
         spec-kitty implement WP01 --json
     """
+    # Resolve --mission / --feature backward compat
+    feature = resolve_mission_or_feature(mission, feature)
+
     # Context validation handled by @require_main_repo decorator
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")
@@ -855,7 +860,7 @@ def implement(
                     console.print(f"   spec-kitty agent workflow implement {wp_id} --base <WPxx> --agent <name>")
                     console.print("   # Then merge other dependency branches in the worktree")
                     console.print("\n[dim]Note:[/dim] There is no `spec-kitty agent workflow merge` command.")
-                    console.print("      Feature merges use: spec-kitty agent feature merge")
+                    console.print("      Feature merges use: spec-kitty agent mission merge")
 
                     raise typer.Exit(1)
 

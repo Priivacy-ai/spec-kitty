@@ -94,11 +94,7 @@ def _iter_feature_dirs(project_path: Path) -> list[Path]:
     kitty_specs = project_path / "kitty-specs"
     if not kitty_specs.exists():
         return []
-    return [
-        path
-        for path in sorted(kitty_specs.iterdir())
-        if path.is_dir()
-    ]
+    return [path for path in sorted(kitty_specs.iterdir()) if path.is_dir()]
 
 
 def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
@@ -309,7 +305,7 @@ def _status_events_need_repair(feature_dir: Path) -> bool:
         return feature_requires_historical_migration(feature_dir)
     if any(event.reason and "historical_frontmatter_to_jsonl:v1" in event.reason for event in events):
         return False
-    if any(not event.actor.startswith("migration") for event in events):
+    if any(not event.actor.tool.startswith("migration") for event in events):
         return False
     return feature_requires_historical_migration(feature_dir)
 
@@ -389,7 +385,11 @@ def _has_orphan_status_snapshot(feature_dir: Path) -> bool:
 def _cleanup_orphan_status_snapshot(feature_dir: Path, dry_run: bool) -> tuple[str | None, str | None]:
     status_path = feature_dir / SNAPSHOT_FILENAME
     if not _has_orphan_status_snapshot(feature_dir):
-        if status_path.exists() and not (feature_dir / EVENTS_FILENAME).exists() and not (feature_dir / "tasks").exists():
+        if (
+            status_path.exists()
+            and not (feature_dir / EVENTS_FILENAME).exists()
+            and not (feature_dir / "tasks").exists()
+        ):
             return None, "status.json has no matching event log and could not be auto-repaired"
         return None, None
 
@@ -440,9 +440,7 @@ def _migrate_runtime_assets(project_path: Path, dry_run: bool) -> tuple[list[str
     removed = len(report.removed)
     if moved or removed:
         verb = "Would migrate" if dry_run else "Migrated"
-        changes.append(
-            f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)"
-        )
+        changes.append(f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)")
     return changes, []
 
 

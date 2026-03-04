@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
     FeatureDetectionError,
@@ -26,7 +27,7 @@ from specify_cli.status.locking import feature_status_lock
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(
+app: typer.Typer = typer.Typer(
     name="status",
     help="Canonical status management commands",
     no_args_is_help=True,
@@ -63,9 +64,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         )
     except FeatureDetectionError as e:
         console.print(f"[red]Error:[/red] {e}")
-        console.print(
-            "\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]"
-        )
+        console.print("\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]")
         raise typer.Exit(1)
 
 
@@ -113,17 +112,35 @@ def _resolve_feature_dir(
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
+    to: Annotated[
+        str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")
+    ] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
-    evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
+    evidence_json: Annotated[
+        Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")
+    ] = None,
     review_ref: Annotated[Optional[str], typer.Option("--review-ref", help="Review feedback reference")] = None,
-    workspace_context: Annotated[Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")] = None,
-    subtasks_complete: Annotated[Optional[bool], typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review")] = None,
-    implementation_evidence_present: Annotated[Optional[bool], typer.Option("--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review")] = None,
-    execution_mode: Annotated[str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")] = "worktree",
+    workspace_context: Annotated[
+        Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")
+    ] = None,
+    subtasks_complete: Annotated[
+        Optional[bool],
+        typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
+    ] = None,
+    implementation_evidence_present: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--implementation-evidence-present",
+            help="Whether implementation evidence exists for in_progress->for_review",
+        ),
+    ] = None,
+    execution_mode: Annotated[
+        str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")
+    ] = "worktree",
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Emit a status transition event for a work package.
@@ -137,6 +154,7 @@ def emit(
         spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Resolve repo root
         cwd = Path.cwd().resolve()
@@ -162,8 +180,7 @@ def emit(
                 example = '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
                 _output_error(
                     json_output,
-                    f"Invalid JSON in --evidence-json: {exc}\n"
-                    f"Expected valid JSON object, e.g.: '{example}'",
+                    f"Invalid JSON in --evidence-json: {exc}\nExpected valid JSON object, e.g.: '{example}'",
                 )
                 raise typer.Exit(1)
 
@@ -196,15 +213,13 @@ def emit(
             "wp_id": event.wp_id,
             "from_lane": str(event.from_lane),
             "to_lane": str(event.to_lane),
-            "actor": event.actor,
+            "actor": event.actor.to_dict(),
         }
 
         _output_result(
             json_output,
             result,
-            f"[green]OK[/green] {event.wp_id}: "
-            f"{event.from_lane} -> {event.to_lane} "
-            f"(event: {event.event_id[:12]}...)",
+            f"[green]OK[/green] {event.wp_id}: {event.from_lane} -> {event.to_lane} (event: {event.event_id[:12]}...)",
         )
 
     except typer.Exit:
@@ -213,6 +228,7 @@ def emit(
         # Check if it's a TransitionError (imported lazily above)
         try:
             from specify_cli.status.emit import TransitionError
+
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -224,7 +240,8 @@ def emit(
 
 @app.command()
 def materialize(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -235,9 +252,10 @@ def materialize(
 
     Examples:
         spec-kitty agent status materialize
-        spec-kitty agent status materialize --feature 034-my-feature
+        spec-kitty agent status materialize --mission 034-my-feature
         spec-kitty agent status materialize --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Resolve repo root
         cwd = Path.cwd().resolve()
@@ -273,17 +291,16 @@ def materialize(
             # Materialize snapshot
             snapshot = do_materialize(feature_dir)
 
-            # Update legacy views (try/except -- don't block on legacy bridge)
-            try:
-                from specify_cli.status.legacy_bridge import update_all_views
-                update_all_views(feature_dir, snapshot)
-            except ImportError:
-                pass  # Legacy bridge not yet available (WP06 not merged)
-            except Exception as exc:
-                if not json_output:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}"
-                    )
+        # Update legacy views (try/except -- don't block on legacy bridge)
+        try:
+            from specify_cli.status.legacy_bridge import update_all_views
+
+            update_all_views(feature_dir, snapshot)
+        except ImportError:
+            pass  # Legacy bridge not yet available (WP06 not merged)
+        except Exception as exc:
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}")
 
         # Build output
         if json_output:
@@ -293,10 +310,7 @@ def materialize(
             wp_count = len(snapshot.work_packages)
             event_count = snapshot.event_count
 
-            console.print(
-                f"[green]Materialized[/green] {feature_slug}: "
-                f"{event_count} events -> {wp_count} WPs"
-            )
+            console.print(f"[green]Materialized[/green] {feature_slug}: {event_count} events -> {wp_count} WPs")
 
             # Lane distribution
             lane_parts = []
@@ -320,15 +334,17 @@ def materialize(
 
 @app.command()
 def doctor(
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", help="Mission slug"),
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug"),
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     stale_claimed: Annotated[
         int,
-        typer.Option(
-            "--stale-claimed-days", help="Threshold for stale claims (days)"
-        ),
+        typer.Option("--stale-claimed-days", help="Threshold for stale claims (days)"),
     ] = 7,
     stale_in_progress: Annotated[
         int,
@@ -351,9 +367,10 @@ def doctor(
 
     Examples:
         spec-kitty agent status doctor
-        spec-kitty agent status doctor --feature 034-my-feature
+        spec-kitty agent status doctor --mission 034-my-feature
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
@@ -373,9 +390,7 @@ def doctor(
         )
     except FileNotFoundError as e:
         if json_output:
-            console.print_json(
-                json.dumps({"error": str(e), "healthy": False})
-            )
+            console.print_json(json.dumps({"error": str(e), "healthy": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -425,13 +440,9 @@ def doctor(
         # Project-specific section
         console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
-            console.print(
-                f"  [green]Healthy[/green]"
-            )
+            console.print(f"  [green]Healthy[/green]")
         else:
-            console.print(
-                f"  [yellow]Issues found[/yellow]"
-            )
+            console.print(f"  [yellow]Issues found[/yellow]")
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
             table.add_column("Category")
@@ -439,9 +450,7 @@ def doctor(
             table.add_column("Message")
             table.add_column("Action")
             for f in result.findings:
-                severity_style = (
-                    "red" if f.severity == "error" else "yellow"
-                )
+                severity_style = "red" if f.severity == "error" else "yellow"
                 table.add_row(
                     f"[{severity_style}]{f.severity}[/{severity_style}]",
                     str(f.category),
@@ -532,9 +541,13 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 
 @app.command()
 def migrate(
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", "-f", help="Single mission slug to migrate"),
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Single feature slug to migrate"),
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     all_features: Annotated[
         bool,
@@ -560,10 +573,11 @@ def migrate(
     Idempotent: features with existing event logs are skipped.
 
     Examples:
-        spec-kitty agent status migrate --feature 034-feature-name --dry-run
+        spec-kitty agent status migrate --mission 034-feature-name --dry-run
         spec-kitty agent status migrate --all
         spec-kitty agent status migrate --all --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.migrate import (
         FeatureMigrationResult,
         MigrationResult,
@@ -596,10 +610,7 @@ def migrate(
             raise typer.Exit(1)
         feature_dirs = [feature_dir]
     else:
-        feature_dirs = sorted(
-            d for d in kitty_specs.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        feature_dirs = sorted(d for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
         if not feature_dirs:
             _output_error(json_output, "No features found to migrate")
             raise typer.Exit(1)
@@ -625,12 +636,7 @@ def migrate(
         elif fr.status == "failed":
             result.total_failed += 1
 
-    result.aliases_resolved = sum(
-        1
-        for f in result.features
-        for wp in f.wp_details
-        if wp.alias_resolved
-    )
+    result.aliases_resolved = sum(1 for f in result.features for wp in f.wp_details if wp.alias_resolved)
 
     if json_output:
         print(json.dumps(_migration_result_to_dict(result), indent=2))
@@ -653,9 +659,13 @@ def migrate(
 
 @app.command()
 def validate(
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", help="Mission slug (auto-detected if omitted)"),
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -672,9 +682,10 @@ def validate(
 
     Examples:
         spec-kitty agent status validate
-        spec-kitty agent status validate --feature 034-my-feature
+        spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.phase import resolve_phase
     from specify_cli.status.reducer import reduce
     from specify_cli.status.store import read_events, read_events_raw
@@ -733,9 +744,7 @@ def validate(
                 )
             )
         else:
-            console.print(
-                f"[green]Status Validation: {feature_slug} (Phase {phase})[/green]"
-            )
+            console.print(f"[green]Status Validation: {feature_slug} (Phase {phase})[/green]")
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
@@ -755,9 +764,7 @@ def validate(
     try:
         events = read_events(feature_dir)
         snapshot = reduce(events)
-        view_findings = validate_derived_views(
-            feature_dir, snapshot.work_packages, phase
-        )
+        view_findings = validate_derived_views(feature_dir, snapshot.work_packages, phase)
         for finding in view_findings:
             if finding.startswith("ERROR:"):
                 result.errors.append(finding)
@@ -784,9 +791,7 @@ def validate(
             )
         )
     else:
-        console.print(
-            f"\n[bold]Status Validation: {feature_slug} (Phase {phase})[/bold]"
-        )
+        console.print(f"\n[bold]Status Validation: {feature_slug} (Phase {phase})[/bold]")
         console.print("-" * 50)
 
         if result.errors:
@@ -801,9 +806,7 @@ def validate(
 
         if result.passed:
             if result.warnings:
-                console.print(
-                    f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))"
-                )
+                console.print(f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))")
             else:
                 console.print("\n[green]Result: PASS[/green]")
         else:
@@ -819,9 +822,13 @@ def validate(
 
 @app.command()
 def reconcile(
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", "-f", help="Mission slug (auto-detected if omitted)"),
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     dry_run: Annotated[
         bool,
@@ -847,9 +854,10 @@ def reconcile(
 
     Examples:
         spec-kitty agent status reconcile --dry-run
-        spec-kitty agent status reconcile --feature 034-feature-name --json
+        spec-kitty agent status reconcile --mission 034-feature-name --json
         spec-kitty agent status reconcile --apply --target-repo /path/to/repo
     """
+    feature = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.reconcile import (
         format_reconcile_report,
         reconcile as do_reconcile,

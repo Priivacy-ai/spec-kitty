@@ -84,7 +84,7 @@ The dependency graph has a cycle. This should have been caught by `finalize-task
 **Recovery:**
 1. Review the dependency declarations in WP frontmatter
 2. Break the cycle by removing one dependency that is not strictly required
-3. Re-run `spec-kitty agent feature finalize-tasks` to validate
+3. Re-run `spec-kitty agent mission finalize-tasks` to validate
 
 ## Pattern 6: All WPs Done But Mission Not Complete
 

@@ -9,6 +9,7 @@ from typing import Optional
 import typer
 from rich.panel import Panel
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
@@ -20,10 +21,12 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug to target (auto-detected when omitted)"),
+    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
+    feature = resolve_mission_or_feature(mission, feature)
 
     show_banner()
 

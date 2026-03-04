@@ -153,7 +153,7 @@ Confirm with user before proceeding.
 
 1. **Check discovery status**: If questions unanswered, ask one at a time (Discovery Gate above)
 
-2. **Generate feature directory**: Run `spec-kitty agent feature create-feature "doc-{project-name}" --json --mission documentation`
+2. **Generate feature directory**: Run `spec-kitty agent mission create-feature "doc-{project-name}" --json --mission documentation`
    - Feature naming convention: `doc-{project-name}` or `docs-{feature-name}` for feature-specific
 
 3. **Create meta.json**: Include `mission: "documentation"` and `documentation_state` field:

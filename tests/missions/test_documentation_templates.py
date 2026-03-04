@@ -8,7 +8,7 @@ from specify_cli.mission import Mission
 pytestmark = pytest.mark.fast
 # Get source missions directory for testing
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MISSION_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "documentation"
+MISSION_DIR = REPO_ROOT / "src" / "doctrine" / "missions" / "documentation"
 
 
 # T058: Test Divio Template Frontmatter

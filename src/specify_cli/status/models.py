@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from specify_cli.identity import ActorIdentity
+
 
 class Lane(StrEnum):
     """8-lane canonical work package lifecycle states."""
@@ -144,13 +146,18 @@ class StatusEvent:
     from_lane: Lane
     to_lane: Lane
     at: str  # ISO 8601 UTC
-    actor: str
+    actor: ActorIdentity
     force: bool
     execution_mode: str  # "worktree" or "direct_repo"
     reason: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
-    policy_metadata: dict[str, Any] | None = None
+    policy_metadata: dict[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        # Coerce legacy bare-string actors to ActorIdentity for backwards compat.
+        if isinstance(self.actor, str):
+            object.__setattr__(self, "actor", ActorIdentity.from_legacy(self.actor))
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -160,7 +167,7 @@ class StatusEvent:
             "from_lane": str(self.from_lane),
             "to_lane": str(self.to_lane),
             "at": self.at,
-            "actor": self.actor,
+            "actor": self.actor.to_dict(),
             "force": self.force,
             "execution_mode": self.execution_mode,
             "reason": self.reason,
@@ -173,6 +180,11 @@ class StatusEvent:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusEvent:
         evidence_data = data.get("evidence")
+        raw_actor = data.get("actor", "unknown")
+        if isinstance(raw_actor, dict):
+            actor = ActorIdentity.from_dict(raw_actor)
+        else:
+            actor = ActorIdentity.from_legacy(str(raw_actor))
         return cls(
             event_id=data["event_id"],
             feature_slug=data["feature_slug"],
@@ -180,7 +192,7 @@ class StatusEvent:
             from_lane=Lane(data["from_lane"]),
             to_lane=Lane(data["to_lane"]),
             at=data["at"],
-            actor=data["actor"],
+            actor=actor,
             force=data["force"],
             execution_mode=data["execution_mode"],
             reason=data.get("reason"),

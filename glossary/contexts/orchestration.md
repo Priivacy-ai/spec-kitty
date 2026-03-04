@@ -45,6 +45,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical (compatibility) |
 | **Applicable to** | `1.x`, `2.x` |
 | **Note** | Feature remains a practical artifact key in 2.x while mission-centric runtime identity is strengthened |
+| **CLI Flag (deprecated)** | The `--feature` flag is deprecated as of version 2.2.0. The canonical flag is now `--mission`. `--feature` remains a backward-compatible alias for one deprecation cycle and emits a deprecation warning when used. See `glossary/historical-terms.md` for the deprecated alias entry. |
 
 ---
 
@@ -271,3 +272,55 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Canonical entry** | [Tracker Connector](#tracker-connector) |
+
+---
+
+### Control Plane
+
+| | |
+|---|---|
+| **Definition** | The user-facing interaction surface of the Spec Kitty system. Accepts commands and routes them to Kitty-core (planning), Constitution (governance), and Orchestration (execution control). The CLI is the current implementation; could also be a TUI, web app, or IDE plugin. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Slash Command](./execution.md#slash-command), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
+| **Architecture ref** | [System Landscape](../../architecture/2.x/00_landscape/README.md#control-plane) |
+
+---
+
+### Kitty-core
+
+| | |
+|---|---|
+| **Definition** | The planning domain of Spec Kitty. Owns the Spec-Driven Development workflow (specify→plan→tasks), constructs the execution graph (WP dependency DAG) driven by mission templates and concrete missions, and coordinates the next-action loop. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Mission](#mission), [Mission Discovery](#mission-discovery), [Work Package](#work-package) |
+| **Architecture ref** | [System Landscape](../../architecture/2.x/00_landscape/README.md#kitty-core) |
+
+---
+
+### Event Store
+
+| | |
+|---|---|
+| **Definition** | Central persistence boundary for all system state. Both Kitty-core and Orchestration write events; Dashboard reads them. Currently implemented as filesystem artifacts (JSONL event logs, WP frontmatter, meta.json). Exposed through a service layer so the backing store can change without affecting consumers. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [WPStatusChanged](./system-events.md#wpstatuschanged), [Event Envelope](./system-events.md#event-envelope), [Lane](#lane) |
+| **Architecture ref** | [System Landscape](../../architecture/2.x/00_landscape/README.md#event-store) |
+
+---
+
+### Dashboard
+
+| | |
+|---|---|
+| **Definition** | Read-only visibility surface. Reads from the Event Store to present a kanban view of mission progress, WP status, and execution history. Has no write path to any other container. Currently implemented as a local Playwright-based browser kanban. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Event Store](#event-store), [Lane](#lane), [Work Package](#work-package) |
+| **Architecture ref** | [System Landscape](../../architecture/2.x/00_landscape/README.md#dashboard) |

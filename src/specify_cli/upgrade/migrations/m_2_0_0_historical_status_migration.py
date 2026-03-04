@@ -67,7 +67,7 @@ class HistoricalStatusMigration(BaseMigration):
                 if any(e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason for e in events):
                     continue
                 # Has non-migration actors? Live data, skip.
-                if any(not e.actor.startswith("migration") for e in events):
+                if any(not str(e.actor).startswith("migration") for e in events):
                     continue
                 # All migration actors, no marker -> legacy bootstrap, needs upgrade
                 return True

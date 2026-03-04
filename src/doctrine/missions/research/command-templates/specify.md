@@ -122,7 +122,7 @@ During discovery, you MUST ask:
 When discovery is complete, run:
 
 ```bash
-spec-kitty agent feature create-feature "<slug>" --json
+spec-kitty agent mission create-feature "<slug>" --json
 ```
 
 Parse the JSON output for `feature` and `feature_dir`.

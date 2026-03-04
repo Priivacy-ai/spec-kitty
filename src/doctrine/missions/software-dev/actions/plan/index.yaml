@@ -1,0 +1,10 @@
+action: plan
+directives:
+  - 003-decision-documentation-requirement
+  - 010-specification-fidelity-requirement
+tactics:
+  - requirements-validation-workflow
+  - adr-drafting-workflow
+styleguides: []
+toolguides: []
+procedures: []

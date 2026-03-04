@@ -1,0 +1,5 @@
+profile-id: invalid-missing-purpose
+name: Invalid Profile
+# Missing required 'purpose' field
+specialization:
+  primary-focus: Testing validation

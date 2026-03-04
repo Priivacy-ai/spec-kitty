@@ -10,11 +10,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.core.agent_config import (
-    load_agent_config,
-    save_agent_config,
-    AgentConfig,
-    AgentConfigError,
+from specify_cli.core.tool_config import (
+    load_tool_config as load_agent_config,
+    save_tool_config as save_agent_config,
+    ToolConfig as AgentConfig,
+    ToolConfigError as AgentConfigError,
 )
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
@@ -22,7 +22,7 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 )
 from specify_cli.tasks_support import find_repo_root
 
-app = typer.Typer(
+app: typer.Typer = typer.Typer(
     name="config",
     help="Manage project AI agent configuration (add, remove, list agents)",
     no_args_is_help=True,

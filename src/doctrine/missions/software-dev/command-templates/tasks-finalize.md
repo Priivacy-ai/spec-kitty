@@ -30,7 +30,7 @@ $ARGUMENTS
 **CRITICAL**: Run this command from repo root:
 
 ```bash
-spec-kitty agent feature finalize-tasks --json
+spec-kitty agent mission finalize-tasks --json
 ```
 
 This command will:

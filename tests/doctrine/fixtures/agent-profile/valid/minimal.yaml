@@ -1,9 +1,10 @@
-schema_version: "1.0"
-id: implementation-agent
+schema-version: "1.0"
+profile-id: implementation-agent
+name: Implementation Agent
+purpose: Code implementation and testing
 role: implementer
 capabilities:
   - code
   - test
-tool_constraints:
-  - git
-  - pytest
+specialization:
+  primary-focus: Code implementation

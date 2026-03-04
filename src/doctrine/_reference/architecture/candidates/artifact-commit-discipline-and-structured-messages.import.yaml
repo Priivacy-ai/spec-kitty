@@ -1,0 +1,36 @@
+id: "imp-architecture-artifact-commit-discipline-002"
+source:
+  title: "Architecture journeys: commit discipline for generated artifacts"
+  type: "journey-spec"
+  publisher: "spec-kitty architecture"
+  url: "architecture/journeys/"
+  accessed_on: "2026-02-18"
+classification:
+  target_concepts:
+    - "directive"
+    - "template"
+  rationale: "Specifies that generated governance/design artifacts are committed with consistent message discipline."
+adaptation:
+  summary: "Enforce committing generated architecture/bootstrap artifacts to current branch with structured commit messages."
+  notes:
+    - "Bootstrap should commit vision/constitution outputs to current branch."
+    - "Design workflow should commit generated artifacts using structured commit messages."
+    - "Architecture documentation is expected to stay in version control."
+source_references:
+  - kind: "local"
+    path: "architecture/journeys/001-project-onboarding-bootstrap.md"
+    lines: "56-57"
+    note: "Bootstrap completion includes committing vision and constitution artifacts."
+  - kind: "local"
+    path: "architecture/journeys/001-project-onboarding-bootstrap.md"
+    lines: "82-83"
+    note: "CLI responsibility includes committing artifacts to current branch."
+  - kind: "local"
+    path: "architecture/journeys/003-system-design-and-shared-understanding.md"
+    lines: "90-91"
+    note: "Design responsibilities include structured commit messages."
+  - kind: "local"
+    path: "architecture/README.md"
+    lines: "321-322"
+    note: "Architecture docs should be committed to git and peer-reviewed."
+status: "proposed"

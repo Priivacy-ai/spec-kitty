@@ -191,7 +191,7 @@ def _get_last_actor(feature_dir: Path, wp_id: str) -> str | None:
     events = read_events(feature_dir)
     for event in reversed(events):
         if event.wp_id == wp_id:
-            return event.actor
+            return event.actor.tool
     return None
 
 

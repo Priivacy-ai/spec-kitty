@@ -1,0 +1,94 @@
+{
+  "event_count": 27,
+  "feature_slug": "046-doctrine-artifact-domain-models",
+  "last_event_id": "01KK688B0M51D617W2XDAQG1CP",
+  "materialized_at": "2026-03-08T08:15:40.053053+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 11,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJH7QPZ3JHRE0565XSQZ2R4K",
+      "last_transition_at": "2026-02-28T04:22:32.163476+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJH882KTESR7GCHZ4AV52TG2",
+      "last_transition_at": "2026-02-28T04:31:28.378831+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJH8EK7QC9XA235HRM3XR5Y6",
+      "last_transition_at": "2026-02-28T04:35:02.007120+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJVJPXPPMJEM945NC0JSSVQC",
+      "last_transition_at": "2026-03-04T04:46:44.950154+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJVJQ12YJQDXMKH9V8DYXBMC",
+      "last_transition_at": "2026-03-04T04:46:48.414804+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJVJMP336YPRST4724SSKGNG",
+      "last_transition_at": "2026-03-04T04:45:31.619668+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KJVJMWX9JZS8VQ33FJ2MAH01",
+      "last_transition_at": "2026-03-04T04:45:38.601457+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJVJMXAS71GBBJEQ3A2JDGPD",
+      "last_transition_at": "2026-03-04T04:45:39.033459+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJVJQ6KT5PEAXXXRZY76VQMJ",
+      "last_transition_at": "2026-03-04T04:46:54.074908+00:00"
+    },
+    "WP10": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KJVJQ71BN7C7B20T44PA2366",
+      "last_transition_at": "2026-03-04T04:46:54.507727+00:00"
+    },
+    "WP11": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KK688B0M51D617W2XDAQG1CP",
+      "last_transition_at": "2026-03-08T08:15:40.052140+00:00"
+    }
+  }
+}

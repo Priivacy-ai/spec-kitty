@@ -534,10 +534,10 @@ class TestCheckPrerequisitesCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert payload["available_features"] == ["001-alpha", "002-beta"]
-        assert "check-prerequisites --feature" in payload["example_command"]
-        assert payload["remediation"] == "Re-run with --feature <slug>"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
+        assert payload["available_missions"] == ["001-alpha", "002-beta"]
+        assert "check-prerequisites --mission" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --mission <slug>"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
@@ -573,7 +573,7 @@ class TestCheckPrerequisitesCommand:
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         assert len(lines) == 1
         payload = json.loads(lines[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
 
 
 class TestGitPreflightEnforcement:
@@ -717,10 +717,10 @@ class TestFinalizeTasksCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert payload["available_features"] == ["001-alpha", "002-beta"]
-        assert "finalize-tasks --feature" in payload["example_command"]
-        assert payload["remediation"] == "Re-run with --feature <slug>"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
+        assert payload["available_missions"] == ["001-alpha", "002-beta"]
+        assert "finalize-tasks --mission" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --mission <slug>"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")

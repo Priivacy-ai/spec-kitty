@@ -9,6 +9,9 @@ from specify_cli.template.asset_generator import (
     prepare_command_templates,
     render_command_template,
 )
+import pytest
+pytestmark = pytest.mark.fast
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOFTWARE_DEV_TEMPLATE_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"

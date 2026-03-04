@@ -1,8 +1,8 @@
 ---
 description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
 scripts:
-  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
-  ps: spec-kitty agent feature -Json -RequireTasks -IncludeTasks
+  sh: spec-kitty agent mission check-prerequisites --json --include-tasks
+  ps: spec-kitty agent mission -Json -RequireTasks -IncludeTasks
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 

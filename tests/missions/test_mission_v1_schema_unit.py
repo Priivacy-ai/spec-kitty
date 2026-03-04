@@ -20,6 +20,8 @@ from specify_cli.mission_v1.schema import (
     is_v1_mission,
     validate_mission_v1,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------

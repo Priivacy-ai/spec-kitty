@@ -11,6 +11,8 @@ import yaml
 
 from specify_cli.mission import Mission
 from specify_cli.mission_v1 import MissionProtocol, PhaseMission
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +155,7 @@ class TestLinearTransitions:
 
         # The transitions library raises MachineError when no valid transition
         from transitions.core import MachineError
+
 
         with pytest.raises(MachineError):
             pm.advance()

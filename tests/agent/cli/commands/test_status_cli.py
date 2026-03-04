@@ -203,7 +203,7 @@ class TestEmitCommand:
         assert "event_id" in data
         assert data["wp_id"] == "WP01"
         assert data["to_lane"] == "claimed"
-        assert data["actor"] == "test-agent"
+        assert data["actor"]["tool"] == "test-agent"
 
     def test_emit_evidence_json_parsing(self, tmp_path: Path, feature_dir: Path):
         """Valid --evidence-json should be parsed and passed through."""

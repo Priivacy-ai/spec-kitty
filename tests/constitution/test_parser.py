@@ -2,7 +2,7 @@
 
 import pytest
 
-from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
+from constitution.parser import ConstitutionParser, ConstitutionSection
 
 pytestmark = pytest.mark.fast
 

@@ -60,7 +60,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature setup-plan --json` to initialize plan.md
+1. **Setup**: Run `spec-kitty agent mission setup-plan --json` to initialize plan.md
 
 2. **Load context**: Read spec.md, meta.json (especially `documentation_state`)
 

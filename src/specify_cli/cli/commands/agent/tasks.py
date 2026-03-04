@@ -17,6 +17,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.sync.events import (
     emit_wp_status_changed,
     emit_history_added,
@@ -37,7 +38,7 @@ from specify_cli.core.feature_detection import (
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.tool_config import get_auto_commit_default
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -719,6 +720,41 @@ def _validate_ready_for_review(
     return True, []
 
 
+def _get_hic_marker(
+    agent_profile: str | None,
+    repo_root: Path,
+    repo: "Any | None" = None,
+) -> str:
+    """Return '👤 ' if the profile is a sentinel (human-in-charge), else empty string.
+
+    Degrades gracefully — a missing or unresolvable profile returns '' without raising.
+
+    Args:
+        agent_profile: The profile ID to look up (e.g. "human-in-charge").
+        repo_root: Repo root, used to locate shipped/proposed dirs if repo is None.
+        repo: Optional pre-built AgentProfileRepository. Pass this when calling in
+              a loop to avoid re-reading YAML files for every WP row.
+    """
+    if not agent_profile:
+        return ""
+    try:
+        from doctrine.agent_profiles.repository import AgentProfileRepository
+
+        if repo is None:
+            shipped_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "shipped"
+            proposed_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "_proposed"
+            repo = AgentProfileRepository(
+                shipped_dir=shipped_dir if shipped_dir.exists() else None,
+                project_dir=proposed_dir if proposed_dir.exists() else None,
+            )
+        profile = repo.get(agent_profile)
+        if profile and profile.sentinel:
+            return "👤 "
+    except Exception:
+        pass  # Degrade gracefully — missing profile doesn't break kanban
+    return ""
+
+
 def _wp_branch_merged_into_target(
     repo_root: Path,
     feature_slug: str,
@@ -812,7 +848,8 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
@@ -834,6 +871,7 @@ def move_task(
         spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Validate lane
         target_lane = ensure_lane(to)
@@ -1273,7 +1311,8 @@ def move_task(
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -1290,11 +1329,12 @@ def mark_status(
         spec-kitty agent tasks mark-status T001 T002 T003 --status done
 
         # Many tasks at once:
-        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --feature 001-my-feature
+        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-feature
 
         # With JSON output:
         spec-kitty agent tasks mark-status T001 T002 --status done --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Validate status
         if status not in ("done", "pending"):
@@ -1456,7 +1496,8 @@ def mark_status(
 @app.command(name="list-tasks")
 def list_tasks(
     lane: Annotated[Optional[str], typer.Option("--lane", help="Filter by lane")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -1465,6 +1506,7 @@ def list_tasks(
         spec-kitty agent tasks list-tasks --json
         spec-kitty agent tasks list-tasks --lane doing --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -1528,7 +1570,8 @@ def list_tasks(
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1538,6 +1581,7 @@ def add_history(
     Examples:
         spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -1612,7 +1656,8 @@ def add_history(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Parse tasks.md and inject dependencies into WP frontmatter.
@@ -1622,9 +1667,10 @@ def finalize_tasks(
     field to each WP file's frontmatter.
 
     Examples:
-        spec-kitty agent tasks finalize-tasks --feature 001-my-feature --json
-        spec-kitty agent tasks finalize-tasks --feature 021-my-feature --json
+        spec-kitty agent tasks finalize-tasks --mission 001-my-feature --json
+        spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -1761,9 +1807,13 @@ def map_requirements(
             help="Replace existing refs instead of merging (default: merge/union)",
         ),
     ] = False,
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", help="Mission slug (auto-detected if omitted)"),
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
@@ -1775,6 +1825,7 @@ def map_requirements(
     ] = None,
 ) -> None:
     """Register requirement-to-WP mappings with immediate validation."""
+    feature = resolve_mission_or_feature(mission, feature)
     from specify_cli.frontmatter import read_frontmatter, write_frontmatter
     from specify_cli.requirement_mapping import (
         compute_coverage,
@@ -2064,7 +2115,8 @@ def map_requirements(
 @app.command(name="validate-workflow")
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -2072,6 +2124,7 @@ def validate_workflow(
     Examples:
         spec-kitty agent tasks validate-workflow WP01 --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -2154,9 +2207,13 @@ def validate_workflow(
 
 @app.command(name="status")
 def status(
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", "-f", help="Mission slug (e.g., 012-documentation-mission). Auto-detected if not provided.")
+    ] = None,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (e.g., 012-documentation-mission). Auto-detected if not provided.")
+        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")
     ] = None,
     json_output: Annotated[
         bool,
@@ -2177,10 +2234,11 @@ def status(
 
     Example:
         spec-kitty agent tasks status
-        spec-kitty agent tasks status --feature 012-documentation-mission
+        spec-kitty agent tasks status --mission 012-documentation-mission
         spec-kitty agent tasks status --json
         spec-kitty agent tasks status --stale-threshold 15
     """
+    feature = resolve_mission_or_feature(mission, feature)
     from rich.table import Table
     from rich.panel import Panel
     from rich.text import Text
@@ -2223,6 +2281,7 @@ def status(
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""
+            agent_profile = extract_scalar(front, "agent_profile") or ""
 
             work_packages.append({
                 "id": wp_id,
@@ -2232,6 +2291,7 @@ def status(
                 "file": wp_file.name,
                 "agent": agent,
                 "shell_pid": shell_pid,
+                "agent_profile": agent_profile,
             })
 
         if not work_packages:
@@ -2347,6 +2407,19 @@ def status(
         max_rows = max(len(by_lane["planned"]), len(by_lane["in_progress"]),
                        len(by_lane["for_review"]), len(by_lane["approved"]), len(by_lane["done"]))
 
+        # Instantiate profile repo once for the whole render (avoid per-row YAML reads)
+        _profile_repo = None
+        try:
+            from doctrine.agent_profiles.repository import AgentProfileRepository as _APR
+            _shipped = main_repo_root / "src" / "doctrine" / "agent_profiles" / "shipped"
+            _proposed = main_repo_root / "src" / "doctrine" / "agent_profiles" / "_proposed"
+            _profile_repo = _APR(
+                shipped_dir=_shipped if _shipped.exists() else None,
+                project_dir=_proposed if _proposed.exists() else None,
+            )
+        except Exception:
+            pass  # Degrade gracefully — kanban still renders without HiC markers
+
         # Add rows
         for i in range(max_rows):
             row = []
@@ -2354,12 +2427,13 @@ def status(
                 if i < len(by_lane[lane]):
                     wp = by_lane[lane][i]
                     title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
+                    hic_marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, _profile_repo)
 
                     # Add stale indicator for in_progress WPs
                     if lane == "in_progress" and wp.get("is_stale"):
-                        cell = f"[red]⚠️ {wp['id']}[/red]\n{title_truncated}"
+                        cell = f"[red]⚠️ {hic_marker}{wp['id']}[/red]\n{title_truncated}"
                     else:
-                        cell = f"{wp['id']}\n{title_truncated}"
+                        cell = f"{hic_marker}{wp['id']}\n{title_truncated}"
                     row.append(cell)
                 else:
                     row.append("")
@@ -2444,7 +2518,8 @@ def status(
 @app.command(name="list-dependents")
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).
@@ -2456,8 +2531,9 @@ def list_dependents(
 
     Examples:
         spec-kitty agent tasks list-dependents WP13
-        spec-kitty agent tasks list-dependents WP01 --feature 001-my-feature --json
+        spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = locate_project_root()
         if repo_root is None:

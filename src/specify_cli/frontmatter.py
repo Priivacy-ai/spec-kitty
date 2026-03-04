@@ -17,6 +17,8 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
+from specify_cli.identity import ActorIdentity
+
 
 class FrontmatterError(Exception):
     """Error in frontmatter operations."""
@@ -224,7 +226,11 @@ class FrontmatterManager:
         # Add fields in standard order (if they exist)
         for field in self.WP_FIELD_ORDER:
             if field in frontmatter:
-                normalized[field] = frontmatter[field]
+                value = frontmatter[field]
+                # Serialize ActorIdentity as a YAML mapping
+                if field == "agent" and isinstance(value, ActorIdentity):
+                    value = value.to_dict()
+                normalized[field] = value
 
         # Add any remaining fields (alphabetically)
         remaining = sorted(set(frontmatter.keys()) - set(self.WP_FIELD_ORDER))
@@ -293,6 +299,7 @@ class FrontmatterManager:
                     "claimed",
                     "in_progress",
                     "for_review",
+                    "approved",
                     "done",
                     "blocked",
                     "canceled",
@@ -351,6 +358,42 @@ def validate_frontmatter(file_path: Path) -> list[str]:
     return _manager.validate(file_path)
 
 
+def extract_agent_identity(frontmatter: str) -> ActorIdentity | None:
+    """Extract the ``agent`` field from raw frontmatter text.
+
+    Handles both legacy scalar format (``agent: "claude"``) and the structured
+    YAML mapping format (``agent:\\n  tool: claude\\n  model: opus\\n  ...``).
+
+    Args:
+        frontmatter: Raw YAML text between the ``---`` delimiters (without the
+            delimiters themselves).
+
+    Returns:
+        ``ActorIdentity`` if the field is present and non-empty, ``None`` otherwise.
+    """
+    _yaml = YAML(typ="safe")
+    try:
+        data = _yaml.load(frontmatter)
+        if not isinstance(data, dict):
+            return None
+        agent_val = data.get("agent")
+        if agent_val is None or agent_val == "":
+            return None
+        if isinstance(agent_val, dict):
+            return ActorIdentity.from_dict(agent_val)
+        if isinstance(agent_val, str):
+            return ActorIdentity.from_legacy(agent_val)
+    except Exception:  # noqa: BLE001, S110
+        pass
+    # Fallback: simple regex extraction for plain scalars
+    match = re.search(r"^agent:\s*[\"']?([^\"\'\n#]+)[\"']?", frontmatter, re.MULTILINE)
+    if match:
+        scalar = match.group(1).strip()
+        if scalar:
+            return ActorIdentity.from_legacy(scalar)
+    return None
+
+
 def normalize_file(file_path: Path) -> bool:
     """Normalize an existing file's frontmatter.
 
@@ -379,6 +422,7 @@ def normalize_file(file_path: Path) -> bool:
 __all__ = [
     "FrontmatterError",
     "FrontmatterManager",
+    "extract_agent_identity",
     "read_frontmatter",
     "write_frontmatter",
     "update_field",

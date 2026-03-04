@@ -82,6 +82,11 @@ spec-kitty agent tasks add-history WP01 --note "Progress update"
 
 - Any changes to `__init__.py` for the Spec Kitty CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`.
 
+## Branching Strategy
+
+- For **2.x** work, the reference branch is either `2.x` or `develop` (if it exists).
+- For **1.x** work, the reference branch is `main`.
+
 ## Adding New Agent Support
 
 This section explains how to add support for new AI agents/assistants to the Spec Kitty CLI. Use this guide as a reference when integrating new AI tools into the Spec-Driven Development workflow.

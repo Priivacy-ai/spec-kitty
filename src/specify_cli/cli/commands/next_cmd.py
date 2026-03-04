@@ -8,6 +8,7 @@ import sys
 import typer
 from typing import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.feature_detection import (
     FeatureDetectionError,
@@ -27,7 +28,8 @@ def next_step(
     result: Annotated[
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
-    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[
@@ -42,7 +44,7 @@ def next_step(
 
     Examples:
         spec-kitty next --agent claude --json
-        spec-kitty next --agent codex --feature 034-my-feature
+        spec-kitty next --agent codex --mission 034-my-feature
         spec-kitty next --agent gemini --result failed --json
         spec-kitty next --agent claude --answer "yes" --json
         spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
@@ -51,6 +53,9 @@ def next_step(
     if result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
         raise typer.Exit(1)
+
+    # Resolve --mission / --feature backward compat
+    feature = resolve_mission_or_feature(mission, feature)
 
     # Resolve repo root
     repo_root = locate_project_root()

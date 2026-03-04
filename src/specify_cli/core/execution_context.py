@@ -82,10 +82,10 @@ def _resolve_feature_context(
             allow_latest_incomplete=True,
         )
     except Exception as exc:
-        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
+        raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", str(exc)) from exc
     if ctx is None:
         raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED",
+            "MISSION_CONTEXT_UNRESOLVED",
             "Could not resolve feature context.",
         )
     return ctx
@@ -94,11 +94,11 @@ def _resolve_feature_context(
 def _tasks_commands(feature_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (
-            "spec-kitty agent feature check-prerequisites "
-            f"--json --paths-only --include-tasks --feature {feature_slug}"
+            "spec-kitty agent mission check-prerequisites "
+            f"--json --paths-only --include-tasks --mission {feature_slug}"
         ),
         "finalize_tasks": (
-            f"spec-kitty agent feature finalize-tasks --feature {feature_slug} --json"
+            f"spec-kitty agent mission finalize-tasks --mission {feature_slug} --json"
         ),
     }
 

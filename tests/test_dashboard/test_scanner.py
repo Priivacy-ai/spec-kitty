@@ -4,6 +4,9 @@ from pathlib import Path
 from specify_cli.dashboard import scanner
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
 from specify_cli.core.feature_detection import FeatureContext
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 def _create_feature(tmp_path: Path, slug: str = "001-demo-feature") -> Path:

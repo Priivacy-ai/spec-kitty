@@ -73,9 +73,9 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         12  # All agents
     """
     try:
-        from specify_cli.core.agent_config import (
-            AgentConfigError,
-            get_configured_agents,
+        from specify_cli.core.tool_config import (
+            ToolConfigError as AgentConfigError,
+            get_configured_tools as get_configured_agents,
         )
 
         available = get_configured_agents(project_path)

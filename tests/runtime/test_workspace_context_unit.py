@@ -13,6 +13,8 @@ from specify_cli.workspace_context import (
     load_context,
     save_context,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture

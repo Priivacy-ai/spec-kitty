@@ -55,7 +55,7 @@ class UpdateResearchImplementTemplatesMigration(BaseMigration):
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
         try:
-            data_root = files("specify_cli")
+            data_root = files("doctrine")
             template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.exists():
                 return True, ""
@@ -71,7 +71,7 @@ class UpdateResearchImplementTemplatesMigration(BaseMigration):
 
         # Load template from packaged missions
         try:
-            data_root = files("specify_cli")
+            data_root = files("doctrine")
             template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if not template_path.exists():

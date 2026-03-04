@@ -1,0 +1,49 @@
+schema_version: "1.0"
+id: plan
+action: plan
+mission: software-dev
+steps:
+  - id: bootstrap
+    description: Load constitution context for this action
+    command: "spec-kitty constitution context --action plan --role plan --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: read_spec
+    description: Read and understand the feature specification
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: design_architecture
+    description: Design the implementation architecture and component breakdown
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+        - adr-drafting-workflow
+
+  - id: document_decisions
+    description: Record architectural decisions as ADRs
+    delegates_to:
+      kind: directive
+      candidates:
+        - 003-decision-documentation-requirement
+
+  - id: write_plan
+    description: Write plan.md to kitty-specs/{feature}/
+    command: "Write plan.md in kitty-specs/{feature_slug}/"
+
+  - id: commit_plan
+    description: Commit the plan to main branch
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy

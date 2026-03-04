@@ -33,6 +33,7 @@ pytestmark = pytest.mark.git_repo
 # ---------------------------------------------------------------------------
 
 MISSIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions"
+DOCTRINE_MISSIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions"
 
 def _load_yaml(mission_name: str) -> dict:
     """Load a mission.yaml from the missions directory."""
@@ -308,10 +309,10 @@ class TestPlanMissionDirectoryStructure:
         assert (MISSIONS_DIR / "plan" / "mission.yaml").is_file()
 
     def test_plan_command_templates_exists(self) -> None:
-        assert (MISSIONS_DIR / "plan" / "command-templates").is_dir()
+        assert (DOCTRINE_MISSIONS_DIR / "plan" / "command-templates").is_dir()
 
     def test_plan_templates_exists(self) -> None:
-        assert (MISSIONS_DIR / "plan" / "templates").is_dir()
+        assert (DOCTRINE_MISSIONS_DIR / "plan" / "templates").is_dir()
 
 # ---------------------------------------------------------------------------
 # Guard expression validation (both missions use the 6 supported primitives)

@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from .models import Lane
+from specify_cli.identity import ActorIdentity
 
 CANONICAL_LANES: tuple[str, ...] = (
     "planned",
@@ -82,9 +83,13 @@ def is_terminal(lane: str) -> bool:
     return resolve_lane_alias(lane) in TERMINAL_LANES
 
 
-def _guard_actor_required(actor: str | None) -> tuple[bool, str | None]:
+def _guard_actor_required(actor: ActorIdentity | str | None) -> tuple[bool, str | None]:
     """Guard: planned -> claimed requires actor identity."""
-    if not actor or not actor.strip():
+    if actor is None:
+        return False, "Transition planned -> claimed requires actor identity"
+    if isinstance(actor, ActorIdentity):
+        return True, None
+    if not str(actor).strip():
         return False, "Transition planned -> claimed requires actor identity"
     return True, None
 
@@ -181,7 +186,7 @@ def _run_guard(
     from_lane: str,
     to_lane: str,
     *,
-    actor: str | None,
+    actor: str | ActorIdentity | None,
     workspace_context: str | None,
     subtasks_complete: bool | None,
     implementation_evidence_present: bool | None,
@@ -220,7 +225,7 @@ def validate_transition(
     to_lane: str,
     *,
     force: bool = False,
-    actor: str | None = None,
+    actor: str | ActorIdentity | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
@@ -251,7 +256,7 @@ def validate_transition(
     if pair not in ALLOWED_TRANSITIONS:
         if force:
             # Force can override any transition, but requires actor + reason
-            if not actor or not actor.strip():
+            if not actor or not str(actor).strip():
                 return (
                     False,
                     "Force transitions require actor and reason",
@@ -270,7 +275,7 @@ def validate_transition(
     # For allowed transitions, run guard conditions
     # Force bypasses guards (but force still requires actor + reason for audit)
     if force:
-        if not actor or not actor.strip():
+        if not actor or not str(actor).strip():
             return False, "Force transitions require actor and reason"
         if not reason or not reason.strip():
             return False, "Force transitions require actor and reason"

@@ -12,6 +12,9 @@ from pathlib import Path
 
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.reducer import materialize_to_json, reduce
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -137,6 +140,7 @@ class TestReducerParity:
         """Write events to disk, materialize, and compare with expected."""
         from specify_cli.status.store import append_event
         from specify_cli.status.reducer import materialize
+
 
         events = _load_sample_events()
         expected = _load_expected_snapshot()

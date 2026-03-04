@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 
 import typer
 from rich.console import Console
-from typing_extensions import Annotated
+from typing import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.agent_context import (
     parse_plan_for_tech_stack,
@@ -29,11 +30,7 @@ from specify_cli.core.execution_context import (
     resolve_action_context,
 )
 
-app = typer.Typer(
-    name="context",
-    help="Agent context management commands",
-    no_args_is_help=True
-)
+app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
 
 console = Console()
 
@@ -61,7 +58,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict",
+            mode="strict",  # Raise error if ambiguous
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
@@ -74,19 +71,18 @@ def resolve_context(
         str,
         typer.Option(
             "--action",
-            help=(
-                "Action to resolve context for "
-                f"({', '.join(ACTION_NAMES)})"
-            ),
+            help=(f"Action to resolve context for ({', '.join(ACTION_NAMES)})"),
         ),
     ],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
-    wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
-    base: Annotated[Optional[str], typer.Option("--base", help="Explicit base WP for implement")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    wp_id: Annotated[str | None, typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
+    base: Annotated[str | None, typer.Option("--base", help="Explicit base WP for implement")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
 ) -> None:
     """Resolve canonical feature/work-package/action context for prompt execution."""
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = locate_project_root()
         if repo_root is None:
@@ -128,27 +124,22 @@ def resolve_context(
             print(json.dumps({"success": False, "error_code": exc.code, "error": str(exc)}, indent=2))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command(name="update-context")
 def update_context(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent_type: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--agent-type",
             "-a",
-            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'."
-        )
+            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'.",
+        ),
     ] = "claude",
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Output results as JSON for agent parsing"
-        )
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
 ) -> None:
     """Update agent context file with tech stack from plan.md.
 
@@ -170,10 +161,21 @@ def update_context(
         cd .worktrees/008-feature
         spec-kitty agent update-context
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Locate repository root
         repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Could not locate project root"
+            if json_output:
+                print(json.dumps({"error": error_msg, "success": False}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            sys.exit(1)
         cwd = Path.cwd()
+
+        # Narrow agent_type: fall back to "claude" if None
+        resolved_agent_type: str = agent_type if agent_type is not None else "claude"
 
         # Find feature directory using centralized detection
         try:
@@ -193,11 +195,11 @@ def update_context(
                 print(json.dumps({"error": error_msg, "success": False}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(f"[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
+                console.print("[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
             sys.exit(1)
 
         # Verify agent file exists
-        agent_file_path = get_agent_file_path(agent_type, repo_root)
+        agent_file_path = get_agent_file_path(resolved_agent_type, repo_root)
         if not agent_file_path.exists():
             error_msg = f"Agent file not found: {agent_file_path}"
             if json_output:
@@ -215,7 +217,7 @@ def update_context(
 
         # Update agent context file
         update_context_file(
-            agent_type=agent_type,
+            agent_type=resolved_agent_type,
             tech_stack=tech_stack,
             feature_slug=feature_slug,
             repo_root=repo_root,

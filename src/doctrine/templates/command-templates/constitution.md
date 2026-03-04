@@ -33,7 +33,6 @@ spec-kitty constitution generate --from-interview --json
 - `.kittify/constitution/constitution.md`
 - `.kittify/constitution/interview/answers.yaml`
 - `.kittify/constitution/references.yaml`
-- `.kittify/constitution/library/*.md`
 
 ## Context Bootstrap
 

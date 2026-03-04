@@ -186,24 +186,30 @@ agents:
 *Auto-generated from all feature plans. Last updated: 2025-11-10*
 
 ## Active Technologies
-- Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
-- Python 3.11+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
+- Python 3.12+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
+- Python 3.12+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
 - File system (no database) (004-modular-code-refactoring)
-- Python 3.11+ (existing spec-kitty codebase requirement) (005-refactor-mission-system)
+- Python 3.12+ (existing spec-kitty codebase requirement) (005-refactor-mission-system)
 - Filesystem only (YAML configs, CSV files, markdown templates) (005-refactor-mission-system)
-- Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI) (007-frontmatter-only-lane)
+- Python 3.12+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI) (007-frontmatter-only-lane)
 - Filesystem only (YAML frontmatter in markdown files) (007-frontmatter-only-lane)
-- Python 3.11+ (existing spec-kitty requirement) (008-unified-python-cli)
+- Python 3.12+ (existing spec-kitty requirement) (008-unified-python-cli)
 - Filesystem only (no database) (008-unified-python-cli)
-- Python 3.11+ + pathlib, Rich, ruamel.yaml, typer, subprocess (git worktree), pytest (010-workspace-per-work-package-for-parallel-development)
+- Python 3.12+ + pathlib, Rich, ruamel.yaml, typer, subprocess (git worktree), pytest (010-workspace-per-work-package-for-parallel-development)
 - Filesystem only (YAML frontmatter, git worktrees) (010-workspace-per-work-package-for-parallel-development)
-- Python 3.11+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
+- Python 3.12+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
 - Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
-- Python 3.11+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
+- Python 3.12+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
 - Filesystem only (mission configs in YAML, Divio templates in Markdown, iteration state in JSON) (012-documentation-mission)
+- Python 3.12+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
+- Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
+
+
 - Markdown (documentation only) + None (pure documentation) (023-documentation-sprint-agent-management-cleanup)
+- Python 3.12+ (existing spec-kitty codebase) + typer, rich, ruamel.yaml, pydantic (057-doctrine-stack-init-and-profile-integration)
+- Filesystem only (YAML profiles, markdown constitution, doctrine defaults) (057-doctrine-stack-init-and-profile-integration)
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
-- Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
+- Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
 ## Project Structure
 ```
@@ -246,10 +252,16 @@ pytest tests/ --browser-channel=chromium --headed=false
 ```
 
 ## Code Style
-Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
+Python 3.12+ (existing spec-kitty codebase): Follow standard conventions
+
+## Branching Strategy
+
+- For **2.x** work, the reference branch is either `2.x` or `develop` (if it exists).
+- For **1.x** work, the reference branch is `main`.
 
 ## Recent Changes
-- 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
+- 057-doctrine-stack-init-and-profile-integration: Init-time doctrine setup, profile inheritance (merge + excluding), workflow profile injection, --feature→--mission rename
+- 047-namespace-aware-artifact-body-sync: Added Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
 <!-- MANUAL ADDITIONS START -->
 

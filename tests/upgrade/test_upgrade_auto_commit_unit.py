@@ -11,6 +11,9 @@ import pytest
 import typer
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------

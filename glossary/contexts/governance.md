@@ -95,3 +95,28 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution Compiler](#constitution-compiler), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+
+---
+
+### Context Bootstrap
+
+| | |
+|---|---|
+| **Definition** | The entry point at every execution boundary (Principle 5: Governance at the Execution Boundary) that injects action-scoped governance context into the agent prompt. Invoked via `spec-kitty constitution context --action <action>`. First invocation per action returns depth-2 full content (bootstrap); subsequent calls return depth-1 compact content. State tracked in `context-state.json`. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Location** | `src/constitution/context.py` |
+| **Related terms** | [Constitution](#constitution), [Two-Stage Intersection](#two-stage-intersection), [Action Index](./doctrine.md#action-index), [Agent Tool Connector](./execution.md#agent-tool-connector) |
+
+---
+
+### Two-Stage Intersection
+
+| | |
+|---|---|
+| **Definition** | The governance scoping mechanism that determines which doctrine content is injected for a given execution. Stage 1 selects the doctrine artifacts relevant to the action (via the Action Index). Stage 2 intersects with the project's constitution selections (via `references.yaml`). Only artifacts appearing in both stages are included. Prevents cross-action governance bleed while respecting project-level policy choices. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Context Bootstrap](#context-bootstrap), [Action Index](./doctrine.md#action-index), [Constitution Selection](./doctrine.md#constitution-selection), [Governance Resolution](#governance-resolution) |

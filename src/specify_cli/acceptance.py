@@ -30,7 +30,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_slug as centralized_detect_feature_slug,
     FeatureDetectionError,
 )
-from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.tool_config import get_auto_commit_default
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -496,7 +496,7 @@ def collect_feature_summary(
 
         metadata: Dict[str, Optional[str]] = {
             "lane": wp.lane,
-            "agent": wp.agent,
+            "agent": str(wp.agent) if wp.agent is not None else None,
             "assignee": wp.assignee,
             "shell_pid": wp.shell_pid,
         }

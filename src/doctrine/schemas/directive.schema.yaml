@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: "https://spec-kitty.dev/schemas/doctrine/directive.schema.yaml"
 title: Directive
-description: Minimal schema for governance directives.
+description: Schema for governance directives with optional enrichment fields.
 type: object
 additionalProperties: false
 required:
@@ -10,6 +10,47 @@ required:
   - title
   - intent
   - enforcement
+definitions:
+  directive_reference:
+    type: object
+    additionalProperties: false
+    required:
+      - type
+      - id
+    properties:
+      type:
+        type: string
+        enum:
+          - directive
+          - tactic
+          - styleguide
+          - toolguide
+          - paradigm
+          - procedure
+          - template
+      id:
+        type: string
+        minLength: 1
+  contradiction:
+    type: object
+    additionalProperties: false
+    required:
+      - type
+      - id
+      - reason
+    properties:
+      type:
+        type: string
+        enum:
+          - directive
+          - tactic
+          - paradigm
+      id:
+        type: string
+        minLength: 1
+      reason:
+        type: string
+        minLength: 1
 properties:
   schema_version:
     type: string
@@ -32,4 +73,43 @@ properties:
     type: string
     enum:
       - required
+      - lenient-adherence
       - advisory
+  scope:
+    type: string
+    minLength: 1
+  procedures:
+    type: array
+    items:
+      type: string
+  integrity_rules:
+    type: array
+    items:
+      type: string
+  validation_criteria:
+    type: array
+    items:
+      type: string
+  explicit_allowances:
+    type: array
+    minItems: 1
+    items:
+      type: string
+  references:
+    type: array
+    items:
+      $ref: '#/definitions/directive_reference'
+  opposed_by:
+    type: array
+    items:
+      $ref: '#/definitions/contradiction'
+allOf:
+  - if:
+      properties:
+        enforcement:
+          const: lenient-adherence
+      required:
+        - enforcement
+    then:
+      required:
+        - explicit_allowances

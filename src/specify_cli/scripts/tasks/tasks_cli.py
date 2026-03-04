@@ -293,7 +293,7 @@ def list_command(args: argparse.Namespace) -> None:
                 wp_id = wp.work_package_id or path.stem
                 title = (wp.title or "").strip('"')
                 assignee = (wp.assignee or "").strip()
-                agent = (wp.agent or "").strip()
+                agent = (wp.agent or "")
                 rows.append(
                     {
                         "lane": lane,
@@ -324,7 +324,7 @@ def list_command(args: argparse.Namespace) -> None:
             wp_id = wp.work_package_id or path.stem
             title = (wp.title or "").strip('"')
             assignee = (wp.assignee or "").strip()
-            agent = (wp.agent or "").strip()
+            agent = (wp.agent or "")
             rows.append(
                 {
                     "lane": lane,

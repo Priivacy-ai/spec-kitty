@@ -31,6 +31,8 @@ from specify_cli.runtime.resolver import (
     resolve_command,
     resolve_template,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -744,6 +746,7 @@ class TestCredentialPathDecision:
         security model (tighter permissions, never synced, never in git).
         """
         from specify_cli.runtime.home import get_kittify_home
+
 
         home = get_kittify_home()
         # The credential path should NOT be under ~/.kittify/

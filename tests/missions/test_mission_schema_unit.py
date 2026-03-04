@@ -18,6 +18,8 @@ from specify_cli.mission import (
     get_feature_mission_key,
     get_mission_for_feature,
 )
+pytestmark = pytest.mark.fast
+
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -282,6 +284,7 @@ class TestGetMissionForFeatureLegacy:
     def test_legacy_feature_no_warning(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
         """Legacy features should not produce warning (default is intentional)."""
         import warnings as w
+
 
         with w.catch_warnings(record=True) as caught:
             w.simplefilter("always")

@@ -109,7 +109,7 @@ Planning requirements (scale to complexity):
       - You MUST pass this explicitly to the setup-plan command using `--feature` flag
       - **DO NOT** rely on auto-detection by the CLI (prevents wrong feature selection)
 
-3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: Run `spec-kitty agent mission setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
@@ -118,7 +118,7 @@ Planning requirements (scale to complexity):
 
    ```bash
    # If detected feature is 020-my-feature:
-   spec-kitty agent feature setup-plan --feature 020-my-feature --json
+   spec-kitty agent mission setup-plan --feature 020-my-feature --json
    ```
 
    **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.
@@ -186,11 +186,6 @@ Planning requirements (scale to complexity):
 
 **Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
-## Key rules
-
-- Use absolute paths
-- ERROR on gate failures or unresolved clarifications
-
 ---
 
 ## ⛔ MANDATORY STOP POINT
@@ -217,17 +212,3 @@ Do NOT:
 The user will run `/spec-kitty.tasks` when they are ready to generate work packages.
 
 **Next suggested command**: `/spec-kitty.tasks` (user must invoke this explicitly)
-
-## Telemetry (before stopping)
-
-Before stopping, emit a telemetry event to record this planning phase:
-
-```bash
-spec-kitty agent telemetry emit \
-  --feature <feature-slug> \
-  --role planner \
-  --agent <your-agent-name> \
-  --model <your-model-id>
-```
-
-Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if your agent runtime provides usage metrics. This is fire-and-forget — failures never block the workflow.

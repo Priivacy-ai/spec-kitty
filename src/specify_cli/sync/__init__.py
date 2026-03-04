@@ -29,7 +29,6 @@ from .events import (
     emit_error_logged,
     emit_dependency_resolved,
 )
-from .queue import OfflineQueue
 from .feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,
@@ -38,6 +37,7 @@ from .feature_flags import (
 
 # Lazy-loaded names (require 'requests' or 'websockets' at runtime)
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "OfflineQueue": (".queue", "OfflineQueue"),
     "AuthClient": (".auth", "AuthClient"),
     "AuthenticationError": (".auth", "AuthenticationError"),
     "CredentialStore": (".auth", "CredentialStore"),

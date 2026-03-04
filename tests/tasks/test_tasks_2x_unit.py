@@ -14,6 +14,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+pytestmark = pytest.mark.fast
+
 
 runner = CliRunner()
 
@@ -68,6 +70,7 @@ class TestFindFeatureSlug:
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
         import subprocess
         from click.exceptions import Exit
+
 
         mock_cwd.return_value = Path("/repo")
         mock_repo.return_value = None

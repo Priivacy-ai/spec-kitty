@@ -14,6 +14,8 @@ import tomllib
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.fast
+
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

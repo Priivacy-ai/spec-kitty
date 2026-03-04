@@ -8,6 +8,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
@@ -16,7 +17,8 @@ from specify_cli.text_sanitization import detect_problematic_characters, sanitiz
 
 
 def validate_encoding(
-    feature: str | None = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug to validate (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),
@@ -27,6 +29,7 @@ def validate_encoding(
     characters that cause UTF-8 encoding errors. Can automatically fix issues
     by replacing problematic characters with safe alternatives.
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = find_repo_root()
     except TaskCliError as exc:

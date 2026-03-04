@@ -112,15 +112,23 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     return None
 
 
-def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
+def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:  # noqa: C901
     """Copy the embedded .kittify assets from a local repository checkout."""
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
     # Copy from .kittify/memory/ for consistency with other .kittify paths
     memory_src = repo_root / ".kittify" / "memory"
-    if memory_src.exists():
-        memory_dest = specify_root / "memory"
+    memory_dest = specify_root / "memory"
+    same_memory_tree = False
+    try:
+        same_memory_tree = memory_src.resolve(strict=False) == memory_dest.resolve(strict=False)
+    except OSError:
+        same_memory_tree = memory_src == memory_dest
+
+    if same_memory_tree:
+        memory_dest.mkdir(parents=True, exist_ok=True)
+    elif memory_src.exists():
         if memory_dest.exists():
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
@@ -225,11 +233,19 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             with agents_template.open("rb") as src, open(specify_root / "AGENTS.md", "wb") as dst:
                 shutil.copyfileobj(src, dst)
 
-    missions_resource_candidates = [
-        data_root.joinpath("missions"),  # Primary location per pyproject.toml
+    # Build missions resource candidates, preferring doctrine.missions
+    missions_resource_candidates = []
+    try:
+        from importlib.resources import files as _files
+        doctrine_missions = _files("doctrine").joinpath("missions")
+        missions_resource_candidates.append(doctrine_missions)
+    except ModuleNotFoundError:
+        pass
+    missions_resource_candidates.extend([
+        data_root.joinpath("missions"),  # Legacy specify_cli location
         data_root.joinpath(".kittify", "missions"),  # Legacy fallback
         data_root.joinpath("template_data", "missions"),  # Legacy fallback
-    ]
+    ])
     for missions_resource in missions_resource_candidates:
         if _resource_exists(missions_resource):
             copy_package_tree(missions_resource, specify_root / "missions")

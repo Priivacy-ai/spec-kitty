@@ -294,6 +294,34 @@ Syntax format in this reference:
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.implement`
 
+## /spec-kitty.profile-context
+
+**Syntax**: `/spec-kitty.profile-context <profile-name>`
+
+**Purpose**: Start an ad-hoc interactive session with a named specialist agent.
+
+**Prerequisites**:
+- Can run from main repo or any worktree.
+- Specialist profile must be present in `src/doctrine/agent_profiles/shipped/`.
+
+**What it does**:
+- Loads the agent's doctrine profile (role, directives, specialization context).
+- Opens an advisory session scoped to that specialist's perspective.
+- Does not advance mission state or modify work packages.
+
+**Examples**:
+```
+/spec-kitty.profile-context architect
+/spec-kitty.profile-context reviewer
+/spec-kitty.profile-context researcher
+```
+
+**Creates/updates**: Session memory-dump artefact (lightweight trace). Nothing committed automatically.
+
+**Related**: [Ad-Hoc Specialist Sessions](../how-to/adhoc-specialist-session.md)
+
+---
+
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)

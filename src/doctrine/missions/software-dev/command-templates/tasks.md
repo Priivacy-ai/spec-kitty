@@ -75,7 +75,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
@@ -169,7 +169,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    **CRITICAL**: Run this command from repo root:
 
    ```bash
-   spec-kitty agent feature finalize-tasks --json
+   spec-kitty agent mission finalize-tasks --json
    ```
 
    This step is MANDATORY for workspace-per-WP features. Without it:
@@ -359,7 +359,7 @@ The WP prompt must show the correct command so agents don't branch from the wron
 
 ### Step 1: Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` and capture `feature_dir`.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` and capture `feature_dir`.
 
 ### Step 2: Load Design Documents
 
@@ -445,7 +445,7 @@ For each WP, generate `feature_dir/tasks/WPxx-slug.md` using the template.
 
 ### Step 7: Finalize Tasks
 
-Run `spec-kitty agent feature finalize-tasks --json` to:
+Run `spec-kitty agent mission finalize-tasks --json` to:
 
 - Parse dependencies
 - Update frontmatter
@@ -607,19 +607,3 @@ A rushed job with vague, oversized WPs causes:
 - Feature failure
 
 **Invest the tokens now. Be thorough. Future agents will thank you.**
-
-## Telemetry (final step)
-
-After completing all steps above and reporting to the user, emit a telemetry event to record this task generation phase:
-
-```bash
-spec-kitty agent telemetry emit \
-  --feature <feature-slug> \
-  --role planner \
-  --agent <your-agent-name> \
-  --model <your-model-id>
-```
-
-Note: Task generation uses `--role planner` because it is part of the planning lifecycle.
-
-Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if your agent runtime provides usage metrics. This is fire-and-forget — failures never block the workflow.

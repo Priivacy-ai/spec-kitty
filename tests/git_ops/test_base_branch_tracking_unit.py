@@ -23,6 +23,9 @@ from specify_cli.workspace_context import (
     load_context,
     save_context,
 )
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 class TestWorkspaceContext:

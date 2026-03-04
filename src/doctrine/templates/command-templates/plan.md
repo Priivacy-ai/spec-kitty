@@ -80,7 +80,7 @@ Planning requirements (scale to complexity):
      - current directory path (`kitty-specs/<feature-slug>/...`)
    - If context is still ambiguous, run setup-plan once without `--feature`, parse the candidate list from JSON error, and pick one explicit feature slug before continuing.
 
-3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: Run `spec-kitty agent mission setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `feature_slug`: resolved feature slug
    - `spec_file`: absolute path to resolved spec.md

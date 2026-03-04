@@ -1,0 +1,43 @@
+schema_version: "1.0"
+id: easy-to-change
+name: Easy-to-Change Design Review
+purpose: >
+  Assess whether a proposed or existing design keeps the cost of future change
+  proportional to the value gained. Identifies where assumptions are embedded in
+  the wrong places, flags premature abstraction, and recommends minimal structural
+  investments that preserve adaptability without over-engineering.
+steps:
+  - title: Surface the volatility zones
+    description: >
+      Identify which business concepts or technical concerns are most likely to
+      change. Ask: "If requirements shift in the next two quarters, what parts of
+      this design would need to change?" Locate the cross-cutting edits — places
+      where a single logical change touches multiple modules or layers.
+    examples:
+      - "Country-specific tax rules change frequently → isolate in a strategy module, not hardcoded in the core engine."
+      - "Feature-toggle logic scattered across five files → consolidate behind a single toggle service."
+  - title: Check dependency direction
+    description: >
+      Verify that dependencies point from volatile modules toward stable ones, not
+      the reverse. Unstable code depending on stable abstractions is healthy;
+      stable core code depending on volatile plugins is fragile.
+  - title: Assess abstraction debt
+    description: >
+      Ask: "Is this abstraction solving a problem that exists now, or one that
+      might never happen?" Flag abstractions that increase indirection without
+      reducing a real, observed change cost. Over-engineering in the name of
+      flexibility is as harmful as hardcoding.
+  - title: Verify safety net coverage
+    description: >
+      Confirm that characterising tests exist around the seams most likely to
+      be touched by future changes. Without fast-feedback tests, even modular
+      code silently breaks when extended.
+  - title: Recommend targeted interventions
+    description: >
+      Propose the smallest structural change that improves adaptability at the
+      identified hot spots. Prefer composition over inheritance, seams over
+      rewrites, and documented extension points over speculative frameworks.
+      Record recommended changes in the ADR or design review note.
+    examples:
+      - "Extract payment-provider integration behind a port/adapter interface to isolate future provider changes."
+      - "Add an architecture test that fails if the domain layer imports infrastructure packages."

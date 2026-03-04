@@ -132,7 +132,7 @@ Given that feature description, do this:
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:
 
    ```bash
-   spec-kitty agent feature create-feature "<slug>" --json
+   spec-kitty agent mission create-feature "<slug>" --json
    ```
 
    Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").

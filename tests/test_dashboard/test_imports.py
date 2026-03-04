@@ -1,4 +1,7 @@
 import importlib
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 def test_dashboard_public_api_imports():

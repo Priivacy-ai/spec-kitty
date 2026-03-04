@@ -18,6 +18,7 @@ from typing import Any
 
 import ulid
 
+from specify_cli.identity import ActorIdentity
 from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import reduce, SNAPSHOT_FILENAME
 from specify_cli.status.store import read_events
@@ -389,7 +390,7 @@ def _generate_reconciliation_events(
                 from_lane=from_lane,
                 to_lane=to_lane,
                 at=now,
-                actor="reconcile",
+                actor=ActorIdentity.from_legacy("reconcile"),
                 force=False,
                 execution_mode="direct_repo",
                 reason=f"Reconciliation: {evidence_summary}",

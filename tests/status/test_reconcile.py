@@ -226,7 +226,7 @@ class TestGenerateReconciliationEvents:
         assert events[0].wp_id == "WP01"
         assert events[0].from_lane == Lane.PLANNED
         assert events[0].to_lane == Lane.CLAIMED
-        assert events[0].actor == "reconcile"
+        assert events[0].actor.tool == "reconcile"
         assert events[0].execution_mode == "direct_repo"
 
     def test_wp_in_in_progress_with_merged_branch(self):
@@ -296,7 +296,7 @@ class TestGenerateReconciliationEvents:
         )
 
         for event in events:
-            assert event.actor == "reconcile"
+            assert event.actor.tool == "reconcile"
             assert event.execution_mode == "direct_repo"
             assert event.force is False
 
@@ -517,7 +517,7 @@ class TestReconcileResultJson:
         assert output["drift_detected"] is True
         assert len(output["suggested_events"]) == 1
         assert output["suggested_events"][0]["wp_id"] == "WP01"
-        assert output["suggested_events"][0]["actor"] == "reconcile"
+        assert output["suggested_events"][0]["actor"]["tool"] == "reconcile"
         assert output["stats"]["target_repos_scanned"] == 1
 
         # Verify it's JSON-serializable

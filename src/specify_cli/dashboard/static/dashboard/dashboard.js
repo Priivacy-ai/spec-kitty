@@ -365,7 +365,7 @@ return `
 
     document.getElementById('overview-content').innerHTML = `
 <div style="margin-bottom: 30px;">
-    <h3>Feature: ${feature.name} ${mergeBadge}</h3>
+    <h3>Mission: ${feature.name} ${mergeBadge}</h3>
     <p style="color: #6b7280;">View and track all artifacts for this feature</p>
 </div>
 
@@ -1132,7 +1132,7 @@ function updateFeatureList(features, activeFeatureId = null) {
     if (features.length === 1) {
         selectContainer.style.display = 'none';
         singleFeatureName.style.display = 'block';
-        singleFeatureName.textContent = `Feature: ${getFeatureDisplayName(features[0])}`;
+        singleFeatureName.textContent = `Mission: ${getFeatureDisplayName(features[0])}`;
         currentFeature = activeFeatureId || features[0].id;
         setFeatureSelectActive(false);
     } else {
@@ -1380,8 +1380,8 @@ function displayDiagnostics(data) {
             'unknown': '❓ UNKNOWN'
         };
         const currentHtml = `
-            <h3>Current Feature</h3>
-            <div><strong>Feature:</strong> ${data.current_feature.name}</div>
+            <h3>Current Mission</h3>
+            <div><strong>Mission:</strong> ${data.current_feature.name}</div>
             <div><strong>State:</strong> ${stateMap[data.current_feature.state] || data.current_feature.state}</div>
             <div><strong>Branch Exists:</strong> ${data.current_feature.branch_exists ? '✅' : '❌'}</div>
             <div><strong>Worktree Exists:</strong> ${data.current_feature.worktree_exists ? '✅' : '❌'}</div>

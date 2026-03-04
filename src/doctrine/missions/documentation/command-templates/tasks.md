@@ -29,7 +29,7 @@ git branch --show-current  # Should show "main"
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks`
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
 2. **Load design documents**:
    - spec.md (documentation goals, selected Divio types)
