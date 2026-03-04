@@ -105,7 +105,7 @@ def _cleanup_orphaned_update_dirs(parent: Path) -> None:
         return
     for entry in parent.iterdir():
         if entry.is_dir() and entry.name.startswith(".kittify_update_"):
-            try:
+            try:  # noqa: SIM105
                 shutil.rmtree(entry)
             except OSError:
                 pass  # best-effort cleanup
@@ -159,9 +159,7 @@ def ensure_runtime() -> None:
                 return
 
         # Build new asset tree in a unique temp directory
-        tmp_dir = Path(
-            tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent)
-        )
+        tmp_dir = Path(tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent))
         try:
             populate_from_package(tmp_dir)
             merge_package_assets(source=tmp_dir, dest=home)

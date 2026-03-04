@@ -147,7 +147,9 @@ def list_cmd() -> None:
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
         console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
-        console.print("[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]")
+        console.print(
+            "[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]"  # noqa: E501
+        )
         raise typer.Exit(1)
 
     try:
@@ -174,7 +176,7 @@ def _detect_current_feature(project_root: Path) -> str | None:
         ctx = detect_feature(
             project_root,
             cwd=Path.cwd(),
-            mode="lenient"  # Return None instead of raising error
+            mode="lenient",  # Return None instead of raising error
         )
         return ctx.slug if ctx else None
     except Exception:
@@ -189,7 +191,7 @@ def current_cmd(
         "--feature",
         "-f",
         help="Feature slug (auto-detects from current directory if omitted)",
-    )
+    ),
 ) -> None:
     """Show currently active mission for a feature (auto-detects feature from cwd)."""
     project_root = get_project_root_or_exit()
@@ -265,15 +267,13 @@ def _print_active_worktrees(active_worktrees: Iterable[str]) -> None:
     console.print("\n[yellow]Active worktrees:[/yellow]")
     for wt in active_worktrees:
         console.print(f"  • {wt}")
-    console.print(
-        "\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions."
-    )
+    console.print("\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions.")
 
 
 @app.command("switch", deprecated=True)
 def switch_cmd(
-    mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),
-    force: bool = typer.Option(False, "--force", help="(ignored)"),
+    mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),  # noqa: ARG001
+    force: bool = typer.Option(False, "--force", help="(ignored)"),  # noqa: ARG001
 ) -> None:
     """[REMOVED] Switch active mission - this command was removed in v0.8.0."""
     console.print("[bold red]Error:[/bold red] The 'mission switch' command was removed in v0.8.0.")

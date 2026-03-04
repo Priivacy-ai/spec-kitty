@@ -112,7 +112,7 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can copy the updated template from the package."""
         package_template = self._find_package_template()
         if package_template is None:
@@ -197,9 +197,7 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
             from importlib.resources import files
 
             pkg_files = files("specify_cli")
-            template_path = pkg_files.joinpath(
-                "missions", "software-dev", "command-templates", "plan.md"
-            )
+            template_path = pkg_files.joinpath("missions", "software-dev", "command-templates", "plan.md")
 
             # Convert to Path and check if it exists
             template_str = str(template_path)
@@ -214,9 +212,7 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
             import specify_cli
 
             pkg_dir = Path(specify_cli.__file__).parent
-            template_file = (
-                pkg_dir / "missions" / "software-dev" / "command-templates" / "plan.md"
-            )
+            template_file = pkg_dir / "missions" / "software-dev" / "command-templates" / "plan.md"
             if template_file.exists():
                 return template_file
         except (ImportError, AttributeError):
@@ -227,8 +223,7 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
             cwd = Path.cwd()
             for parent in [cwd] + list(cwd.parents):
                 template_file = (
-                    parent / "src" / "specify_cli" / "missions" / "software-dev" /
-                    "command-templates" / "plan.md"
+                    parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md"
                 )
                 pyproject = parent / "pyproject.toml"
                 if template_file.exists() and pyproject.exists():

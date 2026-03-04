@@ -100,6 +100,7 @@ def validate_plan_filled(
         raise PlanValidationError(error_msg)
     else:
         import sys
+
         print(f"Warning: {error_msg}", file=sys.stderr)
 
 

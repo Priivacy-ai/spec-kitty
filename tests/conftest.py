@@ -36,6 +36,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     # Block webbrowser.open() in the test process itself.
     import webbrowser
+
     webbrowser.open = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new_tab = lambda *args, **kwargs: None  # type: ignore[assignment]
@@ -89,7 +90,7 @@ def _setup_mutants_environment() -> None:
             else:
                 # Copy other packages wholesale (e.g., doctrine)
                 if not dest.exists():
-                    try:
+                    try:  # noqa: SIM105
                         shutil.copytree(package_dir, dest, dirs_exist_ok=True)
                     except Exception:
                         pass  # Silently ignore copy errors
@@ -161,9 +162,7 @@ def _seed_offline_test_venv(venv_dir: Path, source_version: str) -> None:
     site_packages = _venv_site_packages(venv_dir)
     site_packages.mkdir(parents=True, exist_ok=True)
 
-    host_site_packages = [
-        path for path in sys.path if "site-packages" in path and Path(path).exists()
-    ]
+    host_site_packages = [path for path in sys.path if "site-packages" in path and Path(path).exists()]
     if host_site_packages:
         (site_packages / "host-site-packages.pth").write_text(
             "\n".join(host_site_packages) + "\n",
@@ -207,9 +206,7 @@ def _create_test_venv(venv_dir: Path, source_version: str) -> None:
         _seed_offline_test_venv(venv_dir, source_version)
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -222,7 +219,12 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     rebuild = False
-    if not venv_dir.exists() or not venv_marker.exists() or venv_marker.read_text(encoding="utf-8").strip() != source_version or not _venv_has_required_runtime(venv_dir):
+    if (
+        not venv_dir.exists()
+        or not venv_marker.exists()
+        or venv_marker.read_text(encoding="utf-8").strip() != source_version
+        or not _venv_has_required_runtime(venv_dir)
+    ):
         rebuild = True
 
     if rebuild:
@@ -324,11 +326,7 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     feature_dir = worktree / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    return {
-        "repo_root": repo_root,
-        "worktree_path": worktree,
-        "feature_dir": feature_dir
-    }
+    return {"repo_root": repo_root, "worktree_path": worktree, "feature_dir": feature_dir}
 
 
 @pytest.fixture

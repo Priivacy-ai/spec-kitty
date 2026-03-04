@@ -110,10 +110,17 @@ class TestIsInteractive:
         mock_sys.stdin.isatty.return_value = True
         # Clear all CI env vars
         env_clean = {
-            k: v for k, v in os.environ.items()
-            if k not in [
-                "CI", "GITHUB_ACTIONS", "JENKINS_HOME",
-                "GITLAB_CI", "CIRCLECI", "TRAVIS", "BUILDKITE",
+            k: v
+            for k, v in os.environ.items()
+            if k
+            not in [
+                "CI",
+                "GITHUB_ACTIONS",
+                "JENKINS_HOME",
+                "GITLAB_CI",
+                "CIRCLECI",
+                "TRAVIS",
+                "BUILDKITE",
             ]
         }
         with patch.dict(os.environ, env_clean, clear=True):
@@ -195,10 +202,7 @@ class TestPromptConflictResolution:
         assert choice == PromptChoice.CUSTOM_SENSE
         assert value == "Valid definition"
         # Verify error message was shown
-        error_calls = [
-            str(c) for c in mock_echo.call_args_list
-            if "empty" in str(c).lower()
-        ]
+        error_calls = [str(c) for c in mock_echo.call_args_list if "empty" in str(c).lower()]
         assert len(error_calls) > 0
 
     @patch("specify_cli.glossary.prompts.typer.echo")
@@ -208,10 +212,7 @@ class TestPromptConflictResolution:
         choice, value = prompt_conflict_resolution(ambiguous_conflict)
         assert choice == PromptChoice.DEFER
         # Verify error message was shown for 'X'
-        error_calls = [
-            str(c) for c in mock_echo.call_args_list
-            if "invalid" in str(c).lower()
-        ]
+        error_calls = [str(c) for c in mock_echo.call_args_list if "invalid" in str(c).lower()]
         assert len(error_calls) > 0
 
     @patch("specify_cli.glossary.prompts.typer.echo")
@@ -223,8 +224,7 @@ class TestPromptConflictResolution:
         assert value == 0
         # Verify error message was shown for '99'
         error_calls = [
-            str(c) for c in mock_echo.call_args_list
-            if "between 1 and" in str(c).lower() or "enter" in str(c).lower()
+            str(c) for c in mock_echo.call_args_list if "between 1 and" in str(c).lower() or "enter" in str(c).lower()
         ]
         assert len(error_calls) > 0
 
@@ -257,9 +257,7 @@ class TestPromptConflictResolution:
 
     @patch("specify_cli.glossary.prompts.typer.echo")
     @patch("specify_cli.glossary.prompts.typer.prompt", side_effect=["3", "D"])
-    def test_number_rejected_when_no_candidates(
-        self, mock_prompt, mock_echo, no_candidate_conflict
-    ):
+    def test_number_rejected_when_no_candidates(self, mock_prompt, mock_echo, no_candidate_conflict):
         """Number input rejected when conflict has no candidates."""
         choice, value = prompt_conflict_resolution(no_candidate_conflict)
         assert choice == PromptChoice.DEFER
@@ -270,9 +268,7 @@ class TestPromptConflictResolutionSafe:
 
     @patch("specify_cli.glossary.prompts.is_interactive", return_value=False)
     @patch("specify_cli.glossary.prompts.typer.echo")
-    def test_non_interactive_auto_defers(
-        self, mock_echo, mock_is_interactive, ambiguous_conflict
-    ):
+    def test_non_interactive_auto_defers(self, mock_echo, mock_is_interactive, ambiguous_conflict):
         """Non-interactive mode auto-defers."""
         choice, value = prompt_conflict_resolution_safe(ambiguous_conflict)
         assert choice == PromptChoice.DEFER
@@ -280,9 +276,7 @@ class TestPromptConflictResolutionSafe:
 
     @patch("specify_cli.glossary.prompts.is_interactive", return_value=False)
     @patch("specify_cli.glossary.prompts.typer.echo")
-    def test_non_interactive_prints_message(
-        self, mock_echo, mock_is_interactive, ambiguous_conflict
-    ):
+    def test_non_interactive_prints_message(self, mock_echo, mock_is_interactive, ambiguous_conflict):
         """Non-interactive mode prints auto-defer message."""
         prompt_conflict_resolution_safe(ambiguous_conflict)
         echo_text = str(mock_echo.call_args_list)
@@ -293,9 +287,7 @@ class TestPromptConflictResolutionSafe:
         "specify_cli.glossary.prompts.prompt_conflict_resolution",
         return_value=(PromptChoice.SELECT_CANDIDATE, 0),
     )
-    def test_interactive_delegates_to_prompt(
-        self, mock_prompt, mock_is_interactive, ambiguous_conflict
-    ):
+    def test_interactive_delegates_to_prompt(self, mock_prompt, mock_is_interactive, ambiguous_conflict):
         """Interactive mode delegates to prompt_conflict_resolution."""
         choice, value = prompt_conflict_resolution_safe(ambiguous_conflict)
         assert choice == PromptChoice.SELECT_CANDIDATE
@@ -310,27 +302,21 @@ class TestPromptContextChangeConfirmation:
     @patch("specify_cli.glossary.prompts.typer.echo")
     def test_user_confirms(self, mock_echo, mock_confirm):
         """User confirming returns True."""
-        result = prompt_context_change_confirmation(
-            "abcdef1234567890abcdef", "1234567890abcdef1234"
-        )
+        result = prompt_context_change_confirmation("abcdef1234567890abcdef", "1234567890abcdef1234")
         assert result is True
 
     @patch("specify_cli.glossary.prompts.typer.confirm", return_value=False)
     @patch("specify_cli.glossary.prompts.typer.echo")
     def test_user_declines(self, mock_echo, mock_confirm):
         """User declining returns False."""
-        result = prompt_context_change_confirmation(
-            "abcdef1234567890abcdef", "1234567890abcdef1234"
-        )
+        result = prompt_context_change_confirmation("abcdef1234567890abcdef", "1234567890abcdef1234")
         assert result is False
 
     @patch("specify_cli.glossary.prompts.typer.confirm", return_value=False)
     @patch("specify_cli.glossary.prompts.typer.echo")
     def test_shows_hash_comparison(self, mock_echo, mock_confirm):
         """Shows original and current hash in output."""
-        prompt_context_change_confirmation(
-            "abcdef1234567890abcdef", "1234567890abcdef1234"
-        )
+        prompt_context_change_confirmation("abcdef1234567890abcdef", "1234567890abcdef1234")
         echo_text = str(mock_echo.call_args)
         assert "abcdef1234567890" in echo_text  # First 16 chars
         assert "1234567890abcdef" in echo_text

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from specify_cli.dashboard.scanner import scan_all_features, gather_feature_paths
 
+
 def main() -> None:
     project_dir = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
 
@@ -25,10 +26,10 @@ def main() -> None:
         print(f"  Main specs: {project_dir / 'kitty-specs'} exists: {(project_dir / 'kitty-specs').exists()}")
         print(f"  Worktrees: {project_dir / '.worktrees'} exists: {(project_dir / '.worktrees').exists()}")
 
-        if (project_dir / '.worktrees').exists():
-            for wt_dir in (project_dir / '.worktrees').iterdir():
+        if (project_dir / ".worktrees").exists():
+            for wt_dir in (project_dir / ".worktrees").iterdir():
                 if wt_dir.is_dir():
-                    wt_specs = wt_dir / 'kitty-specs'
+                    wt_specs = wt_dir / "kitty-specs"
                     print(f"    {wt_dir.name}/kitty-specs exists: {wt_specs.exists()}")
                     if wt_specs.exists():
                         for feat_dir in wt_specs.iterdir():
@@ -53,6 +54,7 @@ def main() -> None:
             print(f"    Workflow: {feature['workflow']}")
             print(f"    Kanban: {feature['kanban_stats']}")
             print()
+
 
 if __name__ == "__main__":
     main()

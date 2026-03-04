@@ -25,7 +25,7 @@ def check_tool_for_tracker(tool: str, tracker: StepTracker) -> bool:
     return False
 
 
-def check_tool(tool: str, install_hint: str, agent_name: str | None = None) -> bool:
+def check_tool(tool: str, install_hint: str, agent_name: str | None = None) -> bool:  # noqa: ARG001
     """Return True when the tool is available on PATH (with Claude CLI override and IDE agent bypass).
 
     IDE-integrated agents (cursor, windsurf, copilot, kilocode) don't require CLI

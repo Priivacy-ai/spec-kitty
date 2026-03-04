@@ -175,12 +175,7 @@ class ManifestRegistry:
         if mission_type in ManifestRegistry._cache:
             return ManifestRegistry._cache[mission_type]
 
-        manifest_path = (
-            Path(__file__).parent.parent
-            / "missions"
-            / mission_type
-            / "expected-artifacts.yaml"
-        )
+        manifest_path = Path(__file__).parent.parent / "missions" / mission_type / "expected-artifacts.yaml"
 
         if not manifest_path.exists():
             logger.debug(f"Manifest not found for mission type: {mission_type}")
@@ -247,7 +242,7 @@ class ManifestRegistry:
     @staticmethod
     def validate_manifest(
         manifest: ExpectedArtifactManifest,
-        mission_dir: Path,
+        mission_dir: Path,  # noqa: ARG004
     ) -> tuple[bool, list[str]]:
         """Validate manifest against mission structure.
 
@@ -274,8 +269,7 @@ class ManifestRegistry:
             for spec in specs_list:
                 if spec.path_pattern.startswith("/"):
                     errors.append(
-                        f"Path pattern must be relative: '{spec.path_pattern}' "
-                        f"(artifact_key={spec.artifact_key})"
+                        f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})"
                     )
                 if ".." in spec.path_pattern:
                     errors.append(

@@ -98,7 +98,7 @@ def resolve_worktree_aware_feature_dir(
     feature_dir = repo_root / "kitty-specs" / feature_slug
     resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
     resolved_console.print(
-        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"
+        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"  # noqa: E501
     )
     return feature_dir
 

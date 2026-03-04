@@ -29,21 +29,13 @@ def _setup_feature_dir(tmp_path: Path, feature_slug: str = "099-test") -> Path:
     # Create WP01 file with frontmatter
     wp_file = tasks_dir / "WP01-test.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Test WP\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n"
-        "\n# WP01 Content\n",
+        "---\nwork_package_id: WP01\ntitle: Test WP\nlane: planned\ndependencies: []\n---\n\n# WP01 Content\n",
         encoding="utf-8",
     )
 
     # Set up phase 1 (dual-write) via meta.json
     meta = {"status_phase": 1}
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     return feature_dir
 
@@ -215,23 +207,35 @@ class TestDualWriteForceTransitionRecorded:
 
         # Set up WP01 as "done" via full lifecycle
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="in_progress", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="for_review", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="for_review",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="done", actor="reviewer-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="done",
+            actor="reviewer-1",
             repo_root=repo_root,
             evidence={
                 "review": {
@@ -244,8 +248,11 @@ class TestDualWriteForceTransitionRecorded:
 
         # Now force done -> in_progress (illegal without force)
         event = emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="in_progress", actor="admin",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="admin",
             force=True,
             reason="Rework needed after production issue",
             repo_root=repo_root,

@@ -146,11 +146,7 @@ def materialize_worktree_topology(
 
     # Build WP branch map from workspace contexts
     contexts = list_contexts(main_repo_root)
-    feature_contexts = {
-        ctx.wp_id: ctx
-        for ctx in contexts
-        if ctx.feature_slug == feature_slug
-    }
+    feature_contexts = {ctx.wp_id: ctx for ctx in contexts if ctx.feature_slug == feature_slug}
 
     # Map WP ID -> branch name for base resolution
     wp_branches: dict[str, str] = {}
@@ -166,7 +162,7 @@ def materialize_worktree_topology(
                 fm, _ = read_frontmatter(wp_file)
                 wp_id = fm.get("work_package_id", wp_file.stem.split("-")[0])
                 wp_lanes[wp_id] = fm.get("lane", "planned")
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     # Build topology entries
@@ -190,16 +186,18 @@ def materialize_worktree_topology(
         if worktree_exists and base_branch:
             commits_ahead = _count_commits_ahead(worktree_path, base_branch)
 
-        entries.append(WPTopologyEntry(
-            wp_id=wp_id,
-            branch_name=branch_name,
-            base_branch=base_branch,
-            base_wp=base_wp,
-            dependencies=dependencies,
-            lane=lane,
-            worktree_exists=worktree_exists,
-            commits_ahead_of_base=commits_ahead,
-        ))
+        entries.append(
+            WPTopologyEntry(
+                wp_id=wp_id,
+                branch_name=branch_name,
+                base_branch=base_branch,
+                base_wp=base_wp,
+                dependencies=dependencies,
+                lane=lane,
+                worktree_exists=worktree_exists,
+                commits_ahead_of_base=commits_ahead,
+            )
+        )
 
     return FeatureTopology(
         feature_slug=feature_slug,
@@ -260,9 +258,9 @@ def render_topology_json(
         "your_base": your_base,
         "diff_command": diff_command,
         "stacked": True,
-        "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."
-            if current_entry and current_entry.base_wp
-            else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
+        "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."  # noqa: E501
+        if current_entry and current_entry.base_wp
+        else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
         "entries": entries_json,
     }
 

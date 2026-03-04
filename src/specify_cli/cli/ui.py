@@ -49,10 +49,7 @@ def select_with_arrows(
     """
     console = _resolve_console(console)
     option_keys = list(options.keys())
-    if default_key and default_key in option_keys:
-        selected_index = option_keys.index(default_key)
-    else:
-        selected_index = 0
+    selected_index = option_keys.index(default_key) if default_key and default_key in option_keys else 0
 
     selected_key = None
 
@@ -112,7 +109,7 @@ def select_with_arrows(
     return selected_key
 
 
-def multi_select_with_arrows(
+def multi_select_with_arrows(  # noqa: C901
     options: dict[str, str],
     prompt_text: str = "Select options",
     default_keys: list[str] | None = None,

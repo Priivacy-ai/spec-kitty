@@ -207,7 +207,9 @@ class TrackerService:
             "mappings": mappings,
             "checkpoint": {
                 "cursor": checkpoint.cursor if checkpoint else None,
-                "updated_since": checkpoint.updated_since.isoformat() if checkpoint and checkpoint.updated_since else None,
+                "updated_since": checkpoint.updated_since.isoformat()
+                if checkpoint and checkpoint.updated_since
+                else None,
             },
         }
 
@@ -264,7 +266,9 @@ class TrackerService:
             team_slug=team_slug,
         )
 
-    def _build_engine(self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore) -> Any:
+    def _build_engine(
+        self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore
+    ) -> Any:
         try:
             from spec_kitty_tracker import FieldOwner, OwnershipMode, OwnershipPolicy, SyncEngine
         except Exception as exc:  # pragma: no cover - dependency boundary

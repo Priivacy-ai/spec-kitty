@@ -16,8 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _require_build() -> None:
-    if subprocess.run([sys.executable, "-m", "build", "--help"],
-                      capture_output=True, text=True).returncode != 0:
+    if subprocess.run([sys.executable, "-m", "build", "--help"], capture_output=True, text=True).returncode != 0:
         pytest.skip("python -m build not available; install build to run packaging tests")
 
 
@@ -57,10 +56,7 @@ def test_wheel_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> No
         all_files = zf.namelist()
 
     kittify_files = [f for f in all_files if ".kittify/" in f]
-    assert not kittify_files, (
-        "Wheel contains .kittify/ paths (packaging contamination): "
-        f"{kittify_files}"
-    )
+    assert not kittify_files, f"Wheel contains .kittify/ paths (packaging contamination): {kittify_files}"
 
 
 def test_wheel_contains_no_filled_constitution(build_artifacts: dict[str, Path]) -> None:
@@ -73,13 +69,9 @@ def test_wheel_contains_no_filled_constitution(build_artifacts: dict[str, Path])
     constitution_files = [f for f in all_files if "constitution.md" in f.lower()]
 
     for const_file in constitution_files:
-        assert "memory/constitution" not in const_file, (
-            "Wheel contains filled constitution from memory/: "
-            f"{const_file}"
-        )
+        assert "memory/constitution" not in const_file, f"Wheel contains filled constitution from memory/: {const_file}"
         assert "templates/" in const_file or "missions/" in const_file, (
-            "Found non-template constitution in wheel: "
-            f"{const_file}"
+            f"Found non-template constitution in wheel: {const_file}"
         )
 
 
@@ -102,15 +94,10 @@ def test_wheel_contains_only_src_package(build_artifacts: dict[str, Path]) -> No
     wheel_path = build_artifacts["wheel"]
 
     with zipfile.ZipFile(wheel_path) as zf:
-        all_files = [
-            f for f in zf.namelist()
-            if ".dist-info/" not in f
-        ]
+        all_files = [f for f in zf.namelist() if ".dist-info/" not in f]
 
     for file_path in all_files:
-        assert file_path.startswith("specify_cli/"), (
-            f"File outside package directory: {file_path}"
-        )
+        assert file_path.startswith("specify_cli/"), f"File outside package directory: {file_path}"
 
 
 def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
@@ -120,12 +107,6 @@ def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> No
     with tarfile.open(sdist_path, "r:gz") as tar:
         all_files = tar.getnames()
 
-    bad_kittify_files = [
-        f for f in all_files
-        if ".kittify/" in f and "/src/" not in f
-    ]
+    bad_kittify_files = [f for f in all_files if ".kittify/" in f and "/src/" not in f]
 
-    assert not bad_kittify_files, (
-        "Source dist contains .kittify/ paths outside src/: "
-        f"{bad_kittify_files}"
-    )
+    assert not bad_kittify_files, f"Source dist contains .kittify/ paths outside src/: {bad_kittify_files}"

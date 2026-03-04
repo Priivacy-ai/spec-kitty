@@ -40,53 +40,29 @@ __all__ = [
 class DossierOverviewResponse(BaseModel):
     """High-level dossier summary (completeness, counts, hashes)."""
 
-    feature_slug: str = Field(
-        ..., description="Feature identifier (e.g., '042-local-mission-dossier')"
-    )
-    completeness_status: str = Field(
-        ..., description="'complete' | 'incomplete' | 'unknown'"
-    )
-    parity_hash_sha256: str = Field(
-        ..., description="SHA256 hash of sorted artifact hashes"
-    )
+    feature_slug: str = Field(..., description="Feature identifier (e.g., '042-local-mission-dossier')")
+    completeness_status: str = Field(..., description="'complete' | 'incomplete' | 'unknown'")
+    parity_hash_sha256: str = Field(..., description="SHA256 hash of sorted artifact hashes")
     artifact_counts: dict[str, int] = Field(
         ...,
-        description="Artifact counts: {total, required, required_present, required_missing, optional, optional_present}",
+        description="Artifact counts: {total, required, required_present, required_missing, optional, optional_present}",  # noqa: E501
     )
-    missing_required_count: int = Field(
-        ..., description="Number of required artifacts that are missing"
-    )
-    last_scanned_at: datetime | None = Field(
-        None, description="When the dossier was last scanned"
-    )
+    missing_required_count: int = Field(..., description="Number of required artifacts that are missing")
+    last_scanned_at: datetime | None = Field(None, description="When the dossier was last scanned")
 
 
 class ArtifactListItem(BaseModel):
     """Summary of a single artifact in list view."""
 
-    artifact_key: str = Field(
-        ..., description="Stable, unique key for this artifact"
-    )
-    artifact_class: str = Field(
-        ..., description="Classification: input|workflow|output|evidence|policy|runtime|other"
-    )
-    relative_path: str = Field(
-        ..., description="Relative path from feature directory"
-    )
+    artifact_key: str = Field(..., description="Stable, unique key for this artifact")
+    artifact_class: str = Field(..., description="Classification: input|workflow|output|evidence|policy|runtime|other")
+    relative_path: str = Field(..., description="Relative path from feature directory")
     size_bytes: int = Field(..., description="File size in bytes")
-    wp_id: str | None = Field(
-        None, description="Work package ID if linked (e.g., 'WP01')"
-    )
-    step_id: str | None = Field(
-        None, description="Mission step (e.g., 'planning')"
-    )
-    required_status: str = Field(
-        ..., description="'required' | 'optional' (from manifest)"
-    )
+    wp_id: str | None = Field(None, description="Work package ID if linked (e.g., 'WP01')")
+    step_id: str | None = Field(None, description="Mission step (e.g., 'planning')")
+    required_status: str = Field(..., description="'required' | 'optional' (from manifest)")
     is_present: bool = Field(..., description="True if file currently exists")
-    error_reason: str | None = Field(
-        None, description="Error reason if not present"
-    )
+    error_reason: str | None = Field(None, description="Error reason if not present")
 
 
 class ArtifactListResponse(BaseModel):
@@ -95,9 +71,7 @@ class ArtifactListResponse(BaseModel):
     total_count: int = Field(..., description="Total number of artifacts")
     filtered_count: int = Field(..., description="Number of artifacts after filtering")
     artifacts: list[ArtifactListItem] = Field(..., description="Filtered artifact list")
-    filters_applied: dict[str, Any] = Field(
-        ..., description="Filters applied: {class, wp_id, step_id, required_only}"
-    )
+    filters_applied: dict[str, Any] = Field(..., description="Filters applied: {class, wp_id, step_id, required_only}")
 
 
 class ArtifactDetailResponse(BaseModel):
@@ -106,29 +80,17 @@ class ArtifactDetailResponse(BaseModel):
     artifact_key: str = Field(..., description="Stable, unique key")
     artifact_class: str = Field(..., description="Classification")
     relative_path: str = Field(..., description="Relative path from feature directory")
-    content_hash_sha256: str | None = Field(
-        None, description="SHA256 hash of content"
-    )
+    content_hash_sha256: str | None = Field(None, description="SHA256 hash of content")
     size_bytes: int = Field(..., description="File size in bytes")
     wp_id: str | None = Field(None, description="Work package ID if linked")
     step_id: str | None = Field(None, description="Mission step")
-    required_status: str = Field(
-        ..., description="'required' | 'optional' (from manifest)"
-    )
+    required_status: str = Field(..., description="'required' | 'optional' (from manifest)")
     is_present: bool = Field(..., description="True if file exists")
     error_reason: str | None = Field(None, description="Error reason if not present")
-    content: str | None = Field(
-        None, description="Full text content (if <5MB and readable)"
-    )
-    content_truncated: bool = Field(
-        ..., description="True if content was truncated"
-    )
-    truncation_notice: str | None = Field(
-        None, description="Explanation if content truncated or unreadable"
-    )
-    media_type_hint: str = Field(
-        ..., description="'markdown' | 'json' | 'yaml' | 'text'"
-    )
+    content: str | None = Field(None, description="Full text content (if <5MB and readable)")
+    content_truncated: bool = Field(..., description="True if content was truncated")
+    truncation_notice: str | None = Field(None, description="Explanation if content truncated or unreadable")
+    media_type_hint: str = Field(..., description="'markdown' | 'json' | 'yaml' | 'text'")
     indexed_at: datetime = Field(..., description="When artifact was indexed")
 
 
@@ -145,9 +107,7 @@ class SnapshotExportResponse(BaseModel):
     optional_present: int = Field(..., description="Count of present optional artifacts")
     completeness_status: str = Field(..., description="'complete'|'incomplete'|'unknown'")
     parity_hash_sha256: str = Field(..., description="SHA256 parity hash")
-    artifact_summaries: list[dict[str, Any]] = Field(
-        ..., description="Artifact metadata summaries"
-    )
+    artifact_summaries: list[dict[str, Any]] = Field(..., description="Artifact metadata summaries")
     computed_at: str = Field(..., description="ISO timestamp when snapshot was computed")
 
 
@@ -165,9 +125,7 @@ class DossierHandlerAdapter:
     Error handling: Return error_response or raise (framework-dependent).
     """
 
-    def handle_dossier_overview(
-        self, feature_slug: str
-    ) -> DossierOverviewResponse | dict[str, Any]:
+    def handle_dossier_overview(self, feature_slug: str) -> DossierOverviewResponse | dict[str, Any]:
         """GET /api/dossier/overview?feature={feature_slug}
 
         Returns:
@@ -175,9 +133,7 @@ class DossierHandlerAdapter:
         """
         raise NotImplementedError
 
-    def handle_dossier_artifacts(
-        self, feature_slug: str, **filters
-    ) -> ArtifactListResponse | dict[str, Any]:
+    def handle_dossier_artifacts(self, feature_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
         """GET /api/dossier/artifacts?feature={feature_slug}&class=...&wp_id=...&step_id=...&required_only=...
 
         Returns:
@@ -195,9 +151,7 @@ class DossierHandlerAdapter:
         """
         raise NotImplementedError
 
-    def handle_dossier_snapshot_export(
-        self, feature_slug: str
-    ) -> SnapshotExportResponse | dict[str, Any]:
+    def handle_dossier_snapshot_export(self, feature_slug: str) -> SnapshotExportResponse | dict[str, Any]:
         """GET /api/dossier/snapshots/export?feature={feature_slug}
 
         Returns:
@@ -258,9 +212,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         """
         self.repo_root = Path(repo_root)
 
-    def handle_dossier_overview(
-        self, feature_slug: str
-    ) -> DossierOverviewResponse | dict[str, Any]:
+    def handle_dossier_overview(self, feature_slug: str) -> DossierOverviewResponse | dict[str, Any]:
         """Return high-level dossier summary.
 
         Args:
@@ -271,9 +223,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         """
         try:
             # Load snapshot
-            feature_dir = (
-                self.repo_root / "kitty-specs" / feature_slug
-            )
+            feature_dir = self.repo_root / "kitty-specs" / feature_slug
             snapshot = load_snapshot(feature_dir, feature_slug)
 
             if not snapshot:
@@ -297,9 +247,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error loading overview: {str(exc)}", 500)
 
-    def handle_dossier_artifacts(
-        self, feature_slug: str, **filters
-    ) -> ArtifactListResponse | dict[str, Any]:
+    def handle_dossier_artifacts(self, feature_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
         """List all artifacts with filtering and stable ordering.
 
         Filters:
@@ -328,36 +276,22 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
             # Filter by class
             if "class" in filters:
-                filtered_artifacts = [
-                    a
-                    for a in filtered_artifacts
-                    if a.artifact_class == filters["class"]
-                ]
+                filtered_artifacts = [a for a in filtered_artifacts if a.artifact_class == filters["class"]]
 
             # Filter by wp_id
             if "wp_id" in filters:
-                filtered_artifacts = [
-                    a for a in filtered_artifacts if a.wp_id == filters["wp_id"]
-                ]
+                filtered_artifacts = [a for a in filtered_artifacts if a.wp_id == filters["wp_id"]]
 
             # Filter by step_id
             if "step_id" in filters:
-                filtered_artifacts = [
-                    a for a in filtered_artifacts if a.step_id == filters["step_id"]
-                ]
+                filtered_artifacts = [a for a in filtered_artifacts if a.step_id == filters["step_id"]]
 
             # Filter by required_only
             if filters.get("required_only") == "true":
-                filtered_artifacts = [
-                    a
-                    for a in filtered_artifacts
-                    if a.required_status == "required"
-                ]
+                filtered_artifacts = [a for a in filtered_artifacts if a.required_status == "required"]
 
             # Sort by artifact_key (stable ordering)
-            filtered_artifacts = sorted(
-                filtered_artifacts, key=lambda a: a.artifact_key
-            )
+            filtered_artifacts = sorted(filtered_artifacts, key=lambda a: a.artifact_key)
 
             # Build response
             return ArtifactListResponse(
@@ -449,9 +383,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error loading artifact detail: {str(exc)}", 500)
 
-    def handle_dossier_snapshot_export(
-        self, feature_slug: str
-    ) -> SnapshotExportResponse | dict[str, Any]:
+    def handle_dossier_snapshot_export(self, feature_slug: str) -> SnapshotExportResponse | dict[str, Any]:
         """Export snapshot JSON for SaaS import.
 
         Args:
@@ -461,9 +393,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             SnapshotExportResponse or error dict (SaaS import-compatible)
         """
         try:
-            feature_dir = (
-                self.repo_root / "kitty-specs" / feature_slug
-            )
+            feature_dir = self.repo_root / "kitty-specs" / feature_slug
             snapshot = load_snapshot(feature_dir, feature_slug)
 
             if not snapshot:
@@ -514,6 +444,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             indexed_at = summary.get("indexed_at")
             if isinstance(indexed_at, str):
                 from datetime import datetime
+
                 indexed_at = datetime.fromisoformat(indexed_at)
 
             artifact = ArtifactRef(

@@ -73,10 +73,7 @@ def _is_managed_hook_file(path: Path) -> bool:
     except OSError:
         return False
 
-    for signature in signatures:
-        if all(marker in content for marker in signature):
-            return True
-    return False
+    return any(all(marker in content for marker in signature) for signature in signatures)
 
 
 @MigrationRegistry.register
@@ -93,10 +90,7 @@ class RetireGitHooksMigration(BaseMigration):
         if not hooks_dir.is_dir():
             return False
 
-        for hook_name in MANAGED_HOOK_NAMES:
-            if _is_managed_hook_file(hooks_dir / hook_name):
-                return True
-        return False
+        return any(_is_managed_hook_file(hooks_dir / hook_name) for hook_name in MANAGED_HOOK_NAMES)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Always safe; missing .git/hooks simply yields a no-op migration."""
@@ -148,4 +142,3 @@ class RetireGitHooksMigration(BaseMigration):
             errors=errors,
             warnings=warnings,
         )
-

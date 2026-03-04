@@ -1,8 +1,11 @@
 from datetime import datetime
 from specify_cli.glossary.store import GlossaryStore
 from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance,
+    TermSurface,
+    TermSense,
+    Provenance,
 )
+
 
 def test_glossary_store_add_lookup(sample_term_sense, tmp_path):
     """Can add and look up senses."""
@@ -12,6 +15,7 @@ def test_glossary_store_add_lookup(sample_term_sense, tmp_path):
     results = store.lookup("workspace", ("team_domain",))
     assert len(results) == 1
     assert results[0].definition == "Git worktree directory for a work package"
+
 
 def test_glossary_store_scope_order(tmp_path):
     """Lookup respects scope order."""
@@ -42,61 +46,66 @@ def test_glossary_store_scope_order(tmp_path):
     assert len(results) == 2
     assert results[0].scope == "team_domain"  # Higher precedence first
 
+
 def test_glossary_store_empty_lookup(tmp_path):
     """Returns empty list if term not found."""
     store = GlossaryStore(tmp_path)
     results = store.lookup("nonexistent", ("team_domain",))
     assert results == []
 
+
 def test_scope_resolution_hierarchy(tmp_path):
     """Resolution follows mission_local -> team_domain -> audience_domain -> spec_kitty_core."""
     store = GlossaryStore(tmp_path)
 
     # Add term in spec_kitty_core (lowest precedence)
-    store.add_sense(TermSense(
-        surface=TermSurface("workspace"),
-        scope="spec_kitty_core",
-        definition="Spec Kitty core definition",
-        provenance=Provenance("system", datetime.now(), "system"),
-        confidence=1.0,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("workspace"),
+            scope="spec_kitty_core",
+            definition="Spec Kitty core definition",
+            provenance=Provenance("system", datetime.now(), "system"),
+            confidence=1.0,
+        )
+    )
 
     # Lookup with full hierarchy
-    results = store.lookup("workspace", (
-        "mission_local", "team_domain", "audience_domain", "spec_kitty_core"
-    ))
+    results = store.lookup("workspace", ("mission_local", "team_domain", "audience_domain", "spec_kitty_core"))
     assert len(results) == 1
     assert results[0].scope == "spec_kitty_core"
 
     # Add term in team_domain (higher precedence)
-    store.add_sense(TermSense(
-        surface=TermSurface("workspace"),
-        scope="team_domain",
-        definition="Team domain definition",
-        provenance=Provenance("user:alice", datetime.now(), "user"),
-        confidence=0.9,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("workspace"),
+            scope="team_domain",
+            definition="Team domain definition",
+            provenance=Provenance("user:alice", datetime.now(), "user"),
+            confidence=0.9,
+        )
+    )
 
     # Now both are found, team_domain first
-    results = store.lookup("workspace", (
-        "mission_local", "team_domain", "audience_domain", "spec_kitty_core"
-    ))
+    results = store.lookup("workspace", ("mission_local", "team_domain", "audience_domain", "spec_kitty_core"))
     assert len(results) == 2
     assert results[0].scope == "team_domain"
     assert results[1].scope == "spec_kitty_core"
+
 
 def test_scope_resolution_skip_missing(tmp_path):
     """Skips scopes cleanly if not configured."""
     store = GlossaryStore(tmp_path)
 
     # Only add to spec_kitty_core
-    store.add_sense(TermSense(
-        surface=TermSurface("workspace"),
-        scope="spec_kitty_core",
-        definition="Definition",
-        provenance=Provenance("system", datetime.now(), "system"),
-        confidence=1.0,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("workspace"),
+            scope="spec_kitty_core",
+            definition="Definition",
+            provenance=Provenance("system", datetime.now(), "system"),
+            confidence=1.0,
+        )
+    )
 
     # Lookup with team_domain missing - should still find spec_kitty_core
     results = store.lookup("workspace", ("team_domain", "spec_kitty_core"))

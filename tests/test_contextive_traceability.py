@@ -1,4 +1,5 @@
 """Tests for the Contextive glossary generator (scripts/generate_contextive_glossaries.py)."""
+
 from __future__ import annotations
 
 import textwrap
@@ -8,6 +9,7 @@ import pytest
 
 # Import generator under test
 import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import generate_contextive_glossaries as gen
 
@@ -241,13 +243,16 @@ def _make_integration_tree(tmp_path: Path) -> tuple[Path, Path]:
     map_dir = tmp_path / ".kittify" / "traceability"
     map_dir.mkdir(parents=True)
     map_file = map_dir / "contextive-map.yaml"
-    map_file.write_text(textwrap.dedent("""\
+    map_file.write_text(
+        textwrap.dedent("""\
         context_base_dir: "src/.contextive"
         scopes:
           - path: "src/alpha"
             contexts:
               - testdomain
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
 
     # Create scope dir
     (tmp_path / "src" / "alpha").mkdir(parents=True)
@@ -281,9 +286,7 @@ def test_generate_creates_scope_file(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert "testdomain.yml" in output[scope_yml]
 
 
-def test_check_mode_passes_after_generate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_mode_passes_after_generate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
     monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
@@ -296,9 +299,7 @@ def test_check_mode_passes_after_generate(
     assert gen.cmd_check(repo_root, tmap) == 0
 
 
-def test_check_mode_fails_when_file_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_mode_fails_when_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
     monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
@@ -309,9 +310,7 @@ def test_check_mode_fails_when_file_missing(
     assert gen.cmd_check(repo_root, tmap) == 1
 
 
-def test_check_mode_fails_when_file_stale(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_mode_fails_when_file_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
     monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
@@ -355,4 +354,6 @@ def test_real_check_mode_passes() -> None:
     assert not errors, f"Map validation errors: {errors}"
 
     result = gen.cmd_check(gen.REPO_ROOT, tmap)
-    assert result == 0, "Generated Contextive files are stale — run: python scripts/generate_contextive_glossaries.py generate"
+    assert result == 0, (
+        "Generated Contextive files are stale — run: python scripts/generate_contextive_glossaries.py generate"
+    )

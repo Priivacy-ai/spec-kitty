@@ -49,7 +49,7 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
                     return True
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
         try:
             data_root = files("specify_cli")

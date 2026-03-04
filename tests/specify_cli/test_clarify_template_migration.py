@@ -186,12 +186,7 @@ class TestMigrationApply:
         assert len(result.errors) == 0
 
         # Check this agent's template was updated
-        template_path = (
-            mock_project_all_agents_broken_placeholder
-            / agent_dir
-            / subdir
-            / "spec-kitty.clarify.md"
-        )
+        template_path = mock_project_all_agents_broken_placeholder / agent_dir / subdir / "spec-kitty.clarify.md"
         content = template_path.read_text()
 
         # Should have correct command
@@ -219,12 +214,7 @@ class TestMigrationApply:
         assert len(result.errors) == 0
 
         # Check this agent's template was updated
-        template_path = (
-            mock_project_all_agents_old_manual_detection
-            / agent_dir
-            / subdir
-            / "spec-kitty.clarify.md"
-        )
+        template_path = mock_project_all_agents_old_manual_detection / agent_dir / subdir / "spec-kitty.clarify.md"
         content = template_path.read_text()
 
         # Should have correct command
@@ -245,9 +235,7 @@ class TestMigrationApply:
         # Create opencode directory (configured)
         opencode = tmp_path / ".opencode" / "command"
         opencode.mkdir(parents=True)
-        (opencode / "spec-kitty.clarify.md").write_text(
-            "1. Run `(Missing script command for sh)` from repo root\n"
-        )
+        (opencode / "spec-kitty.clarify.md").write_text("1. Run `(Missing script command for sh)` from repo root\n")
 
         # Create claude directory (NOT configured)
         claude = tmp_path / ".claude" / "commands"
@@ -283,9 +271,7 @@ class TestMigrationApply:
         assert result1.success is True
 
         # Read updated content
-        opencode_template = (
-            mock_project_one_agent / ".opencode" / "command" / "spec-kitty.clarify.md"
-        )
+        opencode_template = mock_project_one_agent / ".opencode" / "command" / "spec-kitty.clarify.md"
         content_after_first = opencode_template.read_text()
 
         # Run migration second time
@@ -301,9 +287,7 @@ class TestMigrationApply:
         migration = FixClarifyTemplateMigration()
 
         # Read original content
-        opencode_template = (
-            mock_project_one_agent / ".opencode" / "command" / "spec-kitty.clarify.md"
-        )
+        opencode_template = mock_project_one_agent / ".opencode" / "command" / "spec-kitty.clarify.md"
         original_content = opencode_template.read_text()
 
         # Run dry run
@@ -340,9 +324,7 @@ class TestTemplateContent:
 
     def test_template_source_exists(self):
         """Test that clarify template source file exists."""
-        template_path = Path(
-            "src/specify_cli/missions/software-dev/command-templates/clarify.md"
-        )
+        template_path = Path("src/specify_cli/missions/software-dev/command-templates/clarify.md")
         assert template_path.exists()
 
         content = template_path.read_text()
@@ -358,9 +340,7 @@ class TestTemplateContent:
 
     def test_template_matches_tasks_pattern(self):
         """Test clarify template uses same pattern as tasks.md for consistency."""
-        clarify_path = Path(
-            "src/specify_cli/missions/software-dev/command-templates/clarify.md"
-        )
+        clarify_path = Path("src/specify_cli/missions/software-dev/command-templates/clarify.md")
         tasks_path = Path("src/specify_cli/missions/software-dev/command-templates/tasks.md")
 
         clarify_content = clarify_path.read_text()
@@ -371,8 +351,6 @@ class TestTemplateContent:
         assert "check-prerequisites --json --paths-only" in tasks_content
 
         # Clarify should NOT have --include-tasks flag (that's only for tasks.md)
-        clarify_lines = [
-            line for line in clarify_content.split("\n") if "check-prerequisites" in line
-        ]
+        clarify_lines = [line for line in clarify_content.split("\n") if "check-prerequisites" in line]
         for line in clarify_lines:
             assert "--include-tasks" not in line

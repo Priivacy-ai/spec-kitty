@@ -46,12 +46,10 @@ PROBLEMATIC_CHARS = {
 }
 
 # Compile regex for detecting any problematic character
-_PROBLEMATIC_PATTERN = re.compile(
-    "[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS) + "]"
-)
+_PROBLEMATIC_PATTERN = re.compile("[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS) + "]")
 
 
-def sanitize_markdown_text(text: str, *, preserve_utf8: bool = False) -> str:
+def sanitize_markdown_text(text: str, *, preserve_utf8: bool = False) -> str:  # noqa: ARG001
     """Sanitize markdown text by replacing problematic characters.
 
     Args:
@@ -171,7 +169,7 @@ def sanitize_file(
                 original_text = original_bytes.decode("utf-8", errors="replace")
 
         # Strip UTF-8 BOM if present in the text
-        original_text = original_text.lstrip('\ufeff')
+        original_text = original_text.lstrip("\ufeff")
 
         # Sanitize the text
         sanitized_text = sanitize_markdown_text(original_text)

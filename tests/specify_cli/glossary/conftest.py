@@ -4,8 +4,14 @@ import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
 from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance, SenseStatus,
-    SemanticConflict, ConflictType, Severity, SenseRef,
+    TermSurface,
+    TermSense,
+    Provenance,
+    SenseStatus,
+    SemanticConflict,
+    ConflictType,
+    Severity,
+    SenseRef,
 )
 
 

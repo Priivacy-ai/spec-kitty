@@ -63,12 +63,7 @@ def create_feature_with_target(repo: Path, feature_slug: str, target_branch: str
 
     # Create WP01
     (tasks_dir / "WP01-test.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01\n"
+        "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\n---\n\n# WP01\n"
     )
 
     # Commit
@@ -104,12 +99,7 @@ def test_auto_create_target_branch_on_first_implement(tmp_path):
     create_feature_with_target(repo, "002-test-feature", "3.x")
 
     # Verify 3.x doesn't exist yet
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", "3.x"],
-        cwd=repo,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--verify", "3.x"], cwd=repo, capture_output=True, check=False)
     assert result.returncode != 0, "3.x should not exist before implement"
 
     # Implement WP01
@@ -117,12 +107,7 @@ def test_auto_create_target_branch_on_first_implement(tmp_path):
     assert result.returncode == 0, f"implement failed: {result.stderr}\n{result.stdout}"
 
     # Verify 3.x was created
-    result_after = subprocess.run(
-        ["git", "rev-parse", "--verify", "3.x"],
-        cwd=repo,
-        capture_output=True,
-        check=False
-    )
+    result_after = subprocess.run(["git", "rev-parse", "--verify", "3.x"], cwd=repo, capture_output=True, check=False)
     assert result_after.returncode == 0, "3.x should exist after implement"
 
     # Verify WP01 branch exists and is based on 3.x
@@ -233,11 +218,14 @@ def test_auto_create_message_shown(tmp_path):
     assert result.returncode == 0
 
     # Check output mentions branch creation
-    assert "Creating target branch" in result.stdout or "Created target branch" in result.stdout, \
+    assert "Creating target branch" in result.stdout or "Created target branch" in result.stdout, (
         "Should announce target branch creation"
+    )
 
 
-@pytest.mark.xfail(reason="Known issue: Status commits don't route to auto-created branch immediately (fallback to main works)")
+@pytest.mark.xfail(
+    reason="Known issue: Status commits don't route to auto-created branch immediately (fallback to main works)"
+)
 def test_status_commits_route_to_auto_created_branch(tmp_path):
     """Test that status commits route to auto-created target branch.
 

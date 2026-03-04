@@ -71,11 +71,10 @@ class TestWorkflowImplementInstructions:
 
         # Create meta.json to make this a valid feature
         import json
-        (feature_dir / "meta.json").write_text(json.dumps({
-            "feature_number": 1,
-            "feature_slug": feature_slug,
-            "title": "Test Feature"
-        }))
+
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"feature_number": 1, "feature_slug": feature_slug, "title": "Test Feature"})
+        )
 
         # Create spec.md (required file)
         (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
@@ -102,7 +101,7 @@ class TestWorkflowImplementInstructions:
         assert "git status" in prompt_content
         assert "git add" in prompt_content
         assert "git commit" in prompt_content
-        assert ("feat(WP01):" in prompt_content or "fix(WP01):" in prompt_content)
+        assert "feat(WP01):" in prompt_content or "fix(WP01):" in prompt_content
         assert "git log -1" in prompt_content
 
     def test_implement_instructions_include_git_commit_step_2(self, workflow_repo: Path):
@@ -114,11 +113,10 @@ class TestWorkflowImplementInstructions:
 
         # Create meta.json to make this a valid feature
         import json
-        (feature_dir / "meta.json").write_text(json.dumps({
-            "feature_number": 1,
-            "feature_slug": feature_slug,
-            "title": "Test Feature"
-        }))
+
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"feature_number": 1, "feature_slug": feature_slug, "title": "Test Feature"})
+        )
 
         # Create spec.md (required file)
         (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
@@ -139,10 +137,10 @@ class TestWorkflowImplementInstructions:
         prompt_content = prompt_file.read_text(encoding="utf-8")
 
         # Verify commit message format guidance is present
-        assert ("IMPLEMENTATION COMPLETE" in prompt_content or "WHEN YOU'RE DONE" in prompt_content)
-        assert ("feat(" in prompt_content or "fix(" in prompt_content)
-        assert ("chore:" in prompt_content or "chore(" in prompt_content)
-        assert ("docs:" in prompt_content or "docs(" in prompt_content)
+        assert "IMPLEMENTATION COMPLETE" in prompt_content or "WHEN YOU'RE DONE" in prompt_content
+        assert "feat(" in prompt_content or "fix(" in prompt_content
+        assert "chore:" in prompt_content or "chore(" in prompt_content
+        assert "docs:" in prompt_content or "docs(" in prompt_content
 
     def test_implement_instructions_correct_numbering(self, workflow_repo: Path):
         """Verify instruction steps are numbered 1-2-3 correctly."""
@@ -153,11 +151,10 @@ class TestWorkflowImplementInstructions:
 
         # Create meta.json to make this a valid feature
         import json
-        (feature_dir / "meta.json").write_text(json.dumps({
-            "feature_number": 1,
-            "feature_slug": feature_slug,
-            "title": "Test Feature"
-        }))
+
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"feature_number": 1, "feature_slug": feature_slug, "title": "Test Feature"})
+        )
 
         # Create spec.md (required file)
         (feature_dir / "spec.md").write_text("# Test Feature\n\nTest content")
@@ -186,9 +183,7 @@ class TestWorkflowImplementInstructions:
 class TestMoveTaskPreflightCheck:
     """Test that move-task command blocks on uncommitted changes."""
 
-    def test_validate_ready_for_review_blocks_on_uncommitted_worktree_changes(
-        self, tmp_path
-    ):
+    def test_validate_ready_for_review_blocks_on_uncommitted_worktree_changes(self, tmp_path):
         """Verify validation blocks when worktree has uncommitted changes."""
         # Create mock directory structure
         feature_slug = "001-test-feature"
@@ -204,6 +199,7 @@ class TestMoveTaskPreflightCheck:
 
         # Mock git commands
         with patch("subprocess.run") as mock_run:
+
             def git_command_side_effect(args, **kwargs):
                 # Match different git commands
                 if "branch" in args and "--show-current" in args:
@@ -233,22 +229,18 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(
-                tmp_path, feature_slug, "WP01", False
-            )
+            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
 
             # Should block
             assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
             # Check for any message about uncommitted/staged/unstaged changes
             assert any(
-                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"])
-                for line in guidance
+                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) for line in guidance
             ), f"No uncommitted/staged message in: {guidance}"
-            assert any(
-                "git add <deliverable-path-1> <deliverable-path-2>" in line
-                for line in guidance
-            ), f"No explicit staging guidance in: {guidance}"
+            assert any("git add <deliverable-path-1> <deliverable-path-2>" in line for line in guidance), (
+                f"No explicit staging guidance in: {guidance}"
+            )
             assert any("git commit" in line for line in guidance), f"No 'git commit' in: {guidance}"
 
     def test_validate_ready_for_review_allows_clean_worktree(self, tmp_path):
@@ -267,6 +259,7 @@ class TestMoveTaskPreflightCheck:
 
         # Mock git commands
         with patch("subprocess.run") as mock_run:
+
             def git_command_side_effect(args, **kwargs):
                 # Match different git commands
                 if "branch" in args and "--show-current" in args:
@@ -296,9 +289,7 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(
-                tmp_path, feature_slug, "WP01", False
-            )
+            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
 
             # Should allow
             assert is_valid is True
@@ -308,7 +299,10 @@ class TestMoveTaskPreflightCheck:
         """Verify --force bypasses validation."""
         # Even with uncommitted changes, force should allow
         is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "001-test", "WP01", True  # force=True
+            tmp_path,
+            "001-test",
+            "WP01",
+            True,  # force=True
         )
 
         assert is_valid is True

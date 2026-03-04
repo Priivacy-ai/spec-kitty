@@ -48,7 +48,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 if ".kittify/scripts/powershell/" in content or "scripts/powershell/" in content:
                     return True
                 # Check for subdirectory violations (feature 007)
-                if "tasks/planned/" in content or "tasks/doing/" in content:
+                if "tasks/planned/" in content or "tasks/doing/" in content:  # noqa: SIM102
                     # Exclude "WRONG" examples
                     if "WRONG" not in content or content.count("tasks/planned/") > 2:
                         return True
@@ -75,7 +75,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
 
         return False, "No mission command templates found"
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update slash commands with latest templates."""
         changes: list[str] = []
         warnings: list[str] = []

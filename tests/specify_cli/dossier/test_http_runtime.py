@@ -121,9 +121,7 @@ class TestDossierHTTPRuntime:
     def test_artifacts_endpoint_filters_by_class(self, temp_feature_dir):
         """Verify artifacts endpoint respects class filter."""
         handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_artifacts(
-            "042-test-feature", **{"class": "input"}
-        )
+        response = handler.handle_dossier_artifacts("042-test-feature", **{"class": "input"})
 
         # Verify filtering works
         assert response.total_count == 3  # Total unchanged
@@ -134,9 +132,7 @@ class TestDossierHTTPRuntime:
     def test_artifacts_endpoint_filters_by_required_only(self, temp_feature_dir):
         """Verify artifacts endpoint respects required_only filter."""
         handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_artifacts(
-            "042-test-feature", required_only="true"
-        )
+        response = handler.handle_dossier_artifacts("042-test-feature", required_only="true")
 
         # Verify only required artifacts returned
         assert response.total_count == 3  # Total unchanged
@@ -148,9 +144,7 @@ class TestDossierHTTPRuntime:
     def test_artifact_detail_endpoint_reconstructs_from_snapshot(self, temp_feature_dir):
         """Verify detail endpoint can reconstruct artifact from snapshot."""
         handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_artifact_detail(
-            "042-test-feature", "input.spec.main"
-        )
+        response = handler.handle_dossier_artifact_detail("042-test-feature", "input.spec.main")
 
         # Verify response is model (not error dict)
         assert isinstance(response, ArtifactDetailResponse)
@@ -163,9 +157,7 @@ class TestDossierHTTPRuntime:
     def test_artifact_detail_handles_missing_artifact(self, temp_feature_dir):
         """Verify detail endpoint handles missing artifacts gracefully."""
         handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_artifact_detail(
-            "042-test-feature", "nonexistent.artifact"
-        )
+        response = handler.handle_dossier_artifact_detail("042-test-feature", "nonexistent.artifact")
 
         # Verify error response
         assert isinstance(response, dict)

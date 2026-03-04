@@ -183,11 +183,13 @@ def _load_references(path: Path) -> list[dict[str, str]]:
     for item in raw_references:
         if not isinstance(item, dict):
             continue
-        refs.append({
-            "id": str(item.get("id", "")),
-            "title": str(item.get("title", "")),
-            "local_path": str(item.get("local_path", "")),
-        })
+        refs.append(
+            {
+                "id": str(item.get("id", "")),
+                "title": str(item.get("title", "")),
+                "local_path": str(item.get("local_path", "")),
+            }
+        )
     return refs
 
 

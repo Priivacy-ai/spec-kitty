@@ -276,13 +276,7 @@ class TestBaselinePersistence:
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", snapshot, tmp_path)
-        baseline_file = (
-            tmp_path
-            / ".kittify"
-            / "dossiers"
-            / "042-local-mission-dossier"
-            / "parity-baseline.json"
-        )
+        baseline_file = tmp_path / ".kittify" / "dossiers" / "042-local-mission-dossier" / "parity-baseline.json"
         assert baseline_file.exists()
 
     def test_save_baseline_writes_json(self, tmp_path):
@@ -303,13 +297,7 @@ class TestBaselinePersistence:
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", snapshot, tmp_path)
-        baseline_file = (
-            tmp_path
-            / ".kittify"
-            / "dossiers"
-            / "042-local-mission-dossier"
-            / "parity-baseline.json"
-        )
+        baseline_file = tmp_path / ".kittify" / "dossiers" / "042-local-mission-dossier" / "parity-baseline.json"
         with open(baseline_file) as f:
             data = json.load(f)
         assert data["parity_hash_sha256"] == "a" * 64
@@ -715,13 +703,7 @@ class TestCaptureBaseline:
             mission_key="software-dev",
             manifest_version="1",
         )
-        baseline_file = (
-            tmp_path
-            / ".kittify"
-            / "dossiers"
-            / "042-local-mission-dossier"
-            / "parity-baseline.json"
-        )
+        baseline_file = tmp_path / ".kittify" / "dossiers" / "042-local-mission-dossier" / "parity-baseline.json"
         assert baseline_file.exists()
 
     def test_capture_baseline_key_hash_correct(self, tmp_path):

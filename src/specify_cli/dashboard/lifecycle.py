@@ -41,7 +41,7 @@ def _parse_dashboard_file(dashboard_file: Path) -> tuple[str | None, int | None,
         Line 4: PID (optional, for process tracking)
     """
     try:
-        content = dashboard_file.read_text(encoding='utf-8')
+        content = dashboard_file.read_text(encoding="utf-8")
     except Exception:
         return None, None, None, None
 
@@ -94,7 +94,7 @@ def _write_dashboard_file(
         lines.append(token)
     if pid is not None:
         lines.append(str(pid))
-    dashboard_file.write_text("\n".join(lines) + "\n", encoding='utf-8')
+    dashboard_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -139,7 +139,7 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
     """
     health_url = f"http://127.0.0.1:{port}/api/health"
     try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+        with urllib.request.urlopen(health_url, timeout=timeout) as response:  # noqa: S310
             if response.status != 200:
                 return False
             payload = response.read()
@@ -148,9 +148,9 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
         return False
 
     try:
-        data = json.loads(payload.decode('utf-8'))
+        data = json.loads(payload.decode("utf-8"))
         # Verify this is actually a spec-kitty dashboard by checking for expected fields
-        return 'project_path' in data and 'status' in data
+        return "project_path" in data and "status" in data
     except Exception:
         return False
 
@@ -178,10 +178,10 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(0.1)
-                if sock.connect_ex(('127.0.0.1', port)) != 0:
+                if sock.connect_ex(("127.0.0.1", port)) != 0:
                     # Port is free, skip
                     continue
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
         # Port is occupied - check if it's a spec-kitty dashboard
@@ -190,7 +190,7 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
             try:
                 # Use lsof to find PID listening on this port
                 result = subprocess.run(
-                    ['lsof', '-ti', f':{port}', '-sTCP:LISTEN'],
+                    ["lsof", "-ti", f":{port}", "-sTCP:LISTEN"],
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
@@ -198,7 +198,7 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
                     timeout=2,
                 )
                 if result.returncode == 0 and result.stdout.strip():
-                    pids = [int(pid) for pid in result.stdout.strip().split('\n') if pid.strip()]
+                    pids = [int(pid) for pid in result.stdout.strip().split("\n") if pid.strip()]
                     for pid in pids:
                         try:
                             proc = psutil.Process(pid)
@@ -208,7 +208,7 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
                             pass  # Already dead
                         except psutil.AccessDenied:
                             pass  # Can't kill (permissions)
-            except Exception:
+            except Exception:  # noqa: S110
                 # Can't use lsof or failed to kill - skip this port
                 pass
 
@@ -224,7 +224,7 @@ def _check_dashboard_health(
     """Verify that the dashboard on the port belongs to the provided project."""
     health_url = f"http://127.0.0.1:{port}/api/health"
     try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+        with urllib.request.urlopen(health_url, timeout=timeout) as response:  # noqa: S310
             if response.status != 200:
                 return False
             payload = response.read()
@@ -234,11 +234,11 @@ def _check_dashboard_health(
         return False
 
     try:
-        data = json.loads(payload.decode('utf-8'))
+        data = json.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return False
 
-    remote_path = data.get('project_path')
+    remote_path = data.get("project_path")
     if not remote_path:
         return False
 
@@ -255,14 +255,14 @@ def _check_dashboard_health(
     if remote_resolved != expected_path:
         return False
 
-    remote_token = data.get('token')
+    remote_token = data.get("token")
     if expected_token:
         return remote_token == expected_token
 
     return True
 
 
-def ensure_dashboard_running(
+def ensure_dashboard_running(  # noqa: C901
     project_dir: Path,
     preferred_port: int | None = None,
     background_process: bool = True,
@@ -282,7 +282,7 @@ def ensure_dashboard_running(
         Tuple of (url, port, started) where started is True when a new server was launched.
     """
     project_dir_resolved = project_dir.resolve()
-    dashboard_file = project_dir_resolved / '.kittify' / '.dashboard'
+    dashboard_file = project_dir_resolved / ".kittify" / ".dashboard"
 
     existing_url = None
     existing_port = None
@@ -420,7 +420,7 @@ def ensure_dashboard_running(
     raise RuntimeError(f"Dashboard failed to start on port {port} for project {project_dir_resolved}")
 
 
-def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
+def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:  # noqa: C901
     """
     Attempt to stop the dashboard server for the provided project directory.
 
@@ -430,7 +430,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
         Tuple[bool, str]: (stopped, message)
     """
     project_dir_resolved = project_dir.resolve()
-    dashboard_file = project_dir_resolved / '.kittify' / '.dashboard'
+    dashboard_file = project_dir_resolved / ".kittify" / ".dashboard"
 
     if not dashboard_file.exists():
         return False, "No dashboard metadata found."
@@ -449,11 +449,11 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
     def _attempt_get() -> tuple[bool, str | None]:
         params = {}
         if token:
-            params['token'] = token
+            params["token"] = token
         query = urllib.parse.urlencode(params)
         request_url = f"{shutdown_url}?{query}" if query else shutdown_url
         try:
-            urllib.request.urlopen(request_url, timeout=1)
+            urllib.request.urlopen(request_url, timeout=1)  # noqa: S310
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -467,15 +467,15 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
             return False, f"Unexpected error during shutdown: {exc}"
 
     def _attempt_post() -> tuple[bool, str | None]:
-        payload = json.dumps({'token': token}).encode('utf-8')
-        request = urllib.request.Request(
+        payload = json.dumps({"token": token}).encode("utf-8")
+        request = urllib.request.Request(  # noqa: S310
             shutdown_url,
             data=payload,
-            headers={'Content-Type': 'application/json'},
-            method='POST',
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
         try:
-            urllib.request.urlopen(request, timeout=1)
+            urllib.request.urlopen(request, timeout=1)  # noqa: S310
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:

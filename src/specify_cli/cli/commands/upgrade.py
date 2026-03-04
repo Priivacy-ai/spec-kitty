@@ -91,9 +91,7 @@ def _prepare_upgrade_commit_files(
         return []
 
     new_paths = sorted(
-        path
-        for path in current_paths
-        if path not in baseline_paths and _is_upgrade_commit_eligible(path, project_path)
+        path for path in current_paths if path not in baseline_paths and _is_upgrade_commit_eligible(path, project_path)
     )
     return [Path(path) for path in new_paths]
 
@@ -109,9 +107,7 @@ def _auto_commit_upgrade_changes(
     if not files_to_commit:
         return False, [], None
 
-    commit_message = (
-        f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
-    )
+    commit_message = f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
     commit_success = safe_commit(
         repo_path=project_path,
         files_to_commit=files_to_commit,
@@ -130,21 +126,13 @@ def _auto_commit_upgrade_changes(
     )
 
 
-def upgrade(
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Preview changes without applying"
-    ),
+def upgrade(  # noqa: C901
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-    target: str | None = typer.Option(
-        None, "--target", help="Target version (defaults to current CLI version)"
-    ),
+    target: str | None = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show detailed migration information"
-    ),
-    no_worktrees: bool = typer.Option(
-        False, "--no-worktrees", help="Skip upgrading worktrees"
-    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed migration information"),
+    no_worktrees: bool = typer.Option(False, "--no-worktrees", help="Skip upgrading worktrees"),
 ) -> None:
     """Upgrade a Spec Kitty project to the current version.
 
@@ -170,9 +158,7 @@ def upgrade(
             print(json.dumps({"error": "Not a Spec Kitty project"}))
         else:
             console.print("[red]Error:[/red] Not a Spec Kitty project.")
-            console.print(
-                "[dim]Run 'spec-kitty init' to initialize a project.[/dim]"
-            )
+            console.print("[dim]Run 'spec-kitty init' to initialize a project.[/dim]")
         raise typer.Exit(1)
 
     # Import upgrade system (lazy to avoid circular imports)
@@ -203,7 +189,9 @@ def upgrade(
     # Get needed migrations
     # Handle "unknown" version by treating it as very old (0.0.0)
     version_for_migration = "0.0.0" if current_version == "unknown" else current_version
-    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
+    migrations_needed = MigrationRegistry.get_applicable(
+        version_for_migration, target_version, project_path=project_path
+    )
 
     if not migrations_needed:
         auto_committed = False
@@ -244,18 +232,14 @@ def upgrade(
         else:
             console.print("[green]Project is already up to date![/green]")
             if auto_committed:
-                console.print(
-                    f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]"
-                )
+                console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
             if auto_commit_warning:
                 console.print(f"[yellow]Warning:[/yellow] {auto_commit_warning}")
         return
 
     # Show migration plan
     if not json_output:
-        table = Table(
-            title="Migration Plan", show_lines=False, header_style="bold cyan"
-        )
+        table = Table(title="Migration Plan", show_lines=False, header_style="bold cyan")
         table.add_column("Migration", style="bright_white")
         table.add_column("Description", style="dim")
         table.add_column("Target", style="cyan")
@@ -324,12 +308,14 @@ def upgrade(
                 status = "skipped"
             else:
                 status = "pending"
-            migrations_detail.append({
-                "id": migration.migration_id,
-                "description": migration.description,
-                "target_version": migration.target_version,
-                "status": status,
-            })
+            migrations_detail.append(
+                {
+                    "id": migration.migration_id,
+                    "description": migration.description,
+                    "target_version": migration.target_version,
+                    "status": status,
+                }
+            )
 
         output = {
             "status": "success" if result.success else "failed",
@@ -381,13 +367,9 @@ def upgrade(
 
     console.print()
     if result.success:
-        console.print(
-            f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}"
-        )
+        console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
         if auto_committed:
-            console.print(
-                f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]"
-            )
+            console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
     else:
         console.print("[bold red]Upgrade failed.[/bold red]")
         raise typer.Exit(1)

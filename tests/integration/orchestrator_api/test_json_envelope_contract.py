@@ -133,9 +133,7 @@ class TestUsageErrorEnvelopeShape:
             "error_code",
             "data",
         }
-        assert required_keys.issubset(set(env.keys())), (
-            f"Missing keys: {required_keys - set(env.keys())}"
-        )
+        assert required_keys.issubset(set(env.keys())), f"Missing keys: {required_keys - set(env.keys())}"
 
     def test_envelope_command_is_unknown(self):
         """Parser errors happen before the command is known, so command='orchestrator-api.unknown'."""
@@ -168,10 +166,21 @@ class TestNoJsonFlagRemoved:
         _assert_usage_error(result.output, substring="--no-json")
 
     def test_no_json_flag_rejected_on_transition(self):
-        result = runner.invoke(app, [
-            "transition", "--feature", "dummy", "--wp", "WP01",
-            "--to", "done", "--actor", "test", "--no-json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "transition",
+                "--feature",
+                "dummy",
+                "--wp",
+                "WP01",
+                "--to",
+                "done",
+                "--actor",
+                "test",
+                "--no-json",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--no-json")
 

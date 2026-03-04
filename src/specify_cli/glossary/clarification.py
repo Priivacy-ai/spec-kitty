@@ -96,9 +96,7 @@ class ClarificationMiddleware:
             if self.prompt_fn is not None:
                 # Interactive mode: prompt user
                 try:
-                    choice, custom_def = self.prompt_fn(
-                        conflict, conflict.candidate_senses
-                    )
+                    choice, custom_def = self.prompt_fn(conflict, conflict.candidate_senses)
                 except Exception as exc:
                     logger.error(
                         "Prompt function failed for %s: %s",
@@ -115,15 +113,11 @@ class ClarificationMiddleware:
                         selected_sense = conflict.candidate_senses[selected_idx]
                     else:
                         selected_sense = conflict.candidate_senses[0]
-                    self._handle_candidate_selection(
-                        conflict, conflict_id, selected_sense, context
-                    )
+                    self._handle_candidate_selection(conflict, conflict_id, selected_sense, context)
                     resolved_conflicts.append(conflict)
                 elif choice == "custom" and custom_def:
                     # User provided custom definition
-                    self._handle_custom_sense(
-                        conflict, conflict_id, custom_def, context
-                    )
+                    self._handle_custom_sense(conflict, conflict_id, custom_def, context)
                     resolved_conflicts.append(conflict)
                 # Any other response means deferred. Request event already emitted.
             # No prompt function means deferred (request event already emitted).

@@ -56,22 +56,14 @@ class TestEventIdAcceptance:
         assert emitter._validate_event(event) is True
 
     def test_uuid_hyphenated_event_id_accepted(self, emitter: EventEmitter, temp_queue):
-        event = _make_full_event(
-            emitter, event_id="550e8400-e29b-41d4-a716-446655440000"
-        )
+        event = _make_full_event(emitter, event_id="550e8400-e29b-41d4-a716-446655440000")
         assert emitter._validate_event(event) is True
 
-    def test_uuid_bare_event_id_accepted_and_normalized(
-        self, emitter: EventEmitter, temp_queue
-    ):
-        event = _make_full_event(
-            emitter, event_id="550e8400e29b41d4a716446655440000"
-        )
+    def test_uuid_bare_event_id_accepted_and_normalized(self, emitter: EventEmitter, temp_queue):
+        event = _make_full_event(emitter, event_id="550e8400e29b41d4a716446655440000")
         assert emitter._validate_event(event) is True
 
-    def test_uuid_bare_event_id_stored_as_hyphenated_lowercase(
-        self, emitter: EventEmitter, temp_queue
-    ):
+    def test_uuid_bare_event_id_stored_as_hyphenated_lowercase(self, emitter: EventEmitter, temp_queue):
         bare = "550E8400E29B41D4A716446655440000"
         event = _make_full_event(emitter, event_id=bare)
         emitter._validate_event(event)
@@ -105,17 +97,11 @@ class TestCausationIdAcceptance:
         event = _make_full_event(emitter, causation_id=cid)
         assert emitter._validate_event(event) is True
 
-    def test_uuid_hyphenated_causation_id_accepted(
-        self, emitter: EventEmitter, temp_queue
-    ):
-        event = _make_full_event(
-            emitter, causation_id="550e8400-e29b-41d4-a716-446655440000"
-        )
+    def test_uuid_hyphenated_causation_id_accepted(self, emitter: EventEmitter, temp_queue):
+        event = _make_full_event(emitter, causation_id="550e8400-e29b-41d4-a716-446655440000")
         assert emitter._validate_event(event) is True
 
-    def test_uuid_bare_causation_id_normalized(
-        self, emitter: EventEmitter, temp_queue
-    ):
+    def test_uuid_bare_causation_id_normalized(self, emitter: EventEmitter, temp_queue):
         bare = "AABBCCDD11223344AABBCCDD11223344"
         event = _make_full_event(emitter, causation_id=bare)
         assert emitter._validate_event(event) is True
@@ -126,12 +112,8 @@ class TestCausationIdAcceptance:
 
 
 class TestCorrelationIdAcceptance:
-    def test_correlation_id_uuid_accepted_if_present(
-        self, emitter: EventEmitter, temp_queue
-    ):
-        event = _make_full_event(
-            emitter, correlation_id="550e8400-e29b-41d4-a716-446655440000"
-        )
+    def test_correlation_id_uuid_accepted_if_present(self, emitter: EventEmitter, temp_queue):
+        event = _make_full_event(emitter, correlation_id="550e8400-e29b-41d4-a716-446655440000")
         assert emitter._validate_event(event) is True
 
 
@@ -186,13 +168,9 @@ class TestUuidEventsNotDropped:
         assert event["event_id"] == "550e8400-e29b-41d4-a716-446655440000"
         assert temp_queue.size() >= 1
 
-    def test_uuid_event_survives_validate_and_route(
-        self, emitter: EventEmitter, temp_queue
-    ):
+    def test_uuid_event_survives_validate_and_route(self, emitter: EventEmitter, temp_queue):
         """An event with a UUID-format causation_id must pass validation and be routed."""
         uuid_cid = "550e8400-e29b-41d4-a716-446655440000"
-        event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "in_progress", causation_id=uuid_cid
-        )
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress", causation_id=uuid_cid)
         assert event is not None
         assert event["causation_id"] == "550e8400-e29b-41d4-a716-446655440000"

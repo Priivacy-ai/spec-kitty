@@ -267,7 +267,7 @@ class TestUnauthenticatedBehavior:
                         mock_config_class.return_value = mock_config
 
                         # Synchronous context: no running loop, no auto-connect.
-                        with patch("asyncio.get_running_loop", side_effect=RuntimeError):
+                        with patch("asyncio.get_running_loop", side_effect=RuntimeError):  # noqa: SIM117
                             with patch("asyncio.ensure_future") as mock_ensure_future:
                                 runtime = SyncRuntime()
                                 runtime.start()
@@ -276,9 +276,7 @@ class TestUnauthenticatedBehavior:
                                 assert runtime.ws_client is mock_ws
                                 mock_ensure_future.assert_not_called()
 
-    def test_websocket_connect_scheduled_with_running_loop(
-        self, tmp_path, monkeypatch
-    ):
+    def test_websocket_connect_scheduled_with_running_loop(self, tmp_path, monkeypatch):
         """When an event loop is running, runtime schedules async connect."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -299,7 +297,7 @@ class TestUnauthenticatedBehavior:
                         mock_config.get_server_url.return_value = "https://example.com"
                         mock_config_class.return_value = mock_config
 
-                        with patch("asyncio.get_running_loop", return_value=MagicMock()):
+                        with patch("asyncio.get_running_loop", return_value=MagicMock()):  # noqa: SIM117
                             with patch("asyncio.ensure_future") as mock_ensure_future:
                                 runtime = SyncRuntime()
                                 runtime.start()

@@ -31,9 +31,7 @@ def config(
 ) -> None:
     """Display project configuration and asset resolution information."""
     if not show_origin:
-        console.print(
-            "[yellow]Use --show-origin to display asset resolution details.[/yellow]"
-        )
+        console.print("[yellow]Use --show-origin to display asset resolution details.[/yellow]")
         raise typer.Exit(0)
 
     try:

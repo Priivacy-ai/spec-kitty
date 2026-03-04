@@ -87,9 +87,7 @@ class CredentialStore:
                 if os.name != "nt":
                     os.chmod(self.credentials_path, 0o600)
         except Timeout as exc:
-            raise RuntimeError(
-                "Cannot acquire lock on credentials file. Another process may be using it."
-            ) from exc
+            raise RuntimeError("Cannot acquire lock on credentials file. Another process may be using it.") from exc
 
     def clear(self):
         """Delete the credentials file."""
@@ -98,9 +96,7 @@ class CredentialStore:
                 if self.credentials_path.exists():
                     self.credentials_path.unlink()
         except Timeout as exc:
-            raise RuntimeError(
-                "Cannot acquire lock on credentials file. Another process may be using it."
-            ) from exc
+            raise RuntimeError("Cannot acquire lock on credentials file. Another process may be using it.") from exc
 
     def exists(self) -> bool:
         """Check if credentials file exists."""
@@ -113,7 +109,7 @@ class CredentialStore:
                 value = value[:-1] + "+00:00"
             parsed = datetime.fromisoformat(value)
             # Normalize to timezone-aware UTC for consistent comparison
-            if parsed.tzinfo is not None:
+            if parsed.tzinfo is not None:  # noqa: SIM108
                 parsed = parsed.astimezone(UTC)
             else:
                 # Assume naive datetimes are UTC
@@ -228,9 +224,7 @@ class AuthClient:
     def _require_saas_sync(self, operation: str) -> None:
         """Raise when SaaS connectivity is disabled by feature flag."""
         if not is_saas_sync_enabled():
-            raise AuthenticationError(
-                f"{saas_sync_disabled_message()} Operation: {operation}."
-            )
+            raise AuthenticationError(f"{saas_sync_disabled_message()} Operation: {operation}.")
 
     @property
     def server_url(self) -> str:
@@ -300,10 +294,12 @@ class AuthClient:
         # Use server-provided expiry if available, else use defaults
         # Server may return access_lifetime (seconds) or expires_in (possibly as strings)
         access_lifetime = self._coerce_lifetime(
-            data.get("access_lifetime") or data.get("expires_in"), default=900  # 15 min
+            data.get("access_lifetime") or data.get("expires_in"),
+            default=900,  # 15 min
         )
         refresh_lifetime = self._coerce_lifetime(
-            data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
+            data.get("refresh_lifetime") or data.get("refresh_expires_in"),
+            default=604800,  # 7 days
         )
         access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
         refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
@@ -373,10 +369,12 @@ class AuthClient:
 
         # Use server-provided expiry if available, else use defaults
         access_lifetime = self._coerce_lifetime(
-            data.get("access_lifetime") or data.get("expires_in"), default=900  # 15 min
+            data.get("access_lifetime") or data.get("expires_in"),
+            default=900,  # 15 min
         )
         refresh_lifetime = self._coerce_lifetime(
-            data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
+            data.get("refresh_lifetime") or data.get("refresh_expires_in"),
+            default=604800,  # 7 days
         )
         access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
         refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
@@ -423,9 +421,7 @@ class AuthClient:
             if not access_token:
                 self.clear_credentials()
                 raise AuthenticationError("Session expired. Please log in again.")
-            response = client.post(
-                url, headers={"Authorization": f"Bearer {access_token}"}
-            )
+            response = client.post(url, headers={"Authorization": f"Bearer {access_token}"})
 
             if response.status_code == 401:
                 self.clear_credentials()
@@ -472,10 +468,7 @@ class AuthClient:
 
     def is_authenticated(self) -> bool:
         """Check if user is authenticated (has valid access or refresh token)."""
-        return (
-            self.credential_store.is_access_token_valid()
-            or self.credential_store.is_refresh_token_valid()
-        )
+        return self.credential_store.is_access_token_valid() or self.credential_store.is_refresh_token_valid()
 
     def clear_credentials(self):
         """Clear all stored credentials."""

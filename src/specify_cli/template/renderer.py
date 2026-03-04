@@ -74,9 +74,7 @@ def render_template(
     return metadata, rendered, raw_frontmatter
 
 
-def _resolve_variables(
-    variables: VariablesResolver | None, metadata: dict[str, Any]
-) -> Mapping[str, str]:
+def _resolve_variables(variables: VariablesResolver | None, metadata: dict[str, Any]) -> Mapping[str, str]:
     if variables is None:
         return {}
     resolved = variables(metadata) or {} if callable(variables) else variables

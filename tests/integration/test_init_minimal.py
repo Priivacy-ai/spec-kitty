@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 # Helpers for setting up a fake global runtime
 # ---------------------------------------------------------------------------
 
+
 def _populate_global_runtime(global_home: Path) -> None:
     """Create a realistic global runtime directory structure.
 
@@ -30,9 +31,7 @@ def _populate_global_runtime(global_home: Path) -> None:
         cmd_templates = global_home / "missions" / mission / "command-templates"
         cmd_templates.mkdir(parents=True, exist_ok=True)
         # Create at least one template so directory isn't empty
-        (cmd_templates / "specify.md").write_text(
-            "---\ndescription: test specify\n---\n# Specify\n"
-        )
+        (cmd_templates / "specify.md").write_text("---\ndescription: test specify\n---\n# Specify\n")
         mission_yaml = global_home / "missions" / mission / "mission.yaml"
         mission_yaml.write_text(f"name: {mission}\ndescription: test\n")
 
@@ -88,6 +87,7 @@ def _populate_package_templates(pkg_root: Path) -> None:
 # ---------------------------------------------------------------------------
 # T038: Init creates only project-specific files when global runtime exists
 # ---------------------------------------------------------------------------
+
 
 class TestInitCreatesMinimalProject:
     """Verify that init with global runtime creates only project-specific files."""
@@ -189,6 +189,7 @@ class TestInitCreatesMinimalProject:
         # Uses .kittify/.scratch/ so the resolver's legacy tier scan
         # of .kittify/command-templates doesn't pick these up.
         import shutil
+
         scratch = project / ".kittify" / ".scratch"
         scratch.mkdir(parents=True, exist_ok=True)
         scratch_cmd = scratch / "command-templates"
@@ -196,9 +197,7 @@ class TestInitCreatesMinimalProject:
 
         # Resolve mission templates
         kittify = project / ".kittify"
-        mission_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=kittify
-        )
+        mission_dir = _resolve_mission_command_templates_dir(project, "software-dev", scratch_parent=kittify)
 
         # Merge base + mission
         render_dir = prepare_command_templates(scratch_cmd, mission_dir)
@@ -233,6 +232,7 @@ class TestInitCreatesMinimalProject:
 # ---------------------------------------------------------------------------
 # T039: Init resolves shared assets from global runtime
 # ---------------------------------------------------------------------------
+
 
 class TestInitResolvesFromGlobal:
     """Verify that after minimal init, shared assets resolve from ~/.kittify/."""
@@ -337,6 +337,7 @@ class TestInitResolvesFromGlobal:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestGlobalRuntimeEdgeCases:
     """Edge cases for the global runtime detection."""
 
@@ -384,6 +385,7 @@ class TestGlobalRuntimeEdgeCases:
 # ensure_runtime() called during init
 # ---------------------------------------------------------------------------
 
+
 class TestEnsureRuntimeCalledDuringInit:
     """Verify that ensure_runtime() is invoked before _has_global_runtime()."""
 
@@ -422,6 +424,7 @@ class TestEnsureRuntimeCalledDuringInit:
         # Call the code path manually (mirrors lines 746-757 of init.py)
         try:
             from specify_cli.runtime.bootstrap import ensure_runtime
+
             ensure_runtime()
         except Exception:
             pass
@@ -450,6 +453,7 @@ class TestEnsureRuntimeCalledDuringInit:
         # Simulate the init code path with failure
         try:
             from specify_cli.runtime.bootstrap import ensure_runtime
+
             ensure_runtime()
         except Exception:
             pass  # graceful fallback
@@ -482,6 +486,7 @@ class TestEnsureRuntimeCalledDuringInit:
         )
 
         from specify_cli.runtime.bootstrap import ensure_runtime
+
         ensure_runtime()
 
         # After ensure_runtime, global runtime should be detected
@@ -491,6 +496,7 @@ class TestEnsureRuntimeCalledDuringInit:
 # ---------------------------------------------------------------------------
 # Scratch directory does not shadow legacy tier
 # ---------------------------------------------------------------------------
+
 
 class TestScratchDirNotLegacy:
     """Verify that scratch command-templates don't trigger legacy tier detection."""
@@ -522,6 +528,7 @@ class TestScratchDirNotLegacy:
 
         # Copy base command templates using the CORRECT scratch path
         import shutil
+
         scratch = project / ".kittify" / ".scratch"
         scratch.mkdir(parents=True, exist_ok=True)
         scratch_cmd = scratch / "command-templates"
@@ -594,15 +601,14 @@ class TestScratchDirNotLegacy:
 
         # Simulate init's scratch workflow
         import shutil
+
         scratch = project / ".kittify" / ".scratch"
         scratch.mkdir(parents=True, exist_ok=True)
         scratch_cmd = scratch / "command-templates"
         shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
 
         kittify = project / ".kittify"
-        mission_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=kittify
-        )
+        mission_dir = _resolve_mission_command_templates_dir(project, "software-dev", scratch_parent=kittify)
         render_dir = prepare_command_templates(scratch_cmd, mission_dir)
         generate_agent_assets(render_dir, project, "claude", "sh")
 

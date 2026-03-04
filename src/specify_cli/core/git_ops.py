@@ -75,7 +75,9 @@ def run_command(
     except subprocess.CalledProcessError as exc:
         if check_return:
             resolved_console = _resolve_console(console)
-            resolved_console.print(f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+            resolved_console.print(
+                f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}"
+            )
             resolved_console.print(f"[red]Exit code:[/red] {exc.returncode}")
             if exc.stderr:
                 resolved_console.print(f"[red]Error output:[/red] {exc.stderr.strip()}")

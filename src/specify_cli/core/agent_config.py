@@ -117,9 +117,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
             data = yaml.load(f) or {}
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
-        raise AgentConfigError(
-            f"Invalid YAML in {config_file}: {e}"
-        ) from e
+        raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
 
     agents_data = data.get("agents", {})
     if not agents_data:
@@ -131,18 +129,13 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     if isinstance(available, str):
         available = [available]
     if not isinstance(available, list):
-        raise AgentConfigError(
-            "Invalid agents.available in config.yaml: expected a list of agent keys"
-        )
+        raise AgentConfigError("Invalid agents.available in config.yaml: expected a list of agent keys")
 
     invalid_agents = [agent for agent in available if agent not in AI_CHOICES]
     if invalid_agents:
         valid_agents = ", ".join(sorted(AI_CHOICES.keys()))
         unknown = ", ".join(sorted(invalid_agents))
-        raise AgentConfigError(
-            f"Unknown agent key(s) in config.yaml: {unknown}. "
-            f"Valid agents: {valid_agents}"
-        )
+        raise AgentConfigError(f"Unknown agent key(s) in config.yaml: {unknown}. Valid agents: {valid_agents}")
 
     # Parse selection config (legacy strategy field ignored)
     selection_data = agents_data.get("selection", {})

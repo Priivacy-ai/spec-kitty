@@ -10,7 +10,6 @@ Tests the auto-resolution of status file conflicts including:
 from __future__ import annotations
 
 
-
 from specify_cli.merge.status_resolver import (
     LANE_PRIORITY,
     ConflictRegion,

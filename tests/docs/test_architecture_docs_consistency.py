@@ -79,8 +79,8 @@ def test_key_docs_use_versioned_adr_paths() -> None:
             if "architecture/adrs/" in line and "compatibility" not in line.lower():
                 stale_references.append(f"{doc.relative_to(REPO_ROOT)}:{line_no}: {line.strip()}")
 
-    assert not stale_references, (
-        "Found stale direct architecture/adrs references in key docs:\n" + "\n".join(stale_references)
+    assert not stale_references, "Found stale direct architecture/adrs references in key docs:\n" + "\n".join(
+        stale_references
     )
 
 
@@ -90,9 +90,8 @@ def test_deprecated_docs_architecture_locations_removed() -> None:
         REPO_ROOT / "docs" / "development" / "tracking",
     ]
     still_present = [str(path.relative_to(REPO_ROOT)) for path in deprecated_dirs if path.exists()]
-    assert not still_present, (
-        "Deprecated documentation directories should be removed after migration: "
-        + ", ".join(still_present)
+    assert not still_present, "Deprecated documentation directories should be removed after migration: " + ", ".join(
+        still_present
     )
 
 
@@ -137,9 +136,7 @@ def _iter_actor_persona_cells(path: Path) -> list[tuple[str, int]]:
 
 def test_user_journey_actor_personas_link_to_audience_docs() -> None:
     journey_files = [
-        path
-        for path in sorted(USER_JOURNEY_DIR.glob("*.md"))
-        if path.name not in {"README.md", "evaluation.md"}
+        path for path in sorted(USER_JOURNEY_DIR.glob("*.md")) if path.name not in {"README.md", "evaluation.md"}
     ]
 
     assert journey_files, "No canonical user journey files found for persona-link validation"
@@ -148,46 +145,38 @@ def test_user_journey_actor_personas_link_to_audience_docs() -> None:
     for journey in journey_files:
         actor_personas = _iter_actor_persona_cells(journey)
         if not actor_personas:
-            failures.append(
-                f"{journey.relative_to(REPO_ROOT)} has no actor persona rows in the expected actor table"
-            )
+            failures.append(f"{journey.relative_to(REPO_ROOT)} has no actor persona rows in the expected actor table")
             continue
 
         for persona_cell, line_no in actor_personas:
             match = MARKDOWN_LINK_RE.fullmatch(persona_cell)
             if not match:
                 failures.append(
-                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona cell must be a markdown link to audience doc: {persona_cell}"
+                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona cell must be a markdown link to audience doc: {persona_cell}"  # noqa: E501
                 )
                 continue
 
             target = match.group(1).strip().strip("<>")
             if target.startswith(("http://", "https://", "mailto:", "tel:")):
-                failures.append(
-                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link must be local: {target}"
-                )
+                failures.append(f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link must be local: {target}")
                 continue
 
             parsed = urlparse(unquote(target))
             link_path = parsed.path
             if not link_path:
-                failures.append(
-                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link missing path: {target}"
-                )
+                failures.append(f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link missing path: {target}")
                 continue
 
             destination = (journey.parent / link_path).resolve()
             if not destination.exists() or not destination.is_file():
-                failures.append(
-                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona target missing: {target}"
-                )
+                failures.append(f"{journey.relative_to(REPO_ROOT)}:{line_no} persona target missing: {target}")
                 continue
 
             try:
                 destination.relative_to(AUDIENCE_DIR.resolve())
             except ValueError:
                 failures.append(
-                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link must target architecture/audience/: {target}"
+                    f"{journey.relative_to(REPO_ROOT)}:{line_no} persona link must target architecture/audience/: {target}"  # noqa: E501
                 )
 
     assert not failures, "\n".join(failures)

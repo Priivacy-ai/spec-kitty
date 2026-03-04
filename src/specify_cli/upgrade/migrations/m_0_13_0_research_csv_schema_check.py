@@ -71,16 +71,16 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                     if not result.schema_valid:
                         return True
 
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Always can apply - this is informational only."""
         return True, ""
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
         """Scan all research features for schema mismatches."""
         changes: list[str] = []
         warnings: list[str] = []
@@ -113,7 +113,7 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                     meta = json.load(f)
                     if meta.get("mission") != "research":
                         continue
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
             # Validate evidence-log.csv

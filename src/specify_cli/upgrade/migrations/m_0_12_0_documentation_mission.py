@@ -52,7 +52,7 @@ class InstallDocumentationMission(BaseMigration):
         # Check if documentation mission already exists
         return not (doc_mission_dir.exists() and (doc_mission_dir / "mission.yaml").exists())
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if migration can be safely applied.
 
         Args:

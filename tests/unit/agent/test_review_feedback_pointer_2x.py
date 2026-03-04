@@ -79,10 +79,7 @@ def _write_wp(path: Path, *, lane: str) -> None:
             }
         ],
     }
-    body = (
-        "# WP01 Prompt\n\n## Activity Log\n"
-        f"- 2026-01-01T00:00:00Z – system – lane={lane} – Prompt created.\n"
-    )
+    body = f"# WP01 Prompt\n\n## Activity Log\n- 2026-01-01T00:00:00Z – system – lane={lane} – Prompt created.\n"
     write_frontmatter(path, frontmatter, body)
 
 
@@ -123,9 +120,7 @@ def _json_payload(output: str) -> dict:
     raise AssertionError(f"No JSON payload found in output:\n{output}")
 
 
-def _patch_move_task_dependencies(
-    monkeypatch: pytest.MonkeyPatch, repo: Path, feature_slug: str
-) -> Mock:
+def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, feature_slug: str) -> Mock:
     monkeypatch.setattr(tasks_module, "locate_project_root", lambda: repo)
     monkeypatch.setattr(
         tasks_module,
@@ -167,7 +162,7 @@ def test_detect_reviewer_name_falls_back_to_unknown(error: Exception):
 
 def test_resolve_git_common_dir_raises_when_git_returns_empty_path():
     completed = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="\n", stderr="")
-    with patch("specify_cli.cli.commands.agent.tasks.subprocess.run", return_value=completed):
+    with patch("specify_cli.cli.commands.agent.tasks.subprocess.run", return_value=completed):  # noqa: SIM117
         with pytest.raises(RuntimeError, match="Unable to resolve git common directory"):
             _resolve_git_common_dir(Path("/tmp/repo"))
 

@@ -170,7 +170,9 @@ def generate(
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
+    from_interview: bool = typer.Option(
+        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
+    ),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing constitution bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),

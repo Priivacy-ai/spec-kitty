@@ -262,7 +262,7 @@ class ConstitutionParser:
             match = re.search(pattern, lower_content, re.IGNORECASE)
             if match:
                 try:
-                    if match.lastindex and match.lastindex > 0:
+                    if match.lastindex and match.lastindex > 0:  # noqa: SIM108
                         # Pattern has capture group - extract and convert
                         value = converter(match.group(1))
                     else:

@@ -17,12 +17,10 @@ class MigrationRegistry:
     _migrations: dict[str, type[BaseMigration]] = {}
 
     # Required fields for all migrations
-    REQUIRED_FIELDS = ['migration_id', 'description', 'target_version']
+    REQUIRED_FIELDS = ["migration_id", "description", "target_version"]
 
     @classmethod
-    def register(
-        cls, migration_class: type[BaseMigration]
-    ) -> type[BaseMigration]:
+    def register(cls, migration_class: type[BaseMigration]) -> type[BaseMigration]:
         """Decorator to register a migration class.
 
         Args:
@@ -39,9 +37,7 @@ class MigrationRegistry:
         for field in cls.REQUIRED_FIELDS:
             value = getattr(migration_class, field, None)
             if not value:
-                raise ValueError(
-                    f"Migration {migration_class.__name__} is missing required field '{field}'"
-                )
+                raise ValueError(f"Migration {migration_class.__name__} is missing required field '{field}'")
 
         migration_id = migration_class.migration_id
 
@@ -82,6 +78,7 @@ class MigrationRegistry:
             List of applicable migrations in order
         """
         from pathlib import Path
+
         from_v = Version(from_version)
         to_v = Version(to_version)
 
@@ -92,7 +89,7 @@ class MigrationRegistry:
             if from_v < target <= to_v:
                 applicable.append(migration)
             # ALSO include migrations at current version if detect() returns True
-            elif target == from_v and project_path is not None:
+            elif target == from_v and project_path is not None:  # noqa: SIM102
                 if migration.detect(Path(project_path) if isinstance(project_path, str) else project_path):
                     applicable.append(migration)
 

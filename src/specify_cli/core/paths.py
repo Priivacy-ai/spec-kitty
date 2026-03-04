@@ -21,10 +21,7 @@ def _is_worktree_gitdir(gitdir: Path) -> bool:
     # gitdir = …/<repo>.git/worktrees/<name>  (bare)
     #   gitdir.parent.name  == "worktrees"
     #   gitdir.parent.parent.name endswith ".git"
-    return (
-        gitdir.parent.name == "worktrees"
-        and gitdir.parent.parent.name.endswith(".git")
-    )
+    return gitdir.parent.name == "worktrees" and gitdir.parent.parent.name.endswith(".git")
 
 
 def locate_project_root(start: Path | None = None) -> Path | None:
@@ -86,7 +83,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir():
+        elif git_path.is_dir():  # noqa: SIM102
             # This is the main repo (or a regular git repo)
             if (candidate / KITTIFY_DIR).is_dir():
                 return candidate

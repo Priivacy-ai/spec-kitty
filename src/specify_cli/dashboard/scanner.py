@@ -30,9 +30,7 @@ __all__ = [
 ]
 
 
-def read_file_resilient(
-    file_path: Path, *, auto_fix: bool = True
-) -> tuple[str | None, str | None]:
+def read_file_resilient(file_path: Path, *, auto_fix: bool = True) -> tuple[str | None, str | None]:
     """Read a file with resilience to encoding errors.
 
     This function attempts to read a file as UTF-8, and if that fails:
@@ -66,9 +64,7 @@ def read_file_resilient(
         return content, None
     except UnicodeDecodeError as exc:
         # Log the encoding error
-        logger.warning(
-            f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}"
-        )
+        logger.warning(f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}")
 
         if not auto_fix:
             return None, (
@@ -201,9 +197,7 @@ def get_workflow_status(artifacts: dict[str, dict[str, any]]) -> dict[str, str]:
     workflow: dict[str, str] = {}
 
     if not has_spec:
-        workflow.update(
-            {"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"}
-        )
+        workflow.update({"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"})
         return workflow
     workflow["specify"] = "complete"
 

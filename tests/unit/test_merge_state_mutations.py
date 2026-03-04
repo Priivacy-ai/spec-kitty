@@ -47,11 +47,7 @@ class TestNoneAssignmentMutations:
     def test_save_state_path_not_none(self, tmp_path):
         """Ensure state_path is valid Path, not None (kills None assignment mutation)."""
         state = MergeState(
-            feature_slug="test-feature",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="test-feature", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
 
         # If state_path was mutated to None, this would raise AttributeError
@@ -65,11 +61,7 @@ class TestNoneAssignmentMutations:
         """Verify load_state returns MergeState object, not None."""
         # Setup
         state = MergeState(
-            feature_slug="test",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="test", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
         save_state(state, tmp_path)
 
@@ -91,11 +83,7 @@ class TestParameterRemovalMutations:
         deep_path = tmp_path / "level1" / "level2" / "level3" / "level4"
 
         state = MergeState(
-            feature_slug="deep-test",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="deep-test", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
 
         # If parents=True was removed, this would raise FileNotFoundError
@@ -117,7 +105,7 @@ class TestParameterRemovalMutations:
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01"],
-            strategy="squash"
+            strategy="squash",
         )
 
         # This should succeed with parents=True, fail without it
@@ -137,11 +125,7 @@ class TestReturnValueMutations:
 
         # When merge state exists
         state = MergeState(
-            feature_slug="test",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="test", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
         save_state(state, tmp_path)
 
@@ -157,11 +141,7 @@ class TestReturnValueMutations:
 
         # When file exists
         state = MergeState(
-            feature_slug="feature",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="feature", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
         save_state(state, tmp_path)
 
@@ -176,15 +156,12 @@ class TestEdgeCasesMutations:
     def test_save_state_updates_timestamp_field(self, tmp_path):
         """Verify save_state actually updates the updated_at timestamp."""
         state = MergeState(
-            feature_slug="test",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="test", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
 
         # Small delay to ensure timestamp changes
         import time
+
         time.sleep(0.01)
 
         save_state(state, tmp_path)
@@ -198,11 +175,7 @@ class TestEdgeCasesMutations:
     def test_clear_state_removes_file_not_just_clears_content(self, tmp_path):
         """Verify clear_state actually removes the file."""
         state = MergeState(
-            feature_slug="test",
-            target_branch="main",
-            wp_order=["WP01"],
-            completed_wps=[],
-            strategy="merge"
+            feature_slug="test", target_branch="main", wp_order=["WP01"], completed_wps=[], strategy="merge"
         )
         save_state(state, tmp_path)
 
@@ -222,7 +195,7 @@ class TestEdgeCasesMutations:
             wp_order=["WP01", "WP02", "WP03"],
             completed_wps=["WP01", "WP02"],
             current_wp="WP03",
-            strategy="merge"
+            strategy="merge",
         )
 
         save_state(state, tmp_path)
@@ -242,7 +215,7 @@ class TestEdgeCasesMutations:
             wp_order=["WP01", "WP02", "WP03", "WP04"],
             completed_wps=["WP01", "WP02"],
             current_wp="WP03",
-            strategy="merge"
+            strategy="merge",
         )
 
         remaining = state.remaining_wps

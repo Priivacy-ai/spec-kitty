@@ -1,4 +1,5 @@
 """Git State Detection Tests for pre-review validation."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -57,6 +57,7 @@ Test content here.
 def _mock_emit_event(**kwargs):
     """Create a mock StatusEvent for emit_status_transition."""
     from specify_cli.status.models import Lane, StatusEvent
+
     return StatusEvent(
         event_id="01MOCK00000000000000000000",
         feature_slug=kwargs.get("feature_slug", "008-test-feature"),
@@ -79,8 +80,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_json_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path
     ):
         """Should move task and output JSON."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -90,9 +90,7 @@ class TestMoveTask:
         mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
 
         # Execute
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--json", "--no-auto-commit"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--json", "--no-auto-commit"])
 
         # Verify
         assert result.exit_code == 0, f"stdout: {result.stdout}"
@@ -123,8 +121,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_human_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path
     ):
         """Should move task and output human-readable format."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -134,9 +131,7 @@ class TestMoveTask:
         mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
 
         # Execute
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--no-auto-commit"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--no-auto-commit"])
 
         # Verify
         assert result.exit_code == 0, f"stdout: {result.stdout}"
@@ -147,8 +142,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_with_agent_and_pid(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path
     ):
         """Should update agent and shell_pid when provided."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -159,12 +153,19 @@ class TestMoveTask:
 
         # Execute
         result = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "doing",
-                "--agent", "test-agent",
-                "--shell-pid", "99999",
-                "--json", "--no-auto-commit"
-            ]
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "doing",
+                "--agent",
+                "test-agent",
+                "--shell-pid",
+                "99999",
+                "--json",
+                "--no-auto-commit",
+            ],
         )
 
         # Verify
@@ -186,17 +187,15 @@ class TestMoveTask:
         mock_root.return_value = repo_root
 
         # Execute
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "invalid_lane", "--json"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "invalid_lane", "--json"])
 
         # Verify
         assert result.exit_code == 1
         # Find JSON line in output (sync module may print before the error)
         json_line = None
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             line = line.strip()
-            if line.startswith('{'):
+            if line.startswith("{"):
                 json_line = line
                 break
         assert json_line is not None, f"No JSON found in output: {result.stdout}"
@@ -209,13 +208,11 @@ class TestMoveTask:
         mock_root.return_value = None
 
         # Execute
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--json"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--json"])
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -224,8 +221,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_to_planned_requires_feedback_file(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path
     ):
         """Should strictly require --review-feedback-file for --to planned."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -240,12 +236,10 @@ class TestMoveTask:
             encoding="utf-8",
         )
 
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "planned", "--json", "--no-auto-commit"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "planned", "--json", "--no-auto-commit"])
 
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "requires review feedback" in output["error"]
 
@@ -254,8 +248,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_to_planned_force_still_requires_feedback_file(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path
     ):
         """--force must not bypass review feedback capture on planned rollbacks."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -270,12 +263,10 @@ class TestMoveTask:
             encoding="utf-8",
         )
 
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "planned", "--force", "--json", "--no-auto-commit"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "planned", "--force", "--json", "--no-auto-commit"])
 
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "requires review feedback" in output["error"]
         assert "cannot be bypassed with --force" in output["error"]
@@ -285,8 +276,7 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_to_planned_rejects_missing_feedback_file(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_emit: Mock, mock_task_file: Path, tmp_path: Path
     ):
         """Should fail when --review-feedback-file path does not exist."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -304,14 +294,19 @@ class TestMoveTask:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01", "--to", "planned",
-                "--review-feedback-file", str(missing_feedback),
-                "--json", "--no-auto-commit",
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(missing_feedback),
+                "--json",
+                "--no-auto-commit",
             ],
         )
 
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "not found" in output["error"]
 
@@ -321,8 +316,14 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     @patch("specify_cli.cli.commands.agent.tasks._resolve_git_common_dir")
     def test_move_task_to_planned_persists_feedback_content_and_path(
-        self, mock_git_dir: Mock, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_emit: Mock, mock_task_file: Path, tmp_path: Path
+        self,
+        mock_git_dir: Mock,
+        mock_slug: Mock,
+        mock_root: Mock,
+        mock_branch: Mock,
+        mock_emit: Mock,
+        mock_task_file: Path,
+        tmp_path: Path,
     ):
         """Should persist review feedback via git-common-dir and store pointer in frontmatter."""
         repo_root = mock_task_file.parent.parent.parent.parent
@@ -346,9 +347,14 @@ class TestMoveTask:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01", "--to", "planned",
-                "--review-feedback-file", str(feedback_file),
-                "--json", "--no-auto-commit",
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(feedback_file),
+                "--json",
+                "--no-auto-commit",
             ],
         )
 
@@ -383,9 +389,7 @@ class TestMarkStatus:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_mark_status_done_json(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_mark_status_done_json(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should mark status as done with JSON output."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
@@ -394,9 +398,7 @@ class TestMarkStatus:
         (tasks_dir / "tasks.md").write_text("- [ ] T001 Initial task\n", encoding="utf-8")
 
         # Execute
-        result = runner.invoke(
-            app, ["mark-status", "T001", "--status", "done", "--json"]
-        )
+        result = runner.invoke(app, ["mark-status", "T001", "--status", "done", "--json"])
 
         # Verify
         assert result.exit_code == 0
@@ -410,21 +412,17 @@ class TestMarkStatus:
         mock_root.return_value = None
 
         # Execute
-        result = runner.invoke(
-            app, ["mark-status", "T001", "--status", "done", "--json"]
-        )
+        result = runner.invoke(app, ["mark-status", "T001", "--status", "done", "--json"])
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_mark_status_pending(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_mark_status_pending(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should mark status as pending."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
@@ -433,9 +431,7 @@ class TestMarkStatus:
         (tasks_dir / "tasks.md").write_text("- [x] T002 Initial task\n", encoding="utf-8")
 
         # Execute
-        result = runner.invoke(
-            app, ["mark-status", "T002", "--status", "pending"]
-        )
+        result = runner.invoke(app, ["mark-status", "T002", "--status", "pending"])
 
         # Verify
         assert result.exit_code == 0
@@ -443,21 +439,17 @@ class TestMarkStatus:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_mark_status_invalid_status(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_mark_status_invalid_status(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should reject invalid status values."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
 
         # Execute
-        result = runner.invoke(
-            app, ["mark-status", "T001", "--status", "invalid", "--json"]
-        )
+        result = runner.invoke(app, ["mark-status", "T001", "--status", "invalid", "--json"])
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "Invalid status" in output["error"]
@@ -476,15 +468,13 @@ class TestListTasks:
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_list_tasks_no_tasks_directory(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_list_tasks_no_tasks_directory(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should error when tasks directory doesn't exist."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
@@ -494,15 +484,13 @@ class TestListTasks:
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_list_all_tasks_json(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_list_all_tasks_json(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should list all tasks with JSON output."""
         # Setup: Create multiple task files
         repo_root = tmp_path
@@ -546,9 +534,7 @@ Content
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_list_tasks_filter_by_lane(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_list_tasks_filter_by_lane(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should filter tasks by lane."""
         # Setup
         repo_root = tmp_path
@@ -587,9 +573,7 @@ Content
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_list_tasks_human_output(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_list_tasks_human_output(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should list tasks in human-readable format."""
         # Setup
         repo_root = tmp_path
@@ -626,34 +610,24 @@ class TestAddHistory:
         mock_root.return_value = None
 
         # Execute
-        result = runner.invoke(
-            app, ["add-history", "WP01", "--note", "Test", "--json"]
-        )
+        result = runner.invoke(app, ["add-history", "WP01", "--note", "Test", "--json"])
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_add_history_json(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
-    ):
+    def test_add_history_json(self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path):
         """Should add history entry with JSON output."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
 
         # Execute
-        result = runner.invoke(
-            app, [
-                "add-history", "WP01",
-                "--note", "Test note",
-                "--json"
-            ]
-        )
+        result = runner.invoke(app, ["add-history", "WP01", "--note", "Test note", "--json"])
 
         # Verify
         assert result.exit_code == 0
@@ -667,9 +641,7 @@ class TestAddHistory:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_add_history_with_agent(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
-    ):
+    def test_add_history_with_agent(self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path):
         """Should include agent in history entry."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
@@ -677,13 +649,8 @@ class TestAddHistory:
 
         # Execute
         result = runner.invoke(
-            app, [
-                "add-history", "WP01",
-                "--note", "Custom note",
-                "--agent", "test-bot",
-                "--shell-pid", "55555",
-                "--json"
-            ]
+            app,
+            ["add-history", "WP01", "--note", "Custom note", "--agent", "test-bot", "--shell-pid", "55555", "--json"],
         )
 
         # Verify
@@ -709,15 +676,13 @@ class TestValidateWorkflow:
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_validate_valid_task(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
-    ):
+    def test_validate_valid_task(self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path):
         """Should validate task with all required fields."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
@@ -734,9 +699,7 @@ class TestValidateWorkflow:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_validate_missing_required_fields(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_validate_missing_required_fields(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should detect missing required fields."""
         # Create task with missing fields
         repo_root = tmp_path
@@ -767,9 +730,7 @@ work_package_id: "WP01"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_validate_invalid_lane(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_validate_invalid_lane(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should detect invalid lane values."""
         # Create task with invalid lane
         repo_root = tmp_path
@@ -795,15 +756,13 @@ lane: "invalid_lane"
 
         # Verify - locate_work_package raises when lane is invalid
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_validate_warnings(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
+    def test_validate_warnings(self, mock_slug: Mock, mock_root: Mock, tmp_path: Path):
         """Should detect warnings like missing activity log."""
         # Create task without activity log
         repo_root = tmp_path
@@ -844,9 +803,7 @@ class TestValidateReadyForReview:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         # Don't need to set up anything - force should bypass all checks
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-test", "WP01", force=True
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-test", "WP01", force=True)
 
         assert is_valid is True
         assert guidance == []
@@ -871,12 +828,10 @@ class TestValidateReadyForReview:
         # Simulate uncommitted research artifacts
         mock_run.return_value = Mock(
             returncode=0,
-            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n"
+            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n",
         )
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         assert is_valid is False
         assert len(guidance) > 0
@@ -907,9 +862,7 @@ class TestValidateReadyForReview:
         # Simulate no uncommitted changes
         mock_run.return_value = Mock(returncode=0, stdout="")
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         assert is_valid is True
         assert guidance == []
@@ -956,9 +909,7 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-feature", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
@@ -1000,9 +951,7 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-feature", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
@@ -1026,14 +975,9 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
 
         # Simulate only WP status files modified (should be filtered out)
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n"
-        )
+        mock_run.return_value = Mock(returncode=0, stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n")
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         # Should pass - WP status files are filtered out
         assert is_valid is True
@@ -1071,10 +1015,7 @@ class TestFindFeatureSlug:
 
         mock_cwd.return_value = Path("/repo")
         mock_root.return_value = tmp_path
-        mock_subprocess.return_value = Mock(
-            returncode=0,
-            stdout="008-test-feature\n"
-        )
+        mock_subprocess.return_value = Mock(returncode=0, stdout="008-test-feature\n")
 
         # Create kitty-specs directory to validate the slug
         (tmp_path / "kitty-specs" / "008-test-feature").mkdir(parents=True)
@@ -1162,8 +1103,7 @@ class TestStatusInProgressLane:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_in_progress_wp_appears_in_rich_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_stale: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, mock_stale: Mock, tmp_path: Path
     ):
         """WP with lane: in_progress must appear in the Doing column of the kanban board."""
         repo_root = tmp_path

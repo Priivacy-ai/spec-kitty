@@ -20,6 +20,7 @@ from ruamel.yaml.comments import CommentedMap
 
 class FrontmatterError(Exception):
     """Error in frontmatter operations."""
+
     pass
 
 
@@ -107,7 +108,7 @@ class FrontmatterManager:
             frontmatter["dependencies"] = []
 
         # Get body (everything after closing ---)
-        body = "\n".join(lines[closing_idx + 1:])
+        body = "\n".join(lines[closing_idx + 1 :])
 
         return frontmatter, body
 
@@ -124,6 +125,7 @@ class FrontmatterManager:
 
         # Write to string buffer first
         import io
+
         buffer = io.StringIO()
         buffer.write("---\n")
         self.yaml.dump(normalized, buffer)
@@ -171,11 +173,7 @@ class FrontmatterManager:
         return frontmatter.get(field, default)
 
     def add_history_entry(
-        self,
-        file_path: Path,
-        action: str,
-        agent: str | None = None,
-        note: str | None = None
+        self, file_path: Path, action: str, agent: str | None = None, note: str | None = None
     ) -> None:
         """Add an entry to the history field.
 
@@ -246,7 +244,7 @@ class FrontmatterManager:
             errors.append(f"dependencies must be a list, got {type(dependencies).__name__}")
             return errors
 
-        wp_pattern = re.compile(r'^WP\d{2}$')
+        wp_pattern = re.compile(r"^WP\d{2}$")
         seen = set()
 
         for dep in dependencies:
@@ -287,14 +285,18 @@ class FrontmatterManager:
             # Validate lane value
             if "lane" in frontmatter:
                 valid_lanes = [
-                    "planned", "claimed", "in_progress", "for_review",
-                    "done", "blocked", "canceled",
+                    "planned",
+                    "claimed",
+                    "in_progress",
+                    "for_review",
+                    "done",
+                    "blocked",
+                    "canceled",
                     "doing",  # Accepted alias for in_progress
                 ]
                 if frontmatter["lane"] not in valid_lanes:
                     errors.append(
-                        f"Invalid lane value: {frontmatter['lane']} "
-                        f"(must be one of: {', '.join(valid_lanes)})"
+                        f"Invalid lane value: {frontmatter['lane']} (must be one of: {', '.join(valid_lanes)})"
                     )
 
             # Validate dependencies field (if present)
@@ -335,12 +337,7 @@ def get_field(file_path: Path, field: str, default: Any = None) -> Any:
     return _manager.get_field(file_path, field, default)
 
 
-def add_history_entry(
-    file_path: Path,
-    action: str,
-    agent: str | None = None,
-    note: str | None = None
-) -> None:
+def add_history_entry(file_path: Path, action: str, agent: str | None = None, note: str | None = None) -> None:
     """Add an entry to the history field."""
     _manager.add_history_entry(file_path, action, agent, note)
 

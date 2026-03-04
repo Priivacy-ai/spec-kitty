@@ -109,6 +109,7 @@ class ArtifactRef(BaseModel):
         if not v:
             raise ValueError("artifact_key cannot be empty")
         import re
+
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
             raise ValueError(
                 f"artifact_key must contain only alphanumeric characters, dots, underscores, and hyphens; got '{v}'"
@@ -129,9 +130,7 @@ class ArtifactRef(BaseModel):
             "other",
         }
         if v not in allowed_classes:
-            raise ValueError(
-                f"artifact_class must be one of {allowed_classes}; got '{v}'"
-            )
+            raise ValueError(f"artifact_class must be one of {allowed_classes}; got '{v}'")
         return v
 
     @field_validator("required_status")
@@ -140,9 +139,7 @@ class ArtifactRef(BaseModel):
         """Validate required_status is 'required' or 'optional'."""
         allowed_values = {"required", "optional"}
         if v not in allowed_values:
-            raise ValueError(
-                f"required_status must be one of {allowed_values}; got '{v}'"
-            )
+            raise ValueError(f"required_status must be one of {allowed_values}; got '{v}'")
         return v
 
     @field_validator("content_hash_sha256")
@@ -151,15 +148,11 @@ class ArtifactRef(BaseModel):
         """Validate content_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
             if len(v) != 64:
-                raise ValueError(
-                    f"content_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
-                )
+                raise ValueError(f"content_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters")
             try:
                 int(v, 16)
             except ValueError as e:
-                raise ValueError(
-                    f"content_hash_sha256 must be valid hexadecimal; got '{v}'"
-                ) from e
+                raise ValueError(f"content_hash_sha256 must be valid hexadecimal; got '{v}'") from e
         return v
 
 
@@ -241,9 +234,7 @@ class MissionDossier(BaseModel):
             required = [a for a in required if a.step_id == step_id]
         return required
 
-    def get_missing_required_artifacts(
-        self, step_id: str | None = None
-    ) -> list[ArtifactRef]:
+    def get_missing_required_artifacts(self, step_id: str | None = None) -> list[ArtifactRef]:
         """Return required artifacts that are not present.
 
         Args:
@@ -371,9 +362,7 @@ class MissionDossierSnapshot(BaseModel):
         """Validate completeness_status is one of the allowed values."""
         allowed_values = {"complete", "incomplete", "unknown"}
         if v not in allowed_values:
-            raise ValueError(
-                f"completeness_status must be one of {allowed_values}; got '{v}'"
-            )
+            raise ValueError(f"completeness_status must be one of {allowed_values}; got '{v}'")
         return v
 
     @field_validator("parity_hash_sha256")
@@ -382,15 +371,11 @@ class MissionDossierSnapshot(BaseModel):
         """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
             if len(v) != 64:
-                raise ValueError(
-                    f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
-                )
+                raise ValueError(f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters")
             try:
                 int(v, 16)
             except ValueError as e:
-                raise ValueError(
-                    f"parity_hash_sha256 must be valid hexadecimal; got '{v}'"
-                ) from e
+                raise ValueError(f"parity_hash_sha256 must be valid hexadecimal; got '{v}'") from e
         return v
 
     def has_parity_diff(self, other: "MissionDossierSnapshot") -> bool:

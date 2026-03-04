@@ -164,9 +164,7 @@ class Hasher:
             ValueError: If artifact_hash is not a non-empty string
         """
         if not artifact_hash or not isinstance(artifact_hash, str):
-            raise ValueError(
-                f"artifact_hash must be non-empty string; got {repr(artifact_hash)}"
-            )
+            raise ValueError(f"artifact_hash must be non-empty string; got {repr(artifact_hash)}")
         self.hashes.append(artifact_hash)
 
     def compute_parity_hash(self) -> str:

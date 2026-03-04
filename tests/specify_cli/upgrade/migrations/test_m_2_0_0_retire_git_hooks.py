@@ -118,4 +118,3 @@ class TestRetireGitHooksMigration:
 
         assert result.success is True
         assert "No .git/hooks directory found" in result.changes_made
-

@@ -1,4 +1,5 @@
 """Conflict detection using Lamport clocks."""
+
 from .models import Event
 
 

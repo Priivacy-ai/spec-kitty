@@ -198,9 +198,7 @@ def compute_baseline_key(
     )
 
 
-def save_baseline(
-    feature_slug: str, baseline: BaselineSnapshot, repo_root: Path
-) -> None:
+def save_baseline(feature_slug: str, baseline: BaselineSnapshot, repo_root: Path) -> None:
     """Persist baseline to JSON file.
 
     File location: {repo_root}/.kittify/dossiers/{feature_slug}/parity-baseline.json
@@ -220,9 +218,7 @@ def save_baseline(
     logger.info(f"Baseline saved to {baseline_file}")
 
 
-def load_baseline(
-    feature_slug: str, repo_root: Path
-) -> BaselineSnapshot | None:
+def load_baseline(feature_slug: str, repo_root: Path) -> BaselineSnapshot | None:
     """Load baseline from JSON file.
 
     File location: {repo_root}/.kittify/dossiers/{feature_slug}/parity-baseline.json
@@ -269,37 +265,22 @@ def accept_baseline(
             - (True, None): Baseline accepted, safe to compare hashes
             - (False, reason): Baseline rejected, treat as "no baseline"
     """
-    if strict:
+    if strict:  # noqa: SIM102
         # Exact match: all components must match
         if loaded_baseline.baseline_key != current_key:
             # Detailed comparison to find which components differ
             diffs = []
-            if (
-                loaded_baseline.baseline_key.project_uuid
-                != current_key.project_uuid
-            ):
+            if loaded_baseline.baseline_key.project_uuid != current_key.project_uuid:
                 diffs.append("project_uuid")
             if loaded_baseline.baseline_key.node_id != current_key.node_id:
                 diffs.append("node_id")
-            if (
-                loaded_baseline.baseline_key.feature_slug
-                != current_key.feature_slug
-            ):
+            if loaded_baseline.baseline_key.feature_slug != current_key.feature_slug:
                 diffs.append("feature_slug")
-            if (
-                loaded_baseline.baseline_key.target_branch
-                != current_key.target_branch
-            ):
+            if loaded_baseline.baseline_key.target_branch != current_key.target_branch:
                 diffs.append("target_branch")
-            if (
-                loaded_baseline.baseline_key.mission_key
-                != current_key.mission_key
-            ):
+            if loaded_baseline.baseline_key.mission_key != current_key.mission_key:
                 diffs.append("mission_key")
-            if (
-                loaded_baseline.baseline_key.manifest_version
-                != current_key.manifest_version
-            ):
+            if loaded_baseline.baseline_key.manifest_version != current_key.manifest_version:
                 diffs.append("manifest_version")
 
             reason = f"Baseline key mismatch: {', '.join(diffs)}"
@@ -367,17 +348,11 @@ def detect_drift(
         return False, None
 
     # Drift detected
-    logger.warning(
-        f"Parity drift detected for {feature_slug}: "
-        f"{baseline_hash[:8]}... -> {current_hash[:8]}..."
-    )
+    logger.warning(f"Parity drift detected for {feature_slug}: {baseline_hash[:8]}... -> {current_hash[:8]}...")
 
     # Compute severity based on completeness status changes
     severity = "warning"
-    if (
-        current_snapshot.completeness_status
-        != "unknown"
-    ):
+    if current_snapshot.completeness_status != "unknown":  # noqa: SIM102
         # Check if completeness changed
         if stored_baseline.parity_hash_sha256 != current_snapshot.parity_hash_sha256:
             # Could check stored completeness, but we don't have it here
@@ -403,7 +378,7 @@ async def emit_drift_if_detected(
     target_branch: str,
     mission_key: str,
     manifest_version: str,
-    actor: str | None = None,
+    actor: str | None = None,  # noqa: ARG001
 ) -> dict | None:
     """Detect drift and emit event if found.
 
@@ -491,8 +466,5 @@ def capture_baseline(
     )
 
     save_baseline(feature_slug, baseline, repo_root)
-    logger.info(
-        f"Baseline captured for {feature_slug} "
-        f"(hash: {baseline.parity_hash_sha256[:8]}...)"
-    )
+    logger.info(f"Baseline captured for {feature_slug} (hash: {baseline.parity_hash_sha256[:8]}...)")
     return baseline

@@ -65,7 +65,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
 
         return True, ""
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update implement and review slash commands with improved templates."""
         changes: list[str] = []
         warnings: list[str] = []
@@ -159,9 +159,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
             changes.append("Templates emphasize automated file updates (no manual editing)")
             changes.append("Prevents state corruption from incomplete workflows")
         elif not changes:
-            warnings.append(
-                "No templates were updated (already updated or mission templates missing)"
-            )
+            warnings.append("No templates were updated (already updated or mission templates missing)")
 
         success = len(errors) == 0
         return MigrationResult(

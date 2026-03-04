@@ -88,6 +88,7 @@ def validate_worktree_location(project_root: Path | None = None) -> WorktreeVali
 
     current_branch = result.stdout.strip()
     from specify_cli.core.git_ops import resolve_primary_branch
+
     primary = resolve_primary_branch(project_root)
     is_main_branch = current_branch == primary
     is_feature_branch = bool(re.match(r"^\d{3}-[\w-]+$", current_branch))
@@ -98,9 +99,7 @@ def validate_worktree_location(project_root: Path | None = None) -> WorktreeVali
     elif is_main_branch:
         errors.append("Command must run from feature worktree, not main branch.")
     elif not is_feature_branch:
-        errors.append(
-            f"Unexpected branch '{current_branch}'. Commands must run from feature worktrees."
-        )
+        errors.append(f"Unexpected branch '{current_branch}'. Commands must run from feature worktrees.")
 
     worktree_path = project_root if is_feature_branch and not errors else None
 

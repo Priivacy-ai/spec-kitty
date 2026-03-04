@@ -56,6 +56,8 @@ def test_check_all_tools_accepts_custom_requirements(monkeypatch):
         "which",
         lambda cmd: "/usr/bin/python" if cmd == sys.executable else None,
     )
-    results = check_all_tools({"py": (sys.executable, "https://example.com"), "missing": ("nope", "https://example.com")})
+    results = check_all_tools(
+        {"py": (sys.executable, "https://example.com"), "missing": ("nope", "https://example.com")}
+    )
     assert results["py"][0] is True
     assert results["missing"][0] is False

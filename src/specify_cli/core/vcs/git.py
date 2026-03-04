@@ -382,9 +382,7 @@ class GitVCS:
                 errors="replace",
                 timeout=10,
             )
-            current_commit = (
-                commit_result.stdout.strip() if commit_result.returncode == 0 else ""
-            )
+            current_commit = commit_result.stdout.strip() if commit_result.returncode == 0 else ""
 
             # Check for uncommitted changes
             status_result = subprocess.run(
@@ -570,9 +568,7 @@ class GitVCS:
                 )
 
             # 4. Get commits that will be integrated
-            changes_to_integrate = self._get_commits_between(
-                workspace_path, "HEAD", base_branch
-            )
+            changes_to_integrate = self._get_commits_between(workspace_path, "HEAD", base_branch)
 
             # 4b. Capture HEAD before rebase for stats calculation
             pre_rebase_result = subprocess.run(
@@ -583,11 +579,7 @@ class GitVCS:
                 errors="replace",
                 timeout=10,
             )
-            pre_rebase_head = (
-                pre_rebase_result.stdout.strip()
-                if pre_rebase_result.returncode == 0
-                else None
-            )
+            pre_rebase_head = pre_rebase_result.stdout.strip() if pre_rebase_result.returncode == 0 else None
 
             # 5. Try rebase
             rebase_result = subprocess.run(
@@ -1106,9 +1098,7 @@ class GitVCS:
                 continue
         return None
 
-    def _get_commits_between(
-        self, workspace_path: Path, from_ref: str, to_ref: str
-    ) -> list[ChangeInfo]:
+    def _get_commits_between(self, workspace_path: Path, from_ref: str, to_ref: str) -> list[ChangeInfo]:
         """Get commits between two refs."""
         return self.get_changes(workspace_path, f"{from_ref}..{to_ref}")
 
@@ -1327,9 +1317,7 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
 
                 # Parse timestamp
                 try:
-                    timestamp = datetime.fromisoformat(
-                        timestamp_str.replace(" ", "T").replace(" ", "")
-                    )
+                    timestamp = datetime.fromisoformat(timestamp_str.replace(" ", "T").replace(" ", ""))
                 except ValueError:
                     timestamp = datetime.now(UTC)
 
@@ -1341,7 +1329,7 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
                         heads=[commit_id],
                         working_copy_commit=commit_id,
                         is_undoable=False,  # Git reflog entries aren't truly undoable
-                        parent_operation=f"reflog-{i+1}" if i < limit - 1 else None,
+                        parent_operation=f"reflog-{i + 1}" if i < limit - 1 else None,
                     )
                 )
             except (ValueError, IndexError):

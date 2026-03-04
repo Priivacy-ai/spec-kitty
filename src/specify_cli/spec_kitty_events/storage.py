@@ -1,4 +1,5 @@
 """Storage adapters for events and errors."""
+
 from abc import ABC, abstractmethod
 from .models import Event, ErrorEntry
 

@@ -198,7 +198,7 @@ def feature_requires_historical_migration(feature_dir: Path) -> bool:
     return False
 
 
-def migrate_feature(
+def migrate_feature(  # noqa: C901
     feature_dir: Path,
     *,
     actor: str = "migration",
@@ -300,9 +300,7 @@ def migrate_feature(
 
         # Validate canonical lane
         if canonical_lane not in CANONICAL_LANES:
-            wp_errors.append(
-                f"{wp_file.name}: unrecognized lane '{raw_lane_str}'"
-            )
+            wp_errors.append(f"{wp_file.name}: unrecognized lane '{raw_lane_str}'")
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_id,
@@ -335,10 +333,7 @@ def migrate_feature(
             event_id = str(ULID())
 
             # First event per WP gets the marker reason
-            if i == 0:
-                reason = "historical_frontmatter_to_jsonl:v1"
-            else:
-                reason = "historical migration"
+            reason = "historical_frontmatter_to_jsonl:v1" if i == 0 else "historical migration"
 
             # Actor resolution: use transition's actor unless it's "migration"
             event_actor = t.actor if t.actor != "migration" else actor
@@ -358,9 +353,7 @@ def migrate_feature(
                     evidence=t.evidence,
                 )
             except ValueError:
-                wp_errors.append(
-                    f"{wp_file.name}: invalid transition {t.from_lane}->{t.to_lane}"
-                )
+                wp_errors.append(f"{wp_file.name}: invalid transition {t.from_lane}->{t.to_lane}")
                 continue
 
             all_events.append(event)
@@ -402,9 +395,7 @@ def migrate_feature(
 
             materialize(feature_dir)
         except Exception as exc:
-            logger.warning(
-                "Materialization failed for %s (non-fatal): %s", feature_slug, exc
-            )
+            logger.warning("Materialization failed for %s (non-fatal): %s", feature_slug, exc)
 
     status = "migrated" if all_events else "skipped"
     error_msg: str | None = None

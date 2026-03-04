@@ -142,7 +142,7 @@ def _deserialize_ref(payload: dict[str, Any]) -> Any:
             "id": str(payload.get("id") or ""),
             "key": str(payload["key"]) if payload.get("key") is not None else None,
             "url": str(payload["url"]) if payload.get("url") is not None else None,
-            "identity": f"{payload.get('system','')}:{payload.get('workspace','')}:{payload.get('id','')}",
+            "identity": f"{payload.get('system', '')}:{payload.get('workspace', '')}:{payload.get('id', '')}",
         }
 
     ExternalRef = models["ExternalRef"]

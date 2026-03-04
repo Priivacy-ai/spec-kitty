@@ -26,14 +26,14 @@ MIGRATION_DESCRIPTION = "Remove kitty-specs/ from main repo .gitignore to allow 
 
 # Patterns to REMOVE (block entire kitty-specs directory)
 PATTERNS_TO_REMOVE = [
-    r"^kitty-specs/?$",          # kitty-specs or kitty-specs/
-    r"^/kitty-specs/?$",         # /kitty-specs or /kitty-specs/
+    r"^kitty-specs/?$",  # kitty-specs or kitty-specs/
+    r"^/kitty-specs/?$",  # /kitty-specs or /kitty-specs/
 ]
 
 # Patterns to KEEP (worktree-specific, prevent merge conflicts)
 PATTERNS_TO_KEEP = [
     r"kitty-specs/\*\*/tasks/",  # kitty-specs/**/tasks/*.md
-    r"kitty-specs/.*/tasks/",    # kitty-specs/*/tasks/*.md
+    r"kitty-specs/.*/tasks/",  # kitty-specs/*/tasks/*.md
 ]
 
 
@@ -61,11 +61,7 @@ def is_blocking_pattern(line: str) -> bool:
             return False
 
     # Check if it blocks the entire directory (REMOVE these)
-    for remove_pattern in PATTERNS_TO_REMOVE:
-        if re.match(remove_pattern, stripped):
-            return True
-
-    return False
+    return any(re.match(remove_pattern, stripped) for remove_pattern in PATTERNS_TO_REMOVE)
 
 
 def find_blocking_entries(gitignore_path: Path) -> list[tuple[int, str]]:

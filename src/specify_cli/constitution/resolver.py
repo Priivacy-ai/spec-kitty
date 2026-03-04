@@ -94,7 +94,7 @@ def resolve_governance(
             raise GovernanceResolutionError(
                 [
                     "Constitution selected unavailable directives: " + ", ".join(missing_directives),
-                    "Update constitution selected_directives to values present in directives.yaml or doctrine/directives.",
+                    "Update constitution selected_directives to values present in directives.yaml or doctrine/directives.",  # noqa: E501
                 ]
             )
         resolved_directives = list(doctrine.selected_directives)

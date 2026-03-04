@@ -82,13 +82,7 @@ class TestLegalTransitions:
             (
                 "for_review",
                 "done",
-                {
-                    "evidence": DoneEvidence(
-                        review=ReviewApproval(
-                            reviewer="r", verdict="approved", reference="ref"
-                        )
-                    )
-                },
+                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
             ),
             ("for_review", "in_progress", {"review_ref": "feedback-123"}),
             ("for_review", "planned", {"review_ref": "feedback-456"}),
@@ -136,9 +130,7 @@ class TestIllegalTransitions:
             ("blocked", "done"),
         ],
     )
-    def test_illegal_transition_rejected(
-        self, from_lane: str, to_lane: str
-    ) -> None:
+    def test_illegal_transition_rejected(self, from_lane: str, to_lane: str) -> None:
         ok, error = validate_transition(from_lane, to_lane)
         assert ok is False
         assert error is not None
@@ -158,29 +150,21 @@ class TestForceOverride:
         assert error is None
 
     def test_force_without_actor_rejected(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, reason="reopening"
-        )
+        ok, error = validate_transition("done", "planned", force=True, reason="reopening")
         assert ok is False
         assert "actor and reason" in error
 
     def test_force_without_reason_rejected(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, actor="admin"
-        )
+        ok, error = validate_transition("done", "planned", force=True, actor="admin")
         assert ok is False
         assert "actor and reason" in error
 
     def test_force_with_empty_actor_rejected(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, actor="", reason="reopening"
-        )
+        ok, error = validate_transition("done", "planned", force=True, actor="", reason="reopening")
         assert ok is False
 
     def test_force_with_empty_reason_rejected(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, actor="admin", reason=""
-        )
+        ok, error = validate_transition("done", "planned", force=True, actor="admin", reason="")
         assert ok is False
 
     def test_force_on_legal_transition_bypasses_guards(self) -> None:
@@ -217,23 +201,17 @@ class TestGuardConditions:
         assert "review_ref" in error.lower()
 
     def test_review_ref_for_rollback_to_planned_accepted(self) -> None:
-        ok, error = validate_transition(
-            "for_review", "planned", review_ref="feedback-789"
-        )
+        ok, error = validate_transition("for_review", "planned", review_ref="feedback-789")
         assert ok is True
         assert error is None
 
     def test_review_ref_for_rollback_to_planned_empty_rejected(self) -> None:
-        ok, error = validate_transition(
-            "for_review", "planned", review_ref=""
-        )
+        ok, error = validate_transition("for_review", "planned", review_ref="")
         assert ok is False
         assert "review_ref" in error.lower()
 
     def test_review_ref_for_rollback_to_planned_whitespace_rejected(self) -> None:
-        ok, error = validate_transition(
-            "for_review", "planned", review_ref="   "
-        )
+        ok, error = validate_transition("for_review", "planned", review_ref="   ")
         assert ok is False
         assert "review_ref" in error.lower()
 
@@ -243,14 +221,8 @@ class TestGuardConditions:
         assert "evidence" in error.lower()
 
     def test_evidence_for_done_with_evidence(self) -> None:
-        evidence = DoneEvidence(
-            review=ReviewApproval(
-                reviewer="r", verdict="approved", reference="ref"
-            )
-        )
-        ok, error = validate_transition(
-            "for_review", "done", evidence=evidence
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))
+        ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is True
 
     def test_workspace_context_required_for_claimed_to_in_progress(self) -> None:
@@ -299,9 +271,7 @@ class TestGuardConditions:
         assert "reason" in error.lower()
 
     def test_reason_for_abandon_provided(self) -> None:
-        ok, error = validate_transition(
-            "in_progress", "planned", reason="reassigning to other agent"
-        )
+        ok, error = validate_transition("in_progress", "planned", reason="reassigning to other agent")
         assert ok is True
 
 
@@ -391,22 +361,10 @@ class TestExactErrorMessages:
 
     ACTOR_REQUIRED_MSG = "Transition planned -> claimed requires actor identity"
     WORKSPACE_CONTEXT_MSG = "Transition claimed -> in_progress requires workspace context"
-    SUBTASKS_MSG = (
-        "Transition in_progress -> for_review requires completed subtasks "
-        "or force with reason"
-    )
-    IMPL_EVIDENCE_MSG = (
-        "Transition in_progress -> for_review requires implementation evidence "
-        "or force with reason"
-    )
-    REVIEWER_APPROVAL_MSG = (
-        "Transition for_review -> done requires evidence "
-        "(reviewer identity and approval reference)"
-    )
-    REVIEW_REF_MSG = (
-        "Transition from for_review requires review_ref "
-        "(review feedback reference)"
-    )
+    SUBTASKS_MSG = "Transition in_progress -> for_review requires completed subtasks or force with reason"
+    IMPL_EVIDENCE_MSG = "Transition in_progress -> for_review requires implementation evidence or force with reason"
+    REVIEWER_APPROVAL_MSG = "Transition for_review -> done requires evidence (reviewer identity and approval reference)"
+    REVIEW_REF_MSG = "Transition from for_review requires review_ref (review feedback reference)"
     REASON_REQUIRED_MSG = "Transition in_progress -> planned requires reason"
     FORCE_MSG = "Force transitions require actor and reason"
 
@@ -454,17 +412,13 @@ class TestExactErrorMessages:
         assert error == self.REVIEWER_APPROVAL_MSG
 
     def test_reviewer_approval_no_reviewer_exact_message(self) -> None:
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="", verdict="approved", reference="ref-1")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="", verdict="approved", reference="ref-1"))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert error == self.REVIEWER_APPROVAL_MSG
 
     def test_reviewer_approval_no_reference_exact_message(self) -> None:
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="alice", verdict="approved", reference="")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="alice", verdict="approved", reference=""))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert error == self.REVIEWER_APPROVAL_MSG
@@ -485,31 +439,23 @@ class TestExactErrorMessages:
         assert error == self.REASON_REQUIRED_MSG
 
     def test_force_without_actor_exact_message(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, reason="reopening"
-        )
+        ok, error = validate_transition("done", "planned", force=True, reason="reopening")
         assert ok is False
         assert error == self.FORCE_MSG
 
     def test_force_without_reason_exact_message(self) -> None:
-        ok, error = validate_transition(
-            "done", "planned", force=True, actor="admin"
-        )
+        ok, error = validate_transition("done", "planned", force=True, actor="admin")
         assert ok is False
         assert error == self.FORCE_MSG
 
     def test_force_on_allowed_without_actor_exact_message(self) -> None:
         """Force on an allowed transition also requires actor and reason."""
-        ok, error = validate_transition(
-            "planned", "claimed", force=True, reason="overriding"
-        )
+        ok, error = validate_transition("planned", "claimed", force=True, reason="overriding")
         assert ok is False
         assert error == self.FORCE_MSG
 
     def test_force_on_allowed_without_reason_exact_message(self) -> None:
-        ok, error = validate_transition(
-            "planned", "claimed", force=True, actor="admin"
-        )
+        ok, error = validate_transition("planned", "claimed", force=True, actor="admin")
         assert ok is False
         assert error == self.FORCE_MSG
 
@@ -521,9 +467,7 @@ class TestExactErrorMessages:
 
     def test_force_whitespace_reason_rejected(self) -> None:
         """Whitespace-only reason is treated as empty — kills 'and' vs 'or' mutation."""
-        ok, error = validate_transition(
-            "done", "planned", force=True, actor="admin", reason="   "
-        )
+        ok, error = validate_transition("done", "planned", force=True, actor="admin", reason="   ")
         assert ok is False
         assert error == self.FORCE_MSG
 

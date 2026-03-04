@@ -72,11 +72,7 @@ class AcceptanceSummary:
 
     @property
     def all_done(self) -> bool:
-        return not (
-            self.lanes.get("planned")
-            or self.lanes.get("doing")
-            or self.lanes.get("for_review")
-        )
+        return not (self.lanes.get("planned") or self.lanes.get("doing") or self.lanes.get("for_review"))
 
     @property
     def ok(self) -> bool:
@@ -311,12 +307,16 @@ def _get_git_context(repo_root: Path) -> tuple[str | None, Path, Path]:
         pass
 
     try:
-        worktree_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()).resolve()
+        worktree_root = Path(
+            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()
+        ).resolve()
     except TaskCliError:
         worktree_root = repo_root
 
     try:
-        git_common_dir = Path(run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()).resolve()
+        git_common_dir = Path(
+            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
+        ).resolve()
         primary_repo_root = git_common_dir.parent
     except TaskCliError:
         primary_repo_root = repo_root
@@ -330,9 +330,7 @@ def _check_wp_metadata(wp: WorkPackage, wp_id: str, use_legacy: bool) -> list[st
     if not lane_value:
         issues.append(f"{wp_id}: missing lane in frontmatter")
     elif use_legacy and lane_value != wp.current_lane:
-        issues.append(
-            f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
-        )
+        issues.append(f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'")
     if not wp.agent:
         issues.append(f"{wp_id}: missing agent in frontmatter")
     if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
@@ -472,9 +470,7 @@ def choose_mode(preference: str | None, repo_root: Path) -> AcceptanceMode:
     if preference in {"pr", "local", "checklist"}:
         return preference
     try:
-        remotes = (
-            run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
-        )
+        remotes = run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
         if remotes:
             return "pr"
     except TaskCliError:
@@ -503,13 +499,15 @@ def _persist_acceptance_commit(
     if tests:
         acceptance_record["validation_commands"] = list(tests)
 
-    meta.update({
-        "accepted_at": timestamp,
-        "accepted_by": actor_name,
-        "acceptance_mode": mode,
-        "accepted_from_commit": parent_commit,
-        "accept_commit": None,
-    })
+    meta.update(
+        {
+            "accepted_at": timestamp,
+            "accepted_by": actor_name,
+            "acceptance_mode": mode,
+            "accepted_from_commit": parent_commit,
+            "accept_commit": None,
+        }
+    )
 
     history: list[dict[str, object]] = meta.setdefault("acceptance_history", [])
     history.append(acceptance_record)
@@ -574,9 +572,7 @@ def perform_acceptance(
     auto_commit: bool = True,
 ) -> AcceptanceResult:
     if mode != "checklist" and not summary.ok:
-        raise AcceptanceError(
-            "Acceptance checks failed; run verify to see outstanding issues."
-        )
+        raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
     actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -587,9 +583,7 @@ def perform_acceptance(
 
     if auto_commit and mode != "checklist":
         try:
-            parent_commit = (
-                run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
-            )
+            parent_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
         except TaskCliError:
             parent_commit = None
         accept_commit, commit_created = _persist_acceptance_commit(

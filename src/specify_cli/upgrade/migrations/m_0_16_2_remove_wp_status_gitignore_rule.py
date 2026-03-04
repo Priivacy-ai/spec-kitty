@@ -22,9 +22,7 @@ from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "2.0.0a5_remove_wp_status_gitignore_rule"
 MIGRATION_VERSION = "2.0.0a5"
-MIGRATION_DESCRIPTION = (
-    "Remove stale WP status ignore rules from tracked .gitignore"
-)
+MIGRATION_DESCRIPTION = "Remove stale WP status ignore rules from tracked .gitignore"
 
 # Patterns to remove from tracked .gitignore.
 PATTERNS_TO_REMOVE = [
@@ -61,9 +59,7 @@ def find_wp_status_entries(gitignore_path: Path) -> list[tuple[int, str]]:
     return matches
 
 
-def remove_wp_status_entries(
-    gitignore_path: Path, dry_run: bool = False
-) -> tuple[list[str], list[str]]:
+def remove_wp_status_entries(gitignore_path: Path, dry_run: bool = False) -> tuple[list[str], list[str]]:
     """Remove stale WP status ignore entries from .gitignore.
 
     Returns:
@@ -98,18 +94,14 @@ def remove_wp_status_entries(
         return changes, errors
 
     if dry_run:
-        changes.insert(
-            0, f"Would remove {removed_count} stale WP status ignore entries from .gitignore"
-        )
+        changes.insert(0, f"Would remove {removed_count} stale WP status ignore entries from .gitignore")
         return changes, errors
 
     try:
         new_content = "".join(new_lines)
         new_content = re.sub(r"\n{3,}", "\n\n", new_content)
         gitignore_path.write_text(new_content, encoding="utf-8")
-        changes.insert(
-            0, f"Removed {removed_count} stale WP status ignore entries from .gitignore"
-        )
+        changes.insert(0, f"Removed {removed_count} stale WP status ignore entries from .gitignore")
     except OSError as exc:
         errors.append(f"Failed to write .gitignore: {exc}")
 

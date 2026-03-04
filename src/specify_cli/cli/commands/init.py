@@ -308,7 +308,7 @@ def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
         yaml.dump(config, f)
 
 
-def init(
+def init(  # noqa: C901
     project_name: str | None = typer.Argument(
         None,
         help="Name for your new project directory (omit to initialize current directory, equivalent to --here)",
@@ -398,7 +398,7 @@ def init(
             else:
                 if non_interactive:
                     _console.print(
-                        "[red]Error:[/red] Non-interactive mode requires --force when using --here in a non-empty directory"
+                        "[red]Error:[/red] Non-interactive mode requires --force when using --here in a non-empty directory"  # noqa: E501
                     )
                     raise typer.Exit(1)
                 response = typer.confirm("Do you want to continue?")
@@ -582,7 +582,7 @@ def init(
             selected_preferred_reviewer = selected_preferred_implementer
             if selected_preferred_implementer is not None:
                 _console.print(
-                    f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]"
+                    f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]"  # noqa: E501
                 )
     # Build agent config to save later
     agent_config = AgentConfig(
@@ -597,7 +597,7 @@ def init(
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
             _console.print(
-                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"
+                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"  # noqa: E501
             )
             raise typer.Exit(1)
         selected_script = script_type
@@ -609,7 +609,7 @@ def init(
     # Mission selection deprecated - missions are now per-feature
     if mission_key:
         _console.print(
-            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"
+            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"  # noqa: E501
         )
         _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
         _console.print()
@@ -891,7 +891,7 @@ def init(
 
     if notice_entries:
         body_lines = [
-            "Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.",
+            "Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.",  # noqa: E501
             "Consider adding the following folders (or subsets) to [cyan].gitignore[/cyan]:",
             "",
         ]
@@ -915,7 +915,7 @@ def init(
     step_num += 1
 
     steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"
+        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
     )
     step_num += 1
 
@@ -940,9 +940,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",
-        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",
-        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",
+        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",  # noqa: E501
+        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",  # noqa: E501
+        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]
     enhancements_panel = Panel(
         "\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2)
@@ -971,7 +971,7 @@ def init(
             f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n"
             f"[bold cyan]Port:[/bold cyan] {port}\n\n"
             f"{status_line}\n\n"
-            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
+            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",  # noqa: E501
             title=title,
             border_style="green",
             padding=(1, 2),
@@ -1075,9 +1075,9 @@ def init(
     if kittify_dir.is_dir():
         for scratch in kittify_dir.iterdir():
             if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
-                try:
+                try:  # noqa: SIM105
                     shutil.rmtree(scratch)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass  # best-effort cleanup
 
     # Keep freshly initialized repos clean after post-init file updates and template cleanup.

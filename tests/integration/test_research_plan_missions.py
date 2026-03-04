@@ -85,9 +85,7 @@ class TestResearchMissionV1:
 
     def test_states_count(self, config: dict) -> None:
         state_names = [s["name"] for s in config["states"]]
-        assert state_names == [
-            "scoping", "methodology", "gathering", "synthesis", "output", "done"
-        ]
+        assert state_names == ["scoping", "methodology", "gathering", "synthesis", "output", "done"]
 
     def test_all_states_have_display_name(self, config: dict) -> None:
         for state in config["states"]:
@@ -106,9 +104,7 @@ class TestResearchMissionV1:
         for source, dest in expected_chain:
             t = _find_transition(config, "advance", source)
             assert t is not None, f"Missing advance transition from {source}"
-            assert t["dest"] == dest, (
-                f"advance from {source} should go to {dest}, got {t['dest']}"
-            )
+            assert t["dest"] == dest, f"advance from {source} should go to {dest}, got {t['dest']}"
 
     def test_evidence_gate_on_gathering_to_synthesis(self, config: dict) -> None:
         """The gathering -> synthesis transition must require event_count guard."""
@@ -151,8 +147,7 @@ class TestResearchMissionV1:
     def test_guards_section_present(self, config: dict) -> None:
         assert "guards" in config
         guard_names = set(config["guards"].keys())
-        expected = {"has_scope", "has_methodology", "minimum_sources",
-                    "has_findings", "publication_approved"}
+        expected = {"has_scope", "has_methodology", "minimum_sources", "has_findings", "publication_approved"}
         assert expected == guard_names
 
     def test_inputs_defined(self, config: dict) -> None:
@@ -205,9 +200,7 @@ class TestPlanMissionV1:
 
     def test_states_count(self, config: dict) -> None:
         state_names = [s["name"] for s in config["states"]]
-        assert state_names == [
-            "goals", "research", "structure", "draft", "review", "done"
-        ]
+        assert state_names == ["goals", "research", "structure", "draft", "review", "done"]
 
     def test_all_states_have_display_name(self, config: dict) -> None:
         for state in config["states"]:
@@ -344,14 +337,10 @@ class TestGuardExpressionPrimitives:
         for name, guard in config.get("guards", {}).items():
             check = guard["check"]
             matched = any(prim in check for prim in SUPPORTED_GUARD_PRIMITIVES)
-            assert matched, (
-                f"Guard '{name}' in {mission_name} uses unsupported expression: {check}"
-            )
+            assert matched, f"Guard '{name}' in {mission_name} uses unsupported expression: {check}"
 
     @pytest.mark.parametrize("mission_name", ["research", "plan"])
-    def test_all_transition_conditions_use_supported_primitives(
-        self, mission_name: str
-    ) -> None:
+    def test_all_transition_conditions_use_supported_primitives(self, mission_name: str) -> None:
         config = _load_yaml(mission_name)
         for t in config["transitions"]:
             for cond in t.get("conditions", []):

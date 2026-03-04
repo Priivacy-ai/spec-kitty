@@ -71,12 +71,7 @@ def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
 
     # Create WP01
     (tasks_dir / "WP01-test.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01\n"
+        "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\n---\n\n# WP01\n"
     )
 
     # Commit
@@ -171,8 +166,9 @@ def test_worktree_base_branch_is_current(tmp_path):
     if workspace_context_file.exists():
         context_data = json.loads(workspace_context_file.read_text())
         # Base branch should be 'develop' (current), not 'main' (target)
-        assert context_data.get("base_branch") == "develop", \
+        assert context_data.get("base_branch") == "develop", (
             f"Base branch should be 'develop', got {context_data.get('base_branch')}"
+        )
 
 
 def test_status_commits_respect_current_branch(tmp_path):
@@ -279,8 +275,9 @@ def test_notification_when_current_differs_from_target(tmp_path):
     output = result.stdout + result.stderr
     # Should mention something about branches (exact message may vary)
     # This is a loose check - the specific notification format can be decided during implementation
-    assert "develop" in output.lower() or "main" in output.lower() or "branch" in output.lower(), \
+    assert "develop" in output.lower() or "main" in output.lower() or "branch" in output.lower(), (
         "No branch notification in output"
+    )
 
 
 if __name__ == "__main__":

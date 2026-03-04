@@ -105,7 +105,7 @@ def load_global_strictness(repo_root: Path) -> Strictness:
         if config and "glossary" in config and "strictness" in config["glossary"]:
             value = config["glossary"]["strictness"]
             return Strictness(value)
-    except Exception:
+    except Exception:  # noqa: S110
         # Invalid config (malformed YAML, invalid enum value, etc.)
         # Return safe default rather than crashing
         pass
@@ -164,10 +164,7 @@ def should_block(
     from .models import Severity
 
     _known_severities = set(Severity)
-    return any(
-        c.severity == Severity.HIGH or c.severity not in _known_severities
-        for c in conflicts
-    )
+    return any(c.severity == Severity.HIGH or c.severity not in _known_severities for c in conflicts)
 
 
 def categorize_conflicts(

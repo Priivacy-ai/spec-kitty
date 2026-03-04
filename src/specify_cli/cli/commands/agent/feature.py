@@ -43,11 +43,7 @@ from specify_cli.mission import get_feature_mission_key
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 import contextlib
 
-app = typer.Typer(
-    name="feature",
-    help="Feature lifecycle commands for AI agents",
-    no_args_is_help=True
-)
+app = typer.Typer(name="feature", help="Feature lifecycle commands for AI agents", no_args_is_help=True)
 
 console = Console()
 
@@ -166,20 +162,14 @@ def _show_branch_context(
     if current_branch is None:
         raise RuntimeError("Detached HEAD — checkout a branch before continuing")
 
-    resolution = resolve_target_branch(
-        feature_slug, main_repo_root, current_branch, respect_current=True
-    )
+    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
 
     if not json_output:
         if not resolution.should_notify:
-            console.print(
-                f"[bold cyan]Branch:[/bold cyan] {current_branch} "
-                f"(target for this feature)"
-            )
+            console.print(f"[bold cyan]Branch:[/bold cyan] {current_branch} (target for this feature)")
         else:
             console.print(
-                f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
-                f"feature targets '{resolution.target}'"
+                f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', feature targets '{resolution.target}'"
             )
 
     return main_repo_root, resolution.current
@@ -226,9 +216,7 @@ def _ensure_branch_checked_out(
         cwd=main_repo_root,
     )
     if rc != 0:
-        raise RuntimeError(
-            f"Failed to checkout target branch '{target_branch}': {stderr.strip() or 'unknown error'}"
-        )
+        raise RuntimeError(f"Failed to checkout target branch '{target_branch}': {stderr.strip() or 'unknown error'}")
 
     if not json_output:
         console.print(f"[green]✓[/green] Switched to branch [bold]{target_branch}[/bold]")
@@ -279,7 +267,7 @@ def _commit_to_branch(
 
     except subprocess.CalledProcessError as e:
         # Check if it's just "nothing to commit" (benign)
-        stderr = e.stderr if hasattr(e, 'stderr') and e.stderr else ""
+        stderr = e.stderr if hasattr(e, "stderr") and e.stderr else ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
             # Benign - file unchanged
             if not json_output:
@@ -381,9 +369,7 @@ def _build_setup_plan_detection_error(
     suggested_commands = []
     for candidate in candidates[:10]:
         status = "present" if candidate["spec_exists"] else "missing"
-        candidate_lines.append(
-            f"{candidate['feature_slug']} -> {candidate['spec_file']} [{status}]"
-        )
+        candidate_lines.append(f"{candidate['feature_slug']} -> {candidate['spec_file']} [{status}]")
         suggested = f"spec-kitty agent feature {command_name} --feature {candidate['feature_slug']}"
         if command_args:
             suggested = f"{suggested} {' '.join(command_args)}"
@@ -400,11 +386,15 @@ def _build_setup_plan_detection_error(
 
 
 @app.command(name="create-feature")
-def create_feature(
+def create_feature(  # noqa: C901
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
+    mission: Annotated[
+        str | None, typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
-    target_branch: Annotated[str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
+    target_branch: Annotated[
+        str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")
+    ] = None,
 ) -> None:
     """Create new feature directory structure in planning repository.
 
@@ -415,7 +405,7 @@ def create_feature(
         spec-kitty agent create-feature "new-dashboard" --json
     """
     # Validate kebab-case format early (before any operations)
-    KEBAB_CASE_PATTERN = r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    KEBAB_CASE_PATTERN = r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     if not re.match(KEBAB_CASE_PATTERN, feature_slug):
         error_msg = (
             f"Invalid feature slug '{feature_slug}'. "
@@ -489,10 +479,7 @@ def create_feature(
         # Use explicit --target-branch if provided, otherwise current branch
         planning_branch = target_branch or current_branch
         if not json_output:
-            console.print(
-                f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
-                f"(target for this feature)"
-            )
+            console.print(f"[bold cyan]Branch:[/bold cyan] {planning_branch} (target for this feature)")
 
         # Get next feature number
         feature_number = get_next_feature_number(repo_root)
@@ -512,7 +499,7 @@ def create_feature(
         (tasks_dir / ".gitkeep").touch()
 
         # Create tasks/README.md (using same content from setup_feature_directory)
-        tasks_readme_content = '''# Tasks Directory
+        tasks_readme_content = """# Tasks Directory
 
 This directory contains work package (WP) prompt files with lane status in frontmatter.
 
@@ -526,7 +513,8 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`. The lane (planned, doing,
+for_review, done) is stored in the YAML frontmatter `lane:` field.
 
 ## Work Package File Format
 
@@ -582,8 +570,8 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
+"""
+        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
 
         # Copy spec template if it exists
         spec_file = feature_dir / "spec.md"
@@ -623,7 +611,7 @@ spec-kitty agent tasks move-task WP01 --to doing
         meta.setdefault("created_at", datetime.now(UTC).isoformat())
 
         meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        try:
+        try:  # noqa: SIM105
             _commit_to_branch(
                 meta_file,
                 feature_slug_formatted,
@@ -632,7 +620,7 @@ spec-kitty agent tasks move-task WP01 --to doing
                 planning_branch,
                 json_output,
             )
-        except Exception:
+        except Exception:  # noqa: S110
             # Non-fatal: file is still present for local workflows.
             pass
 
@@ -662,21 +650,18 @@ spec-kitty agent tasks move-task WP01 --to doing
                 console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
 
         # Emit FeatureCreated event (non-blocking)
-        try:
+        try:  # noqa: SIM105
             emit_feature_created(
                 feature_slug=feature_slug_formatted,
                 feature_number=f"{feature_number:03d}",
                 target_branch=planning_branch,
                 wp_count=0,
             )
-        except Exception:
+        except Exception:  # noqa: S110
             pass  # Non-blocking, event emission failures are not fatal
 
         if json_output:
-            create_payload = {
-                "result": "success",
-                "feature": feature_slug_formatted,
-                "feature_dir": str(feature_dir),
+            create_payload ={"result": "success", "feature": feature_slug_formatted, "feature_dir": str(feature_dir),
                 "spec_file": str(spec_file),
                 "meta_file": str(meta_file),
                 "created_at": str(meta.get("created_at", "")),
@@ -699,7 +684,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 
 @app.command(name="check-prerequisites")
-def check_prerequisites(
+def check_prerequisites(  # noqa: C901
     feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
@@ -821,7 +806,7 @@ def check_prerequisites(
 
 
 @app.command(name="setup-plan")
-def setup_plan(
+def setup_plan(  # noqa: C901
     feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -888,7 +873,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    "Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                    "Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",  # noqa: E501
                 ],
             }
             if json_output:
@@ -963,14 +948,14 @@ def setup_plan(
                                 coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
                             )
                             # Commit gap analysis and updated meta.json
-                            try:
+                            try:  # noqa: SIM105
                                 safe_commit(
                                     repo_path=repo_root,
                                     files_to_commit=[gap_analysis_output, meta_file],
                                     commit_message=f"Add gap analysis for feature {feature_slug}",
                                     allow_empty=False,
                                 )
-                            except Exception:
+                            except Exception:  # noqa: S110
                                 pass  # Non-fatal: agent can commit separately
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -980,50 +965,45 @@ def setup_plan(
                                 )
                         except Exception as gap_err:
                             if not json_output:
-                                console.print(
-                                    f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}"
-                                )
+                                console.print(f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}")
                     else:
                         if not json_output:
-                            console.print(
-                                "[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis"
-                            )
+                            console.print("[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis")
 
             # T016: Detect and configure generators
             all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
             for gen in all_generators:
                 try:
                     if gen.detect(repo_root):
-                        generators_detected.append({
-                            "name": gen.name,
-                            "language": gen.languages[0],
-                            "config_path": "",
-                        })
+                        generators_detected.append(
+                            {
+                                "name": gen.name,
+                                "language": gen.languages[0],
+                                "config_path": "",
+                            }
+                        )
                         if not json_output:
                             console.print(
-                                f"[cyan]→ Detected {gen.name} generator "
-                                f"(languages: {', '.join(gen.languages)})[/cyan]"
+                                f"[cyan]→ Detected {gen.name} generator (languages: {', '.join(gen.languages)})[/cyan]"
                             )
-                except Exception:
+                except Exception:  # noqa: S110
                     pass  # Skip generators that fail detection
 
             if generators_detected and meta_file.exists():
                 try:
                     set_generators_configured(meta_file, generators_detected)
-                    try:
+                    try:  # noqa: SIM105
                         safe_commit(
                             repo_path=repo_root,
                             files_to_commit=[meta_file],
                             commit_message=f"Update generator config for feature {feature_slug}",
                             allow_empty=False,
                         )
-                    except Exception:
+                    except Exception:  # noqa: S110
                         pass  # Non-fatal
                 except Exception as gen_err:
                     if not json_output:
-                        console.print(
-                            f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
-                        )
+                        console.print(f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}")
         if json_output:
             result = {
                 "result": "success",
@@ -1048,6 +1028,7 @@ def setup_plan(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
+
 
 def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
     """Find the latest feature worktree by number.
@@ -1092,10 +1073,7 @@ def _find_feature_worktree(repo_root: Path, feature_slug: str) -> Path | None:
     if exact.is_dir():
         return exact
 
-    candidates = sorted(
-        p for p in worktrees_dir.glob(f"{feature_slug}-WP*")
-        if p.is_dir()
-    )
+    candidates = sorted(p for p in worktrees_dir.glob(f"{feature_slug}-WP*") if p.is_dir())
     if candidates:
         return candidates[0]
 
@@ -1112,6 +1090,7 @@ def _get_current_branch(repo_root: Path) -> str:
         Current branch name, or detected primary branch if not in a git repo
     """
     from specify_cli.core.git_ops import resolve_primary_branch
+
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_root,
@@ -1119,7 +1098,7 @@ def _get_current_branch(repo_root: Path) -> str:
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else resolve_primary_branch(repo_root)
 
@@ -1127,40 +1106,12 @@ def _get_current_branch(repo_root: Path) -> str:
 @app.command(name="accept")
 def accept_feature(
     feature: Annotated[
-        str | None,
-        typer.Option(
-            "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
-        )
+        str | None, typer.Option("--feature", help="Feature directory slug (auto-detected if not specified)")
     ] = None,
-    mode: Annotated[
-        str,
-        typer.Option(
-            "--mode",
-            help="Acceptance mode: auto, pr, local, checklist"
-        )
-    ] = "auto",
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Output results as JSON for agent parsing"
-        )
-    ] = False,
-    lenient: Annotated[
-        bool,
-        typer.Option(
-            "--lenient",
-            help="Skip strict metadata validation"
-        )
-    ] = False,
-    no_commit: Annotated[
-        bool,
-        typer.Option(
-            "--no-commit",
-            help="Skip auto-commit (report only)"
-        )
-    ] = False,
+    mode: Annotated[str, typer.Option("--mode", help="Acceptance mode: auto, pr, local, checklist")] = "auto",
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
+    lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
+    no_commit: Annotated[bool, typer.Option("--no-commit", help="Skip auto-commit (report only)")] = False,
 ) -> None:
     """Perform feature acceptance workflow.
 
@@ -1209,60 +1160,26 @@ def accept_feature(
 @app.command(name="merge")
 def merge_feature(
     feature: Annotated[
-        str | None,
-        typer.Option(
-            "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
-        )
+        str | None, typer.Option("--feature", help="Feature directory slug (auto-detected if not specified)")
     ] = None,
     target: Annotated[
-        str | None,
-        typer.Option(
-            "--target",
-            help="Target branch to merge into (auto-detected if not specified)"
-        )
+        str | None, typer.Option("--target", help="Target branch to merge into (auto-detected if not specified)")
     ] = None,
-    strategy: Annotated[
-        str,
-        typer.Option(
-            "--strategy",
-            help="Merge strategy: merge, squash, rebase"
-        )
-    ] = "merge",
-    push: Annotated[
-        bool,
-        typer.Option(
-            "--push",
-            help="Push to origin after merging"
-        )
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            help="Show actions without executing"
-        )
-    ] = False,
+    strategy: Annotated[str, typer.Option("--strategy", help="Merge strategy: merge, squash, rebase")] = "merge",
+    push: Annotated[bool, typer.Option("--push", help="Push to origin after merging")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
     keep_branch: Annotated[
-        bool,
-        typer.Option(
-            "--keep-branch",
-            help="Keep feature branch after merge (default: delete)"
-        )
+        bool, typer.Option("--keep-branch", help="Keep feature branch after merge (default: delete)")
     ] = False,
     keep_worktree: Annotated[
-        bool,
-        typer.Option(
-            "--keep-worktree",
-            help="Keep worktree after merge (default: remove)"
-        )
+        bool, typer.Option("--keep-worktree", help="Keep worktree after merge (default: remove)")
     ] = False,
     auto_retry: Annotated[
         bool,
         typer.Option(
             "--auto-retry/--no-auto-retry",
-            help="Auto-navigate to a deterministic feature worktree if in wrong location"
-        )
+            help="Auto-navigate to a deterministic feature worktree if in wrong location",
+        ),
     ] = False,
 ) -> None:
     """Merge feature branch into target branch.
@@ -1302,10 +1219,12 @@ def merge_feature(
         # Resolve target branch dynamically if not specified
         if target is None:
             from specify_cli.core.feature_detection import get_feature_target_branch
+
             if feature:
                 target = get_feature_target_branch(repo_root, feature)
             else:
                 from specify_cli.core.git_ops import resolve_primary_branch
+
                 target = resolve_primary_branch(repo_root)
 
         # Auto-retry logic: Check if we're on a feature branch
@@ -1385,7 +1304,7 @@ def merge_feature(
 
 
 @app.command(name="finalize-tasks")
-def finalize_tasks(
+def finalize_tasks(  # noqa: C901
     feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -1440,9 +1359,7 @@ def finalize_tasks(
         target_branch = _resolve_planning_branch(repo_root, feature_dir)
         _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
         if not json_output:
-            console.print(
-                f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this feature)"
-            )
+            console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this feature)")
 
         tasks_dir = feature_dir / "tasks"
         if not tasks_dir.exists():
@@ -1536,15 +1453,9 @@ def finalize_tasks(
             else:
                 mapped_requirement_ids.update(refs)
 
-        unmapped_functional_requirements = sorted(
-            functional_spec_requirement_ids - mapped_requirement_ids
-        )
+        unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
 
-        if (
-            missing_requirement_refs_wps
-            or unknown_requirement_refs
-            or unmapped_functional_requirements
-        ):
+        if missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements:
             error_msg = "Requirement mapping validation failed"
             payload = {
                 "error": error_msg,
@@ -1591,12 +1502,12 @@ def finalize_tasks(
                 parts = raw_content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter_text = parts[1]
-                    has_dependencies_line = re.search(
-                        r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE
-                    ) is not None
-                    has_requirement_refs_line = re.search(
-                        r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE
-                    ) is not None
+                    has_dependencies_line = (
+                        re.search(r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE) is not None
+                    )
+                    has_requirement_refs_line = (
+                        re.search(r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE) is not None
+                    )
 
             # Read current frontmatter
             try:
@@ -1625,10 +1536,7 @@ def finalize_tasks(
                 frontmatter["dependencies"] = deps
                 frontmatter_changed = True
 
-            if (
-                not has_requirement_refs_line
-                or frontmatter.get("requirement_refs") != requirement_refs
-            ):
+            if not has_requirement_refs_line or frontmatter.get("requirement_refs") != requirement_refs:
                 frontmatter["requirement_refs"] = requirement_refs
                 frontmatter_changed = True
 
@@ -1644,9 +1552,7 @@ def finalize_tasks(
             try:
                 json.loads(meta_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}")
         else:
             console.print("[yellow]Warning:[/yellow] meta.json missing; skipping FeatureCreated emission")
 
@@ -1707,10 +1613,7 @@ def finalize_tasks(
                 if commit_success:
                     # Commit succeeded - get hash
                     _rc, stdout, _stderr = run_command(
-                        ["git", "rev-parse", "HEAD"],
-                        check_return=True,
-                        capture=True,
-                        cwd=repo_root
+                        ["git", "rev-parse", "HEAD"], check_return=True, capture=True, cwd=repo_root
                     )
                     commit_hash = stdout.strip()
                     commit_created = True
@@ -1751,23 +1654,22 @@ def finalize_tasks(
                     causation_id=causation_id,
                 )
             except Exception as exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
 
         if json_output:
             _emit_json(
-                {
-                    "result": "success",
-                    "wp_count": len(work_packages),
-                    "updated_wp_count": updated_count,
-                    "tasks_dir": str(tasks_dir),
-                    "commit_created": commit_created,
-                    "commit_hash": commit_hash,
-                    "files_committed": files_committed,
-                    "dependencies_parsed": wp_dependencies,
-                    "requirement_refs_parsed": wp_requirement_refs,
-                }
+                    {
+                        "result": "success",
+                        "wp_count": len(work_packages),
+                        "updated_wp_count": updated_count,
+                        "tasks_dir": str(tasks_dir),
+                        "commit_created": commit_created,
+                        "commit_hash": commit_hash,
+                        "files_committed": files_committed,
+                        "dependencies_parsed": wp_dependencies,
+                        "requirement_refs_parsed": wp_requirement_refs,
+                    }
+                )
             )
 
     except typer.Exit:
@@ -1841,10 +1743,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
             re.IGNORECASE,
         )
         for match in ref_line_matches:
-            refs.extend(
-                ref_id.upper()
-                for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE)
-            )
+            refs.extend(ref_id.upper() for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE))
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs
@@ -1889,10 +1788,7 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
 
 def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
     """Parse requirement IDs from spec.md content."""
-    all_ids = {
-        req_id.upper()
-        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
-    }
+    all_ids = {req_id.upper() for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)}
     functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
 
     return {

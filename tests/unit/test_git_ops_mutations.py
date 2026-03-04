@@ -95,16 +95,9 @@ class TestRunCommand:
         Expected: stdout and stderr are not empty strings when captured
         """
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = Mock(
-                returncode=0,
-                stdout="captured stdout",
-                stderr="captured stderr"
-            )
+            mock_run.return_value = Mock(returncode=0, stdout="captured stdout", stderr="captured stderr")
 
-            returncode, stdout, stderr = run_command(
-                ["echo", "test"],
-                capture=True
-            )
+            returncode, stdout, stderr = run_command(["echo", "test"], capture=True)
 
             # If capture_output was removed, stdout/stderr would be empty
             assert stdout == "captured stdout"
@@ -139,11 +132,7 @@ class TestRunCommand:
             mock_run.return_value = Mock(returncode=1, stdout="", stderr="error")
 
             # Should not raise exception with check_return=False
-            returncode, stdout, stderr = run_command(
-                ["false"],
-                check_return=False,
-                capture=True
-            )
+            returncode, stdout, stderr = run_command(["false"], check_return=False, capture=True)
 
             assert returncode == 1
             assert stderr == "error"
@@ -179,8 +168,7 @@ class TestIsGitRepo:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0)
 
-            with patch.object(Path, "cwd") as mock_cwd, \
-                 patch.object(Path, "is_dir", return_value=True):
+            with patch.object(Path, "cwd") as mock_cwd, patch.object(Path, "is_dir", return_value=True):
                 mock_cwd.return_value = Path("/current/dir")
 
                 result = is_git_repo(None)
@@ -216,10 +204,7 @@ class TestGetCurrentBranch:
         Expected: subprocess called with correct cwd, branch name returned
         """
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = Mock(
-                returncode=0,
-                stdout="  main  \n"
-            )
+            mock_run.return_value = Mock(returncode=0, stdout="  main  \n")
 
             result = get_current_branch(Path("/test/repo"))
 
@@ -235,8 +220,7 @@ class TestGetCurrentBranch:
         Targets mutant: repo_path = None instead of path resolution
         Expected: Path.cwd() used when path is None
         """
-        with patch("subprocess.run") as mock_run, \
-             patch.object(Path, "cwd") as mock_cwd:
+        with patch("subprocess.run") as mock_run, patch.object(Path, "cwd") as mock_cwd:
             mock_run.return_value = Mock(returncode=0, stdout="develop")
             mock_cwd.return_value = Path("/current/dir")
 
@@ -255,10 +239,7 @@ class TestGetCurrentBranch:
         with patch("subprocess.run") as mock_run:
             # First call (git branch --show-current) fails
             # Second call (git rev-parse) returns "HEAD"
-            mock_run.side_effect = [
-                subprocess.CalledProcessError(128, "git"),
-                Mock(returncode=0, stdout="HEAD")
-            ]
+            mock_run.side_effect = [subprocess.CalledProcessError(128, "git"), Mock(returncode=0, stdout="HEAD")]
 
             result = get_current_branch(Path("/test/repo"))
 
@@ -365,9 +346,11 @@ class TestExcludeFromGitIndex:
         - "exclude" → "EXCLUDE" (exclude_from_git_index_10)
         Expected: Path constructed as repo_path / ".git" / "info" / "exclude"
         """
-        with patch.object(Path, "exists", return_value=True), \
-             patch.object(Path, "read_text", return_value=""), \
-             patch.object(Path, "open", create=True) as mock_open:
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value=""),
+            patch.object(Path, "open", create=True) as mock_open,
+        ):
             mock_file = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
 
@@ -428,10 +411,7 @@ class TestResolvePrimaryBranch:
         Expected: git symbolic-ref called, branch name extracted from ref
         """
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = Mock(
-                returncode=0,
-                stdout="refs/remotes/origin/main"
-            )
+            mock_run.return_value = Mock(returncode=0, stdout="refs/remotes/origin/main")
 
             result = resolve_primary_branch(Path("/test/repo"))
 
@@ -447,8 +427,10 @@ class TestResolvePrimaryBranch:
         Targets: Method 2 fallback logic
         Expected: get_current_branch() called when origin/HEAD fails
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch,
+        ):
             # Method 1 fails
             mock_run.return_value = Mock(returncode=128, stdout="")
             # Method 2 succeeds
@@ -465,8 +447,10 @@ class TestResolvePrimaryBranch:
         Targets: Method 3 branch verification loop
         Expected: git rev-parse --verify called for main, master, develop
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch,
+        ):
             # Method 1 fails
             # Method 2 fails (no current branch)
             mock_get_branch.return_value = None
@@ -474,7 +458,7 @@ class TestResolvePrimaryBranch:
             mock_run.side_effect = [
                 Mock(returncode=128),  # Method 1 fails
                 Mock(returncode=128),  # main doesn't exist
-                Mock(returncode=0)     # master exists
+                Mock(returncode=0),  # master exists
             ]
 
             result = resolve_primary_branch(Path("/test/repo"))
@@ -487,8 +471,10 @@ class TestResolvePrimaryBranch:
         Targets: Method 4 hardcoded fallback
         Expected: Returns "main" when all detection methods fail
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch,
+        ):
             # All methods fail
             mock_run.return_value = Mock(returncode=128)
             mock_get_branch.return_value = None
@@ -520,11 +506,7 @@ class TestResolveTargetBranch:
         with patch("specify_cli.core.git_ops.get_current_branch") as mock_get_branch:
             mock_get_branch.return_value = "develop"
 
-            result = resolve_target_branch(
-                "test-feature",
-                tmp_path,
-                current_branch="develop"
-            )
+            result = resolve_target_branch("test-feature", tmp_path, current_branch="develop")
 
             # If meta_file was None, would crash
             # If path was "KITTY-SPECS", wouldn't find file
@@ -537,11 +519,7 @@ class TestResolveTargetBranch:
         Targets: branch matching logic
         Expected: action="proceed", should_notify=False
         """
-        result = resolve_target_branch(
-            "test-feature",
-            tmp_path,
-            current_branch="main"
-        )
+        result = resolve_target_branch("test-feature", tmp_path, current_branch="main")
 
         # When branches match
         if result.current == result.target:
@@ -561,12 +539,7 @@ class TestResolveTargetBranch:
         meta_file.write_text('{"target_branch": "main"}')
 
         # User is on develop, respect_current=True (default)
-        result = resolve_target_branch(
-            "test-feature",
-            tmp_path,
-            current_branch="develop",
-            respect_current=True
-        )
+        result = resolve_target_branch("test-feature", tmp_path, current_branch="develop", respect_current=True)
 
         # Should stay on current branch
         assert result.action == "stay_on_current"
@@ -587,12 +560,7 @@ class TestResolveTargetBranch:
         meta_file.write_text('{"target_branch": "main"}')
 
         # User is on develop, respect_current=False
-        result = resolve_target_branch(
-            "test-feature",
-            tmp_path,
-            current_branch="develop",
-            respect_current=False
-        )
+        result = resolve_target_branch("test-feature", tmp_path, current_branch="develop", respect_current=False)
 
         # Should allow checkout
         assert result.action == "checkout_target"
@@ -608,11 +576,7 @@ class TestResolveTargetBranch:
             mock_get_branch.return_value = None
 
             with pytest.raises(RuntimeError, match="Could not determine current branch"):
-                resolve_target_branch(
-                    "test-feature",
-                    tmp_path,
-                    current_branch=None
-                )
+                resolve_target_branch("test-feature", tmp_path, current_branch=None)
 
 
 class TestInitGitRepo:
@@ -624,9 +588,11 @@ class TestInitGitRepo:
         Targets mutant: quiet = True (init_git_repo_1)
         Expected: Console.print called with initialization messages
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("os.chdir"), \
-             patch.object(Path, "cwd", return_value=Path("/current")):
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("os.chdir"),
+            patch.object(Path, "cwd", return_value=Path("/current")),
+        ):
             mock_run.return_value = Mock(returncode=0)
             mock_console = Mock(spec=Console)
 
@@ -644,9 +610,11 @@ class TestInitGitRepo:
         Targets: quiet parameter behavior
         Expected: Console.print not called
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("os.chdir"), \
-             patch.object(Path, "cwd", return_value=Path("/current")):
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("os.chdir"),
+            patch.object(Path, "cwd", return_value=Path("/current")),
+        ):
             mock_run.return_value = Mock(returncode=0)
             mock_console = Mock(spec=Console)
 
@@ -661,9 +629,11 @@ class TestInitGitRepo:
         Targets: subprocess.run calls for git commands
         Expected: git init, git add ., git commit -m called in sequence
         """
-        with patch("subprocess.run") as mock_run, \
-             patch("os.chdir"), \
-             patch.object(Path, "cwd", return_value=Path("/current")):
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("os.chdir"),
+            patch.object(Path, "cwd", return_value=Path("/current")),
+        ):
             mock_run.return_value = Mock(returncode=0)
 
             result = init_git_repo(Path("/test/repo"), quiet=True)

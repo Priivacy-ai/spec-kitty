@@ -138,10 +138,7 @@ def list_command(
     if show_orphaned:
         orphaned = find_orphaned_contexts(repo_root)
         if json_output:
-            print(json.dumps([
-                {"workspace": name, "context": ctx.to_dict()}
-                for name, ctx in orphaned
-            ], indent=2))
+            print(json.dumps([{"workspace": name, "context": ctx.to_dict()} for name, ctx in orphaned], indent=2))
         else:
             if not orphaned:
                 console.print("[green]✓[/green] No orphaned contexts found")

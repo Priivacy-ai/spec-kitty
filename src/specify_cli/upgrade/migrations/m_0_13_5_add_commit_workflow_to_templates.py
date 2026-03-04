@@ -52,21 +52,19 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
                     return True
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read templates from packaged missions."""
         try:
             data_root = files("specify_cli")
             for mission in ["software-dev", "documentation"]:
-                template_path = data_root.joinpath(
-                    "missions", mission, "command-templates", self.TEMPLATE_FILE
-                )
+                template_path = data_root.joinpath("missions", mission, "command-templates", self.TEMPLATE_FILE)
                 if not template_path.exists():
                     return False, f"Template not found: missions/{mission}/command-templates/{self.TEMPLATE_FILE}"
             return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update implement slash commands across all agent directories."""
         changes: list[str] = []
         warnings: list[str] = []
@@ -91,9 +89,7 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
         for mission_name in missions_to_update:
             try:
                 data_root = files("specify_cli")
-                template_path = data_root.joinpath(
-                    "missions", mission_name, "command-templates", self.TEMPLATE_FILE
-                )
+                template_path = data_root.joinpath("missions", mission_name, "command-templates", self.TEMPLATE_FILE)
 
                 if not template_path.exists():
                     warnings.append(f"Template not found for mission: {mission_name}")

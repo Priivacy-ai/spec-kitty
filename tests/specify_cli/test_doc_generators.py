@@ -113,11 +113,9 @@ def test_rustdoc_does_not_detect_python_project(tmp_path):
 def test_jsdoc_configure_creates_config(tmp_path):
     """Test JSDoc configure() creates jsdoc.json."""
     generator = JSDocGenerator()
-    config_file = generator.configure(tmp_path, {
-        "project_name": "Test Project",
-        "description": "Test",
-        "version": "1.0.0"
-    })
+    config_file = generator.configure(
+        tmp_path, {"project_name": "Test Project", "description": "Test", "version": "1.0.0"}
+    )
 
     assert config_file.exists()
     assert config_file.name == "jsdoc.json"
@@ -131,11 +129,9 @@ def test_jsdoc_configure_creates_config(tmp_path):
 def test_sphinx_configure_creates_conf_py(tmp_path):
     """Test Sphinx configure() creates conf.py."""
     generator = SphinxGenerator()
-    config_file = generator.configure(tmp_path, {
-        "project_name": "Test Project",
-        "author": "Test Author",
-        "version": "1.0.0"
-    })
+    config_file = generator.configure(
+        tmp_path, {"project_name": "Test Project", "author": "Test Author", "version": "1.0.0"}
+    )
 
     assert config_file.exists()
     assert config_file.name == "conf.py"
@@ -149,9 +145,7 @@ def test_sphinx_configure_creates_conf_py(tmp_path):
 def test_rustdoc_configure_creates_instructions(tmp_path):
     """Test rustdoc configure() creates instructions file."""
     generator = RustdocGenerator()
-    config_file = generator.configure(tmp_path, {
-        "project_name": "Test Project"
-    })
+    config_file = generator.configure(tmp_path, {"project_name": "Test Project"})
 
     assert config_file.exists()
     assert config_file.name == "rustdoc-config.md"
@@ -164,6 +158,7 @@ def test_rustdoc_configure_creates_instructions(tmp_path):
 # T065: Test Graceful Degradation
 def test_jsdoc_raises_error_when_npx_missing(tmp_path, monkeypatch):
     """Test JSDoc raises GeneratorError when npx not installed."""
+
     # Mock subprocess to simulate missing npx
     def mock_run(cmd, *args, **kwargs):
         if cmd[0] in ["npx", "jsdoc"]:
@@ -195,6 +190,7 @@ def test_sphinx_generation_end_to_end(tmp_path):
     """Test Sphinx generates docs end-to-end (requires sphinx-build)."""
     # Check if sphinx-build available
     import shutil
+
     if shutil.which("sphinx-build") is None:
         pytest.skip("sphinx-build not installed")
 
@@ -218,11 +214,7 @@ def greet(name: str) -> str:
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
     generator = SphinxGenerator()
-    config_file = generator.configure(docs_dir, {
-        "project_name": "Test",
-        "author": "Test Author",
-        "version": "0.1.0"
-    })
+    config_file = generator.configure(docs_dir, {"project_name": "Test", "author": "Test Author", "version": "0.1.0"})
 
     assert config_file.exists()
 
@@ -249,10 +241,7 @@ def test_sphinx_configure_validates_required_options(tmp_path):
     generator = SphinxGenerator()
 
     # Should work with minimal options
-    config = generator.configure(tmp_path, {
-        "project_name": "Test",
-        "author": "Author"
-    })
+    config = generator.configure(tmp_path, {"project_name": "Test", "author": "Author"})
     assert config.exists()
 
 
@@ -263,7 +252,7 @@ def test_generator_result_repr():
         output_dir=Path("/tmp/docs"),
         errors=[],
         warnings=["Minor warning"],
-        generated_files=[Path("/tmp/docs/index.html")]
+        generated_files=[Path("/tmp/docs/index.html")],
     )
 
     repr_str = repr(result)

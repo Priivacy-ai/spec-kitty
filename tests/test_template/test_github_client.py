@@ -14,7 +14,14 @@ from specify_cli.template.github_client import (
 
 
 class FakeResponse:
-    def __init__(self, status_code: int, payload: dict[str, object] | None = None, *, text: str = "", headers: dict[str, str] | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        payload: dict[str, object] | None = None,
+        *,
+        text: str = "",
+        headers: dict[str, str] | None = None,
+    ):
         self.status_code = status_code
         self._payload = payload or {}
         self.text = text

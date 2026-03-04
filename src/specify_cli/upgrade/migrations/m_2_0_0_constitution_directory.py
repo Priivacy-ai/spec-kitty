@@ -26,7 +26,7 @@ class ConstitutionDirectoryMigration(BaseMigration):
         new_path = project_path / ".kittify" / "constitution" / "constitution.md"
         return old_path.exists() or new_path.exists()
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """This migration only requires project filesystem access."""
         return True, ""
 

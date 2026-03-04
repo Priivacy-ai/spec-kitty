@@ -127,9 +127,7 @@ def test_apply_detects_025_as_2x_target(repo_with_features: Path):
     assert result.success is True
 
     # Check Feature 025
-    meta_025_file = (
-        repo_with_features / "kitty-specs" / "025-cli-event-log-integration" / "meta.json"
-    )
+    meta_025_file = repo_with_features / "kitty-specs" / "025-cli-event-log-integration" / "meta.json"
     meta_025 = json.loads(meta_025_file.read_text())
     assert meta_025["target_branch"] == "2.x"
 
@@ -142,9 +140,7 @@ def test_apply_dry_run_does_not_modify_files(repo_with_features: Path):
     migration = TargetBranchMigration()
 
     # Read original meta files
-    meta_020_before = (
-        repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json"
-    ).read_text()
+    meta_020_before = (repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text()
 
     result = migration.apply(repo_with_features, dry_run=True)
 
@@ -152,9 +148,7 @@ def test_apply_dry_run_does_not_modify_files(repo_with_features: Path):
     assert len(result.changes_made) >= 2
 
     # Verify file unchanged
-    meta_020_after = (
-        repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json"
-    ).read_text()
+    meta_020_after = (repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text()
     assert meta_020_before == meta_020_after
 
     # Check dry run messages

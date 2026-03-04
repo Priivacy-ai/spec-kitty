@@ -212,11 +212,13 @@ class TestLastSync:
         mock_batch.return_value = ok
 
         # Populate queue so sync proceeds
-        service.queue.queue_event({
-            "event_id": "test123456789012345678901",
-            "event_type": "WPStatusChanged",
-            "payload": {},
-        })
+        service.queue.queue_event(
+            {
+                "event_id": "test123456789012345678901",
+                "event_type": "WPStatusChanged",
+                "payload": {},
+            }
+        )
         service._perform_sync()
 
         assert service.last_sync is not None
@@ -231,6 +233,7 @@ class TestSingletonAccessor:
         except Exception:
             # Force-clear the singleton if stop() fails with mocked queue
             import specify_cli.sync.background as _bg
+
             with _bg._service_lock:
                 if _bg._service is not None:
                     _bg._service._running = False

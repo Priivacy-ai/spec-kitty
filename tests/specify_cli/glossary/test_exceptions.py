@@ -5,8 +5,13 @@ from specify_cli.glossary.exceptions import (
     AbortResume,
 )
 from specify_cli.glossary.models import (
-    SemanticConflict, TermSurface, ConflictType, Severity, SenseRef,
+    SemanticConflict,
+    TermSurface,
+    ConflictType,
+    Severity,
+    SenseRef,
 )
+
 
 def test_blocked_by_conflict():
     """BlockedByConflict stores conflicts and formats message."""
@@ -28,6 +33,7 @@ def test_blocked_by_conflict():
     assert "1 semantic conflict" in str(exc)
     assert "--strictness off" in str(exc)
 
+
 def test_deferred_to_async():
     """DeferredToAsync stores conflict_id."""
     exc = DeferredToAsync("uuid-1234-5678")
@@ -35,11 +41,13 @@ def test_deferred_to_async():
     assert "uuid-1234-5678" in str(exc)
     assert "deferred to async" in str(exc)
 
+
 def test_abort_resume():
     """AbortResume stores reason."""
     exc = AbortResume("Input hash mismatch")
     assert exc.reason == "Input hash mismatch"
     assert "Input hash mismatch" in str(exc)
+
 
 def test_exception_hierarchy():
     """All glossary exceptions inherit from GlossaryError."""

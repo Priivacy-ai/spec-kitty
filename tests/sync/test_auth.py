@@ -362,7 +362,7 @@ class TestSaasFeatureFlag:
         """obtain_tokens() should fail before any network call."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
 
-        with patch.object(auth_client, "_get_http_client") as mock_client:
+        with patch.object(auth_client, "_get_http_client") as mock_client:  # noqa: SIM117
             with pytest.raises(AuthenticationError) as exc_info:
                 auth_client.obtain_tokens("user@example.com", "password")
 

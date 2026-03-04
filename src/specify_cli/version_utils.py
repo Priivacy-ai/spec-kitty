@@ -47,8 +47,9 @@ def get_version() -> str:
     # Try importlib.metadata first (best practice)
     try:
         from importlib.metadata import version as get_metadata_version
+
         return get_metadata_version("spec-kitty-cli")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Try reading from pyproject.toml (editable installs)

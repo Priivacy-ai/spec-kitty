@@ -107,11 +107,7 @@ class TestScanForWpCommits:
     def test_finds_branches(self, mock_run, tmp_path):
         """Branch listing returns WP references, parsed correctly."""
         # Branch listing response
-        branch_output = (
-            "  034-test-feature-WP01\n"
-            "  034-test-feature-WP02\n"
-            "  remotes/origin/034-test-feature-WP03\n"
-        )
+        branch_output = "  034-test-feature-WP01\n  034-test-feature-WP02\n  remotes/origin/034-test-feature-WP03\n"
         # Log response for each branch
         log_output = "abc1234deadbeef\nfeat(WP01): add models\nalice\n2026-01-01T00:00:00Z\n"
         # Grep response (empty, no commit message matches)
@@ -148,8 +144,7 @@ class TestScanForWpCommits:
         # The grep command uses --grep={feature_slug} and --format=%H %s
         # Messages must contain the feature slug AND have WP IDs
         grep_output = (
-            "abc1234 034-test-feature WP03: implement status models\n"
-            "def5678 034-test-feature WP03: handle edge case\n"
+            "abc1234 034-test-feature WP03: implement status models\ndef5678 034-test-feature WP03: handle edge case\n"
         )
         detail_output = "alice\n2026-01-01T00:00:00Z\n"
 
@@ -177,6 +172,7 @@ class TestScanForWpCommits:
     @patch("specify_cli.status.reconcile.subprocess.run")
     def test_empty_repo(self, mock_run, tmp_path):
         """No matching branches or commits returns empty dict."""
+
         def side_effect(cmd, **kwargs):
             result = MagicMock()
             result.returncode = 0
@@ -191,6 +187,7 @@ class TestScanForWpCommits:
     @patch("specify_cli.status.reconcile.subprocess.run")
     def test_timeout_handling(self, mock_run, tmp_path):
         """subprocess.TimeoutExpired is caught gracefully."""
+
         def side_effect(cmd, **kwargs):
             raise subprocess.TimeoutExpired(cmd, 30)
 
@@ -217,7 +214,10 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         assert len(events) >= 1
@@ -234,15 +234,15 @@ class TestGenerateReconciliationEvents:
         merged_wps = {"WP02"}
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         assert len(events) >= 1
         # Should advance from in_progress to for_review
-        assert any(
-            e.wp_id == "WP02" and e.to_lane == Lane.FOR_REVIEW
-            for e in events
-        )
+        assert any(e.wp_id == "WP02" and e.to_lane == Lane.FOR_REVIEW for e in events)
 
     def test_wp_already_at_correct_lane(self):
         """WP already at correct lane produces no events."""
@@ -251,7 +251,10 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         # WP01 is in_progress with commits but not merged -- no advancement needed
@@ -264,7 +267,10 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         assert len(events) == 0
@@ -277,7 +283,10 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         assert len(events) == 0
@@ -290,7 +299,10 @@ class TestGenerateReconciliationEvents:
         merged_wps = {"WP01"}
 
         events, _ = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-feature",
+            snapshot,
+            commit_map,
+            merged_wps,
         )
 
         for event in events:
@@ -408,8 +420,13 @@ class TestReconcile:
     @patch("specify_cli.status.reconcile._get_merged_wps")
     @patch("specify_cli.status.reconcile.read_events")
     def test_apply_emits_events(
-        self, mock_events, mock_merged, mock_scan,
-        mock_phase, mock_emit, tmp_path,
+        self,
+        mock_events,
+        mock_merged,
+        mock_scan,
+        mock_phase,
+        mock_emit,
+        tmp_path,
     ):
         """Apply mode emits events through the canonical emit pipeline."""
         feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
@@ -436,7 +453,12 @@ class TestReconcile:
     @patch("specify_cli.status.reconcile._get_merged_wps")
     @patch("specify_cli.status.reconcile.read_events")
     def test_apply_rejected_at_phase_0(
-        self, mock_events, mock_merged, mock_scan, mock_phase, tmp_path,
+        self,
+        mock_events,
+        mock_merged,
+        mock_scan,
+        mock_phase,
+        tmp_path,
     ):
         """Apply mode raises ValueError when phase is 0."""
         feature_dir = tmp_path / "kitty-specs" / "034-test-feature"

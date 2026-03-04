@@ -439,6 +439,7 @@ class TestManifestYAMLFormat:
     def _missions_dir() -> Path:
         """Return path to missions directory via importlib.resources."""
         from importlib.resources import files
+
         return Path(str(files("specify_cli") / "missions"))
 
     def test_from_yaml_file_software_dev(self):

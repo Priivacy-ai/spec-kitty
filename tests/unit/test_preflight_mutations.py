@@ -342,13 +342,7 @@ class TestWPLaneFromFeature:
         tasks_dir.mkdir(parents=True)
 
         task_file = tasks_dir / "WP01-setup.md"
-        task_file.write_text(
-            "---\n"
-            "lane: planned\n"
-            "---\n"
-            "# Task content\n",
-            encoding="utf-8"
-        )
+        task_file.write_text("---\nlane: planned\n---\n# Task content\n", encoding="utf-8")
 
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
 
@@ -404,12 +398,7 @@ class TestWPLaneFromFeature:
         tasks_dir.mkdir(parents=True)
 
         task_file = tasks_dir / "WP01-setup.md"
-        task_file.write_text(
-            "---\n"
-            "title: Some task\n"
-            "---\n",
-            encoding="utf-8"
-        )
+        task_file.write_text("---\ntitle: Some task\n---\n", encoding="utf-8")
 
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane is None
@@ -425,12 +414,7 @@ class TestWPLaneFromFeature:
         tasks_dir.mkdir(parents=True)
 
         task_file = tasks_dir / "WP01-setup.md"
-        task_file.write_text(
-            "---\n"
-            "lane: PLANNED\n"
-            "---\n",
-            encoding="utf-8"
-        )
+        task_file.write_text("---\nlane: PLANNED\n---\n", encoding="utf-8")
 
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane == "planned"
@@ -446,12 +430,7 @@ class TestWPLaneFromFeature:
         tasks_dir.mkdir(parents=True)
 
         task_file = tasks_dir / "WP01-setup.md"
-        task_file.write_text(
-            "---\n"
-            'lane: "doing"\n'
-            "---\n",
-            encoding="utf-8"
-        )
+        task_file.write_text('---\nlane: "doing"\n---\n', encoding="utf-8")
 
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         assert lane == "doing"
@@ -468,12 +447,8 @@ class TestWPLaneFromFeature:
         tasks_dir.mkdir(parents=True)
 
         # Create multiple files that match WP01*
-        (tasks_dir / "WP01-a-first.md").write_text(
-            "---\nlane: planned\n---\n", encoding="utf-8"
-        )
-        (tasks_dir / "WP01-z-last.md").write_text(
-            "---\nlane: done\n---\n", encoding="utf-8"
-        )
+        (tasks_dir / "WP01-a-first.md").write_text("---\nlane: planned\n---\n", encoding="utf-8")
+        (tasks_dir / "WP01-z-last.md").write_text("---\nlane: done\n---\n", encoding="utf-8")
 
         lane = _wp_lane_from_feature(tmp_path, "001-feature", "WP01")
         # Should use first alphabetically
@@ -540,7 +515,7 @@ class TestRunPreflight:
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
         worktree_path.mkdir(parents=True)
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
                     wp_id="WP01",
@@ -625,7 +600,7 @@ class TestRunPreflight:
 
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
                     wp_id="WP01",
@@ -644,8 +619,7 @@ class TestRunPreflight:
                 )
 
                 assert result.passed is False
-                assert any("Uncommitted changes" in e or "uncommitted changes" in e
-                          for e in result.errors)
+                assert any("Uncommitted changes" in e or "uncommitted changes" in e for e in result.errors)
 
     def test_target_diverged_fails_validation(self, tmp_path):
         """Verify target divergence causes validation failure.
@@ -662,7 +636,7 @@ class TestRunPreflight:
 
         worktree_path = tmp_path / ".worktrees" / "001-feature-WP01"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
                     wp_id="WP01",
@@ -700,7 +674,7 @@ class TestRunPreflight:
 
         wt1 = tmp_path / ".worktrees" / "001-feature-WP02"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus(
                     wp_id="WP02",
@@ -738,7 +712,7 @@ class TestRunPreflight:
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
         wt2 = tmp_path / ".worktrees" / "001-feature-WP02"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.side_effect = [
                     WPStatus("WP01", wt1, "b1", True, None),
@@ -773,7 +747,7 @@ class TestRunPreflight:
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
         wt2 = tmp_path / ".worktrees" / "001-feature-WP02"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus("WP", wt1, "b", True, None)
                 mock_diverge.return_value = (False, None)
@@ -805,7 +779,7 @@ class TestRunPreflight:
 
         wt1 = tmp_path / ".worktrees" / "001-feature-WP01"
 
-        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:
+        with patch("specify_cli.merge.preflight.check_worktree_status") as mock_check:  # noqa: SIM117
             with patch("specify_cli.merge.preflight.check_target_divergence") as mock_diverge:
                 mock_check.return_value = WPStatus("WP01", wt1, "b", True, None)
                 mock_diverge.return_value = (False, None)

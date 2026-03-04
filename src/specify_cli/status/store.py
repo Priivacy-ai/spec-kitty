@@ -59,9 +59,7 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
             try:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
-                raise StoreError(
-                    f"Invalid JSON on line {line_number}: {exc}"
-                ) from exc
+                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
             results.append(obj)
     return results
 
@@ -87,14 +85,10 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
             try:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
-                raise StoreError(
-                    f"Invalid JSON on line {line_number}: {exc}"
-                ) from exc
+                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
             try:
                 event = StatusEvent.from_dict(obj)
             except (KeyError, ValueError, TypeError) as exc:
-                raise StoreError(
-                    f"Invalid event structure on line {line_number}: {exc}"
-                ) from exc
+                raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
             results.append(event)
     return results

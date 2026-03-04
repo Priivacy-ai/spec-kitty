@@ -1,4 +1,5 @@
 """Topological sorting of events by causation relationships."""
+
 from collections import deque
 from .models import Event, CyclicDependencyError
 
@@ -43,9 +44,7 @@ def topological_sort(events: list[Event]) -> list[Event]:
             children[event.causation_id].append(event.event_id)
 
     # Kahn's algorithm: start with nodes that have no parents (in-degree = 0)
-    queue: deque[str] = deque(
-        eid for eid, degree in in_degree.items() if degree == 0
-    )
+    queue: deque[str] = deque(eid for eid, degree in in_degree.items() if degree == 0)
     result: list[Event] = []
 
     while queue:

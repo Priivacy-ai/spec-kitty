@@ -47,28 +47,23 @@ class TestDetectWorkspaceContext:
 
     def test_detect_from_git_branch(self, tmp_path):
         """Test detection from git branch name."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0,
-                    stdout="015-vcs-integration-WP03\n"
-                )
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="015-vcs-integration-WP03\n")
 
-                workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, feature_slug = _detect_workspace_context()
 
-                assert workspace_path == tmp_path
-                assert feature_slug == "015-vcs-integration"
+            assert workspace_path == tmp_path
+            assert feature_slug == "015-vcs-integration"
 
     def test_not_in_workspace(self, tmp_path):
         """Test when not in a workspace."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-                workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, feature_slug = _detect_workspace_context()
 
-                assert workspace_path == tmp_path
-                assert feature_slug is None
+            assert workspace_path == tmp_path
+            assert feature_slug is None
 
 
 class TestSyncGroupHelp:
@@ -190,10 +185,13 @@ class TestRepairFunctions:
             assert mock_run.call_count == 2
 
 
-@pytest.mark.parametrize("backend", [
-    "git",
-    pytest.param("jj", marks=pytest.mark.jj),
-])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "git",
+        pytest.param("jj", marks=pytest.mark.jj),
+    ],
+)
 class TestSyncCommand:
     """Tests for sync command."""
 
@@ -203,7 +201,7 @@ class TestSyncCommand:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend(backend)
@@ -228,7 +226,7 @@ class TestSyncCommand:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend(backend)
@@ -257,7 +255,7 @@ class TestSyncWithConflicts:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend.JUJUTSU
@@ -293,7 +291,7 @@ class TestSyncWithConflicts:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend.GIT
@@ -329,16 +327,19 @@ class TestSyncWithConflicts:
 class TestSyncRepair:
     """Tests for --repair flag."""
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_success(self, tmp_path, backend):
         """Test successful repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend(backend)
@@ -352,16 +353,19 @@ class TestSyncRepair:
 
                     mock_repair.assert_called_once()
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_failure(self, tmp_path, backend):
         """Test failed repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
+        with patch("pathlib.Path.cwd", return_value=worktree):  # noqa: SIM117
             with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
                 mock_vcs = MagicMock()
                 mock_vcs.backend = VCSBackend(backend)
@@ -382,14 +386,13 @@ class TestSyncNotInWorkspace:
 
     def test_sync_not_in_workspace_exits(self, tmp_path):
         """Test sync exits with error when not in workspace."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-                with pytest.raises(typer.Exit) as exc:
-                    sync_workspace(repair=False)
+            with pytest.raises(typer.Exit) as exc:
+                sync_workspace(repair=False)
 
-                assert exc.value.exit_code == 1
+            assert exc.value.exit_code == 1
 
 
 class TestSyncServerCommand:
@@ -414,14 +417,12 @@ class TestSyncServerCommand:
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
             sync_server(url="https://spec-kitty-dev.fly.dev/")
 
-        mock_config.set_server_url.assert_called_once_with(
-            "https://spec-kitty-dev.fly.dev"
-        )
+        mock_config.set_server_url.assert_called_once_with("https://spec-kitty-dev.fly.dev")
 
     def test_set_server_url_rejects_non_https(self):
         """Non-HTTPS URL is rejected."""
         mock_config = MagicMock()
-        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):  # noqa: SIM117
             with pytest.raises(typer.Exit) as exc:
                 sync_server(url="http://spec-kitty-dev.fly.dev")
         assert exc.value.exit_code == 1
@@ -458,7 +459,7 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):  # noqa: SIM117
             with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
                 with patch("specify_cli.sync.batch.write_failure_report"):
                     res = runner.invoke(sync_app, ["now"])
@@ -482,7 +483,7 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):  # noqa: SIM117
             with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
                 res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 0
@@ -493,7 +494,7 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):  # noqa: SIM117
             with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
                 with patch("specify_cli.sync.batch.write_failure_report"):
                     res = runner.invoke(sync_app, ["now", "--no-strict"])
@@ -515,7 +516,7 @@ class TestSyncNowExitCodes:
 
         runner = CliRunner()
         report_path = tmp_path / "failures.json"
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):  # noqa: SIM117
             with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
                 with patch("specify_cli.sync.batch.write_failure_report") as write_mock:
                     res = runner.invoke(sync_app, ["now", "--report", str(report_path)])
@@ -528,7 +529,7 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=5, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):  # noqa: SIM117
             with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
                 res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1

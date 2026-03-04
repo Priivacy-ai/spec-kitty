@@ -123,9 +123,7 @@ def login(
                 console.print("   or re-run login with --force to keep queues isolated.")
                 raise typer.Exit(1)
             if pending > 0 and force:
-                console.print(
-                    f"⚠️  Switching accounts with {pending} pending event(s) in the previous account queue."
-                )
+                console.print(f"⚠️  Switching accounts with {pending} pending event(s) in the previous account queue.")
 
         if new_scope:
             write_active_scope(new_scope)

@@ -1,4 +1,3 @@
-
 from specify_cli.core.project_resolver import (
     get_active_mission_key,
     locate_project_root,

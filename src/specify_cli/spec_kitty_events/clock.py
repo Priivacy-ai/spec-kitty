@@ -1,4 +1,5 @@
 """Lamport logical clock implementation for causal ordering."""
+
 from .storage import ClockStorage
 
 

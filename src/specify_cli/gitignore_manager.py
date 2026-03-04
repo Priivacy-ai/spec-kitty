@@ -170,10 +170,10 @@ class GitignoreManager:
         Returns:
             Line ending string ('\r\n' for Windows, '\n' for Unix/Mac)
         """
-        if '\r\n' in content:
-            return '\r\n'
+        if "\r\n" in content:
+            return "\r\n"
         else:
-            return '\n'
+            return "\n"
 
     @classmethod
     def get_agent_directories(cls) -> list[AgentDirectory]:
@@ -213,7 +213,6 @@ class GitignoreManager:
                 content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_before = set(content.splitlines())
 
-
             # Attempt to add all directories
             modified = self.ensure_entries(all_directories)
             result.modified = modified
@@ -232,9 +231,7 @@ class GitignoreManager:
 
         except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as e:
             result.success = False
             result.errors.append(f"Error protecting agent directories: {str(e)}")
@@ -295,9 +292,7 @@ class GitignoreManager:
 
         except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as e:
             result.success = False
             result.errors.append(f"Error protecting selected agents: {str(e)}")

@@ -12,6 +12,7 @@ class TestReviewerApprovalEdgeCases:
 
     def test_evidence_with_none_review(self) -> None:
         """Evidence object with review=None should fail."""
+
         class FakeEvidence:
             review = None
 
@@ -22,36 +23,28 @@ class TestReviewerApprovalEdgeCases:
 
     def test_evidence_with_empty_reviewer(self) -> None:
         """Evidence with empty reviewer string should fail."""
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="", verdict="approved", reference="ref")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="", verdict="approved", reference="ref"))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert "reviewer identity" in error.lower()
 
     def test_evidence_with_whitespace_reviewer(self) -> None:
         """Evidence with whitespace-only reviewer should fail."""
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="   ", verdict="approved", reference="ref")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="   ", verdict="approved", reference="ref"))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert "reviewer identity" in error.lower()
 
     def test_evidence_with_empty_reference(self) -> None:
         """Evidence with empty reference string should fail."""
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="reviewer1", verdict="approved", reference="")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="reviewer1", verdict="approved", reference=""))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert "approval reference" in error.lower()
 
     def test_evidence_with_whitespace_reference(self) -> None:
         """Evidence with whitespace-only reference should fail."""
-        evidence = DoneEvidence(
-            review=ReviewApproval(reviewer="reviewer1", verdict="approved", reference="   ")
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="reviewer1", verdict="approved", reference="   "))
         ok, error = validate_transition("for_review", "done", evidence=evidence)
         assert ok is False
         assert "approval reference" in error.lower()
@@ -62,17 +55,13 @@ class TestWorkspaceContextEdgeCases:
 
     def test_workspace_context_empty_string(self) -> None:
         """Empty workspace context should fail."""
-        ok, error = validate_transition(
-            "claimed", "in_progress", workspace_context=""
-        )
+        ok, error = validate_transition("claimed", "in_progress", workspace_context="")
         assert ok is False
         assert "workspace context" in error.lower()
 
     def test_workspace_context_whitespace_only(self) -> None:
         """Whitespace-only workspace context should fail."""
-        ok, error = validate_transition(
-            "claimed", "in_progress", workspace_context="   "
-        )
+        ok, error = validate_transition("claimed", "in_progress", workspace_context="   ")
         assert ok is False
         assert "workspace context" in error.lower()
 
@@ -148,17 +137,13 @@ class TestReviewRefEdgeCases:
 
     def test_review_ref_for_rollback_to_in_progress_empty(self) -> None:
         """Empty review_ref for for_review -> in_progress should fail."""
-        ok, error = validate_transition(
-            "for_review", "in_progress", review_ref=""
-        )
+        ok, error = validate_transition("for_review", "in_progress", review_ref="")
         assert ok is False
         assert "review_ref" in error.lower()
 
     def test_review_ref_for_rollback_to_in_progress_whitespace(self) -> None:
         """Whitespace-only review_ref should fail."""
-        ok, error = validate_transition(
-            "for_review", "in_progress", review_ref="   "
-        )
+        ok, error = validate_transition("for_review", "in_progress", review_ref="   ")
         assert ok is False
         assert "review_ref" in error.lower()
 

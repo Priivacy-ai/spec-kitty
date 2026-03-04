@@ -69,10 +69,7 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
     plan_template = plan_template_dir / "plan-template.md"
-    plan_template.write_text(
-        "# Implementation Plan\n\nThis is a test plan template.\n",
-        encoding="utf-8"
-    )
+    plan_template.write_text("# Implementation Plan\n\nThis is a test plan template.\n", encoding="utf-8")
 
     # Run setup-plan command
     result = run_cli(
@@ -218,10 +215,7 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
     # Create plan template
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
-    (plan_template_dir / "plan-template.md").write_text(
-        "# Plan Template\n",
-        encoding="utf-8"
-    )
+    (plan_template_dir / "plan-template.md").write_text("# Plan Template\n", encoding="utf-8")
 
     # Step 1: Create feature (specify phase)
     result = run_cli(
@@ -282,7 +276,8 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
     # Create tasks.md with dependencies
     tasks_md = feature_dir / "tasks.md"
-    tasks_md.write_text("""# Work Packages
+    tasks_md.write_text(
+        """# Work Packages
 
 ## Work Package WP01: Foundation
 **Dependencies**: None
@@ -300,7 +295,9 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
 ### Included Subtasks
 - T003 Build REST endpoints
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     # Create WP files WITHOUT dependencies (simulate LLM before finalize-tasks)
     wp01_content = """---
@@ -442,14 +439,13 @@ def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
 
     # Should find the latest feature and validate its structure
     import json
+
     output = json.loads(result.stdout)
     assert output["valid"] is True, "Feature structure should be valid"
     assert "spec_file" in output["paths"], "Should detect spec.md"
 
 
-def test_check_prerequisites_ambiguous_context_returns_candidates(
-    test_project: Path, run_cli
-) -> None:
+def test_check_prerequisites_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
     """check-prerequisites should fail with remediation when feature context is ambiguous."""
     import json
 
@@ -488,9 +484,7 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     assert any("--feature" in command for command in payload["suggested_commands"])
 
 
-def test_finalize_tasks_ambiguous_context_returns_candidates(
-    test_project: Path, run_cli
-) -> None:
+def test_finalize_tasks_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
     """finalize-tasks should fail with remediation when feature context is ambiguous."""
     import json
 
@@ -549,5 +543,6 @@ def test_feature_creation_requires_main_branch(test_project: Path, run_cli) -> N
     )
 
     assert result.returncode != 0, "create-feature should fail when not on main branch"
-    assert "main" in result.stdout.lower() or "main" in result.stderr.lower(), \
+    assert "main" in result.stdout.lower() or "main" in result.stderr.lower(), (
         "Error message should mention main branch requirement"
+    )

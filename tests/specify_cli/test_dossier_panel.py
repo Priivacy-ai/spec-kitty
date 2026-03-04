@@ -261,19 +261,21 @@ class TestHTMLEscaping:
 
     def test_escape_html_with_special_chars(self):
         """Test escaping of HTML special characters."""
+
         def escape_html(unsafe):
             if not isinstance(unsafe, str):
                 return str(unsafe)
-            return (unsafe
-                .replace("&", "&amp;")
+            return (
+                unsafe.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace('"', "&quot;")
-                .replace("'", "&#039;"))
+                .replace("'", "&#039;")
+            )
 
         test_cases = [
             ("<script>alert('XSS')</script>", "&lt;script&gt;alert(&#039;XSS&#039;)&lt;/script&gt;"),
-            ('Test "quoted" text', 'Test &quot;quoted&quot; text'),
+            ('Test "quoted" text', "Test &quot;quoted&quot; text"),
             ("A & B", "A &amp; B"),
             ("<img src=x onerror=alert(1)>", "&lt;img src=x onerror=alert(1)&gt;"),
         ]
@@ -283,13 +285,15 @@ class TestHTMLEscaping:
 
     def test_artifact_key_escaping(self):
         """Test escaping of artifact key in HTML."""
+
         def escape_html(unsafe):
-            return (unsafe
-                .replace("&", "&amp;")
+            return (
+                unsafe.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace('"', "&quot;")
-                .replace("'", "&#039;"))
+                .replace("'", "&#039;")
+            )
 
         artifact_key = "WP01<test>output.json"
         escaped = escape_html(artifact_key)
@@ -351,6 +355,7 @@ class TestDossierArtifactCounts:
 
     def test_completeness_status_calculation(self):
         """Test completeness status based on required artifacts."""
+
         def get_completeness_status(required_missing):
             if required_missing == 0:
                 return "complete"
@@ -369,6 +374,7 @@ class TestByteFormatting:
 
     def test_format_bytes(self):
         """Test byte formatting to human-readable sizes."""
+
         def format_bytes(bytes_val):
             if not isinstance(bytes_val, (int, float)) or bytes_val < 0:
                 return "Unknown"
@@ -422,10 +428,7 @@ class TestErrorHandling:
             "artifacts": [],
         }
 
-        if not response["artifacts"]:
-            message = "No artifacts found"
-        else:
-            message = "Artifacts found"
+        message = "No artifacts found" if not response["artifacts"] else "Artifacts found"
 
         assert message == "No artifacts found"
 

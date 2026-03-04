@@ -19,10 +19,8 @@ from specify_cli.task_metadata_validation import (
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
-def validate_tasks(
-    feature: str | None = typer.Option(
-        None, "--feature", help="Feature slug to validate (auto-detected when omitted)"
-    ),
+def validate_tasks(  # noqa: C901
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
@@ -78,9 +76,7 @@ def validate_tasks(
         total_fixed = 0
 
         for feature_dir in sorted(feature_dirs, key=lambda d: d.name):
-            mismatches, fixed = _validate_feature_tasks(
-                feature_dir, fix=fix, agent=agent, shell_pid=shell_pid
-            )
+            mismatches, fixed = _validate_feature_tasks(feature_dir, fix=fix, agent=agent, shell_pid=shell_pid)
             total_mismatches += mismatches
             total_fixed += fixed
 
@@ -113,9 +109,7 @@ def validate_tasks(
     console.print(f"[cyan]Validating task metadata for feature:[/cyan] {feature_slug}")
     console.print()
 
-    mismatches, fixed = _validate_feature_tasks(
-        feature_dir, fix=fix, agent=agent, shell_pid=shell_pid
-    )
+    mismatches, fixed = _validate_feature_tasks(feature_dir, fix=fix, agent=agent, shell_pid=shell_pid)
 
     if mismatches == 0:
         console.print("[green]✓ All task metadata is consistent![/green]")
@@ -131,9 +125,7 @@ def validate_tasks(
         raise typer.Exit(1)
 
 
-def _validate_feature_tasks(
-    feature_dir: Path, *, fix: bool, agent: str, shell_pid: str
-) -> tuple[int, int]:
+def _validate_feature_tasks(feature_dir: Path, *, fix: bool, agent: str, shell_pid: str) -> tuple[int, int]:
     """Validate task metadata for a single feature directory.
 
     Returns:

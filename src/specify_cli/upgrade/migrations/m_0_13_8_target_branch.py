@@ -105,9 +105,7 @@ class TargetBranchMigration(BaseMigration):
                                 ]
                             ):
                                 target_branch = "2.x"
-                                warnings.append(
-                                    "Feature 025 auto-detected as 2.x target from spec.md"
-                                )
+                                warnings.append("Feature 025 auto-detected as 2.x target from spec.md")
                         except OSError:
                             # Can't read spec, use default
                             pass
@@ -116,9 +114,7 @@ class TargetBranchMigration(BaseMigration):
                 meta["target_branch"] = target_branch
 
                 if dry_run:
-                    changes.append(
-                        f"Would add target_branch={target_branch} to {feature_dir.name}"
-                    )
+                    changes.append(f"Would add target_branch={target_branch} to {feature_dir.name}")
                 else:
                     # Write updated meta.json with pretty formatting
                     meta_file.write_text(

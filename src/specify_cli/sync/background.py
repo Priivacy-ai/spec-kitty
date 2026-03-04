@@ -97,10 +97,7 @@ class BackgroundSyncService:
         if not self._running:
             return
 
-        if self._consecutive_failures > 0:
-            interval = min(self._backoff_seconds, 30.0)
-        else:
-            interval = self.sync_interval_seconds
+        interval = min(self._backoff_seconds, 30.0) if self._consecutive_failures > 0 else self.sync_interval_seconds
 
         self._timer = threading.Timer(interval, self._on_timer)
         self._timer.daemon = True  # Don't block CLI exit

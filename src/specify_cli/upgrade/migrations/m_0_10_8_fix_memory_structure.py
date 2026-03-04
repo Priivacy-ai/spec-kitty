@@ -86,7 +86,7 @@ class FixMemoryStructureMigration(BaseMigration):
 
         return True, "Ready to apply"
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Move memory/ and fix broken symlinks."""
         warnings: list[str] = []
         changes_made: list[str] = []
@@ -127,7 +127,7 @@ class FixMemoryStructureMigration(BaseMigration):
                                 success=False,
                                 changes_made=changes_made,
                                 warnings=warnings,
-                                errors=[f"Failed to move or copy memory/: {copy_error}"]
+                                errors=[f"Failed to move or copy memory/: {copy_error}"],
                             )
             else:
                 warnings.append(f"{kittify_memory} already exists, skipping root memory/ migration")
@@ -223,9 +223,8 @@ class FixMemoryStructureMigration(BaseMigration):
                 if wt_agents.is_symlink():
                     try:
                         resolved = wt_agents.resolve()
-                        if not resolved.exists() or resolved == wt_agents:
-                            if not dry_run:
-                                wt_agents.unlink()
+                        if (not resolved.exists() or resolved == wt_agents) and not dry_run:
+                            wt_agents.unlink()
                     except (OSError, RuntimeError):
                         if not dry_run:
                             wt_agents.unlink()
@@ -242,9 +241,4 @@ class FixMemoryStructureMigration(BaseMigration):
                             shutil.copy2(kittify_agents, wt_agents)
                             changes_made.append(f"Copied to worktree (symlink failed): {wt_agents}")
 
-        return MigrationResult(
-            success=True,
-            changes_made=changes_made,
-            warnings=warnings,
-            errors=[]
-        )
+        return MigrationResult(success=True, changes_made=changes_made, warnings=warnings, errors=[])

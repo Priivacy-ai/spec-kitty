@@ -330,7 +330,7 @@ def _jj_repair(workspace_path: Path) -> bool:
 
 
 @app.command(name="workspace")
-def sync_workspace(
+def sync_workspace(  # noqa: C901
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -394,10 +394,7 @@ def sync_workspace(
         console.print("[dim]Note: This may lose uncommitted work[/dim]")
         console.print()
 
-        if vcs.backend == VCSBackend.JUJUTSU:
-            success = _jj_repair(workspace_path)
-        else:
-            success = _git_repair(workspace_path)
+        success = _jj_repair(workspace_path) if vcs.backend == VCSBackend.JUJUTSU else _git_repair(workspace_path)
 
         if success:
             console.print("[green]✓ Recovery successful[/green]")
@@ -597,16 +594,14 @@ def sync_server(
     parsed = urlparse(normalized_url)
     if parsed.scheme != "https" or not parsed.netloc:
         console.print(
-            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
-            "for example: https://spec-kitty-dev.fly.dev"
+            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, for example: https://spec-kitty-dev.fly.dev"
         )
         raise typer.Exit(1)
 
     config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
     console.print(
-        "[dim]If you switched environments, run "
-        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
+        "[dim]If you switched environments, run 'spec-kitty auth login --force' to refresh credentials.[/dim]"
     )
 
 
@@ -870,9 +865,7 @@ def diagnose(
     for r in results:
         if not r.valid:
             category_label = f" [{r.error_category}]" if r.error_category else ""
-            console.print(
-                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
-            )
+            console.print(f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}")
             for err in r.errors:
                 console.print(f"    - {err}")
 

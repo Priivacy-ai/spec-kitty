@@ -123,13 +123,7 @@ class TestParseDependencies:
         """
         # Create WP file WITH dependencies
         wp_file = tmp_path / "WP02-test.md"
-        wp_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "dependencies: [WP01]\n"
-            "---\n"
-            "# Content"
-        )
+        wp_file.write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# Content")
 
         result = parse_wp_dependencies(wp_file)
 
@@ -180,10 +174,7 @@ class TestDetectCycles:
         Expected: Cycle detected in WP01→WP02→WP01
         """
         # Create simple cycle: WP01 → WP02 → WP01
-        graph = {
-            "WP01": ["WP02"],
-            "WP02": ["WP01"]
-        }
+        graph = {"WP01": ["WP02"], "WP02": ["WP01"]}
 
         cycles = detect_cycles(graph)
 
@@ -204,11 +195,7 @@ class TestDetectCycles:
         Expected: None returned (no cycles)
         """
         # Create acyclic graph: WP01 → WP02 → WP03
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP02"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
 
         cycles = detect_cycles(graph)
 
@@ -222,11 +209,7 @@ class TestDetectCycles:
         Expected: Cycle detected in WP01→WP02→WP03→WP01
         """
         # Create 3-node cycle
-        graph = {
-            "WP01": ["WP02"],
-            "WP02": ["WP03"],
-            "WP03": ["WP01"]
-        }
+        graph = {"WP01": ["WP02"], "WP02": ["WP03"], "WP03": ["WP01"]}
 
         cycles = detect_cycles(graph)
 
@@ -285,11 +268,7 @@ class TestValidateDependencies:
         Targets: Happy path validation
         Expected: Returns (True, []) for valid dependencies
         """
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01", "WP02"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
 
         # Validate WP03's dependencies
         is_valid, errors = validate_dependencies("WP03", ["WP01", "WP02"], graph)
@@ -308,10 +287,7 @@ class TestTopologicalSort:
         Targets: Core sorting logic, in-degree calculations
         Expected: WP01 before WP02 when WP02 depends on WP01
         """
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"]}
 
         result = topological_sort(graph)
 
@@ -337,12 +313,7 @@ class TestTopologicalSort:
         #  WP02  WP03
         #    \    /
         #     WP04
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP02", "WP03"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}
 
         result = topological_sort(graph)
 
@@ -376,11 +347,7 @@ class TestGetDependents:
         Expected: Returns WPs that depend on given WP
         """
         # Graph where WP02 and WP03 depend on WP01
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"]}
 
         result = get_dependents("WP01", graph)
 
@@ -398,11 +365,7 @@ class TestGetDependents:
         Expected: Empty list for WP with no dependents
         """
         # Graph where WP03 has no dependents
-        graph = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01", "WP02"]
-        }
+        graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
 
         result = get_dependents("WP03", graph)
 

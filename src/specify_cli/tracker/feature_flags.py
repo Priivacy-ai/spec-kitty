@@ -16,7 +16,4 @@ def is_saas_sync_enabled() -> bool:
 
 def saas_sync_disabled_message() -> str:
     """Return a consistent operator-facing message for disabled SaaS sync."""
-    return (
-        "SaaS sync is disabled by feature flag. "
-        f"Set {SAAS_SYNC_ENV_VAR}=1 to enable."
-    )
+    return f"SaaS sync is disabled by feature flag. Set {SAAS_SYNC_ENV_VAR}=1 to enable."

@@ -142,6 +142,7 @@ class TestExcludeFromGit:
 
         # Make file read-only
         import os
+
         os.chmod(exclude_file, 0o444)
 
         # Call function - should NOT raise OSError
@@ -311,9 +312,7 @@ class TestCreateFeatureWorktree:
             mock_get_vcs.return_value = mock_vcs
 
             # Call with feature_number=None
-            worktree_path, feature_dir = create_feature_worktree(
-                repo, "test-feature", feature_number=None
-            )
+            worktree_path, feature_dir = create_feature_worktree(repo, "test-feature", feature_number=None)
 
             # Verify: Uses next number (3)
             assert "003-test-feature" in str(worktree_path)
@@ -339,9 +338,7 @@ class TestCreateFeatureWorktree:
             mock_get_vcs.return_value = mock_vcs
 
             # Call with explicit feature_number=5
-            worktree_path, feature_dir = create_feature_worktree(
-                repo, "my-feature", feature_number=5
-            )
+            worktree_path, feature_dir = create_feature_worktree(repo, "my-feature", feature_number=5)
 
             # Verify: Branch name is 005-my-feature (zero-padded)
             assert "005-my-feature" in str(worktree_path)
@@ -370,9 +367,7 @@ class TestCreateFeatureWorktree:
 
             # Also mock setup_feature_directory to prevent file operations
             with patch("specify_cli.core.worktree.setup_feature_directory"):
-                worktree_path, feature_dir = create_feature_worktree(
-                    repo, "test-feature", feature_number=1
-                )
+                worktree_path, feature_dir = create_feature_worktree(repo, "test-feature", feature_number=1)
 
                 # Verify: VCS create_workspace was called
                 assert mock_vcs.create_workspace.called
@@ -399,15 +394,14 @@ class TestCreateFeatureWorktree:
             mock_get_vcs.return_value = mock_vcs
 
             # Mock subprocess to succeed
-            with patch("specify_cli.core.worktree.subprocess.run") as mock_run, \
-                 patch("specify_cli.core.worktree.setup_feature_directory"), \
-                 patch("specify_cli.core.worktree.warnings.warn") as mock_warn:
-
+            with (
+                patch("specify_cli.core.worktree.subprocess.run") as mock_run,
+                patch("specify_cli.core.worktree.setup_feature_directory"),
+                patch("specify_cli.core.worktree.warnings.warn") as mock_warn,
+            ):
                 mock_run.return_value = MagicMock(returncode=0)
 
-                worktree_path, feature_dir = create_feature_worktree(
-                    repo, "test-feature", feature_number=1
-                )
+                worktree_path, feature_dir = create_feature_worktree(repo, "test-feature", feature_number=1)
 
                 # Verify: subprocess.run was called with git worktree add
                 assert mock_run.called
@@ -434,9 +428,7 @@ class TestCreateFeatureWorktree:
         # Mock VCS to raise deterministic error
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             mock_vcs = MagicMock()
-            mock_vcs.create_workspace.side_effect = RuntimeError(
-                "Git repository check failed: trust issue"
-            )
+            mock_vcs.create_workspace.side_effect = RuntimeError("Git repository check failed: trust issue")
             mock_get_vcs.return_value = mock_vcs
 
             # Call and expect error to propagate
@@ -471,9 +463,7 @@ class TestCreateFeatureWorktree:
             mock_get_vcs.return_value = mock_vcs
 
             # Call function
-            result_worktree, result_feature = create_feature_worktree(
-                repo, "test-feature", feature_number=1
-            )
+            result_worktree, result_feature = create_feature_worktree(repo, "test-feature", feature_number=1)
 
             # Verify: Returns existing paths
             assert result_worktree == worktree
@@ -592,9 +582,10 @@ class TestSetupFeatureDirectory:
         (kittify_dir / "AGENTS.md").touch()
 
         # Force Unix behavior
-        with patch("specify_cli.core.worktree.platform.system", return_value="Linux"), \
-             patch("specify_cli.core.worktree._exclude_from_git"):
-
+        with (
+            patch("specify_cli.core.worktree.platform.system", return_value="Linux"),
+            patch("specify_cli.core.worktree._exclude_from_git"),
+        ):
             setup_feature_directory(feature_dir, worktree, repo_root)
 
         # Verify: Symlinks created (not copies)
@@ -624,9 +615,10 @@ class TestSetupFeatureDirectory:
         (kittify_dir / "AGENTS.md").write_text("test content")
 
         # Force Windows behavior
-        with patch("specify_cli.core.worktree.platform.system", return_value="Windows"), \
-             patch("specify_cli.core.worktree._exclude_from_git"):
-
+        with (
+            patch("specify_cli.core.worktree.platform.system", return_value="Windows"),
+            patch("specify_cli.core.worktree._exclude_from_git"),
+        ):
             setup_feature_directory(feature_dir, worktree, repo_root)
 
         # Verify: Files copied (not symlinked)
@@ -659,9 +651,10 @@ class TestSetupFeatureDirectory:
         (kittify_dir / "AGENTS.md").write_text("test")
 
         # Create symlinks
-        with patch("specify_cli.core.worktree.platform.system", return_value="Linux"), \
-             patch("specify_cli.core.worktree._exclude_from_git"):
-
+        with (
+            patch("specify_cli.core.worktree.platform.system", return_value="Linux"),
+            patch("specify_cli.core.worktree._exclude_from_git"),
+        ):
             setup_feature_directory(feature_dir, worktree, repo_root)
 
         # Verify: Symlinks resolve to main repo
@@ -882,6 +875,7 @@ class TestValidateFeatureStructure:
 # ==============================================================================
 # Additional integration tests (optional, for comprehensive coverage)
 # ==============================================================================
+
 
 class TestWorktreeIntegration:
     """Integration tests combining multiple worktree functions.

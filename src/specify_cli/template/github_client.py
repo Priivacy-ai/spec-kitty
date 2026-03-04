@@ -53,7 +53,7 @@ def parse_repo_slug(slug: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-def download_template_from_github(
+def download_template_from_github(  # noqa: C901
     repo_owner: str,
     repo_name: str,
     ai_assistant: str,
@@ -140,7 +140,7 @@ def download_template_from_github(
             if response.status_code != 200:
                 body_sample = response.text[:400]
                 raise GitHubClientError(
-                    f"Download failed with {response.status_code}\\nHeaders: {response.headers}\\nBody (truncated): {body_sample}"
+                    f"Download failed with {response.status_code}\\nHeaders: {response.headers}\\nBody (truncated): {body_sample}"  # noqa: E501
                 )
             total_size = int(response.headers.get("content-length", 0))
             with open(zip_path, "wb") as fh:
@@ -182,7 +182,7 @@ def download_template_from_github(
     return zip_path, metadata
 
 
-def download_and_extract_template(
+def download_and_extract_template(  # noqa: C901
     project_path: Path,
     ai_assistant: str,
     script_type: str,
@@ -307,7 +307,6 @@ def download_and_extract_template(
         console.print(f"[cyan]Template files {'merged' if is_current_dir else 'extracted'}[/cyan]")
 
     return project_path
-
 
 
 def _merge_tree(source_dir: Path, dest_dir: Path, console: Console, verbose: bool) -> None:

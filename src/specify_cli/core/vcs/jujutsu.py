@@ -225,7 +225,7 @@ class JujutsuVCS:
                         cwd=str(repo_root),
                     )
                     shutil.rmtree(workspace_path, ignore_errors=True)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
                 return WorkspaceCreateResult(
                     success=False,
@@ -341,7 +341,7 @@ class JujutsuVCS:
                     "@",
                     "--no-graph",
                     "-T",
-                    'change_id ++ "|" ++ commit_id ++ "|" ++ description.first_line() ++ "|" ++ if(conflict, "conflict", "") ++ "\n"',
+                    'change_id ++ "|" ++ commit_id ++ "|" ++ description.first_line() ++ "|" ++ if(conflict, "conflict", "") ++ "\n"',  # noqa: E501
                 ],
                 capture_output=True,
                 text=True,
@@ -643,7 +643,7 @@ class JujutsuVCS:
                 cwd=str(workspace_path),
             )
 
-            if log_result.returncode == 0 and "conflict" in log_result.stdout:
+            if log_result.returncode == 0 and "conflict" in log_result.stdout:  # noqa: SIM102
                 # Current commit has conflicts
                 # If we didn't find specific files, add a generic indicator
                 if not conflicts:
@@ -702,11 +702,7 @@ class JujutsuVCS:
             )
 
             # Look for conflict indicator in status
-            for line in status_result.stdout.split("\n"):
-                if line.strip().startswith("C "):
-                    return True
-
-            return False
+            return any(line.strip().startswith("C ") for line in status_result.stdout.split("\n"))
 
         except (subprocess.TimeoutExpired, OSError):
             return False
@@ -984,7 +980,7 @@ class JujutsuVCS:
     # Private Helper Methods
     # =========================================================================
 
-    def _parse_sync_stats(self, output: str) -> tuple[int, int, int]:
+    def _parse_sync_stats(self, output: str) -> tuple[int, int, int]:  # noqa: ARG002
         """Parse sync output for file statistics."""
         # jj doesn't give detailed stats in a standard format
         # Return zeros for now

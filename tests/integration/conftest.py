@@ -202,6 +202,7 @@ def dual_branch_repo(tmp_path: Path) -> Path:
             metadata = yaml.safe_load(f) or {}
 
         from tests.test_isolation_helpers import get_installed_version
+
         current_version = get_installed_version()
         if current_version is None:
             with open(REPO_ROOT / "pyproject.toml", "rb") as f:

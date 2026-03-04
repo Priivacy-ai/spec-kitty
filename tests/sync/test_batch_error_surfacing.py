@@ -9,6 +9,7 @@ Covers:
 - T009: --report flag JSON failure dump
 - T010: Integration / regression checks
 """
+
 import json
 import tempfile
 from pathlib import Path
@@ -36,6 +37,7 @@ from specify_cli.sync.queue import OfflineQueue
 # Fixtures
 # ────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def temp_queue():
     """Create a queue with a temporary database."""
@@ -49,14 +51,16 @@ def temp_queue():
 def populated_queue(temp_queue):
     """Queue with 100 test events."""
     for i in range(100):
-        temp_queue.queue_event({
-            "event_id": f"evt-{i:04d}",
-            "event_type": "WPStatusChanged",
-            "aggregate_id": f"WP{i % 10:02d}",
-            "lamport_clock": i,
-            "node_id": "test-node",
-            "payload": {"index": i},
-        })
+        temp_queue.queue_event(
+            {
+                "event_id": f"evt-{i:04d}",
+                "event_type": "WPStatusChanged",
+                "aggregate_id": f"WP{i % 10:02d}",
+                "lamport_clock": i,
+                "node_id": "test-node",
+                "payload": {"index": i},
+            }
+        )
     return temp_queue
 
 
@@ -64,17 +68,20 @@ def populated_queue(temp_queue):
 def small_queue(temp_queue):
     """Queue with 5 events for smaller tests."""
     for i in range(5):
-        temp_queue.queue_event({
-            "event_id": f"evt-{i:04d}",
-            "event_type": "TestEvent",
-            "payload": {"index": i},
-        })
+        temp_queue.queue_event(
+            {
+                "event_id": f"evt-{i:04d}",
+                "event_type": "TestEvent",
+                "payload": {"index": i},
+            }
+        )
     return temp_queue
 
 
 # ────────────────────────────────────────────────────────────────
 # T006: Error categorisation
 # ────────────────────────────────────────────────────────────────
+
 
 class TestCategorizeError:
     """Test the categorize_error function (T006)."""
@@ -122,6 +129,7 @@ class TestCategorizeError:
 # ────────────────────────────────────────────────────────────────
 # T004: Per-event result parsing (HTTP 200)
 # ────────────────────────────────────────────────────────────────
+
 
 class TestParseEventResults:
     """Test _parse_event_results helper (T004)."""
@@ -197,6 +205,7 @@ class TestParseEventResults:
 # ────────────────────────────────────────────────────────────────
 # T005: HTTP 400 details parsing
 # ────────────────────────────────────────────────────────────────
+
 
 class TestParseErrorResponse:
     """Test _parse_error_response for HTTP 400 bodies (T005)."""
@@ -291,6 +300,7 @@ class TestParseErrorResponse:
 # T007: Actionable summary
 # ────────────────────────────────────────────────────────────────
 
+
 class TestFormatSyncSummary:
     """Test format_sync_summary (T007)."""
 
@@ -339,6 +349,7 @@ class TestFormatSyncSummary:
 # ────────────────────────────────────────────────────────────────
 # T009: Failure report generation
 # ────────────────────────────────────────────────────────────────
+
 
 class TestFailureReport:
     """Test generate_failure_report and write_failure_report (T009)."""
@@ -420,6 +431,7 @@ class TestFailureReport:
 # T008: Selective queue removal via process_batch_results
 # ────────────────────────────────────────────────────────────────
 
+
 class TestProcessBatchResults:
     """Test OfflineQueue.process_batch_results (T008)."""
 
@@ -444,18 +456,13 @@ class TestProcessBatchResults:
 
     def test_all_success(self, small_queue):
         """All events synced -> queue empty."""
-        results = [
-            BatchEventResult(f"evt-{i:04d}", "success") for i in range(5)
-        ]
+        results = [BatchEventResult(f"evt-{i:04d}", "success") for i in range(5)]
         small_queue.process_batch_results(results)
         assert small_queue.size() == 0
 
     def test_all_rejected(self, small_queue):
         """All events rejected -> all stay, retry incremented."""
-        results = [
-            BatchEventResult(f"evt-{i:04d}", "rejected", "Error", "unknown")
-            for i in range(5)
-        ]
+        results = [BatchEventResult(f"evt-{i:04d}", "rejected", "Error", "unknown") for i in range(5)]
         small_queue.process_batch_results(results)
         assert small_queue.size() == 5
 
@@ -487,6 +494,7 @@ class TestProcessBatchResults:
 # ────────────────────────────────────────────────────────────────
 # Integration: batch_sync with per-event results
 # ────────────────────────────────────────────────────────────────
+
 
 class TestBatchSyncEventResults:
     """Integration tests: batch_sync populates event_results."""
@@ -618,6 +626,7 @@ class TestBatchSyncEventResults:
     def test_timeout_populates_server_error_category(self, mock_post, small_queue):
         """Request timeout creates event_results with server_error category."""
         import requests as req
+
         mock_post.side_effect = req.exceptions.Timeout()
 
         result = batch_sync(
@@ -634,6 +643,7 @@ class TestBatchSyncEventResults:
     def test_connection_error_populates_event_results(self, mock_post, small_queue):
         """Connection error creates event_results with server_error category."""
         import requests as req
+
         mock_post.side_effect = req.exceptions.ConnectionError("Network unreachable")
 
         result = batch_sync(
@@ -678,6 +688,7 @@ class TestBatchSyncEventResults:
 # BatchSyncResult new properties
 # ────────────────────────────────────────────────────────────────
 
+
 class TestBatchSyncResultProperties:
     """Test new properties on BatchSyncResult."""
 
@@ -707,6 +718,7 @@ class TestBatchSyncResultProperties:
 # ────────────────────────────────────────────────────────────────
 # BatchEventResult dataclass
 # ────────────────────────────────────────────────────────────────
+
 
 class TestBatchEventResult:
     """Test the BatchEventResult dataclass."""

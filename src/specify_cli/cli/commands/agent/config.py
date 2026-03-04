@@ -289,16 +289,11 @@ def agent_status():
 
     # Summary
     orphaned = [
-        key
-        for key in all_agent_keys
-        if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
+        key for key in all_agent_keys if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
     ]
 
     if orphaned:
-        console.print(
-            f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
-            f"(present but not configured)"
-        )
+        console.print(f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] (present but not configured)")
         console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
