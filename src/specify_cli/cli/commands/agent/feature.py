@@ -1686,7 +1686,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
         refs: list[str] = []
         ref_line_matches = re.findall(
-            r"\*?\*?Requirement\s+Refs\*?\*?\s*:\s*(.+)",
+            r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
             section_content,
             re.IGNORECASE,
         )
