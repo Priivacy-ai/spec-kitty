@@ -12,6 +12,20 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - **Major** (X.0.0): Breaking changes
   - **Release Candidate** (X.Y.ZrcN): Pre-release candidate on the path to a major/minor/patch release
 
+### Dependency Release Train (Required)
+
+- [ ] Release `spec-kitty-events` first and confirm the pinned version is available on PyPI.
+- [ ] Release `spec-kitty-runtime` first if CLI depends on it.
+- [ ] Release `spec-kitty-tracker` first if CLI depends on it.
+- [ ] Ensure dependency versions used in `pyproject.toml` are exact `==` pins.
+- [ ] Ensure all pinned `spec-kitty-*` library versions have clear MIT metadata on PyPI.
+- [ ] Update `docs/releases/dependency-compatibility-matrix.toml` with `[cli.\"X.Y.Z\".dependencies]`.
+- [ ] Run release dependency guards locally:
+  ```bash
+  python scripts/release/validate_dependency_matrix.py
+  python scripts/release/validate_dependency_policy.py --allow-missing
+  ```
+
 ### Code Quality
 
 - [ ] Run full test suite: `pytest tests/ -v`

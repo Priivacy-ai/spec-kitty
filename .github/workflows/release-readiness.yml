@@ -102,6 +102,16 @@ jobs:
             python scripts/release/validate_release.py --mode branch
           fi
 
+      - name: Validate dependency compatibility matrix
+        id: matrix
+        continue-on-error: true
+        run: python scripts/release/validate_dependency_matrix.py
+
+      - name: Validate spec-kitty library dependency policy
+        id: deps_policy
+        continue-on-error: true
+        run: python scripts/release/validate_dependency_policy.py --allow-missing
+
       - name: Test packaging
         run: |
           echo "::group::Building wheel to catch packaging issues"
@@ -114,15 +124,21 @@ jobs:
           echo "# Release Readiness Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.validate.outcome }}" == "success" ]]; then
+          if [[ "${{ steps.validate.outcome }}" == "success" && "${{ steps.matrix.outcome }}" == "success" ]]; then
             echo "✅ **All readiness checks passed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
             echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
             echo "- Version progression is monotonic within its major stream" >> $GITHUB_STEP_SUMMARY
+            echo "- Dependency compatibility matrix matches pyproject pins" >> $GITHUB_STEP_SUMMARY
             echo "- Tests pass" >> $GITHUB_STEP_SUMMARY
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ steps.deps_policy.outcome }}" != "success" ]]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Dependency policy warning**: prerelease/direct-reference pins detected." >> $GITHUB_STEP_SUMMARY
+              echo "This does not block PR readiness, but it WILL block the release workflow unless explicitly approved." >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -133,6 +149,8 @@ jobs:
             echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
             echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` or \`## [X.Y.ZaN/bN/rcN]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
             echo "3. **Version Progression** - Ensure version is not behind the latest tag in the same major stream" >> $GITHUB_STEP_SUMMARY
+            echo "4. **Dependency Matrix** - Update \`docs/releases/dependency-compatibility-matrix.toml\` for this version" >> $GITHUB_STEP_SUMMARY
+            echo "5. **Dependency Policy** - Use exact PyPI pins and MIT-clearly-labeled dependency releases" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -140,7 +158,7 @@ jobs:
           fi
 
       - name: Fail if validation failed
-        if: steps.validate.outcome != 'success'
+        if: steps.validate.outcome != 'success' || steps.matrix.outcome != 'success'
         run: |
           echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
           exit 1
