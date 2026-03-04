@@ -383,7 +383,7 @@ def sync_workspace(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     console.print("[cyan]Backend:[/cyan] git")
     console.print()

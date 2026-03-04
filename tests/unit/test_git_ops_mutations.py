@@ -38,7 +38,7 @@ class TestResolveConsole:
 
     def test_resolve_console_with_none_creates_new_console(self):
         """Test _resolve_console(None) creates new Console instance.
-        
+
         Targets mutant: console if console is None else Console()
         Expected: Should return new Console(), not return None
         """
@@ -50,7 +50,7 @@ class TestResolveConsole:
 
     def test_resolve_console_with_console_returns_provided(self):
         """Test _resolve_console(console) returns the provided console.
-        
+
         Targets mutant: console if console is None else Console()
         Expected: Should return provided console, not create new one
         """
@@ -67,7 +67,7 @@ class TestRunCommand:
 
     def test_run_command_basic_execution(self):
         """Test run_command executes git command and returns result.
-        
+
         Targets mutants:
         - cmd=None (run_command_5)
         - capture_output removed (run_command_15)
@@ -90,7 +90,7 @@ class TestRunCommand:
 
     def test_run_command_with_capture_returns_output(self):
         """Test run_command with capture=True returns stdout/stderr.
-        
+
         Targets mutant: capture_output parameter missing
         Expected: stdout and stderr are not empty strings when captured
         """
@@ -113,7 +113,7 @@ class TestRunCommand:
 
     def test_run_command_with_cwd_uses_correct_directory(self):
         """Test run_command with cwd parameter executes in correct directory.
-        
+
         Targets mutants:
         - cwd=None (get_current_branch_10)
         - cwd parameter removed (run_command_20)
@@ -131,7 +131,7 @@ class TestRunCommand:
 
     def test_run_command_without_check_return_handles_errors(self):
         """Test run_command with check_return=False handles non-zero exit.
-        
+
         Targets: error handling path, check parameter
         Expected: No exception raised, returncode captured
         """
@@ -155,7 +155,7 @@ class TestIsGitRepo:
 
     def test_is_git_repo_with_valid_repo_returns_true(self):
         """Test is_git_repo returns True for valid git repository.
-        
+
         Targets mutant: target = None (is_git_repo_1)
         Expected: Path resolved, git rev-parse succeeds, returns True
         """
@@ -172,7 +172,7 @@ class TestIsGitRepo:
 
     def test_is_git_repo_with_none_path_uses_cwd(self):
         """Test is_git_repo(None) resolves to current working directory.
-        
+
         Targets mutant: target = None instead of (path or Path.cwd()).resolve()
         Expected: Uses Path.cwd() when path is None
         """
@@ -191,7 +191,7 @@ class TestIsGitRepo:
 
     def test_is_git_repo_with_non_git_dir_returns_false(self):
         """Test is_git_repo returns False for non-git directory.
-        
+
         Targets: return value logic
         Expected: CalledProcessError caught, returns False
         """
@@ -209,7 +209,7 @@ class TestGetCurrentBranch:
 
     def test_get_current_branch_returns_branch_name(self):
         """Test get_current_branch returns current branch name.
-        
+
         Targets mutants:
         - repo_path = None (get_current_branch_1)
         - cwd=None (get_current_branch_10)
@@ -231,7 +231,7 @@ class TestGetCurrentBranch:
 
     def test_get_current_branch_with_none_path_uses_cwd(self):
         """Test get_current_branch(None) uses current working directory.
-        
+
         Targets mutant: repo_path = None instead of path resolution
         Expected: Path.cwd() used when path is None
         """
@@ -248,7 +248,7 @@ class TestGetCurrentBranch:
 
     def test_get_current_branch_detached_head_returns_none(self):
         """Test get_current_branch returns None for detached HEAD.
-        
+
         Targets: branch == "HEAD" logic
         Expected: Returns None when branch is "HEAD" (detached HEAD)
         """
@@ -271,7 +271,7 @@ class TestHasRemote:
 
     def test_has_remote_with_origin_returns_true(self):
         """Test has_remote returns True when origin remote exists.
-        
+
         Targets mutants:
         - remote_name = "XXoriginXX" (has_remote_1)
         Expected: git remote get-url origin succeeds, returns True
@@ -288,7 +288,7 @@ class TestHasRemote:
 
     def test_has_remote_with_custom_remote_name(self):
         """Test has_remote with custom remote name.
-        
+
         Targets: remote_name parameter passed to git command
         Expected: git remote get-url <custom> called correctly
         """
@@ -304,7 +304,7 @@ class TestHasRemote:
 
     def test_has_remote_without_remote_returns_false(self):
         """Test has_remote returns False when remote does not exist.
-        
+
         Targets: return code check (== 0 vs != 0)
         Expected: Non-zero returncode → returns False
         """
@@ -322,7 +322,7 @@ class TestHasTrackingBranch:
 
     def test_has_tracking_branch_with_tracking_returns_true(self):
         """Test has_tracking_branch returns True when upstream tracking configured.
-        
+
         Targets mutant: result = None (has_tracking_branch_1)
         Expected: subprocess.run returns result, returncode == 0, returns True
         """
@@ -337,7 +337,7 @@ class TestHasTrackingBranch:
 
     def test_has_tracking_branch_without_tracking_returns_false(self):
         """Test has_tracking_branch returns False when no upstream tracking.
-        
+
         Targets: return code check and empty output check
         Expected: returncode != 0 or empty stdout → returns False
         """
@@ -359,7 +359,7 @@ class TestExcludeFromGitIndex:
 
     def test_exclude_from_git_index_creates_correct_path(self):
         """Test exclude_from_git_index constructs .git/info/exclude path correctly.
-        
+
         Targets mutants:
         - exclude_file = None (exclude_from_git_index_1)
         - "exclude" → "EXCLUDE" (exclude_from_git_index_10)
@@ -381,7 +381,7 @@ class TestExcludeFromGitIndex:
 
     def test_exclude_from_git_index_appends_patterns(self, tmp_path):
         """Test exclude_from_git_index appends new patterns to exclude file.
-        
+
         Targets: file write operations, pattern checking
         Expected: New patterns added to file, existing patterns not duplicated
         """
@@ -404,7 +404,7 @@ class TestExcludeFromGitIndex:
 
     def test_exclude_from_git_index_handles_missing_file(self, tmp_path):
         """Test exclude_from_git_index returns early if exclude file missing.
-        
+
         Targets: if not exclude_file.exists() logic
         Expected: Returns without error when file does not exist
         """
@@ -421,7 +421,7 @@ class TestResolvePrimaryBranch:
 
     def test_resolve_primary_branch_from_origin_head(self):
         """Test resolve_primary_branch detects branch from origin/HEAD.
-        
+
         Targets mutants:
         - result = None (resolve_primary_branch_1)
         - "XXsymbolic-refXX" (resolve_primary_branch_20)
@@ -443,7 +443,7 @@ class TestResolvePrimaryBranch:
 
     def test_resolve_primary_branch_from_current_branch(self):
         """Test resolve_primary_branch uses current branch as fallback.
-        
+
         Targets: Method 2 fallback logic
         Expected: get_current_branch() called when origin/HEAD fails
         """
@@ -461,7 +461,7 @@ class TestResolvePrimaryBranch:
 
     def test_resolve_primary_branch_checks_common_branches(self):
         """Test resolve_primary_branch checks main/master/develop branches.
-        
+
         Targets: Method 3 branch verification loop
         Expected: git rev-parse --verify called for main, master, develop
         """
@@ -483,7 +483,7 @@ class TestResolvePrimaryBranch:
 
     def test_resolve_primary_branch_fallback_to_main(self):
         """Test resolve_primary_branch returns "main" as ultimate fallback.
-        
+
         Targets: Method 4 hardcoded fallback
         Expected: Returns "main" when all detection methods fail
         """
@@ -504,7 +504,7 @@ class TestResolveTargetBranch:
 
     def test_resolve_target_branch_reads_meta_json(self, tmp_path):
         """Test resolve_target_branch reads target_branch from meta.json.
-        
+
         Targets mutants:
         - meta_file = None (resolve_target_branch_10)
         - "KITTY-SPECS" (resolve_target_branch_15)
@@ -533,7 +533,7 @@ class TestResolveTargetBranch:
 
     def test_resolve_target_branch_with_matching_branches(self, tmp_path):
         """Test resolve_target_branch with current == target returns proceed.
-        
+
         Targets: branch matching logic
         Expected: action="proceed", should_notify=False
         """
@@ -550,7 +550,7 @@ class TestResolveTargetBranch:
 
     def test_resolve_target_branch_respect_current_true(self, tmp_path):
         """Test resolve_target_branch with respect_current=True stays on current.
-        
+
         Targets mutant: respect_current = False (resolve_target_branch_1)
         Expected: action="stay_on_current", should_notify=True
         """
@@ -576,7 +576,7 @@ class TestResolveTargetBranch:
 
     def test_resolve_target_branch_respect_current_false(self, tmp_path):
         """Test resolve_target_branch with respect_current=False allows checkout.
-        
+
         Targets: respect_current parameter behavior
         Expected: action="checkout_target", should_notify=True
         """
@@ -600,7 +600,7 @@ class TestResolveTargetBranch:
 
     def test_resolve_target_branch_with_none_current_raises_error(self, tmp_path):
         """Test resolve_target_branch raises error when current branch is None.
-        
+
         Targets: current_branch None check and RuntimeError
         Expected: RuntimeError("Could not determine current branch")
         """
@@ -620,7 +620,7 @@ class TestInitGitRepo:
 
     def test_init_git_repo_quiet_false_shows_output(self):
         """Test init_git_repo with quiet=False prints console messages.
-        
+
         Targets mutant: quiet = True (init_git_repo_1)
         Expected: Console.print called with initialization messages
         """
@@ -640,7 +640,7 @@ class TestInitGitRepo:
 
     def test_init_git_repo_quiet_true_suppresses_output(self):
         """Test init_git_repo with quiet=True suppresses console output.
-        
+
         Targets: quiet parameter behavior
         Expected: Console.print not called
         """
@@ -657,7 +657,7 @@ class TestInitGitRepo:
 
     def test_init_git_repo_executes_git_commands(self):
         """Test init_git_repo runs git init, add, commit commands.
-        
+
         Targets: subprocess.run calls for git commands
         Expected: git init, git add ., git commit -m called in sequence
         """

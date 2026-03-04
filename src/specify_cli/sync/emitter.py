@@ -677,10 +677,7 @@ class EventEmitter:
                     return False
 
             # 4. Validate payload against per-event-type rules
-            if not self._validate_payload(event_type, event["payload"]):
-                return False
-
-            return True
+            return self._validate_payload(event_type, event["payload"])
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event validation failed: {e}[/yellow]")

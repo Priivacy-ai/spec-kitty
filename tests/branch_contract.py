@@ -55,9 +55,7 @@ def _is_2x_context(
         return True
     if github_base_ref.strip() in _2X_INTEGRATION_BRANCHES:
         return True
-    if github_ref_name.strip() in _2X_INTEGRATION_BRANCHES:
-        return True
-    return False
+    return github_ref_name.strip() in _2X_INTEGRATION_BRANCHES
 
 
 CURRENT_BRANCH = _current_branch()

@@ -388,7 +388,7 @@ class TestByteFormatting:
             (10485760, "10.0 MB"),
         ]
 
-        for bytes_val, expected in test_cases:
+        for bytes_val, _expected in test_cases:
             result = format_bytes(bytes_val)
             assert bytes_val == 512 or "B" in result or "KB" in result or "MB" in result or "GB" in result
 

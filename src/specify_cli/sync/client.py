@@ -245,7 +245,7 @@ class WebSocketClient:
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            raise ConnectionError("Connection closed")
+            raise ConnectionError("Connection closed") from None
 
     async def _listen(self):
         """Listen for messages from server"""

@@ -395,7 +395,7 @@ class TestParseCheckpointEvent:
         parsed = parse_checkpoint_event(payload)
         assert len(parsed.scope_refs) == len(sample_checkpoint.scope_refs)
         for orig, parsed_ref in zip(
-            sample_checkpoint.scope_refs, parsed.scope_refs
+            sample_checkpoint.scope_refs, parsed.scope_refs, strict=False
         ):
             assert parsed_ref.scope == orig.scope
             assert parsed_ref.version_id == orig.version_id

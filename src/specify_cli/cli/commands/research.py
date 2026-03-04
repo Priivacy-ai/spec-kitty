@@ -30,7 +30,7 @@ def research(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     project_root = get_project_root_or_exit(repo_root)
     check_version_compatibility(project_root, "research")
@@ -54,7 +54,7 @@ def research(
         tracker.error("feature", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +78,7 @@ def research(
         console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
         console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     created_paths: list[Path] = []
 
@@ -103,7 +103,7 @@ def research(
         except Exception as exc:  # pragma: no cover - surfaces filesystem errors
             tracker.error(step_key, str(exc))
             console.print(tracker.render())
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
     _copy_asset("research-md", "research.md ready", Path("research.md"), Path("research.md"))
     _copy_asset("data-model", "data-model.md ready", Path("data-model.md"), Path("data-model.md"))

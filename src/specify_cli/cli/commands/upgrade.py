@@ -46,10 +46,9 @@ def _git_status_paths(repo_path: Path) -> set[str] | None:
         # With -z format, renames/copies include a second NUL-separated
         # path.  We take the *destination* (new name); the source (old name)
         # is intentionally discarded because we care about "what exists now".
-        if "R" in status or "C" in status:
-            if i < len(entries) and entries[i]:
-                path = entries[i]
-                i += 1
+        if ("R" in status or "C" in status) and i < len(entries) and entries[i]:
+            path = entries[i]
+            i += 1
 
         normalized = path.strip().replace("\\", "/")
         if normalized.startswith("./"):
@@ -72,10 +71,7 @@ def _is_upgrade_commit_eligible(path: str, project_path: Path) -> bool:
         return False
 
     # Never auto-commit ~/.kittify when users run inside their home directory.
-    if project_path.resolve() == Path.home().resolve() and normalized.startswith(".kittify/"):
-        return False
-
-    return True
+    return not (project_path.resolve() == Path.home().resolve() and normalized.startswith(".kittify/"))
 
 
 def _prepare_upgrade_commit_files(

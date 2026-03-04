@@ -92,7 +92,7 @@ def login(
         from specify_cli.sync.auth import AuthClient, AuthenticationError
     except ImportError:
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     client = AuthClient()
     # Get raw URL for display (won't raise on non-HTTPS)
@@ -134,15 +134,15 @@ def login(
         console.print(f"   Logged in as: {username}")
     except AuthenticationError as exc:
         _handle_auth_error(str(exc), raw_server_url)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except PermissionError:
         console.print("❌ Cannot access credentials file. Check permissions.")
         console.print("   Please ensure the file is readable and writable.")
         console.print("   Try: chmod 600 ~/.spec-kitty/credentials")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as exc:
         console.print(f"❌ Unexpected error: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -152,7 +152,7 @@ def logout() -> None:
         from specify_cli.sync.auth import AuthClient
     except ImportError:
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     client = AuthClient()
 
@@ -169,10 +169,10 @@ def logout() -> None:
         console.print("❌ Cannot access credentials file. Check permissions.")
         console.print("   Please ensure the file is readable and writable.")
         console.print("   Try: chmod 600 ~/.spec-kitty/credentials")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as exc:
         console.print(f"❌ Unexpected error: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -185,7 +185,7 @@ def status() -> None:
         from specify_cli.sync.auth import AuthClient
     except ImportError:
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     client = AuthClient()
 
@@ -228,10 +228,10 @@ def status() -> None:
         console.print("❌ Cannot access credentials file. Check permissions.")
         console.print("   Please ensure the file is readable and writable.")
         console.print("   Try: chmod 600 ~/.spec-kitty/credentials")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as exc:
         console.print(f"❌ Unexpected error: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 __all__ = ["app"]

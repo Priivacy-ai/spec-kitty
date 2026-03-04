@@ -318,10 +318,7 @@ def is_likely_word(text: str) -> bool:
 
     # -os endings: chaos, pathos, etc.
     # These are already singular (Greek origin) - don't stem
-    if original.endswith('os'):
-        return False
-
-    return True
+    return not original.endswith('os')
 
 
 def score_confidence(term: str, source: str) -> float:

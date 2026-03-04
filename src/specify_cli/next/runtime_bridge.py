@@ -160,9 +160,8 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
                 "Not all work packages have required status (done or for_review)"
             )
 
-    elif step_id == "review":
-        if not _should_advance_wp_step("review", feature_dir):
-            failures.append("Not all work packages are done")
+    elif step_id == "review" and not _should_advance_wp_step("review", feature_dir):
+        failures.append("Not all work packages are done")
 
     return failures
 

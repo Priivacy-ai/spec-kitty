@@ -4,6 +4,8 @@ These tests verify the end-to-end glossary middleware pipeline flow:
 term extraction -> semantic check -> generation gate -> clarification -> resume.
 """
 
+import time
+
 import pytest
 
 from specify_cli.glossary.exceptions import BlockedByConflict

@@ -92,9 +92,8 @@ class UpdateScriptsMigration(BaseMigration):
                 warnings.append(f"Template {src_rel} not found in package")
                 continue
 
-            if not dest.parent.exists():
-                if not dry_run:
-                    dest.parent.mkdir(parents=True, exist_ok=True)
+            if not dest.parent.exists() and not dry_run:
+                dest.parent.mkdir(parents=True, exist_ok=True)
 
             if dry_run:
                 changes.append(f"Would update {dest_rel}")

@@ -15,6 +15,7 @@ from specify_cli.glossary.models import (
 )
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.glossary.exceptions import BlockedByConflict
+import contextlib
 
 
 @dataclass
@@ -425,10 +426,8 @@ class TestEventEmission:
         mock_context.mission_id = "test-mission-456"
         mock_context.conflicts = [high_severity_conflict]
 
-        try:
+        with contextlib.suppress(BlockedByConflict):
             gate.process(mock_context)
-        except BlockedByConflict:
-            pass
 
         assert captured_args["step_id"] == "test-step-123"
         assert captured_args["mission_id"] == "test-mission-456"

@@ -71,10 +71,7 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
         >>> if ctx.location == ExecutionContext.WORKTREE:
         ...     print(f"In worktree: {ctx.worktree_name}")
     """
-    if cwd is None:
-        cwd = Path.cwd().resolve()
-    else:
-        cwd = cwd.resolve()
+    cwd = Path.cwd().resolve() if cwd is None else cwd.resolve()
 
     # Check if .worktrees is in path
     if ".worktrees" in cwd.parts:

@@ -50,7 +50,7 @@ class TestHashFile:
         chunk_size = 1024 * 1024  # 1MB chunks
         num_chunks = 10
         with open(large_file, "wb") as f:
-            for i in range(num_chunks):
+            for _i in range(num_chunks):
                 f.write(b"A" * chunk_size)
 
         # Should complete without memory explosion

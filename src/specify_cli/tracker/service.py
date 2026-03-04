@@ -229,10 +229,7 @@ class TrackerService:
 
         content_type = response.headers.get("content-type", "")
         body: Any
-        if "application/json" in content_type:
-            body = response.json()
-        else:
-            body = response.text
+        body = response.json() if "application/json" in content_type else response.text
 
         return {
             "endpoint": endpoint,

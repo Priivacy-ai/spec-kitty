@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rich.tree import Tree
+import contextlib
 
 
 class StepTracker:
@@ -48,10 +49,8 @@ class StepTracker:
 
     def _maybe_refresh(self):
         if self._refresh_cb:
-            try:
+            with contextlib.suppress(Exception):
                 self._refresh_cb()
-            except Exception:
-                pass
 
     def render(self) -> Tree:
         tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")

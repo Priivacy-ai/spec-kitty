@@ -255,7 +255,4 @@ class VersionDetector:
                 return True
 
         # If no mission directories found, that's broken
-        if not has_any_mission:
-            return True
-
-        return False
+        return bool(not has_any_mission)

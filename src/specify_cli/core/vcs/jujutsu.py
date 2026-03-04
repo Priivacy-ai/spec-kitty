@@ -534,9 +534,9 @@ class JujutsuVCS:
             )
 
         except subprocess.TimeoutExpired:
-            raise VCSSyncError("Sync operation timed out")
+            raise VCSSyncError("Sync operation timed out") from None
         except OSError as e:
-            raise VCSSyncError(f"OS error during sync: {e}")
+            raise VCSSyncError(f"OS error during sync: {e}") from e
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
         """

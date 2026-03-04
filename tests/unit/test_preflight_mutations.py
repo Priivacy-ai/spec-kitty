@@ -24,14 +24,14 @@ from specify_cli.merge.preflight import (
 
 class TestCheckWorktreeStatus:
     """Pattern 1: Git status detection logic.
-    
+
     Targets mutants in subprocess.run() calls, boolean logic,
     path handling, and error message construction.
     """
 
     def test_clean_worktree_returns_clean_status(self, tmp_path):
         """Verify clean worktree detected correctly.
-        
+
         Kills mutants:
         - `is_clean = result.stdout.strip()` (boolean negation)
         - `error = None` (always None mutation)
@@ -48,7 +48,7 @@ class TestCheckWorktreeStatus:
 
     def test_dirty_worktree_returns_unclean_status_with_error(self, tmp_path):
         """Verify dirty worktree detected with error message.
-        
+
         Kills mutants:
         - `is_clean = not result.stdout.strip()` → `is_clean = result.stdout.strip()`
         - `error = None if is_clean else ...` → `error = None` (always None)
@@ -66,7 +66,7 @@ class TestCheckWorktreeStatus:
 
     def test_subprocess_failure_returns_unclean_with_exception_message(self, tmp_path):
         """Verify subprocess failures handled gracefully.
-        
+
         Kills mutants:
         - Exception handling logic
         - `is_clean=False` in except block
@@ -82,7 +82,7 @@ class TestCheckWorktreeStatus:
 
     def test_git_runs_in_correct_directory(self, tmp_path):
         """Verify git status command runs in worktree directory.
-        
+
         Kills mutants:
         - `cwd=str(worktree_path)` removal
         - `cwd` parameter mutations
@@ -98,7 +98,7 @@ class TestCheckWorktreeStatus:
 
     def test_git_command_correct_arguments(self, tmp_path):
         """Verify git status called with correct arguments.
-        
+
         Kills mutants:
         - `["git", "status", "--porcelain"]` mutations
         - Argument string mutations
@@ -114,7 +114,7 @@ class TestCheckWorktreeStatus:
 
     def test_subprocess_text_mode_enabled(self, tmp_path):
         """Verify subprocess runs in text mode.
-        
+
         Kills mutants:
         - `text=True` → `text=None` or `text=False`
         - `encoding="utf-8"` mutations
@@ -130,7 +130,7 @@ class TestCheckWorktreeStatus:
 
     def test_subprocess_run_not_nullified(self, tmp_path):
         """Verify subprocess.run() is actually called.
-        
+
         Kills mutants:
         - `result = subprocess.run(...)` → `result = None`
         """
@@ -146,14 +146,14 @@ class TestCheckWorktreeStatus:
 
 class TestCheckTargetDivergence:
     """Pattern 2: Target branch divergence detection.
-    
+
     Targets mutants in comparison operators, return value logic,
     parsing logic, and error handling.
     """
 
     def test_branches_in_sync_returns_no_divergence(self, tmp_path):
         """Verify no divergence when behind=0.
-        
+
         Kills mutants:
         - `if behind > 0:` → `if behind >= 0:` (comparison mutation)
         - Return value inversions
@@ -173,7 +173,7 @@ class TestCheckTargetDivergence:
 
     def test_behind_origin_returns_divergence_with_message(self, tmp_path):
         """Verify divergence detected when behind > 0.
-        
+
         Kills mutants:
         - `if behind > 0:` boundary conditions
         - Return value mutations
@@ -195,7 +195,7 @@ class TestCheckTargetDivergence:
 
     def test_ahead_of_origin_no_divergence(self, tmp_path):
         """Verify no divergence when ahead but not behind.
-        
+
         Kills mutants:
         - Logic for ahead vs behind comparison
         """
@@ -212,7 +212,7 @@ class TestCheckTargetDivergence:
 
     def test_no_remote_tracking_returns_false_gracefully(self, tmp_path):
         """Verify graceful handling when remote tracking missing.
-        
+
         Kills mutants:
         - `if result.returncode != 0: return False, None` → `return True, None`
         - Non-fatal error handling logic
@@ -231,7 +231,7 @@ class TestCheckTargetDivergence:
 
     def test_git_command_failure_graceful_degradation(self, tmp_path):
         """Verify exceptions handled gracefully.
-        
+
         Kills mutants:
         - Exception handling → raises
         - Return values in except block
@@ -247,7 +247,7 @@ class TestCheckTargetDivergence:
 
     def test_malformed_output_returns_false_gracefully(self, tmp_path):
         """Verify malformed git output handled gracefully.
-        
+
         Kills mutants:
         - `if len(parts) != 2: return False, None` → other returns
         - Parsing logic mutations
@@ -265,7 +265,7 @@ class TestCheckTargetDivergence:
 
     def test_git_fetch_uses_correct_arguments(self, tmp_path):
         """Verify git fetch command correct.
-        
+
         Kills mutants:
         - `["git", "fetch", "origin", target_branch]` mutations
         """
@@ -282,7 +282,7 @@ class TestCheckTargetDivergence:
 
     def test_git_rev_list_uses_correct_format(self, tmp_path):
         """Verify git rev-list command format.
-        
+
         Kills mutants:
         - `--left-right` → `--LEFT-RIGHT`
         - `--count` → `--COUNT`
@@ -304,7 +304,7 @@ class TestCheckTargetDivergence:
 
     def test_parsing_ahead_behind_values(self, tmp_path):
         """Verify ahead/behind values parsed correctly.
-        
+
         Kills mutants:
         - `map(int, parts)` mutations
         - Variable assignment mutations
@@ -324,14 +324,14 @@ class TestCheckTargetDivergence:
 
 class TestWPLaneFromFeature:
     """Pattern 4: Lane value parsing from frontmatter.
-    
+
     Targets mutants in path construction, file I/O,
     regex matching, and return value logic.
     """
 
     def test_valid_frontmatter_returns_lane(self, tmp_path):
         """Verify lane extracted from valid frontmatter.
-        
+
         Kills mutants:
         - Return None mutations
         - Regex pattern mutations
@@ -356,7 +356,7 @@ class TestWPLaneFromFeature:
 
     def test_missing_tasks_directory_returns_none(self, tmp_path):
         """Verify None returned when tasks dir missing.
-        
+
         Kills mutants:
         - `if not tasks_dir.exists(): return None` logic mutations
         """
@@ -365,7 +365,7 @@ class TestWPLaneFromFeature:
 
     def test_no_matching_task_file_returns_none(self, tmp_path):
         """Verify None returned when no matching task file.
-        
+
         Kills mutants:
         - `if not candidates: return None` mutations
         - glob pattern mutations
@@ -379,7 +379,7 @@ class TestWPLaneFromFeature:
 
     def test_no_frontmatter_returns_none(self, tmp_path):
         """Verify None returned when file has no frontmatter.
-        
+
         Kills mutants:
         - `if not content.startswith("---"):` logic mutations
         """
@@ -395,7 +395,7 @@ class TestWPLaneFromFeature:
 
     def test_no_lane_field_returns_none(self, tmp_path):
         """Verify None returned when frontmatter has no lane field.
-        
+
         Kills mutants:
         - `if not match: return None` mutations
         """
@@ -416,7 +416,7 @@ class TestWPLaneFromFeature:
 
     def test_lane_extracted_case_insensitive(self, tmp_path):
         """Verify lane value lowercased.
-        
+
         Kills mutants:
         - `.lower()` removal
         """
@@ -437,7 +437,7 @@ class TestWPLaneFromFeature:
 
     def test_lane_with_quotes_stripped(self, tmp_path):
         """Verify quotes stripped from lane value.
-        
+
         Kills mutants:
         - Regex capture group mutations
         """
@@ -458,7 +458,7 @@ class TestWPLaneFromFeature:
 
     def test_multiple_matching_files_uses_first_sorted(self, tmp_path):
         """Verify first file used when multiple match.
-        
+
         Kills mutants:
         - `sorted()` removal
         - `candidates[0]` indexing mutations
@@ -481,7 +481,7 @@ class TestWPLaneFromFeature:
 
     def test_tasks_path_construction(self, tmp_path):
         """Verify correct path construction.
-        
+
         Kills mutants:
         - `tasks_dir = None`
         - "/" vs path component mutations
@@ -499,7 +499,7 @@ class TestWPLaneFromFeature:
 
     def test_glob_pattern_correct(self, tmp_path):
         """Verify glob pattern matches WP ID correctly.
-        
+
         Kills mutants:
         - `tasks_dir.glob(f"{wp_id}*.md")` → `glob(None)`
         - Pattern string mutations
@@ -518,14 +518,14 @@ class TestWPLaneFromFeature:
 
 class TestRunPreflight:
     """Pattern 3 & 5: Missing worktree detection and result accumulation.
-    
+
     Targets mutants in set operations, conditional logic, error/warning
     accumulation, and PreflightResult state management.
     """
 
     def test_all_checks_pass_returns_passed_true(self, tmp_path):
         """Verify all checks passing returns passed=True.
-        
+
         Kills mutants:
         - `result = PreflightResult(passed=True)` → `result = None`
         - `result.passed` mutations
@@ -563,7 +563,7 @@ class TestRunPreflight:
 
     def test_missing_worktree_not_done_fails_validation(self, tmp_path):
         """Verify missing worktree (not done) causes failure.
-        
+
         Kills mutants:
         - `result.passed = False` removals
         - `if missing_wps:` logic mutations
@@ -587,7 +587,7 @@ class TestRunPreflight:
 
     def test_missing_worktree_done_lane_only_warning(self, tmp_path):
         """Verify missing worktree with lane=done only warns.
-        
+
         Kills mutants:
         - `if lane == "done":` → `if lane == "XXdoneXX":`
         - `result.warnings.append(...)` mutations
@@ -612,7 +612,7 @@ class TestRunPreflight:
 
     def test_dirty_worktree_fails_validation(self, tmp_path):
         """Verify dirty worktree causes validation failure.
-        
+
         Kills mutants:
         - `if not status.is_clean:` logic mutations
         - `result.passed = False` mutations
@@ -649,7 +649,7 @@ class TestRunPreflight:
 
     def test_target_diverged_fails_validation(self, tmp_path):
         """Verify target divergence causes validation failure.
-        
+
         Kills mutants:
         - `result.target_diverged = diverged` mutations
         - `if diverged:` logic mutations
@@ -687,7 +687,7 @@ class TestRunPreflight:
 
     def test_multiple_failures_accumulated(self, tmp_path):
         """Verify multiple failures all accumulated in errors list.
-        
+
         Kills mutants:
         - `result.errors.append(...)` mutations
         - Error list accumulation logic
@@ -724,7 +724,7 @@ class TestRunPreflight:
 
     def test_wp_statuses_populated(self, tmp_path):
         """Verify wp_statuses list populated correctly.
-        
+
         Kills mutants:
         - `result.wp_statuses.append(...)` mutations
         - WPStatus object creation mutations
@@ -759,7 +759,7 @@ class TestRunPreflight:
 
     def test_discovered_wps_set_comprehension(self, tmp_path):
         """Verify discovered_wps set built correctly.
-        
+
         Kills mutants:
         - `discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}` → `None`
         - Set comprehension logic mutations
@@ -791,7 +791,7 @@ class TestRunPreflight:
 
     def test_missing_wps_calculation(self, tmp_path):
         """Verify missing_wps set difference calculated correctly.
-        
+
         Kills mutants:
         - `missing_wps = sorted(expected_wps - discovered_wps)` → `sorted(None)`
         - Set difference operation mutations
@@ -825,7 +825,7 @@ class TestRunPreflight:
 
     def test_error_message_correctness(self, tmp_path):
         """Verify error messages contain expected information.
-        
+
         Kills mutants:
         - Error message f-string mutations
         - Variable substitution mutations

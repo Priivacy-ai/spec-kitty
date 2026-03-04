@@ -84,7 +84,7 @@ def verify_setup(
             console.print(
                 "\n[yellow]Solution:[/yellow] Run this command from a Spec Kitty project root or from a feature worktree inside .worktrees/<feature>/ (use 'spec-kitty init <name>' to create a project)."
             )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     project_root = get_project_root_or_exit(repo_root)
     check_version_compatibility(project_root, "verify")
@@ -141,7 +141,7 @@ def _run_diagnostics_mode(json_output: bool, check_tools: bool) -> None:
             console.print(json.dumps(error_output, indent=2))
         else:
             console.print(f"[red]✗ Diagnostics failed:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:

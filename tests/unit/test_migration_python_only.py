@@ -309,10 +309,10 @@ def test_command_replacements_mapping(migration):
     replacements = migration.COMMAND_REPLACEMENTS
 
     # Test key patterns exist
-    assert any("create-new-feature" in pattern for pattern in replacements.keys())
-    assert any("check-prerequisites" in pattern for pattern in replacements.keys())
-    assert any("tasks-move-to-lane" in pattern for pattern in replacements.keys())
-    assert any("tasks_cli" in pattern and "move" in pattern for pattern in replacements.keys())
+    assert any("create-new-feature" in pattern for pattern in replacements)
+    assert any("check-prerequisites" in pattern for pattern in replacements)
+    assert any("tasks-move-to-lane" in pattern for pattern in replacements)
+    assert any("tasks_cli" in pattern and "move" in pattern for pattern in replacements)
 
     # Test all map to spec-kitty agent commands
     assert all(value.startswith("spec-kitty agent") for value in replacements.values())

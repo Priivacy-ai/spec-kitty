@@ -27,10 +27,10 @@ from specify_cli.core.worktree import (
 
 class TestExcludeFromGit:
     """Tests for _exclude_from_git() function.
-    
+
     Targets: Path assignment mutations, boolean negations, string literal mutations,
     index slice mutations, exception handling mutations.
-    
+
     Kills patterns:
     - git_path = worktree_path / ".git" → None
     - git_path = worktree_path / ".git" → worktree_path * ".git"
@@ -41,7 +41,7 @@ class TestExcludeFromGit:
 
     def test_exclude_patterns_written_to_worktree(self, tmp_path):
         """Test that exclusion patterns are written to worktree .git/info/exclude.
-        
+
         Kills mutations:
         - git_path = worktree_path / ".git" → None (AttributeError on .exists())
         - if not git_path.exists() → if git_path.exists() (early return inverted)
@@ -72,7 +72,7 @@ class TestExcludeFromGit:
 
     def test_exclude_handles_main_repo_git_directory(self, tmp_path):
         """Test that function works with .git directory (not file).
-        
+
         Kills mutations:
         - git_path.is_file() branch mutations
         - Else branch for .git directory
@@ -96,7 +96,7 @@ class TestExcludeFromGit:
 
     def test_exclude_parses_gitdir_from_worktree_git_file(self, tmp_path):
         """Test parsing 'gitdir:' prefix from worktree .git file.
-        
+
         Kills mutations:
         - content.startswith("gitdir:") → "XXgitdir:XX" or "GITDIR:"
         - content[7:] → content[8:] (index slice mutations)
@@ -124,7 +124,7 @@ class TestExcludeFromGit:
 
     def test_exclude_handles_file_write_errors_gracefully(self, tmp_path):
         """Test OSError handling during file write operations.
-        
+
         Kills mutations:
         - Exception handling mutations (try/except logic)
         - Tests that OSError doesn't propagate (silent failure)
@@ -156,10 +156,10 @@ class TestExcludeFromGit:
 
 class TestGetNextFeatureNumber:
     """Tests for get_next_feature_number() function.
-    
+
     Targets: Initial value mutations, path operations, iterator mutations,
     slice mutations, comparison mutations.
-    
+
     Kills patterns:
     - max_number = 0 → 1 or None
     - specs_dir = repo_root / KITTY_SPECS_DIR → None
@@ -170,7 +170,7 @@ class TestGetNextFeatureNumber:
 
     def test_returns_one_for_empty_repository(self, tmp_path):
         """Test that function returns 1 when no features exist.
-        
+
         Kills mutations:
         - max_number = 0 → max_number = 1 (off-by-one)
         - Verifies return value is max_number + 1, not max_number
@@ -189,7 +189,7 @@ class TestGetNextFeatureNumber:
 
     def test_returns_max_plus_one_with_existing_features(self, tmp_path):
         """Test that function returns next number after highest existing.
-        
+
         Kills mutations:
         - max() mutations (max_number = max(max_number, number))
         - Iterator mutations (for item in sorted(...))
@@ -213,7 +213,7 @@ class TestGetNextFeatureNumber:
 
     def test_scans_both_kitty_specs_and_worktrees(self, tmp_path):
         """Test that function checks both directories for feature numbers.
-        
+
         Kills mutations:
         - specs_dir = repo_root / KITTY_SPECS_DIR → None
         - worktrees_dir = repo_root / WORKTREES_DIR → None
@@ -242,7 +242,7 @@ class TestGetNextFeatureNumber:
 
     def test_skips_invalid_feature_names(self, tmp_path):
         """Test that non-numeric or invalid prefixes are skipped.
-        
+
         Kills mutations:
         - item.name[:3].isdigit() → negated or mutated
         - len(item.name) >= 3 → len(item.name) > 3
@@ -271,10 +271,10 @@ class TestGetNextFeatureNumber:
 
 class TestCreateFeatureWorktree:
     """Tests for create_feature_worktree() function.
-    
+
     Targets: Feature number auto-detection, branch name formatting, path construction,
     VCS abstraction calls, fallback logic, exception marker checks, subprocess mutations.
-    
+
     Kills patterns:
     - if feature_number is None → feature_number = get_next_feature_number()
     - branch_name = f"{feature_number:03d}-{feature_slug}" formatting
@@ -286,7 +286,7 @@ class TestCreateFeatureWorktree:
 
     def test_auto_detects_feature_number_when_none(self, tmp_path):
         """Test that feature_number=None calls get_next_feature_number().
-        
+
         Kills mutations:
         - if feature_number is None → inverted condition
         - get_next_feature_number() call mutations
@@ -320,7 +320,7 @@ class TestCreateFeatureWorktree:
 
     def test_branch_name_formatting(self, tmp_path):
         """Test branch name formatted as 003-feature-slug.
-        
+
         Kills mutations:
         - f"{feature_number:03d}" format mutations
         - f"...{feature_slug}" concatenation mutations
@@ -349,7 +349,7 @@ class TestCreateFeatureWorktree:
 
     def test_vcs_abstraction_success_path(self, tmp_path):
         """Test workspace creation through VCS abstraction (no fallback).
-        
+
         Kills mutations:
         - vcs.create_workspace() call mutations
         - result.success check mutations
@@ -381,7 +381,7 @@ class TestCreateFeatureWorktree:
 
     def test_fallback_to_direct_git_on_vcs_failure(self, tmp_path):
         """Test fallback to direct git command when VCS abstraction fails.
-        
+
         Kills mutations:
         - Exception handling logic
         - warnings.warn() call mutations
@@ -421,7 +421,7 @@ class TestCreateFeatureWorktree:
 
     def test_raises_on_deterministic_preflight_errors(self, tmp_path):
         """Test that deterministic errors (trust, ownership) are re-raised.
-        
+
         Kills mutations:
         - Exception marker string checks (e.g., "Git repository check failed:")
         - if any(marker in str(e) for marker in ...) → inverted or mutated
@@ -445,7 +445,7 @@ class TestCreateFeatureWorktree:
 
     def test_returns_existing_worktree_if_valid(self, tmp_path):
         """Test that existing valid worktree is returned without error.
-        
+
         Kills mutations:
         - worktree_path.exists() check mutations
         - vcs.is_repo() call mutations
@@ -483,7 +483,7 @@ class TestCreateFeatureWorktree:
 
     def test_raises_file_exists_error_for_invalid_path(self, tmp_path):
         """Test FileExistsError raised when path exists but is not valid worktree.
-        
+
         Kills mutations:
         - FileExistsError exception mutations
         - is_valid_workspace boolean logic
@@ -509,10 +509,10 @@ class TestCreateFeatureWorktree:
 
 class TestSetupFeatureDirectory:
     """Tests for setup_feature_directory() function.
-    
+
     Targets: Directory creation, file creation, platform detection, symlink creation,
     copy fallback, relative path calculations, template copying.
-    
+
     Kills patterns:
     - feature_dir / "checklists" directory creation mutations
     - .gitkeep touch mutations
@@ -525,7 +525,7 @@ class TestSetupFeatureDirectory:
 
     def test_creates_all_subdirectories(self, tmp_path):
         """Test that checklists/, research/, tasks/ directories are created.
-        
+
         Kills mutations:
         - (feature_dir / "checklists").mkdir() → None or mutated
         - (feature_dir / "research").mkdir() → mutated
@@ -550,7 +550,7 @@ class TestSetupFeatureDirectory:
 
     def test_creates_gitkeep_and_readme_in_tasks(self, tmp_path):
         """Test that .gitkeep and README.md are created in tasks/.
-        
+
         Kills mutations:
         - (tasks_dir / ".gitkeep").touch() mutations
         - (tasks_dir / "README.md").write_text() mutations
@@ -574,7 +574,7 @@ class TestSetupFeatureDirectory:
 
     def test_creates_symlinks_on_unix(self, tmp_path):
         """Test that memory/ and AGENTS.md are symlinked on Unix platforms.
-        
+
         Kills mutations:
         - platform.system() == "Windows" → inverted
         - worktree_memory.symlink_to() call mutations
@@ -606,7 +606,7 @@ class TestSetupFeatureDirectory:
 
     def test_copies_files_on_windows(self, tmp_path):
         """Test that files are copied (not symlinked) on Windows.
-        
+
         Kills mutations:
         - platform.system() == "Windows" → negated
         - shutil.copytree() fallback mutations
@@ -641,7 +641,7 @@ class TestSetupFeatureDirectory:
 
     def test_relative_path_correctness(self, tmp_path):
         """Test that relative paths from worktree to main repo are correct.
-        
+
         Kills mutations:
         - Path("../../../.kittify/memory") → mutated path
         - Path("../../../.kittify/AGENTS.md") → mutated path
@@ -677,7 +677,7 @@ class TestSetupFeatureDirectory:
 
     def test_copies_spec_template_if_exists(self, tmp_path):
         """Test that spec.md template is copied when available.
-        
+
         Kills mutations:
         - template.exists() check mutations
         - shutil.copy2() call mutations
@@ -703,7 +703,7 @@ class TestSetupFeatureDirectory:
 
     def test_creates_empty_spec_if_no_template(self, tmp_path):
         """Test that empty spec.md is created if no template found.
-        
+
         Kills mutations:
         - spec_file.touch() call mutations
         - Template search loop mutations
@@ -727,10 +727,10 @@ class TestSetupFeatureDirectory:
 
 class TestValidateFeatureStructure:
     """Tests for validate_feature_structure() function.
-    
+
     Targets: Existence checks, file checks, directory checks, check_tasks flag,
     dictionary population, return structure.
-    
+
     Kills patterns:
     - if not feature_dir.exists() → inverted
     - if not spec_file.exists() → inverted
@@ -741,7 +741,7 @@ class TestValidateFeatureStructure:
 
     def test_invalid_when_feature_directory_missing(self, tmp_path):
         """Test that validation fails when feature directory doesn't exist.
-        
+
         Kills mutations:
         - feature_dir.exists() check mutations
         - errors.append() mutations
@@ -760,7 +760,7 @@ class TestValidateFeatureStructure:
 
     def test_invalid_when_spec_md_missing(self, tmp_path):
         """Test that validation fails when spec.md is missing.
-        
+
         Kills mutations:
         - spec_file.exists() check mutations
         - errors.append("Missing required file: spec.md") mutations
@@ -778,7 +778,7 @@ class TestValidateFeatureStructure:
 
     def test_warnings_for_missing_recommended_dirs(self, tmp_path):
         """Test that missing checklists/, research/, tasks/ generate warnings.
-        
+
         Kills mutations:
         - dir_path.exists() checks for recommended_dirs
         - warnings.append() mutations
@@ -804,7 +804,7 @@ class TestValidateFeatureStructure:
 
     def test_check_tasks_flag_behavior(self, tmp_path):
         """Test that check_tasks=True makes tasks.md required.
-        
+
         Kills mutations:
         - if check_tasks → negated
         - tasks_file.exists() check when check_tasks=True
@@ -831,7 +831,7 @@ class TestValidateFeatureStructure:
 
     def test_return_dict_structure(self, tmp_path):
         """Test that return dict contains all expected keys and values.
-        
+
         Kills mutations:
         - Dictionary key mutations (paths, artifact_files, artifact_dirs, etc.)
         - str() casting mutations
@@ -885,7 +885,7 @@ class TestValidateFeatureStructure:
 
 class TestWorktreeIntegration:
     """Integration tests combining multiple worktree functions.
-    
+
     These tests are optional but provide additional mutation coverage by testing
     workflows that span multiple functions.
     """
@@ -893,7 +893,7 @@ class TestWorktreeIntegration:
     @pytest.mark.integration
     def test_create_and_validate_worktree_workflow(self, tmp_path):
         """Test complete workflow: create worktree → validate structure.
-        
+
         Integration test that exercises:
         - create_feature_worktree()
         - setup_feature_directory()
@@ -904,7 +904,7 @@ class TestWorktreeIntegration:
     @pytest.mark.integration
     def test_feature_numbering_with_existing_worktrees(self, tmp_path):
         """Test feature numbering when worktrees exist but not in kitty-specs.
-        
+
         Integration test that exercises:
         - get_next_feature_number()
         - Scanning both kitty-specs/ and .worktrees/

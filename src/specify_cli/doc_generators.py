@@ -213,7 +213,7 @@ class JSDocGenerator:
             config_file.write_text(json.dumps(config, indent=2), encoding='utf-8')
             return config_file
         except OSError as e:
-            raise GeneratorError(f"Failed to write jsdoc.json: {e}")
+            raise GeneratorError(f"Failed to write jsdoc.json: {e}") from e
 
     def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:
         """Run JSDoc to generate documentation.
@@ -321,10 +321,7 @@ class SphinxGenerator:
             return True
 
         # Check for Python files
-        if list(project_root.glob("**/*.py")):
-            return True
-
-        return False
+        return bool(list(project_root.glob("**/*.py")))
 
     def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate Sphinx conf.py configuration file.
@@ -392,7 +389,7 @@ sys.path.insert(0, os.path.abspath('..'))
             config_file.write_text(config_content, encoding='utf-8')
             return config_file
         except OSError as e:
-            raise GeneratorError(f"Failed to write conf.py: {e}")
+            raise GeneratorError(f"Failed to write conf.py: {e}") from e
 
     def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:  # noqa: ARG002
         """Run Sphinx to generate documentation.
@@ -506,10 +503,7 @@ class RustdocGenerator:
             return True
 
         # Check for Rust source files
-        if list(project_root.glob("**/*.rs")):
-            return True
-
-        return False
+        return bool(list(project_root.glob("**/*.rs")))
 
     def configure(self, output_dir: Path, options: dict[str, Any]) -> Path:
         """Generate rustdoc configuration (updates Cargo.toml).
@@ -553,7 +547,7 @@ No separate configuration file is needed for rustdoc.
             instructions_file.write_text(instructions, encoding='utf-8')
             return instructions_file
         except OSError as e:
-            raise GeneratorError(f"Failed to write rustdoc instructions: {e}")
+            raise GeneratorError(f"Failed to write rustdoc instructions: {e}") from e
 
     def generate(self, source_dir: Path, output_dir: Path) -> GeneratorResult:
         """Run cargo doc to generate documentation.

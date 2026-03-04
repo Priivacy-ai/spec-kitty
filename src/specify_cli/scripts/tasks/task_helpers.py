@@ -117,7 +117,7 @@ def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.Comple
     except subprocess.CalledProcessError as exc:
         if check:
             message = exc.stderr.strip() or exc.stdout.strip() or "Unknown git error"
-            raise TaskCliError(message)
+            raise TaskCliError(message) from exc
         return exc
 
 

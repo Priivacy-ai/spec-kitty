@@ -41,7 +41,7 @@ def validate_tasks(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     project_root = get_project_root_or_exit(repo_root)
     check_version_compatibility(project_root, "validate-tasks")
@@ -102,7 +102,7 @@ def validate_tasks(
         feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
 

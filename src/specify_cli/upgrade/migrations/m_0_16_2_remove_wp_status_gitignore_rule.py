@@ -41,10 +41,7 @@ def is_wp_status_ignore_pattern(line: str) -> bool:
     if not stripped:
         return False
 
-    for pattern in PATTERNS_TO_REMOVE:
-        if re.match(pattern, stripped):
-            return True
-    return False
+    return any(re.match(pattern, stripped) for pattern in PATTERNS_TO_REMOVE)
 
 
 def find_wp_status_entries(gitignore_path: Path) -> list[tuple[int, str]]:

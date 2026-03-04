@@ -131,7 +131,7 @@ def accept(
             print(json.dumps({"error": str(exc)}))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if not json_output:
         check_version_compatibility(repo_root, "accept")
@@ -158,7 +158,7 @@ def accept(
             tracker.error("detect", str(exc))
             console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if not json_output:
         tracker.complete("detect", feature_slug)
 
@@ -186,7 +186,7 @@ def accept(
             tracker.error("verify", str(exc))
             console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if not json_output:
         tracker.complete("verify", "ready" if summary.ok else "issues found")
 
@@ -235,7 +235,7 @@ def accept(
                 tracker.error("commit", str(exc))
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
 

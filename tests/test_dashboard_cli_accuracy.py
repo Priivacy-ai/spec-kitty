@@ -25,6 +25,7 @@ from urllib.error import URLError
 import json
 
 from tests.test_isolation_helpers import get_venv_python
+import contextlib
 
 
 def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
@@ -97,10 +98,8 @@ def kill_all_spec_kitty_dashboards():
         if result.stdout.strip():
             pids = result.stdout.strip().split('\n')
             for pid in pids:
-                try:
+                with contextlib.suppress(Exception):
                     os.kill(int(pid), signal.SIGKILL)
-                except Exception:
-                    pass
             time.sleep(1)  # Give processes time to die
     except Exception:
         pass

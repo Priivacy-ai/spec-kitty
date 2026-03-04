@@ -101,7 +101,7 @@ def select_with_arrows(
 
                 except KeyboardInterrupt:
                     console.print("\n[yellow]Selection cancelled[/yellow]")
-                    raise typer.Exit(1)
+                    raise typer.Exit(1) from None
 
     run_selection_loop()
 
@@ -180,7 +180,7 @@ def multi_select_with_arrows(
 
             except KeyboardInterrupt:
                 console.print("\n[yellow]Selection cancelled[/yellow]")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
 
 __all__ = [

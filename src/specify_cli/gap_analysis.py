@@ -462,7 +462,7 @@ def extract_public_api_from_python(source_dir: Path) -> list[str]:
 
             for node in ast.walk(tree):
                 # Extract public functions
-                if isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef):
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                     if not node.name.startswith("_"):
                         api_elements.append(node.name)
 

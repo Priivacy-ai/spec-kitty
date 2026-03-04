@@ -79,10 +79,7 @@ def _resolve_variables(
 ) -> Mapping[str, str]:
     if variables is None:
         return {}
-    if callable(variables):
-        resolved = variables(metadata) or {}
-    else:
-        resolved = variables
+    resolved = variables(metadata) or {} if callable(variables) else variables
     return resolved
 
 

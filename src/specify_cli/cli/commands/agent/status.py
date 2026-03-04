@@ -65,7 +65,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         console.print(
             "\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]"
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str | None = None):
@@ -164,7 +164,7 @@ def emit(
                     f"Invalid JSON in --evidence-json: {exc}\n"
                     f"Expected valid JSON object, e.g.: '{example}'",
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from exc
 
         # Lazy import to avoid circular imports
         from specify_cli.status.emit import (
@@ -218,7 +218,7 @@ def emit(
         except ImportError:
             pass
         _output_error(json_output, str(exc))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -308,7 +308,7 @@ def materialize(
         raise
     except Exception as exc:
         _output_error(json_output, str(exc))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +376,7 @@ def doctor(
             )
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     overall_healthy = result.is_healthy and not global_has_issues
 
@@ -911,7 +911,7 @@ def reconcile(
             print(json.dumps({"error": str(exc)}))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if json_output:
         print(json.dumps(reconcile_result_to_json(result), indent=2))

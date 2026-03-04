@@ -70,7 +70,7 @@ def _json_safe_output(func):
                 if wp_id:
                     payload["wp_id"] = str(wp_id)
                 print(json.dumps(payload))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         finally:
             console.quiet = previous_quiet
 
@@ -104,10 +104,10 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
         return ctx.number, ctx.slug
     except TaskCliError:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except FeatureDetectionError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
@@ -572,7 +572,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Check if VCS is already locked
     if "vcs" in meta:
@@ -645,7 +645,7 @@ def implement(
     except (TaskCliError, typer.Exit) as exc:
         tracker.error("detect", str(exc) if isinstance(exc, TaskCliError) else "failed")
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Step 2: Validate dependencies
     tracker.start("validate")
@@ -707,7 +707,7 @@ def implement(
                 console.print(tracker.render())
                 console.print(f"\n[red]Error:[/red] Base work package {base} does not exist")
                 console.print(f"Feature: {feature_slug}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             if base_lane == "done":
                 # Base is merged - will branch from target branch (no workspace validation needed)
@@ -744,7 +744,7 @@ def implement(
         if not isinstance(exc, typer.Exit):
             tracker.error("validate", str(exc))
             console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
     # All planning must happen on the feature target branch before workspace creation.
@@ -778,7 +778,7 @@ def implement(
             raise
         except Exception as e:
             console.print(f"\n[red]Error:[/red] Failed to validate planning artifacts: {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     # Step 3: Create workspace
     tracker.start("create")
@@ -930,7 +930,7 @@ def implement(
                 console.print(tracker.render())
                 console.print(f"[red]Error:[/red] Base work package {base} does not exist")
                 console.print(f"Feature: {feature_slug}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             if base_lane == "done":
                 from specify_cli.core.feature_detection import get_feature_target_branch

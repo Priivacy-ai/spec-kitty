@@ -239,7 +239,7 @@ class FeatureHandler(DashboardHandler):
 
     def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = '📝') -> None:
         """Generic handler for artifact directories (contracts, checklists, etc).
-        
+
         Args:
             path: The request path
             directory_name: Name of the subdirectory (e.g., 'contracts', 'checklists')

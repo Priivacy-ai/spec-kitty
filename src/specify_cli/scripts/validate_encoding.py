@@ -148,10 +148,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.scan_all:
-        scan_path = Path.cwd()
-    else:
-        scan_path = Path(args.path)
+    scan_path = Path.cwd() if args.scan_all else Path(args.path)
 
     if not scan_path.exists():
         print(f"❌ Error: Path does not exist: {scan_path}")

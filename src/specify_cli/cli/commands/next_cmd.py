@@ -59,7 +59,7 @@ def next_step(
         feature_slug = detect_feature_slug(repo_root, explicit_feature=feature)
     except FeatureDetectionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Handle --answer flow
     answered_id = None
@@ -156,7 +156,7 @@ def _handle_answer(
         raise
     except Exception as exc:
         print(f"Error answering decision: {exc}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 def _print_human(decision) -> None:

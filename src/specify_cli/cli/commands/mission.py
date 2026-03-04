@@ -156,7 +156,7 @@ def list_cmd() -> None:
         raise
     except Exception as exc:
         console.print(f"[red]Error listing missions:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 def _detect_current_feature(project_root: Path) -> str | None:
@@ -216,10 +216,10 @@ def current_cmd(
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except MissionError as exc:
         console.print(f"[red]Failed to load active mission:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     panel = Panel(
         "\n".join(_mission_details_lines(mission)),
@@ -247,10 +247,10 @@ def info_cmd(
             console.print("\n[yellow]Available missions:[/yellow]")
             for name in available:
                 console.print(f"  • {name}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except MissionError as exc:
         console.print(f"[red]Error loading mission '{mission_name}':[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     panel = Panel(
         "\n".join(_mission_details_lines(mission, include_description=True)),

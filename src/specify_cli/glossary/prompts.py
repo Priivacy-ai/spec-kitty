@@ -54,11 +54,7 @@ def is_interactive() -> bool:
         return False
 
     # Check common CI environment variables
-    for var in _CI_ENV_VARS:
-        if os.getenv(var):
-            return False
-
-    return True
+    return all(not os.getenv(var) for var in _CI_ENV_VARS)
 
 
 def log_non_interactive_context() -> None:

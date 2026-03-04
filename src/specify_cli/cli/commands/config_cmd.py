@@ -40,7 +40,7 @@ def config(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     from specify_cli.runtime.show_origin import collect_origins
 

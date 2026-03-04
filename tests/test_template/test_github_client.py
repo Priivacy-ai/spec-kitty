@@ -38,8 +38,7 @@ class FakeStreamResponse:
         return False
 
     def iter_bytes(self, chunk_size: int = 8192):
-        for chunk in self._chunks:
-            yield chunk
+        yield from self._chunks
 
 
 class FakeHttpClient:

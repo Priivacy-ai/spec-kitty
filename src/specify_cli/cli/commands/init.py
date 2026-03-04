@@ -385,7 +385,7 @@ def init(
             _console.print(
                 "[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible"
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
         existing_items = list(project_path.iterdir())
         if existing_items:
@@ -533,7 +533,7 @@ def init(
             )
         except ValueError as exc:
             _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
     else:
         # Ask for preferred implementer
         agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
@@ -632,7 +632,7 @@ def init(
             repo_owner, repo_name = parse_repo_slug(remote_slug_env)
         except ValueError as exc:
             _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         template_mode = "remote"
         if debug:
             _console.print(f"[cyan]Using remote templates from[/cyan] {repo_owner}/{repo_name}")
@@ -858,7 +858,7 @@ def init(
                 _console.print(Panel("\n".join(env_lines), title="Debug Environment", border_style="magenta"))
             if not here and project_path.exists():
                 shutil.rmtree(project_path)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
         finally:
             # Force final render
             pass

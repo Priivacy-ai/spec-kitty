@@ -18,6 +18,7 @@ from specify_cli.text_sanitization import (
     sanitize_file,
     sanitize_directory,
 )
+import contextlib
 
 
 class TestCharacterDetection:
@@ -349,10 +350,8 @@ class TestEdgeCases:
                     f"Error should mention permission issue: {error}"
             finally:
                 # Restore permissions for cleanup
-                try:
+                with contextlib.suppress(Exception):
                     readonly_file.chmod(stat.S_IWUSR | stat.S_IRUSR)
-                except Exception:
-                    pass
 
 
 # Regression tests

@@ -427,7 +427,7 @@ class TestCrossBranchIdempotency:
         assert count_after_second == count_after_first
 
         # Event content identical
-        for e1, e2 in zip(events_after_first, events_after_second):
+        for e1, e2 in zip(events_after_first, events_after_second, strict=False):
             assert e1.event_id == e2.event_id
 
     def test_detect_false_after_migration(self, tmp_path: Path) -> None:

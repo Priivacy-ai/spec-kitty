@@ -106,8 +106,6 @@ def is_01x_branch(repo_root: Path) -> bool:
         branch = result.stdout.strip()
         if branch.startswith("2.") or branch == "2.x":
             return False
-        if branch.startswith("034-"):
-            return False
-        return True
+        return not branch.startswith("034-")
     except Exception:
         return False

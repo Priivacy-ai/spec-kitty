@@ -110,9 +110,7 @@ class PrimitiveExecutionContext:
             return value
         if isinstance(value, str):
             lower = value.lower()
-            if lower in ("disabled", "false"):
-                return False
-            return True
+            return lower not in ("disabled", "false")
         if value is not None:
             return True
         return None

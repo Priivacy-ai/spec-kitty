@@ -41,7 +41,7 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
         return load_agent_config(repo_root)
     except AgentConfigError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command(name="list")
@@ -51,7 +51,7 @@ def list_agents():
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)
@@ -98,7 +98,7 @@ def add_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load current config
     config = _load_config_or_exit(repo_root)
@@ -184,7 +184,7 @@ def remove_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load current config
     config = _load_config_or_exit(repo_root)
@@ -248,7 +248,7 @@ def agent_status():
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)
@@ -324,7 +324,7 @@ def sync_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)

@@ -98,14 +98,13 @@ class FixMemoryStructureMigration(BaseMigration):
         templates_agents = kittify_dir / "templates" / "AGENTS.md"
 
         # Step 1: Fix .kittify/memory
-        if kittify_memory.exists():
-            if kittify_memory.is_symlink():
-                # Remove broken symlink
-                if dry_run:
-                    changes_made.append(f"Would remove broken symlink: {kittify_memory}")
-                else:
-                    kittify_memory.unlink()
-                    changes_made.append(f"Removed broken symlink: {kittify_memory}")
+        if kittify_memory.exists() and kittify_memory.is_symlink():
+            # Remove broken symlink
+            if dry_run:
+                changes_made.append(f"Would remove broken symlink: {kittify_memory}")
+            else:
+                kittify_memory.unlink()
+                changes_made.append(f"Removed broken symlink: {kittify_memory}")
 
         # Step 2: Move or copy root memory/ to .kittify/memory/
         if root_memory.exists() and root_memory.is_dir():

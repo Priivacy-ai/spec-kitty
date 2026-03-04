@@ -83,7 +83,7 @@ class _JSONErrorGroup(TyperGroup):
                 error_code="USAGE_ERROR",
             )
             _emit(envelope)
-            raise SystemExit(2)
+            raise SystemExit(2) from None
 
 
 # The public ``app`` used by the main CLI to register orchestrator-api.

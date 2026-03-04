@@ -538,10 +538,8 @@ class TestGenerationGateCheckpointEmission:
             runtime_override=Strictness.MEDIUM,
         )
 
-        try:
+        with contextlib.suppress(BlockedByConflict):
             gate.process(mock_context)
-        except BlockedByConflict:
-            pass
 
         # Checkpoint is emitted first, then blocked event
         assert "blocked" in emission_order

@@ -200,7 +200,7 @@ class ConstitutionParser:
 
             cells = [c.strip() for c in line.strip("|").split("|")]
             if len(cells) == len(headers):
-                row_dict = dict(zip(headers, cells))
+                row_dict = dict(zip(headers, cells, strict=False))
                 data_rows.append(row_dict)
 
         return data_rows

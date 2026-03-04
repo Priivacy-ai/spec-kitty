@@ -185,7 +185,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         )
     except FeatureDetectionError as e:
         print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def _normalize_wp_id(wp_arg: str) -> str:
@@ -402,7 +402,7 @@ def implement(
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         except Exception as e:
             print(f"Error locating work package: {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
         # Validate dependencies and resolve base workspace
         # This will error if:
@@ -446,7 +446,7 @@ def implement(
                 raise
             except Exception as e:
                 print(f"Error creating worktree: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -721,7 +721,7 @@ def implement(
 
     except Exception as e:
         print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def _resolve_review_context(
@@ -1270,4 +1270,4 @@ def review(
 
     except Exception as e:
         print(f"Error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e

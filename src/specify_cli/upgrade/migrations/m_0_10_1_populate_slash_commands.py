@@ -43,10 +43,7 @@ class PopulateSlashCommandsMigration(BaseMigration):
             return True
 
         # If we have fewer than expected commands (should be ~10+), migration needed
-        if len(slash_commands) < 8:
-            return True
-
-        return False
+        return len(slash_commands) < 8
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if we have mission templates to copy from."""

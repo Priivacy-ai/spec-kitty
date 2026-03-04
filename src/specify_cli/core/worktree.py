@@ -18,6 +18,7 @@ from pathlib import Path
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
+import contextlib
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -57,10 +58,8 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     # Read existing exclusions
     existing = set()
     if exclude_file.exists():
-        try:
+        with contextlib.suppress(OSError):
             existing = set(exclude_file.read_text().splitlines())
-        except OSError:
-            pass
 
     # Add new patterns if not already present
     new_patterns = [p for p in patterns if p not in existing]

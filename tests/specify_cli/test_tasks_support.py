@@ -158,7 +158,7 @@ class TestActivityEntries:
 
     def test_parse_hyphenated_agent_name(self):
         """Test parsing activity log with hyphenated agent name.
-        
+
         This is the primary bug fix - agent names like 'cursor-agent',
         'claude-reviewer' should be parsed correctly.
         """

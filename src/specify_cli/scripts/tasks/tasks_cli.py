@@ -580,9 +580,8 @@ def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
         meta = {}
 
     history = meta.get("merge_history")
-    if isinstance(history, list) and history:
-        if isinstance(history[-1], dict):
-            history[-1]["merge_commit"] = merge_commit
+    if isinstance(history, list) and history and isinstance(history[-1], dict):
+        history[-1]["merge_commit"] = merge_commit
     meta["merged_commit"] = merge_commit
 
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -721,9 +720,8 @@ def merge_command(args: argparse.Namespace) -> None:
     elif args.push and not has_remote:
         print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
 
-    if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git(["worktree", "remove", str(repo_root), "--force"])
 
     if args.delete_branch:
         delete = git(["branch", "-d", feature], check=False)

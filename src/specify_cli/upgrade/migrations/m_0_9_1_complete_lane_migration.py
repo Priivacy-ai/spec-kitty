@@ -86,10 +86,7 @@ class CompleteLaneMigration(BaseMigration):
 
         # Check pattern matches (e.g., ._* for macOS resource forks)
         # Check for macOS resource fork files (._filename)
-        if filename.startswith("._"):
-            return True
-
-        return False
+        return bool(filename.startswith("._"))
 
     @classmethod
     def _get_real_contents(cls, directory: Path) -> list[Path]:

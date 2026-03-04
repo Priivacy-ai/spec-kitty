@@ -476,7 +476,7 @@ class TestFullLoop:
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
         seen_steps = []
-        for i in range(40):  # 9 steps need more iterations
+        for _i in range(40):  # 9 steps need more iterations
             decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
             if decision.kind == DecisionKind.terminal:
                 break

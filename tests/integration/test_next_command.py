@@ -654,7 +654,7 @@ class TestAtomicTaskTransitions:
         from specify_cli.next.decision import decide_next
 
         seen_steps = []
-        for i in range(40):
+        for _i in range(40):
             decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
             if decision.kind == "terminal":
                 break

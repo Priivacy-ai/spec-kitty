@@ -590,7 +590,7 @@ class TestParityHashStability:
 
         # Compute parity hash 10 times with different orders
         parity_hashes = []
-        for i in range(10):
+        for _i in range(10):
             # Shuffle hashes
             shuffled = random.sample(test_hashes, len(test_hashes))
             # Manually compute parity hash (same as compute_parity_hash_from_dossier)

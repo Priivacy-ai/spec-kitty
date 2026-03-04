@@ -589,10 +589,7 @@ def perform_acceptance(
             parent_commit = None
 
         meta_path = summary.feature_dir / "meta.json"
-        if meta_path.exists():
-            meta = json.loads(_read_text_strict(meta_path))
-        else:
-            meta = {}
+        meta = json.loads(_read_text_strict(meta_path)) if meta_path.exists() else {}
 
         acceptance_record: dict[str, object] = {
             "accepted_at": timestamp,

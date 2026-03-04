@@ -48,7 +48,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def _setup_mutants_environment() -> None:
     """Ensure full package is available when running in mutants directory.
-    
+
     Mutmut only copies files being mutated to the mutants/ directory. This function
     copies the rest of the package so imports work correctly during mutation testing.
     """

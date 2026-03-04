@@ -100,7 +100,7 @@ class FrontmatterManager:
             if frontmatter is None:
                 frontmatter = {}
         except Exception as e:
-            raise FrontmatterError(f"Invalid YAML in {file_path}: {e}")
+            raise FrontmatterError(f"Invalid YAML in {file_path}: {e}") from e
 
         # Ensure dependencies field exists for WP files only (backward compatibility with pre-0.11.0)
         if file_path.name.startswith("WP") and "dependencies" not in frontmatter:

@@ -30,7 +30,7 @@ class TestBuildDependencyGraph:
 
     def test_build_graph_returns_dict_not_none(self, tmp_path: Path) -> None:
         """Verify function returns dict (not None) even with empty directory.
-        
+
         Targets: Mutation where `graph = {}` → `graph = None`
         Expected: Function returns empty dict, not None
         """
@@ -48,7 +48,7 @@ class TestBuildDependencyGraph:
 
     def test_build_graph_with_valid_wps(self, tmp_path: Path) -> None:
         """Verify graph building with multiple valid WP files.
-        
+
         Targets: Core graph building logic, frontmatter parsing
         Expected: Returns dict mapping WP IDs to their dependencies
         """
@@ -80,7 +80,7 @@ class TestBuildDependencyGraph:
 
     def test_build_graph_missing_tasks_dir_returns_empty(self, tmp_path: Path) -> None:
         """Verify returns empty dict when tasks/ directory does not exist.
-        
+
         Targets: Boolean condition `if not tasks_dir.exists():` → `if tasks_dir.exists():`
         Expected: Empty dict returned when directory missing
         """
@@ -100,7 +100,7 @@ class TestParseDependencies:
 
     def test_parse_dependencies_no_field_returns_empty_list(self, tmp_path: Path) -> None:
         """Verify returns empty list (not None) when dependencies field missing.
-        
+
         Targets: Mutation `.get("dependencies", [])` → `.get("dependencies", None)`
         Expected: Empty list returned, not None
         """
@@ -117,7 +117,7 @@ class TestParseDependencies:
 
     def test_parse_dependencies_with_deps(self, tmp_path: Path) -> None:
         """Verify correctly parses dependencies from frontmatter.
-        
+
         Targets: Core parsing logic
         Expected: Returns list of dependency WP IDs
         """
@@ -143,7 +143,7 @@ class TestExtractWpId:
 
     def test_extract_wp_id_valid_filename(self) -> None:
         """Verify extracts WP ID from valid filename.
-        
+
         Targets: Regex matching logic, parameter removal mutations
         Expected: Returns 'WP01' from 'WP01-title.md'
         """
@@ -159,7 +159,7 @@ class TestExtractWpId:
 
     def test_extract_wp_id_invalid_filename_returns_none(self) -> None:
         """Verify returns None for invalid filename format.
-        
+
         Targets: None return path
         Expected: None returned for non-WP filenames
         """
@@ -175,7 +175,7 @@ class TestDetectCycles:
 
     def test_detect_cycles_simple_cycle(self) -> None:
         """Verify detects simple two-node cycle.
-        
+
         Targets: DFS coloring logic, GRAY state detection
         Expected: Cycle detected in WP01→WP02→WP01
         """
@@ -199,7 +199,7 @@ class TestDetectCycles:
 
     def test_detect_cycles_acyclic_returns_none(self) -> None:
         """Verify returns None for acyclic graph.
-        
+
         Targets: Absence of cycles, color state transitions
         Expected: None returned (no cycles)
         """
@@ -217,7 +217,7 @@ class TestDetectCycles:
 
     def test_detect_cycles_multi_node_cycle(self) -> None:
         """Verify detects cycles with more than 2 nodes.
-        
+
         Targets: Complex cycle detection
         Expected: Cycle detected in WP01→WP02→WP03→WP01
         """
@@ -247,7 +247,7 @@ class TestValidateDependencies:
 
     def test_validate_self_dependency_fails(self) -> None:
         """Verify validation fails when WP depends on itself.
-        
+
         Targets: Boolean condition `if dep == wp_id:` → `if dep != wp_id:`
         Expected: Validation fails with self-dependency error
         """
@@ -263,7 +263,7 @@ class TestValidateDependencies:
 
     def test_validate_nonexistent_dependency_fails(self) -> None:
         """Verify validation fails when dependency not in graph.
-        
+
         Targets: Dependency existence check
         Expected: Validation fails with 'not found' error
         """
@@ -281,7 +281,7 @@ class TestValidateDependencies:
 
     def test_validate_valid_dependencies_passes(self) -> None:
         """Verify validation passes for valid dependencies.
-        
+
         Targets: Happy path validation
         Expected: Returns (True, []) for valid dependencies
         """
@@ -304,7 +304,7 @@ class TestTopologicalSort:
 
     def test_topological_sort_basic_ordering(self) -> None:
         """Verify correct dependency ordering.
-        
+
         Targets: Core sorting logic, in-degree calculations
         Expected: WP01 before WP02 when WP02 depends on WP01
         """
@@ -327,7 +327,7 @@ class TestTopologicalSort:
 
     def test_topological_sort_complex_graph(self) -> None:
         """Verify correct ordering with multiple dependencies.
-        
+
         Targets: Complex dependency resolution
         Expected: Dependencies always before dependents
         """
@@ -371,7 +371,7 @@ class TestGetDependents:
 
     def test_get_dependents_basic(self) -> None:
         """Verify finds direct dependents.
-        
+
         Targets: Inverse graph construction logic
         Expected: Returns WPs that depend on given WP
         """
@@ -393,7 +393,7 @@ class TestGetDependents:
 
     def test_get_dependents_no_dependents_returns_empty(self) -> None:
         """Verify returns empty list when no dependents.
-        
+
         Targets: Empty result path
         Expected: Empty list for WP with no dependents
         """

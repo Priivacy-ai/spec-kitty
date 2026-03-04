@@ -66,10 +66,7 @@ def is_status_file(file_path: str) -> bool:
     Returns:
         True if file matches a status file pattern
     """
-    for pattern in STATUS_FILE_PATTERNS:
-        if fnmatch.fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(fnmatch.fnmatch(file_path, pattern) for pattern in STATUS_FILE_PATTERNS)
 
 
 def build_file_wp_mapping(

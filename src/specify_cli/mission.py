@@ -213,7 +213,7 @@ class Mission:
             try:
                 raw_config = yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
-                raise MissionError(f"Invalid mission.yaml: {e}")
+                raise MissionError(f"Invalid mission.yaml: {e}") from e
 
         if not isinstance(raw_config, dict):
             raise MissionError(

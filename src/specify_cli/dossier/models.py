@@ -156,10 +156,10 @@ class ArtifactRef(BaseModel):
                 )
             try:
                 int(v, 16)
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
                     f"content_hash_sha256 must be valid hexadecimal; got '{v}'"
-                )
+                ) from e
         return v
 
 
@@ -387,10 +387,10 @@ class MissionDossierSnapshot(BaseModel):
                 )
             try:
                 int(v, 16)
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
                     f"parity_hash_sha256 must be valid hexadecimal; got '{v}'"
-                )
+                ) from e
         return v
 
     def has_parity_diff(self, other: "MissionDossierSnapshot") -> bool:

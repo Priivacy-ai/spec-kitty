@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
 
 __all__ = ["get_dashboard_html"]
 

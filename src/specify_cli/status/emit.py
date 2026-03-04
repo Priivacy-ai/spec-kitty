@@ -153,10 +153,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    for event in _store.read_events(feature_dir):
-        if event.wp_id == wp_id:
-            return True
-    return False
+    return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
 def emit_status_transition(

@@ -67,7 +67,7 @@ def info_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Auto-detect workspace if not provided
     if workspace is None:
@@ -133,7 +133,7 @@ def list_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if show_orphaned:
         orphaned = find_orphaned_contexts(repo_root)
@@ -211,7 +211,7 @@ def cleanup_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     orphaned = find_orphaned_contexts(repo_root)
 

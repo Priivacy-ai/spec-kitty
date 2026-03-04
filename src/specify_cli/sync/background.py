@@ -18,6 +18,7 @@ from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+import contextlib
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,8 @@ class BackgroundSyncService:
 
         # Best-effort final sync
         if self.queue.size() > 0:
-            try:
+            with contextlib.suppress(Exception):
                 self._perform_sync()
-            except Exception:
-                pass
         logger.debug("Background sync service stopped")
 
     @property

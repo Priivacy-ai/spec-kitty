@@ -30,7 +30,7 @@ from specify_cli.core.paths import (
 
 class TestIsWorktreeGitdir:
     """Test _is_worktree_gitdir helper function.
-    
+
     Validates worktree topology detection:
     - Valid: .git/worktrees/<name>
     - Invalid: .git/modules/<name> (submodule)
@@ -39,7 +39,7 @@ class TestIsWorktreeGitdir:
 
     def test_valid_worktree_topology_non_bare(self):
         """Valid non-bare worktree: /repo/.git/worktrees/feature-001.
-        
+
         Kills mutants:
         - String literal "worktrees" mutation
         - String literal ".git" mutation
@@ -50,7 +50,7 @@ class TestIsWorktreeGitdir:
 
     def test_valid_worktree_topology_bare_repo(self):
         """Valid bare repo worktree: /repos/myrepo.git/worktrees/feature.
-        
+
         Kills mutants:
         - String endswith ".git" mutation
         """
@@ -59,7 +59,7 @@ class TestIsWorktreeGitdir:
 
     def test_invalid_submodule_topology(self):
         """Invalid: .git/modules/submodule (submodule, not worktree).
-        
+
         Kills mutants:
         - Boolean operator inversion (would return True)
         """
@@ -68,7 +68,7 @@ class TestIsWorktreeGitdir:
 
     def test_invalid_parent_not_worktrees(self):
         """Invalid: parent directory is not named 'worktrees'.
-        
+
         Kills mutants:
         - String literal "worktrees" mutation (would accept wrong name)
         - Comparison operator inversion
@@ -78,7 +78,7 @@ class TestIsWorktreeGitdir:
 
     def test_invalid_grandparent_not_git(self):
         """Invalid: grandparent doesn't end with .git.
-        
+
         Kills mutants:
         - String endswith ".git" mutation
         """
@@ -88,7 +88,7 @@ class TestIsWorktreeGitdir:
 
 class TestLocateProjectRoot:
     """Test locate_project_root function.
-    
+
     Tests resolution order:
     1. SPECIFY_REPO_ROOT environment variable
     2. Directory tree walk with worktree detection
@@ -97,7 +97,7 @@ class TestLocateProjectRoot:
 
     def test_env_var_override_valid(self, tmp_path, monkeypatch):
         """Environment variable SPECIFY_REPO_ROOT takes precedence.
-        
+
         Kills mutants:
         - String literal "SPECIFY_REPO_ROOT" mutation
         - Boolean and -> or mutation (would accept invalid paths)
@@ -112,7 +112,7 @@ class TestLocateProjectRoot:
 
     def test_env_var_invalid_no_kittify(self, tmp_path, monkeypatch):
         """Invalid env var (no .kittify) falls through to other methods.
-        
+
         Kills mutants:
         - Boolean and -> or mutation (would accept missing .kittify)
         """
@@ -124,7 +124,7 @@ class TestLocateProjectRoot:
 
     def test_no_args_uses_cwd(self, tmp_path, monkeypatch):
         """Calling with no args should use current working directory.
-        
+
         Kills mutants:
         - Default parameter mutation (start or None)
         """
@@ -137,7 +137,7 @@ class TestLocateProjectRoot:
 
     def test_git_directory_main_repo(self, tmp_path):
         """Main repo has .git directory.
-        
+
         Kills mutants:
         - is_dir() -> is_file() swap
         - Boolean and -> or in existence check
@@ -152,7 +152,7 @@ class TestLocateProjectRoot:
 
     def test_git_file_worktree_resolves_to_main(self, tmp_path):
         """Worktree has .git file with gitdir pointer, returns main repo.
-        
+
         Kills mutants:
         - is_file() -> is_dir() swap
         - String literal "gitdir:" mutation
@@ -178,7 +178,7 @@ class TestLocateProjectRoot:
 
     def test_kittify_marker_fallback(self, tmp_path):
         """Falls back to .kittify marker when no .git found.
-        
+
         Kills mutants:
         - is_dir() check mutations
         """
@@ -191,7 +191,7 @@ class TestLocateProjectRoot:
 
     def test_skips_broken_symlink_kittify(self, tmp_path):
         """Skips broken symlink .kittify directories.
-        
+
         Kills mutants:
         - Boolean and -> or in broken symlink check
         """
@@ -208,7 +208,7 @@ class TestLocateProjectRoot:
 
     def test_not_found_returns_none(self, tmp_path):
         """Returns None when no project root found.
-        
+
         Kills mutants:
         - Return value mutation (None -> "")
         """
@@ -222,7 +222,7 @@ class TestLocateProjectRoot:
 
 class TestIsWorktreeContext:
     """Test is_worktree_context function.
-    
+
     Detects if path is within a git worktree:
     1. Fast path: .worktrees in path parts
     2. Generic: .git file with gitdir pointer
@@ -230,7 +230,7 @@ class TestIsWorktreeContext:
 
     def test_fast_path_worktrees_in_parts(self, tmp_path):
         """Fast path: .worktrees appears in path hierarchy.
-        
+
         Kills mutants:
         - Membership test inversion (in -> not in)
         """
@@ -239,7 +239,7 @@ class TestIsWorktreeContext:
 
     def test_generic_git_file_with_gitdir_pointer(self, tmp_path):
         """Generic detection: .git file with gitdir: pointer.
-        
+
         Kills mutants:
         - is_file() -> is_dir() swap
         - String startswith "gitdir:" mutation
@@ -255,7 +255,7 @@ class TestIsWorktreeContext:
 
     def test_main_repo_returns_false(self, tmp_path):
         """Main repo with .git directory is not a worktree.
-        
+
         Kills mutants:
         - Return value mutation (False -> True)
         - is_dir() -> is_file() swap
@@ -268,7 +268,7 @@ class TestIsWorktreeContext:
 
     def test_no_git_returns_false(self, tmp_path):
         """Path without .git is not a worktree.
-        
+
         Kills mutants:
         - Return value mutation
         """
@@ -280,13 +280,13 @@ class TestIsWorktreeContext:
 
 class TestResolveWithContext:
     """Test resolve_with_context function.
-    
+
     Combines locate_project_root and is_worktree_context in one call.
     """
 
     def test_no_args_uses_cwd(self, tmp_path, monkeypatch):
         """Calling with no args should use current directory.
-        
+
         Kills mutants:
         - Default parameter mutation (start or None)
         """
@@ -300,7 +300,7 @@ class TestResolveWithContext:
 
     def test_from_worktree_path(self, tmp_path):
         """Resolves from worktree path, detects worktree context.
-        
+
         Kills mutants:
         - Multiple mutants in both functions
         """
@@ -324,13 +324,13 @@ class TestResolveWithContext:
 
 class TestCheckBrokenSymlink:
     """Test check_broken_symlink helper function.
-    
+
     Detects symlinks pointing to non-existent targets.
     """
 
     def test_broken_symlink_returns_true(self, tmp_path):
         """Symlink pointing to non-existent target is broken.
-        
+
         Kills mutants:
         - Boolean and -> or mutation
         - Negation inversion (not exists)
@@ -342,7 +342,7 @@ class TestCheckBrokenSymlink:
 
     def test_valid_symlink_returns_false(self, tmp_path):
         """Valid symlink to existing file is not broken.
-        
+
         Kills mutants:
         - Boolean and -> or mutation (would return True)
         """
@@ -355,7 +355,7 @@ class TestCheckBrokenSymlink:
 
     def test_regular_file_returns_false(self, tmp_path):
         """Regular file (not symlink) is not broken.
-        
+
         Kills mutants:
         - Boolean and -> or mutation (would return True for !exists)
         """
@@ -367,13 +367,13 @@ class TestCheckBrokenSymlink:
 
 class TestGetMainRepoRoot:
     """Test get_main_repo_root function.
-    
+
     Follows .git file gitdir pointer to find main repo, or returns current path.
     """
 
     def test_worktree_resolves_to_main_repo(self, tmp_path):
         """Worktree with .git file resolves to main repo root.
-        
+
         Kills mutants:
         - is_file() -> is_dir() swap
         - String parsing mutations
@@ -395,7 +395,7 @@ class TestGetMainRepoRoot:
 
     def test_main_repo_returns_same_path(self, tmp_path):
         """Main repo (no gitdir pointer) returns same path.
-        
+
         Kills mutants:
         - Return value mutation (current_path -> None)
         """
@@ -408,7 +408,7 @@ class TestGetMainRepoRoot:
 
     def test_no_git_returns_current_path(self, tmp_path):
         """Path without .git returns current path (fallback).
-        
+
         Kills mutants:
         - Return value mutation
         """
@@ -424,7 +424,7 @@ class TestPathResolutionEdgeCases:
 
     def test_locate_project_root_with_explicit_start_path(self, tmp_path):
         """Explicit start path parameter is used.
-        
+
         Kills mutants:
         - Default parameter usage (ensure explicit path works)
         """
@@ -437,7 +437,7 @@ class TestPathResolutionEdgeCases:
 
     def test_locate_project_root_walks_up_parent_dirs(self, tmp_path):
         """Walks up parent directories to find root.
-        
+
         Validates directory traversal logic.
         """
         project = tmp_path / "project"
@@ -453,7 +453,7 @@ class TestPathResolutionEdgeCases:
 
     def test_is_worktree_context_from_subdirectory(self, tmp_path):
         """Detects worktree context from subdirectory within worktree.
-        
+
         Validates upward traversal for .git file detection.
         """
         worktree_dir = tmp_path / ".worktrees" / "feature"
@@ -466,10 +466,10 @@ class TestPathResolutionEdgeCases:
 
 class TestEncodingRobustness:
     """Tests for encoding handling bug discovered during mutation testing.
-    
+
     Bug: .read_text() calls lacked explicit encoding parameter, risking
     UnicodeDecodeError on non-UTF-8 systems or git files with special chars.
-    
+
     Fix: Added encoding="utf-8", errors="replace" to all .read_text() calls.
     """
 

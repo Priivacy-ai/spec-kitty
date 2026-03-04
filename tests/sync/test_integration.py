@@ -94,7 +94,7 @@ class TestFullFlow:
     def test_lamport_clock_ordering_preserved(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Lamport clock values are strictly increasing across events."""
         events = []
-        for i in range(5):
+        for _i in range(5):
             ev = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
             assert ev is not None
             events.append(ev)
