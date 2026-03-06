@@ -161,6 +161,22 @@ Given that feature description, do this:
    - Optionally add/update `source_description`.
    - Ensure `vcs` exists (`"git"` default).
 
+   Expected `meta.json` shape (preserve existing values unless explicitly changed):
+
+   ```json
+   {
+     "feature_number": "014",
+     "slug": "014-checkout-upsell-flow",
+     "feature_slug": "014-checkout-upsell-flow",
+     "created_at": "2026-03-06T12:34:56Z",
+     "target_branch": "main",
+     "friendly_name": "Checkout Upsell Flow",
+     "mission": "software-dev",
+     "source_description": "optional source summary",
+     "vcs": "git"
+   }
+   ```
+
    **Do not regenerate timestamps or directory paths via shell commands.**
 
 6. Generate the specification content by following this flow:
