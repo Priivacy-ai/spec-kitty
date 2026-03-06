@@ -2,7 +2,7 @@
 description: Generate a custom checklist for the current feature based on user requirements.
 scripts:
   sh: spec-kitty agent feature check-prerequisites --json
-  ps: spec-kitty agent feature -Json
+  ps: spec-kitty agent feature check-prerequisites --json
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -41,27 +41,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the primary repository checkout.
+Run `{SCRIPT}` first and treat its JSON as canonical runtime context:
+- `target_branch` / `base_branch` (plus `TARGET_BRANCH` / `BASE_BRANCH`)
+- `feature_dir`
+- `available_docs`
 
+Then verify:
 ```bash
-pwd
 git branch --show-current
 ```
-
-**Expected output:**
-- `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
-- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
-
-**If you see the main branch or main repository path:**
-
-⛔ **STOP - You are in the wrong location!**
-
-This command creates checklists in your feature directory. You must be in the primary repository checkout.
-
-**Correct the issue:**
-1. Navigate to your primary repository checkout: `cd primary repository checkout`
-2. Verify you're on the correct feature branch: `git branch --show-current`
-3. Then run this checklist command again
+Current branch must match `TARGET_BRANCH` from the JSON payload.
 
 ---
 
@@ -70,6 +59,7 @@ This command creates checklists in your feature directory. You must be in the pr
 After running `{SCRIPT}`, you will have paths to:
 - **feature_dir**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
 - **available_docs**: List of available documents (spec.md, plan.md, tasks.md, etc.)
+- **target_branch / base_branch**: Deterministic branch contract
 
 Your checklist will be created at:
 - **feature_dir/checklists/[domain].md** (e.g., `ux.md`, `api.md`, `security.md`)

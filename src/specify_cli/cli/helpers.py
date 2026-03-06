@@ -71,6 +71,21 @@ def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:
 
 def _should_render_banner_for_invocation(argv: list[str] | None = None) -> bool:
     """Return True only for invocations that should render ASCII art."""
+    # Agent/tool contexts should never receive decorative banner output.
+    # It pollutes deterministic parsing and wastes tokens.
+    if os.environ.get("SPEC_KITTY_NO_BANNER", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return False
+
+    agent_env_markers = (
+        "CLAUDECODE",
+        "CLAUDE_CODE",
+        "CODEX",
+        "OPENCODE",
+        "CURSOR_TRACE_ID",
+    )
+    if any(key in os.environ for key in agent_env_markers):
+        return False
+
     tokens = [token.strip().lower() for token in (argv if argv is not None else sys.argv[1:]) if token.strip()]
     if "--version" in tokens or "-v" in tokens:
         return True

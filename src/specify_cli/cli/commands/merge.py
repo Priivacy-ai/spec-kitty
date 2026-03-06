@@ -14,6 +14,7 @@ from pathlib import Path
 
 import typer
 
+from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_preflight import (
@@ -79,7 +80,9 @@ def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
         command_name="spec-kitty merge",
     )
     if json_output:
-        print(json.dumps(payload))
+        enriched = dict(payload)
+        enriched["spec_kitty_version"] = SPEC_KITTY_VERSION
+        print(json.dumps(enriched))
     else:
         console.print(f"[red]Error:[/red] {payload['error']}")
         for cmd in payload.get("remediation", []):
@@ -712,6 +715,7 @@ def merge(
 
     if json_output and not dry_run:
         print(json.dumps({
+            "spec_kitty_version": SPEC_KITTY_VERSION,
             "error": "--json is currently supported with --dry-run only.",
         }))
         raise typer.Exit(1)
@@ -720,6 +724,7 @@ def merge(
         _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
         if current_branch == target_branch and not feature:
             print(json.dumps({
+                "spec_kitty_version": SPEC_KITTY_VERSION,
                 "error": f"Already on {target_branch}; pass --feature <slug> for workspace-per-WP planning.",
             }))
             raise typer.Exit(1)
@@ -762,6 +767,7 @@ def merge(
                     steps.append(f"git branch -d {branch}")
 
             print(json.dumps({
+                "spec_kitty_version": SPEC_KITTY_VERSION,
                 "feature_slug": feature_slug,
                 "target_branch": target_branch,
                 "all_wp_branches": [branch for _, _, branch in merge_plan["all_wp_workspaces"]],  # type: ignore[index]
@@ -792,6 +798,7 @@ def merge(
             planned_steps.append(f"git branch -d {feature_slug}")
 
         print(json.dumps({
+            "spec_kitty_version": SPEC_KITTY_VERSION,
             "feature_slug": feature_slug,
             "target_branch": target_branch,
             "all_wp_branches": [],

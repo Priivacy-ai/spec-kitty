@@ -17,6 +17,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
@@ -55,6 +56,78 @@ app = typer.Typer(
 console = Console()
 
 
+def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
+    """Attach CLI version metadata to JSON payloads for log observability."""
+    if "spec_kitty_version" in payload:
+        return payload
+    enriched = dict(payload)
+    enriched["spec_kitty_version"] = SPEC_KITTY_VERSION
+    return enriched
+
+
+def _emit_json(payload: dict[str, object]) -> None:
+    """Emit a deterministic single JSON object."""
+    print(json.dumps(_with_cli_version(payload)))
+
+
+def _utc_now_iso() -> str:
+    """Return deterministic UTC timestamp string for prompt/runtime variables."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _read_feature_meta(feature_dir: Path) -> dict[str, object]:
+    """Read feature metadata when present."""
+    meta_file = feature_dir / "meta.json"
+    if not meta_file.exists():
+        return {}
+    try:
+        data = json.loads(meta_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _resolve_feature_target_branch(feature_dir: Path, repo_root: Path) -> str:
+    """Resolve canonical target/base branch from metadata with branch fallback."""
+    meta = _read_feature_meta(feature_dir)
+    target = str(meta.get("target_branch", "")).strip()
+    if target:
+        return target
+    return get_current_branch(repo_root) or "main"
+
+
+def _inject_branch_contract(
+    payload: dict[str, object],
+    *,
+    target_branch: str,
+) -> dict[str, object]:
+    """Attach deterministic branch/runtime aliases for templates and agents."""
+    enriched = dict(payload)
+    raw_runtime_vars = enriched.get("runtime_vars", {})
+    runtime_vars = dict(raw_runtime_vars) if isinstance(raw_runtime_vars, dict) else {}
+    now_utc_iso = str(runtime_vars.get("now_utc_iso", _utc_now_iso()))
+    runtime_vars["now_utc_iso"] = now_utc_iso
+    runtime_vars["target_branch"] = target_branch
+    runtime_vars["base_branch"] = target_branch
+
+    branch_context = {
+        "target_branch": target_branch,
+        "base_branch": target_branch,
+        "expected_checkout_branch": target_branch,
+    }
+
+    enriched["target_branch"] = target_branch
+    enriched["base_branch"] = target_branch
+    enriched["TARGET_BRANCH"] = target_branch
+    enriched["BASE_BRANCH"] = target_branch
+    enriched["EXPECTED_TARGET_BRANCH"] = target_branch
+    enriched["EXPECTED_BASE_BRANCH"] = target_branch
+    enriched["runtime_vars"] = runtime_vars
+    enriched["NOW_UTC_ISO"] = now_utc_iso
+    enriched["branch_context"] = branch_context
+    return enriched
+
+
 def _enforce_git_preflight(
     repo_root: Path,
     *,
@@ -71,7 +144,7 @@ def _enforce_git_preflight(
 
     payload = build_git_preflight_failure_payload(preflight, command_name=command_name)
     if json_output:
-        print(json.dumps(payload))
+        _emit_json(payload)
     else:
         console.print(f"[red]Error:[/red] {payload['error']}")
         for cmd in payload.get("remediation", []):
@@ -333,7 +406,7 @@ def create_feature(
             "\n  - 123-fix (starts with number)"
         )
         if json_output:
-            console.print(json.dumps({"error": error_msg}))
+            _emit_json({"error": error_msg})
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
@@ -344,7 +417,7 @@ def create_feature(
         if is_worktree_context(cwd):
             error_msg = "Cannot create features from inside a worktree. Run from the planning repository."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[bold red]Error:[/bold red] {error_msg}")
                 # Find and suggest the main repo path
@@ -365,7 +438,7 @@ def create_feature(
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -374,7 +447,7 @@ def create_feature(
         if not is_git_repo(repo_root):
             error_msg = "Not in a git repository. Feature creation requires git."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -384,7 +457,7 @@ def create_feature(
         if not current_branch:
             error_msg = "Must be on a branch to create features (detached HEAD detected)."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -564,11 +637,18 @@ spec-kitty agent tasks move-task WP01 --to doing
                 console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
 
         if json_output:
-            print(json.dumps({
+            create_payload = {
                 "result": "success",
                 "feature": feature_slug_formatted,
-                "feature_dir": str(feature_dir)
-            }))
+                "feature_dir": str(feature_dir),
+                "spec_file": str(spec_file),
+                "meta_file": str(meta_file),
+                "created_at": str(meta.get("created_at", "")),
+                "created_files": [str(spec_file), str(meta_file), str(tasks_dir / "README.md")],
+                "write_mode": "update_existing_files",
+                "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
+            }
+            _emit_json(_inject_branch_contract(create_payload, target_branch=planning_branch))
         else:
             console.print(f"[green]✓[/green] Feature created: {feature_slug_formatted}")
             console.print(f"   Directory: {feature_dir}")
@@ -576,7 +656,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
     except Exception as e:
         if json_output:
-            print(json.dumps({"error": str(e)}))
+            _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -611,7 +691,7 @@ def check_prerequisites(
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -649,7 +729,7 @@ def check_prerequisites(
                 command_args=command_args,
             )
             if json_output:
-                print(json.dumps(payload))
+                _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
                 for line in payload.get("candidate_summary", []):
@@ -659,12 +739,27 @@ def check_prerequisites(
             raise typer.Exit(1)
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
+        target_branch = _resolve_feature_target_branch(feature_dir, repo_root)
 
         if json_output:
             if paths_only:
-                print(json.dumps(validation_result["paths"]))
+                paths_payload = dict(validation_result["paths"])
+                paths_payload["artifact_files"] = validation_result.get("artifact_files", {})
+                paths_payload["artifact_dirs"] = validation_result.get("artifact_dirs", {})
+                paths_payload["available_docs"] = validation_result.get("available_docs", [])
+                paths_payload["FEATURE_DIR"] = paths_payload.get("feature_dir", "")
+                paths_payload["SPEC_FILE"] = paths_payload.get("spec_file", "")
+                paths_payload["PLAN_FILE"] = paths_payload.get("plan_file", "")
+                paths_payload["TASKS_FILE"] = paths_payload.get("tasks_file", "")
+                paths_payload["FEATURE_SPEC"] = paths_payload.get("spec_file", "")
+                paths_payload["IMPL_PLAN"] = paths_payload.get("plan_file", "")
+                paths_payload["TASKS"] = paths_payload.get("tasks_file", "")
+                feature_dir_value = str(paths_payload.get("feature_dir", ""))
+                paths_payload["SPECS_DIR"] = str(Path(feature_dir_value).parent) if feature_dir_value else ""
+                _emit_json(_inject_branch_contract(paths_payload, target_branch=target_branch))
             else:
-                print(json.dumps(validation_result))
+                result_payload = dict(validation_result)
+                _emit_json(_inject_branch_contract(result_payload, target_branch=target_branch))
         else:
             if validation_result["valid"]:
                 console.print("[green]✓[/green] Prerequisites check passed")
@@ -683,7 +778,7 @@ def check_prerequisites(
         raise
     except Exception as e:
         if json_output:
-            print(json.dumps({"error": str(e)}))
+            _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -708,7 +803,7 @@ def setup_plan(
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -733,7 +828,7 @@ def setup_plan(
         except ValueError as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
             if json_output:
-                print(json.dumps(payload))
+                _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
                 for line in payload.get("candidate_summary", []):
@@ -761,7 +856,7 @@ def setup_plan(
                 ],
             }
             if json_output:
-                print(json.dumps(payload))
+                _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
                 for step in payload["remediation"]:
@@ -907,7 +1002,7 @@ def setup_plan(
                 result["gap_analysis"] = gap_analysis_path
             if generators_detected:
                 result["generators_detected"] = generators_detected
-            print(json.dumps(result))
+            _emit_json(_inject_branch_contract(result, target_branch=target_branch))
         else:
             console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
 
@@ -915,7 +1010,7 @@ def setup_plan(
         raise
     except Exception as e:
         if json_output:
-            print(json.dumps({"error": str(e)}))
+            _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -1326,7 +1421,7 @@ def finalize_tasks(
         if repo_root is None:
             error_msg = "Could not locate project root"
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
@@ -1350,7 +1445,7 @@ def finalize_tasks(
                 command_args=["--json"] if json_output else [],
             )
             if json_output:
-                print(json.dumps(payload))
+                _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
                 for line in payload.get("candidate_summary", []):
@@ -1366,10 +1461,11 @@ def finalize_tasks(
         if not tasks_dir.exists():
             error_msg = f"Tasks directory not found: {tasks_dir}"
             if json_output:
-                print(json.dumps({"error": error_msg}))
+                _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+        wp_files = list(tasks_dir.glob("WP*.md"))
 
         spec_md = feature_dir / "spec.md"
         validate_requirement_mapping = spec_md.exists()
@@ -1391,6 +1487,13 @@ def finalize_tasks(
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
             wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
 
+        # Fallback: if tasks.md lacks requirement refs, recover from WP frontmatter.
+        # This keeps finalize-tasks deterministic even when an agent edits WP files first.
+        wp_requirement_refs_from_frontmatter = _parse_requirement_refs_from_wp_files(wp_files)
+        for wp_id, refs in wp_requirement_refs_from_frontmatter.items():
+            if refs and not wp_requirement_refs.get(wp_id):
+                wp_requirement_refs[wp_id] = refs
+
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
             # Check for circular dependencies
@@ -1398,7 +1501,7 @@ def finalize_tasks(
             if cycles:
                 error_msg = f"Circular dependencies detected: {cycles}"
                 if json_output:
-                    print(json.dumps({"error": error_msg, "cycles": cycles}))
+                    _emit_json({"error": error_msg, "cycles": cycles})
                 else:
                     console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
@@ -1411,14 +1514,13 @@ def finalize_tasks(
                 if not is_valid:
                     error_msg = f"Invalid dependencies for {wp_id}: {errors}"
                     if json_output:
-                        print(json.dumps({"error": error_msg, "wp_id": wp_id, "errors": errors}))
+                        _emit_json({"error": error_msg, "wp_id": wp_id, "errors": errors})
                     else:
                         console.print(f"[red]Error:[/red] Invalid dependencies for {wp_id}:")
                         for err in errors:
                             console.print(f"  - {err}")
                     raise typer.Exit(1)
 
-        wp_files = list(tasks_dir.glob("WP*.md"))
         # Validate requirement mapping only when spec.md is present.
         if validate_requirement_mapping:
             wp_ids: list[str] = []
@@ -1462,7 +1564,7 @@ def finalize_tasks(
                     "requirement_refs_parsed": wp_requirement_refs,
                 }
                 if json_output:
-                    print(json.dumps(payload))
+                    _emit_json(payload)
                 else:
                     console.print(f"[red]Error:[/red] {error_msg}")
                     if missing_requirement_refs_wps:
@@ -1602,29 +1704,31 @@ def finalize_tasks(
         except Exception as e:
             # Unexpected error
             if json_output:
-                print(json.dumps({"error": str(e)}))
+                _emit_json({"error": str(e)})
             else:
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1)
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "wp_count": len(work_packages),
-                "updated_wp_count": updated_count,
-                "tasks_dir": str(tasks_dir),
-                "commit_created": commit_created,
-                "commit_hash": commit_hash,
-                "files_committed": files_committed,
-                "dependencies_parsed": wp_dependencies,
-                "requirement_refs_parsed": wp_requirement_refs,
-            }))
+            _emit_json(
+                {
+                    "result": "success",
+                    "wp_count": len(work_packages),
+                    "updated_wp_count": updated_count,
+                    "tasks_dir": str(tasks_dir),
+                    "commit_created": commit_created,
+                    "commit_hash": commit_hash,
+                    "files_committed": files_committed,
+                    "dependencies_parsed": wp_dependencies,
+                    "requirement_refs_parsed": wp_requirement_refs,
+                }
+            )
 
     except typer.Exit:
         raise
     except Exception as e:
         if json_output:
-            print(json.dumps({"error": str(e)}))
+            _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -1698,6 +1802,43 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs
+
+
+def _normalize_requirement_refs_value(raw_value: object) -> list[str]:
+    """Normalize requirement_refs frontmatter values to canonical IDs."""
+    refs: list[str] = []
+    if isinstance(raw_value, list):
+        for item in raw_value:
+            if isinstance(item, str):
+                refs.extend(
+                    ref_id.upper()
+                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", item, re.IGNORECASE)
+                )
+    elif isinstance(raw_value, str):
+        refs.extend(
+            ref_id.upper()
+            for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", raw_value, re.IGNORECASE)
+        )
+
+    return list(dict.fromkeys(refs))
+
+
+def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
+    """Parse requirement refs directly from WP prompt frontmatter."""
+    parsed: dict[str, list[str]] = {}
+    for wp_file in wp_files:
+        wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+        if not wp_id_match:
+            continue
+        wp_id = wp_id_match.group(1)
+        try:
+            frontmatter, _ = read_frontmatter(wp_file)
+        except Exception:
+            parsed.setdefault(wp_id, [])
+            continue
+        refs = _normalize_requirement_refs_value(frontmatter.get("requirement_refs"))
+        parsed[wp_id] = refs
+    return parsed
 
 
 def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
