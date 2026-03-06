@@ -2,7 +2,7 @@
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
 scripts:
    sh: spec-kitty agent feature check-prerequisites --json --paths-only
-   ps: spec-kitty agent feature -Json -PathsOnly
+   ps: spec-kitty agent feature check-prerequisites --json --paths-only
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -22,27 +22,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the primary repository checkout.
+Run `{SCRIPT}` first and treat its JSON as canonical runtime context:
+- `target_branch` / `base_branch` (plus `TARGET_BRANCH` / `BASE_BRANCH` aliases)
+- `feature_dir`
+- `spec_file`
 
+Then verify:
 ```bash
-pwd
 git branch --show-current
 ```
-
-**Expected output:**
-- `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
-- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
-
-**If you see the main branch or main repository path:**
-
-⛔ **STOP - You are in the wrong location!**
-
-This command updates your feature's spec.md file. You must be in the primary repository checkout to ensure changes go to the correct location.
-
-**Correct the issue:**
-1. Navigate to your primary repository checkout: `cd primary repository checkout`
-2. Verify you're on the correct feature branch: `git branch --show-current`
-3. Then run this clarify command again
+Current branch must match `TARGET_BRANCH` from the JSON payload.
 
 ---
 
@@ -51,6 +40,7 @@ This command updates your feature's spec.md file. You must be in the primary rep
 After running `{SCRIPT}`, you will have paths to:
 - **feature_dir**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
 - **FEATURE_SPEC**: Absolute path to spec.md (the file you'll be clarifying)
+- **target_branch / base_branch**: Deterministic branch contract for this feature
 
 You may also have:
 - **plan.md**: If planning has started (optional)

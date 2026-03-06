@@ -55,25 +55,38 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before proceeding, verify you are in the planning repository:
 
+1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture:
+   - `target_branch` / `base_branch`
+   - `TARGET_BRANCH` / `BASE_BRANCH` (uppercase aliases)
+   - `feature_dir`, `artifact_files`, `artifact_dirs`
+
+   Treat this JSON as canonical branch context for this command. Do not read `meta.json` to infer branch expectations.
+
 **Check your current branch:**
 ```bash
 git branch --show-current
 ```
 
-**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
+**Expected output:** the value from `TARGET_BRANCH` (typically `main` or `2.x`)
 **If you see a feature branch:** You're in the wrong place. Return to the target branch:
 ```bash
 cd $(git rev-parse --show-toplevel)
-git checkout <target-branch>
+git checkout "$TARGET_BRANCH"
 ```
 
 Work packages are generated directly in `kitty-specs/###-feature/` and committed to the target branch. Worktrees are created later when implementing each work package.
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+1. **Setup**: Use the previously captured `check-prerequisites` JSON. Capture:
+   - `feature_dir`
+   - `artifact_files` / `artifact_dirs` (if present)
+   - `available_docs`
+   - `target_branch` / `base_branch`
+   All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
+   It also returns `runtime_vars.now_utc_iso` (`NOW_UTC_ISO`) for deterministic timestamp fields.
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
@@ -138,7 +151,9 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Correct structure: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
    - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY lane subdirectories
    - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
-   - Ensure `feature_dir/tasks/` exists (create as flat directory, NO subdirectories)
+   - Use `artifact_dirs.tasks_dir` when available.
+   - Do **not** shell out with `mkdir -p`; `create-feature` already creates `tasks/` in normal flow.
+   - If `tasks/` is missing unexpectedly, report the mismatch instead of improvising shell directory setup.
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
@@ -168,6 +183,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
    This step is MANDATORY for workspace-per-WP features. Without it:
    - Dependencies won't be in frontmatter
+   - Requirement refs won't be validated/normalized
    - Agents won't know which --base flag to use
    - Tasks won't be committed to target branch
 
@@ -220,6 +236,23 @@ subtasks: ["T001", "T002"]
 - With dependencies: `spec-kitty implement WP02 --base WP01`
 
 The WP prompt must show the correct command so agents don't branch from the wrong base.
+
+## Requirement Reference Mapping (MANDATORY)
+
+`finalize-tasks` validates requirement coverage from `tasks.md`. Each WP section must include a requirement mapping line in this format:
+
+```markdown
+### Requirement Refs
+- FR-001, FR-007
+```
+
+or
+
+```markdown
+**Requirements Refs**: FR-001, FR-007
+```
+
+Do not rely on WP frontmatter alone for requirement mapping; keep the canonical mapping in `tasks.md`.
 
 ## Work Package Sizing Guidelines (CRITICAL)
 
