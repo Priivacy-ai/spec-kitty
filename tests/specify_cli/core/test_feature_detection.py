@@ -131,6 +131,44 @@ def test_detect_env_var_numeric_feature_id(repo_with_features: Path):
     assert ctx.detection_method == "env_var_number"
 
 
+def test_detect_explicit_numeric_feature_id_missing_strict_raises(
+    repo_with_features: Path,
+):
+    with pytest.raises(NoFeatureFoundError) as exc_info:
+        detect_feature(repo_with_features, explicit_feature="099", mode="strict")
+    assert "No feature found for number '099'" in str(exc_info.value)
+
+
+def test_detect_explicit_numeric_feature_id_missing_lenient_returns_none(
+    repo_with_features: Path,
+):
+    assert detect_feature(repo_with_features, explicit_feature="099", mode="lenient") is None
+
+
+def test_detect_numeric_feature_id_ambiguous_strict_raises(tmp_path: Path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    kitty_specs = repo_root / "kitty-specs"
+    kitty_specs.mkdir()
+    (kitty_specs / "020-alpha").mkdir()
+    (kitty_specs / "020-beta").mkdir()
+
+    with pytest.raises(MultipleFeaturesError) as exc_info:
+        detect_feature(repo_root, explicit_feature="020", mode="strict")
+    assert "matches multiple features" in str(exc_info.value)
+
+
+def test_detect_numeric_feature_id_ambiguous_lenient_returns_none(tmp_path: Path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    kitty_specs = repo_root / "kitty-specs"
+    kitty_specs.mkdir()
+    (kitty_specs / "020-alpha").mkdir()
+    (kitty_specs / "020-beta").mkdir()
+
+    assert detect_feature(repo_root, env={"SPECIFY_FEATURE": "020"}, mode="lenient") is None
+
+
 def test_detect_env_var_with_whitespace(repo_with_features: Path):
     """Test SPECIFY_FEATURE env var strips whitespace."""
     env = {"SPECIFY_FEATURE": "  021-feature-b  "}
