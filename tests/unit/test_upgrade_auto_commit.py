@@ -358,6 +358,7 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
 def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     tmp_path: Path,
     monkeypatch,
+    capsys,
 ) -> None:
     """The JSON output of a no-migrations upgrade includes auto_committed / auto_commit_paths."""
     project_path = _setup_upgrade_project(tmp_path)
@@ -381,14 +382,6 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
         lambda repo_path, files_to_commit, commit_message, allow_empty=False: True,
     )
 
-    # Capture console output
-    captured_output: list[str] = []
-    monkeypatch.setattr(
-        upgrade_cmd.console,
-        "print",
-        lambda text, **kw: captured_output.append(str(text)),
-    )
-
     upgrade_cmd.upgrade(
         dry_run=False,
         force=True,
@@ -398,8 +391,7 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
         no_worktrees=True,
     )
 
-    assert len(captured_output) == 1
-    data = json.loads(captured_output[0])
+    data = json.loads(capsys.readouterr().out.strip())
     assert data["status"] == "up_to_date"
     assert data["auto_committed"] is True
     assert ".kittify/metadata.yaml" in data["auto_commit_paths"]
@@ -409,6 +401,7 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
 def test_upgrade_dry_run_skips_auto_commit(
     tmp_path: Path,
     monkeypatch,
+    capsys,
 ) -> None:
     """In dry-run mode the upgrade command must not auto-commit anything."""
     project_path = _setup_upgrade_project(tmp_path)
@@ -425,13 +418,6 @@ def test_upgrade_dry_run_skips_auto_commit(
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
 
-    captured_output: list[str] = []
-    monkeypatch.setattr(
-        upgrade_cmd.console,
-        "print",
-        lambda text, **kw: captured_output.append(str(text)),
-    )
-
     upgrade_cmd.upgrade(
         dry_run=True,
         force=True,
@@ -441,7 +427,7 @@ def test_upgrade_dry_run_skips_auto_commit(
         no_worktrees=True,
     )
 
-    data = json.loads(captured_output[0])
+    data = json.loads(capsys.readouterr().out.strip())
     assert data["auto_committed"] is False
     assert data["auto_commit_paths"] == []
     assert safe_commit_called["called"] is False
@@ -450,6 +436,7 @@ def test_upgrade_dry_run_skips_auto_commit(
 def test_upgrade_baseline_failure_skips_auto_commit(
     tmp_path: Path,
     monkeypatch,
+    capsys,
 ) -> None:
     """When the baseline git-status fails (None), auto-commit is skipped entirely."""
     project_path = _setup_upgrade_project(tmp_path)
@@ -466,13 +453,6 @@ def test_upgrade_baseline_failure_skips_auto_commit(
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
 
-    captured_output: list[str] = []
-    monkeypatch.setattr(
-        upgrade_cmd.console,
-        "print",
-        lambda text, **kw: captured_output.append(str(text)),
-    )
-
     upgrade_cmd.upgrade(
         dry_run=False,
         force=True,
@@ -482,7 +462,7 @@ def test_upgrade_baseline_failure_skips_auto_commit(
         no_worktrees=True,
     )
 
-    data = json.loads(captured_output[0])
+    data = json.loads(capsys.readouterr().out.strip())
     assert data["auto_committed"] is False
     assert data["auto_commit_paths"] == []
     assert safe_commit_called["called"] is False
@@ -536,6 +516,7 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
 def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
     tmp_path: Path,
     monkeypatch,
+    capsys,
 ) -> None:
     """When safe_commit fails, the JSON output includes a warning."""
     project_path = _setup_upgrade_project(tmp_path)
@@ -556,13 +537,6 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
         lambda repo_path, files_to_commit, commit_message, allow_empty=False: False,
     )
 
-    captured_output: list[str] = []
-    monkeypatch.setattr(
-        upgrade_cmd.console,
-        "print",
-        lambda text, **kw: captured_output.append(str(text)),
-    )
-
     upgrade_cmd.upgrade(
         dry_run=False,
         force=True,
@@ -572,7 +546,7 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
         no_worktrees=True,
     )
 
-    data = json.loads(captured_output[0])
+    data = json.loads(capsys.readouterr().out.strip())
     assert data["auto_committed"] is False
     assert len(data["warnings"]) == 1
     assert "review and commit manually" in data["warnings"][0]
