@@ -2,7 +2,7 @@
 description: Perform structured code review and kanban transitions for completed task prompt files.
 scripts:
   sh: spec-kitty agent feature check-prerequisites --json --include-tasks
-  ps: spec-kitty agent feature -Json -IncludeTasks
+  ps: spec-kitty agent feature check-prerequisites --json --include-tasks
 ---
 *Path: [templates/commands/review.md](templates/commands/review.md)*
 

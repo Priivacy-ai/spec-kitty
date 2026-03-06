@@ -16,7 +16,7 @@ cd /path/to/project/root  # Your planning repository
 
 # All planning artifacts are created in the planning repo and committed:
 # - kitty-specs/###-feature/spec.md → Created in planning repo
-# - Committed to target branch (meta.json → target_branch)
+# - Committed to target branch (from create-feature JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
@@ -107,7 +107,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Work in: **Planning repository** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
-- Commits to: target branch (`meta.json` → `target_branch`)
+- Commits to: target branch (from `create-feature --json` → `target_branch`)
 
 ## Outline
 
@@ -141,25 +141,27 @@ Given that feature description, do this:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
    - `feature_dir`: Absolute path to the feature directory inside the main repo
+   - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
    **IMPORTANT**: You must only ever run this command once. The JSON is provided in the terminal output - always refer to it to get the actual paths you're looking for.
 3. **Stay in the main repository**: No worktree is created during specify.
 
-4. Load the spec template from `.kittify/templates/spec-template.md` (or `templates/spec-template.md`) to understand required sections.
+4. Read the files created by `create-feature`:
+   - `<feature_dir>/spec.md` (already created, may be empty/template-filled)
+   - `<feature_dir>/meta.json` (already created with feature identity metadata)
 
-5. Create meta.json in the feature directory with:
-   ```json
-   {
-     "feature_number": "<number>",
-     "slug": "<full-slug>",
-     "friendly_name": "<Friendly Title>",
-     "mission": "<selected-mission>",
-     "source_description": "$ARGUMENTS",
-     "created_at": "<ISO timestamp>"
-   }
-   ```
+   **Do not recreate these files with blind write calls.** Read first, then update in place.
+
+5. Update `<feature_dir>/meta.json` only when fields need refinement:
+   - Keep existing identity fields (`feature_number`, `slug`, `feature_slug`, `created_at`) unchanged.
+   - Ensure `friendly_name` matches the user-confirmed title.
+   - Ensure `mission` reflects the selected mission.
+   - Optionally set/refresh `source_description` from the confirmed intent summary.
+   - Ensure `vcs` is present (`"git"` default).
+
+   **No shell timestamp generation**: never call `date` for this step; preserve the existing `created_at` from `create-feature`.
 
 6. Generate the specification content by following this flow:
     - Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`)
@@ -175,7 +177,7 @@ Given that feature description, do this:
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 
-7. Write the specification to `<feature_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+7. Update the existing `<feature_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 

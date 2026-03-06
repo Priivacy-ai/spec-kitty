@@ -45,7 +45,10 @@ spec-kitty constitution context --action plan --json
 
 This command runs in the **planning repository**, not in a worktree.
 
-- Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
+- Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
+  - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
+  - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
+  - Ensure `git branch --show-current` matches `target_branch`
 - Planning artifacts live in `kitty-specs/###-feature/`
 - The plan template is committed to the target branch after generation
 
@@ -115,6 +118,7 @@ Planning requirements (scale to complexity):
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
+   - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
 
    **Example**:
    ```bash

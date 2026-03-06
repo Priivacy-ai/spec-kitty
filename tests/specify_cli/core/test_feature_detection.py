@@ -102,6 +102,15 @@ def test_detect_explicit_feature(repo_with_features: Path):
     assert ctx.detection_method == "explicit"
 
 
+def test_detect_explicit_numeric_feature_id(repo_with_features: Path):
+    """Numeric --feature shorthand should resolve to full slug when unique."""
+    ctx = detect_feature(repo_with_features, explicit_feature="021")
+
+    assert ctx is not None
+    assert ctx.slug == "021-feature-b"
+    assert ctx.detection_method == "explicit_number"
+
+
 def test_detect_env_var(repo_with_features: Path):
     """Test SPECIFY_FEATURE env var."""
     env = {"SPECIFY_FEATURE": "021-feature-b"}
@@ -110,6 +119,16 @@ def test_detect_env_var(repo_with_features: Path):
     assert ctx is not None
     assert ctx.slug == "021-feature-b"
     assert ctx.detection_method == "env_var"
+
+
+def test_detect_env_var_numeric_feature_id(repo_with_features: Path):
+    """Numeric SPECIFY_FEATURE shorthand should resolve to full slug when unique."""
+    env = {"SPECIFY_FEATURE": "022"}
+    ctx = detect_feature(repo_with_features, env=env)
+
+    assert ctx is not None
+    assert ctx.slug == "022-feature-c"
+    assert ctx.detection_method == "env_var_number"
 
 
 def test_detect_env_var_with_whitespace(repo_with_features: Path):

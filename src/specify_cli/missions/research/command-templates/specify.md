@@ -16,7 +16,7 @@ cd /path/to/project/root  # Your planning repository
 
 # All planning artifacts are created in the planning repo and committed:
 # - kitty-specs/###-feature/spec.md → Created in planning repo
-# - Committed to target branch (meta.json → target_branch)
+# - Committed to target branch (from create-feature JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
@@ -100,7 +100,7 @@ During discovery, you MUST ask:
 
 - Work in: **Planning repository** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
-- Commits to: target branch (`meta.json` → `target_branch`)
+- Commits to: target branch (from `create-feature --json` → `target_branch`)
 
 ## Outline
 
@@ -123,36 +123,19 @@ When discovery is complete, run:
 spec-kitty agent feature create-feature "<slug>" --json
 ```
 
-Parse the JSON output for `feature` and `feature_dir`.
+Parse the JSON output for `feature`, `feature_dir`, `spec_file`, and `meta_file`.
 
-### 3. Create meta.json with deliverables_path
+### 3. Update existing meta.json with deliverables_path
 
-**CRITICAL**: Include `deliverables_path` in meta.json:
+`create-feature` already created `meta.json`. Read it first, then update only needed fields:
 
-```json
-{
-  "feature_number": "<number>",
-  "slug": "<full-slug>",
-  "friendly_name": "<Research Title>",
-  "mission": "research",
-  "deliverables_path": "<confirmed-path>",
-  "source_description": "$ARGUMENTS",
-  "created_at": "<ISO timestamp>"
-}
-```
+- `mission`: set to `"research"`
+- `deliverables_path`: set to the confirmed path
+- `friendly_name`: confirmed research title
+- optional `source_description`
 
-Example with default path:
-```json
-{
-  "feature_number": "018",
-  "slug": "018-market-research",
-  "friendly_name": "Market Research Analysis",
-  "mission": "research",
-  "deliverables_path": "docs/research/018-market-research/",
-  "source_description": "Research the competitive landscape",
-  "created_at": "2025-01-25T10:00:00Z"
-}
-```
+Preserve existing identity and timing fields (`feature_number`, `slug`, `created_at`, `target_branch`).
+Do **not** recreate the file or regenerate timestamps via shell commands.
 
 ### 4. Load Research Spec Template
 
@@ -168,7 +151,7 @@ Fill in:
 
 ### 6. Write Specification
 
-Write to `<feature_dir>/spec.md`
+Update the existing `<feature_dir>/spec.md`
 
 ### 7. Validation
 
