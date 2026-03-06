@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-03-06
+
+### 🐛 Fixed
+
+- **Upgrade JSON machine-parseability hardening (`#254`)**: `spec-kitty upgrade --json` now emits raw JSON output without Rich console wrapping.
+- **Upgrade migration status consistency (`#256`)**: non-applicable migrations are reported as `skipped` instead of incorrectly marked as applied.
+
+### 🔧 Changed
+
+- **Contract hardening closeout (`#213`-`#218`)**: merged deterministic branch/runtime contracts, typed artifact-path payloads, merge/preflight JSON enrichment, and banner suppression in agent contexts.
+- **Codex/Copilot slash-flow reliability (`#128`)**: integrated slash-command output stability improvements via deterministic JSON/banners/template alignment.
+- **Worktree/preflight stability (`#226`)**: released preflight and command-contract hardening on the 2.x line for end-to-end spec→implement→review runs.
+
 ## [2.0.2] - 2026-02-27
 
 ### ✅ Added
