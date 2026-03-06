@@ -7,6 +7,18 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-03-06
+
+### 🐛 Fixed
+
+- **Upgrade JSON machine-parseability hardening (`#254`)**: `spec-kitty upgrade --json` now emits raw JSON output without Rich console wrapping side effects.
+- **Upgrade migration status consistency (`#256`)**: non-applicable migrations are now reported as `skipped` instead of being incorrectly listed as applied.
+- **Template schema readiness gate**: software-dev specify template now contains an explicit `meta.json` schema block including `"target_branch"` and `"vcs"` keys.
+
+### 🔧 Changed
+
+- **Contract hardening closeout (`#213`-`#218`)**: promoted deterministic branch/runtime JSON contracts, safer merge/preflight JSON envelopes, and stricter banner suppression in agent contexts.
+
 ## [1.0.2] - 2026-03-04
 
 ### 🔧 Changed

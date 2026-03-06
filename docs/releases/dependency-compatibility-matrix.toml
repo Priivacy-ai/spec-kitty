@@ -27,3 +27,14 @@ notes = "Legacy release with prerelease events pin; do not copy for new releases
 
 [cli."1.0.2"]
 notes = "Release train pinned to MIT-cleared dependency versions on PyPI."
+
+[cli."1.0.3".dependencies]
+"spec-kitty-events" = "0.4.1"
+
+[cli."1.0.3".train]
+"spec-kitty-events" = "0.4.1"
+"spec-kitty-runtime" = "0.4.0"
+"spec-kitty-tracker" = "0.1.0"
+
+[cli."1.0.3"]
+notes = "Patch release for upgrade JSON correctness and contract-hardening closeout."
