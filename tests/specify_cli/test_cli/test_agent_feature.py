@@ -47,6 +47,10 @@ class TestCreateFeatureCommand:
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
         assert "feature_dir" in output
+        assert output["target_branch"] == "main"
+        assert output["base_branch"] == "main"
+        assert output["TARGET_BRANCH"] == "main"
+        assert output["BASE_BRANCH"] == "main"
 
         # Verify feature directory was created
         feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -386,7 +390,16 @@ class TestCheckPrerequisitesCommand:
         # Verify
         assert result.exit_code == 0
         output = json.loads(result.stdout)
-        assert output == paths
+        assert output["spec_file"] == paths["spec_file"]
+        assert output["target_branch"] == "main"
+        assert output["base_branch"] == "main"
+        assert output["TARGET_BRANCH"] == "main"
+        assert output["BASE_BRANCH"] == "main"
+        assert "runtime_vars" in output
+        assert "now_utc_iso" in output["runtime_vars"]
+        assert output["FEATURE_SPEC"] == paths["spec_file"]
+        assert "SPECS_DIR" in output
+        assert "spec_kitty_version" in output
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -719,6 +732,68 @@ title: "WP01"
         assert payload["error"] == "Requirement mapping validation failed"
         assert payload["missing_requirement_refs_wps"] == ["WP01"]
 
+    def test_uses_wp_frontmatter_requirement_refs_when_tasks_md_missing_refs(self, tmp_path: Path):
+        """Fallback should parse requirement_refs from WP frontmatter when tasks.md lacks them."""
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (feature_dir / "spec.md").write_text(
+            """# Spec
+## Functional Requirements
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | First requirement | Covered by WP01. | proposed |
+""",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n**Dependencies**: None\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP01-test.md").write_text(
+            """---
+work_package_id: "WP01"
+title: "WP01"
+requirement_refs:
+  - FR-001
+---
+
+# WP01
+""",
+            encoding="utf-8",
+        )
+
+        with (
+            patch(
+                "specify_cli.cli.commands.agent.feature.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature._find_feature_directory",
+                return_value=feature_dir,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature._show_branch_context",
+                return_value=(None, "main"),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature.safe_commit",
+                return_value=True,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.feature.run_command",
+                return_value=(0, "a" * 40, ""),
+            ),
+        ):
+            result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 0
+        json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
+        assert json_lines, f"Expected JSON output, got: {result.stdout!r}"
+        payload = json.loads(json_lines[-1])
+        assert payload["result"] == "success"
+        assert payload["requirement_refs_parsed"]["WP01"] == ["FR-001"]
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
@@ -761,6 +836,10 @@ class TestSetupPlanCommand:
         assert "plan_file" in output
         assert "feature_dir" in output
         assert output["spec_file"] == str(feature_dir / "spec.md")
+        assert output["target_branch"] == "main"
+        assert output["base_branch"] == "main"
+        assert output["TARGET_BRANCH"] == "main"
+        assert output["BASE_BRANCH"] == "main"
 
         # Verify plan file was created
         plan_file = feature_dir / "plan.md"

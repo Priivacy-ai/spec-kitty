@@ -34,7 +34,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 This command runs in the **planning repository**, not in a worktree.
 
-- Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
+- Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
+  - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
+  - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
+  - Ensure `git branch --show-current` matches `target_branch`
 - Planning artifacts live in `kitty-specs/###-feature/`
 - The plan template is committed to the target branch after generation
 
@@ -86,6 +89,7 @@ Planning requirements (scale to complexity):
    - `spec_file`: absolute path to resolved spec.md
    - `plan_file`: absolute path to created plan.md
    - `feature_dir`: absolute path to feature directory
+   - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
 
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 

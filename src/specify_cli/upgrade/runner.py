@@ -98,20 +98,18 @@ class MigrationRunner:
 
         # Apply each migration to main project
         for migration in migrations:
-            migration_result = self._apply_migration(migration, metadata, dry_run)
+            migration_result, status = self._apply_migration(migration, metadata, dry_run)
+            result.warnings.extend(migration_result.warnings)
 
-            if migration_result.success:
+            if status == "applied":
                 result.migrations_applied.append(migration.migration_id)
-                result.warnings.extend(migration_result.warnings)
+            elif status == "skipped":
+                result.migrations_skipped.append(migration.migration_id)
             else:
-                # Check if it was skipped (already applied)
-                if metadata.has_migration(migration.migration_id):
-                    result.migrations_skipped.append(migration.migration_id)
-                else:
-                    result.success = False
-                    result.errors.extend(migration_result.errors)
-                    # Stop on first failure
-                    break
+                result.success = False
+                result.errors.extend(migration_result.errors)
+                # Stop on first failure
+                break
 
         # Update and save metadata for main project
         if not dry_run and result.success:
@@ -139,7 +137,7 @@ class MigrationRunner:
         migration: BaseMigration,
         metadata: ProjectMetadata,
         dry_run: bool,
-    ) -> MigrationResult:
+    ) -> tuple[MigrationResult, str]:
         """Apply a single migration.
 
         Args:
@@ -148,13 +146,17 @@ class MigrationRunner:
             dry_run: Whether to simulate only
 
         Returns:
-            MigrationResult with details
+            Tuple of (MigrationResult, status) where status is one of
+            ``applied``, ``skipped``, or ``failed``.
         """
         # Skip if already applied
         if metadata.has_migration(migration.migration_id):
-            return MigrationResult(
-                success=True,
-                warnings=[f"Migration {migration.migration_id} already applied, skipping"],
+            return (
+                MigrationResult(
+                    success=True,
+                    warnings=[f"Migration {migration.migration_id} already applied, skipping"],
+                ),
+                "skipped",
             )
 
         # Check if migration is needed via detection
@@ -164,19 +166,25 @@ class MigrationRunner:
                 metadata.record_migration(
                     migration.migration_id, "skipped", "Not applicable"
                 )
-            return MigrationResult(
-                success=True,
-                warnings=[
-                    f"Migration {migration.migration_id} not needed (project already in target state)"
-                ],
+            return (
+                MigrationResult(
+                    success=True,
+                    warnings=[
+                        f"Migration {migration.migration_id} not needed (project already in target state)"
+                    ],
+                ),
+                "skipped",
             )
 
         # Check if safe to apply
         can_apply, reason = migration.can_apply(self.project_path)
         if not can_apply:
-            return MigrationResult(
-                success=False,
-                errors=[f"Cannot apply {migration.migration_id}: {reason}"],
+            return (
+                MigrationResult(
+                    success=False,
+                    errors=[f"Cannot apply {migration.migration_id}: {reason}"],
+                ),
+                "failed",
             )
 
         # Apply the migration
@@ -190,7 +198,7 @@ class MigrationRunner:
                 "; ".join(result.changes_made) if result.changes_made else None,
             )
 
-        return result
+        return result, ("applied" if result.success else "failed")
 
     def _upgrade_worktrees(
         self,

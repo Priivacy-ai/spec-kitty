@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
@@ -250,6 +251,38 @@ def test_merge_json_dry_run_requires_feature_on_target_branch(monkeypatch, tmp_p
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
     assert "Already on 2.x" in payload["error"]
+
+
+def test_merge_git_preflight_json_payload_includes_cli_version(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+
+    monkeypatch.setattr(
+        merge_module,
+        "run_git_preflight",
+        lambda *_args, **_kwargs: type("Preflight", (), {"passed": False})(),
+    )
+    monkeypatch.setattr(
+        merge_module,
+        "build_git_preflight_failure_payload",
+        lambda *_args, **_kwargs: {
+            "error_code": "GIT_PREFLIGHT_FAILED",
+            "error": "Git preflight checks failed before merge.",
+            "remediation": ["git config --global --add safe.directory /repo"],
+        },
+    )
+
+    with pytest.raises(typer.Exit):
+        merge_module._enforce_git_preflight(repo_root, json_output=True)
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
+    assert "spec_kitty_version" in payload
 
 
 def test_merge_json_dry_run_workspace_per_wp_plan(monkeypatch, tmp_path: Path) -> None:

@@ -172,7 +172,7 @@ def upgrade(
     # Check if this is a Spec Kitty project
     if not kittify_dir.exists() and not specify_dir.exists():
         if json_output:
-            console.print(json.dumps({"error": "Not a Spec Kitty project"}))
+            print(json.dumps({"error": "Not a Spec Kitty project"}))
         else:
             console.print("[red]Error:[/red] Not a Spec Kitty project.")
             console.print(
@@ -234,7 +234,7 @@ def upgrade(
 
         if json_output:
             warnings = [auto_commit_warning] if auto_commit_warning else []
-            console.print(
+            print(
                 json.dumps(
                     {
                         "status": "up_to_date",
@@ -347,7 +347,7 @@ def upgrade(
             "auto_committed": auto_committed,
             "auto_commit_paths": auto_commit_paths,
         }
-        console.print(json.dumps(output, indent=2))
+        print(json.dumps(output))
         return
 
     # Display results

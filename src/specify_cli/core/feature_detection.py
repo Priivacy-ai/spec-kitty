@@ -152,6 +152,43 @@ def _list_all_features(repo_root: Path) -> list[str]:
     return sorted(features)
 
 
+def _resolve_numeric_feature_slug(
+    feature_number: str,
+    repo_root: Path,
+    *,
+    mode: Literal["strict", "lenient"],
+) -> Optional[str]:
+    """Resolve a 3-digit feature number (e.g., ``019``) to full slug.
+
+    This is a compatibility affordance for agents that pass only the numeric
+    feature id after parsing logs or UI text.
+    """
+    all_features = _list_all_features(repo_root)
+    matches = [slug for slug in all_features if slug.startswith(f"{feature_number}-")]
+
+    if len(matches) == 1:
+        return matches[0]
+
+    if len(matches) > 1:
+        error_msg = (
+            f"Feature number '{feature_number}' matches multiple features:\n"
+            + "\n".join(f"  - {slug}" for slug in matches)
+            + "\n\nUse the full slug with --feature <###-feature-name>."
+        )
+        if mode == "strict":
+            raise MultipleFeaturesError(matches, error_msg)
+        return None
+
+    error_msg = (
+        f"No feature found for number '{feature_number}'.\n\n"
+        + "Available features:\n"
+        + "\n".join(f"  - {slug}" for slug in all_features[:20])
+    )
+    if mode == "strict":
+        raise NoFeatureFoundError(error_msg)
+    return None
+
+
 def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
     """Detect feature from git branch name.
 
@@ -413,12 +450,26 @@ def detect_feature(
     # Priority 1: Explicit --feature parameter
     if explicit_feature:
         detected_slug = explicit_feature.strip()
-        detection_method = "explicit"
+        if re.fullmatch(r"\d{3}", detected_slug):
+            resolved = _resolve_numeric_feature_slug(detected_slug, repo_root, mode=mode)
+            if resolved is None:
+                return None
+            detected_slug = resolved
+            detection_method = "explicit_number"
+        else:
+            detection_method = "explicit"
 
     # Priority 2: SPECIFY_FEATURE environment variable
     elif "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
         detected_slug = env["SPECIFY_FEATURE"].strip()
-        detection_method = "env_var"
+        if re.fullmatch(r"\d{3}", detected_slug):
+            resolved = _resolve_numeric_feature_slug(detected_slug, repo_root, mode=mode)
+            if resolved is None:
+                return None
+            detected_slug = resolved
+            detection_method = "env_var_number"
+        else:
+            detection_method = "env_var"
 
     # Priority 3: Git branch name
     elif (branch_slug := _detect_from_git_branch(repo_root)):

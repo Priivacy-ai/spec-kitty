@@ -27,6 +27,23 @@ def test_banner_scope_is_limited_to_init_and_version(argv: list[str], expected: 
     assert helpers._should_render_banner_for_invocation(argv) is expected
 
 
+def test_banner_can_be_explicitly_disabled_by_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_NO_BANNER", "true")
+    assert helpers._should_render_banner_for_invocation(["init"]) is False
+
+
+@pytest.mark.parametrize(
+    "marker",
+    ["CLAUDECODE", "CLAUDE_CODE", "CODEX", "OPENCODE", "CURSOR_TRACE_ID"],
+)
+def test_banner_is_suppressed_for_agent_runtime_markers(
+    monkeypatch: pytest.MonkeyPatch,
+    marker: str,
+) -> None:
+    monkeypatch.setenv(marker, "1")
+    assert helpers._should_render_banner_for_invocation(["init"]) is False
+
+
 def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> None:
     """--version should still render the banner before printing version text."""
     calls: list[bool] = []
