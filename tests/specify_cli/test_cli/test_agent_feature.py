@@ -789,7 +789,9 @@ requirement_refs:
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
         assert result.exit_code == 0
-        payload = json.loads(result.stdout.strip().split("\n")[0])
+        json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
+        assert json_lines, f"Expected JSON output, got: {result.stdout!r}"
+        payload = json.loads(json_lines[-1])
         assert payload["result"] == "success"
         assert payload["requirement_refs_parsed"]["WP01"] == ["FR-001"]
 
