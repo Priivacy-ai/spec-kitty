@@ -188,3 +188,12 @@ This is intentional and correct - it ensures a single source of truth for projec
 - 🧠 **Context**: Read what you need; don’t forget what you already learned.  
 - ✅ **Quality**: Follow secure, tested, documented practices.  
 - 📝 **Git**: Commit cleanly with clear messages.
+
+## 7. Branching and Pinning Policy
+
+- This repository intentionally has two long-lived lines: `main` for stable 1.x maintenance and `2.x` for next-generation development.
+- Every pull request must target exactly one long-lived line. Do not combine 1.x and 2.x scope in a single pull request.
+- If a change must exist on both lines, propagate it explicitly with merge or cherry-pick and record source commit IDs.
+- Pin cross-repo dependencies and references to immutable commit SHAs or release tags.
+- Do not pin release or production workflows to moving branch names.
+- Keep any local branch or ref overrides uncommitted.

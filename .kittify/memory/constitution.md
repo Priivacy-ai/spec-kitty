@@ -269,3 +269,15 @@ Exceptions discussed case-by-case. Strong justification required.
 **Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
 **License:** MIT (All Rights Reserved for Priivacy AI code)
+
+
+## Branching and Pinning Governance (2026-03-07)
+
+- This repository intentionally has two long-lived lines:
+  - `main` for stable 1.x maintenance and releases.
+  - `2.x` for next-generation development.
+- Every pull request must target exactly one long-lived line.
+- Cross-line propagation must be explicit by merge or cherry-pick, with source commit IDs recorded.
+- Pin dependencies and cross-repo references to immutable commit SHAs or release tags.
+- Never use moving branch refs as release or production pins.
+- Keep temporary local pin or branch overrides uncommitted.

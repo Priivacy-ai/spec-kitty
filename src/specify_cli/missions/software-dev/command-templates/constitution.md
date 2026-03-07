@@ -430,3 +430,14 @@ After writing, provide:
 - Keep responses concise and user-focused.
 - Ensure the constitution stays lean (1-3 pages, not 10 pages).
 - If user chooses to skip entirely, still create the minimal placeholder file and exit successfully.
+
+## Branching and Pinning Governance (2026-03-07)
+
+- This repository intentionally has two long-lived lines:
+  - `main` for stable 1.x maintenance and releases.
+  - `2.x` for next-generation development.
+- Every pull request must target exactly one long-lived line.
+- Cross-line propagation must be explicit by merge or cherry-pick, with source commit IDs recorded.
+- Pin dependencies and cross-repo references to immutable commit SHAs or release tags.
+- Never use moving branch refs as release or production pins.
+- Keep temporary local pin or branch overrides uncommitted.
