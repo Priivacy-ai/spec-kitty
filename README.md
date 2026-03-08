@@ -573,7 +573,7 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 - Multiple features (each with its own spec/plan/tasks)
 - Shared automation under `.kittify/`
 
-**Commands**: Initialize with `spec-kitty init my-project` (or `spec-kitty init --here` for the current directory).
+**Commands**: Initialize with `spec-kitty init` for the current directory by default (or pass `spec-kitty init my-project` to create a project directory).
 
 ---
 
@@ -721,7 +721,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 
 | Argument/Option        | Type     | Description                                                                  |
 |------------------------|----------|------------------------------------------------------------------------------|
-| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
+| `<project-name>`       | Argument | Name for your new project directory (omit to initialize in the current directory, same as `--here`) |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
 | `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
 | `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
@@ -739,7 +739,10 @@ If you omit `--mission`, the CLI will prompt you to pick one during `spec-kitty 
 ### Examples
 
 ```bash
-# Basic project initialization
+# Basic initialization in current directory (default)
+spec-kitty init --ai claude
+
+# Basic project initialization in a new directory
 spec-kitty init my-project
 
 # Initialize with specific AI assistant

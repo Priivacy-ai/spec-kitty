@@ -13,6 +13,7 @@
 Spec Kitty CLI - setup tooling for Spec Kitty projects.
 
 Usage:
+    spec-kitty init
     spec-kitty init <project-name>
     spec-kitty init .
     spec-kitty init --here
