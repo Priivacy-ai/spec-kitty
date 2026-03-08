@@ -462,7 +462,7 @@ def test_init_non_interactive_no_project_name_allows_force_for_nonempty_director
 def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
     cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    app, _, _ = cli_app
+    app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
     (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
     monkeypatch.setattr(init_module, "_is_non_interactive_mode", lambda flag: False)
@@ -470,26 +470,9 @@ def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
 
     def fake_confirm(prompt: str) -> bool:
         confirm_prompts.append(prompt)
-        return True
+        return False
 
     monkeypatch.setattr(init_module.typer, "confirm", fake_confirm)
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        target = project_path / f".{agent_key}" / f"run.{script}"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(agent_key, encoding="utf-8")
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
 
     runner = CliRunner()
     result = runner.invoke(
@@ -505,7 +488,8 @@ def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
     )
 
     assert result.exit_code == 0, result.output
-    assert (tmp_path / ".templates").exists()
+    console_output = console.file.getvalue()
+    assert "Operation cancelled" in console_output
     assert confirm_prompts
 
 
