@@ -154,10 +154,10 @@
 **Estimated Prompt Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T024 Create `sync_feature_dossier(feature_dir, namespace_ref, body_queue, emitter)` function signature and control flow
-- [ ] T025 Wire `Indexer.index_feature()` → `emit_artifact_indexed()` (existing) → `prepare_body_uploads()` (new from WP03)
-- [ ] T026 Handle partial failures: event emission success + body enqueue failure = log warning, continue (non-fatal)
-- [ ] T027 Write `tests/specify_cli/sync/test_dossier_pipeline.py` with integration tests for full pipeline
+- [x] T024 Create `sync_feature_dossier(feature_dir, namespace_ref, body_queue, emitter)` function signature and control flow
+- [x] T025 Wire `Indexer.index_feature()` → `emit_artifact_indexed()` (existing) → `prepare_body_uploads()` (new from WP03)
+- [x] T026 Handle partial failures: event emission success + body enqueue failure = log warning, continue (non-fatal)
+- [x] T027 Write `tests/specify_cli/sync/test_dossier_pipeline.py` with integration tests for full pipeline
 
 ### Implementation Notes
 - This is the ONLY place body uploads are prepared — `BackgroundSyncService` only drains already-enqueued work
