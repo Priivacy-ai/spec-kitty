@@ -123,11 +123,11 @@
 **Estimated Prompt Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T019 Implement `push_content(task, auth_token, server_url)` HTTP POST to `/api/dossier/push-content/`
-- [ ] T020 Implement response classification into `UploadOutcome` (201 stored, 200 already_exists, 400 bad_request, 401 unauthorized, 429 rate_limited, 5xx server_error)
-- [ ] T021 Implement 404 sub-code dispatch: `index_entry_not_found` (retryable per FR-008) vs `namespace_not_found` (fatal/poison)
-- [ ] T022 Build request body with full namespace tuple + artifact payload (`artifact_path`, `content_hash`, `hash_algorithm`, `content_body` per FR-002/FR-003)
-- [ ] T023 Write `tests/specify_cli/sync/test_body_transport.py` with requests mocking for all response codes
+- [x] T019 Implement `push_content(task, auth_token, server_url)` HTTP POST to `/api/dossier/push-content/`
+- [x] T020 Implement response classification into `UploadOutcome` (201 stored, 200 already_exists, 400 bad_request, 401 unauthorized, 429 rate_limited, 5xx server_error)
+- [x] T021 Implement 404 sub-code dispatch: `index_entry_not_found` (retryable per FR-008) vs `namespace_not_found` (fatal/poison)
+- [x] T022 Build request body with full namespace tuple + artifact payload (`artifact_path`, `content_hash`, `hash_algorithm`, `content_body` per FR-002/FR-003)
+- [x] T023 Write `tests/specify_cli/sync/test_body_transport.py` with requests mocking for all response codes
 
 ### Implementation Notes
 - Uses existing `AuthClient` and `requests` — no new auth flow (C-002)
