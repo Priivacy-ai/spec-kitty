@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Core Implementation
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 042-model-selection-per-task
 base_commit: cd9aec8b060c3603e8eb509ad8cf777751135653
@@ -15,8 +15,8 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: "claude-sonnet-4-6"
 shell_pid: "40682"
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Zohar Stolar"
 history:
 - timestamp: '2026-03-09T11:13:06Z'
   lane: planned
@@ -402,3 +402,4 @@ Reviewers should verify:
 - 2026-03-09T11:21:04Z – claude-sonnet-4-6 – shell_pid=38532 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T11:36:46Z – claude-sonnet-4-6 – shell_pid=38532 – lane=for_review – Implemented global_config.py and m_2_0_4_model_injection.py. Auto-registration verified. Smoke tests pass.
 - 2026-03-09T11:39:53Z – claude-sonnet-4-6 – shell_pid=40682 – lane=doing – Started review via workflow command
+- 2026-03-09T11:47:11Z – claude-sonnet-4-6 – shell_pid=40682 – lane=done – Review passed. Fixed: import convention (m_0_9_1 alias), removed dead FrontmatterError except, added detect() comment, Optional->Path|None. Tests covered by WP02.
