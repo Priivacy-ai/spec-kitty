@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-import toml
+import toml  # type: ignore[import-untyped]
 
 
 class SyncConfig:

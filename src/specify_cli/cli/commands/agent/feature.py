@@ -43,7 +43,7 @@ from specify_cli.mission import get_feature_mission_key
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 import contextlib
 
-app = typer.Typer(name="feature", help="Feature lifecycle commands for AI agents", no_args_is_help=True)
+app: typer.Typer = typer.Typer(name="feature", help="Feature lifecycle commands for AI agents", no_args_is_help=True)
 
 console = Console()
 
@@ -64,7 +64,7 @@ def _emit_json(payload: dict[str, object]) -> None:
 
 def _utc_now_iso() -> str:
     """Return deterministic UTC timestamp string for prompt/runtime variables."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _read_feature_meta(feature_dir: Path) -> dict[str, object]:
@@ -912,6 +912,7 @@ def setup_plan(  # noqa: C901
         # T014 + T016: Documentation mission wiring for plan
         mission_key = get_feature_mission_key(feature_dir)
         generators_detected = []
+        gap_analysis_path = None
 
         if mission_key == "documentation":
             from specify_cli.doc_state import (
@@ -957,6 +958,7 @@ def setup_plan(  # noqa: C901
                                 )
                             except Exception:  # noqa: S110
                                 pass  # Non-fatal: agent can commit separately
+                            gap_analysis_path = str(gap_analysis_output)
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
                                 console.print(
@@ -1670,7 +1672,6 @@ def finalize_tasks(  # noqa: C901
                         "requirement_refs_parsed": wp_requirement_refs,
                     }
                 )
-            )
 
     except typer.Exit:
         raise

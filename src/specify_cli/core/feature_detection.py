@@ -160,7 +160,7 @@ def _resolve_numeric_feature_slug(
     repo_root: Path,
     *,
     mode: Literal["strict", "lenient"],
-) -> Optional[str]:
+) -> str | None:
     """Resolve a 3-digit feature number (e.g., ``019``) to full slug.
 
     This is a compatibility affordance for agents that pass only the numeric
