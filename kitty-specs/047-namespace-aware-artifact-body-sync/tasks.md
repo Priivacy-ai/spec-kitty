@@ -90,12 +90,12 @@
 **Estimated Prompt Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T013 Implement `_is_supported_surface()` matching FR-004 artifact surfaces (`spec.md`, `plan.md`, `tasks.md`, `research.md`, `quickstart.md`, `data-model.md`, `research/**`, `contracts/**`, `checklists/**`, `tasks/WP*.md`)
-- [ ] T014 Implement `_is_supported_format()` for FR-005 inline text formats (`.md`, `.json`, `.yaml`, `.yml`, `.csv`)
-- [ ] T015 Implement `_check_size_limit()` for 512 KiB inline limit + binary skip (FR-006)
-- [ ] T016 Implement `_read_and_rehash()` — read file content as UTF-8, compute SHA-256, compare to `ArtifactRef.content_hash_sha256`, skip on mismatch
-- [ ] T017 Implement `prepare_body_uploads(artifacts, namespace_ref, body_queue)` orchestrating all filters with per-file `UploadOutcome` diagnostics
-- [ ] T018 Write `tests/specify_cli/sync/test_body_upload.py` covering filter logic, re-hash guard, skip reasons, and integration with body queue
+- [x] T013 Implement `_is_supported_surface()` matching FR-004 artifact surfaces (`spec.md`, `plan.md`, `tasks.md`, `research.md`, `quickstart.md`, `data-model.md`, `research/**`, `contracts/**`, `checklists/**`, `tasks/WP*.md`)
+- [x] T014 Implement `_is_supported_format()` for FR-005 inline text formats (`.md`, `.json`, `.yaml`, `.yml`, `.csv`)
+- [x] T015 Implement `_check_size_limit()` for 512 KiB inline limit + binary skip (FR-006)
+- [x] T016 Implement `_read_and_rehash()` — read file content as UTF-8, compute SHA-256, compare to `ArtifactRef.content_hash_sha256`, skip on mismatch
+- [x] T017 Implement `prepare_body_uploads(artifacts, namespace_ref, body_queue)` orchestrating all filters with per-file `UploadOutcome` diagnostics
+- [x] T018 Write `tests/specify_cli/sync/test_body_upload.py` covering filter logic, re-hash guard, skip reasons, and integration with body queue
 
 ### Implementation Notes
 - Input: `List[ArtifactRef]` from `Indexer.index_feature()` + `NamespaceRef` + `OfflineBodyUploadQueue`
