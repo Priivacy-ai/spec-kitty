@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Documentation
-lane: "for_review"
+lane: "done"
 dependencies: [WP01]
 base_branch: 042-model-selection-per-task-WP01
 base_commit: e1eb8bb8122403f0c764b9c202b183bf5306a441
@@ -12,8 +12,8 @@ phase: Phase 2 - Validation
 assignee: ''
 agent: "claude-sonnet-4-6"
 shell_pid: "41835"
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Zohar Stolar"
 history:
 - timestamp: '2026-03-09T11:13:06Z'
   lane: planned
@@ -166,3 +166,4 @@ Reviewers should verify:
 - 2026-03-09T11:13:06Z – system – lane=planned – Prompt created.
 - 2026-03-09T11:47:48Z – claude-sonnet-4-6 – shell_pid=41835 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T11:59:10Z – claude-sonnet-4-6 – shell_pid=41835 – lane=for_review – Added docs/how-to/configure-model-selection.md and extended reference/configuration.md with global config schema
+- 2026-03-09T12:15:06Z – claude-sonnet-4-6 – shell_pid=41835 – lane=done – Documentation complete: how-to guide, reference config section, index link, TOC entry.
