@@ -217,10 +217,10 @@
 **Estimated Prompt Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T034 Add body upload queue stats and inspection to `src/specify_cli/sync/diagnose.py`
-- [ ] T035 Implement per-artifact upload result logging per FR-012 (`uploaded`, `already_exists`, `queued`, `skipped`, `failed` with reason)
-- [ ] T036 Write `tests/specify_cli/sync/test_body_integration.py` — end-to-end tests: online sync, offline queue+replay, retry with backoff, idempotency, cross-namespace isolation
-- [ ] T037 Run `mypy --strict` on all new modules and fix any type errors
+- [x] T034 Add body upload queue stats and inspection to `src/specify_cli/sync/diagnose.py`
+- [x] T035 Implement per-artifact upload result logging per FR-012 (`uploaded`, `already_exists`, `queued`, `skipped`, `failed` with reason)
+- [x] T036 Write `tests/specify_cli/sync/test_body_integration.py` — end-to-end tests: online sync, offline queue+replay, retry with backoff, idempotency, cross-namespace isolation
+- [x] T037 Run `mypy --strict` on all new modules and fix any type errors
 
 ### Implementation Notes
 - Diagnostics should mirror existing event queue inspection pattern in `diagnose.py`
