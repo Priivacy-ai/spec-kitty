@@ -1,10 +1,13 @@
 ---
 work_package_id: WP05
 title: Dossier Pipeline Orchestration
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
 - WP01
+base_branch: 047-namespace-aware-artifact-body-sync-WP05-merge-base
+base_commit: 86b3def9f0555822d369d0e1a66edf4fc1f9b49f
+created_at: '2026-03-09T08:59:44.340051+00:00'
 subtasks:
 - T024
 - T025
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 3 - Integration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "57622"
 review_status: ''
 reviewed_by: ''
 history:
