@@ -31,6 +31,7 @@ from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 
 if TYPE_CHECKING:
     from .background import BackgroundSyncService
+    from .body_queue import OfflineBodyUploadQueue
     from .client import WebSocketClient
     from .emitter import EventEmitter
 
@@ -78,6 +79,7 @@ class SyncRuntime:
     background_service: BackgroundSyncService | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     emitter: EventEmitter | None = field(default=None, repr=False)
+    body_queue: OfflineBodyUploadQueue | None = field(default=None, repr=False)
     started: bool = False
 
     def start(self) -> None:
@@ -102,6 +104,13 @@ class SyncRuntime:
         # Start background service (use existing singleton)
         from .background import get_sync_service
         self.background_service = get_sync_service()
+
+        # Create body queue sharing same DB as event queue (C-001)
+        from .body_queue import OfflineBodyUploadQueue
+        self.body_queue = OfflineBodyUploadQueue(
+            db_path=self.background_service.queue.db_path,
+        )
+        self.background_service._body_queue = self.body_queue
 
         # Connect WebSocket if authenticated
         self._connect_websocket_if_authenticated()
@@ -191,6 +200,7 @@ class SyncRuntime:
             self.background_service.stop()
             self.background_service = None
 
+        self.body_queue = None
         self.started = False
         logger.debug("SyncRuntime stopped")
 
