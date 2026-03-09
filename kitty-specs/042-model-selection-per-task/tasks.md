@@ -82,7 +82,7 @@ description: "Work package task list for 042-model-selection-per-task"
 **Estimated size**: ~200 lines
 
 ### Included Subtasks
-- [ ] T007 Add model-selection section to `docs/` (new file or extend existing config docs) with schema, example, and known command names
+- [x] T007 Add model-selection section to `docs/` (new file or extend existing config docs) with schema, example, and known command names
 
 ### Implementation Notes
 - Check `docs/` for existing configuration documentation to extend rather than create a new file
