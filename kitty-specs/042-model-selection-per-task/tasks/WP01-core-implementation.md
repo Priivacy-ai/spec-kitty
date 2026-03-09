@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Core Implementation
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 042-model-selection-per-task
+base_commit: cd9aec8b060c3603e8eb509ad8cf777751135653
+created_at: '2026-03-09T11:21:04.235231+00:00'
 subtasks:
 - T001
 - T002
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "38532"
 review_status: ''
 reviewed_by: ''
 history:
