@@ -1,6 +1,6 @@
 """Transition matrix, guard conditions, alias resolution, and validation.
 
-Implements the 7-lane state machine with 17 legal transition pairs,
+Implements the 8-lane state machine, its legal transition pairs,
 guard condition functions, alias resolution, and force-override logic.
 """
 
@@ -127,11 +127,11 @@ def _guard_subtasks_complete_or_force(
 def _guard_reviewer_approval(
     evidence: Any,
 ) -> tuple[bool, str | None]:
-    """Guard: for_review -> done requires reviewer approval evidence."""
+    """Guard: approval and done transitions require reviewer approval evidence."""
     if evidence is None:
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     review = getattr(evidence, "review", None)
@@ -140,13 +140,13 @@ def _guard_reviewer_approval(
     if not reviewer or not str(reviewer).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     if not reference or not str(reference).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     return True, None

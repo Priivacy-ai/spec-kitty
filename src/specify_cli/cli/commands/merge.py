@@ -43,6 +43,7 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.history_parser import extract_done_evidence
+from specify_cli.status.transitions import resolve_lane_alias
 
 
 def _mark_wp_merged_done(
@@ -65,7 +66,7 @@ def _mark_wp_merged_done(
         return
 
     frontmatter, _body = read_frontmatter(wp_path)
-    lane = str(frontmatter.get("lane", "planned")).strip() or "planned"
+    lane = resolve_lane_alias(str(frontmatter.get("lane", "planned")).strip() or "planned")
     if lane == "done":
         return
 
@@ -73,6 +74,33 @@ def _mark_wp_merged_done(
     if evidence is None:
         console.print(
             f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; "
+            "skipping automatic move to done after merge."
+        )
+        return
+
+    if lane == "for_review":
+        try:
+            emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                to_lane="approved",
+                actor="merge",
+                reason=f"Recorded prior review approval for merged {wp_id}",
+                evidence=evidence.to_dict(),
+                workspace_context=f"merge:{repo_root}",
+                repo_root=repo_root,
+            )
+        except TransitionError as exc:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}"
+            )
+            return
+        lane = "approved"
+
+    if lane != "approved":
+        console.print(
+            f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane}', not approved; "
             "skipping automatic move to done after merge."
         )
         return

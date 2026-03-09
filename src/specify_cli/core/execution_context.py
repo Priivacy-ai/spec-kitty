@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal, Mapping
+from typing import Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.feature_detection import (
@@ -17,7 +17,11 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     get_feature_target_branch,
 )
-from specify_cli.core.implement_validation import validate_and_resolve_base
+from specify_cli.core.implement_validation import (
+    BaseResolutionError,
+    validate_and_resolve_base,
+)
+from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.tasks_support import extract_scalar, locate_work_package, split_frontmatter
 
 
@@ -29,6 +33,7 @@ ActionName = Literal[
     "implement",
     "review",
 ]
+ACTION_NAMES: tuple[str, ...] = cast(tuple[str, ...], get_args(ActionName))
 
 
 class ActionContextError(RuntimeError):
@@ -79,7 +84,11 @@ def _resolve_feature_context(
         )
     except Exception as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
-    assert ctx is not None
+    if ctx is None:
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            "Could not resolve feature context.",
+        )
     return ctx
 
 
@@ -103,7 +112,7 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
-        wp_lane = extract_scalar(frontmatter, "lane")
+        wp_lane = resolve_lane_alias(extract_scalar(frontmatter, "lane") or "planned")
         if wp_lane == lane:
             wp_id = extract_scalar(frontmatter, "work_package_id")
             if wp_id:
@@ -120,14 +129,14 @@ def _resolve_wp_id(
         return explicit_wp_id.upper().split("-", 1)[0]
 
     if action == "implement":
-        for lane in ("planned", "doing", "in_progress"):
+        for lane in ("planned", "in_progress"):
             wp_id = _find_first_wp(feature_dir, lane)
             if wp_id:
                 return wp_id
         return None
 
     if action == "review":
-        for lane in ("for_review", "doing", "in_progress"):
+        for lane in ("for_review", "in_progress"):
             wp_id = _find_first_wp(feature_dir, lane)
             if wp_id:
                 return wp_id
@@ -148,6 +157,11 @@ def resolve_action_context(
     env: Mapping[str, str] | None = None,
 ) -> ActionContext:
     """Resolve canonical feature/work-package context for an agent action."""
+    if action not in ACTION_NAMES:
+        raise ActionContextError(
+            "INVALID_ACTION",
+            f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
+        )
 
     feature_ctx = _resolve_feature_context(repo_root, feature=feature, cwd=cwd, env=env)
     feature_slug = feature_ctx.slug
@@ -179,7 +193,7 @@ def resolve_action_context(
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
     dependencies = parse_wp_dependencies(wp.path)
-    lane = wp.lane or "planned"
+    lane = resolve_lane_alias(wp.lane or "planned")
     workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{normalized_wp_id}"
 
     context.wp_id = normalized_wp_id
@@ -198,11 +212,12 @@ def resolve_action_context(
                 repo_root=repo_root,
                 auto_detect_single_dependency=True,
                 quiet=True,
+                raise_on_error=True,
             )
-        except SystemExit as exc:
+        except BaseResolutionError as exc:
             raise ActionContextError(
                 "WORK_PACKAGE_BASE_UNRESOLVED",
-                f"Could not resolve base workspace for {normalized_wp_id}.",
+                str(exc),
             ) from exc
 
         context.resolved_base = resolved_base
@@ -229,4 +244,3 @@ def resolve_action_context(
         "--to planned --review-feedback-file <feedback-file>"
     )
     return context
-

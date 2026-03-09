@@ -41,6 +41,9 @@ from branch names or directory guesses inside the prompt.
 - ✅ Approve: `spec-kitty agent tasks move-task WP## --to approved --note "Review passed: <summary>"`
 - ❌ Reject: Write feedback to the temp file path shown in the prompt, then run `spec-kitty agent tasks move-task WP## --to planned --review-feedback-file <temp-file-path>`
 
+`approved` means review passed and merge-complete `done` will be recorded separately
+once the WP branch is actually integrated into the target branch.
+
 **The prompt will provide a unique temp file path for feedback - use that exact path to avoid conflicts with other agents!**
 `move-task` will persist the feedback artifact in shared git common-dir and write a `review_feedback: "feedback://..."` pointer into the WP frontmatter.
 

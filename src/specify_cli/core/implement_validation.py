@@ -20,6 +20,21 @@ from specify_cli.core.dependency_graph import parse_wp_dependencies
 console = Console()
 
 
+class BaseResolutionError(RuntimeError):
+    """Raised when a base workspace cannot be resolved in library contexts."""
+
+
+def _fail_resolution(message_lines: list[str], *, raise_on_error: bool) -> None:
+    """Report a validation failure as either CLI exit or domain exception."""
+    message = "\n".join(line for line in message_lines if line)
+    if raise_on_error:
+        raise BaseResolutionError(message)
+    for line in message_lines:
+        if line:
+            console.print(line)
+    raise typer.Exit(1)
+
+
 def validate_and_resolve_base(
     wp_id: str,
     wp_file: Path,
@@ -29,6 +44,7 @@ def validate_and_resolve_base(
     *,
     auto_detect_single_dependency: bool = True,
     quiet: bool = False,
+    raise_on_error: bool = False,
 ) -> tuple[str | None, bool]:
     """Validate dependencies and resolve base workspace.
 
@@ -84,15 +100,19 @@ def validate_and_resolve_base(
                     console.print(f"\n[cyan]Auto-detected:[/cyan] {wp_id} depends on {base}")
                     console.print(f"Using --base {base} automatically")
             else:
-                console.print(f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}")
-                console.print(f"\nSpecify base workspace:")
-                console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
-                console.print(f"\n[dim]Or for agent commands:[/dim]")
-                console.print(
-                    f"  spec-kitty agent workflow implement {wp_id} "
-                    f"--base {declared_deps[0]} --agent <name>"
+                _fail_resolution(
+                    [
+                        f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}",
+                        "\nSpecify base workspace:",
+                        f"  spec-kitty implement {wp_id} --base {declared_deps[0]}",
+                        "\n[dim]Or for agent commands:[/dim]",
+                        (
+                            f"  spec-kitty agent workflow implement {wp_id} "
+                            f"--base {declared_deps[0]} --agent <name>"
+                        ),
+                    ],
+                    raise_on_error=raise_on_error,
                 )
-                raise typer.Exit(1)
 
         # Validate provided base matches dependency
         if base not in declared_deps:
@@ -155,6 +175,7 @@ def validate_base_workspace_exists(
 
 
 __all__ = [
+    "BaseResolutionError",
     "validate_and_resolve_base",
     "validate_base_workspace_exists",
 ]

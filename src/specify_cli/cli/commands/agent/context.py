@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import typer
 from rich.console import Console
@@ -23,6 +23,8 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.core.execution_context import (
+    ACTION_NAMES,
+    ActionName,
     ActionContextError,
     resolve_action_context,
 )
@@ -72,7 +74,10 @@ def resolve_context(
         str,
         typer.Option(
             "--action",
-            help="Action to resolve context for (tasks, tasks_outline, tasks_packages, tasks_finalize, implement, review)",
+            help=(
+                "Action to resolve context for "
+                f"({', '.join(ACTION_NAMES)})"
+            ),
         ),
     ],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
@@ -90,9 +95,15 @@ def resolve_context(
                 "Could not locate project root.",
             )
 
+        if action not in ACTION_NAMES:
+            raise ActionContextError(
+                "INVALID_ACTION",
+                f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
+            )
+
         context = resolve_action_context(
             repo_root,
-            action=action,  # type: ignore[arg-type]
+            action=cast(ActionName, action),
             feature=feature,
             wp_id=wp_id,
             base=base,

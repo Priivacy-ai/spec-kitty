@@ -79,6 +79,30 @@ def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatc
     assert payload["commands"]["workflow"].endswith("implement WP02 --base WP01 --agent codex")
 
 
+def test_context_resolve_canonicalizes_doing_lane_when_selecting_wp(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+
+    feature_dir = _make_feature(repo_root, "021-context-test")
+    _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "doing")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    result = CliRunner().invoke(
+        context.app,
+        ["resolve", "--action", "implement", "--feature", "021-context-test", "--json"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["wp_id"] == "WP01"
+    assert payload["lane"] == "in_progress"
+
+
 def test_context_resolve_review_returns_approve_command(tmp_path: Path, monkeypatch) -> None:
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
@@ -99,3 +123,17 @@ def test_context_resolve_review_returns_approve_command(tmp_path: Path, monkeypa
     assert payload["wp_id"] == "WP01"
     assert payload["commands"]["workflow"].endswith("review WP01 --agent codex")
     assert "--to approved" in payload["commands"]["approve"]
+
+
+def test_context_resolve_rejects_invalid_action(tmp_path: Path, monkeypatch) -> None:
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    result = CliRunner().invoke(context.app, ["resolve", "--action", "foobar", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "INVALID_ACTION"

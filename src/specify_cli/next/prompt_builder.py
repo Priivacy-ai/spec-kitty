@@ -174,6 +174,7 @@ def _build_wp_prompt(
         lines.append(f"  spec-kitty agent tasks move-task {wp_id} --to for_review --note \"Ready for review\"")
     else:
         lines.append(f"  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --note \"Review passed\"")
+        lines.append("           approved means review-passed; merge will later record done")
         lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file>")
 
     return "\n".join(lines)

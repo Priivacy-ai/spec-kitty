@@ -62,3 +62,30 @@ def test_mark_wp_merged_done_skips_without_approval_metadata(tmp_path: Path, mon
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_not_called()
+
+
+def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(
+        tasks_dir / "WP01-test.md",
+        lane="for_review",
+        review_status="approved",
+        reviewed_by="reviewer-1",
+    )
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+
+    _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
+
+    assert emit_mock.call_count == 2
+    first_call = emit_mock.call_args_list[0].kwargs
+    second_call = emit_mock.call_args_list[1].kwargs
+    assert first_call["to_lane"] == "approved"
+    assert second_call["to_lane"] == "done"

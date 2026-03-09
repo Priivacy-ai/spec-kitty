@@ -349,7 +349,8 @@ def _generate_reconciliation_events(
             # cannot fabricate. Note the drift instead.
             details.append(
                 f"{wp_id}: branch merged and in {current_lane} -- "
-                f"may be ready for done (requires reviewer approval)"
+                "may be ready for approved then done "
+                "(requires reviewer approval evidence)"
             )
             continue
         elif commits and current_lane == Lane.PLANNED:
