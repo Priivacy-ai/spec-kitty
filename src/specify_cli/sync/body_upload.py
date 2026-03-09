@@ -194,3 +194,30 @@ def prepare_body_uploads(
         ))
 
     return outcomes
+
+
+def log_upload_outcomes(
+    outcomes: list[UploadOutcome],
+    feature_slug: str,
+    log: logging.Logger | None = None,
+) -> None:
+    """Log per-artifact upload outcomes with summary.
+
+    INFO level: aggregate counts by status (always visible).
+    DEBUG level: per-artifact detail (visible with -v or --debug).
+    """
+    if log is None:
+        log = logger
+
+    by_status: dict[str, int] = {}
+    for outcome in outcomes:
+        by_status[outcome.status.value] = by_status.get(outcome.status.value, 0) + 1
+
+    log.info(
+        "Body upload results for %s: %s",
+        feature_slug,
+        ", ".join(f"{k}={v}" for k, v in sorted(by_status.items())),
+    )
+
+    for outcome in outcomes:
+        log.debug("  %s", outcome)

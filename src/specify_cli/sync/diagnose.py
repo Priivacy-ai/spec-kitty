@@ -5,18 +5,24 @@ per-event-type payload rules before they are sent to the server.
 
 The ``diagnose_events()`` function is the main entry point, used by
 the ``spec-kitty sync diagnose`` CLI command.
+
+Also provides body upload queue diagnostics via ``diagnose_body_queue()``.
 """
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError as PydanticValidationError
 
 from specify_cli.spec_kitty_events.models import Event
 from .batch import categorize_error
 from .emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, VALID_AGGREGATE_TYPES
+
+if TYPE_CHECKING:
+    from .body_queue import BodyQueueStats, OfflineBodyUploadQueue
 
 
 @dataclass
@@ -176,3 +182,46 @@ def _validate_payload(
                     f"payload.{field_name}: invalid value {value!r} "
                     f"for {event_type}"
                 )
+
+
+# -- Body queue diagnostics ---------------------------------------------------
+
+
+def diagnose_body_queue(body_queue: OfflineBodyUploadQueue) -> dict[str, Any]:
+    """Return body queue health diagnostics.
+
+    Mirrors the event queue diagnostic pattern for consistency.
+    """
+    stats = body_queue.get_stats()
+    return {
+        "body_queue": {
+            "total_tasks": stats.total_count,
+            "ready_to_send": stats.ready_count,
+            "in_backoff": stats.backoff_count,
+            "max_retry_count": stats.max_retry_count,
+            "oldest_task_age_seconds": (
+                time.time() - stats.oldest_created_at
+                if stats.oldest_created_at is not None
+                else None
+            ),
+            "retry_distribution": stats.retry_histogram,
+        }
+    }
+
+
+def print_body_queue_summary(stats: BodyQueueStats) -> None:
+    """Print a human-readable body queue summary using Rich."""
+    from rich.console import Console
+
+    console = Console()
+    console.print("[bold]Body Upload Queue[/bold]")
+    console.print(f"  Total: {stats.total_count}")
+    console.print(f"  Ready: {stats.ready_count}")
+    console.print(f"  In backoff: {stats.backoff_count}")
+    if stats.max_retry_count > 0:
+        console.print(f"  Max retries: {stats.max_retry_count}")
+    if stats.retry_histogram:
+        parts = ", ".join(
+            f"{k}={v}" for k, v in sorted(stats.retry_histogram.items())
+        )
+        console.print(f"  Retry distribution: {parts}")
