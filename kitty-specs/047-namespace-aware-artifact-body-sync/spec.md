@@ -34,7 +34,7 @@ A developer runs normal sync from a feature worktree and expects SaaS to receive
 **Acceptance Scenarios**:
 
 1. **Given** a feature namespace with `spec.md`, `plan.md`, and `tasks.md`, **When** online sync runs, **Then** body uploads are sent for those files with `project_uuid`, `feature_slug`, `target_branch`, `mission_key`, and `manifest_version`.
-2. **Given** a feature with `research/`, `contracts/`, and `checklists/` text artifacts, **When** sync runs, **Then** each supported file is uploaded with its repository-relative path and content hash.
+2. **Given** a feature with `research/`, `contracts/`, and `checklists/` text artifacts, **When** sync runs, **Then** each supported file is uploaded with its feature-relative path (matching the dossier indexer convention) and content hash.
 3. **Given** a feature with work package prompts under `tasks/WP*.md`, **When** sync runs, **Then** those prompt files are uploaded as renderable markdown artifacts.
 
 ---
@@ -101,17 +101,18 @@ A developer has non-UTF-8, binary, or oversized files in the artifact tree and e
 |----|-------------|--------|
 | FR-001 | Normal `spec-kitty` sync MUST include an artifact body upload phase for supported dossier artifacts. Body upload runs after dossier event emission, within the same sync invocation. | Draft |
 | FR-002 | Every body upload request MUST include the canonical namespace tuple: `project_uuid`, `feature_slug`, `target_branch`, `mission_key`, and `manifest_version`. | Draft |
-| FR-003 | Every body upload request MUST include `artifact_path` (repository-relative), `content_hash` (SHA-256), `hash_algorithm` (`sha256`), and `content_body` (UTF-8 text). | Draft |
-| FR-004 | The client MUST upload supported text artifacts from these feature-scoped surfaces when present: `spec.md`, `plan.md`, `tasks.md`, `research.md`, `quickstart.md`, `data-model.md`, `contracts/**`, `checklists/**`, and `tasks/WP*.md`. | Draft |
+| FR-003 | Every body upload request MUST include `artifact_path`, `content_hash` (SHA-256), `hash_algorithm` (`sha256`), and `content_body` (UTF-8 text). The `artifact_path` MUST be the feature-relative path (e.g., `spec.md`, `tasks/WP01.md`, `research/analysis.md`) consistent with the path emitted by the dossier indexer in `ArtifactIndexed` events, not the repository-absolute path. | Draft |
+| FR-004 | The client MUST upload supported text artifacts from these feature-scoped surfaces when present: `spec.md`, `plan.md`, `tasks.md`, `research.md`, `quickstart.md`, `data-model.md`, `research/**`, `contracts/**`, `checklists/**`, and `tasks/WP*.md`. Top-level files are matched by exact name; directory globs recursively include all supported-format files within the directory. | Draft |
 | FR-005 | V1 MUST support inline upload for UTF-8 text formats needed by the dashboard renderer: Markdown (`.md`), JSON (`.json`), YAML (`.yaml`, `.yml`), and CSV (`.csv`). | Draft |
 | FR-006 | The client MUST NOT attempt inline body upload for binary or unsupported formats in v1; these cases MUST be explicitly logged as skipped with a reason code. | Draft |
 | FR-007 | Artifact body uploads MUST be durably queued for replay when SaaS is unavailable or returns a retryable HTTP status (5xx, 429, or 404 `index_entry_not_found`). | Draft |
 | FR-008 | `404 index_entry_not_found` from the SaaS upload endpoint MUST be treated as retryable because the remote dossier index may not be materialized yet. | Draft |
 | FR-009 | Body upload replay MUST survive CLI restarts. Queued upload tasks are persisted to the existing SQLite offline queue. | Draft |
-| FR-010 | Upload behavior MUST be idempotent for repeated sync runs of unchanged artifact bodies. The client uses `content_hash` to skip re-upload when the remote already holds the same content. | Draft |
+| FR-010 | Upload behavior MUST be idempotent for repeated sync runs of unchanged artifact bodies. The client MUST always submit the upload request (including `content_hash`). The receiver returns `already_exists` when the content hash matches; the client classifies this as a successful no-op. The client MUST NOT maintain a local cache of presumed remote content state to pre-skip uploads, because such a cache cannot account for receiver-side data loss, scope changes, or prior upload failures. | Draft |
 | FR-011 | The client MUST preserve namespace isolation; no upload may omit or substitute any namespace identity field. | Draft |
 | FR-012 | The client MUST surface upload results in logs or diagnostics with enough detail to distinguish `uploaded`, `already_exists`, `queued`, `skipped`, and `failed` states per artifact. | Draft |
 | FR-013 | Artifact body upload MUST remain subordinate to normal dossier event sync; no separate manual command is required to keep SaaS artifact pages current. | Draft |
+| FR-014 | The `artifact_path` in body upload requests MUST use the same path form as the dossier indexer's `ArtifactIndexed` events (feature-relative). Body sync MUST NOT invent a different path convention. If the canonical contract requires repository-relative paths, a normalization step MUST be added to both the indexer and the body uploader so they agree. | Draft |
 
 ### Non-Functional Requirements
 
@@ -119,7 +120,7 @@ A developer has non-UTF-8, binary, or oversized files in the artifact tree and e
 |----|-------------|-----------|--------|
 | NFR-001 | Body upload phase completes within a bounded time for a typical feature namespace. | All supported artifacts uploaded within 10 seconds for a feature with up to 30 artifacts on a standard connection. | Draft |
 | NFR-002 | Offline queue growth is bounded to prevent unbounded disk usage. | Queue capacity limit of 10,000 upload tasks (consistent with existing event queue limit). | Draft |
-| NFR-003 | Retry backoff prevents thundering-herd or tight-loop retry against SaaS. | Exponential backoff starting at 1 second, capped at 5 minutes between retries per task. | Draft |
+| NFR-003 | Retry backoff prevents thundering-herd or tight-loop retry against SaaS. | Exponential backoff starting at 1 second, capped at 5 minutes between retries, tracked per upload task (not globally). The existing queue schema tracks retry count globally per event row; the plan phase MUST address whether the schema needs a per-task backoff timestamp or next-eligible-at column. | Draft |
 | NFR-004 | New code maintains existing test coverage standards. | 90%+ line coverage for new modules; mypy --strict passes. | Draft |
 
 ### Constraints
@@ -135,7 +136,7 @@ A developer has non-UTF-8, binary, or oversized files in the artifact tree and e
 ### Key Entities
 
 - **NamespaceRef**: Canonical sender-side representation of the five-field namespace tuple: `project_uuid`, `feature_slug`, `target_branch`, `mission_key`, and `manifest_version`. Matches the `LocalNamespaceTuple` already used in dossier events.
-- **ArtifactBodyUploadTask**: Durable queued unit containing a `NamespaceRef`, `artifact_path` (repository-relative), `content_hash` (SHA-256), `content_body` (UTF-8 text), retry count, last error, and queue timestamp.
+- **ArtifactBodyUploadTask**: Durable queued unit containing a `NamespaceRef`, `artifact_path` (feature-relative, matching dossier indexer convention), `content_hash` (SHA-256), `content_body` (UTF-8 text), retry count, last error, and queue timestamp.
 - **UploadOutcome**: Final classified result for one attempted upload: `uploaded`, `already_exists`, `queued`, `skipped`, or `failed`. Includes a human-readable reason string.
 - **SupportedInlineFormat**: Enumeration of file extensions eligible for inline body upload in v1: `.md`, `.json`, `.yaml`, `.yml`, `.csv`.
 
