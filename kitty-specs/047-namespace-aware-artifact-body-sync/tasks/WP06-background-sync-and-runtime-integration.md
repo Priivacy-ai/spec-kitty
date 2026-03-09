@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync & Runtime Integration
-lane: "for_review"
+lane: "doing"
 dependencies: [WP02, WP04]
 base_branch: 047-namespace-aware-artifact-body-sync-WP06-merge-base
 base_commit: 192ee0b889e1235647c4d3c7aac8af04a58cb04f
@@ -15,8 +15,8 @@ subtasks:
 - T033
 phase: Phase 3 - Integration
 assignee: ''
-agent: claude-opus
-shell_pid: '12054'
+agent: "claude-opus"
+shell_pid: "14904"
 review_status: ''
 reviewed_by: ''
 history:
@@ -283,3 +283,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T10:00:57Z – claude-opus – shell_pid=12054 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T10:05:54Z – claude-opus – shell_pid=12054 – lane=for_review – Ready for review: background sync body queue drain with drain ordering (events→bodies), per-task outcome handling, stale cleanup, shared DB path (C-001). 13 tests, 110 sync suite pass, ruff clean.
+- 2026-03-09T10:06:29Z – claude-opus – shell_pid=14904 – lane=doing – Started review via workflow command
