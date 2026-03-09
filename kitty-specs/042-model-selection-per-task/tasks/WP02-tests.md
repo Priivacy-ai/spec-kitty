@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Tests
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 042-model-selection-per-task-WP01
 base_commit: e1eb8bb8122403f0c764b9c202b183bf5306a441
@@ -352,3 +352,4 @@ Reviewers should verify:
 
 - 2026-03-09T11:13:06Z – system – lane=planned – Prompt created.
 - 2026-03-09T11:47:47Z – claude-sonnet-4-6 – shell_pid=41689 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T12:14:35Z – claude-sonnet-4-6 – shell_pid=41689 – lane=for_review – All 18 tests passing
