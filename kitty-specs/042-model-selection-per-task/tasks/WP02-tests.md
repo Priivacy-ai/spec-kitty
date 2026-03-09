@@ -1,15 +1,18 @@
 ---
 work_package_id: WP02
 title: Tests
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 042-model-selection-per-task-WP01
+base_commit: e1eb8bb8122403f0c764b9c202b183bf5306a441
+created_at: '2026-03-09T11:47:46.904328+00:00'
 subtasks:
 - T005
 - T006
 phase: Phase 2 - Validation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "41689"
 review_status: ''
 reviewed_by: ''
 history:
