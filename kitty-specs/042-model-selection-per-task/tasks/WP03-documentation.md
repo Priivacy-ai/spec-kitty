@@ -1,14 +1,17 @@
 ---
 work_package_id: WP03
 title: Documentation
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 042-model-selection-per-task-WP01
+base_commit: e1eb8bb8122403f0c764b9c202b183bf5306a441
+created_at: '2026-03-09T11:47:48.255571+00:00'
 subtasks:
 - T007
 phase: Phase 2 - Validation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "41835"
 review_status: ''
 reviewed_by: ''
 history:
