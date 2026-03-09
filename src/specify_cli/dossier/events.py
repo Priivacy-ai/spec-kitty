@@ -190,6 +190,7 @@ def emit_artifact_indexed(
     wp_id: Optional[str] = None,
     step_id: Optional[str] = None,
     required_status: str = "optional",
+    namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierArtifactIndexed event.
 
@@ -203,6 +204,7 @@ def emit_artifact_indexed(
         wp_id: Work package ID if linked (optional)
         step_id: Mission step if step-specific (optional)
         required_status: 'required' or 'optional' from manifest
+        namespace: Optional 5-field namespace dict for SaaS materializer
 
     Returns:
         Event dict on success (enqueued to OfflineQueue), None on failure
@@ -221,6 +223,10 @@ def emit_artifact_indexed(
             required_status=required_status,
         )
 
+        payload_dict = payload.model_dump()
+        if namespace is not None:
+            payload_dict["namespace"] = namespace
+
         # Route via sync emitter API
         from specify_cli.sync.events import get_emitter
 
@@ -229,7 +235,7 @@ def emit_artifact_indexed(
             event_type="MissionDossierArtifactIndexed",
             aggregate_id=f"{feature_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_dict,
         )
         return event
 
@@ -249,6 +255,7 @@ def emit_artifact_missing(
     reason_code: str,
     reason_detail: Optional[str] = None,
     blocking: bool = True,
+    namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierArtifactMissing event (only if required/blocking).
 
@@ -260,6 +267,7 @@ def emit_artifact_missing(
         reason_code: Reason code ('not_found', 'unreadable', 'invalid_format', 'deleted_after_scan')
         reason_detail: Additional detail about reason (optional)
         blocking: True if blocks completeness
+        namespace: Optional 5-field namespace dict for SaaS materializer
 
     Returns:
         Event dict on success (enqueued to OfflineQueue), None on failure or non-blocking
@@ -281,6 +289,10 @@ def emit_artifact_missing(
             blocking=blocking,
         )
 
+        payload_dict = payload.model_dump()
+        if namespace is not None:
+            payload_dict["namespace"] = namespace
+
         # Route via sync emitter API
         from specify_cli.sync.events import get_emitter
 
@@ -289,7 +301,7 @@ def emit_artifact_missing(
             event_type="MissionDossierArtifactMissing",
             aggregate_id=f"{feature_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_dict,
         )
         return event
 
@@ -312,6 +324,7 @@ def emit_snapshot_computed(
     optional_present: int,
     completeness_status: str,
     snapshot_id: str,
+    namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierSnapshotComputed event (always).
 
@@ -326,6 +339,7 @@ def emit_snapshot_computed(
         optional_present: Optional artifacts found
         completeness_status: 'complete', 'incomplete', or 'unknown'
         snapshot_id: Unique snapshot identifier
+        namespace: Optional 5-field namespace dict for SaaS materializer
 
     Returns:
         Event dict on success (enqueued to OfflineQueue), None on failure
@@ -347,6 +361,10 @@ def emit_snapshot_computed(
             snapshot_id=snapshot_id,
         )
 
+        payload_dict = payload.model_dump()
+        if namespace is not None:
+            payload_dict["namespace"] = namespace
+
         # Route via sync emitter API
         from specify_cli.sync.events import get_emitter
 
@@ -355,7 +373,7 @@ def emit_snapshot_computed(
             event_type="MissionDossierSnapshotComputed",
             aggregate_id=f"{feature_slug}:{snapshot_id}",
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_dict,
         )
         return event
 
@@ -374,6 +392,7 @@ def emit_parity_drift_detected(
     missing_in_local: Optional[list[str]] = None,
     missing_in_baseline: Optional[list[str]] = None,
     severity: str = "warning",
+    namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionDossierParityDriftDetected event (only if drift detected).
 
@@ -384,6 +403,7 @@ def emit_parity_drift_detected(
         missing_in_local: Artifact keys missing in local (optional)
         missing_in_baseline: Artifact keys missing in baseline (optional)
         severity: 'info', 'warning', or 'error'
+        namespace: Optional 5-field namespace dict for SaaS materializer
 
     Returns:
         Event dict on success (enqueued to OfflineQueue), None if no drift or on failure
@@ -404,6 +424,10 @@ def emit_parity_drift_detected(
             severity=severity,
         )
 
+        payload_dict = payload.model_dump()
+        if namespace is not None:
+            payload_dict["namespace"] = namespace
+
         # Route via sync emitter API
         from specify_cli.sync.events import get_emitter
 
@@ -412,7 +436,7 @@ def emit_parity_drift_detected(
             event_type="MissionDossierParityDriftDetected",
             aggregate_id=f"{feature_slug}:drift",
             aggregate_type="MissionDossier",
-            payload=payload.model_dump(),
+            payload=payload_dict,
         )
         return event
 

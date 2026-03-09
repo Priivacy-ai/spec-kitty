@@ -6,8 +6,6 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from specify_cli.sync.body_queue import BodyUploadTask, OfflineBodyUploadQueue
 from specify_cli.sync.namespace import UploadOutcome, UploadStatus
 
@@ -122,8 +120,6 @@ class TestDrainOrdering:
         )
 
         call_order: list[str] = []
-        original_batch = mock_batch.side_effect
-
         def track_batch(*args, **kwargs):
             call_order.append("event_drain")
             return BatchSyncResult()
@@ -349,6 +345,26 @@ class TestEdgeCases:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
+    def test_event_sync_exception_skips_body_drain(
+        self,
+        mock_push: MagicMock,
+        mock_batch: MagicMock,
+        mock_saas: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        service = _make_service(tmp_path)
+        _enqueue_task(service._body_queue, "spec.md")
+        mock_batch.side_effect = RuntimeError("server unavailable")
+
+        service._sync_once()
+
+        mock_push.assert_not_called()
+        stats = service._body_queue.get_stats()
+        assert stats.total_count == 1
+
+    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
+    @patch("specify_cli.sync.background.batch_sync")
+    @patch("specify_cli.sync.body_transport.push_content")
     def test_stale_tasks_removed(
         self,
         mock_push: MagicMock,
@@ -400,6 +416,142 @@ class TestEdgeCases:
 
             mock_batch.return_value = BatchSyncResult()
             service._sync_once()  # No error
+
+
+# --- Body queue size() ---
+
+
+class TestBodyQueueSize:
+    def test_size_returns_zero_for_empty_queue(self, tmp_path: Path) -> None:
+        queue = OfflineBodyUploadQueue(db_path=tmp_path / "queue.db")
+        assert queue.size() == 0
+
+    def test_size_returns_correct_count(self, tmp_path: Path) -> None:
+        queue = OfflineBodyUploadQueue(db_path=tmp_path / "queue.db")
+        _enqueue_task(queue, "spec.md", "# Spec\n")
+        _enqueue_task(queue, "plan.md", "# Plan\n")
+        assert queue.size() == 2
+
+
+# --- Timer triggers with body queue ---
+
+
+class TestTimerBodyQueue:
+    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
+    @patch("specify_cli.sync.background.batch_sync")
+    @patch("specify_cli.sync.body_transport.push_content")
+    def test_timer_triggers_when_only_body_queue_has_tasks(
+        self,
+        mock_push: MagicMock,
+        mock_batch: MagicMock,
+        mock_saas: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Timer should trigger sync when event queue is empty but body queue has work."""
+        from specify_cli.sync.batch import BatchSyncResult
+
+        mock_batch.return_value = BatchSyncResult()
+        mock_push.return_value = UploadOutcome(
+            artifact_path="spec.md",
+            status=UploadStatus.UPLOADED,
+            reason="stored",
+            content_hash="abc",
+        )
+
+        service = _make_service(tmp_path)
+        # Event queue is empty, body queue has a task
+        _enqueue_task(service._body_queue, "spec.md", "# Spec\n")
+        assert service.queue.size() == 0
+        assert service._body_queue.size() == 1
+
+        service._running = True
+        service._on_timer()
+
+        # Should have called batch_sync (via _perform_sync)
+        mock_batch.assert_called_once()
+
+    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
+    def test_timer_skips_when_both_queues_empty(
+        self,
+        mock_saas: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Timer should skip sync when both queues are empty."""
+        service = _make_service(tmp_path)
+        assert service.queue.size() == 0
+        assert service._body_queue.size() == 0
+
+        service._running = True
+        with patch.object(service, "_perform_sync") as mock_perform:
+            service._on_timer()
+            mock_perform.assert_not_called()
+
+
+# --- sync_now() drains body queue ---
+
+
+class TestSyncNowBody:
+    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
+    @patch("specify_cli.sync.background.sync_all_queued_events")
+    @patch("specify_cli.sync.body_transport.push_content")
+    def test_sync_now_drains_body_queue(
+        self,
+        mock_push: MagicMock,
+        mock_sync_all: MagicMock,
+        mock_saas: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        from specify_cli.sync.batch import BatchSyncResult
+
+        mock_sync_all.return_value = BatchSyncResult()
+        mock_push.return_value = UploadOutcome(
+            artifact_path="spec.md",
+            status=UploadStatus.UPLOADED,
+            reason="stored",
+            content_hash="abc",
+        )
+
+        service = _make_service(tmp_path)
+        _enqueue_task(service._body_queue, "spec.md", "# Spec\n")
+
+        service.sync_now()
+
+        mock_push.assert_called_once()
+        assert service._body_queue.size() == 0
+
+
+# --- stop() best-effort includes body queue ---
+
+
+class TestStopBody:
+    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
+    @patch("specify_cli.sync.background.batch_sync")
+    @patch("specify_cli.sync.body_transport.push_content")
+    def test_stop_best_effort_includes_body_queue(
+        self,
+        mock_push: MagicMock,
+        mock_batch: MagicMock,
+        mock_saas: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        from specify_cli.sync.batch import BatchSyncResult
+
+        mock_batch.return_value = BatchSyncResult()
+        mock_push.return_value = UploadOutcome(
+            artifact_path="spec.md",
+            status=UploadStatus.UPLOADED,
+            reason="stored",
+            content_hash="abc",
+        )
+
+        service = _make_service(tmp_path)
+        _enqueue_task(service._body_queue, "spec.md", "# Spec\n")
+        service._running = True
+
+        service.stop()
+
+        # Body queue should have been attempted
+        mock_batch.assert_called()
 
 
 # --- Runtime lifecycle ---

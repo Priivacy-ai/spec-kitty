@@ -66,6 +66,8 @@ def _build_request_body(task: BodyUploadTask) -> dict[str, Any]:
     """Build JSON request body from task.
 
     Includes 5 namespace fields (FR-002) + 4 artifact fields (FR-003).
+    mission_slug is a compatibility alias for mission_key; remove once
+    SaaS serializer accepts mission_key directly.
     """
     return {
         "project_uuid": task.project_uuid,
@@ -73,6 +75,8 @@ def _build_request_body(task: BodyUploadTask) -> dict[str, Any]:
         "target_branch": task.target_branch,
         "mission_key": task.mission_key,
         "manifest_version": task.manifest_version,
+        # TODO: Remove mission_slug once SaaS accepts mission_key directly
+        "mission_slug": task.mission_key,
         "artifact_path": task.artifact_path,
         "content_hash": task.content_hash,
         "hash_algorithm": task.hash_algorithm,
