@@ -64,7 +64,8 @@ src/specify_cli/sync/
 ├── namespace.py          # NEW: NamespaceRef dataclass
 ├── body_queue.py         # NEW: OfflineBodyUploadQueue (sibling SQLite table)
 ├── body_upload.py        # NEW: Body upload orchestration (filter, read, enqueue)
-├── body_transport.py     # NEW: HTTP transport to push_content endpoint
+├── body_transport.py     # NEW: HTTP transport to /api/dossier/push-content/
+├── dossier_pipeline.py   # NEW: Orchestration entrypoint (index → emit events → enqueue bodies)
 ├── queue.py              # MODIFIED: Shared DB infrastructure, schema migration
 ├── background.py         # MODIFIED: Drain body_upload_queue after event queue
 ├── emitter.py            # UNCHANGED (body uploads bypass the event emitter)
@@ -83,33 +84,38 @@ src/specify_cli/dossier/
 └── ...                   # UNCHANGED
 
 tests/specify_cli/sync/
-├── test_namespace.py         # NEW: NamespaceRef construction and validation
-├── test_body_queue.py        # NEW: OfflineBodyUploadQueue CRUD, idempotent enqueue
-├── test_body_upload.py       # NEW: Filter logic, re-hash guard, integration
-├── test_body_transport.py    # NEW: HTTP transport, response classification
-├── test_background_body.py   # NEW: BackgroundSyncService body drain ordering
-└── test_body_integration.py  # NEW: End-to-end sync + body upload flow
+├── test_namespace.py            # NEW: NamespaceRef construction and validation
+├── test_body_queue.py           # NEW: OfflineBodyUploadQueue CRUD, idempotent enqueue
+├── test_body_upload.py          # NEW: Filter logic, re-hash guard, integration
+├── test_body_transport.py       # NEW: HTTP transport, response classification, 404 dispatch
+├── test_dossier_pipeline.py     # NEW: Orchestration entrypoint integration tests
+├── test_background_body.py      # NEW: BackgroundSyncService body drain ordering
+└── test_body_integration.py     # NEW: End-to-end sync + body upload flow
 ```
 
-**Structure Decision**: All new code lives in `src/specify_cli/sync/` as four new modules plus modifications to three existing modules. No new subpackages. This follows the existing flat structure of the sync package.
+**Structure Decision**: All new code lives in `src/specify_cli/sync/` as five new modules plus modifications to three existing modules. No new subpackages. This follows the existing flat structure of the sync package.
 
 ## Architecture
 
 ### Data Flow
 
+Body upload preparation runs in an explicit dossier-sync orchestration function (`dossier_pipeline.py`), not in `BackgroundSyncService`. Background sync only flushes already-enqueued work.
+
 ```
-Indexer.index_feature()
+dossier_pipeline.sync_feature_dossier(feature_dir, namespace_ref)  ◄── NEW orchestration
     │
-    ▼
-MissionDossier.artifacts: List[ArtifactRef]
+    │  Step 1: Index
+    ├──► Indexer.index_feature(feature_dir, mission_type, step_id)
+    │        ▼
+    │    MissionDossier.artifacts: List[ArtifactRef]
     │
-    ├──► emit_artifact_indexed() (existing, unchanged)
+    │  Step 2: Emit dossier events (existing behavior)
+    ├──► emit_artifact_indexed() per artifact
     │        ▼
     │    EventEmitter → OfflineQueue (event queue)
-    │        ▼
-    │    BackgroundSyncService → batch_sync() → /api/v1/events/batch/
     │
-    └──► body_upload.prepare_body_uploads()  ◄── NEW
+    │  Step 3: Prepare body uploads (new)
+    └──► body_upload.prepare_body_uploads(dossier.artifacts, namespace_ref)
              │
              ├── Filter by FR-004 surfaces + FR-005 formats
              ├── Filter by 512 KiB size limit
@@ -118,24 +124,29 @@ MissionDossier.artifacts: List[ArtifactRef]
              │
              ▼
          OfflineBodyUploadQueue.enqueue()  ◄── NEW
+
+--- (async boundary: enqueue completes, background drain runs later) ---
+
+BackgroundSyncService (drains event queue first, body queue second)
+    │
+    ├──► batch_sync() → /api/v1/events/batch/    (events)
+    │
+    └──► body_transport.push_content()  ◄── NEW   (bodies)
              │
              ▼
-         BackgroundSyncService (drains body queue AFTER event queue)
+         POST /api/dossier/push-content/
              │
-             ▼
-         body_transport.push_content()  ◄── NEW
-             │
-             ▼
-         POST /api/v1/content/push/
-             │
-             ├── 200 uploaded      → remove from queue
-             ├── 200 already_exists → remove from queue
-             ├── 400 bad request   → remove from queue (failed)
-             ├── 401 unauthorized  → keep (auth refresh)
-             ├── 404 not found     → keep, retry (index not materialized)
-             ├── 429 rate limited  → keep, retry with backoff
-             └── 5xx server error  → keep, retry with backoff
+             ├── 201 stored                → remove from queue (UploadOutcome: uploaded)
+             ├── 200 already_exists        → remove from queue (UploadOutcome: already_exists)
+             ├── 400 bad request           → remove from queue (UploadOutcome: failed)
+             ├── 401 unauthorized          → keep (auth refresh)
+             ├── 404 index_entry_not_found → keep, retry with backoff (FR-008)
+             ├── 404 namespace_not_found   → remove from queue (UploadOutcome: failed, poison row)
+             ├── 429 rate limited          → keep, retry with backoff
+             └── 5xx server error          → keep, retry with backoff
 ```
+
+**Orchestration entrypoint**: `dossier_pipeline.sync_feature_dossier()` is invoked only from code paths that already own dossier emission for a concrete feature directory (e.g., feature-aware sync commands). It is NOT invoked by `BackgroundSyncService`, which has no reliable "active feature" concept.
 
 ### Module Responsibilities
 
@@ -144,7 +155,8 @@ MissionDossier.artifacts: List[ArtifactRef]
 | `namespace.py` | `NamespaceRef` dataclass, construction from `ProjectIdentity` + feature metadata + manifest | `project_identity.py`, `dossier/manifest.py` |
 | `body_queue.py` | `OfflineBodyUploadQueue`: SQLite CRUD for `body_upload_queue` table, drain with backoff filtering, stats | `queue.py` (shared DB connection) |
 | `body_upload.py` | `prepare_body_uploads()`: filter `ArtifactRef` list, read content, re-hash guard, enqueue via `OfflineBodyUploadQueue` | `body_queue.py`, `namespace.py`, `dossier/models.py` |
-| `body_transport.py` | `push_content()`: HTTP POST to SaaS, response classification into `UploadOutcome` | `auth.py`, `requests` |
+| `body_transport.py` | `push_content()`: HTTP POST to `/api/dossier/push-content/`, response classification into `UploadOutcome` with 404 dispatch (retryable `index_entry_not_found` vs non-retryable `namespace_not_found`) | `auth.py`, `requests` |
+| `dossier_pipeline.py` | `sync_feature_dossier()`: orchestration entrypoint — calls indexer, emits dossier events, calls `prepare_body_uploads()`. Invoked by feature-aware sync commands, NOT by `BackgroundSyncService`. | `dossier/indexer.py`, `dossier/events.py`, `body_upload.py`, `namespace.py` |
 | `background.py` (mod) | Extended `_sync_once()` to drain `body_upload_queue` after event queue | `body_queue.py`, `body_transport.py` |
 | `runtime.py` (mod) | Wire `OfflineBodyUploadQueue` into `SyncRuntime` lifecycle | `body_queue.py` |
 | `diagnose.py` (mod) | Body upload queue stats and inspection | `body_queue.py` |
@@ -161,7 +173,7 @@ MissionDossier.artifacts: List[ArtifactRef]
 
 5. **Drain ordering**: Events drain before body uploads. This maximizes the chance that the remote dossier index is materialized before body uploads arrive, reducing 404 `index_entry_not_found` retries.
 
-6. **Idempotent enqueue**: The unique constraint `(project_uuid, feature_slug, target_branch, artifact_path, content_hash)` prevents duplicate tasks for the same content in the same namespace. Changed content (new hash) creates a new task; the old task (if still queued) becomes stale and will get `already_exists` or a new hash replaces it.
+6. **Idempotent enqueue**: The unique constraint `(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)` prevents duplicate tasks for the same content in the same full namespace. All five `NamespaceRef` fields are included so that a manifest-version change with unchanged file content creates a distinct queued task. Changed content (new hash) creates a new task; the old task (if still queued) becomes stale and will get `already_exists` or a new hash replaces it.
 
 7. **No local remote-state cache**: The client always submits. The server returns `already_exists` for content it already has. No client-side pre-skip logic that could go stale.
 

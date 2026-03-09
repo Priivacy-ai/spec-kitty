@@ -8,8 +8,10 @@
 ## Endpoint
 
 ```
-POST /api/v1/content/push/
+POST /api/dossier/push-content/
 ```
+
+The route is owned by the SaaS receiver. The sender targets this canonical route only; no client-side route configuration or fallback aliases.
 
 ## Authentication
 
@@ -67,11 +69,11 @@ Uses existing `AuthClient` / `CredentialStore` (C-002). No new auth flow.
 
 ## Responses
 
-### 200 OK — Uploaded
+### 201 Created — Stored
 
 ```json
 {
-  "status": "uploaded",
+  "status": "stored",
   "artifact_path": "spec.md",
   "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }
@@ -108,7 +110,7 @@ Client action: Log as `failed`, remove from queue (not retryable).
 
 Client action: Keep in queue, wait for auth refresh.
 
-### 404 Not Found — Index Entry Not Found
+### 404 Not Found — Index Entry Not Found (retryable)
 
 ```json
 {
@@ -118,6 +120,17 @@ Client action: Keep in queue, wait for auth refresh.
 ```
 
 Client action: Treat as **retryable** (FR-008). The dossier index event may not be materialized yet on the server. Increment retry count and set next_attempt_at with backoff.
+
+### 404 Not Found — Namespace Not Found (non-retryable)
+
+```json
+{
+  "error": "namespace_not_found",
+  "detail": "No namespace for project_uuid=... feature_slug=047-namespace-aware-artifact-body-sync target_branch=2.x"
+}
+```
+
+Client action: Treat as **non-retryable**. The namespace tuple is malformed or the project/feature has never been registered with SaaS. Log as `failed`, remove from queue. A malformed namespace will never self-heal on retry and must be surfaced as a local diagnostic.
 
 ### 429 Too Many Requests
 
@@ -138,14 +151,17 @@ Client action: Retryable with exponential backoff.
 
 | Response | UploadOutcome | Queue Action | Retryable |
 |----------|---------------|--------------|-----------|
-| 200 `uploaded` | `uploaded` | Remove from queue | N/A |
+| 201 `stored` | `uploaded` | Remove from queue | N/A |
 | 200 `already_exists` | `already_exists` | Remove from queue | N/A |
 | 400 | `failed` | Remove from queue | No |
 | 401 | N/A | Keep in queue | Yes (after auth refresh) |
 | 404 `index_entry_not_found` | N/A | Keep, increment retry | Yes |
+| 404 `namespace_not_found` | `failed` | Remove from queue | No |
 | 429 | N/A | Keep, increment retry | Yes |
 | 5xx | N/A | Keep, increment retry | Yes |
 | Connection error | N/A | Keep, increment retry | Yes |
+
+**Critical 404 dispatch rule**: The client MUST inspect the response body `error` field to distinguish `index_entry_not_found` (retryable) from `namespace_not_found` (non-retryable). A bare 404 without a parseable `error` field is treated as retryable (conservative default).
 
 ## Backoff Schedule
 
