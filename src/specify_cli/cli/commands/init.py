@@ -310,7 +310,8 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
 
 def init(
     project_name: str | None = typer.Argument(
-        None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"
+        None,
+        help="Name for your new project directory (omit to initialize current directory, equivalent to --here)",
     ),
     ai_assistant: str | None = typer.Option(
         None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"
@@ -366,14 +367,12 @@ def init(
         here = True
         project_name = None  # Clear project_name to use existing validation logic
 
+    # Default behavior: no positional argument initializes in the current directory.
+    if not here and not project_name:
+        here = True
+
     if here and project_name:
         _console.print("[red]Error:[/red] Cannot specify both project name and --here flag")
-        raise typer.Exit(1)
-
-    if not here and not project_name:
-        _console.print(
-            "[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag"
-        )
         raise typer.Exit(1)
 
     if here:
