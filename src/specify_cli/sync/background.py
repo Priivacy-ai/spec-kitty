@@ -69,7 +69,10 @@ class BackgroundSyncService:
                 self._timer = None
 
         # Best-effort final sync
-        if self.queue.size() > 0:
+        body_queue_has_work = (
+            self._body_queue is not None and self._body_queue.size() > 0
+        )
+        if self.queue.size() > 0 or body_queue_has_work:
             try:
                 self._perform_sync()
             except Exception:
@@ -117,7 +120,10 @@ class BackgroundSyncService:
         """Timer callback: sync if queue is non-empty, then reschedule."""
         if not self._running:
             return
-        if self.queue.size() > 0:
+        body_queue_has_work = (
+            self._body_queue is not None and self._body_queue.size() > 0
+        )
+        if self.queue.size() > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
 
@@ -158,6 +164,9 @@ class BackgroundSyncService:
                     batch_size=1000,
                     show_progress=False,
                 )
+                # Drain body upload queue after events (FR-007)
+                if self._body_queue is not None:
+                    self._drain_body_queue()
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
                 self._last_sync = datetime.now(timezone.utc)
@@ -192,6 +201,7 @@ class BackgroundSyncService:
             logger.warning("Not authenticated, skipping sync")
             return BatchSyncResult()
 
+        event_sync_succeeded = False
         try:
             result = batch_sync(
                 queue=self.queue,
@@ -204,6 +214,7 @@ class BackgroundSyncService:
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
             self._last_sync = datetime.now(timezone.utc)
+            event_sync_succeeded = True
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
@@ -218,7 +229,7 @@ class BackgroundSyncService:
             result.error_messages.append(str(exc))
 
         # Drain body upload queue after event queue (FR-007, Design Decision #5)
-        if self._body_queue is not None:
+        if event_sync_succeeded and self._body_queue is not None:
             self._drain_body_queue()
 
         return result

@@ -228,6 +228,15 @@ class OfflineBodyUploadQueue:
         finally:
             conn.close()
 
+    def size(self) -> int:
+        """Get current body queue size."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
+            return row[0] if row else 0
+        finally:
+            conn.close()
+
     def get_stats(self) -> BodyQueueStats:
         """Compute diagnostic statistics about the queue."""
         conn = sqlite3.connect(self.db_path)

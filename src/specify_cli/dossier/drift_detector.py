@@ -405,6 +405,7 @@ async def emit_drift_if_detected(
     mission_key: str,
     manifest_version: str,
     actor: Optional[str] = None,
+    namespace: Optional[dict[str, str]] = None,
 ) -> Optional[dict]:
     """Detect drift and emit event if found.
 
@@ -444,6 +445,7 @@ async def emit_drift_if_detected(
         missing_in_local=drift_info["missing_in_local"],
         missing_in_baseline=drift_info["missing_in_baseline"],
         severity=drift_info["severity"],
+        namespace=namespace,
     )
 
     return event

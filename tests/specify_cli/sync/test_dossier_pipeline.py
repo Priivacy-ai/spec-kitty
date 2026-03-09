@@ -93,6 +93,7 @@ class TestDossierSyncResult:
 
 
 @patch("specify_cli.sync.body_upload.prepare_body_uploads")
+@patch("specify_cli.dossier.events.emit_snapshot_computed")
 @patch("specify_cli.dossier.events.emit_artifact_indexed")
 @patch("specify_cli.dossier.indexer.Indexer")
 @patch("specify_cli.dossier.manifest.ManifestRegistry")
@@ -102,6 +103,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -113,6 +115,9 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = [
             UploadOutcome(
                 artifact_path="spec.md", status=UploadStatus.QUEUED,
@@ -126,7 +131,7 @@ class TestSyncFeatureDossier:
 
         assert result.success is True
         assert result.dossier is dossier
-        assert result.events_emitted == 1
+        assert result.events_emitted == 2
         assert len(result.body_outcomes) == 1
         assert result.body_outcomes[0].status == UploadStatus.QUEUED
         assert result.errors == []
@@ -136,6 +141,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -162,6 +168,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -178,6 +185,9 @@ class TestSyncFeatureDossier:
             RuntimeError("emit failed"),
             {"event_type": "MissionDossierArtifactIndexed"},
         ]
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = []
 
         ns = _make_namespace()
@@ -186,7 +196,7 @@ class TestSyncFeatureDossier:
 
         # Pipeline still succeeds (partial failure is non-fatal)
         assert result.success is True
-        assert result.events_emitted == 1  # Only second succeeded
+        assert result.events_emitted == 2  # Second artifact + snapshot succeeded
         mock_prepare.assert_called_once()  # Body prep still ran
 
     def test_body_preparation_failure_does_not_abort_events(
@@ -194,6 +204,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -205,6 +216,9 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.side_effect = RuntimeError("queue failure")
 
         ns = _make_namespace()
@@ -212,7 +226,7 @@ class TestSyncFeatureDossier:
         result = sync_feature_dossier(tmp_path, ns, queue)
 
         assert result.success is False  # Has errors
-        assert result.events_emitted == 1  # Events still emitted
+        assert result.events_emitted == 2  # Artifact + snapshot still emitted
         assert result.body_outcomes == []
         assert any("body_upload_preparation_failed" in e for e in result.errors)
 
@@ -221,6 +235,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -230,6 +245,9 @@ class TestSyncFeatureDossier:
         mock_indexer.index_feature.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = []
 
         ns = _make_namespace()
@@ -237,16 +255,19 @@ class TestSyncFeatureDossier:
         result = sync_feature_dossier(tmp_path, ns, queue)
 
         assert result.success is True
-        assert result.events_emitted == 0
+        assert result.events_emitted == 1
         assert result.body_outcomes == []
         assert result.errors == []
         mock_emit.assert_not_called()
 
-    def test_skips_non_present_artifacts_for_events(
+    @patch("specify_cli.dossier.events.emit_artifact_missing")
+    def test_emits_indexed_for_present_and_missing_for_absent(
         self,
+        mock_emit_missing: MagicMock,
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -259,22 +280,29 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_missing.return_value = {"event_type": "MissionDossierArtifactMissing"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = []
 
         ns = _make_namespace()
         queue = MagicMock()
         result = sync_feature_dossier(tmp_path, ns, queue)
 
-        # Only 1 event emitted (present artifact only)
-        assert result.events_emitted == 1
+        # 3 events: 1 indexed (present) + 1 missing + 1 snapshot
+        assert result.events_emitted == 3
         assert mock_emit.call_count == 1
         assert mock_emit.call_args.kwargs["relative_path"] == "spec.md"
+        assert mock_emit_missing.call_count == 1
+        assert mock_emit_missing.call_args.kwargs["artifact_key"] == "input.plan"
 
     def test_emit_returns_none_not_counted(
         self,
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -287,6 +315,7 @@ class TestSyncFeatureDossier:
 
         # emit returns None (validation failure inside)
         mock_emit.return_value = None
+        mock_emit_snapshot.return_value = None
         mock_prepare.return_value = []
 
         ns = _make_namespace()
@@ -301,6 +330,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -313,6 +343,9 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = [
             UploadOutcome(
                 artifact_path="spec.md", status=UploadStatus.QUEUED,
@@ -329,7 +362,7 @@ class TestSyncFeatureDossier:
         result = sync_feature_dossier(tmp_path, ns, queue)
 
         assert result.success is True
-        assert result.events_emitted == 2
+        assert result.events_emitted == 3
         assert len(result.body_outcomes) == 2
 
         queued = [o for o in result.body_outcomes if o.status == UploadStatus.QUEUED]
@@ -342,6 +375,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -366,6 +400,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -377,6 +412,9 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = []
 
         ns = _make_namespace()
@@ -395,6 +433,7 @@ class TestSyncFeatureDossier:
         mock_registry_cls: MagicMock,
         mock_indexer_cls: MagicMock,
         mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
         mock_prepare: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -406,6 +445,9 @@ class TestSyncFeatureDossier:
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
         mock_prepare.return_value = []
 
         ns = _make_namespace()
@@ -413,3 +455,66 @@ class TestSyncFeatureDossier:
         sync_feature_dossier(tmp_path, ns, queue, step_id="plan")
 
         assert mock_emit.call_args.kwargs["step_id"] == "plan"
+
+    @patch("specify_cli.dossier.events.emit_parity_drift_detected")
+    @patch("specify_cli.dossier.drift_detector.detect_drift")
+    def test_emits_snapshot_and_drift_with_namespace(
+        self,
+        mock_detect_drift: MagicMock,
+        mock_emit_drift: MagicMock,
+        mock_registry_cls: MagicMock,
+        mock_indexer_cls: MagicMock,
+        mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
+        mock_prepare: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        from uuid import UUID
+
+        from specify_cli.sync.project_identity import ProjectIdentity
+
+        artifact = _make_artifact("spec.md")
+        dossier = _make_dossier([artifact])
+
+        mock_indexer = MagicMock()
+        mock_indexer.index_feature.return_value = dossier
+        mock_indexer_cls.return_value = mock_indexer
+
+        mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
+        mock_emit_snapshot.return_value = {
+            "event_type": "MissionDossierSnapshotComputed",
+        }
+        mock_detect_drift.return_value = (
+            True,
+            {
+                "local_parity_hash": "a" * 64,
+                "baseline_parity_hash": "b" * 64,
+                "missing_in_local": [],
+                "missing_in_baseline": [],
+                "severity": "warning",
+            },
+        )
+        mock_emit_drift.return_value = {
+            "event_type": "MissionDossierParityDriftDetected",
+        }
+        mock_prepare.return_value = []
+
+        ns = _make_namespace()
+        queue = MagicMock()
+        identity = ProjectIdentity(
+            project_uuid=UUID(ns.project_uuid),
+            project_slug="test-proj",
+            node_id="node-123",
+        )
+
+        result = sync_feature_dossier(
+            tmp_path,
+            ns,
+            queue,
+            repo_root=tmp_path,
+            project_identity=identity,
+        )
+
+        assert result.events_emitted == 3
+        assert mock_emit_snapshot.call_args.kwargs["namespace"] == ns.to_dict()
+        assert mock_emit_drift.call_args.kwargs["namespace"] == ns.to_dict()

@@ -521,6 +521,19 @@ def implement(
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
+            # Dossier sync (fire-and-forget)
+            try:
+                from specify_cli.sync.dossier_pipeline import (
+                    trigger_feature_dossier_sync_if_enabled,
+                )
+
+                _impl_feature_dir = repo_root / "kitty-specs" / feature_slug
+                trigger_feature_dossier_sync_if_enabled(
+                    _impl_feature_dir, feature_slug, repo_root,
+                )
+            except Exception:
+                pass
+
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         else:
