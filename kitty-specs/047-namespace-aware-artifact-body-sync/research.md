@@ -40,29 +40,38 @@
 
 ## R3: Sync Pipeline Integration Point
 
-**Decision**: Body upload preparation runs immediately after `Indexer.index_feature()` completes and dossier events are emitted, within the same sync invocation.
+**Decision**: Body upload preparation runs in an explicit dossier-sync orchestration function (`dossier_pipeline.sync_feature_dossier()`), not in `BackgroundSyncService` and not via a vague "any command that triggers sync" hook.
 
-**Key finding**: The indexer exists but is **not yet called by the sync pipeline**. There is no module in `src/specify_cli/sync/` that invokes `index_feature()`. Dossier event emission happens via `dossier/events.py` functions (`emit_artifact_indexed()` etc.) which call into `sync/emitter.py` directly. Body sync will be the first consumer that integrates indexer output into the sync pipeline flow.
+**Key finding**: The indexer exists but is **not yet called by the sync pipeline**. There is no module in `src/specify_cli/sync/` that invokes `index_feature()`. Dossier event emission happens via `dossier/events.py` functions (`emit_artifact_indexed()` etc.) which call into `sync/emitter.py` directly.
 
-**Integration pattern**:
-1. Sync invocation triggers `Indexer.index_feature()` for the active feature
-2. Dossier events are emitted per artifact (existing behavior via `emit_artifact_indexed()`)
-3. Body upload preparation filters `ArtifactRef` list by supported formats and size limit
-4. Supported artifacts have content read and are enqueued to `body_upload_queue`
-5. `BackgroundSyncService` drains event queue first, then body upload queue
+**Why a dedicated orchestration function**:
+- Indexing and body enqueue are feature-context work — they require a concrete `feature_dir` and `namespace_ref`
+- `BackgroundSyncService` has no reliable "active feature" concept — it only drains already-enqueued work
+- Keeping index + event emit + body enqueue in one orchestration preserves path/hash consistency within a single scan
+
+**Orchestration shape** (`dossier_pipeline.sync_feature_dossier()`):
+1. Call `Indexer.index_feature(feature_dir, mission_type, step_id)`
+2. Emit dossier events from the resulting `MissionDossier`
+3. Call `prepare_body_uploads(dossier.artifacts, namespace_ref, ...)`
+
+**Invocation**: Only from code paths that already own dossier emission for a concrete feature directory (feature-aware sync commands). `BackgroundSyncService` remains replay-only: it drains queues, it does not discover artifacts.
 
 ## R4: Transport Endpoint for Body Uploads
 
-**Decision**: Body uploads use a separate REST endpoint (`/api/v1/content/push/`), not the existing batch event endpoint (`/api/v1/events/batch/`).
+**Decision**: Body uploads use the SaaS receiver's canonical route `POST /api/dossier/push-content/`, not the existing batch event endpoint (`/api/v1/events/batch/`).
 
-**Rationale**: The existing batch endpoint expects event-shaped payloads (event_id, event_type, aggregate_id, etc.) with gzip compression. Body uploads carry namespace tuple + artifact identity + content body — structurally different. Mixing body content into the event stream would violate separation of concerns and require the SaaS event processor to handle content storage.
+**Rationale**: The existing batch endpoint expects event-shaped payloads (event_id, event_type, aggregate_id, etc.) with gzip compression. Body uploads carry namespace tuple + artifact identity + content body — structurally different. The receiver owns the route contract; the sender targets the canonical route only with no client-side route configuration.
 
 **Transport details**:
-- Endpoint: `POST /api/v1/content/push/` (assumed from spec C-003)
+- Endpoint: `POST /api/dossier/push-content/` (canonical, owned by SaaS receiver)
 - Auth: Same `Bearer` token from `AuthClient` (C-002)
 - Payload: JSON with namespace fields + artifact_path + content_hash + hash_algorithm + content_body
-- Response: `uploaded` | `already_exists` (200), `index_entry_not_found` (404, retryable), 5xx/429 (retryable)
+- Success: `stored` (201) | `already_exists` (200)
+- Retryable failures: `index_entry_not_found` (404), 5xx, 429
+- Non-retryable failures: `namespace_not_found` (404), 400 validation error
 - No gzip in v1 (bodies are ≤512 KiB; revisit if needed)
+
+**Critical 404 dispatch**: The client MUST inspect the response body `error` field to distinguish retryable `index_entry_not_found` from non-retryable `namespace_not_found`. A bare 404 without a parseable error field defaults to retryable (conservative).
 
 ## R5: LocalNamespaceTuple Status
 

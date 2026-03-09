@@ -4,7 +4,7 @@
 
 ## What This Feature Does
 
-When you run `spec-kitty sync` (or any command that triggers sync), the CLI now uploads the text content of your feature artifacts to SaaS alongside the existing dossier events. SaaS can then render `spec.md`, `plan.md`, `tasks.md`, and other documents without a separate manual push step.
+When code paths that emit dossier events for a feature run (e.g., feature-aware sync commands), the CLI now uploads the text content of your feature artifacts to SaaS alongside the existing dossier events. SaaS can then render `spec.md`, `plan.md`, `tasks.md`, and other documents without a separate manual push step.
 
 ## How It Works
 
@@ -52,23 +52,25 @@ Two features with the same mission type but different slugs or branches cannot o
 - On reconnection, `BackgroundSyncService` drains events first, then body uploads
 - Per-task exponential backoff (1s → 5 min cap) prevents tight-loop retry
 - `404 index_entry_not_found` is treated as retryable (the remote index may not be materialized yet)
+- `404 namespace_not_found` is treated as non-retryable (malformed namespace, surfaced as local failure)
 
 ## Diagnostics
 
 Upload results are logged per artifact with one of five statuses:
 
-- `uploaded` — SaaS accepted the body
-- `already_exists` — SaaS already has this content (idempotent no-op)
+- `uploaded` — SaaS accepted and stored the body (201)
+- `already_exists` — SaaS already has this content (200, idempotent no-op)
 - `queued` — SaaS was offline; task saved for later replay
 - `skipped` — Artifact not eligible (binary, oversized, non-UTF-8)
-- `failed` — Non-retryable error (validation failure, bad request)
+- `failed` — Non-retryable error (400 validation, 404 namespace_not_found)
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/specify_cli/sync/body_upload.py` | Body upload orchestration (filter, read, enqueue) |
+| `src/specify_cli/sync/dossier_pipeline.py` | Orchestration entrypoint: index, emit events, enqueue bodies |
+| `src/specify_cli/sync/body_upload.py` | Body upload preparation (filter, read, re-hash, enqueue) |
 | `src/specify_cli/sync/body_queue.py` | `OfflineBodyUploadQueue` (sibling SQLite table) |
-| `src/specify_cli/sync/body_transport.py` | HTTP transport to `push_content` endpoint |
+| `src/specify_cli/sync/body_transport.py` | HTTP transport to `/api/dossier/push-content/` |
 | `src/specify_cli/sync/namespace.py` | `NamespaceRef` dataclass |
 | `src/specify_cli/sync/background.py` | `BackgroundSyncService` (extended to drain body queue) |

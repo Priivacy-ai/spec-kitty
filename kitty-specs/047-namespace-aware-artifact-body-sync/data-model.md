@@ -46,7 +46,7 @@ Durable queued unit persisted to `body_upload_queue` SQLite table. Represents on
 | `next_attempt_at` | `int` | `INTEGER DEFAULT 0` | Unix timestamp of next eligible retry |
 | `last_error` | `str` | `TEXT` | Last error message (nullable) |
 
-**Unique constraint**: `UNIQUE(project_uuid, feature_slug, target_branch, artifact_path, content_hash)` — prevents duplicate enqueue of the same content for the same artifact in the same namespace.
+**Unique constraint**: `UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)` — prevents duplicate enqueue of the same content for the same artifact in the same namespace. All five `NamespaceRef` fields are included to ensure a manifest-version change with unchanged file content creates a distinct queued task, preserving namespace isolation.
 
 **Indexes**:
 - `idx_body_next_attempt ON body_upload_queue(next_attempt_at)` — for efficient drain ordering
@@ -65,11 +65,11 @@ Classified result for one attempted body upload. Not persisted; used as in-memor
 | `retryable` | `bool` | Whether the task should be retried |
 
 **Status definitions**:
-- `uploaded`: SaaS accepted the body (HTTP 200/201)
-- `already_exists`: SaaS already has this content_hash for this artifact (HTTP 200 with `already_exists` response)
+- `uploaded`: SaaS accepted and stored the body (HTTP 201 `stored`)
+- `already_exists`: SaaS already has this content_hash for this artifact (HTTP 200 `already_exists`)
 - `queued`: SaaS was unreachable; task persisted to body_upload_queue for later replay
 - `skipped`: Artifact was not eligible for upload (binary, oversized, non-UTF-8, deleted after scan)
-- `failed`: Non-retryable error (e.g., HTTP 400 bad request, validation failure)
+- `failed`: Non-retryable error (e.g., HTTP 400 validation error, HTTP 404 `namespace_not_found`)
 
 ### SupportedInlineFormat
 
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS body_upload_queue (
     retry_count INTEGER DEFAULT 0,
     next_attempt_at INTEGER DEFAULT 0,
     last_error TEXT,
-    UNIQUE(project_uuid, feature_slug, target_branch, artifact_path, content_hash)
+    UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
 );
 
 CREATE INDEX IF NOT EXISTS idx_body_next_attempt
