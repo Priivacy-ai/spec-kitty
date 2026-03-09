@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Body Upload Preparation & Filtering
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01, WP02]
 base_branch: 047-namespace-aware-artifact-body-sync-WP03-merge-base
 base_commit: ab125a790b2bbd1290f8fa047688ae68978a2c92
@@ -15,8 +15,8 @@ subtasks:
 - T018
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: "claude-opus"
-shell_pid: "51530"
+agent: claude-opus
+shell_pid: '51530'
 review_status: ''
 reviewed_by: ''
 history:
@@ -336,3 +336,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T08:38:20Z – claude-opus – shell_pid=51530 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T08:41:58Z – claude-opus – shell_pid=51530 – lane=for_review – Ready for review: prepare_body_uploads() with surface/format/size filters, re-hash guard (raw-bytes matching hasher.py), and full pipeline to OfflineBodyUploadQueue. 41 tests, ruff clean.

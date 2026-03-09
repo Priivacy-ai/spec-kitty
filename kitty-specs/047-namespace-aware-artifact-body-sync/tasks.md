@@ -314,4 +314,5 @@ WP05   WP06    |          ← WP06 needs WP02 + WP04
 ## Canonical Status (Generated)
 - WP01: done
 - WP02: done
+- WP03: for_review
 <!-- status-model:end -->
