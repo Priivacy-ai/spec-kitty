@@ -11,7 +11,7 @@ subtasks:
 - T006
 phase: Phase 2 - Validation
 assignee: ''
-agent: ''
+agent: "claude-sonnet-4-6"
 shell_pid: "41689"
 review_status: ''
 reviewed_by: ''
@@ -351,3 +351,4 @@ Reviewers should verify:
 ## Activity Log
 
 - 2026-03-09T11:13:06Z – system – lane=planned – Prompt created.
+- 2026-03-09T11:47:47Z – claude-sonnet-4-6 – shell_pid=41689 – lane=doing – Assigned agent via workflow command
