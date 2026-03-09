@@ -13,7 +13,7 @@ subtasks:
 - T004
 phase: Phase 1 - Foundation
 assignee: ''
-agent: ''
+agent: "claude-sonnet-4-6"
 shell_pid: "38532"
 review_status: ''
 reviewed_by: ''
@@ -399,3 +399,4 @@ Reviewers should verify:
 ## Activity Log
 
 - 2026-03-09T11:13:06Z – system – lane=planned – Prompt created.
+- 2026-03-09T11:21:04Z – claude-sonnet-4-6 – shell_pid=38532 – lane=doing – Assigned agent via workflow command
