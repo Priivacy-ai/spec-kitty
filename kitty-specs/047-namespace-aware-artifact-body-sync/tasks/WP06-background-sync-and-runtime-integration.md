@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Background Sync & Runtime Integration
+lane: "doing"
+dependencies: [WP02, WP04]
+base_branch: 047-namespace-aware-artifact-body-sync-WP06-merge-base
+base_commit: 192ee0b889e1235647c4d3c7aac8af04a58cb04f
+created_at: '2026-03-09T10:00:57.143960+00:00'
 subtasks:
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-  - "T033"
-title: "Background Sync & Runtime Integration"
-phase: "Phase 3 - Integration"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP02", "WP04"]
-requirement_refs: ["FR-007", "FR-009"]
+- T028
+- T029
+- T030
+- T031
+- T032
+- T033
+phase: Phase 3 - Integration
+assignee: ''
+agent: ''
+shell_pid: "12054"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-09T07:09:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-09T07:09:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-007, FR-009]
 ---
 
 # Work Package Prompt: WP06 – Background Sync & Runtime Integration
