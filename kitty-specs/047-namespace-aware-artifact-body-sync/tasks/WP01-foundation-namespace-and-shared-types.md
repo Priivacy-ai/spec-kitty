@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-title: "Foundation - NamespaceRef & Shared Types"
-phase: "Phase 1 - Foundation"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Foundation - NamespaceRef & Shared Types
+lane: "doing"
 dependencies: []
-requirement_refs: ["FR-002", "FR-005", "FR-011", "FR-012"]
+base_branch: 2.x
+base_commit: 25ddd221bc402b8ddfbbd57e5046708bbc953a37
+created_at: '2026-03-09T07:19:44.028991+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 1 - Foundation
+assignee: ''
+agent: "claude-opus"
+shell_pid: "45749"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-09T07:09:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-09T07:09:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-002, FR-005, FR-011, FR-012]
 ---
 
 # Work Package Prompt: WP01 – Foundation - NamespaceRef & Shared Types
@@ -214,3 +217,6 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
+- 2026-03-09T07:19:44Z – claude – shell_pid=44411 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T07:23:06Z – claude – shell_pid=44411 – lane=for_review – Ready for review: NamespaceRef, SupportedInlineFormat, UploadOutcome types with 44 tests, 100% coverage, mypy clean
+- 2026-03-09T07:25:37Z – claude-opus – shell_pid=45749 – lane=doing – Started review via workflow command

@@ -1,0 +1,24 @@
+{
+  "event_count": 3,
+  "feature_slug": "047-namespace-aware-artifact-body-sync",
+  "last_event_id": "01KK8QSDDC7YMVSJ0Z7ZBFN6CB",
+  "materialized_at": "2026-03-09T07:25:37.068603+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-opus",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KK8QSDDC7YMVSJ0Z7ZBFN6CB",
+      "last_transition_at": "2026-03-09T07:25:37.068358+00:00"
+    }
+  }
+}
