@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Diagnostics, Logging & End-to-End Tests
-lane: "doing"
+lane: "for_review"
 dependencies: [WP05, WP06]
 base_branch: 047-namespace-aware-artifact-body-sync-WP07-merge-base
 base_commit: 6a2e9982824aa43dfa11e43c0f2d471442d0de41
@@ -13,8 +13,8 @@ subtasks:
 - T037
 phase: Phase 4 - Polish
 assignee: ''
-agent: "claude-opus"
-shell_pid: "16170"
+agent: claude-opus
+shell_pid: '16170'
 review_status: ''
 reviewed_by: ''
 history:
@@ -297,3 +297,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T10:13:24Z – claude-opus – shell_pid=16170 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T10:18:43Z – claude-opus – shell_pid=16170 – lane=for_review – Ready for review: diagnostics (diagnose_body_queue, print_body_queue_summary), per-artifact logging (log_upload_outcomes wired into dossier_pipeline), 32 new tests covering SC-001 through SC-006 + retry scenarios. 197/197 sync tests pass, ruff clean, mypy --strict clean on all new modules.
