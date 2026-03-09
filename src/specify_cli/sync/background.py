@@ -12,13 +12,17 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .auth import AuthClient
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+
+if TYPE_CHECKING:
+    from .body_queue import BodyUploadTask, OfflineBodyUploadQueue
+    from .namespace import UploadOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,7 @@ class BackgroundSyncService:
     _backoff_seconds: float = field(default=0.5, init=False, repr=False)
     _last_sync: Optional[datetime] = field(default=None, init=False, repr=False)
     _consecutive_failures: int = field(default=0, init=False, repr=False)
+    _body_queue: Optional[OfflineBodyUploadQueue] = field(default=None, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def start(self) -> None:
@@ -172,7 +177,10 @@ class BackgroundSyncService:
                 return result
 
     def _sync_once(self) -> BatchSyncResult:
-        """Internal: single-batch sync (caller must hold _lock)."""
+        """Internal: single-batch sync (caller must hold _lock).
+
+        Drain ordering: events first, then body uploads (Design Decision #5).
+        """
         if not is_saas_sync_enabled():
             logger.info("%s Single-batch sync skipped.", saas_sync_disabled_message())
             result = BatchSyncResult()
@@ -196,7 +204,6 @@ class BackgroundSyncService:
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
             self._last_sync = datetime.now(timezone.utc)
-            return result
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
@@ -209,7 +216,66 @@ class BackgroundSyncService:
             result = BatchSyncResult()
             result.error_count = 1
             result.error_messages.append(str(exc))
-            return result
+
+        # Drain body upload queue after event queue (FR-007, Design Decision #5)
+        if self._body_queue is not None:
+            self._drain_body_queue()
+
+        return result
+
+    def _drain_body_queue(self) -> None:
+        """Drain body upload queue, processing tasks one at a time.
+
+        Backoff progression (NFR-003):
+        retry 0 → 1s, retry 1 → 2s, retry 2 → 4s, retry 3 → 8s,
+        retry 4 → 16s, retry 5 → 32s, retry 6 → 64s, retry 7 → 128s,
+        retry 8 → 256s, retry 9+ → 300s (5 min cap)
+        """
+        from .body_transport import push_content
+
+        assert self._body_queue is not None
+
+        # Remove stale tasks that exceeded max retries (prevent unbounded growth)
+        removed = self._body_queue.remove_stale(max_retry_count=20)
+        if removed > 0:
+            logger.info("Removed %d stale body upload tasks", removed)
+
+        access_token = self.auth.get_access_token()
+        if access_token is None:
+            logger.debug("No auth token available, skipping body queue drain")
+            return
+
+        tasks = self._body_queue.drain(limit=50)
+        if not tasks:
+            return
+
+        server_url = self.config.get_server_url()
+        for task in tasks:
+            outcome = push_content(task, access_token, server_url)
+            self._handle_body_outcome(task, outcome)
+
+    def _handle_body_outcome(
+        self, task: BodyUploadTask, outcome: UploadOutcome,
+    ) -> None:
+        """Update queue based on upload outcome."""
+        from .namespace import UploadStatus
+
+        assert self._body_queue is not None
+
+        if outcome.status == UploadStatus.UPLOADED:
+            self._body_queue.mark_uploaded(task.row_id)
+            logger.debug("Body uploaded: %s", outcome)
+        elif outcome.status == UploadStatus.ALREADY_EXISTS:
+            self._body_queue.mark_already_exists(task.row_id)
+            logger.debug("Body already exists: %s", outcome)
+        elif outcome.status == UploadStatus.FAILED and outcome.retryable:
+            self._body_queue.mark_failed_retryable(task.row_id, outcome.reason)
+            logger.debug("Body upload retryable failure: %s", outcome)
+        elif outcome.status == UploadStatus.FAILED and not outcome.retryable:
+            self._body_queue.mark_failed_permanent(task.row_id, outcome.reason)
+            logger.warning("Body upload permanent failure: %s", outcome)
+        else:
+            logger.warning("Unexpected body outcome: %s", outcome)
 
 
 # ── Singleton accessor ────────────────────────────────────────────
