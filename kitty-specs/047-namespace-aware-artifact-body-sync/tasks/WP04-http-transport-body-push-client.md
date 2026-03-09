@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: HTTP Transport - Body Push Client
+lane: "doing"
+dependencies: [WP01]
+base_branch: 047-namespace-aware-artifact-body-sync-WP01
+base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
+created_at: '2026-03-09T08:45:52.174291+00:00'
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-title: "HTTP Transport - Body Push Client"
-phase: "Phase 2 - Core Logic"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
-requirement_refs: ["FR-002", "FR-003", "FR-008", "FR-010"]
+- T019
+- T020
+- T021
+- T022
+- T023
+phase: Phase 2 - Core Logic
+assignee: ''
+agent: ''
+shell_pid: "53573"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-09T07:09:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-09T07:09:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-002, FR-003, FR-008, FR-010]
 ---
 
 # Work Package Prompt: WP04 – HTTP Transport - Body Push Client
