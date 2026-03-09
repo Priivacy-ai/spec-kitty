@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Body Queue - SQLite Persistence Layer
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 047-namespace-aware-artifact-body-sync-WP01
 base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
@@ -16,8 +16,8 @@ subtasks:
 - T012
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "49905"
+agent: claude-opus
+shell_pid: '49905'
 review_status: ''
 reviewed_by: ''
 history:
@@ -328,3 +328,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T08:23:00Z – claude-opus – shell_pid=49905 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T08:25:54Z – claude-opus – shell_pid=49905 – lane=for_review – Ready for review: OfflineBodyUploadQueue with 7-field idempotent enqueue, exponential backoff drain, lifecycle methods, stats. 27 tests, all passing.
