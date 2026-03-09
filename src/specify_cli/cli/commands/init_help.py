@@ -3,6 +3,9 @@
 INIT_COMMAND_DOC = """
 Initialize a new Spec Kitty project from templates.
 
+If PROJECT_NAME is omitted, init runs in the current directory by default
+(equivalent to --here).
+
 Interactive Mode (default):
 - Prompts you to select AI assistants
 
@@ -42,6 +45,7 @@ For development installs from source, use either:
   spec-kitty init my-project --ai claude --template-root=$(pwd)
 
 Examples:
+  spec-kitty init --ai codex                    # Current directory (default)
   spec-kitty init my-project                    # Interactive mode
   spec-kitty init my-project --ai codex         # Non-interactive with Codex
   spec-kitty init my-project --ai codex,claude  # Multiple agents
