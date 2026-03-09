@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync & Runtime Integration
-lane: "doing"
+lane: "done"
 dependencies: [WP02, WP04]
 base_branch: 047-namespace-aware-artifact-body-sync-WP06-merge-base
 base_commit: 192ee0b889e1235647c4d3c7aac8af04a58cb04f
@@ -15,10 +15,10 @@ subtasks:
 - T033
 phase: Phase 3 - Integration
 assignee: ''
-agent: "claude-opus"
-shell_pid: "14904"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus
+shell_pid: '14904'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
@@ -284,3 +284,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - 2026-03-09T10:00:57Z – claude-opus – shell_pid=12054 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T10:05:54Z – claude-opus – shell_pid=12054 – lane=for_review – Ready for review: background sync body queue drain with drain ordering (events→bodies), per-task outcome handling, stale cleanup, shared DB path (C-001). 13 tests, 110 sync suite pass, ruff clean.
 - 2026-03-09T10:06:29Z – claude-opus – shell_pid=14904 – lane=doing – Started review via workflow command
+- 2026-03-09T10:07:42Z – claude-opus – shell_pid=14904 – lane=done – Review passed: Drain ordering (events→bodies) correct, all 4 UploadStatus outcomes handled with correct queue operations, _body_queue guarded for backward compat, backoff per NFR-003, stale cleanup at 20 retries, shared DB path (C-001), runtime lifecycle clean. 13 tests + 110 sync suite all pass. Ruff clean. | Done override: Review approved; WP branch not yet merged to 2.x (merge happens at feature completion)
