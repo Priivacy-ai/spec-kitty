@@ -316,5 +316,5 @@ WP05   WP06    |          ← WP06 needs WP02 + WP04
 - WP02: done
 - WP03: done
 - WP04: done
-- WP05: for_review
+- WP05: in_progress
 <!-- status-model:end -->
