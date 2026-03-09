@@ -462,20 +462,55 @@ def create_feature(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+        # Get next feature number (needed before branch creation to derive branch name)
+        feature_number = get_next_feature_number(repo_root)
+        feature_slug_formatted = f"{feature_number:03d}-{feature_slug}"
+
         if target_branch:
             planning_branch = target_branch
         else:
-            planning_branch = current_branch
+            # Git-flow: create a feature branch from the current branch
+            feature_branch = feature_slug_formatted  # e.g. "014-checkout-upsell-flow"
+            branch_result = subprocess.run(
+                ["git", "checkout", "-b", feature_branch],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+            )
+            if branch_result.returncode == 0:
+                planning_branch = feature_branch
+                if not json_output:
+                    console.print(
+                        f"[bold green]✓[/bold green] Created feature branch: [bold]{feature_branch}[/bold]"
+                    )
+            else:
+                # Branch already exists — ask the user what to do
+                if json_output:
+                    _emit_json({
+                        "error": f"Branch '{feature_branch}' already exists.",
+                        "branch": feature_branch,
+                    })
+                    raise typer.Exit(1)
+                confirmed = typer.confirm(
+                    f"Branch '{feature_branch}' already exists. Switch to it and continue?"
+                )
+                if confirmed:
+                    subprocess.run(
+                        ["git", "checkout", feature_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                    )
+                    planning_branch = feature_branch
+                else:
+                    console.print("[yellow]Aborted.[/yellow]")
+                    raise typer.Exit(0)
 
         if not json_output:
             console.print(
                 f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
                 f"(target for this feature)"
             )
-
-        # Get next feature number
-        feature_number = get_next_feature_number(repo_root)
-        feature_slug_formatted = f"{feature_number:03d}-{feature_slug}"
 
         # Create feature directory in main repo
         feature_dir = repo_root / "kitty-specs" / feature_slug_formatted

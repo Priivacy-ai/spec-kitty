@@ -38,6 +38,7 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
+    get_feature_target_branch,
 )
 
 console = Console()
@@ -718,17 +719,17 @@ def implement(
             vcs = get_vcs(repo_root)
             vcs_backend = vcs.backend
 
-            primary_branch = resolve_primary_branch(repo_root)
+            target_branch_for_wp = get_feature_target_branch(repo_root, feature_slug)
 
             if vcs_backend == VCSBackend.GIT:
                 # Git path: check branch and status using git commands
                 _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                    repo_root, feature_dir, feature_slug, wp_id, target_branch_for_wp
                 )
             else:
                 # jj path: check status and commit using jj commands
                 _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                    repo_root, feature_dir, feature_slug, wp_id, target_branch_for_wp
                 )
 
         except typer.Exit:
