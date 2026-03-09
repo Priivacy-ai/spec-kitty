@@ -50,7 +50,7 @@ def sync_feature_dossier(
     from specify_cli.dossier.indexer import Indexer
     from specify_cli.dossier.manifest import ManifestRegistry
 
-    from .body_upload import prepare_body_uploads
+    from .body_upload import log_upload_outcomes, prepare_body_uploads
     from .namespace import UploadStatus
 
     errors: list[str] = []
@@ -102,6 +102,10 @@ def sync_feature_dossier(
             "Body upload preparation failed for %s: %s", feature_dir, e,
         )
         errors.append(f"body_upload_preparation_failed: {e}")
+
+    # Per-artifact result logging (FR-012)
+    if body_outcomes:
+        log_upload_outcomes(body_outcomes, namespace_ref.feature_slug, logger)
 
     # Summary logging
     queued = sum(1 for o in body_outcomes if o.status == UploadStatus.QUEUED)
