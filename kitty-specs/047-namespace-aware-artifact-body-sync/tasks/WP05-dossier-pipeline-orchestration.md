@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Dossier Pipeline Orchestration
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP03
 - WP01
@@ -15,8 +15,8 @@ subtasks:
 - T027
 phase: Phase 3 - Integration
 assignee: ''
-agent: "claude-opus"
-shell_pid: "57622"
+agent: claude-opus
+shell_pid: '57622'
 review_status: ''
 reviewed_by: ''
 history:
@@ -256,3 +256,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T08:59:44Z – claude-opus – shell_pid=57622 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T09:03:06Z – claude-opus – shell_pid=57622 – lane=for_review – Ready for review: sync_feature_dossier() orchestrates indexer → event emission → body upload with partial failure isolation. 14 tests, ruff clean.
