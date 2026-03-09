@@ -287,7 +287,7 @@ class FrontmatterManager:
             # Validate lane value
             if "lane" in frontmatter:
                 valid_lanes = [
-                    "planned", "claimed", "in_progress", "for_review",
+                    "planned", "claimed", "in_progress", "for_review", "approved",
                     "done", "blocked", "canceled",
                     "doing",  # Accepted alias for in_progress
                 ]

@@ -809,26 +809,26 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/done)")],
+    to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
     review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
-    approval_ref: Annotated[Optional[str], typer.Option("--approval-ref", help="Approval reference for done transitions (e.g., PR#42)")] = None,
+    approval_ref: Annotated[Optional[str], typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     done_override_reason: Annotated[Optional[str], typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Move task between lanes (planned → doing → for_review → done).
+    """Move task between lanes (planned → doing → for_review → approved → done).
 
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
-        spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
+        spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
         spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
@@ -938,8 +938,8 @@ def move_task(
                 feedback_source=resolved_feedback_source,
             )
 
-        # Validate subtasks are complete when moving to for_review or done (Issue #72)
-        if target_lane in ("for_review", "done") and not force:
+        # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
+        if target_lane in ("for_review", "approved", "done") and not force:
             unchecked = _check_unchecked_subtasks(repo_root, feature_slug, task_id, force)
             if unchecked:
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
@@ -953,9 +953,9 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
-        # Validate uncommitted changes when moving to for_review OR done
+        # Validate uncommitted changes when moving to for_review/approved/done
         # This catches the bug where agents edit artifacts but forget to commit
-        if target_lane in ("for_review", "done"):
+        if target_lane in ("for_review", "approved", "done"):
             is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
@@ -983,6 +983,8 @@ def move_task(
                         (
                             f"Cannot move {task_id} to done without verified merge ancestry.\n"
                             f"{merge_msg}\n"
+                            f"If review just passed, move it to approved first:\n"
+                            f"  spec-kitty agent tasks move-task {task_id} --to approved --note \"Review passed\"\n"
                             f"To proceed anyway, provide --done-override-reason \"<why this is acceptable>\"."
                         ),
                     )
@@ -999,9 +1001,9 @@ def move_task(
                     )
 
         # --- Canonical emit pipeline (WP09 delegation) ---
-        # Build evidence dict for done transitions
+        # Build evidence dict for approval and done transitions.
         evidence_dict = None
-        if target_lane == "done":
+        if target_lane in ("approved", "done"):
             # Auto-detect reviewer if not provided
             effective_reviewer = reviewer
             if not effective_reviewer:
@@ -1054,7 +1056,7 @@ def move_task(
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = ["planned", "claimed", "in_progress", "for_review", "done"]
+            forward = ["planned", "claimed", "in_progress", "for_review", "approved", "done"]
             if current in forward and target in forward:
                 current_idx = forward.index(current)
                 target_idx = forward.index(target)
@@ -1111,17 +1113,17 @@ def move_task(
                 actor=actor,
                 force=emit_force,
                 reason=emit_reason,
-                evidence=evidence_dict if target == "done" else None,
+                evidence=evidence_dict if target in ("approved", "done") else None,
                 review_ref=emit_review_ref,
                 workspace_context=f"move-task:{main_repo_root}",
                 subtasks_complete=(
                     True
-                    if target == "for_review" and not emit_force
+                    if target in ("for_review", "approved") and not emit_force
                     else None
                 ),
                 implementation_evidence_present=(
                     True
-                    if target == "for_review" and not emit_force
+                    if target in ("for_review", "approved") and not emit_force
                     else None
                 ),
                 repo_root=main_repo_root,
@@ -1166,8 +1168,8 @@ def move_task(
                 review_feedback_pointer,
             )
 
-        # Update reviewed_by when moving to done (approved)
-        if target_lane == "done":
+        # Record approval metadata when review passes.
+        if target_lane in ("approved", "done"):
             effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
             updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
             updated_front = set_scalar(updated_front, "review_status", "approved")
@@ -1611,8 +1613,8 @@ def finalize_tasks(
     field to each WP file's frontmatter.
 
     Examples:
-        spec-kitty agent tasks finalize-tasks --json
-        spec-kitty agent tasks finalize-tasks --feature 001-my-feature
+        spec-kitty agent tasks finalize-tasks --feature 001-my-feature --json
+        spec-kitty agent tasks finalize-tasks --feature 021-my-feature --json
     """
     try:
         # Get repo root and feature slug
@@ -1942,7 +1944,7 @@ def status(
 
         # Rich table output
         # Group by lane
-        by_lane = {"planned": [], "in_progress": [], "for_review": [], "done": []}
+        by_lane = {"planned": [], "in_progress": [], "for_review": [], "approved": [], "done": []}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:
@@ -2006,16 +2008,17 @@ def status(
         table.add_column("📋 Planned", style="yellow", no_wrap=False, width=25)
         table.add_column("🔄 Doing", style="blue", no_wrap=False, width=25)
         table.add_column("👀 For Review", style="cyan", no_wrap=False, width=25)
+        table.add_column("👍 Approved", style="magenta", no_wrap=False, width=25)
         table.add_column("✅ Done", style="green", no_wrap=False, width=25)
 
         # Find max length for rows
         max_rows = max(len(by_lane["planned"]), len(by_lane["in_progress"]),
-                       len(by_lane["for_review"]), len(by_lane["done"]))
+                       len(by_lane["for_review"]), len(by_lane["approved"]), len(by_lane["done"]))
 
         # Add rows
         for i in range(max_rows):
             row = []
-            for lane in ["planned", "in_progress", "for_review", "done"]:
+            for lane in ["planned", "in_progress", "for_review", "approved", "done"]:
                 if i < len(by_lane[lane]):
                     wp = by_lane[lane][i]
                     title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
@@ -2035,6 +2038,7 @@ def status(
             f"[bold]{len(by_lane['planned'])} WPs[/bold]",
             f"[bold]{len(by_lane['in_progress'])} WPs[/bold]",
             f"[bold]{len(by_lane['for_review'])} WPs[/bold]",
+            f"[bold]{len(by_lane['approved'])} WPs[/bold]",
             f"[bold]{len(by_lane['done'])} WPs[/bold]",
             style="dim"
         )
@@ -2046,6 +2050,12 @@ def status(
         if by_lane["for_review"]:
             console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
             for wp in by_lane["for_review"]:
+                console.print(f"  • {wp['id']} - {wp['title']}")
+            console.print()
+
+        if by_lane["approved"]:
+            console.print("[bold magenta]👍 Approved Awaiting Merge:[/bold magenta]")
+            for wp in by_lane["approved"]:
                 console.print(f"  • {wp['id']} - {wp['title']}")
             console.print()
 

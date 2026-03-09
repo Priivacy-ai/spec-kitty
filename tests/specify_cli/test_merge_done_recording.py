@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import Mock
+
+from specify_cli.cli.commands.merge import _mark_wp_merged_done
+
+
+def _write_wp(path: Path, *, lane: str, review_status: str, reviewed_by: str) -> None:
+    path.write_text(
+        "---\n"
+        'work_package_id: "WP01"\n'
+        f'lane: "{lane}"\n'
+        f'review_status: "{review_status}"\n'
+        f'reviewed_by: "{reviewed_by}"\n'
+        "---\n"
+        "# WP01\n",
+        encoding="utf-8",
+    )
+
+
+def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) -> None:
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(
+        tasks_dir / "WP01-test.md",
+        lane="approved",
+        review_status="approved",
+        reviewed_by="reviewer-1",
+    )
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+
+    _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
+
+    emit_mock.assert_called_once()
+    kwargs = emit_mock.call_args.kwargs
+    assert kwargs["to_lane"] == "done"
+    assert kwargs["actor"] == "merge"
+    assert kwargs["reason"] == "Merged WP01 into main"
+    assert kwargs["evidence"]["review"]["reviewer"] == "reviewer-1"
+
+
+def test_mark_wp_merged_done_skips_without_approval_metadata(tmp_path: Path, monkeypatch) -> None:
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(
+        tasks_dir / "WP01-test.md",
+        lane="approved",
+        review_status="",
+        reviewed_by="",
+    )
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+
+    _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
+
+    emit_mock.assert_not_called()

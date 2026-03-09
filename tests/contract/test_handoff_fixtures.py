@@ -335,11 +335,11 @@ class TestFixtureJsonFiles:
 
 
 class TestLaneMapping:
-    """Validate canonical 7-lane payload in fixtures."""
+    """Validate canonical lane payload in fixtures."""
 
-    def test_wp_status_changed_uses_canonical_7_lane_values(self):
-        """WPStatusChanged fixture events use canonical 7-lane values."""
-        valid_lanes = {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+    def test_wp_status_changed_uses_canonical_lane_values(self):
+        """WPStatusChanged fixture events use canonical lane values."""
+        valid_lanes = {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"}
         for event_data in FIXTURE_EVENTS:
             if event_data["event_type"] == "WPStatusChanged":
                 payload = event_data["payload"]

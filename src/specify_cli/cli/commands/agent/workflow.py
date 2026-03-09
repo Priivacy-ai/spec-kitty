@@ -1205,8 +1205,11 @@ def review(
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
-        lines.append(f"✓ Review passed, no issues:")
-        lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        lines.append("✓ Review passed, no issues:")
+        lines.append(
+            f"  spec-kitty agent tasks move-task {normalized_wp_id} "
+            '--to approved --note "Review passed"'
+        )
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
         lines.append(f"  1. Write feedback to: {review_feedback_path}")
@@ -1247,8 +1250,11 @@ def review(
         lines.append("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"✅ APPROVE (no issues found):")
-        lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
+        lines.append("✅ APPROVE (no issues found):")
+        lines.append(
+            f"   spec-kitty agent tasks move-task {normalized_wp_id} "
+            '--to approved --note "Review passed: <summary>"'
+        )
         lines.append("")
         lines.append(f"❌ REQUEST CHANGES (issues found):")
         lines.append(f"   1. Write feedback:")
@@ -1284,7 +1290,10 @@ def review(
         print(f"    cat {prompt_file}")
         print()
         print("After review, run:")
-        print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        print(
+            f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} "
+            '--to approved --note "Review passed"'
+        )
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
 
     except Exception as e:

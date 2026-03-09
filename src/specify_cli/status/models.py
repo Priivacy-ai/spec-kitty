@@ -20,6 +20,7 @@ class Lane(StrEnum):
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     FOR_REVIEW = "for_review"
+    APPROVED = "approved"
     DONE = "done"
     BLOCKED = "blocked"
     CANCELED = "canceled"

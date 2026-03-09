@@ -275,6 +275,7 @@ def _lane_advancement_chain(
         Lane.CLAIMED,
         Lane.IN_PROGRESS,
         Lane.FOR_REVIEW,
+        Lane.APPROVED,
         Lane.DONE,
     ]
 
@@ -342,12 +343,12 @@ def _generate_reconciliation_events(
             # Branch merged but WP not even at for_review
             target_lane = Lane.FOR_REVIEW
             evidence_summary = f"branch merged to main with {len(commits)} commit(s)"
-        elif wp_merged and current_lane == Lane.FOR_REVIEW:
+        elif wp_merged and current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
             # Merged and at for_review -- could suggest done, but
             # done requires reviewer approval evidence which reconcile
             # cannot fabricate. Note the drift instead.
             details.append(
-                f"{wp_id}: branch merged and in for_review -- "
+                f"{wp_id}: branch merged and in {current_lane} -- "
                 f"may be ready for done (requires reviewer approval)"
             )
             continue

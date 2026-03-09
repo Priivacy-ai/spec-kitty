@@ -562,6 +562,16 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is False
 
+    def test_review_allows_approved(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        _add_wp_files(feature_dir, {"WP01": "approved", "WP02": "done"})
+
+        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+
+        assert _should_advance_wp_step("implement", feature_dir) is True
+        assert _should_advance_wp_step("review", feature_dir) is True
+
 
 # ---------------------------------------------------------------------------
 # Atomic task step tests

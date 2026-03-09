@@ -441,9 +441,8 @@ class TestReviewRejectToPlanned:
         output = _parse_json_output(result.stdout)
         assert "requires review feedback" in output["error"]
 
-    @pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-    def test_for_review_to_planned_persists_feedback(self, task_repo: Path, monkeypatch):
-        """Should persist review feedback content in the WP file body and frontmatter."""
+    def test_for_review_to_planned_persists_feedback_pointer(self, task_repo: Path, monkeypatch):
+        """Should persist review feedback via frontmatter pointer, not inline body duplication."""
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
@@ -460,8 +459,6 @@ class TestReviewRejectToPlanned:
             "**Critical**: The implementation does not handle the null case.\n",
             encoding="utf-8",
         )
-        resolved_path = str(feedback_file.resolve())
-
         # Move to planned with feedback
         result = runner.invoke(
             app,
@@ -473,13 +470,15 @@ class TestReviewRejectToPlanned:
             ],
         )
         assert result.exit_code == 0, f"stdout: {result.stdout}"
+        output = _parse_json_output(result.stdout)
 
         # Verify feedback persisted in WP file
         task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
         content = task_file.read_text(encoding="utf-8")
-        assert "## Review Feedback" in content
-        assert "does not handle the null case" in content
-        assert f'review_feedback_file: "{resolved_path}"' in content
+        assert f'review_feedback: "{output["review_feedback"]}"' in content
+        assert "## Review Feedback" not in content
+        assert "does not handle the null case" not in content
+        assert "review_feedback_file:" not in content
 
 
 class TestLocationIndependence:

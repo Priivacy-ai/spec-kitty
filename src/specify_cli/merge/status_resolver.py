@@ -52,7 +52,7 @@ STATUS_FILE_PATTERNS = [
     "kitty-specs/*/status.events.jsonl",
 ]
 
-# Expanded 7-lane priority map with legacy alias.
+# Expanded lane priority map with legacy alias.
 # Used as FALLBACK when no rollback is detected (monotonic "most done wins").
 # When a rollback IS detected, the rollback-aware logic takes precedence.
 LANE_PRIORITY = {
@@ -60,9 +60,10 @@ LANE_PRIORITY = {
     "claimed": 2,
     "in_progress": 3,
     "for_review": 4,
-    "done": 5,
+    "approved": 5,
+    "done": 6,
     "blocked": 0,       # Blocked is lowest priority (not "ahead" in workflow)
-    "canceled": 6,       # Canceled is terminal, treated as highest monotonic priority
+    "canceled": 7,       # Canceled is terminal, treated as highest monotonic priority
     # Legacy alias support:
     "doing": 3,          # Maps to same priority as in_progress
 }

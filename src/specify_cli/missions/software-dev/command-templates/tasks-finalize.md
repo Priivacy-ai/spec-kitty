@@ -27,13 +27,13 @@ $ARGUMENTS
 
 ### 1. Run Finalization Command
 
-**CRITICAL**: Run this command from repo root:
+**CRITICAL**: Resolve canonical command context first:
 
 ```bash
-spec-kitty agent feature finalize-tasks --json
+spec-kitty agent context resolve --action tasks_finalize --json
 ```
 
-This command will:
+Then run the returned `finalize_tasks` command from repo root. It will:
 - Parse dependencies from tasks.md
 - Parse `Requirement Refs` from tasks.md
 - Update WP frontmatter with `dependencies` and `requirement_refs` fields

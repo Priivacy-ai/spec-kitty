@@ -48,7 +48,7 @@ This command runs in the **planning repository**, not in a worktree.
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
   - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
-  - Ensure `git branch --show-current` matches `target_branch`
+  - Treat that payload as canonical branch context; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/###-feature/`
 - The plan template is committed to the target branch after generation
 

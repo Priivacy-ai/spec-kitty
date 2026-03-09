@@ -18,10 +18,10 @@ from specify_cli.status.transitions import (
 
 class TestConstants:
     def test_canonical_lanes_count(self) -> None:
-        assert len(CANONICAL_LANES) == 7
+        assert len(CANONICAL_LANES) == 8
 
     def test_allowed_transitions_count(self) -> None:
-        assert len(ALLOWED_TRANSITIONS) == 17
+        assert len(ALLOWED_TRANSITIONS) == 24
 
     def test_terminal_lanes(self) -> None:
         assert TERMINAL_LANES == frozenset({"done", "canceled"})
@@ -81,6 +81,28 @@ class TestLegalTransitions:
             ),
             (
                 "for_review",
+                "approved",
+                {
+                    "evidence": DoneEvidence(
+                        review=ReviewApproval(
+                            reviewer="r", verdict="approved", reference="ref"
+                        )
+                    )
+                },
+            ),
+            (
+                "approved",
+                "done",
+                {
+                    "evidence": DoneEvidence(
+                        review=ReviewApproval(
+                            reviewer="r", verdict="approved", reference="ref"
+                        )
+                    )
+                },
+            ),
+            (
+                "for_review",
                 "done",
                 {
                     "evidence": DoneEvidence(
@@ -92,16 +114,20 @@ class TestLegalTransitions:
             ),
             ("for_review", "in_progress", {"review_ref": "feedback-123"}),
             ("for_review", "planned", {"review_ref": "feedback-456"}),
+            ("approved", "in_progress", {"review_ref": "feedback-789"}),
+            ("approved", "planned", {"review_ref": "feedback-999"}),
             ("in_progress", "planned", {"reason": "reassigning"}),
             ("planned", "blocked", {}),
             ("claimed", "blocked", {}),
             ("in_progress", "blocked", {}),
             ("for_review", "blocked", {}),
+            ("approved", "blocked", {}),
             ("blocked", "in_progress", {}),
             ("planned", "canceled", {}),
             ("claimed", "canceled", {}),
             ("in_progress", "canceled", {}),
             ("for_review", "canceled", {}),
+            ("approved", "canceled", {}),
             ("blocked", "canceled", {}),
         ],
     )
@@ -123,16 +149,20 @@ class TestIllegalTransitions:
             ("planned", "done"),
             ("planned", "in_progress"),
             ("planned", "for_review"),
+            ("planned", "approved"),
             ("claimed", "for_review"),
+            ("claimed", "approved"),
             ("claimed", "done"),
             ("claimed", "planned"),
             ("done", "planned"),
             ("done", "in_progress"),
             ("done", "for_review"),
+            ("done", "approved"),
             ("canceled", "planned"),
             ("canceled", "in_progress"),
             ("blocked", "planned"),
             ("blocked", "for_review"),
+            ("blocked", "approved"),
             ("blocked", "done"),
         ],
     )

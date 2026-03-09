@@ -3,11 +3,11 @@ from specify_cli.tasks_support import LANES, LANE_ALIASES, ensure_lane, TaskCliE
 
 
 class TestLaneExpansion:
-    def test_lanes_tuple_has_seven_values(self):
-        assert len(LANES) == 7
+    def test_lanes_tuple_has_eight_values(self):
+        assert len(LANES) == 8
 
     def test_lanes_tuple_values(self):
-        assert LANES == ("planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled")
+        assert LANES == ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
 
     def test_doing_not_in_lanes(self):
         assert "doing" not in LANES
@@ -36,6 +36,9 @@ class TestLaneExpansion:
 
     def test_ensure_lane_for_review_valid(self):
         assert ensure_lane("for_review") == "for_review"
+
+    def test_ensure_lane_approved_valid(self):
+        assert ensure_lane("approved") == "approved"
 
     def test_ensure_lane_done_valid(self):
         assert ensure_lane("done") == "done"

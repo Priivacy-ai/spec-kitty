@@ -40,26 +40,58 @@ from specify_cli.merge.state import (
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-from specify_cli.sync.events import emit_wp_status_changed
+from specify_cli.frontmatter import read_frontmatter
+from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.history_parser import extract_done_evidence
 
 
-def _safe_emit_wp_status_changed(
+def _mark_wp_merged_done(
+    repo_root: Path,
+    feature_slug: str,
     wp_id: str,
-    from_lane: str,
-    to_lane: str,
-    feature_slug: str | None,
+    target_branch: str,
 ) -> None:
-    try:
-        emit_wp_status_changed(
-            wp_id=wp_id,
-            from_lane=from_lane,
-            to_lane=to_lane,
-            actor="user",
-            feature_slug=feature_slug,
-        )
-    except Exception as exc:
+    """Record merge-complete state for a merged WP using canonical status events."""
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    wp_path = None
+    for candidate in sorted((feature_dir / "tasks").glob(f"{wp_id}*.md")):
+        wp_path = candidate
+        break
+    if wp_path is None or not wp_path.exists():
         console.print(
-            f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
+            f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; "
+            "skipping merge-complete status update."
+        )
+        return
+
+    frontmatter, _body = read_frontmatter(wp_path)
+    lane = str(frontmatter.get("lane", "planned")).strip() or "planned"
+    if lane == "done":
+        return
+
+    evidence = extract_done_evidence(frontmatter, wp_id)
+    if evidence is None:
+        console.print(
+            f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; "
+            "skipping automatic move to done after merge."
+        )
+        return
+
+    try:
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug=feature_slug,
+            wp_id=wp_id,
+            to_lane="done",
+            actor="merge",
+            reason=f"Merged {wp_id} into {target_branch}",
+            evidence=evidence.to_dict(),
+            workspace_context=f"merge:{repo_root}",
+            repo_root=repo_root,
+        )
+    except TransitionError as exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}"
         )
 
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
@@ -539,12 +571,7 @@ def merge_workspace_per_wp(
                     )
 
                 console.print(f"[green]✓[/green] {wp_id} merged")
-                _safe_emit_wp_status_changed(
-                    wp_id=wp_id,
-                    from_lane="in_progress",
-                    to_lane="for_review",
-                    feature_slug=feature_slug,
-                )
+                _mark_wp_merged_done(merge_root, feature_slug, wp_id, target_branch)
                 merged_count += 1
 
             summary = f"merged {merged_count} work packages"

@@ -26,7 +26,7 @@ from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: Tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled")
+LANES: Tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
 LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

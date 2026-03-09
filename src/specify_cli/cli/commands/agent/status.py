@@ -112,7 +112,7 @@ def _resolve_feature_dir(
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, done)")] = ...,
+    to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
