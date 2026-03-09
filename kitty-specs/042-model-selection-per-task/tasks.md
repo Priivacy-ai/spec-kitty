@@ -52,8 +52,8 @@ description: "Work package task list for 042-model-selection-per-task"
 **Estimated size**: ~320 lines
 
 ### Included Subtasks
-- [ ] T005 [P] Unit tests for `global_config.py`: missing file, valid mapping, partial mapping, malformed YAML, unknown command keys
-- [ ] T006 [P] Integration tests for migration: no config (no-op), inject model, update stale model, remove model when absent from config, multi-agent, dry-run mode
+- [x] T005 [P] Unit tests for `global_config.py`: missing file, valid mapping, partial mapping, malformed YAML, unknown command keys
+- [x] T006 [P] Integration tests for migration: no config (no-op), inject model, update stale model, remove model when absent from config, multi-agent, dry-run mode
 
 ### Implementation Notes
 - Test file: `tests/specify_cli/test_model_injection_migration.py`
