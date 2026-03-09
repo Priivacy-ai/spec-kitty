@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation - NamespaceRef & Shared Types
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: 25ddd221bc402b8ddfbbd57e5046708bbc953a37
@@ -14,10 +14,10 @@ subtasks:
 - T005
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "45749"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus
+shell_pid: '45749'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
@@ -220,3 +220,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - 2026-03-09T07:19:44Z – claude – shell_pid=44411 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T07:23:06Z – claude – shell_pid=44411 – lane=for_review – Ready for review: NamespaceRef, SupportedInlineFormat, UploadOutcome types with 44 tests, 100% coverage, mypy clean
 - 2026-03-09T07:25:37Z – claude-opus – shell_pid=45749 – lane=doing – Started review via workflow command
+- 2026-03-09T07:30:17Z – claude-opus – shell_pid=45749 – lane=done – Review passed: All 5 subtasks (T001-T005) verified. 44/44 tests pass, mypy clean, FR-002/FR-005/FR-011/FR-012 compliant. | Done override: Review approved pre-merge. Branch 047-namespace-aware-artifact-body-sync-WP01 ready for merge to 2.x.
