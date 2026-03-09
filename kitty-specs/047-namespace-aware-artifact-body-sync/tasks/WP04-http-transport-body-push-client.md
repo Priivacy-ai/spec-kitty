@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: HTTP Transport - Body Push Client
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 047-namespace-aware-artifact-body-sync-WP01
 base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
@@ -14,8 +14,8 @@ subtasks:
 - T023
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: "claude-opus"
-shell_pid: "53573"
+agent: claude-opus
+shell_pid: '53573'
 review_status: ''
 reviewed_by: ''
 history:
@@ -344,3 +344,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
 - 2026-03-09T08:45:52Z – claude-opus – shell_pid=53573 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T08:49:32Z – claude-opus – shell_pid=53573 – lane=for_review – Ready for review: push_content() with full response classification per contract. 404 sub-code dispatch follows contract (unknown 404 = retryable, deviates from WP prompt). 26 tests, 98% coverage, ruff clean.
