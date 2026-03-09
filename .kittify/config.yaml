@@ -2,7 +2,6 @@ vcs:
   type: git
 agents:
   available:
-  - copilot
   - claude
   - opencode
   - codex
