@@ -57,13 +57,13 @@
 **Estimated Prompt Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T006 Add `body_upload_queue` SQLite table schema + migration in `queue.py` shared DB infrastructure
-- [ ] T007 Create `OfflineBodyUploadQueue` class in `src/specify_cli/sync/body_queue.py` with `__init__()` and schema creation
-- [ ] T008 Implement `enqueue()` with 7-field idempotent unique constraint (`project_uuid`, `feature_slug`, `target_branch`, `mission_key`, `manifest_version`, `artifact_path`, `content_hash`)
-- [ ] T009 Implement `drain(limit)` with per-task backoff filtering (`WHERE next_attempt_at <= now()`)
-- [ ] T010 Implement `mark_uploaded()`, `mark_failed()`, `update_backoff()` methods
-- [ ] T011 [P] Implement `get_stats()` returning queue count, age distribution, retry histogram
-- [ ] T012 Write `tests/specify_cli/sync/test_body_queue.py` covering CRUD, idempotent enqueue, drain ordering, backoff
+- [x] T006 Add `body_upload_queue` SQLite table schema + migration in `queue.py` shared DB infrastructure
+- [x] T007 Create `OfflineBodyUploadQueue` class in `src/specify_cli/sync/body_queue.py` with `__init__()` and schema creation
+- [x] T008 Implement `enqueue()` with 7-field idempotent unique constraint (`project_uuid`, `feature_slug`, `target_branch`, `mission_key`, `manifest_version`, `artifact_path`, `content_hash`)
+- [x] T009 Implement `drain(limit)` with per-task backoff filtering (`WHERE next_attempt_at <= now()`)
+- [x] T010 Implement `mark_uploaded()`, `mark_failed()`, `update_backoff()` methods
+- [x] T011 [P] Implement `get_stats()` returning queue count, age distribution, retry histogram
+- [x] T012 Write `tests/specify_cli/sync/test_body_queue.py` covering CRUD, idempotent enqueue, drain ordering, backoff
 
 ### Implementation Notes
 - Table lives in the same SQLite DB file as the event `queue` table (shared DB connection)
