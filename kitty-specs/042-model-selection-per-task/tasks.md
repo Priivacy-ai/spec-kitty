@@ -19,10 +19,10 @@ description: "Work package task list for 042-model-selection-per-task"
 **Estimated size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/global_config.py` with `load_model_mapping()` and `get_unknown_commands()`
-- [ ] T002 Create `src/specify_cli/upgrade/migrations/m_2_0_4_model_injection.py` with `detect()`, `can_apply()`, and `apply()`
-- [ ] T003 Handle edge cases: files without frontmatter, stale `model:` removal when command absent from config
-- [ ] T004 Verify migration auto-registration and ordering in the registry
+- [x] T001 Create `src/specify_cli/global_config.py` with `load_model_mapping()` and `get_unknown_commands()`
+- [x] T002 Create `src/specify_cli/upgrade/migrations/m_2_0_4_model_injection.py` with `detect()`, `can_apply()`, and `apply()`
+- [x] T003 Handle edge cases: files without frontmatter, stale `model:` removal when command absent from config
+- [x] T004 Verify migration auto-registration and ordering in the registry
 
 ### Implementation Notes
 - `global_config.py`: read `Path.home() / ".spec-kitty" / "config.yaml"`, return `{}` on missing, raise clear error on malformed YAML
