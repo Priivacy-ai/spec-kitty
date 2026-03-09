@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Dossier Pipeline Orchestration
-lane: "doing"
+lane: "done"
 dependencies:
 - WP03
 - WP01
@@ -15,10 +15,10 @@ subtasks:
 - T027
 phase: Phase 3 - Integration
 assignee: ''
-agent: "claude-opus"
-shell_pid: "11265"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus
+shell_pid: '11265'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
@@ -258,3 +258,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - 2026-03-09T08:59:44Z – claude-opus – shell_pid=57622 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T09:03:06Z – claude-opus – shell_pid=57622 – lane=for_review – Ready for review: sync_feature_dossier() orchestrates indexer → event emission → body upload with partial failure isolation. 14 tests, ruff clean.
 - 2026-03-09T09:56:58Z – claude-opus – shell_pid=11265 – lane=doing – Started review via workflow command
+- 2026-03-09T09:58:50Z – claude-opus – shell_pid=11265 – lane=done – Review passed: 14/14 tests, 100% coverage, ruff clean, all 9 API signatures verified matching. sync_feature_dossier() is sole caller of prepare_body_uploads(). Partial failure isolation confirmed in both directions. | Done override: Review approved pre-merge; branch ready to merge to 2.x
