@@ -312,5 +312,5 @@ WP05   WP06    |          ← WP06 needs WP02 + WP04
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: in_progress
+- WP01: done
 <!-- status-model:end -->
