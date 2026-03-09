@@ -1,15 +1,15 @@
 {
-  "event_count": 28,
+  "event_count": 30,
   "feature_slug": "047-namespace-aware-artifact-body-sync",
-  "last_event_id": "01KK90ZZA29R56E325J5BZ5BKS",
-  "materialized_at": "2026-03-09T10:06:29.186960+00:00",
+  "last_event_id": "01KK9126YJP6BX3456FJ8B031G",
+  "materialized_at": "2026-03-09T10:07:42.546965+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 5,
+    "done": 6,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "planned": 0
   },
   "work_packages": {
@@ -49,11 +49,11 @@
       "last_transition_at": "2026-03-09T09:58:50.529904+00:00"
     },
     "WP06": {
-      "actor": "claude-opus",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KK90ZZA29R56E325J5BZ5BKS",
-      "last_transition_at": "2026-03-09T10:06:29.186526+00:00"
+      "lane": "done",
+      "last_event_id": "01KK9126YJP6BX3456FJ8B031G",
+      "last_transition_at": "2026-03-09T10:07:42.546636+00:00"
     }
   }
 }
