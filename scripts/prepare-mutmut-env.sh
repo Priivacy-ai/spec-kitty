@@ -29,10 +29,17 @@ for f in src/specify_cli/*.py; do
     fi
 done
 
-# Copy all non-mutated subdirectories (except status, glossary, __pycache__)
+# Copy all non-mutated subdirectories.
+# Exclude directories listed in [tool.mutmut] paths_to_mutate (pyproject.toml)
+# so we don't clobber generated mutant content with the original source.
+# Mutated modules: status, glossary, merge, core
 for d in src/specify_cli/*/; do
     dirname=$(basename "$d")
-    if [ "$dirname" != "status" ] && [ "$dirname" != "glossary" ] && [ "$dirname" != "__pycache__" ]; then
+    if [ "$dirname" != "status" ] && \
+       [ "$dirname" != "glossary" ] && \
+       [ "$dirname" != "merge" ] && \
+       [ "$dirname" != "core" ] && \
+       [ "$dirname" != "__pycache__" ]; then
         cp -r "$d" "mutants/src/specify_cli/" 2>/dev/null || true
     fi
 done

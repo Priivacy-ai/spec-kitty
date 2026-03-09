@@ -736,11 +736,14 @@ jobs:
         if: always()
         run: |
           # mutmut 3.5.0 writes stats to mutants/mutmut-cicd-stats.json (no --output flag)
-          mutmut export-cicd-stats || true
+          mutmut export-cicd-stats
           if [ -f mutants/mutmut-cicd-stats.json ]; then
             cp mutants/mutmut-cicd-stats.json out/reports/mutation/mutation-stats.json
           else
-            echo '{"killed": 0, "survived": 0, "total": 0}' > out/reports/mutation/mutation-stats.json
+            # mutmut failed to produce stats — write an explicit failure sentinel so the
+            # floor check can distinguish "no results due to crash" from "legitimately empty".
+            echo '{"killed": 0, "survived": 0, "total": 0, "execution_failed": true}' \
+              > out/reports/mutation/mutation-stats.json
           fi
 
       - name: Enforce mutation score floor

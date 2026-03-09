@@ -8,7 +8,8 @@ falls below the MUTATION_FLOOR environment variable (integer 0-100, default 0).
 Edge cases handled:
 - Missing JSON file: exits 1 with a clear error
 - Malformed JSON: exits 1 with a clear error
-- Zero scoreable mutants (killed + survived == 0): exits 0 with a warning
+- Zero scoreable mutants with execution_failed=true sentinel: exits 1 (mutmut failed to run)
+- Zero scoreable mutants without sentinel: exits 1 (no evidence of successful execution)
 - Score below floor: exits 1 with a descriptive message
 """
 import json
@@ -47,11 +48,28 @@ def main() -> int:
     total_scored = killed + survived
 
     if total_scored == 0:
-        print(
-            "WARNING: no scoreable mutants (killed + survived == 0). "
-            "Skipping floor check — nothing to score.",
-        )
-        return 0
+        # If the stats file was written by the CI fallback due to mutmut failure,
+        # treat this as an execution error rather than "nothing to score".
+        # A real zero-mutant run would only occur if the paths_to_mutate produce
+        # no mutations at all, which is not expected for this codebase.
+        if data.get("execution_failed"):
+            print(
+                "ERROR: mutation testing did not produce results (execution_failed=true). "
+                "This typically means mutmut crashed or the environment was not prepared correctly.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "ERROR: no scoreable mutants (killed + survived == 0). "
+                "Either mutmut did not run or produced no results. "
+                "Pass MUTATION_ALLOW_ZERO=1 to skip this check explicitly.",
+                file=sys.stderr,
+            )
+        allow_zero = os.environ.get("MUTATION_ALLOW_ZERO", "0") == "1"
+        if allow_zero:
+            print("WARNING: MUTATION_ALLOW_ZERO=1 set — skipping floor check.")
+            return 0
+        return 1
 
     score_pct = int(killed / total_scored * 100)
     print(f"Mutation score: {score_pct}%  ({killed} killed / {total_scored} scoreable)")
