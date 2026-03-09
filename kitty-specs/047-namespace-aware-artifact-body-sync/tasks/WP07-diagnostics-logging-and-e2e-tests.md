@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP07"
+work_package_id: WP07
+title: Diagnostics, Logging & End-to-End Tests
+lane: "doing"
+dependencies: [WP05, WP06]
+base_branch: 047-namespace-aware-artifact-body-sync-WP07-merge-base
+base_commit: 6a2e9982824aa43dfa11e43c0f2d471442d0de41
+created_at: '2026-03-09T10:13:23.903795+00:00'
 subtasks:
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-title: "Diagnostics, Logging & End-to-End Tests"
-phase: "Phase 4 - Polish"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP05", "WP06"]
-requirement_refs: ["FR-011", "FR-012"]
+- T034
+- T035
+- T036
+- T037
+phase: Phase 4 - Polish
+assignee: ''
+agent: ''
+shell_pid: "16170"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-09T07:09:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-09T07:09:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-011, FR-012]
 ---
 
 # Work Package Prompt: WP07 – Diagnostics, Logging & End-to-End Tests
