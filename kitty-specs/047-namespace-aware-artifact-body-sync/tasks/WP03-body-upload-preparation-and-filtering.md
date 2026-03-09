@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Body Upload Preparation & Filtering
+lane: "doing"
+dependencies: [WP01, WP02]
+base_branch: 047-namespace-aware-artifact-body-sync-WP03-merge-base
+base_commit: ab125a790b2bbd1290f8fa047688ae68978a2c92
+created_at: '2026-03-09T08:38:19.768273+00:00'
 subtasks:
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "Body Upload Preparation & Filtering"
-phase: "Phase 2 - Core Logic"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01", "WP02"]
-requirement_refs: ["FR-003", "FR-004", "FR-005", "FR-006", "FR-014"]
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 2 - Core Logic
+assignee: ''
+agent: ''
+shell_pid: "51530"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-09T07:09:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-09T07:09:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-003, FR-004, FR-005, FR-006, FR-014]
 ---
 
 # Work Package Prompt: WP03 – Body Upload Preparation & Filtering
