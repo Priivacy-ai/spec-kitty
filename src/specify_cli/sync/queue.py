@@ -138,6 +138,35 @@ def pending_events_for_scope(scope: str) -> int:
     return queue.size()
 
 
+_BODY_QUEUE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS body_upload_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_uuid TEXT NOT NULL,
+    feature_slug TEXT NOT NULL,
+    target_branch TEXT NOT NULL,
+    mission_key TEXT NOT NULL,
+    manifest_version TEXT NOT NULL,
+    artifact_path TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
+    content_body TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at REAL NOT NULL DEFAULT 0.0,
+    created_at REAL NOT NULL,
+    last_error TEXT,
+    UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_body_queue_next_attempt ON body_upload_queue(next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, feature_slug, target_branch);
+"""
+
+
+def ensure_body_queue_schema(conn: sqlite3.Connection) -> None:
+    """Create body_upload_queue table and indexes if they don't exist."""
+    conn.executescript(_BODY_QUEUE_SCHEMA)
+
+
 class OfflineQueue:
     """
     SQLite-based offline event queue.
@@ -187,6 +216,7 @@ class OfflineQueue:
             conn.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)')
             conn.commit()
+            ensure_body_queue_schema(conn)
         finally:
             conn.close()
 
