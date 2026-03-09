@@ -1,0 +1,73 @@
+{
+  "event_count": 8,
+  "feature_slug": "004-modular-code-refactoring",
+  "last_event_id": "01KK8KPT6264V1J1W40PV384E5",
+  "materialized_at": "2026-03-09T06:14:17.539333+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5F1ZW4GTN2NGSAS25V",
+      "last_transition_at": "2026-03-09T06:14:17.519869+00:00"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5K606WQNPZMKHRZ3RJ",
+      "last_transition_at": "2026-03-09T06:14:17.523688+00:00"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5PCZDWQ7XZRZZ4PFVV",
+      "last_transition_at": "2026-03-09T06:14:17.526277+00:00"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5S0GCK0H4MYVPQZMKR",
+      "last_transition_at": "2026-03-09T06:14:17.529003+00:00"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5VYQ94RJP4FYCN3G46",
+      "last_transition_at": "2026-03-09T06:14:17.531974+00:00"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT5YQNX241Q7NCCYXV5D",
+      "last_transition_at": "2026-03-09T06:14:17.534456+00:00"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT609T6AXPE7M4B6AC75",
+      "last_transition_at": "2026-03-09T06:14:17.536889+00:00"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT6264V1J1W40PV384E5",
+      "last_transition_at": "2026-03-09T06:14:17.538770+00:00"
+    }
+  }
+}

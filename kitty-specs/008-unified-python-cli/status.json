@@ -1,0 +1,66 @@
+{
+  "event_count": 10,
+  "feature_slug": "008-unified-python-cli",
+  "last_event_id": "01KK8KPT7WDHKW995SJYBZBPN5",
+  "materialized_at": "2026-03-09T06:14:17.596555+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7DZJH4TBF09RVRYJ06",
+      "last_transition_at": "2025-12-18T23:00:00Z"
+    },
+    "WP02": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7FD1KJJ1TPSBR2XZFG",
+      "last_transition_at": "2025-12-18T23:05:00Z"
+    },
+    "WP03": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7J7BJAXPFM9EZEKEN5",
+      "last_transition_at": "2025-12-18T23:07:00Z"
+    },
+    "WP04": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7ME6F679TSBB9D0J9K",
+      "last_transition_at": "2025-12-18T23:08:00Z"
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7PKTCN8KSPA7N43VAA",
+      "last_transition_at": "2025-12-18T23:09:00Z"
+    },
+    "WP06": {
+      "actor": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7SBVKXN6X0ZVM2EV0K",
+      "last_transition_at": "2025-12-18T22:30:00Z"
+    },
+    "WP07": {
+      "actor": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7WDHKW995SJYBZBPN5",
+      "last_transition_at": "2025-12-18T23:15:00Z"
+    }
+  }
+}

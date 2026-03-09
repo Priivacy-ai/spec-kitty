@@ -1,0 +1,87 @@
+{
+  "event_count": 10,
+  "feature_slug": "010-workspace-per-work-package-for-parallel-development",
+  "last_event_id": "01KK8KPT8F29WPQRGMP0FYJK3N",
+  "materialized_at": "2026-03-09T06:14:17.616347+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT7YFN0DDWHX3Z26597N",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT800TP6EQB5C36BBPWX",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT82QWT2GXEZZJY4ZE0C",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT84C7JD21NXNTWBSGZC",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT868N3CZ1D4FHPCAJXQ",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT875MKPXD0SHTTDVPHD",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP07": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT8AJCCDR5JQVKNGPME7",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP08": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT8CDZD6GEFS9Z7TNBGW",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP09": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT8DPR1E8RFCNY98Y1BR",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    },
+    "WP10": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT8F29WPQRGMP0FYJK3N",
+      "last_transition_at": "2026-01-07T00:00:00Z"
+    }
+  }
+}

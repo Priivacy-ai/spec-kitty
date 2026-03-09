@@ -1,0 +1,1 @@
+{"actor": "migration", "at": "2026-02-03T18:58:09Z", "event_id": "01KK8KPTDRZ0FGRG390BHMFMR4", "evidence": null, "execution_mode": "direct_repo", "feature_slug": "028-cli-event-emission-sync", "force": true, "from_lane": "planned", "policy_metadata": null, "reason": "historical_frontmatter_to_jsonl:v1", "review_ref": null, "to_lane": "in_progress", "wp_id": "WP01"}

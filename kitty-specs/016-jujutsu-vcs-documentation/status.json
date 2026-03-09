@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "feature_slug": "016-jujutsu-vcs-documentation",
+  "last_event_id": "01KK8KPTATK29JXDTSN0EF069V",
+  "materialized_at": "2026-03-09T06:14:17.690727+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTAJRKC8YKHEQCX7F4S9",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTAMJ75WKT0485DQP0SC",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTANFNVZNCQ8W1Y1VWVA",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTAQA9Z608PYYZ4NZ911",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    },
+    "WP05": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTAR9FW07AK1E2NNKMDY",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    },
+    "WP06": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTATK29JXDTSN0EF069V",
+      "last_transition_at": "2026-01-17T18:14:07Z"
+    }
+  }
+}

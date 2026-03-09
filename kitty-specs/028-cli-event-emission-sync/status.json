@@ -1,0 +1,24 @@
+{
+  "event_count": 1,
+  "feature_slug": "028-cli-event-emission-sync",
+  "last_event_id": "01KK8KPTDRZ0FGRG390BHMFMR4",
+  "materialized_at": "2026-03-09T06:14:17.787662+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KK8KPTDRZ0FGRG390BHMFMR4",
+      "last_transition_at": "2026-02-03T18:58:09Z"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "event_count": 4,
+  "feature_slug": "002-lightweight-pypi-release",
+  "last_event_id": "01KK8KPT50K7QRY8HYHMCKP1J3",
+  "materialized_at": "2026-03-09T06:14:17.505113+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT4VB8NES0KBTN6Z8A2K",
+      "last_transition_at": "2025-11-02T16:58:36Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT4XPH342PRFAM4E1373",
+      "last_transition_at": "2025-11-02T16:58:36Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT4Y4NY1JY7CDHE0M7RS",
+      "last_transition_at": "2025-11-02T16:58:36Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPT50K7QRY8HYHMCKP1J3",
+      "last_transition_at": "2025-11-02T16:58:36Z"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "event_count": 4,
+  "feature_slug": "018-merge-preflight-documentation",
+  "last_event_id": "01KK8KPTBAMNASMAGV87QRH9VB",
+  "materialized_at": "2026-03-09T06:14:17.707379+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTB6QD6EZ6B5TVSSVP0E",
+      "last_transition_at": "2026-01-18T13:21:55Z"
+    },
+    "WP02": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTB7BV10JM7R087E6CJT",
+      "last_transition_at": "2026-01-18T13:21:55Z"
+    },
+    "WP03": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTB9PXG7YHC9PDQEKSGY",
+      "last_transition_at": "2026-01-18T13:21:55Z"
+    },
+    "WP04": {
+      "actor": "migration",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KK8KPTBAMNASMAGV87QRH9VB",
+      "last_transition_at": "2026-01-18T13:21:55Z"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+# Auto-generated from constitution.md — do not edit directly.
+# Run 'spec-kitty constitution sync' to regenerate.
+
+testing:
+  min_coverage: 90
+  tdd_required: false
+  framework: pytest
+  type_checking: mypy --strict
+quality:
+  linting: ''
+  pr_approvals: 1
+  pre_commit_hooks: false
+commits:
+  convention:
+performance:
+  cli_timeout_seconds: 2.0
+  dashboard_max_wps: 100
+branch_strategy:
+  main_branch: main
+  dev_branch:
+  rules: []
+doctrine:
+  selected_paradigms: []
+  selected_directives: []
+  available_tools: []
+  template_set:
+enforcement: {}
