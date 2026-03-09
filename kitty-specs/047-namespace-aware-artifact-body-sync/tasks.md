@@ -184,12 +184,12 @@
 **Estimated Prompt Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T028 Extend `BackgroundSyncService._sync_once()` to drain `body_upload_queue` after event queue drain completes
-- [ ] T029 Wire `push_content()` from `body_transport` into body drain loop with per-task result handling
-- [ ] T030 Implement per-task exponential backoff calculation (1s initial → 5min cap) and `update_backoff()` on retry
-- [ ] T031 Wire `OfflineBodyUploadQueue` into `SyncRuntime.start()` / `SyncRuntime.stop()` lifecycle
-- [ ] T032 Ensure shared DB connection between event queue and body queue (same `.db` file)
-- [ ] T033 Write `tests/specify_cli/sync/test_background_body.py` covering drain ordering, backoff behavior, and runtime wiring
+- [x] T028 Extend `BackgroundSyncService._sync_once()` to drain `body_upload_queue` after event queue drain completes
+- [x] T029 Wire `push_content()` from `body_transport` into body drain loop with per-task result handling
+- [x] T030 Implement per-task exponential backoff calculation (1s initial → 5min cap) and `update_backoff()` on retry
+- [x] T031 Wire `OfflineBodyUploadQueue` into `SyncRuntime.start()` / `SyncRuntime.stop()` lifecycle
+- [x] T032 Ensure shared DB connection between event queue and body queue (same `.db` file)
+- [x] T033 Write `tests/specify_cli/sync/test_background_body.py` covering drain ordering, backoff behavior, and runtime wiring
 
 ### Implementation Notes
 - Drain ordering invariant: events first, then body uploads (maximizes chance remote index exists before body arrives)
