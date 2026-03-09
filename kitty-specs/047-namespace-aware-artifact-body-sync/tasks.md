@@ -27,11 +27,11 @@
 **Estimated Prompt Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create `NamespaceRef` dataclass in `src/specify_cli/sync/namespace.py` with 5 namespace fields
-- [ ] T002 Add `NamespaceRef.from_project_identity()` factory method consuming `ProjectIdentity` + feature metadata + manifest version
-- [ ] T003 [P] Create `SupportedInlineFormat` enum (`.md`, `.json`, `.yaml`, `.yml`, `.csv`) and `is_supported_format()` helper
-- [ ] T004 [P] Create `UploadOutcome` dataclass with status codes (`uploaded`, `already_exists`, `queued`, `skipped`, `failed`) and reason strings
-- [ ] T005 Write `tests/specify_cli/sync/test_namespace.py` covering construction, validation, factory, and edge cases
+- [x] T001 Create `NamespaceRef` dataclass in `src/specify_cli/sync/namespace.py` with 5 namespace fields
+- [x] T002 Add `NamespaceRef.from_project_identity()` factory method consuming `ProjectIdentity` + feature metadata + manifest version
+- [x] T003 [P] Create `SupportedInlineFormat` enum (`.md`, `.json`, `.yaml`, `.yml`, `.csv`) and `is_supported_format()` helper
+- [x] T004 [P] Create `UploadOutcome` dataclass with status codes (`uploaded`, `already_exists`, `queued`, `skipped`, `failed`) and reason strings
+- [x] T005 Write `tests/specify_cli/sync/test_namespace.py` covering construction, validation, factory, and edge cases
 
 ### Implementation Notes
 - `NamespaceRef` carries `project_uuid`, `feature_slug`, `target_branch`, `mission_key`, `manifest_version`
@@ -309,3 +309,8 @@ WP05   WP06    |          ← WP06 needs WP02 + WP04
 ---
 
 > Replace all placeholder text above with feature-specific content. Keep this template structure intact so downstream automation can parse work packages reliably.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: in_progress
+<!-- status-model:end -->
