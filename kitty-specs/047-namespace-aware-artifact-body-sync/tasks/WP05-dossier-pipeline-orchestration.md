@@ -15,7 +15,7 @@ subtasks:
 - T027
 phase: Phase 3 - Integration
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "57622"
 review_status: ''
 reviewed_by: ''
@@ -255,3 +255,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
+- 2026-03-09T08:59:44Z – claude-opus – shell_pid=57622 – lane=doing – Assigned agent via workflow command
