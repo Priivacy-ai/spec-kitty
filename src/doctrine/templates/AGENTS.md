@@ -195,3 +195,34 @@ This is intentional and correct - it ensures a single source of truth for projec
 - 🧠 **Context**: Read what you need; don’t forget what you already learned.  
 - ✅ **Quality**: Follow secure, tested, documented practices.  
 - 📝 **Git**: Commit cleanly with clear messages.
+
+## Docker Mode Policy for `spec-kitty-saas`
+
+When work touches `/spec-kitty-saas`, use two explicit Docker modes:
+
+- `dev-live` for implementation and debugging loops:
+  - `make docker-app-up-live`
+  - `make docker-auth-check-live` (optional during active implementation)
+  - `make docker-app-down-live`
+- `prod-like` for pre-merge and pre-deploy gates:
+  - `make docker-app-up`
+  - `make docker-auth-check` (required before Fly promotion)
+  - `make docker-app-down`
+
+Rules:
+- Default to `dev-live` while editing Python, templates, or assets.
+- Before merge or Fly promotion, always run and pass the `prod-like` auth preflight.
+- If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
+- Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
+- Runbook source of truth: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`.
+
+
+---
+
+## Terminology Canon (Mission vs Feature)
+
+- Canonical product term is **Mission** (plural: **Missions**).
+- `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
+- Hard-break policy: do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
+- Use `Mission` / `Missions` as the only canonical term in active codepaths and interfaces.
+- Historical archived artifacts may retain legacy wording only as immutable snapshots and must be explicitly marked legacy.
