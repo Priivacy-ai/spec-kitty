@@ -14,7 +14,7 @@ subtasks:
 - T023
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "53573"
 review_status: ''
 reviewed_by: ''
@@ -343,3 +343,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Activity Log
 
 - 2026-03-09T07:09:45Z – system – lane=planned – Prompt created.
+- 2026-03-09T08:45:52Z – claude-opus – shell_pid=53573 – lane=doing – Assigned agent via workflow command
