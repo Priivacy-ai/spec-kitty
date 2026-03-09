@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Core Implementation
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 042-model-selection-per-task
 base_commit: cd9aec8b060c3603e8eb509ad8cf777751135653
@@ -400,3 +400,4 @@ Reviewers should verify:
 
 - 2026-03-09T11:13:06Z – system – lane=planned – Prompt created.
 - 2026-03-09T11:21:04Z – claude-sonnet-4-6 – shell_pid=38532 – lane=doing – Assigned agent via workflow command
+- 2026-03-09T11:36:46Z – claude-sonnet-4-6 – shell_pid=38532 – lane=for_review – Implemented global_config.py and m_2_0_4_model_injection.py. Auto-registration verified. Smoke tests pass.
