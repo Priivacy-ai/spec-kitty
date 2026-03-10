@@ -21,7 +21,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 try:
     import tomllib  # Python 3.11+
@@ -38,7 +38,7 @@ CHANGELOG_HEADING_RE = re.compile(
 @dataclass
 class ValidationIssue:
     message: str
-    hint: Optional[str] = None
+    hint: str | None = None
 
     def format(self) -> str:
         if self.hint:
@@ -53,8 +53,8 @@ class ValidationResult:
     pyproject_path: Path
     changelog_path: Path
     version: str
-    tag: Optional[str]
-    issues: List[ValidationIssue] = field(default_factory=list)
+    tag: str | None
+    issues: list[ValidationIssue] = field(default_factory=list)
 
     def report(self) -> None:
         header = "Release Validator Summary"
@@ -77,7 +77,7 @@ class ReleaseValidatorError(Exception):
     """Base exception for validator failures."""
 
 
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate release readiness for Spec Kitty release automation"
     )
@@ -148,7 +148,7 @@ def read_changelog(path: Path) -> str:
 def changelog_has_entry(changelog: str, version: str) -> bool:
     lines = changelog.splitlines()
     capture = False
-    content: List[str] = []
+    content: list[str] = []
     for line in lines:
         heading = CHANGELOG_HEADING_RE.match(line)
         if heading:
@@ -163,7 +163,7 @@ def changelog_has_entry(changelog: str, version: str) -> bool:
     return any(fragment for fragment in content if fragment)
 
 
-def git(*args: str, cwd: Optional[Path] = None) -> str:
+def git(*args: str, cwd: Path | None = None) -> str:
     result = subprocess.run(
         ["git", *args],
         cwd=cwd,
@@ -191,8 +191,8 @@ def find_repo_root(start: Path) -> Path:
 
 
 def discover_semver_tags(
-    repo_root: Path, tag_pattern: str, exclude: Optional[str] = None
-) -> List[str]:
+    repo_root: Path, tag_pattern: str, exclude: str | None = None
+) -> list[str]:
     output = git("tag", "--list", tag_pattern, cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
     filtered = [tag for tag in tags if tag != exclude]
@@ -200,7 +200,7 @@ def discover_semver_tags(
     return filtered
 
 
-def parse_semver(value: str) -> Tuple[int, int, int]:
+def parse_semver(value: str) -> tuple[int, int, int]:
     match = SEMVER_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
@@ -209,7 +209,7 @@ def parse_semver(value: str) -> Tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())
 
 
-def detect_tag_from_env() -> Optional[str]:
+def detect_tag_from_env() -> str | None:
     ref_name = os.getenv("GITHUB_REF_NAME")
     if ref_name and ref_name.startswith("v") and SEMVER_RE.match(ref_name[1:]):
         return ref_name
@@ -223,7 +223,7 @@ def detect_tag_from_env() -> Optional[str]:
 
 def validate_version_progression(
     current_version: str, existing_tags: Sequence[str]
-) -> Optional[ValidationIssue]:
+) -> ValidationIssue | None:
     if not existing_tags:
         return None
     current_tuple = parse_semver(current_version)
@@ -236,7 +236,7 @@ def validate_version_progression(
     return None
 
 
-def ensure_tag_matches_version(version: str, tag: Optional[str]) -> Optional[ValidationIssue]:
+def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue | None:
     expected = f"v{version}"
     if not tag:
         return ValidationIssue(
@@ -255,8 +255,8 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
     pyproject_path = Path(args.pyproject).resolve()
     changelog_path = Path(args.changelog).resolve()
     version = ""
-    tag: Optional[str] = None
-    issues: List[ValidationIssue] = []
+    tag: str | None = None
+    issues: list[ValidationIssue] = []
 
     try:
         version = load_pyproject_version(pyproject_path)
@@ -321,7 +321,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
     )
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     result = run_validation(args)
     result.report()

@@ -17,10 +17,9 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 
-def check_utf8_encoding(file_path: Path) -> Tuple[bool, Optional[str]]:
+def check_utf8_encoding(file_path: Path) -> tuple[bool, str | None]:
     """
     Check if a file is valid UTF-8.
 
@@ -28,7 +27,7 @@ def check_utf8_encoding(file_path: Path) -> Tuple[bool, Optional[str]]:
         (is_valid, error_message)
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             f.read()
         return (True, None)
     except UnicodeDecodeError as e:
@@ -48,7 +47,7 @@ def detect_encoding(file_path: Path) -> str:
 
     for encoding in encodings:
         try:
-            with open(file_path, 'r', encoding=encoding) as f:
+            with open(file_path, encoding=encoding) as f:
                 f.read()
             return encoding
         except (UnicodeDecodeError, UnicodeError):
@@ -91,7 +90,7 @@ def convert_to_utf8(file_path: Path, source_encoding: str = 'windows-1252', dry_
         return False
 
 
-def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> List[Path]:
+def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> list[Path]:
     """
     Scan directory for markdown files with encoding issues.
 
@@ -128,7 +127,7 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
                             if is_valid_now:
                                 print(f"   ✅ Fixed! Converted from {detected} to UTF-8")
                             else:
-                                print(f"   ⚠️ Conversion completed but file still has issues")
+                                print("   ⚠️ Conversion completed but file still has issues")
                                 problem_files.append(md_file)
                 else:
                     problem_files.append(md_file)

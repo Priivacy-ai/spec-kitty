@@ -52,7 +52,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[test]
+          pip install -e ".[test,lint]"
 
       - name: Install Node dependencies
         run: npm ci
@@ -200,11 +200,56 @@ jobs:
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Run architecture/docs consistency tests on changed markdown
+        if: always()
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping docs consistency tests."
+            exit 0
+          fi
+
+          mapfile -d '' CHANGED_ARCH_DOC_MD < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- 'docs/*.md' 'docs/**/*.md' 'architecture/*.md' 'architecture/**/*.md')
+
+          if [ "${#CHANGED_ARCH_DOC_MD[@]}" -eq 0 ]; then
+            echo "No changed markdown files under docs/ or architecture/. Skipping docs consistency tests."
+            exit 0
+          fi
+
+          echo "Detected markdown changes in docs/architecture. Running consistency checks..."
+          python -m pytest -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
+
+      - name: Check Contextive glossary files are up-to-date
+        if: always()
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available. Running Contextive check unconditionally."
+            python scripts/generate_contextive_glossaries.py check
+            exit $?
+          fi
+
+          mapfile -d '' CHANGED < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" \
+            -- 'glossary/**' 'src/specify_cli/**' '.kittify/traceability/**')
+
+          if [ "${#CHANGED[@]}" -eq 0 ]; then
+            echo "No changes in glossary/, src/specify_cli/, or .kittify/traceability/. Skipping Contextive check."
+            exit 0
+          fi
+
+          echo "Detected relevant changes. Verifying Contextive glossary files are up-to-date..."
+          python scripts/generate_contextive_glossaries.py check
+
       - name: Run ruff report
         id: ruff
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           python -m ruff check src tests | tee out/reports/static-analysis/ruff-report.txt
 
       - name: Run mypy report
@@ -212,6 +257,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           python -m mypy --strict src/specify_cli | tee out/reports/static-analysis/mypy-report.txt
 
       - name: Run Bandit security scan
@@ -651,6 +697,65 @@ jobs:
         with:
           name: dashboard-test-reports
           path: out/reports/
+
+  mutation-testing:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # Slow job: only runs on push or manual dispatch, never on pull_request (NFR-001).
+    # NOTE: Skipped on pull_request — keeps PR CI fast per spec constraint NFR-001.
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    timeout-minutes: 75
+    env:
+      MUTATION_FLOOR: 70  # Baseline: 70.5% (2026-03-01 full run); floor = floor(70.5/5)*5 = 70 (WP05)
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/mutation
+
+      - name: Run mutation testing
+        run: mutmut run
+        continue-on-error: true  # Surviving mutants alone don't fail the job; floor check does
+
+      - name: Export mutation stats (JSON)
+        if: always()
+        run: |
+          # mutmut 3.5.0 writes stats to mutants/mutmut-cicd-stats.json (no --output flag)
+          mutmut export-cicd-stats
+          if [ -f mutants/mutmut-cicd-stats.json ]; then
+            cp mutants/mutmut-cicd-stats.json out/reports/mutation/mutation-stats.json
+          else
+            # mutmut failed to produce stats — write an explicit failure sentinel so the
+            # floor check can distinguish "no results due to crash" from "legitimately empty".
+            echo '{"killed": 0, "survived": 0, "total": 0, "execution_failed": true}' \
+              > out/reports/mutation/mutation-stats.json
+          fi
+
+      - name: Enforce mutation score floor
+        if: always()
+        run: python scripts/check_mutation_floor.py
+
+      - name: Upload mutation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-reports
+          path: out/reports/mutation/
 
   sonarcloud:
     runs-on: ubuntu-latest
