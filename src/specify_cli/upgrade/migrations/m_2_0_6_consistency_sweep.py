@@ -108,7 +108,12 @@ def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
         return True
     if meta is None:
         return True
-    if not str(meta.get("target_branch", "")).strip():
+    desired_meta = build_baseline_feature_meta(
+        feature_dir,
+        repo_root,
+        existing_meta=meta,
+    )
+    if meta != desired_meta:
         return True
     if _tasks_md_has_legacy_prompt_refs(feature_dir):
         return True
@@ -160,8 +165,9 @@ def _repair_feature(
     if orphan_warning:
         warnings.append(f"{feature_dir.name}: {orphan_warning}")
 
+    needs_event_repair = _status_events_need_repair(feature_dir)
     events_rebuilt = False
-    if _status_events_need_repair(feature_dir):
+    if needs_event_repair:
         if dry_run:
             changes.append(f"{feature_dir.name}: would reconstruct status.events.jsonl from frontmatter history")
         else:
@@ -172,14 +178,23 @@ def _repair_feature(
             elif migration_result.status == "failed":
                 warnings.append(f"{feature_dir.name}: {migration_result.error}")
 
-    if _feature_has_event_log(feature_dir):
+    unreadable_change, unreadable_warning = _cleanup_unreadable_events_log(feature_dir, dry_run)
+    if unreadable_change:
+        changes.append(f"{feature_dir.name}: {unreadable_change}")
+    if unreadable_warning:
+        warnings.append(f"{feature_dir.name}: {unreadable_warning}")
+
+    has_event_log = _feature_has_event_log(feature_dir)
+    if has_event_log or unreadable_change:
         if dry_run:
-            if _feature_has_status_drift(feature_dir, repo_root):
+            if needs_event_repair or unreadable_change:
+                changes.append(f"{feature_dir.name}: would regenerate status.json and tasks.md views")
+            elif _feature_has_status_drift(feature_dir, repo_root):
                 changes.append(f"{feature_dir.name}: would regenerate status.json and tasks.md views")
         else:
             snapshot = materialize(feature_dir)
             update_all_views(feature_dir, snapshot, repo_root=repo_root)
-            if events_rebuilt or _feature_has_status_drift(feature_dir, repo_root):
+            if events_rebuilt or unreadable_change or _feature_has_status_drift(feature_dir, repo_root):
                 changes.append(f"{feature_dir.name}: regenerated status.json and compatibility views")
 
     prompt_rewrites = _rewrite_tasks_prompt_refs(feature_dir, dry_run)
@@ -383,6 +398,29 @@ def _cleanup_orphan_status_snapshot(feature_dir: Path, dry_run: bool) -> tuple[s
     if not dry_run:
         status_path.rename(feature_dir / backup_name)
     return f"archived orphan {SNAPSHOT_FILENAME} to {backup_name}", None
+
+
+def _cleanup_unreadable_events_log(feature_dir: Path, dry_run: bool) -> tuple[str | None, str | None]:
+    events_path = feature_dir / EVENTS_FILENAME
+    if not events_path.exists():
+        return None, None
+
+    content = events_path.read_text(encoding="utf-8").strip()
+    if not content:
+        return None, None
+
+    try:
+        read_events(feature_dir)
+        return None, None
+    except StoreError as exc:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_name = f"{EVENTS_FILENAME}.unreadable.bak.{timestamp}"
+        if not dry_run:
+            events_path.rename(feature_dir / backup_name)
+        return (
+            f"archived unreadable {EVENTS_FILENAME} to {backup_name}",
+            f"status.events.jsonl was unreadable and has been quarantined ({exc})",
+        )
 
 
 def _migrate_runtime_assets(project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:

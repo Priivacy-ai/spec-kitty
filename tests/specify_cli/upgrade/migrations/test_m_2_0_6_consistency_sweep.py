@@ -41,6 +41,27 @@ def test_detect_flags_malformed_meta_as_repairable(tmp_path: Path) -> None:
     assert migration.detect(repo_root) is True
 
 
+def test_detect_flags_incomplete_meta_as_repairable(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "001-incomplete-meta"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "feature_number": "001",
+                "slug": "001-incomplete-meta",
+                "target_branch": "main",
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    migration = ConsistencySweepMigration()
+    assert migration.detect(repo_root) is True
+
+
 def test_apply_repairs_feature_state_and_legacy_prompt_refs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -111,6 +132,50 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
 
     status = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
     assert status["work_packages"]["WP01"]["lane"] == "in_progress"
+
+
+def test_apply_quarantines_unreadable_planned_only_event_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "001-corrupt-events"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    _write_wp(tasks_dir, "WP01", "planned")
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "feature_number": "001",
+                "slug": "001-corrupt-events",
+                "feature_slug": "001-corrupt-events",
+                "mission": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (feature_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep._migrate_runtime_assets",
+        lambda _project_path, dry_run: ([], []),
+    )
+
+    migration = ConsistencySweepMigration()
+    result = migration.apply(repo_root, dry_run=False)
+
+    assert result.success is True
+    assert not (feature_dir / EVENTS_FILENAME).exists()
+    assert len(list(feature_dir.glob("status.events.jsonl.unreadable.bak.*"))) == 1
+    assert any("archived unreadable status.events.jsonl" in change for change in result.changes_made)
+
+    status = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["work_packages"] == {}
+    assert status["event_count"] == 0
 
 
 def test_apply_cleans_legacy_worktree_assets(
