@@ -99,28 +99,15 @@ def get_next_feature_number(repo_root: Path) -> int:
     """
     max_number = 0
 
-    # Scan kitty-specs/ for feature numbers
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if specs_dir.exists():
-        for item in sorted(specs_dir.iterdir(), key=lambda p: p.name):
+    for scan_dir in (repo_root / KITTY_SPECS_DIR, repo_root / WORKTREES_DIR):
+        if not scan_dir.exists():
+            continue
+        for item in scan_dir.iterdir():
             if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
                 try:
                     number = int(item.name[:3])
                     max_number = max(max_number, number)
                 except ValueError:
-                    # Not a valid number, skip
-                    continue
-
-    # Also scan .worktrees/ for feature numbers
-    worktrees_dir = repo_root / WORKTREES_DIR
-    if worktrees_dir.exists():
-        for item in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
-            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                try:
-                    number = int(item.name[:3])
-                    max_number = max(max_number, number)
-                except ValueError:
-                    # Not a valid number, skip
                     continue
 
     return max_number + 1

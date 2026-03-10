@@ -32,9 +32,10 @@ from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
+    VCSNotFoundError,
 )
 from specify_cli.dashboard import ensure_dashboard_running
-from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
+from specify_cli.gitignore_manager import AGENT_DIRECTORIES, GitignoreManager, ProtectionResult
 from specify_cli.core.agent_config import (
     AgentConfig,
     save_agent_config,
@@ -63,12 +64,6 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 # =============================================================================
 # VCS Detection and Configuration
 # =============================================================================
-
-
-class VCSNotFoundError(Exception):
-    """Raised when no VCS tools are available."""
-
-    pass
 
 
 def _is_truthy_env(value: str | None) -> bool:
@@ -581,20 +576,7 @@ def init(
     _console.print("\n[bold green]Project ready.[/bold green]")
 
     # Agent folder security notice
-    agent_folder_map = {
-        "claude": ".claude/",
-        "gemini": ".gemini/",
-        "cursor": ".cursor/",
-        "qwen": ".qwen/",
-        "opencode": ".opencode/",
-        "codex": ".codex/",
-        "windsurf": ".windsurf/",
-        "kilocode": ".kilocode/",
-        "auggie": ".augment/",
-        "copilot": ".github/",
-        "roo": ".roo/",
-        "q": ".amazonq/"
-    }
+    agent_folder_map = {agent.name: agent.directory for agent in AGENT_DIRECTORIES}
 
     notice_entries = []
     for agent_key in selected_agents:
