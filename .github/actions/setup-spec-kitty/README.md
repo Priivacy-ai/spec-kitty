@@ -2,26 +2,27 @@
 
 GitHub Action to install `spec-kitty-cli` with caching and optional testing dependencies.
 
+> **Note:** This action is designed for GitHub Actions on Linux-based runners only.
+
 ## Features
 
-- 🚀 **Fast installation** with pip caching
-- 🐍 **Flexible Python versions** (default: 3.12)
-- 🧪 **Optional test dependencies** (pytest, pytest-timeout, pytest-xdist)
-- 🔬 **Optional mutmut** for mutation testing
-- 📌 **Version pinning** support
-- ✅ **Installation verification**
+- **Fast installation** with pip caching
+- **Checkout-first** — installs from the current repo checkout by default, validating the branch under test
+- **Optional PyPI install** — pin a released version when needed
+- **Optional test dependencies** (pytest, pytest-timeout, pytest-xdist)
+- **Installation verification**
 
 ## Usage
 
-### Basic Usage
+### Basic Usage (installs from checkout)
 
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  
+
   - name: Setup Spec Kitty
     uses: ./.github/actions/setup-spec-kitty
-  
+
   - name: Use spec-kitty
     run: spec-kitty --version
 ```
@@ -31,41 +32,26 @@ steps:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  
+
   - name: Setup Spec Kitty with test deps
     uses: ./.github/actions/setup-spec-kitty
     with:
       install-test-deps: true
-  
+
   - name: Run tests
     run: pytest tests/
 ```
 
-### With Mutation Testing
+### Install from PyPI (specific version)
 
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  
-  - name: Setup Spec Kitty with mutmut
+
+  - name: Setup specific Spec Kitty version from PyPI
     uses: ./.github/actions/setup-spec-kitty
     with:
-      install-test-deps: true
-      install-mutmut: true
-  
-  - name: Run mutation tests
-    run: mutmut run
-```
-
-### With Version Pinning
-
-```yaml
-steps:
-  - uses: actions/checkout@v4
-  
-  - name: Setup specific Spec Kitty version
-    uses: ./.github/actions/setup-spec-kitty
-    with:
+      install-from: 'pypi'
       spec-kitty-version: '0.16.2'
 ```
 
@@ -74,7 +60,7 @@ steps:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  
+
   - name: Setup Spec Kitty with Python 3.11
     uses: ./.github/actions/setup-spec-kitty
     with:
@@ -86,9 +72,9 @@ steps:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `python-version` | Python version to use | No | `3.12` |
+| `install-from` | Installation source: `checkout` (current repo) or `pypi` (published package) | No | `checkout` |
 | `install-test-deps` | Install test dependencies (pytest, pytest-timeout, pytest-xdist) | No | `false` |
-| `install-mutmut` | Install mutmut for mutation testing | No | `false` |
-| `spec-kitty-version` | Specific version to install (e.g., "0.16.2" or "latest") | No | `latest` |
+| `spec-kitty-version` | Specific PyPI version to install (only used when `install-from` is `pypi`) | No | `latest` |
 | `cache-dependency-path` | Path to dependency file for cache key | No | Auto-detect `pyproject.toml` |
 
 ## Outputs
@@ -103,11 +89,11 @@ steps:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  
+
   - name: Setup Spec Kitty
     id: setup-spec-kitty
     uses: ./.github/actions/setup-spec-kitty
-  
+
   - name: Check cache status
     run: |
       echo "Cache hit: ${{ steps.setup-spec-kitty.outputs.cache-hit }}"
@@ -121,7 +107,7 @@ The action caches:
 - `~/.local/lib/python{version}/site-packages` - installed packages
 
 Cache key is based on:
-1. Operating system (e.g., `Linux`, `macOS`, `Windows`)
+1. Runner OS
 2. Python version (e.g., `3.12`)
 3. Hash of dependency file (`pyproject.toml` by default)
 
@@ -131,20 +117,6 @@ This ensures fast subsequent runs while invalidating cache when dependencies cha
 
 **Without cache** (first run): ~60-90 seconds
 **With cache** (subsequent runs): ~10-15 seconds
-
-⏱️ **Time saved**: ~75 seconds per workflow run
-
-## Development
-
-To test locally (requires `act` or similar):
-
-```bash
-# Test basic installation
-act -j test-action
-
-# Test with mutmut
-act -j test-action -e test/events/mutmut.json
-```
 
 ## Contributing
 

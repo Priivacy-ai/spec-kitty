@@ -17,13 +17,13 @@ inputs:
     required: false
     default: 'false'
   
-  install-mutmut:
-    description: 'Install mutmut for mutation testing'
+  install-from:
+    description: 'Installation source: "checkout" installs from the current repo checkout, "pypi" installs from PyPI'
     required: false
-    default: 'false'
-  
+    default: 'checkout'
+
   spec-kitty-version:
-    description: 'Specific version of spec-kitty-cli to install (e.g., "0.16.2" or "latest")'
+    description: 'Specific version of spec-kitty-cli to install from PyPI (e.g., "0.16.2" or "latest"). Only used when install-from is "pypi"'
     required: false
     default: 'latest'
   
@@ -84,11 +84,14 @@ runs:
     - name: Install spec-kitty-cli
       shell: bash
       run: |
-        if [ "${{ inputs.spec-kitty-version }}" = "latest" ]; then
-          echo "Installing latest spec-kitty-cli..."
+        if [ "${{ inputs.install-from }}" = "checkout" ]; then
+          echo "Installing spec-kitty-cli from current checkout..."
+          pip install -e .
+        elif [ "${{ inputs.spec-kitty-version }}" = "latest" ]; then
+          echo "Installing latest spec-kitty-cli from PyPI..."
           pip install spec-kitty-cli
         else
-          echo "Installing spec-kitty-cli==${{ inputs.spec-kitty-version }}..."
+          echo "Installing spec-kitty-cli==${{ inputs.spec-kitty-version }} from PyPI..."
           pip install spec-kitty-cli==${{ inputs.spec-kitty-version }}
         fi
     
@@ -98,13 +101,6 @@ runs:
       run: |
         echo "Installing test dependencies..."
         pip install pytest pytest-timeout pytest-xdist
-    
-    - name: Install mutmut
-      if: inputs.install-mutmut == 'true'
-      shell: bash
-      run: |
-        echo "Installing mutmut..."
-        pip install mutmut
     
     - name: Get installed version
       id: get-version
