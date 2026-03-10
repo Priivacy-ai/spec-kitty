@@ -21,17 +21,16 @@ mutmut --version
 
 ## Run mutation testing locally
 
-**Full run against the configured scope** (`src/specify_cli/`):
+**Full run against the configured scope** (status, glossary, merge, core):
 
 ```bash
 mutmut run
 ```
 
-This takes ~30–60 minutes for the full codebase. For quick feedback, target
+This takes ~30–60 minutes for the full scope. For quick feedback, target
 a single module:
 
 ```bash
-# Scope to one module
 mutmut run --paths-to-mutate src/specify_cli/status/
 ```
 
@@ -51,19 +50,12 @@ mutmut results
 mutmut show 42
 ```
 
-**Browse the HTML report** (after running):
-
-```bash
-mutmut html --output out/reports/mutation/
-open out/reports/mutation/index.html  # macOS
-xdg-open out/reports/mutation/index.html  # Linux
-```
-
 **Export machine-readable JSON stats**:
 
 ```bash
-mutmut export-cicd-stats --output out/reports/mutation/mutation-stats.json
-cat out/reports/mutation/mutation-stats.json
+# mutmut 3.5.0 writes to mutants/mutmut-cicd-stats.json (no --output flag)
+mutmut export-cicd-stats
+cat mutants/mutmut-cicd-stats.json
 ```
 
 ---
@@ -95,17 +87,17 @@ cat out/reports/mutation/mutation-stats.json
 
 ---
 
-## Check mutation score floor
+## Check mutation score locally
 
-The floor check is the same script used by CI:
+The floor check is the same script used by CI. It is advisory — it
+reports the score but never exits non-zero:
 
 ```bash
-# Check against default 0% floor (always passes during setup)
-MUTATION_FLOOR=0 python scripts/check_mutation_floor.py
-
-# Check against a specific floor (e.g., 50%)
-MUTATION_FLOOR=50 python scripts/check_mutation_floor.py
+MUTATION_FLOOR=70 python scripts/check_mutation_floor.py
 ```
+
+When the score is below the floor, the script prints a markdown summary
+listing surviving mutants. In CI this is written to `GITHUB_STEP_SUMMARY`.
 
 ---
 
@@ -113,9 +105,16 @@ MUTATION_FLOOR=50 python scripts/check_mutation_floor.py
 
 | Event | mutation-testing job |
 |-------|---------------------|
-| `push` | Runs |
-| `workflow_dispatch` | Runs |
+| `push` | Runs (scoped to changed files in mutation directories) |
+| `workflow_dispatch` | Runs (scoped to changed files in mutation directories) |
 | Pull request | **Skipped** |
+
+The job is **advisory** — it never blocks the pipeline. When the score
+is below the floor, a summary with surviving mutants appears in the
+GitHub Actions step summary.
+
+If no Python files in the mutation scope (`status/`, `glossary/`,
+`merge/`, `core/`) were changed, the job skips entirely.
 
 Artifacts are uploaded to `out/reports/mutation/` and available as a
 downloadable CI artifact named `mutation-reports`.
@@ -127,8 +126,8 @@ downloadable CI artifact named `mutation-reports`.
 | File | Change |
 |------|--------|
 | `pyproject.toml` | `mutmut>=3.5.0` added to `[project.optional-dependencies].test`; `[tool.mutmut]` config section added |
-| `.github/workflows/ci-quality.yml` | `mutation-testing` job added |
-| `scripts/check_mutation_floor.py` | New floor-check helper |
+| `.github/workflows/ci-quality.yml` | `mutation-testing` job added (advisory, scoped to changed files) |
+| `scripts/check_mutation_floor.py` | Advisory floor-check helper (writes markdown to `GITHUB_STEP_SUMMARY`) |
 | `.gitignore` | `mutmut.db`, `mutmut-cache/` added |
 
 ---
@@ -148,5 +147,6 @@ populated by the run step.
 
 **Floor check script can't find the JSON file**
 
-Ensure `mutmut export-cicd-stats` ran before the floor check. The CI job
-steps are ordered to guarantee this.
+Ensure `mutmut export-cicd-stats` ran before the floor check. In CI the
+steps are ordered to guarantee this. Locally, the stats file is at
+`mutants/mutmut-cicd-stats.json` (not `out/reports/mutation/`).
