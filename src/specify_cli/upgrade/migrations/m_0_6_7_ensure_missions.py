@@ -6,6 +6,11 @@ import shutil
 from pathlib import Path
 from typing import List
 
+from packaging.version import InvalidVersion, Version
+
+from specify_cli.runtime.home import get_kittify_home
+
+from ..metadata import ProjectMetadata
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -30,6 +35,10 @@ class EnsureMissionsMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Check if any required missions are missing."""
+        if _uses_centralized_runtime(project_path):
+            # In the 2.x centralized runtime model, project-local missions are optional.
+            return False
+
         missions_dir = project_path / ".kittify" / "missions"
 
         if not missions_dir.exists():
@@ -226,3 +235,27 @@ class EnsureMissionsMigration(BaseMigration):
             pass
 
         return None
+
+
+def _global_runtime_configured() -> bool:
+    """Return True when ``~/.kittify`` has been bootstrapped."""
+    try:
+        home = get_kittify_home()
+    except RuntimeError:
+        return False
+    return (home / "cache" / "version.lock").is_file()
+
+
+def _uses_centralized_runtime(project_path: Path) -> bool:
+    """Return True when project state indicates 2.x global runtime usage."""
+    if not _global_runtime_configured():
+        return False
+
+    metadata = ProjectMetadata.load(project_path / ".kittify")
+    if metadata is not None:
+        try:
+            return Version(metadata.version) >= Version("2.0.0")
+        except InvalidVersion:
+            return False
+
+    return (project_path / "kitty-specs").exists()

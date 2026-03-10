@@ -228,7 +228,8 @@ class MigrationRunner:
                 continue
 
             wt_kittify = worktree / KITTIFY_DIR
-            if not wt_kittify.exists():
+            has_upgradeable_state = wt_kittify.exists() or (worktree / "kitty-specs").exists() or (worktree / ".specify").exists()
+            if not has_upgradeable_state:
                 continue
 
             # Load or create worktree metadata
