@@ -1,108 +1,145 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Tracker Publish Resource Routing
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `048-tracker-publish-resource-routing` | **Date**: 2026-03-10 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `kitty-specs/048-tracker-publish-resource-routing/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Add `external_resource_type` and `external_resource_id` to the tracker snapshot publish payload so the SaaS can resolve `ServiceResourceMapping` records (ADR Layer 3) without CLI follow-up fields. The derivation is a pure function of `(provider, credentials)` using a static mapping dict. Jira maps to `("jira_project", credentials["project_key"])`, Linear maps to `("linear_team", credentials["team_id"])`. Unsupported or missing credentials yield `(null, null)`.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (existing spec-kitty codebase)
+**Primary Dependencies**: httpx (HTTP client in `sync_publish`), ruamel.yaml (config loading)
+**Storage**: N/A (no new persistence — fields derived at publish time)
+**Testing**: pytest
+**Target Platform**: CLI (cross-platform)
+**Project Type**: Single project (Python package)
+**Performance Goals**: < 1ms overhead (pure dict lookup, no I/O)
+**Constraints**: Must not modify the 15-field Git event envelope; must not add cross-repo contract work
+**Scale/Scope**: 2 new payload fields, 1 new private method, ~15 lines of derivation logic, ~80 lines of tests
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-[Gates determined based on constitution file]
+*Constitution file absent — check skipped.*
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/048-tracker-publish-resource-routing/
+├── spec.md              # Feature specification
+├── plan.md              # This file
+├── research.md          # Phase 0 output (minimal — no unknowns)
+├── data-model.md        # Payload extension schema
+├── quickstart.md        # Quick reference
+├── contracts/           # Updated tracker publish contract
+│   └── tracker-snapshot-publish.md
+└── tasks.md             # Phase 2 output (NOT created by /spec-kitty.plan)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/tracker/
+├── service.py           # sync_publish() — ADD routing fields to payload
+│                        #   ADD _resolve_resource_routing() private method
+│                        #   ADD RESOURCE_ROUTING_MAP module-level constant
+├── config.py            # TrackerProjectConfig — NO CHANGES
+├── credentials.py       # TrackerCredentialStore — NO CHANGES
+├── factory.py           # build_connector() — NO CHANGES (read-only reference)
+└── store.py             # TrackerSqliteStore — NO CHANGES
 
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+tests/specify_cli/tracker/
+├── test_service_publish.py   # NEW — unit tests for routing derivation + payload
+├── test_credentials.py       # EXISTING — NO CHANGES
+└── test_store.py             # EXISTING — NO CHANGES
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: All changes land in `src/specify_cli/tracker/service.py` (production code) and a new test file `tests/specify_cli/tracker/test_service_publish.py`. No new modules, no new packages.
+
+## Design
+
+### Resource Routing Map
+
+A module-level constant in `service.py`:
+
+```python
+# Canonical wire values — stable contract strings, not display labels.
+# Keys: normalized provider name (from normalize_provider()).
+# Values: (external_resource_type, credential_key_for_resource_id).
+RESOURCE_ROUTING_MAP: dict[str, tuple[str, str]] = {
+    "jira": ("jira_project", "project_key"),
+    "linear": ("linear_team", "team_id"),
+}
+```
+
+### Derivation Method
+
+New private method on `TrackerService`:
+
+```python
+@staticmethod
+def _resolve_resource_routing(
+    provider: str,
+    credentials: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    """Derive (external_resource_type, external_resource_id) from provider and credentials.
+
+    Returns (None, None) if the provider has no routing mapping or
+    the required credential key is missing/empty.
+    """
+    entry = RESOURCE_ROUTING_MAP.get(provider)
+    if entry is None:
+        return None, None
+    resource_type, credential_key = entry
+    resource_id = credentials.get(credential_key)
+    if resource_id is None or not str(resource_id).strip():
+        return None, None
+    return resource_type, str(resource_id).strip()
+```
+
+### Payload Integration
+
+In `sync_publish()`, after the existing payload construction (line ~197), add:
+
+```python
+resource_type, resource_id = self._resolve_resource_routing(provider, credentials)
+
+payload = {
+    # ... existing fields ...
+    "external_resource_type": resource_type,
+    "external_resource_id": resource_id,
+}
+```
+
+### What Does NOT Change
+
+1. **Git event envelope** — `git_branch`, `head_commit_sha`, `repo_slug` in `EventEmitter._emit()` are untouched
+2. **Batch API contract** — `/api/v1/events/batch/` request/response format unchanged
+3. **TrackerProjectConfig** — no new fields in `.kittify/config.yaml`
+4. **TrackerCredentialStore** — no new credential keys; existing `project_key` and `team_id` are already stored by `tracker bind`
+5. **Snapshot endpoint URL** — still `POST /api/v1/connectors/trackers/snapshots/`
+
+### Test Matrix
+
+| Test Case | Provider | Credentials | Expected `external_resource_type` | Expected `external_resource_id` |
+|-----------|----------|-------------|-----------------------------------|--------------------------------|
+| Jira happy path | `"jira"` | `{"project_key": "ACME", ...}` | `"jira_project"` | `"ACME"` |
+| Linear happy path | `"linear"` | `{"team_id": "abc-123", ...}` | `"linear_team"` | `"abc-123"` |
+| Jira missing key | `"jira"` | `{"base_url": "...", ...}` (no project_key) | `null` | `null` |
+| Linear missing team_id | `"linear"` | `{"api_key": "...", ...}` (no team_id) | `null` | `null` |
+| Jira empty string | `"jira"` | `{"project_key": "", ...}` | `null` | `null` |
+| Jira whitespace-only | `"jira"` | `{"project_key": "  ", ...}` | `null` | `null` |
+| Unsupported provider | `"beads"` | `{...}` | `null` | `null` |
+| Unknown provider | `"notion"` | `{...}` | `null` | `null` |
+
+### Regression Tests
+
+- Existing `tests/contract/test_handoff_fixtures.py` must continue to pass (validates event envelope schema)
+- Existing tracker tests (`test_credentials.py`, `test_store.py`) must pass without modification
 
 ## Complexity Tracking
 
-*Fill ONLY if Constitution Check has violations that must be justified*
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No constitution violations. No complexity justifications needed.
