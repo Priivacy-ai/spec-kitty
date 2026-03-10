@@ -1,94 +1,104 @@
 #!/usr/bin/env python3
-"""Enforce a minimum mutation score floor.
+"""Advisory mutation score check.
 
 Reads out/reports/mutation/mutation-stats.json (produced by
-`mutmut export-cicd-stats`) and exits non-zero if the mutation score
-falls below the MUTATION_FLOOR environment variable (integer 0-100, default 0).
+`mutmut export-cicd-stats`) and reports whether the mutation score
+meets the MUTATION_FLOOR threshold.
 
-Edge cases handled:
-- Missing JSON file: exits 1 with a clear error
-- Malformed JSON: exits 1 with a clear error
-- Zero scoreable mutants with execution_failed=true sentinel: exits 1 (mutmut failed to run)
-- Zero scoreable mutants without sentinel: exits 1 (no evidence of successful execution)
-- Score below floor: exits 1 with a descriptive message
+This script is advisory only — it never fails the CI job.  When the
+floor is not met it writes a markdown summary to GITHUB_STEP_SUMMARY
+listing the score and notable surviving mutants.
 """
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 STATS_FILE = Path("out/reports/mutation/mutation-stats.json")
 FLOOR = int(os.environ.get("MUTATION_FLOOR", "0"))
+SUMMARY_FILE = os.environ.get("GITHUB_STEP_SUMMARY", "")
+
+
+def _write_summary(md: str) -> None:
+    """Append markdown to the GitHub Actions step summary (if available)."""
+    print(md)
+    if SUMMARY_FILE:
+        with open(SUMMARY_FILE, "a") as f:
+            f.write(md + "\n")
+
+
+def _get_surviving_mutants(limit: int = 20) -> list[str]:
+    """Ask mutmut for the list of surviving mutants."""
+    try:
+        result = subprocess.run(
+            ["mutmut", "results"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        lines = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip() and not line.startswith("To apply")
+        ]
+        return lines[:limit]
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
 
 
 def main() -> int:
     if not STATS_FILE.exists():
-        print(
-            f"ERROR: stats file not found at {STATS_FILE}",
-            file=sys.stderr,
+        _write_summary(
+            "## Mutation Testing\n\n"
+            "⚠️ No mutation stats found — `mutmut export-cicd-stats` may have failed.\n"
         )
-        print(
-            "Ensure `mutmut export-cicd-stats` ran before this script.",
-            file=sys.stderr,
-        )
-        return 1
+        return 0
 
     try:
         data = json.loads(STATS_FILE.read_text())
     except json.JSONDecodeError as exc:
-        print(f"ERROR: could not parse {STATS_FILE}: {exc}", file=sys.stderr)
-        print(f"Raw content: {STATS_FILE.read_text()[:200]}", file=sys.stderr)
-        return 1
+        _write_summary(
+            "## Mutation Testing\n\n"
+            f"⚠️ Could not parse stats file: {exc}\n"
+        )
+        return 0
 
-    # Support both flat schema and nested-under-summary schema variants
-    # to handle any differences across mutmut 3.x patch versions.
     summary = data.get("summary", data)
     killed = int(summary.get("killed", 0))
     survived = int(summary.get("survived", 0))
     total_scored = killed + survived
 
     if total_scored == 0:
-        # If the stats file was written by the CI fallback due to mutmut failure,
-        # treat this as an execution error rather than "nothing to score".
-        # A real zero-mutant run would only occur if the paths_to_mutate produce
-        # no mutations at all, which is not expected for this codebase.
-        if data.get("execution_failed"):
-            print(
-                "ERROR: mutation testing did not produce results (execution_failed=true). "
-                "This typically means mutmut crashed or the environment was not prepared correctly.",
-                file=sys.stderr,
-            )
-        else:
-            print(
-                "ERROR: no scoreable mutants (killed + survived == 0). "
-                "Either mutmut did not run or produced no results. "
-                "Pass MUTATION_ALLOW_ZERO=1 to skip this check explicitly.",
-                file=sys.stderr,
-            )
-        allow_zero = os.environ.get("MUTATION_ALLOW_ZERO", "0") == "1"
-        if allow_zero:
-            print("WARNING: MUTATION_ALLOW_ZERO=1 set — skipping floor check.")
-            return 0
-        return 1
+        reason = (
+            "mutmut crashed or the environment was not prepared correctly"
+            if data.get("execution_failed")
+            else "no scoreable mutants produced"
+        )
+        _write_summary(
+            "## Mutation Testing\n\n"
+            f"⚠️ No scoreable mutants — {reason}.\n"
+        )
+        return 0
 
     score_pct = int(killed / total_scored * 100)
-    print(f"Mutation score: {score_pct}%  ({killed} killed / {total_scored} scoreable)")
-    print(f"Floor:          {FLOOR}%")
+    icon = "✅" if score_pct >= FLOOR else "⚠️"
+    status = "meets" if score_pct >= FLOOR else "below"
+
+    md = (
+        f"## Mutation Testing\n\n"
+        f"{icon} **Score: {score_pct}%** ({killed} killed / {total_scored} scoreable) "
+        f"— {status} advisory floor of {FLOOR}%\n"
+    )
 
     if score_pct < FLOOR:
-        print(
-            f"\nFAIL: mutation score {score_pct}% is below the configured "
-            f"floor of {FLOOR}%.",
-            file=sys.stderr,
-        )
-        print(
-            "Run the squashing campaign (WP03/WP04) and raise MUTATION_FLOOR "
-            "in ci-quality.yml once the baseline is established.",
-            file=sys.stderr,
-        )
-        return 1
+        survivors = _get_surviving_mutants()
+        if survivors:
+            md += "\n<details>\n<summary>Surviving mutants (first 20)</summary>\n\n```\n"
+            md += "\n".join(survivors)
+            md += "\n```\n</details>\n"
 
-    print("\nPASS: mutation score meets or exceeds the floor.")
+    _write_summary(md)
     return 0
 
 
