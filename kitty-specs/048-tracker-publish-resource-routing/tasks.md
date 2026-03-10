@@ -19,11 +19,11 @@
 **Estimated prompt size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Add `RESOURCE_ROUTING_MAP` module-level constant to `src/specify_cli/tracker/service.py`
-- [ ] T002 Add `_resolve_resource_routing()` static method to `TrackerService`
-- [ ] T003 Integrate routing fields into `sync_publish()` payload dict and update idempotency key hash
-- [ ] T004 [P] Create `tests/specify_cli/tracker/test_service_publish.py` with derivation unit tests (10 test cases including empty-creds-present and idempotency rebind)
-- [ ] T005 Add payload integration test verifying both fields appear in the HTTP request body
+- [x] T001 Add `RESOURCE_ROUTING_MAP` module-level constant to `src/specify_cli/tracker/service.py`
+- [x] T002 Add `_resolve_resource_routing()` static method to `TrackerService`
+- [x] T003 Integrate routing fields into `sync_publish()` payload dict and update idempotency key hash
+- [x] T004 [P] Create `tests/specify_cli/tracker/test_service_publish.py` with derivation unit tests (10 test cases including empty-creds-present and idempotency rebind)
+- [x] T005 Add payload integration test verifying both fields appear in the HTTP request body
 
 ### Implementation Notes
 - `RESOURCE_ROUTING_MAP` is a `dict[str, tuple[str, str]]` mapping normalized provider names to `(external_resource_type, credential_key)` pairs.
