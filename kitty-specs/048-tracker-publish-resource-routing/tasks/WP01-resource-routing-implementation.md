@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-title: "Resource Routing Implementation and Tests"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Resource Routing Implementation and Tests
+lane: "doing"
 dependencies: []
-requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-006", "FR-007", "FR-008", "FR-011", "FR-012"]
+base_branch: 2.x
+base_commit: cbae93b2edf7e9ef4460f944e676a884b2130957
+created_at: '2026-03-10T10:12:11.293482+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "42429"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-03-10T09:49:14Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-10T09:49:14Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs: [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-011, FR-012]
 ---
 
 # Work Package Prompt: WP01 – Resource Routing Implementation and Tests
