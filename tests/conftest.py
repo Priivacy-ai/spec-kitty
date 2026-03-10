@@ -6,20 +6,37 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 
-from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+from tests.utils import REPO_ROOT, run, write_wp
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register pytest-asyncio ini keys to avoid unknown-option warnings.
+
+    This keeps local/offline test runs quiet even when pytest-asyncio is not
+    available in the active environment.
+    """
+    parser.addini("asyncio_mode", "pytest-asyncio compatibility option")
+    parser.addini(
+        "asyncio_default_fixture_loop_scope",
+        "pytest-asyncio compatibility option",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # Setup mutants environment if we're running in mutants directory
+    _setup_mutants_environment()
+
     # HARDCODED: Never open browser windows during tests.
     # Propagates to subprocesses too (e.g. dashboard CLI spawned by tests).
     os.environ["PWHEADLESS"] = "1"
 
     # Block webbrowser.open() in the test process itself.
     import webbrowser
+
     webbrowser.open = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new_tab = lambda *args, **kwargs: None  # type: ignore[assignment]
@@ -28,6 +45,55 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "adversarial: adversarial scenarios for merge and dependency handling",
     )
+
+
+def _setup_mutants_environment() -> None:
+    """Ensure full package is available when running in mutants directory.
+
+    Mutmut only copies files being mutated to the mutants/ directory. This function
+    copies the rest of the package so imports work correctly during mutation testing.
+    """
+    cwd = Path.cwd()
+    if cwd.name != "mutants":
+        return  # Not in mutants directory
+
+    repo_root = cwd.parent
+    src_dir = repo_root / "src"
+    mutants_src = cwd / "src"
+
+    if not src_dir.exists() or not mutants_src.exists():
+        return
+
+    # Copy non-mutated top-level packages in src/
+    # (e.g., doctrine, and non-mutated parts of specify_cli)
+    for package_dir in src_dir.iterdir():
+        if package_dir.is_dir() and package_dir.name != "__pycache__":
+            dest = mutants_src / package_dir.name
+            if package_dir.name == "specify_cli":
+                # Handle specify_cli specially - only copy non-mutated parts
+                if not dest.exists():
+                    continue
+                specify_cli_src = src_dir / "specify_cli"
+                mutants_specify_cli = mutants_src / "specify_cli"
+                mutated_items = {"status", "glossary"}
+                for item in specify_cli_src.iterdir():
+                    if item.name not in mutated_items and item.name != "__pycache__":
+                        item_dest = mutants_specify_cli / item.name
+                        if not item_dest.exists():
+                            try:
+                                if item.is_file():
+                                    shutil.copy2(item, item_dest)
+                                elif item.is_dir():
+                                    shutil.copytree(item, item_dest, dirs_exist_ok=True)
+                            except Exception:
+                                pass  # Silently ignore copy errors
+            else:
+                # Copy other packages wholesale (e.g., doctrine)
+                if not dest.exists():
+                    try:  # noqa: SIM105
+                        shutil.copytree(package_dir, dest, dirs_exist_ok=True)
+                    except Exception:
+                        pass  # Silently ignore copy errors
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +136,64 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
     return result.returncode == 0
 
 
-def _create_test_venv(venv_dir: Path) -> None:
+def _venv_site_packages(venv_dir: Path) -> Path:
+    python = _venv_python(venv_dir)
+    result = subprocess.run(
+        [
+            str(python),
+            "-c",
+            "import site,sys; print(site.getsitepackages()[0])",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def _seed_offline_test_venv(venv_dir: Path, source_version: str) -> None:
+    """Seed test venv for offline mode without pip editable install.
+
+    Strategy:
+    - expose host site-packages so runtime deps (typer/rich/httpx/yaml) resolve
+    - expose repository src path for local module imports
+    - add local dist-info so importlib.metadata reports the current source version
+    """
+    site_packages = _venv_site_packages(venv_dir)
+    site_packages.mkdir(parents=True, exist_ok=True)
+
+    host_site_packages = [path for path in sys.path if "site-packages" in path and Path(path).exists()]
+    if host_site_packages:
+        (site_packages / "host-site-packages.pth").write_text(
+            "\n".join(host_site_packages) + "\n",
+            encoding="utf-8",
+        )
+
+    (site_packages / "spec-kitty-src.pth").write_text(
+        str(REPO_ROOT / "src") + "\n",
+        encoding="utf-8",
+    )
+
+    dist_info_dir = site_packages / f"spec_kitty_cli-{source_version}.dist-info"
+    dist_info_dir.mkdir(exist_ok=True)
+    (dist_info_dir / "METADATA").write_text(
+        "\n".join(
+            [
+                "Metadata-Version: 2.1",
+                "Name: spec-kitty-cli",
+                f"Version: {source_version}",
+                "Summary: Local offline test install shim",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (dist_info_dir / "top_level.txt").write_text("specify_cli\n", encoding="utf-8")
+    (dist_info_dir / "INSTALLER").write_text("offline-shim\n", encoding="utf-8")
+    (dist_info_dir / "RECORD").write_text("", encoding="utf-8")
+
+
+def _create_test_venv(venv_dir: Path, source_version: str) -> None:
     """Create the test venv, with an offline-safe fallback."""
     subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
     pip = _venv_pip(venv_dir)
@@ -79,15 +202,11 @@ def _create_test_venv(venv_dir: Path) -> None:
     except subprocess.CalledProcessError:
         # Fallback for offline/dev shells where build deps cannot be downloaded.
         shutil.rmtree(venv_dir, ignore_errors=True)
-        subprocess.run(
-            [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)],
-            check=True,
-        )
+        subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+        _seed_offline_test_venv(venv_dir, source_version)
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -100,18 +219,17 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     rebuild = False
-    if not venv_dir.exists():
-        rebuild = True
-    elif not venv_marker.exists():
-        rebuild = True
-    elif venv_marker.read_text(encoding="utf-8").strip() != source_version:
-        rebuild = True
-    elif not _venv_has_required_runtime(venv_dir):
+    if (
+        not venv_dir.exists()
+        or not venv_marker.exists()
+        or venv_marker.read_text(encoding="utf-8").strip() != source_version
+        or not _venv_has_required_runtime(venv_dir)
+    ):
         rebuild = True
 
     if rebuild:
         shutil.rmtree(venv_dir, ignore_errors=True)
-        _create_test_venv(venv_dir)
+        _create_test_venv(venv_dir, source_version)
         venv_marker.write_text(source_version, encoding="utf-8")
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
@@ -208,11 +326,7 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     feature_dir = worktree / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    return {
-        "repo_root": repo_root,
-        "worktree_path": worktree,
-        "feature_dir": feature_dir
-    }
+    return {"repo_root": repo_root, "worktree_path": worktree, "feature_dir": feature_dir}
 
 
 @pytest.fixture
