@@ -790,8 +790,41 @@ def merge(
 
     # Resolve target branch dynamically if not specified
     if target_branch is None:
-        from specify_cli.core.git_ops import resolve_primary_branch
-        target_branch = resolve_primary_branch(repo_root)
+        if feature:
+            from specify_cli.core.feature_detection import get_feature_target_branch
+            target_branch = get_feature_target_branch(repo_root, feature)
+        else:
+            from specify_cli.core.git_ops import resolve_primary_branch
+            target_branch = resolve_primary_branch(repo_root)
+
+    # Validate resolved target branch exists (FR-006: hard error, no silent fallback)
+    if feature and target_branch:
+        ret_local, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/heads/{target_branch}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret_local != 0:
+            ret_remote, _, _ = run_command(
+                ["git", "rev-parse", "--verify", f"refs/remotes/origin/{target_branch}"],
+                capture=True,
+                check_return=False,
+                cwd=repo_root,
+            )
+            if ret_remote != 0:
+                error_msg = (
+                    f"Target branch '{target_branch}' (from meta.json) does not exist "
+                    f"locally or on origin. Check kitty-specs/{feature}/meta.json."
+                )
+                if json_output:
+                    print(json.dumps({
+                        "spec_kitty_version": SPEC_KITTY_VERSION,
+                        "error": error_msg,
+                    }))
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                raise typer.Exit(1)
 
     if json_output and not dry_run:
         print(json.dumps({
