@@ -9,7 +9,6 @@ C. Token discipline — step-level references repeated in >=70% of steps
 
 from __future__ import annotations
 
-from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -129,9 +128,7 @@ def test_tactic_schema_valid(tactic_path: Path) -> None:
 
 
 @pytest.mark.parametrize("tactic_path", _tactic_files, ids=_tactic_ids)
-def test_references_resolve(
-    tactic_path: Path, artifact_index: dict[str, set[str]]
-) -> None:
+def test_references_resolve(tactic_path: Path, artifact_index: dict[str, set[str]]) -> None:
     """Every reference (root and step) must point to an existing artifact."""
     tactic = _load_yaml(tactic_path)
     unresolved = []
@@ -142,8 +139,7 @@ def test_references_resolve(
         known_ids = artifact_index.get(ref_type, set())
         if ref_id not in known_ids:
             unresolved.append(
-                f"  root reference: type={ref_type} id={ref_id}"
-                f" (known {ref_type} ids: {sorted(known_ids) or 'none'})"
+                f"  root reference: type={ref_type} id={ref_id} (known {ref_type} ids: {sorted(known_ids) or 'none'})"
             )
 
     for step_idx, step_title, ref in _extract_step_references(tactic):
@@ -156,9 +152,7 @@ def test_references_resolve(
                 f" (known {ref_type} ids: {sorted(known_ids) or 'none'})"
             )
 
-    assert not unresolved, (
-        f"{tactic_path.name} has unresolved references:\n" + "\n".join(unresolved)
-    )
+    assert not unresolved, f"{tactic_path.name} has unresolved references:\n" + "\n".join(unresolved)
 
 
 # ---------------------------------------------------------------------------
@@ -183,10 +177,7 @@ def test_step_references_not_over_duplicated(tactic_path: Path) -> None:
         ref_step_sets.setdefault(key, set()).add(step_idx)
 
     # Build set of root-level ref keys (already elevated — no violation).
-    root_keys = {
-        (ref.get("type", ""), ref.get("id", ""))
-        for ref in _extract_root_references(tactic)
-    }
+    root_keys = {(ref.get("type", ""), ref.get("id", "")) for ref in _extract_root_references(tactic)}
 
     violations = []
     for (ref_type, ref_id), step_indices in ref_step_sets.items():
@@ -200,8 +191,7 @@ def test_step_references_not_over_duplicated(tactic_path: Path) -> None:
 
     assert not violations, (
         f"{tactic_path.name} has step references that should be elevated to root"
-        f" (>={int(ELEVATION_THRESHOLD * 100)}% threshold):\n"
-        + "\n".join(violations)
+        f" (>={int(ELEVATION_THRESHOLD * 100)}% threshold):\n" + "\n".join(violations)
     )
 
 
@@ -215,10 +205,7 @@ def test_root_references_not_repeated_in_steps(tactic_path: Path) -> None:
     """A reference declared at root level must not also appear in steps."""
     tactic = _load_yaml(tactic_path)
 
-    root_keys = {
-        (ref.get("type", ""), ref.get("id", ""))
-        for ref in _extract_root_references(tactic)
-    }
+    root_keys = {(ref.get("type", ""), ref.get("id", "")) for ref in _extract_root_references(tactic)}
 
     if not root_keys:
         return
@@ -232,7 +219,6 @@ def test_root_references_not_repeated_in_steps(tactic_path: Path) -> None:
                 f" is already a root-level reference — remove from step"
             )
 
-    assert not redundant, (
-        f"{tactic_path.name} has step references that duplicate root-level refs:\n"
-        + "\n".join(redundant)
+    assert not redundant, f"{tactic_path.name} has step references that duplicate root-level refs:\n" + "\n".join(
+        redundant
     )

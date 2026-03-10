@@ -4,11 +4,9 @@ Validates that migrations are auto-discovered from filesystem
 without requiring manual imports in __init__.py.
 """
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -33,8 +31,7 @@ class TestAutoDiscovery:
         # Verify all discovered
         discovered = MigrationRegistry.get_all()
         assert len(discovered) == expected_count, (
-            f"Expected {expected_count} migrations (matching m_*.py pattern), "
-            f"but discovered {len(discovered)}"
+            f"Expected {expected_count} migrations (matching m_*.py pattern), but discovered {len(discovered)}"
         )
 
     def test_auto_discover_is_idempotent(self):
@@ -124,6 +121,7 @@ class TestAutoDiscovery:
 
         # Verify they're in ascending order
         from packaging.version import Version
+
         sorted_versions = sorted(versions, key=Version)
 
         assert versions == sorted_versions, "Migrations should be sorted by target_version"
@@ -160,7 +158,6 @@ class TestAutoDiscoveryIntegration:
     def test_upgrade_command_uses_auto_discovered_migrations(self, tmp_path):
         """The upgrade command can use auto-discovered migrations."""
         from specify_cli.upgrade.detector import VersionDetector
-        from specify_cli.upgrade.runner import MigrationRunner
 
         # Create a fake project
         kittify_dir = tmp_path / ".kittify"
@@ -172,13 +169,13 @@ class TestAutoDiscoveryIntegration:
 
         # Get applicable migrations
         detector = VersionDetector(tmp_path)
-        current_version = detector.detect_version()
+        detector.detect_version()
 
         # This should work with auto-discovered migrations
         applicable = MigrationRegistry.get_applicable(
             from_version="0.1.0",
             to_version="999.0.0",  # Get all migrations
-            project_path=tmp_path
+            project_path=tmp_path,
         )
 
         # Should have many migrations

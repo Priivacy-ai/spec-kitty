@@ -10,9 +10,7 @@ import contextlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,9 +23,6 @@ from specify_cli.glossary.checkpoint import (
     checkpoint_to_dict,
     compute_input_hash,
     create_checkpoint,
-    handle_context_change,
-    load_checkpoint,
-    verify_input_hash,
 )
 from specify_cli.glossary.exceptions import AbortResume, BlockedByConflict
 from specify_cli.glossary.middleware import (
@@ -61,6 +56,7 @@ def _mock_events_available():
     canonical event path, writing JSONL files via a mock _pkg_append_event that
     serializes dicts to disk (matching what the real package does).
     """
+
     def _mock_pkg_append(instance, path):
         """Write the event dict as a JSONL line, mimicking the real package."""
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,16 +70,18 @@ def _mock_events_available():
 
     mock_cls = MagicMock(side_effect=_identity_cls)
 
-    with patch.object(_events_mod, "EVENTS_AVAILABLE", True), \
-         patch.object(_events_mod, "_pkg_append_event", _mock_pkg_append, create=True), \
-         patch.object(_events_mod, "_CanonicStepCheckpointed", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicGenerationBlockedBySemanticConflict", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicGlossaryScopeActivated", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicTermCandidateObserved", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicSemanticCheckEvaluated", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicGlossaryClarificationRequested", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicGlossaryClarificationResolved", mock_cls, create=True), \
-         patch.object(_events_mod, "_CanonicGlossarySenseUpdated", mock_cls, create=True):
+    with (
+        patch.object(_events_mod, "EVENTS_AVAILABLE", True),
+        patch.object(_events_mod, "_pkg_append_event", _mock_pkg_append, create=True),
+        patch.object(_events_mod, "_CanonicStepCheckpointed", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicGenerationBlockedBySemanticConflict", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicGlossaryScopeActivated", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicTermCandidateObserved", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicSemanticCheckEvaluated", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicGlossaryClarificationRequested", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicGlossaryClarificationResolved", mock_cls, create=True),
+        patch.object(_events_mod, "_CanonicGlossarySenseUpdated", mock_cls, create=True),
+    ):
         yield
 
 
@@ -99,20 +97,22 @@ class MockPrimitiveContext:
     step_id: str = "step-specify-001"
     mission_id: str = "041-mission"
     run_id: str = "run-001"
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
-    extracted_terms: List[Any] = field(default_factory=list)
-    conflicts: List[SemanticConflict] = field(default_factory=list)
-    inputs: Dict[str, Any] = field(default_factory=lambda: {
-        "description": "Implement feature X",
-        "requirements": ["req1", "req2"],
-    })
+    metadata: dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
+    extracted_terms: list[Any] = field(default_factory=list)
+    conflicts: list[SemanticConflict] = field(default_factory=list)
+    inputs: dict[str, Any] = field(
+        default_factory=lambda: {
+            "description": "Implement feature X",
+            "requirements": ["req1", "req2"],
+        }
+    )
     mission_strictness: Strictness | None = None
     step_strictness: Strictness | None = None
     effective_strictness: Strictness | None = None
     retry_token: str | None = None
-    active_scopes: Dict[Any, str] | None = None
+    active_scopes: dict[Any, str] | None = None
     checkpoint: Any = None
     resumed_from_checkpoint: bool = False
     checkpoint_cursor: str | None = None
@@ -231,15 +231,11 @@ class TestResumeMiddlewareNoCheckpointFound:
 class TestResumeMiddlewareHappyPath:
     """ResumeMiddleware restores context from checkpoint (happy path)."""
 
-    def test_restores_context(
-        self, mock_context, sample_checkpoint, tmp_path, events_dir
-    ):
+    def test_restores_context(self, mock_context, sample_checkpoint, tmp_path, events_dir):
         """ResumeMiddleware restores strictness, scopes, cursor from checkpoint."""
         # Write checkpoint to event log
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         mock_context.retry_token = sample_checkpoint.retry_token
         middleware = ResumeMiddleware(
@@ -254,13 +250,9 @@ class TestResumeMiddlewareHappyPath:
         assert result.checkpoint_cursor == "pre_generation_gate"
         assert result.resumed_from_checkpoint is True
 
-    def test_restores_retry_token(
-        self, mock_context, sample_checkpoint, tmp_path, events_dir
-    ):
+    def test_restores_retry_token(self, mock_context, sample_checkpoint, tmp_path, events_dir):
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         mock_context.retry_token = sample_checkpoint.retry_token
         middleware = ResumeMiddleware(
@@ -282,9 +274,7 @@ class TestResumeMiddlewareHappyPath:
             cursor="pre_generation_gate",
         )
         payload = _checkpoint_event_dict(cp)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         mock_context.retry_token = cp.retry_token
         mock_context.mission_id = "m"
@@ -298,14 +288,10 @@ class TestResumeMiddlewareHappyPath:
 class TestResumeMiddlewareContextChange:
     """ResumeMiddleware when context has changed since checkpoint."""
 
-    def test_user_confirms_proceeds(
-        self, mock_context, sample_checkpoint, tmp_path, events_dir
-    ):
+    def test_user_confirms_proceeds(self, mock_context, sample_checkpoint, tmp_path, events_dir):
         """User confirms context change -- resume proceeds."""
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         # Change inputs so hash differs
         mock_context.inputs = {"description": "Changed feature Y"}
@@ -319,14 +305,10 @@ class TestResumeMiddlewareContextChange:
 
         assert result.resumed_from_checkpoint is True
 
-    def test_user_declines_raises_abort(
-        self, mock_context, sample_checkpoint, tmp_path, events_dir
-    ):
+    def test_user_declines_raises_abort(self, mock_context, sample_checkpoint, tmp_path, events_dir):
         """User declines context change -- AbortResume raised."""
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         mock_context.inputs = {"description": "Changed feature Y"}
         mock_context.retry_token = sample_checkpoint.retry_token
@@ -341,14 +323,10 @@ class TestResumeMiddlewareContextChange:
 
         assert "context change" in str(exc_info.value).lower()
 
-    def test_unchanged_inputs_no_prompt(
-        self, mock_context, sample_checkpoint, tmp_path, events_dir
-    ):
+    def test_unchanged_inputs_no_prompt(self, mock_context, sample_checkpoint, tmp_path, events_dir):
         """When inputs unchanged, confirm_fn is not called."""
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         mock_context.retry_token = sample_checkpoint.retry_token
         call_count = [0]
@@ -374,9 +352,7 @@ class TestResumeMiddlewareContextChange:
 class TestGenerationGateCheckpointEmission:
     """Test that GenerationGateMiddleware emits checkpoint before blocking."""
 
-    def test_checkpoint_emitted_before_block(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_checkpoint_emitted_before_block(self, mock_context, high_severity_conflict, tmp_path):
         """Checkpoint is emitted before BlockedByConflict."""
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = {"desc": "test"}
@@ -393,9 +369,7 @@ class TestGenerationGateCheckpointEmission:
         assert mock_context.checkpoint is not None
         assert mock_context.checkpoint.cursor == "pre_generation_gate"
 
-    def test_checkpoint_persisted_to_event_log(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_checkpoint_persisted_to_event_log(self, mock_context, high_severity_conflict, tmp_path):
         """Checkpoint event is persisted when EVENTS_AVAILABLE is True.
 
         When the canonical spec-kitty-events package IS available, emit_step_checkpointed
@@ -421,7 +395,7 @@ class TestGenerationGateCheckpointEmission:
         events_file = tmp_path / ".kittify" / "events" / "glossary" / "041-mission.events.jsonl"
         assert events_file.exists()
 
-        lines = [l for l in events_file.read_text().splitlines() if l.strip()]
+        lines = [line for line in events_file.read_text().splitlines() if line.strip()]
         assert len(lines) >= 1
 
         # First event should be the checkpoint
@@ -430,9 +404,7 @@ class TestGenerationGateCheckpointEmission:
         assert checkpoint_payload["step_id"] == mock_context.step_id
         assert checkpoint_payload["cursor"] == "pre_generation_gate"
 
-    def test_checkpoint_has_correct_strictness(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_checkpoint_has_correct_strictness(self, mock_context, high_severity_conflict, tmp_path):
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = {}
         gate = GenerationGateMiddleware(
@@ -445,9 +417,7 @@ class TestGenerationGateCheckpointEmission:
 
         assert mock_context.checkpoint.strictness == Strictness.MEDIUM
 
-    def test_checkpoint_has_computed_hash(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_checkpoint_has_computed_hash(self, mock_context, high_severity_conflict, tmp_path):
         inputs = {"key": "value", "nested": {"a": 1}}
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = inputs
@@ -462,9 +432,7 @@ class TestGenerationGateCheckpointEmission:
         expected_hash = compute_input_hash(inputs)
         assert mock_context.checkpoint.input_hash == expected_hash
 
-    def test_checkpoint_includes_scope_refs(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_checkpoint_includes_scope_refs(self, mock_context, high_severity_conflict, tmp_path):
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = {}
         mock_context.active_scopes = {
@@ -483,9 +451,7 @@ class TestGenerationGateCheckpointEmission:
         assert scope_refs[0].scope == GlossaryScope.TEAM_DOMAIN
         assert scope_refs[0].version_id == "v3"
 
-    def test_no_active_scopes_empty_refs(
-        self, mock_context, high_severity_conflict, tmp_path
-    ):
+    def test_no_active_scopes_empty_refs(self, mock_context, high_severity_conflict, tmp_path):
         """Context without active_scopes produces empty scope_refs."""
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = {}
@@ -514,9 +480,7 @@ class TestGenerationGateCheckpointEmission:
         # No checkpoint should be set
         assert not hasattr(result, "checkpoint") or result.checkpoint is None
 
-    def test_checkpoint_emission_order(
-        self, mock_context, high_severity_conflict, tmp_path, monkeypatch
-    ):
+    def test_checkpoint_emission_order(self, mock_context, high_severity_conflict, tmp_path, monkeypatch):
         """Checkpoint is emitted BEFORE generation-blocked event."""
         from specify_cli.glossary import events
 
@@ -527,7 +491,6 @@ class TestGenerationGateCheckpointEmission:
         def track_checkpoint(checkpoint, project_root=None):
             emission_order.append("checkpoint")
             # Still persist to file
-            from specify_cli.glossary.events import emit_step_checkpointed as real_emit
             # Just track the order, actual persistence already happened
             pass
 
@@ -544,10 +507,8 @@ class TestGenerationGateCheckpointEmission:
             runtime_override=Strictness.MEDIUM,
         )
 
-        try:
+        with contextlib.suppress(BlockedByConflict):
             gate.process(mock_context)
-        except BlockedByConflict:
-            pass
 
         # Checkpoint is emitted first, then blocked event
         assert "blocked" in emission_order
@@ -623,9 +584,7 @@ class TestCrossSessionResumeFlow:
                 gate.process(context1)
 
         # Verify checkpoint was persisted
-        checkpoint_file = (
-            tmp_path / ".kittify" / "events" / "glossary" / "feature-042.events.jsonl"
-        )
+        checkpoint_file = tmp_path / ".kittify" / "events" / "glossary" / "feature-042.events.jsonl"
         assert checkpoint_file.exists()
 
         saved_checkpoint = context1.checkpoint
@@ -855,8 +814,8 @@ class TestCrossSessionResumeFlow:
 
         # Event log has entries (StepCheckpointed + GenerationBlocked per block)
         events_file = tmp_path / ".kittify" / "events" / "glossary" / "m.events.jsonl"
-        lines = [l for l in events_file.read_text().splitlines() if l.strip()]
-        checkpoint_lines = [l for l in lines if '"StepCheckpointed"' in l]
+        lines = [line for line in events_file.read_text().splitlines() if line.strip()]
+        checkpoint_lines = [line for line in lines if '"StepCheckpointed"' in line]
         assert len(checkpoint_lines) == 2
 
 
@@ -878,9 +837,7 @@ class TestEdgeCases:
     def test_resume_with_magicmock_context(self, tmp_path, sample_checkpoint, events_dir):
         """Works with MagicMock context objects."""
         payload = _checkpoint_event_dict(sample_checkpoint)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         context = MagicMock()
         context.retry_token = sample_checkpoint.retry_token
@@ -913,9 +870,7 @@ class TestEdgeCases:
         )
 
         payload = _checkpoint_event_dict(cp)
-        (events_dir / "m.events.jsonl").write_text(
-            json.dumps(payload, sort_keys=True) + "\n"
-        )
+        (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         context = MockPrimitiveContext(
             step_id="step-001",

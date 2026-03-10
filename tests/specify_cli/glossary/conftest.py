@@ -3,10 +3,15 @@
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
-from typing import List
 from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance, SenseStatus,
-    SemanticConflict, ConflictType, Severity, SenseRef,
+    TermSurface,
+    TermSense,
+    Provenance,
+    SenseStatus,
+    SemanticConflict,
+    ConflictType,
+    Severity,
+    SenseRef,
 )
 
 
@@ -88,7 +93,7 @@ def make_conflict(
     surface_text: str,
     conflict_type: ConflictType = ConflictType.AMBIGUOUS,
     severity: Severity = Severity.HIGH,
-    candidates: List[SenseRef] = None,
+    candidates: list[SenseRef] = None,
 ) -> SemanticConflict:
     """Helper to create SemanticConflict for testing."""
     if candidates is None and conflict_type == ConflictType.AMBIGUOUS:

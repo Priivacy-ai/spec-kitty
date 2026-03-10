@@ -15,7 +15,6 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
-from specify_cli.core.vcs import VCSBackend
 
 
 @pytest.fixture()
@@ -493,7 +492,9 @@ def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
     assert confirm_prompts
 
 
-def test_init_non_interactive_requires_force_for_nonempty_here(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_init_non_interactive_requires_force_for_nonempty_here(
+    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
     (tmp_path / "existing.txt").write_text("data", encoding="utf-8")

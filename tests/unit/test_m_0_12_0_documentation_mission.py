@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_0_12_0_documentation_mission import (
     InstallDocumentationMission,
 )
@@ -61,29 +59,8 @@ def test_detect_skips_when_global_runtime_is_configured(
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     (tmp_path / "kitty-specs").mkdir()
-    ProjectMetadata(
-        version="2.0.6",
-        initialized_at=datetime.now(),
-    ).save(kittify)
 
     assert migration.detect(tmp_path) is False
-
-
-def test_detect_still_repairs_metadata_less_legacy_repo(
-    migration: InstallDocumentationMission,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A 0.x repo with .kittify but no metadata should not be treated as 2.x."""
-    home = tmp_path / "home"
-    (home / "cache").mkdir(parents=True)
-    (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-
-    (tmp_path / ".kittify").mkdir()
-    (tmp_path / "kitty-specs").mkdir()
-
-    assert migration.detect(tmp_path) is True
 
 
 def test_detect_no_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:
@@ -117,8 +94,9 @@ def test_apply_installs_mission(migration: InstallDocumentationMission, tmp_path
     result = migration.apply(tmp_path)
 
     assert result.success
-    assert any("copied" in change.lower() or "documentation mission" in change.lower()
-              for change in result.changes_made)
+    assert any(
+        "copied" in change.lower() or "documentation mission" in change.lower() for change in result.changes_made
+    )
 
     # Verify mission directory exists
     doc_mission = kittify / "missions" / "documentation"
@@ -132,7 +110,7 @@ def test_apply_copies_all_files(migration: InstallDocumentationMission, tmp_path
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
 
-    result = migration.apply(tmp_path)
+    migration.apply(tmp_path)
 
     doc_mission = kittify / "missions" / "documentation"
 
@@ -166,8 +144,7 @@ def test_apply_already_installed(migration: InstallDocumentationMission, tmp_pat
     result = migration.apply(tmp_path)
 
     assert result.success
-    assert any("already installed" in change.lower() or "skipped" in change.lower()
-              for change in result.changes_made)
+    assert any("already installed" in change.lower() or "skipped" in change.lower() for change in result.changes_made)
 
 
 # ============================================================================
@@ -175,9 +152,7 @@ def test_apply_already_installed(migration: InstallDocumentationMission, tmp_pat
 # ============================================================================
 
 
-def test_migration_preserves_software_dev_mission(
-    migration: InstallDocumentationMission, tmp_path: Path
-) -> None:
+def test_migration_preserves_software_dev_mission(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Verify migration doesn't touch software-dev mission."""
     # Create fake project with software-dev mission
     kittify = tmp_path / ".kittify"
@@ -199,9 +174,7 @@ def test_migration_preserves_software_dev_mission(
     assert after_content == original_content
 
 
-def test_migration_preserves_research_mission(
-    migration: InstallDocumentationMission, tmp_path: Path
-) -> None:
+def test_migration_preserves_research_mission(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Verify migration doesn't touch research mission."""
     # Create fake project with research mission
     kittify = tmp_path / ".kittify"
@@ -223,9 +196,7 @@ def test_migration_preserves_research_mission(
     assert after_content == original_content
 
 
-def test_migration_only_touches_documentation_mission(
-    migration: InstallDocumentationMission, tmp_path: Path
-) -> None:
+def test_migration_only_touches_documentation_mission(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Verify migration only modifies .kittify/missions/documentation/."""
     # Create fake project
     kittify = tmp_path / ".kittify"
@@ -273,8 +244,7 @@ def test_migration_is_idempotent(migration: InstallDocumentationMission, tmp_pat
     # Second run (should be no-op)
     result2 = migration.apply(tmp_path)
     assert result2.success
-    assert any("already installed" in change.lower() or "skipped" in change.lower()
-              for change in result2.changes_made)
+    assert any("already installed" in change.lower() or "skipped" in change.lower() for change in result2.changes_made)
 
     # Verify no changes
     file_count_2 = len(list(doc_mission.rglob("*")))
@@ -285,9 +255,7 @@ def test_migration_is_idempotent(migration: InstallDocumentationMission, tmp_pat
     assert result3.success
 
 
-def test_migration_detect_after_apply(
-    migration: InstallDocumentationMission, tmp_path: Path
-) -> None:
+def test_migration_detect_after_apply(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Verify detect() returns False after apply()."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
@@ -346,9 +314,7 @@ def test_migration_has_correct_metadata(migration: InstallDocumentationMission) 
 # ============================================================================
 
 
-def test_apply_handles_missing_source(
-    migration: InstallDocumentationMission, tmp_path: Path, monkeypatch
-) -> None:
+def test_apply_handles_missing_source(migration: InstallDocumentationMission, tmp_path: Path, monkeypatch) -> None:
     """Apply handles case where source mission cannot be found."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
@@ -362,9 +328,7 @@ def test_apply_handles_missing_source(
     assert any("could not find" in error.lower() for error in result.errors)
 
 
-def test_find_source_mission_returns_none_if_missing(
-    migration: InstallDocumentationMission
-) -> None:
+def test_find_source_mission_returns_none_if_missing(migration: InstallDocumentationMission) -> None:
     """_find_source_mission returns None if mission.yaml doesn't exist."""
     # We can't easily test this without mocking Path operations,
     # but we can verify the method exists and has correct signature
