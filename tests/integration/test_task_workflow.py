@@ -15,6 +15,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
+
 runner = CliRunner()
 
 

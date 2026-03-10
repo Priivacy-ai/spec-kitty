@@ -23,6 +23,13 @@ def reset_singleton():
     reset_runtime()
 
 
+@pytest.fixture(autouse=True)
+def mock_body_queue():
+    """Prevent OfflineBodyUploadQueue from opening a real SQLite DB."""
+    with patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__", return_value=None):
+        yield
+
+
 class TestAutoStartEnabled:
     """Tests for _auto_start_enabled() config reading."""
 

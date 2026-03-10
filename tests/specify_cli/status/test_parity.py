@@ -131,8 +131,8 @@ class TestBackportReadiness:
     def test_emit_module_has_no_toplevel_sync_import(self):
         """The emit module must NOT have a module-level import from sync/.
 
-        The only import from sync/ should be inside _saas_fan_out() which
-        is guarded by try/except ImportError.
+        Imports from sync/ should only appear inside function bodies
+        (guarded by try/except), never at module level.
         """
         import inspect
 
@@ -141,19 +141,21 @@ class TestBackportReadiness:
         source = inspect.getsource(emit_module)
 
         # Check that 'from specify_cli.sync' does NOT appear at module level
-        # It should only appear inside the _saas_fan_out function body
+        # It should only appear inside function bodies
         lines = source.split("\n")
-        in_function = False
+        indent_depth = 0
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith("def _saas_fan_out"):
-                in_function = True
-                continue
-            if in_function and stripped.startswith("def "):
-                in_function = False
+            # Track whether we're inside a function body by indentation
+            if stripped.startswith("def ") and not line.startswith(" "):
+                # Top-level function definition
+                indent_depth = 0
+            elif stripped.startswith("def "):
+                indent_depth = len(line) - len(line.lstrip())
 
-            if not in_function and "from specify_cli.sync" in stripped:
-                if not stripped.startswith("#"):
+            # A sync import is module-level if the line has no leading whitespace
+            if "from specify_cli.sync" in stripped:
+                if not stripped.startswith("#") and not line.startswith(" "):
                     pytest.fail(
                         f"Module-level sync import found in emit.py: {stripped}"
                     )

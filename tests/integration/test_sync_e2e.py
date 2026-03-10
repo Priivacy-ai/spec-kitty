@@ -104,6 +104,13 @@ def reset_singletons():
     reset_emitter()
 
 
+@pytest.fixture(autouse=True)
+def mock_body_queue():
+    """Prevent OfflineBodyUploadQueue from opening a real SQLite DB."""
+    with patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__", return_value=None):
+        yield
+
+
 # ── T028: Init -> Implement Flow with Identity ───────────────────────
 
 
