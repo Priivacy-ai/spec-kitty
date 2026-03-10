@@ -26,6 +26,7 @@ AGENT_DIRS: List[Tuple[str, str]] = [
     (".augment", "commands"),
     (".roo", "commands"),
     (".amazonq", "prompts"),
+    (".agent", "workflows"),
 ]
 
 # Mapping from agent directory to agent key (for config.yaml)
@@ -43,6 +44,7 @@ AGENT_DIR_TO_KEY = {
     ".augment": "auggie",  # auggie, not augment
     ".roo": "roo",
     ".amazonq": "q",  # q, not amazonq
+    ".agent": "antigravity",
 }
 
 

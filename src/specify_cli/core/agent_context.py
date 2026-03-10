@@ -20,6 +20,7 @@ AGENT_CONFIGS = {
     "auggie": ".augment/rules/specify-rules.md",
     "roo": ".roo/rules/specify-rules.md",
     "q": "AGENTS.md",
+    "antigravity": ".agent/rules/specify-rules.md",
 }
 
 
