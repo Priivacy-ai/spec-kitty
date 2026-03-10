@@ -462,101 +462,100 @@ def merge_workspace_per_wp(
 
     if not effective_workspaces:
         tracker.complete("merge", f"{feature_slug} already integrated into {target_branch}")
-        console.print(tracker.render())
         console.print(
             f"\n[yellow]Nothing to merge:[/yellow] Feature '{feature_slug}' already appears integrated into {target_branch}."
         )
-        return
-
-    # Checkout and update target branch
-    tracker.start("checkout")
-    try:
-        console.print(f"[cyan]Operating from {merge_root}[/cyan]")
-        _, target_status, _ = run_command(
-            ["git", "status", "--porcelain"],
-            capture=True,
-            cwd=merge_root,
-        )
-        if target_status.strip():
-            raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
-        run_command(["git", "checkout", target_branch], cwd=merge_root)
-        tracker.complete("checkout", f"using {merge_root}")
-    except Exception as exc:
-        tracker.error("checkout", str(exc))
-        console.print(tracker.render())
-        raise typer.Exit(1)
-
-    tracker.start("pull")
-    try:
-        if not has_remote(merge_root):
-            tracker.skip("pull", "no remote configured")
-            console.print("[dim]Skipping pull (no remote)[/dim]")
-        elif not has_tracking_branch(merge_root):
-            tracker.skip("pull", "no upstream tracking")
-            console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
-        else:
-            run_command(["git", "pull", "--ff-only"], cwd=merge_root)
-            tracker.complete("pull")
-    except Exception as exc:
-        tracker.error("pull", str(exc))
-        console.print(tracker.render())
-        console.print(f"\n[yellow]Warning:[/yellow] Could not fast-forward {target_branch}.")
-        console.print("You may need to resolve conflicts manually.")
-        raise typer.Exit(1)
-
-    # Merge all WP branches
-    tracker.start("merge")
-    try:
-        merged_count = 0
-        skipped_count = 0
-        skipped_count += len(merge_plan["skipped_already_in_target"]) + len(merge_plan["skipped_ancestor_of"])  # type: ignore[arg-type,index]
-        for wt_path, wp_id, branch in effective_workspaces:
-            console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
-
-            if strategy == "squash":
-                run_command(["git", "merge", "--squash", branch], cwd=merge_root)
-                run_command(
-                    ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"],
-                    cwd=merge_root,
-                )
-            elif strategy == "rebase":
-                console.print("\n[yellow]Note:[/yellow] Rebase strategy not supported for workspace-per-WP.")
-                console.print("Use 'merge' or 'squash' strategy instead.")
-                tracker.skip("merge", "rebase not supported for workspace-per-WP")
-                console.print(tracker.render())
-                raise typer.Exit(1)
-            else:  # merge (default)
-                run_command(
-                    ["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"],
-                    cwd=merge_root,
-                )
-
-            console.print(f"[green]✓[/green] {wp_id} merged")
-            merged_count += 1
-
-        summary = f"merged {merged_count} work packages"
-        if skipped_count:
-            summary += f", skipped {skipped_count} redundant/already-integrated"
-        tracker.complete("merge", summary)
-    except Exception as exc:
-        tracker.error("merge", str(exc))
-        console.print(tracker.render())
-        console.print(f"\n[red]Merge failed.[/red] Resolve conflicts and try again.")
-        raise typer.Exit(1)
-
-    # Push if requested
-    if push:
-        tracker.start("push")
+        console.print("[cyan]Cleaning up worktrees and branches...[/cyan]")
+    else:
+        # Checkout and update target branch
+        tracker.start("checkout")
         try:
-            run_command(["git", "push", "origin", target_branch], cwd=merge_root)
-            tracker.complete("push")
+            console.print(f"[cyan]Operating from {merge_root}[/cyan]")
+            _, target_status, _ = run_command(
+                ["git", "status", "--porcelain"],
+                capture=True,
+                cwd=merge_root,
+            )
+            if target_status.strip():
+                raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
+            run_command(["git", "checkout", target_branch], cwd=merge_root)
+            tracker.complete("checkout", f"using {merge_root}")
         except Exception as exc:
-            tracker.error("push", str(exc))
+            tracker.error("checkout", str(exc))
             console.print(tracker.render())
-            console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
-            console.print(f"Run manually: git push origin {target_branch}")
+            raise typer.Exit(1)
 
-    # Remove worktrees
+        tracker.start("pull")
+        try:
+            if not has_remote(merge_root):
+                tracker.skip("pull", "no remote configured")
+                console.print("[dim]Skipping pull (no remote)[/dim]")
+            elif not has_tracking_branch(merge_root):
+                tracker.skip("pull", "no upstream tracking")
+                console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
+            else:
+                run_command(["git", "pull", "--ff-only"], cwd=merge_root)
+                tracker.complete("pull")
+        except Exception as exc:
+            tracker.error("pull", str(exc))
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Could not fast-forward {target_branch}.")
+            console.print("You may need to resolve conflicts manually.")
+            raise typer.Exit(1)
+
+        # Merge all WP branches
+        tracker.start("merge")
+        try:
+            merged_count = 0
+            skipped_count = 0
+            skipped_count += len(merge_plan["skipped_already_in_target"]) + len(merge_plan["skipped_ancestor_of"])  # type: ignore[arg-type,index]
+            for wt_path, wp_id, branch in effective_workspaces:
+                console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
+
+                if strategy == "squash":
+                    run_command(["git", "merge", "--squash", branch], cwd=merge_root)
+                    run_command(
+                        ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"],
+                        cwd=merge_root,
+                    )
+                elif strategy == "rebase":
+                    console.print("\n[yellow]Note:[/yellow] Rebase strategy not supported for workspace-per-WP.")
+                    console.print("Use 'merge' or 'squash' strategy instead.")
+                    tracker.skip("merge", "rebase not supported for workspace-per-WP")
+                    console.print(tracker.render())
+                    raise typer.Exit(1)
+                else:  # merge (default)
+                    run_command(
+                        ["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"],
+                        cwd=merge_root,
+                    )
+
+                console.print(f"[green]✓[/green] {wp_id} merged")
+                merged_count += 1
+
+            summary = f"merged {merged_count} work packages"
+            if skipped_count:
+                summary += f", skipped {skipped_count} redundant/already-integrated"
+            tracker.complete("merge", summary)
+        except Exception as exc:
+            tracker.error("merge", str(exc))
+            console.print(tracker.render())
+            console.print(f"\n[red]Merge failed.[/red] Resolve conflicts and try again.")
+            raise typer.Exit(1)
+
+        # Push if requested
+        if push:
+            tracker.start("push")
+            try:
+                run_command(["git", "push", "origin", target_branch], cwd=merge_root)
+                tracker.complete("push")
+            except Exception as exc:
+                tracker.error("push", str(exc))
+                console.print(tracker.render())
+                console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
+                console.print(f"Run manually: git push origin {target_branch}")
+
+    # Remove worktrees (always run — cleanup is needed even when all branches are already integrated)
     if remove_worktree:
         tracker.start("worktree")
         failed_removals = []
@@ -608,9 +607,14 @@ def merge_workspace_per_wp(
             tracker.complete("branch", f"deleted {len(wp_workspaces)} branches")
 
     console.print(tracker.render())
-    console.print(
-        f"\n[bold green]✓ Feature {feature_slug} ({len(effective_workspaces)}/{len(wp_workspaces)} effective WPs) successfully merged into {target_branch}[/bold green]"
-    )
+    if effective_workspaces:
+        console.print(
+            f"\n[bold green]✓ Feature {feature_slug} ({len(effective_workspaces)}/{len(wp_workspaces)} effective WPs) successfully merged into {target_branch}[/bold green]"
+        )
+    else:
+        console.print(
+            f"\n[bold green]✓ Feature {feature_slug} was already integrated into {target_branch}. Cleanup complete.[/bold green]"
+        )
 
 
 @require_main_repo
