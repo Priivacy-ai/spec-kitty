@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 import typer
 from rich.console import Console
-from typing import Annotated
+from typing import Annotated, Optional, cast
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.agent_context import (

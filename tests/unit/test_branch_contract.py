@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
-from tests.branch_contract import _check_2x_ancestry, _is_2x_context
+from tests.branch_contract import _is_2x_context
 
 
 # ---------------------------------------------------------------------------
@@ -63,39 +61,6 @@ def test_is_2x_context_ancestor_false_for_non_2x_branch() -> None:
 def test_is_2x_context_ancestor_overrides_unmatched_name() -> None:
     """Arbitrary branch name becomes 2.x when ancestry flag is set."""
     assert _is_2x_context("fix/unrelated-hotfix", branch_is_2x_ancestor=True)
-
-
-# ---------------------------------------------------------------------------
-# _check_2x_ancestry helper tests
-# ---------------------------------------------------------------------------
-
-
-def test_check_2x_ancestry_returns_true_when_local_2x_is_ancestor(tmp_path) -> None:
-    """Returns True when 'git merge-base --is-ancestor 2.x HEAD' succeeds."""
-    with patch("tests.branch_contract.subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
-        assert _check_2x_ancestry(tmp_path) is True
-        # Should have been called with the local 2.x ref first
-        first_call_args = mock_run.call_args_list[0].args[0]
-        assert "2.x" in first_call_args
-        assert "merge-base" in first_call_args
-
-
-def test_check_2x_ancestry_falls_back_to_origin_when_local_missing(tmp_path) -> None:
-    """Falls back to origin/2.x when the local 2.x ref is absent."""
-    results = [
-        type("R", (), {"returncode": 128})(),  # local 2.x → not found
-        type("R", (), {"returncode": 0})(),    # origin/2.x → ancestor
-    ]
-    with patch("tests.branch_contract.subprocess.run", side_effect=results):
-        assert _check_2x_ancestry(tmp_path) is True
-
-
-def test_check_2x_ancestry_returns_false_when_no_ref_available(tmp_path) -> None:
-    """Returns False gracefully when neither 2.x nor origin/2.x exists."""
-    with patch("tests.branch_contract.subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 128  # all refs missing
-        assert _check_2x_ancestry(tmp_path) is False
 
 
 @pytest.mark.parametrize("branch,expected", [

@@ -76,6 +76,8 @@ class BackgroundSyncService:
         if self.queue.size() > 0 or body_queue_has_work:
             try:
                 self._perform_sync()
+            except Exception:
+                logger.debug("Final sync failed during stop")
         logger.debug("Background sync service stopped")
 
     @property
