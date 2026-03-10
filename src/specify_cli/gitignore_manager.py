@@ -65,6 +65,7 @@ AGENT_DIRECTORIES = [
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
     AgentDirectory("roo", ".roo/", False, "Roo Coder"),
     AgentDirectory("amazonq", ".amazonq/", False, "Amazon Q"),
+    AgentDirectory("antigravity", ".agent/", False, "Google Antigravity"),
     AgentDirectory("copilot", ".github/copilot/", True, "GitHub Copilot (user settings)"),
 ]
 

@@ -881,6 +881,7 @@ def init(
         "copilot": ".github/",
         "roo": ".roo/",
         "q": ".amazonq/",
+        "antigravity": ".agent/",
     }
 
     notice_entries = []

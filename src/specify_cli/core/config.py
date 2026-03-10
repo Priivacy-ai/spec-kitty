@@ -15,6 +15,7 @@ AI_CHOICES = {
     "auggie": "Auggie CLI",
     "roo": "Roo Code",
     "q": "Amazon Q Developer CLI",
+    "antigravity": "Google Antigravity",
 }
 
 MISSION_CHOICES = {
@@ -39,7 +40,7 @@ SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 DEFAULT_TEMPLATE_REPO = "spec-kitty/spec-kitty"
 
 # IDE-integrated agents that don't require CLI installation
-IDE_AGENTS = {"cursor", "windsurf", "copilot", "kilocode"}
+IDE_AGENTS = {"cursor", "windsurf", "copilot", "kilocode", "antigravity"}
 
 AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "claude": {"dir": ".claude/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
@@ -54,6 +55,7 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
 }
 
 BANNER = """
