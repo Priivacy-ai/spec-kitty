@@ -47,6 +47,10 @@ def _is_2x_context(
         return True
     if github_ref_name.strip() == "2.x":
         return True
+    # Tag-triggered CI: v2.*.* tags are 2.x releases
+    ref = github_ref_name.strip()
+    if ref.startswith("v2."):
+        return True
     return False
 
 

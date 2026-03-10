@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
 # Get repo root for Python module invocation
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -518,6 +520,7 @@ def test_explicit_fields_in_git_history(tmp_path):
     assert '"main"' in committed_content or "'main'" in committed_content
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_template_fix_applies_to_all_agents(tmp_path):
     """Test that template fix is consistent across all agent directories.
 
