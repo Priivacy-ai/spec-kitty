@@ -70,7 +70,7 @@ The SaaS team (Mission D) receives a tracker snapshot at `/api/v1/connectors/tra
 
 - What happens when credentials lack the required resource identifier (`project_key` for Jira, `team_id` for Linear)? Both routing fields are `null`. The publish still succeeds — the SaaS falls back to its current resolution path.
 - What happens for an unsupported provider (not Jira or Linear)? Both routing fields are `null`. No error is raised. This is forward-compatible — new providers add their own mapping in the derivation logic.
-- What happens when `workspace` is configured but credentials are empty? The `_load_runtime()` method already raises `TrackerServiceError` before routing derivation runs. No change needed.
+- What happens when `workspace` is configured but credentials are present with no routing keys? `_load_runtime()` succeeds (it does not validate credential completeness), `sync_publish()` runs, and `_resolve_resource_routing()` returns `(null, null)`. The publish still succeeds with null routing fields.
 - What happens if a Jira credential has `project_key = ""` (empty string)? Treated as missing — both routing fields are `null`.
 
 ## Requirements
@@ -90,6 +90,7 @@ The SaaS team (Mission D) receives a tracker snapshot at `/api/v1/connectors/tra
 | FR-009 | Draft | The Git event envelope (15 fields) MUST NOT be modified |
 | FR-010 | Draft | The batch API contract fixtures MUST continue to pass without modification |
 | FR-011 | Draft | The routing field derivation logic MUST be a pure function of `(provider, credentials)` with no network calls |
+| FR-012 | Draft | The `sync_publish()` idempotency key MUST include `external_resource_type` and `external_resource_id` so that a routing change after rebind is not discarded as a duplicate |
 
 ### Non-Functional Requirements
 

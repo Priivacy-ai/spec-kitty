@@ -21,15 +21,17 @@
 ### Included Subtasks
 - [ ] T001 Add `RESOURCE_ROUTING_MAP` module-level constant to `src/specify_cli/tracker/service.py`
 - [ ] T002 Add `_resolve_resource_routing()` static method to `TrackerService`
-- [ ] T003 Integrate routing fields into `sync_publish()` payload dict
-- [ ] T004 [P] Create `tests/specify_cli/tracker/test_service_publish.py` with derivation unit tests (8 test cases)
+- [ ] T003 Integrate routing fields into `sync_publish()` payload dict and update idempotency key hash
+- [ ] T004 [P] Create `tests/specify_cli/tracker/test_service_publish.py` with derivation unit tests (10 test cases including empty-creds-present and idempotency rebind)
 - [ ] T005 Add payload integration test verifying both fields appear in the HTTP request body
 
 ### Implementation Notes
 - `RESOURCE_ROUTING_MAP` is a `dict[str, tuple[str, str]]` mapping normalized provider names to `(external_resource_type, credential_key)` pairs.
 - `_resolve_resource_routing()` is a `@staticmethod` — pure function, no I/O, no side effects.
-- Payload integration: insert `external_resource_type` and `external_resource_id` into the payload dict in `sync_publish()`, right after `project_slug`.
+- Payload integration: insert `external_resource_type` and `external_resource_id` into the payload dict in `sync_publish()`, right after `workspace`.
+- Idempotency key: the existing hash in `sync_publish()` must be updated to include `resource_type` and `resource_id` so that rebinding to a different project_key/team_id is not deduplicated.
 - Tests mock `_load_runtime()` to avoid requiring `spec-kitty-tracker` dependency. Use `httpx_mock` or `respx` to intercept the HTTP POST and inspect the payload.
+- Note: `_load_runtime()` does NOT validate credential completeness — it succeeds even when credentials lack routing keys. Tests must cover this path.
 
 ### Parallel Opportunities
 - T004 (unit tests for derivation logic) can be written in parallel with T001-T003 since the method signature is known from the plan.

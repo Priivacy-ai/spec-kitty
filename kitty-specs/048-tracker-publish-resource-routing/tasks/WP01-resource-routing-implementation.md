@@ -15,7 +15,7 @@ shell_pid: ""
 review_status: ""
 reviewed_by: ""
 dependencies: []
-requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-006", "FR-007", "FR-008", "FR-011"]
+requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-006", "FR-007", "FR-008", "FR-011", "FR-012"]
 history:
   - timestamp: "2026-03-10T09:49:14Z"
     lane: "planned"
@@ -40,7 +40,8 @@ history:
 - Jira publishes `("jira_project", credentials["project_key"])`.
 - Linear publishes `("linear_team", credentials["team_id"])`.
 - Unsupported providers and missing credentials yield `(null, null)`.
-- All 8 test cases in the test matrix pass.
+- All 10 test cases in the test matrix pass (8 derivation + 1 empty-creds-present + 1 idempotency rebind).
+- The idempotency key includes `external_resource_type` and `external_resource_id` so rebind-then-publish is not deduplicated.
 - Existing `sync_publish()` behavior unchanged for all other payload fields.
 
 **Implementation command** (no dependencies):
@@ -152,18 +153,29 @@ payload = {
 }
 ```
 
+3. Update the idempotency key hash (line ~215) to include routing fields:
+
+```python
+idempotency_key = hashlib.sha256(
+    f"{provider}|{workspace}|{resource_type}|{resource_id}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode("utf-8")
+).hexdigest()
+```
+
+This ensures that rebinding to a different `project_key` (Jira) or `team_id` (Linear) produces a different idempotency key even when the issue/mapping/cursor state is unchanged. `resource_type` and `resource_id` may be `None` — `str(None)` is stable.
+
 **Files**: `src/specify_cli/tracker/service.py` (modify `sync_publish()` method, lines 182-243)
 **Parallel?**: No — depends on T001 and T002.
 **Notes**:
 - Insert the new fields right after `"workspace"` and before `"doctrine_mode"` to match the contract document's field order.
 - Do NOT change any existing fields or their sources.
 - The `provider` and `credentials` variables are already available at this point in the method (line 191-192).
+- The idempotency key must use `resource_type` and `resource_id` (the resolved values), not raw credential keys.
 
 ---
 
-### Subtask T004 – Create derivation unit tests (8 test cases)
+### Subtask T004 – Create derivation unit tests (10 test cases)
 
-**Purpose**: Test `_resolve_resource_routing()` in isolation against all 8 cases from the plan's test matrix.
+**Purpose**: Test `_resolve_resource_routing()` in isolation against all cases from the plan's test matrix, plus verify idempotency key changes on rebind.
 
 **Steps**:
 1. Create `tests/specify_cli/tracker/test_service_publish.py`.
@@ -223,6 +235,15 @@ class TestResolveResourceRouting:
     def test_unknown_provider(self):
         result = TrackerService._resolve_resource_routing(
             "notion", {"api_key": "tok"}
+        )
+        assert result == (None, None)
+
+    def test_jira_creds_present_but_no_routing_key(self):
+        """Credentials dict is non-empty but lacks project_key.
+        This is the path where _load_runtime() succeeds but routing is unavailable.
+        """
+        result = TrackerService._resolve_resource_routing(
+            "jira", {"base_url": "https://x.atlassian.net", "email": "a@b.com", "api_token": "tok"}
         )
         assert result == (None, None)
 
@@ -369,6 +390,55 @@ class TestSyncPublishPayload:
 
             assert sent_payload["external_resource_type"] is None
             assert sent_payload["external_resource_id"] is None
+
+    def test_idempotency_key_changes_on_rebind(self):
+        """Rebinding to a different project_key must produce a different idempotency key,
+        even when issue/mapping/cursor state is identical."""
+        store = MagicMock()
+        store.list_mappings = MagicMock(return_value=[])
+        store.get_checkpoint = MagicMock(return_value=None)
+
+        async def mock_list_issues(system=None):
+            return []
+        store.list_issues = mock_list_issues
+
+        service = TrackerService(Path("/tmp/fake-repo"))
+        keys = []
+
+        for project_key in ("ACME", "BETA"):
+            config = TrackerProjectConfig(
+                provider="jira",
+                workspace="acme.atlassian.net",
+                doctrine_mode="external_authoritative",
+            )
+            credentials = {
+                "base_url": "https://acme.atlassian.net",
+                "email": "a@b.com",
+                "api_token": "tok",
+                "project_key": project_key,
+            }
+
+            with patch.object(
+                TrackerService, "_load_runtime", return_value=(config, credentials, store)
+            ), patch.object(
+                TrackerService, "_project_identity", return_value={"uuid": "test-uuid", "slug": "test-proj"}
+            ), patch("httpx.Client") as mock_client_cls:
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.is_success = True
+                mock_response.headers = {"content-type": "application/json"}
+                mock_response.json.return_value = {"status": "ok"}
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+                mock_client_cls.return_value.__enter__.return_value.post = MagicMock(return_value=mock_response)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+                result = service.sync_publish(
+                    server_url="https://example.com",
+                    auth_token="test-token",
+                )
+                keys.append(result["idempotency_key"])
+
+        assert keys[0] != keys[1], "Rebind to different project_key must change idempotency key"
 ```
 
 **Files**: `tests/specify_cli/tracker/test_service_publish.py` (same file as T004)
@@ -376,6 +446,7 @@ class TestSyncPublishPayload:
 **Notes**:
 - The integration test is heavier due to mocking the HTTP client, but it proves the full `sync_publish()` path works.
 - If the mocking approach is too brittle, an acceptable alternative is to extract the payload-building logic into a testable helper and test that directly. But the mock approach is preferred since it tests the actual HTTP call path.
+- The idempotency rebind test is critical — without it, the P1 finding about deduplicated routing changes would regress silently.
 
 ## Test Strategy
 
@@ -404,7 +475,9 @@ python -m pytest tests/specify_cli/tracker/ -v
 - Verify `_resolve_resource_routing()` is `@staticmethod` with no side effects.
 - Verify both fields are atomically null or atomically populated.
 - Verify `sync_publish()` payload includes both new fields without removing or modifying existing fields.
-- Verify all 8 test cases from the plan's test matrix are covered.
+- Verify the idempotency key hash includes `resource_type` and `resource_id` — rebind must produce a different key.
+- Verify all 10 test cases from the plan's test matrix are covered (8 derivation + empty-creds-present + idempotency rebind).
+- Verify the empty-creds-present test covers the real `_load_runtime()` path where credentials are `{}` (not the spec's incorrect claim that it raises).
 
 ## Activity Log
 

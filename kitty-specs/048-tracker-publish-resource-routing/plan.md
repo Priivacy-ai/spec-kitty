@@ -114,6 +114,23 @@ payload = {
 }
 ```
 
+### Idempotency Key Update
+
+The current idempotency key in `sync_publish()` (service.py line 215) hashes:
+```
+f"{provider}|{workspace}|{len(issues)}|{len(mappings)}|{checkpoint_cursor}"
+```
+
+This must be extended to include the routing fields. If a user rebinds to a different `project_key` but the issue/mapping/cursor state is unchanged, the hash would be identical and the SaaS would discard the second publish as a duplicate:
+
+```python
+idempotency_key = hashlib.sha256(
+    f"{provider}|{workspace}|{resource_type}|{resource_id}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode("utf-8")
+).hexdigest()
+```
+
+`resource_type` and `resource_id` may be `None`, which is fine — `str(None)` is stable and deterministic.
+
 ### What Does NOT Change
 
 1. **Git event envelope** — `git_branch`, `head_commit_sha`, `repo_slug` in `EventEmitter._emit()` are untouched
@@ -134,6 +151,8 @@ payload = {
 | Jira whitespace-only | `"jira"` | `{"project_key": "  ", ...}` | `null` | `null` |
 | Unsupported provider | `"beads"` | `{...}` | `null` | `null` |
 | Unknown provider | `"notion"` | `{...}` | `null` | `null` |
+| Jira creds present but no routing key | `"jira"` | `{"base_url": "...", "email": "...", "api_token": "..."}` (present but no project_key) | `null` | `null` |
+| Idempotency key changes on rebind | `"jira"` | First: `{"project_key": "ACME"}`, Second: `{"project_key": "BETA"}` | Different idempotency keys | — |
 
 ### Regression Tests
 

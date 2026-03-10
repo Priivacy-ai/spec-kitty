@@ -121,10 +121,13 @@ A `null` value means "routing unavailable" — the SaaS should fall back to `(pr
 The SaaS should resolve the resource mapping using this lookup order:
 
 1. If `external_resource_type` and `external_resource_id` are both non-null:
-   - Look up `ServiceResourceMapping` by `(provider, external_resource_type, external_resource_id)`
+   - Look up `ServiceResourceMapping` by `(provider, workspace, external_resource_type, external_resource_id)`
+   - `workspace` is required in the lookup because the same resource identifier (e.g., Jira project key `"ACME"`) can exist on different provider sites
    - If found, use the mapped project/feed
 2. Fall back to `(provider, workspace)` resolution (existing behavior)
 3. If no match, queue for manual mapping
+
+**Why `workspace` is part of the routing key**: A team may connect multiple Jira sites (e.g., `acme.atlassian.net` and `acme-staging.atlassian.net`). Both sites can have a project with key `"ACME"`. Without `workspace` in the lookup, the SaaS would conflate the two. The 4-tuple `(provider, workspace, external_resource_type, external_resource_id)` is the unique routing key.
 
 ## Relation to Git Event Envelope
 
