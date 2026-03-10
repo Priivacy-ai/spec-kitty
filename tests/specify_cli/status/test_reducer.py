@@ -63,6 +63,7 @@ class TestReduceEmpty:
             "claimed": 0,
             "in_progress": 0,
             "for_review": 0,
+            "approved": 0,
             "done": 0,
             "blocked": 0,
             "canceled": 0,
