@@ -3,7 +3,6 @@
 Simple tests for GitignoreManager that can run without pytest.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -12,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
 
 import gitignore_manager
+
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 
@@ -59,24 +59,33 @@ def test_basic_functionality():
         result = manager.protect_all_agents()
         assert result.success, "protect_all_agents failed"
         assert result.modified, "File should be modified on first run"
-        assert len(result.entries_added) == 15, f"Expected 15 entries, got {len(result.entries_added)}"
+        assert len(result.entries_added) == 14, f"Expected 14 entries, got {len(result.entries_added)}"
 
         # Verify file created
         assert manager.gitignore_path.exists(), ".gitignore not created"
 
 
 def test_all_agents_protected():
-    """Test that all 13 agent directories are protected."""
+    """Test that all 12 agent directories are protected."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         manager = GitignoreManager(tmppath)
 
-        result = manager.protect_all_agents()
+        manager.protect_all_agents()
 
         expected_dirs = [
-            ".claude/", ".codex/", ".opencode/", ".windsurf/",
-            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/", ".github/copilot/"
+            ".claude/",
+            ".codex/",
+            ".opencode/",
+            ".windsurf/",
+            ".gemini/",
+            ".cursor/",
+            ".qwen/",
+            ".kilocode/",
+            ".augment/",
+            ".roo/",
+            ".amazonq/",
+            ".github/copilot/",
         ]
 
         content = manager.gitignore_path.read_text()
@@ -96,12 +105,12 @@ def test_duplicate_detection():
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified, "First run should modify file"
-        assert len(result1.entries_added) == 15, "Should add 15 entries"
+        assert len(result1.entries_added) == 14, "Should add 14 entries"
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified, "Second run should not modify file"
-        assert len(result2.entries_skipped) == 15, "Should skip 15 entries"
+        assert len(result2.entries_skipped) == 14, "Should skip 14 entries"
         assert len(result2.entries_added) == 0, "Should add 0 new entries"
 
 
@@ -127,7 +136,7 @@ def test_error_handling():
     # Test with non-existent directory
     try:
         manager = GitignoreManager(Path("/nonexistent/path"))
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except ValueError as e:
         assert "does not exist" in str(e), "Wrong error message"
 
@@ -135,7 +144,7 @@ def test_error_handling():
     with tempfile.NamedTemporaryFile() as tmpfile:
         try:
             manager = GitignoreManager(Path(tmpfile.name))
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert "not a directory" in str(e), "Wrong error message"
 

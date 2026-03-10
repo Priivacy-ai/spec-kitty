@@ -24,6 +24,7 @@ non-interactive with those flags.
 
 TODO: File issue about non-interactive init mode and remove xfail markers once fixed.
 """
+
 from __future__ import annotations
 
 import os
@@ -188,7 +189,18 @@ class TestInitWithoutTemplateRoot:
         assert "SPEC_KITTY_TEMPLATE_ROOT" not in env
 
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -215,7 +227,18 @@ class TestInitWithoutTemplateRoot:
         spec_kitty = _venv_spec_kitty(installed_venv)
 
         subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -249,7 +272,18 @@ class TestResearchFeatureCreation:
 
         # Initialize spec-kitty (will create directory)
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "research", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "research",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -260,7 +294,9 @@ class TestResearchFeatureCreation:
 
         # Initialize git after init (required for features)
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Verify research templates are available
@@ -294,7 +330,17 @@ class TestUpgradeWithAllMissions:
 
         # Initialize project (will create directory)
         init_result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -304,7 +350,9 @@ class TestUpgradeWithAllMissions:
 
         # Initialize git after init
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Initial commit

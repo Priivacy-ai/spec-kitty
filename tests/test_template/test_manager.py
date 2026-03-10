@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -61,9 +60,7 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
 
 
-def test_copy_specify_base_from_package_uses_packaged_assets(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     fake_pkg = tmp_path / "package_data"
     (fake_pkg / "memory").mkdir(parents=True)
     (fake_pkg / "memory" / "seed.txt").write_text("seed", encoding="utf-8")

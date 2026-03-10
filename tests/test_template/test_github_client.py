@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import zipfile
 from pathlib import Path
 
@@ -15,7 +14,14 @@ from specify_cli.template.github_client import (
 
 
 class FakeResponse:
-    def __init__(self, status_code: int, payload: dict[str, object] | None = None, *, text: str = "", headers: dict[str, str] | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        payload: dict[str, object] | None = None,
+        *,
+        text: str = "",
+        headers: dict[str, str] | None = None,
+    ):
         self.status_code = status_code
         self._payload = payload or {}
         self.text = text
@@ -39,8 +45,7 @@ class FakeStreamResponse:
         return False
 
     def iter_bytes(self, chunk_size: int = 8192):
-        for chunk in self._chunks:
-            yield chunk
+        yield from self._chunks
 
 
 class FakeHttpClient:

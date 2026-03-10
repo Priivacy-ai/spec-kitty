@@ -12,12 +12,15 @@ MISSION_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "documentation"
 
 
 # T058: Test Divio Template Frontmatter
-@pytest.mark.parametrize("template_name,expected_type", [
-    ("divio/tutorial-template.md", "tutorial"),
-    ("divio/howto-template.md", "how-to"),
-    ("divio/reference-template.md", "reference"),
-    ("divio/explanation-template.md", "explanation"),
-])
+@pytest.mark.parametrize(
+    "template_name,expected_type",
+    [
+        ("divio/tutorial-template.md", "tutorial"),
+        ("divio/howto-template.md", "how-to"),
+        ("divio/reference-template.md", "reference"),
+        ("divio/explanation-template.md", "explanation"),
+    ],
+)
 def test_divio_template_has_frontmatter(template_name, expected_type):
     """Test Divio templates have YAML frontmatter with type field."""
     mission = Mission(MISSION_DIR)
@@ -29,6 +32,7 @@ def test_divio_template_has_frontmatter(template_name, expected_type):
 
     # Parse frontmatter
     from ruamel.yaml import YAML
+
     yaml = YAML()
 
     lines = content.split("\n")

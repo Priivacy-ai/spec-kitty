@@ -12,7 +12,6 @@ Key behaviors tested:
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
@@ -75,8 +74,8 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 agents (fallback)
-        assert len(agent_dirs) == 13
+        # Should return all 12 agents (fallback)
+        assert len(agent_dirs) == 12
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
 
@@ -90,8 +89,8 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 agents (fallback for empty)
-        assert len(agent_dirs) == 13
+        # Should return all 12 agents (fallback for empty)
+        assert len(agent_dirs) == 12
 
 
 class TestMigrationRespectsConfig:
@@ -102,9 +101,7 @@ class TestMigrationRespectsConfig:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode (will be updated)
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement without scroll warning")
 
         # Create old template for claude (should NOT be updated - not configured)
@@ -210,6 +207,7 @@ class TestMigrationDetection:
         # This is acceptable - the important thing is that claude didn't cause detection
         # So we just verify that if we remove claude, the result stays the same
         import shutil
+
         shutil.rmtree(claude_dir)
 
         result_without_claude = migration.detect(tmp_path)
@@ -224,8 +222,8 @@ class TestAgentDirMapping:
 
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
-        # All 13 agents should be mapped
-        assert len(AGENT_DIR_TO_KEY) == 13
+        # All 12 agents should be mapped
+        assert len(AGENT_DIR_TO_KEY) == 12
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"
@@ -286,9 +284,7 @@ class TestDryRunBehavior:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement")
 
         # Run dry-run

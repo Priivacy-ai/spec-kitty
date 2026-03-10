@@ -1,7 +1,5 @@
 """Tests for the exclude worktrees migration (0.13.1)."""
 
-from pathlib import Path
-
 import pytest
 
 from specify_cli.core.git_ops import run_command

@@ -6,7 +6,7 @@ paths touched by the datetime.utcnow deprecation remediation.
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 from uuid import uuid4
 
@@ -46,10 +46,10 @@ def test_models_default_factories_use_timezone_aware_datetimes() -> None:
         parity_hash_sha256="b" * 64,
     )
 
-    assert artifact.indexed_at.tzinfo == timezone.utc
-    assert dossier.dossier_created_at.tzinfo == timezone.utc
-    assert dossier.dossier_updated_at.tzinfo == timezone.utc
-    assert snapshot.computed_at.tzinfo == timezone.utc
+    assert artifact.indexed_at.tzinfo == UTC
+    assert dossier.dossier_created_at.tzinfo == UTC
+    assert dossier.dossier_updated_at.tzinfo == UTC
+    assert snapshot.computed_at.tzinfo == UTC
 
 
 def test_compute_snapshot_sets_timezone_aware_timestamp() -> None:
@@ -64,7 +64,7 @@ def test_compute_snapshot_sets_timezone_aware_timestamp() -> None:
     )
 
     snapshot = compute_snapshot(dossier)
-    assert snapshot.computed_at.tzinfo == timezone.utc
+    assert snapshot.computed_at.tzinfo == UTC
 
 
 def test_indexer_uses_timezone_aware_timestamps_for_updates_and_missing(tmp_path: Path) -> None:
@@ -75,14 +75,14 @@ def test_indexer_uses_timezone_aware_timestamps_for_updates_and_missing(tmp_path
     indexer = Indexer(ManifestRegistry())
     dossier = indexer.index_feature(feature_dir, "software-dev")
 
-    assert dossier.dossier_updated_at.tzinfo == timezone.utc
+    assert dossier.dossier_updated_at.tzinfo == UTC
 
     # Force missing artifact materialization path to ensure ghost artifacts
     # receive timezone-aware indexed_at timestamps.
     dossier.artifacts = []
     missing = indexer._detect_missing_artifacts(dossier, step_id="plan")
     assert missing, "Expected manifest-driven missing artifacts for software-dev"
-    assert all(a.indexed_at.tzinfo == timezone.utc for a in missing)
+    assert all(a.indexed_at.tzinfo == UTC for a in missing)
 
 
 def test_capture_baseline_uses_timezone_aware_timestamp(tmp_path: Path) -> None:
@@ -106,4 +106,4 @@ def test_capture_baseline_uses_timezone_aware_timestamp(tmp_path: Path) -> None:
         manifest_version="1",
     )
 
-    assert baseline.captured_at.tzinfo == timezone.utc
+    assert baseline.captured_at.tzinfo == UTC
