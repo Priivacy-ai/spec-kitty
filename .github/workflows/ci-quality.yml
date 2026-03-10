@@ -805,7 +805,21 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "SONAR_TOKEN is not configured; skipping SonarCloud steps."
+            echo ""
+            echo "============================================================"
+            echo "  SonarCloud is not configured — skipping analysis."
+            echo "============================================================"
+            echo ""
+            echo "To set up SonarCloud for this open-source project:"
+            echo ""
+            echo "  1. Sign in at https://sonarcloud.io with your GitHub account"
+            echo "  2. Import the repository (free for public repos)"
+            echo "  3. Copy the project token from Administration > Analysis Method"
+            echo "  4. Add it as a repository secret named SONAR_TOKEN:"
+            echo "     Settings > Secrets and variables > Actions > New repository secret"
+            echo ""
+            echo "Docs: https://docs.sonarsource.com/sonarqube-cloud/getting-started/github/"
+            echo ""
           fi
 
       - name: Check out repository
@@ -859,10 +873,10 @@ jobs:
         run: |
           mkdir -p out/reports/coverage
           mkdir -p out/reports/xunit-reports
-          
+
           # Merge all coverage files
           find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
-          
+
           # Create combined coverage if coverage-combiner is available, otherwise use first available
           if [ -f "out/reports/unit/coverage/coverage.xml" ]; then
             cp out/reports/unit/coverage/coverage.xml out/reports/coverage/coverage.xml
@@ -871,16 +885,16 @@ jobs:
           elif [ -f "out/reports/sync/coverage/coverage-sync.xml" ]; then
             cp out/reports/sync/coverage/coverage-sync.xml out/reports/coverage/coverage.xml
           fi
-          
+
           # Merge all xUnit files
           find out/reports -name "xunit-result-*.xml" -type f -exec cp {} out/reports/xunit-reports/ \;
-          
+
           # Create normalized xUnit file (use first available)
           latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-*.xml 2>/dev/null | head -n 1)"
           if [ -n "$latest_file" ]; then
             cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
           fi
-          
+
           echo "Coverage files found:"
           find out/reports/coverage -name "*.xml" -type f
           echo "xUnit files found:"
