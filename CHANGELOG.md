@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-03-10
+
+### ✅ Added
+
+- **Namespace-aware artifact body sync (Feature 047)**: Full offline-first pipeline for pushing spec artifact bodies (markdown content) to the SaaS backend, including `NamespaceRef` typed identifiers, `OfflineBodyUploadQueue` SQLite persistence, body upload preparation and filtering, HTTP transport with response classification, dossier pipeline orchestration with partial failure handling, background sync queue drain, and end-to-end diagnostics/logging.
+
+### 🐛 Fixed
+
+- **Init default directory (`#258`)**: `spec-kitty init` now defaults to the current directory when project name is omitted on the 2.x line.
+- **Sync integration**: Completed namespace artifact body sync wiring for end-to-end operation.
+
+### 📄 Documentation
+
+- **Connector auth binding ADR**: Added architectural decision record for connector authentication binding and installation model gap analysis.
+- **Command-owned action context ADR**: Defined command-owned action context pattern.
+
 ## [2.0.4] - 2026-03-06
 
 ### 🐛 Fixed
