@@ -265,6 +265,7 @@ def test_refresh_script_upgrades_legacy_copy(temp_repo: Path) -> None:
 # Tests for WP ID exact matching (WP04 vs WP04b bug fix)
 # ============================================================================
 
+
 def test_exact_wp_id_matching_not_prefix(feature_repo: Path, feature_slug: str) -> None:
     """Test: WP04 should NOT match WP04b (prefix matching bug).
 
@@ -326,27 +327,24 @@ def test_exact_wp_id_matching_with_slug(feature_repo: Path, feature_slug: str) -
 # Tests for update stages changes properly
 # ============================================================================
 
+
 def test_update_stages_changes(feature_repo: Path, feature_slug: str) -> None:
     """Test: Update command stages the changes for commit."""
     result = run_tasks_cli(["update", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
     assert_success(result)
 
     # Check that changes are staged
-    status_result = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=feature_repo,
-        capture_output=True,
-        text=True
-    )
+    status_result = subprocess.run(["git", "status", "--porcelain"], cwd=feature_repo, capture_output=True, text=True)
 
     # Should have WP01.md staged (M in first column for modified)
-    staged_lines = [line for line in status_result.stdout.strip().split('\n') if line and 'WP01' in line]
+    staged_lines = [line for line in status_result.stdout.strip().split("\n") if line and "WP01" in line]
     assert len(staged_lines) > 0, "WP01 changes should be staged"
 
 
 # ============================================================================
 # Tests for multi-agent scenarios (frontmatter-based)
 # ============================================================================
+
 
 def test_update_ignores_other_wp_modifications(feature_repo: Path, feature_slug: str) -> None:
     """Test: Updating WP01 should not be blocked by modifications to WP02.

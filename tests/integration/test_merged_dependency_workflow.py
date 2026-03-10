@@ -41,13 +41,13 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
     # Create meta.json with target_branch
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(
-        '{\n'
+        "{\n"
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
         '  "target_branch": "2.x",\n'
         '  "vcs": "git"\n'
-        '}',
-        encoding="utf-8"
+        "}",
+        encoding="utf-8",
     )
 
     # Create WP01 in 'done' lane (merged)
@@ -62,7 +62,7 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         "# Event Infrastructure\n"
         "\n"
         "Base event system implementation.\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     # Create WP02 in 'planned' lane (depends on WP01)
@@ -77,7 +77,7 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         "# Event Logger\n"
         "\n"
         "Uses event infrastructure from WP01.\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     # Create WP08 in 'planned' lane (also depends on WP01)
@@ -92,31 +92,22 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         "# Event CLI\n"
         "\n"
         "CLI commands for event system.\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     # Commit feature files
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(
-        ["git", "commit", "-m", "Add Feature 025 with WP01 done, WP02/WP08 planned"],
-        cwd=test_project,
-        check=True
+        ["git", "commit", "-m", "Add Feature 025 with WP01 done, WP02/WP08 planned"], cwd=test_project, check=True
     )
 
     # Simulate WP01 merged to 2.x
     subprocess.run(["git", "checkout", "2.x"], cwd=test_project, check=True)
     (test_project / "src" / "specify_cli" / "events").mkdir(parents=True)
     events_file = test_project / "src" / "specify_cli" / "events" / "__init__.py"
-    events_file.write_text(
-        '"""Event infrastructure (from WP01)."""\n',
-        encoding="utf-8"
-    )
+    events_file.write_text('"""Event infrastructure (from WP01)."""\n', encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Merge WP01: Event infrastructure"],
-        cwd=test_project,
-        check=True
-    )
+    subprocess.run(["git", "commit", "-m", "Merge WP01: Event infrastructure"], cwd=test_project, check=True)
     subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
 
     # Merge 2.x changes to main (keep both in sync)
@@ -210,27 +201,16 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
     # Create meta.json (targets main)
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(
-        '{\n'
-        '  "spec_number": "010",\n'
-        '  "slug": "010-workspace-per-wp",\n'
-        '  "target_branch": "main",\n'
-        '  "vcs": "git"\n'
-        '}',
-        encoding="utf-8"
+        '{\n  "spec_number": "010",\n  "slug": "010-workspace-per-wp",\n  "target_branch": "main",\n  "vcs": "git"\n}',
+        encoding="utf-8",
     )
 
     # Create WP01, WP02, WP03 all in 'done' lane
     for i in range(1, 4):
         wp_file = tasks_dir / f"WP0{i}-component-{i}.md"
         wp_file.write_text(
-            f"---\n"
-            f"work_package_id: WP0{i}\n"
-            f"title: Component {i}\n"
-            f"lane: done\n"
-            f"dependencies: []\n"
-            f"---\n"
-            f"# Component {i}\n",
-            encoding="utf-8"
+            f"---\nwork_package_id: WP0{i}\ntitle: Component {i}\nlane: done\ndependencies: []\n---\n# Component {i}\n",
+            encoding="utf-8",
         )
 
     # Create WP04 depending on all three
@@ -245,16 +225,12 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
         "# Integration\n"
         "\n"
         "Combines all components.\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     # Commit feature files
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Add Feature 010 with all deps done"],
-        cwd=test_project,
-        check=True
-    )
+    subprocess.run(["git", "commit", "-m", "Add Feature 010 with all deps done"], cwd=test_project, check=True)
 
     # Run implement command for WP04 (should auto-detect multi-parent all done)
     result = run_cli(test_project, "implement", "WP04", "--feature", "010-workspace-per-wp", "--force")
@@ -263,10 +239,9 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Should mention all dependencies are done and reachable from target
-    assert (
-        "done and reachable from main" in result.stdout
-        or "done and reachable from main" in result.stderr
-    ), "Should detect all deps merged into main"
+    assert "done and reachable from main" in result.stdout or "done and reachable from main" in result.stderr, (
+        "Should detect all deps merged into main"
+    )
     assert "main" in result.stdout or "main" in result.stderr, "Should mention target branch"
 
     # Verify workspace created
@@ -291,13 +266,13 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
     # Create meta.json
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(
-        '{\n'
+        "{\n"
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
         '  "target_branch": "main",\n'
         '  "vcs": "git"\n'
-        '}',
-        encoding="utf-8"
+        "}",
+        encoding="utf-8",
     )
 
     # Create WP01 in 'doing' lane (in-progress, NOT merged)
@@ -310,29 +285,19 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
         "dependencies: []\n"
         "---\n"
         "# Event Infrastructure\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     # Create WP02 depending on WP01
     wp02_file = tasks_dir / "WP02-event-logger.md"
     wp02_file.write_text(
-        "---\n"
-        "work_package_id: WP02\n"
-        "title: Event Logger\n"
-        "lane: planned\n"
-        "dependencies: [WP01]\n"
-        "---\n"
-        "# Event Logger\n",
-        encoding="utf-8"
+        "---\nwork_package_id: WP02\ntitle: Event Logger\nlane: planned\ndependencies: [WP01]\n---\n# Event Logger\n",
+        encoding="utf-8",
     )
 
     # Commit feature files
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Add Feature 025 with WP01 in-progress"],
-        cwd=test_project,
-        check=True
-    )
+    subprocess.run(["git", "commit", "-m", "Add Feature 025 with WP01 in-progress"], cwd=test_project, check=True)
 
     # Run implement command for WP02 (should error - WP01 workspace doesn't exist)
     result = run_cli(test_project, "implement", "WP02", "--feature", "025-cli-event-log-integration")
@@ -341,7 +306,9 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
     assert result.returncode != 0, "Should error when in-progress dependency workspace missing"
 
     # Should mention WP01 workspace doesn't exist
-    assert "does not exist" in result.stderr or "does not exist" in result.stdout, "Should error about missing workspace"
+    assert "does not exist" in result.stderr or "does not exist" in result.stdout, (
+        "Should error about missing workspace"
+    )
     assert "WP01" in result.stderr or "WP01" in result.stdout, "Should mention WP01"
 
 
@@ -354,33 +321,21 @@ def test_implement_single_dependency_done_but_unmerged_uses_dependency_branch(te
 
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(
-        '{\n'
+        "{\n"
         '  "spec_number": "026",\n'
         '  "slug": "026-single-dep-unmerged",\n'
         '  "target_branch": "main",\n'
         '  "vcs": "git"\n'
-        '}',
+        "}",
         encoding="utf-8",
     )
 
     (tasks_dir / "WP01-core.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Core\n"
-        "lane: done\n"
-        "dependencies: []\n"
-        "---\n"
-        "# Core\n",
+        "---\nwork_package_id: WP01\ntitle: Core\nlane: done\ndependencies: []\n---\n# Core\n",
         encoding="utf-8",
     )
     (tasks_dir / "WP02-addon.md").write_text(
-        "---\n"
-        "work_package_id: WP02\n"
-        "title: Addon\n"
-        "lane: planned\n"
-        "dependencies: [WP01]\n"
-        "---\n"
-        "# Addon\n",
+        "---\nwork_package_id: WP02\ntitle: Addon\nlane: planned\ndependencies: [WP01]\n---\n# Addon\n",
         encoding="utf-8",
     )
 
@@ -400,10 +355,9 @@ def test_implement_single_dependency_done_but_unmerged_uses_dependency_branch(te
 
     result = run_cli(test_project, "implement", "WP02", "--feature", feature_slug)
     assert result.returncode == 0, f"implement failed: {result.stderr}"
-    assert (
-        "done but not merged into main" in result.stdout
-        or "done but not merged into main" in result.stderr
-    ), "Should detect done lane != merged state"
+    assert "done but not merged into main" in result.stdout or "done but not merged into main" in result.stderr, (
+        "Should detect done lane != merged state"
+    )
 
     workspace_path = test_project / ".worktrees" / f"{feature_slug}-WP02"
     assert workspace_path.exists(), "Workspace should be created"
@@ -419,24 +373,18 @@ def test_implement_multi_parent_done_but_unmerged_creates_merge_base(test_projec
 
     meta_file = feature_dir / "meta.json"
     meta_file.write_text(
-        '{\n'
+        "{\n"
         '  "spec_number": "027",\n'
         '  "slug": "027-multi-dep-unmerged",\n'
         '  "target_branch": "main",\n'
         '  "vcs": "git"\n'
-        '}',
+        "}",
         encoding="utf-8",
     )
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}-component.md").write_text(
-            "---\n"
-            f"work_package_id: {wp_id}\n"
-            f"title: {wp_id} Component\n"
-            "lane: done\n"
-            "dependencies: []\n"
-            "---\n"
-            f"# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} Component\nlane: done\ndependencies: []\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
 

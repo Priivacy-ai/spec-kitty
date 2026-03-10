@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import functools
 import json
-import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
@@ -21,7 +20,6 @@ from specify_cli.core.dependency_graph import (
 from specify_cli.core.vcs import (
     get_vcs,
     VCSBackend,
-    VCSLockError,
 )
 from specify_cli.frontmatter import read_frontmatter, update_fields
 from specify_cli.tasks_support import (
@@ -39,7 +37,6 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.git import safe_commit
-from specify_cli.sync.events import emit_wp_status_changed
 
 console = Console()
 
@@ -73,7 +70,7 @@ def _json_safe_output(func):
                 if wp_id:
                     payload["wp_id"] = str(wp_id)
                 print(json.dumps(payload))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         finally:
             console.quiet = previous_quiet
 
@@ -98,19 +95,14 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     """
     try:
         repo_root = find_repo_root()
-        ctx = detect_feature(
-            repo_root,
-            explicit_feature=feature_flag,
-            cwd=Path.cwd(),
-            mode="strict"
-        )
+        ctx = detect_feature(repo_root, explicit_feature=feature_flag, cwd=Path.cwd(), mode="strict")
         return ctx.number, ctx.slug
     except TaskCliError:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except FeatureDetectionError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
@@ -157,12 +149,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         return False  # Good - doesn't exist, should create
 
     # Check if it's a valid git worktree
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"],
-        cwd=workspace_path,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=workspace_path, capture_output=True, check=False)
 
     if result.returncode == 0:
         # Valid worktree exists
@@ -183,7 +170,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         return True  # Reuse existing
 
     # Directory exists but not a worktree
-    console.print(f"[red]Error:[/red] Directory exists but is not a valid worktree")
+    console.print("[red]Error:[/red] Directory exists but is not a valid worktree")
     console.print(f"Path: {workspace_path}")
     console.print(f"Remove manually: rm -rf {workspace_path}")
     raise typer.Exit(1)
@@ -248,6 +235,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
         Detected primary branch name.
     """
     from specify_cli.core.git_ops import resolve_primary_branch as _resolve
+
     return _resolve(repo_root)
 
 
@@ -318,7 +306,6 @@ def display_rebase_warning(
     workspace_path: Path,
     wp_id: str,
     base_branch: str,
-    feature_slug: str
 ) -> None:
     """Display warning about needing to rebase on changed base.
 
@@ -326,7 +313,6 @@ def display_rebase_warning(
         workspace_path: Path to workspace directory
         wp_id: Work package ID (e.g., "WP02")
         base_branch: Base branch name (e.g., "010-workspace-per-wp-WP01")
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
     """
     console.print(f"\n[bold yellow]⚠️  Base branch {base_branch} has changed[/bold yellow]")
     console.print(f"Your {wp_id} workspace may have outdated code from base\n")
@@ -342,11 +328,7 @@ def display_rebase_warning(
     console.print("Future jj integration will auto-rebase dependent workspaces.\n")
 
 
-def check_for_dependents(
-    repo_root: Path,
-    feature_slug: str,
-    wp_id: str
-) -> None:
+def check_for_dependents(repo_root: Path, feature_slug: str, wp_id: str) -> None:
     """Check if any WPs depend on this WP and warn if not yet done.
 
     Args:
@@ -374,12 +356,12 @@ def check_for_dependents(
 
             if lane in ["planned", "doing", "for_review"]:
                 incomplete_deps.append(dep_id)
-        except (FileNotFoundError, Exception):
+        except (FileNotFoundError, Exception):  # noqa: S112
             # If we can't read the dependent's metadata, skip it
             continue
 
     if incomplete_deps:
-        console.print(f"\n[yellow]⚠️  Dependency Alert:[/yellow]")
+        console.print("\n[yellow]⚠️  Dependency Alert:[/yellow]")
         console.print(f"{', '.join(incomplete_deps)} depend on {wp_id} (not yet done)")
         console.print("If you modify this WP, dependent WPs will need manual rebase:")
         for dep_id in incomplete_deps:
@@ -421,7 +403,7 @@ def _ensure_planning_artifacts_committed_git(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     current_branch = result.stdout.strip() if result.returncode == 0 else ""
 
@@ -433,7 +415,7 @@ def _ensure_planning_artifacts_committed_git(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
 
     if result.returncode == 0 and result.stdout.strip():
@@ -441,8 +423,8 @@ def _ensure_planning_artifacts_committed_git(
         # Porcelain format: XY filename (X=staged, Y=working tree)
         # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
         files_to_commit = []
-        for line in result.stdout.strip().split('\n'):
-            if line.strip():
+        for line in result.stdout.strip().split("\n"):
+            if line.strip():  # noqa: SIM102
                 # Get status code (first 2 chars) and filepath (rest after space)
                 if len(line) >= 3:
                     filepath = line[3:].strip()
@@ -451,14 +433,12 @@ def _ensure_planning_artifacts_committed_git(
                     files_to_commit.append(filepath)
 
         if files_to_commit:
-            console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
+            console.print("\n[cyan]Planning artifacts not committed:[/cyan]")
             for f in files_to_commit:
                 console.print(f"  {f}")
 
             if current_branch != primary_branch:
-                console.print(
-                    f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}."
-                )
+                console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}.")
                 console.print(f"Current branch: {current_branch}")
                 console.print(f"Run: git checkout {primary_branch}")
                 raise typer.Exit(1)
@@ -474,15 +454,15 @@ def _ensure_planning_artifacts_committed_git(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
             )
             if result.returncode != 0:
-                console.print(f"[red]Error:[/red] Failed to stage files")
+                console.print("[red]Error:[/red] Failed to stage files")
                 console.print(result.stderr)
                 raise typer.Exit(1)
 
             # Commit with descriptive message
-            commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
+            commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"  # noqa: E501
             result = subprocess.run(
                 ["git", "commit", "-m", commit_msg],
                 cwd=repo_root,
@@ -490,10 +470,10 @@ def _ensure_planning_artifacts_committed_git(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
             )
             if result.returncode != 0:
-                console.print(f"[red]Error:[/red] Failed to commit")
+                console.print("[red]Error:[/red] Failed to commit")
                 console.print(result.stderr)
                 raise typer.Exit(1)
 
@@ -503,9 +483,9 @@ def _ensure_planning_artifacts_committed_git(
 def _ensure_planning_artifacts_committed_jj(
     repo_root: Path,
     feature_dir: Path,
-    feature_slug: str,
-    wp_id: str,
-    primary_branch: str,
+    _feature_slug: str,
+    _wp_id: str,
+    _primary_branch: str,
 ) -> None:
     """Verify planning artifacts exist for jj repos.
 
@@ -528,9 +508,7 @@ def _ensure_planning_artifacts_committed_jj(
     # In jj, working copy IS a commit - no "uncommitted" state
     # Just verify the feature directory exists
     if not feature_dir.exists():
-        console.print(
-            f"\n[red]Error:[/red] Feature directory not found: {feature_dir}"
-        )
+        console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
         console.print("Run planning commands first (specify, plan, tasks)")
         raise typer.Exit(1)
 
@@ -542,13 +520,13 @@ def _ensure_planning_artifacts_committed_jj(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     current_bookmark = result.stdout.strip() if result.returncode == 0 else "unknown"
     console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
     Always locks to git (jj support removed due to sparse checkout incompatibility).
@@ -577,7 +555,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Check if VCS is already locked
     if "vcs" in meta:
@@ -587,7 +565,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
             console.print("[yellow]Converting to git...[/yellow]")
             # Override to git
             meta["vcs"] = "git"
-            meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+            meta["vcs_locked_at"] = datetime.now(UTC).isoformat()
             meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
             return VCSBackend.GIT
         # Already git
@@ -595,7 +573,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 
     # VCS not yet locked - lock to git (only supported VCS)
     meta["vcs"] = "git"
-    meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+    meta["vcs_locked_at"] = datetime.now(UTC).isoformat()
 
     # Write updated meta.json
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -606,7 +584,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 
 @_json_safe_output
 @require_main_repo
-def implement(
+def implement(  # noqa: C901
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
     feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
@@ -650,7 +628,7 @@ def implement(
     except (TaskCliError, typer.Exit) as exc:
         tracker.error("detect", str(exc) if isinstance(exc, TaskCliError) else "failed")
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Step 2: Validate dependencies
     tracker.start("validate")
@@ -676,14 +654,14 @@ def implement(
                 raise typer.Exit(1)
 
             # Auto-merge mode: Create merge commit combining all dependencies
-            console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+            console.print("\n[cyan]Multi-parent dependency detected:[/cyan]")
             console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
 
             if dep_status.all_done:
-                console.print(f"  [yellow]Warning:[/yellow] All dependencies done - merge conflicts likely")
-                console.print(f"  Attempting auto-merge (use merge command for safer workflow)...")
+                console.print("  [yellow]Warning:[/yellow] All dependencies done - merge conflicts likely")
+                console.print("  Attempting auto-merge (use merge command for safer workflow)...")
             else:
-                console.print(f"  Auto-creating merge base combining all dependencies...")
+                console.print("  Auto-creating merge base combining all dependencies...")
 
             auto_merge_base = True
             # Will create merge base after validation completes
@@ -712,7 +690,7 @@ def implement(
                 console.print(tracker.render())
                 console.print(f"\n[red]Error:[/red] Base work package {base} does not exist")
                 console.print(f"Feature: {feature_slug}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             if base_lane == "done":
                 # Base is merged - will branch from target branch (no workspace validation needed)
@@ -726,17 +704,14 @@ def implement(
                     console.print(tracker.render())
                     console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")
                     console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
-                    console.print(f"\nPossible causes:")
-                    console.print(f"  - Workspace was deleted manually")
+                    console.print("\nPossible causes:")
+                    console.print("  - Workspace was deleted manually")
                     console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
 
                 # Verify it's a valid worktree
                 result = subprocess.run(
-                    ["git", "rev-parse", "--git-dir"],
-                    cwd=base_workspace,
-                    capture_output=True,
-                    check=False
+                    ["git", "rev-parse", "--git-dir"], cwd=base_workspace, capture_output=True, check=False
                 )
                 if result.returncode != 0:
                     tracker.error("validate", f"base workspace {base} invalid")
@@ -749,7 +724,7 @@ def implement(
         if not isinstance(exc, typer.Exit):
             tracker.error("validate", str(exc))
             console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
     # All planning must happen on the feature target branch before workspace creation.
@@ -759,7 +734,7 @@ def implement(
             feature_dir = repo_root / "kitty-specs" / feature_slug
             if not feature_dir.exists():
                 console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
-                console.print(f"Run /spec-kitty.specify first")
+                console.print("Run /spec-kitty.specify first")
                 raise typer.Exit(1)
 
             # Get VCS backend (auto-detect or from meta.json)
@@ -770,20 +745,16 @@ def implement(
 
             if vcs_backend == VCSBackend.GIT:
                 # Git path: check branch and status using git commands
-                _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
-                )
+                _ensure_planning_artifacts_committed_git(repo_root, feature_dir, feature_slug, wp_id, planning_branch)
             else:
                 # jj path: check status and commit using jj commands
-                _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
-                )
+                _ensure_planning_artifacts_committed_jj(repo_root, feature_dir, feature_slug, wp_id, planning_branch)
 
         except typer.Exit:
             raise
         except Exception as e:
             console.print(f"\n[red]Error:[/red] Failed to validate planning artifacts: {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     # Step 3: Create workspace
     tracker.start("create")
@@ -812,14 +783,14 @@ def implement(
             if workspace_info.is_stale:
                 if base:
                     base_branch = f"{feature_slug}-{base}"
-                    display_rebase_warning(workspace_path, wp_id, base_branch, feature_slug)
+                    display_rebase_warning(workspace_path, wp_id, base_branch)
                 else:
                     # No explicit base, but workspace is stale (base changed)
-                    console.print(f"\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
+                    console.print("\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
                     if vcs_backend == VCSBackend.JUJUTSU:
                         console.print("Run [bold]jj workspace update-stale[/bold] to sync")
                     else:
-                        console.print(f"Consider rebasing if needed")
+                        console.print("Consider rebasing if needed")
 
             # Check for dependent WPs (T079)
             check_for_dependents(repo_root, feature_slug, wp_id)
@@ -828,7 +799,7 @@ def implement(
 
         # Validate workspace path doesn't exist as a non-workspace directory
         if workspace_path.exists():
-            console.print(f"[red]Error:[/red] Directory exists but is not a valid workspace")
+            console.print("[red]Error:[/red] Directory exists but is not a valid workspace")
             console.print(f"Path: {workspace_path}")
             console.print(f"Remove manually: rm -rf {workspace_path}")
             raise typer.Exit(1)
@@ -859,7 +830,7 @@ def implement(
                     if missing_deps:
                         missing_str = ", ".join(missing_deps)
                         console.print(
-                            f"[yellow]→ Missing branch refs for: {missing_str} (assuming already merged/cleaned)[/yellow]"
+                            f"[yellow]→ Missing branch refs for: {missing_str} (assuming already merged/cleaned)[/yellow]"  # noqa: E501
                         )
                     console.print(f"[cyan]→ Branching from {target_branch}[/cyan]")
                     base_branch = target_branch
@@ -867,14 +838,12 @@ def implement(
                 else:
                     unmerged_str = ", ".join(unmerged_deps)
                     console.print(
-                        f"\n[yellow]→ Dependencies marked done but not merged into {target_branch}: {unmerged_str}[/yellow]"
+                        f"\n[yellow]→ Dependencies marked done but not merged into {target_branch}: {unmerged_str}[/yellow]"  # noqa: E501
                     )
                     if merged_deps:
                         console.print(f"[dim]  Already merged: {', '.join(merged_deps)}[/dim]")
                     if missing_deps:
-                        console.print(
-                            f"[dim]  Missing branch refs (assumed merged): {', '.join(missing_deps)}[/dim]"
-                        )
+                        console.print(f"[dim]  Missing branch refs (assumed merged): {', '.join(missing_deps)}[/dim]")
                     console.print("[cyan]→ Creating merge base to ensure dependency code is present[/cyan]")
             if auto_merge_base:
                 # Create merge base when dependencies are in-progress OR done-but-unmerged.
@@ -888,15 +857,15 @@ def implement(
                 if not merge_result.success:
                     tracker.error("create", "merge base creation failed")
                     console.print(tracker.render())
-                    console.print(f"\n[red]Error:[/red] Failed to create merge base")
+                    console.print("\n[red]Error:[/red] Failed to create merge base")
                     console.print(f"Reason: {merge_result.error}")
 
                     if merge_result.conflicts:
-                        console.print(f"\n[yellow]Conflicts in:[/yellow]")
+                        console.print("\n[yellow]Conflicts in:[/yellow]")
                         for conflict_file in merge_result.conflicts:
                             console.print(f"  - {conflict_file}")
 
-                    console.print(f"\n[yellow]Recovery options:[/yellow]")
+                    console.print("\n[yellow]Recovery options:[/yellow]")
                     console.print("1. Pick a dependency as the base, then merge the others in the worktree:")
                     console.print(f"   spec-kitty implement {wp_id} --base <WPxx>")
                     console.print(f"   cd .worktrees/{feature_slug}-{wp_id}")
@@ -929,13 +898,13 @@ def implement(
             try:
                 base_wp = locate_work_package(repo_root, feature_slug, base)
                 base_lane = base_wp.lane or "planned"
-            except Exception as e:
+            except Exception:
                 # Base WP file not found
                 tracker.error("create", f"base WP {base} not found")
                 console.print(tracker.render())
                 console.print(f"[red]Error:[/red] Base work package {base} does not exist")
                 console.print(f"Feature: {feature_slug}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             if base_lane == "done":
                 from specify_cli.core.feature_detection import get_feature_target_branch
@@ -951,12 +920,12 @@ def implement(
                     base_branch = target_branch
                 elif _branch_tip_reachable_from_target(repo_root, base_dependency_branch, target_branch):
                     console.print(
-                        f"\n[cyan]→ Base {base} is done and merged into {target_branch} - branching from {target_branch}[/cyan]"
+                        f"\n[cyan]→ Base {base} is done and merged into {target_branch} - branching from {target_branch}[/cyan]"  # noqa: E501
                     )
                     base_branch = target_branch
                 else:
                     console.print(
-                        f"\n[yellow]→ Base {base} is done but not merged into {target_branch} - branching from {base_dependency_branch}[/yellow]"
+                        f"\n[yellow]→ Base {base} is done but not merged into {target_branch} - branching from {base_dependency_branch}[/yellow]"  # noqa: E501
                     )
                     base_branch = base_dependency_branch
             else:
@@ -971,8 +940,8 @@ def implement(
                     console.print(tracker.render())
                     console.print(f"[red]Error:[/red] Base workspace {base} does not exist")
                     console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
-                    console.print(f"\nPossible causes:")
-                    console.print(f"  - Workspace was deleted manually")
+                    console.print("\nPossible causes:")
+                    console.print("  - Workspace was deleted manually")
                     console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
 
@@ -982,10 +951,7 @@ def implement(
                         base_branch = base_workspace_info.current_branch
                     # For git, verify the branch exists
                     result = subprocess.run(
-                        ["git", "rev-parse", "--verify", base_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        check=False
+                        ["git", "rev-parse", "--verify", base_branch], cwd=repo_root, capture_output=True, check=False
                     )
                     if result.returncode != 0:
                         tracker.error("create", f"base branch {base_branch} not found")
@@ -1016,7 +982,7 @@ def implement(
         if not create_result.success:
             tracker.error("create", "workspace creation failed")
             console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Failed to create workspace")
+            console.print("\n[red]Error:[/red] Failed to create workspace")
             console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
 
@@ -1032,20 +998,23 @@ def implement(
             text=True,
             encoding="utf-8",
             errors="replace",
-            check=False
+            check=False,
         )
         base_commit_sha = result.stdout.strip() if result.returncode == 0 else "unknown"
 
         # Step 3.6: Update WP frontmatter with base tracking
         try:
-            created_at = datetime.now(timezone.utc).isoformat()
+            created_at = datetime.now(UTC).isoformat()
 
             # Update frontmatter with base tracking fields
-            update_fields(wp_file, {
-                "base_branch": base_branch,
-                "base_commit": base_commit_sha,
-                "created_at": created_at,
-            })
+            update_fields(
+                wp_file,
+                {
+                    "base_branch": base_branch,
+                    "base_commit": base_commit_sha,
+                    "created_at": created_at,
+                },
+            )
 
             console.print(f"[cyan]→ Base tracking: {base_branch} @ {base_commit_sha[:7]}[/cyan]")
         except Exception as e:
@@ -1105,6 +1074,7 @@ def implement(
 
             # Auto-commit to current branch (respects user context, no auto-checkout)
             from specify_cli.core.git_ops import resolve_target_branch
+
             commit_msg = f"chore: {wp_id} claimed for implementation"
 
             # Resolve branch routing (unified logic, no auto-checkout)
@@ -1142,7 +1112,7 @@ def implement(
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {resolution.current})[/cyan]")
             else:
                 # Commit failed - file might be unchanged or other issue
-                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
 
             # Emit event for 2.x (with sync integration)
             if lane_changed:
@@ -1156,9 +1126,7 @@ def implement(
                         feature_slug=feature_slug,
                     )
                 except Exception as emit_exc:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
-                    )
+                    console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}")
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed
@@ -1168,22 +1136,27 @@ def implement(
     if json_output:
         # JSON output for scripting
         import json
+
         workspace_rel = str(workspace_path.relative_to(repo_root))
-        print(json.dumps({
-            # Canonical key for consumers.
-            "workspace": workspace_rel,
-            # Backward compatibility for existing integrations.
-            "workspace_path": workspace_rel,
-            "branch": branch_name,
-            "feature": feature_slug,
-            "wp_id": wp_id,
-            "base": base or resolve_primary_branch(repo_root),
-            "status": "created"
-        }))
+        print(
+            json.dumps(
+                {
+                    # Canonical key for consumers.
+                    "workspace": workspace_rel,
+                    # Backward compatibility for existing integrations.
+                    "workspace_path": workspace_rel,
+                    "branch": branch_name,
+                    "feature": feature_slug,
+                    "wp_id": wp_id,
+                    "base": base or resolve_primary_branch(repo_root),
+                    "status": "created",
+                }
+            )
+        )
     else:
         # Human-readable output
         console.print(tracker.render())
-        console.print(f"\n[bold green]✓ Workspace created successfully[/bold green]")
+        console.print("\n[bold green]✓ Workspace created successfully[/bold green]")
 
         # Check for dependent WPs after creation (T079)
         check_for_dependents(repo_root, feature_slug, wp_id)

@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
 from specify_cli.core.feature_detection import detect_feature
@@ -30,9 +30,7 @@ __all__ = [
 ]
 
 
-def read_file_resilient(
-    file_path: Path, *, auto_fix: bool = True
-) -> tuple[Optional[str], Optional[str]]:
+def read_file_resilient(file_path: Path, *, auto_fix: bool = True) -> tuple[str | None, str | None]:
     """Read a file with resilience to encoding errors.
 
     This function attempts to read a file as UTF-8, and if that fails:
@@ -66,9 +64,7 @@ def read_file_resilient(
         return content, None
     except UnicodeDecodeError as exc:
         # Log the encoding error
-        logger.warning(
-            f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}"
-        )
+        logger.warning(f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}")
 
         if not auto_fix:
             return None, (
@@ -105,7 +101,7 @@ def read_file_resilient(
         return None, f"Error reading {file_path.name}: {exc}"
 
 
-def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
+def format_path_for_display(path_str: str | None) -> str | None:
     """Return a human-readable path that shortens the user's home directory."""
     if not path_str:
         return path_str
@@ -136,7 +132,7 @@ def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
     return f"~{os.sep}{relative_str}"
 
 
-def work_package_sort_key(task: Dict[str, Any]) -> tuple:
+def work_package_sort_key(task: dict[str, Any]) -> tuple:
     """Provide a natural sort key for work package identifiers."""
     work_id = str(task.get("id", "")).strip()
     if not work_id:
@@ -146,7 +142,7 @@ def work_package_sort_key(task: Dict[str, Any]) -> tuple:
     return (tuple(number_parts), work_id.lower())
 
 
-def _get_artifact_info(path: Path) -> Dict[str, any]:
+def _get_artifact_info(path: Path) -> dict[str, any]:
     """Get artifact information including existence, mtime, and size."""
     if not path.exists():
         return {"exists": False, "mtime": None, "size": None}
@@ -161,8 +157,8 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
 
 def get_feature_artifacts(
     feature_dir: Path,
-    project_dir: Optional[Path] = None,
-) -> Dict[str, Dict[str, any]]:
+    project_dir: Path | None = None,
+) -> dict[str, dict[str, any]]:
     """Return which artifacts exist for a feature with modification info.
 
     Constitution status is project-level. If project_dir is omitted, we fall back
@@ -191,19 +187,17 @@ def get_feature_artifacts(
     }
 
 
-def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
+def get_workflow_status(artifacts: dict[str, dict[str, any]]) -> dict[str, str]:
     """Determine workflow progression status."""
     has_spec = artifacts.get("spec", {}).get("exists", False)
     has_plan = artifacts.get("plan", {}).get("exists", False)
     has_tasks = artifacts.get("tasks", {}).get("exists", False)
     has_kanban = artifacts.get("kanban", {}).get("exists", False)
 
-    workflow: Dict[str, str] = {}
+    workflow: dict[str, str] = {}
 
     if not has_spec:
-        workflow.update(
-            {"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"}
-        )
+        workflow.update({"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"})
         return workflow
     workflow["specify"] = "complete"
 
@@ -221,14 +215,14 @@ def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
     return workflow
 
 
-def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
+def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
     """Collect candidate feature directories from root and worktrees.
 
     Main repo (kitty-specs/) paths take priority over worktree copies.
     Worktrees may have stale data from when they were created, so the
     main repo should be the source of truth for feature status.
     """
-    feature_paths: Dict[str, Path] = {}
+    feature_paths: dict[str, Path] = {}
 
     # First scan worktrees (lower priority - may have stale data)
     worktrees_root = project_dir / ".worktrees"
@@ -254,7 +248,7 @@ def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
     return feature_paths
 
 
-def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
+def resolve_feature_dir(project_dir: Path, feature_id: str) -> Path | None:
     """Resolve the on-disk directory for the requested feature."""
     feature_paths = gather_feature_paths(project_dir)
     return feature_paths.get(feature_id)
@@ -262,8 +256,8 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
 
 def resolve_active_feature(
     project_dir: Path,
-    features: List[Dict[str, Any]],
-) -> Optional[Dict[str, Any]]:
+    features: list[dict[str, Any]],
+) -> dict[str, Any] | None:
     """Resolve active feature using the same detector as CLI status commands."""
     if not features:
         return None
@@ -283,7 +277,7 @@ def resolve_active_feature(
     return features[0]
 
 
-def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
+def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> dict[str, int]:
     """Count work packages by lane from frontmatter (new format)."""
     counts = {"planned": 0, "doing": 0, "for_review": 0, "done": 0}
 
@@ -303,9 +297,9 @@ def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
     return counts
 
 
-def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
+def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
     """Scan all features and return metadata."""
-    features: List[Dict[str, Any]] = []
+    features: list[dict[str, Any]] = []
     feature_paths = gather_feature_paths(project_dir)
 
     for feature_id, feature_dir in feature_paths.items():
@@ -313,7 +307,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             continue
 
         friendly_name = feature_dir.name
-        meta_data: Dict[str, Any] | None = None
+        meta_data: dict[str, Any] | None = None
         meta_path = feature_dir / "meta.json"
         if meta_path.exists():
             try:
@@ -375,7 +369,7 @@ def _process_wp_file(
     prompt_file: Path,
     project_dir: Path,
     default_lane: str,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Process a single WP file and return task data or None on error."""
     content, error = read_file_resilient(prompt_file, auto_fix=True)
 
@@ -419,13 +413,13 @@ def _process_wp_file(
     }
 
 
-def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Dict[str, Any]]]:
+def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[dict[str, Any]]]:
     """Scan kanban board for a specific feature.
 
     Supports both legacy (directory-based) and new (frontmatter-based) lane formats.
     """
     feature_dir = resolve_feature_dir(project_dir, feature_id)
-    lanes: Dict[str, List[Dict[str, Any]]] = {
+    lanes: dict[str, list[dict[str, Any]]] = {
         "planned": [],
         "doing": [],
         "for_review": [],
@@ -443,7 +437,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
 
     if use_legacy:
         # Legacy format: scan lane subdirectories
-        for lane in lanes.keys():
+        for lane in lanes:
             lane_dir = tasks_dir / lane
             if not lane_dir.exists():
                 continue
@@ -465,6 +459,11 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 task_data = _process_wp_file(prompt_file, project_dir, "planned")
                 if task_data is not None:
                     lane = task_data.get("lane", "planned")
+                    # Normalise canonical status-model name → dashboard lane key.
+                    # The status model writes "in_progress" (canonical); the kanban
+                    # dict and dashboard frontend use "doing" (display alias).
+                    if lane == "in_progress":
+                        lane = "doing"
                     if lane not in lanes:
                         lane = "planned"
                     lanes[lane].append(task_data)
@@ -473,7 +472,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 continue
 
         # Sort all lanes
-        for lane in lanes.keys():
+        for lane in lanes:
             lanes[lane].sort(key=work_package_sort_key)
 
     return lanes

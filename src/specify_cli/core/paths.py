@@ -228,11 +228,13 @@ def get_main_repo_root(current_path: Path) -> Path:
         try:
             git_content = git_file.read_text().strip()
             if git_content.startswith("gitdir:"):
-                gitdir = Path(git_content.split(":", 1)[1].strip())
-                # Navigate: .git/worktrees/name -> .git -> main repo root
-                main_git_dir = gitdir.parent.parent
-                main_repo_root = main_git_dir.parent
-                return main_repo_root
+                gitdir_str = git_content.split(":", 1)[1].strip()
+                if gitdir_str:
+                    gitdir = Path(gitdir_str)
+                    # Navigate: .git/worktrees/name -> .git -> main repo root
+                    main_git_dir = gitdir.parent.parent
+                    main_repo_root = main_git_dir.parent
+                    return main_repo_root
         except (OSError, ValueError):
             pass
 

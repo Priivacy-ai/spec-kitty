@@ -9,9 +9,6 @@ Tests the auto-resolution of status file conflicts including:
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
 
 from specify_cli.merge.status_resolver import (
     LANE_PRIORITY,
@@ -78,8 +75,8 @@ different line 2
 """
         regions = parse_conflict_markers(content)
         assert len(regions) == 1
-        assert "line 1\nline 2\nline 3\n" == regions[0].ours
-        assert "different line 1\ndifferent line 2\n" == regions[0].theirs
+        assert regions[0].ours == "line 1\nline 2\nline 3\n"
+        assert regions[0].theirs == "different line 1\ndifferent line 2\n"
 
 
 class TestIsStatusFile:

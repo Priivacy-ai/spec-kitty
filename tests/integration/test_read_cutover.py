@@ -10,12 +10,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane, StatusSnapshot
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, reduce
-from specify_cli.status.store import EVENTS_FILENAME, read_events
+from specify_cli.status.store import read_events
 from specify_cli.status.validate import (
     validate_derived_views,
     validate_materialization_drift,
@@ -51,9 +49,7 @@ def _setup_feature(
         )
 
     meta = {"status_phase": phase}
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     return feature_dir
 
@@ -102,8 +98,11 @@ class TestReadCutoverStatusJsonIsAuthority:
 
         # Emit transition
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
 
@@ -131,8 +130,11 @@ class TestReadCutoverMaterializeRegeneratesViews:
 
         # Emit transitions for WP01
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
 
@@ -165,8 +167,11 @@ class TestPhase2ValidateFailsOnDrift:
 
         # Emit transitions for WP01
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
 
@@ -196,8 +201,11 @@ class TestPhase2ValidateFailsOnDrift:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
 
@@ -223,8 +231,11 @@ class TestPhase2ValidateFailsOnDrift:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            feature_dir=feature_dir,
+            feature_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
 

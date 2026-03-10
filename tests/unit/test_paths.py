@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -188,9 +187,7 @@ def test_is_worktree_context_separate_git_dir(tmp_path: Path) -> None:
     assert is_worktree_context(nested) is False
 
 
-def test_is_worktree_context_handles_gitfile_read_oserror(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_is_worktree_context_handles_gitfile_read_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Should return False when .git pointer cannot be read."""
     repo = tmp_path / "repo"
     repo.mkdir()

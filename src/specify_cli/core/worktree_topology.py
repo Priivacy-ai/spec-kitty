@@ -18,7 +18,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from specify_cli.core.feature_detection import get_feature_target_branch
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
@@ -32,9 +32,9 @@ class WPTopologyEntry:
     """Per-WP topology information."""
 
     wp_id: str
-    branch_name: Optional[str]  # None if worktree not yet created
-    base_branch: Optional[str]  # None if worktree not yet created
-    base_wp: Optional[str]  # WP ID of base, or None if based on target branch
+    branch_name: str | None  # None if worktree not yet created
+    base_branch: str | None  # None if worktree not yet created
+    base_wp: str | None  # WP ID of base, or None if based on target branch
     dependencies: list[str] = field(default_factory=list)
     lane: str = "planned"
     worktree_exists: bool = False
@@ -54,7 +54,7 @@ class FeatureTopology:
         """True if any WP bases on another WP rather than target branch."""
         return any(e.base_wp is not None for e in self.entries)
 
-    def get_entry(self, wp_id: str) -> Optional[WPTopologyEntry]:
+    def get_entry(self, wp_id: str) -> WPTopologyEntry | None:
         """Get entry for a specific WP."""
         for entry in self.entries:
             if entry.wp_id == wp_id:
@@ -71,9 +71,9 @@ class FeatureTopology:
 
 def _resolve_base_wp(
     base_branch: str,
-    feature_slug: str,
+    _feature_slug: str,
     wp_branches: dict[str, str],
-) -> Optional[str]:
+) -> str | None:
     """Determine if base_branch is another WP's branch.
 
     Args:
@@ -146,11 +146,7 @@ def materialize_worktree_topology(
 
     # Build WP branch map from workspace contexts
     contexts = list_contexts(main_repo_root)
-    feature_contexts = {
-        ctx.wp_id: ctx
-        for ctx in contexts
-        if ctx.feature_slug == feature_slug
-    }
+    feature_contexts = {ctx.wp_id: ctx for ctx in contexts if ctx.feature_slug == feature_slug}
 
     # Map WP ID -> branch name for base resolution
     wp_branches: dict[str, str] = {}
@@ -166,15 +162,15 @@ def materialize_worktree_topology(
                 fm, _ = read_frontmatter(wp_file)
                 wp_id = fm.get("work_package_id", wp_file.stem.split("-")[0])
                 wp_lanes[wp_id] = fm.get("lane", "planned")
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     # Build topology entries
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        ctx = feature_contexts.get(wp_id)
-        branch_name = ctx.branch_name if ctx else None
-        base_branch = ctx.base_branch if ctx else None
+        wp_ctx = feature_contexts.get(wp_id)
+        branch_name = wp_ctx.branch_name if wp_ctx else None
+        base_branch = wp_ctx.base_branch if wp_ctx else None
         dependencies = graph.get(wp_id, [])
         lane = wp_lanes.get(wp_id, "planned")
 
@@ -190,16 +186,18 @@ def materialize_worktree_topology(
         if worktree_exists and base_branch:
             commits_ahead = _count_commits_ahead(worktree_path, base_branch)
 
-        entries.append(WPTopologyEntry(
-            wp_id=wp_id,
-            branch_name=branch_name,
-            base_branch=base_branch,
-            base_wp=base_wp,
-            dependencies=dependencies,
-            lane=lane,
-            worktree_exists=worktree_exists,
-            commits_ahead_of_base=commits_ahead,
-        ))
+        entries.append(
+            WPTopologyEntry(
+                wp_id=wp_id,
+                branch_name=branch_name,
+                base_branch=base_branch,
+                base_wp=base_wp,
+                dependencies=dependencies,
+                lane=lane,
+                worktree_exists=worktree_exists,
+                commits_ahead_of_base=commits_ahead,
+            )
+        )
 
     return FeatureTopology(
         feature_slug=feature_slug,
@@ -241,7 +239,7 @@ def render_topology_json(
     # Build entries list
     entries_json = []
     for entry in topology.entries:
-        entry_data: dict = {
+        entry_data: dict[str, Any] = {
             "wp": entry.wp_id,
             "lane": entry.lane,
             "branch": entry.branch_name,
@@ -260,9 +258,9 @@ def render_topology_json(
         "your_base": your_base,
         "diff_command": diff_command,
         "stacked": True,
-        "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."
-            if current_entry and current_entry.base_wp
-            else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
+        "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."  # noqa: E501
+        if current_entry and current_entry.base_wp
+        else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
         "entries": entries_json,
     }
 

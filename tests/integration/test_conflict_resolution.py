@@ -7,10 +7,8 @@ events (timestamp-wins), and deduplication determinism.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
@@ -65,12 +63,9 @@ class TestRollbackBeatsForwardProgression:
 
         # First get WP01 to for_review state
         setup_events = [
-            _make_event("01AAA00000000000000000001A", "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event("01AAA00000000000000000002A", "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
-            _make_event("01AAA00000000000000000003A", "WP01", "in_progress", "for_review",
-                        "2026-01-15T10:02:00+00:00"),
+            _make_event("01AAA00000000000000000001A", "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event("01AAA00000000000000000002A", "WP01", "claimed", "in_progress", "2026-01-15T10:01:00+00:00"),
+            _make_event("01AAA00000000000000000003A", "WP01", "in_progress", "for_review", "2026-01-15T10:02:00+00:00"),
         ]
 
         # Concurrent events at the SAME timestamp
@@ -78,12 +73,18 @@ class TestRollbackBeatsForwardProgression:
 
         forward_event = _make_event(
             "01AAA00000000000000000004B",  # Sorts AFTER rollback by event_id
-            "WP01", "for_review", "done", same_ts,
+            "WP01",
+            "for_review",
+            "done",
+            same_ts,
             actor="auto-merge",
         )
         rollback_event = _make_event(
             "01AAA00000000000000000004A",  # Sorts BEFORE forward by event_id
-            "WP01", "for_review", "in_progress", same_ts,
+            "WP01",
+            "for_review",
+            "in_progress",
+            same_ts,
             actor="reviewer-1",
             review_ref="PR#42-changes-requested",
         )
@@ -97,25 +98,28 @@ class TestRollbackBeatsForwardProgression:
     def test_rollback_beats_forward_reversed_order(self):
         """Even if events are provided in reversed order, rollback still wins."""
         setup_events = [
-            _make_event("01BBB00000000000000000001A", "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event("01BBB00000000000000000002A", "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
-            _make_event("01BBB00000000000000000003A", "WP01", "in_progress", "for_review",
-                        "2026-01-15T10:02:00+00:00"),
+            _make_event("01BBB00000000000000000001A", "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event("01BBB00000000000000000002A", "WP01", "claimed", "in_progress", "2026-01-15T10:01:00+00:00"),
+            _make_event("01BBB00000000000000000003A", "WP01", "in_progress", "for_review", "2026-01-15T10:02:00+00:00"),
         ]
 
         same_ts = "2026-01-15T10:03:00+00:00"
 
         rollback_event = _make_event(
             "01BBB00000000000000000004A",
-            "WP01", "for_review", "in_progress", same_ts,
+            "WP01",
+            "for_review",
+            "in_progress",
+            same_ts,
             actor="reviewer-1",
             review_ref="PR#42-changes-requested",
         )
         forward_event = _make_event(
             "01BBB00000000000000000004B",
-            "WP01", "for_review", "done", same_ts,
+            "WP01",
+            "for_review",
+            "done",
+            same_ts,
             actor="auto-merge",
         )
 
@@ -132,14 +136,28 @@ class TestNonConflictingEventsForDifferentWPs:
     def test_non_conflicting_events_for_different_wps(self):
         """Two WPs transitioning independently don't conflict."""
         events = [
-            _make_event("01CCC00000000000000000001A", "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00", actor="agent-1"),
-            _make_event("01CCC00000000000000000002A", "WP02", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00", actor="agent-2"),
-            _make_event("01CCC00000000000000000003A", "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00", actor="agent-1"),
-            _make_event("01CCC00000000000000000004A", "WP02", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00", actor="agent-2"),
+            _make_event(
+                "01CCC00000000000000000001A", "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00", actor="agent-1"
+            ),
+            _make_event(
+                "01CCC00000000000000000002A", "WP02", "planned", "claimed", "2026-01-15T10:00:00+00:00", actor="agent-2"
+            ),
+            _make_event(
+                "01CCC00000000000000000003A",
+                "WP01",
+                "claimed",
+                "in_progress",
+                "2026-01-15T10:01:00+00:00",
+                actor="agent-1",
+            ),
+            _make_event(
+                "01CCC00000000000000000004A",
+                "WP02",
+                "claimed",
+                "in_progress",
+                "2026-01-15T10:01:00+00:00",
+                actor="agent-2",
+            ),
         ]
 
         snapshot = reduce(events)
@@ -158,10 +176,8 @@ class TestDuplicateEventIdsDeduplicated:
         duplicate_id = "01DDD00000000000000000001A"
 
         events = [
-            _make_event(duplicate_id, "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event(duplicate_id, "WP01", "planned", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
+            _make_event(duplicate_id, "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event(duplicate_id, "WP01", "planned", "in_progress", "2026-01-15T10:01:00+00:00"),
         ]
 
         snapshot = reduce(events)
@@ -178,12 +194,9 @@ class TestConcurrentForwardEventsTimestampWins:
     def test_concurrent_forward_events_timestamp_wins(self):
         """Later timestamp wins for two forward events."""
         events = [
-            _make_event("01EEE00000000000000000001A", "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event("01EEE00000000000000000002A", "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
-            _make_event("01EEE00000000000000000003A", "WP01", "in_progress", "for_review",
-                        "2026-01-15T10:02:00+00:00"),
+            _make_event("01EEE00000000000000000001A", "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event("01EEE00000000000000000002A", "WP01", "claimed", "in_progress", "2026-01-15T10:01:00+00:00"),
+            _make_event("01EEE00000000000000000003A", "WP01", "in_progress", "for_review", "2026-01-15T10:02:00+00:00"),
         ]
 
         snapshot = reduce(events)
@@ -202,21 +215,15 @@ class TestDeduplicationPreservesDeterminism:
         unique_id = "01FFF00000000000000000002A"
 
         events_order_1 = [
-            _make_event(dup_id, "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event(dup_id, "WP01", "planned", "blocked",
-                        "2026-01-15T10:00:01+00:00"),
-            _make_event(unique_id, "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
+            _make_event(dup_id, "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event(dup_id, "WP01", "planned", "blocked", "2026-01-15T10:00:01+00:00"),
+            _make_event(unique_id, "WP01", "claimed", "in_progress", "2026-01-15T10:01:00+00:00"),
         ]
 
         events_order_2 = [
-            _make_event(unique_id, "WP01", "claimed", "in_progress",
-                        "2026-01-15T10:01:00+00:00"),
-            _make_event(dup_id, "WP01", "planned", "claimed",
-                        "2026-01-15T10:00:00+00:00"),
-            _make_event(dup_id, "WP01", "planned", "blocked",
-                        "2026-01-15T10:00:01+00:00"),
+            _make_event(unique_id, "WP01", "claimed", "in_progress", "2026-01-15T10:01:00+00:00"),
+            _make_event(dup_id, "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00"),
+            _make_event(dup_id, "WP01", "planned", "blocked", "2026-01-15T10:00:01+00:00"),
         ]
 
         snapshot1 = reduce(events_order_1)
@@ -232,12 +239,12 @@ class TestDeduplicationPreservesDeterminism:
         feature_dir.mkdir(parents=True)
 
         dup_id = "01GGG00000000000000000001A"
-        event1 = _make_event(dup_id, "WP01", "planned", "claimed",
-                             "2026-01-15T10:00:00+00:00",
-                             feature_slug="099-dedup-test")
-        event2 = _make_event(dup_id, "WP01", "planned", "blocked",
-                             "2026-01-15T10:00:01+00:00",
-                             feature_slug="099-dedup-test")
+        event1 = _make_event(
+            dup_id, "WP01", "planned", "claimed", "2026-01-15T10:00:00+00:00", feature_slug="099-dedup-test"
+        )
+        event2 = _make_event(
+            dup_id, "WP01", "planned", "blocked", "2026-01-15T10:00:01+00:00", feature_slug="099-dedup-test"
+        )
 
         append_event(feature_dir, event1)
         append_event(feature_dir, event2)

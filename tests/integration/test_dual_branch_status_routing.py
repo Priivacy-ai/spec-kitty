@@ -36,9 +36,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -50,9 +48,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
-def create_feature_with_target(
-    repo: Path, feature_slug: str, target_branch: str | None = None
-) -> Path:
+def create_feature_with_target(repo: Path, feature_slug: str, target_branch: str | None = None) -> Path:
     """Create feature directory with optional target_branch in meta.json."""
     feature_dir = repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -77,13 +73,7 @@ def create_feature_with_target(
     # Create WP01 file
     wp_file = tasks_dir / "WP01-test.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Test Work Package\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01 Content\n"
+        "---\nwork_package_id: WP01\ntitle: Test Work Package\nlane: planned\ndependencies: []\n---\n\n# WP01 Content\n"
     )
 
     # Commit to current branch
@@ -164,7 +154,7 @@ def test_status_routes_to_main_for_legacy_features(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature WITHOUT target_branch (legacy)
-    feature_dir = create_feature_with_target(repo, "001-legacy-feature", target_branch=None)
+    create_feature_with_target(repo, "001-legacy-feature", target_branch=None)
 
     # Move task to doing using agent command
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
@@ -198,7 +188,7 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
 
     # Create feature on main WITH target_branch: "2.x"
     subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-    feature_dir = create_feature_with_target(repo, "025-saas-feature", target_branch="2.x")
+    create_feature_with_target(repo, "025-saas-feature", target_branch="2.x")
 
     # Merge planning to 2.x (simulates real workflow where planning is on main first)
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
@@ -276,7 +266,7 @@ def test_status_routing_from_worktree_context(dual_branch_repo):
     # Update WP lane to doing (simulate starting work)
     wp_file = feature_dir / "tasks" / "WP01-test.md"
     content = wp_file.read_text()
-    updated = content.replace('lane: planned', 'lane: doing')
+    updated = content.replace("lane: planned", "lane: doing")
     wp_file.write_text(updated)
 
     # Commit the lane change to the WP file on main (so it's tracked)
@@ -346,11 +336,7 @@ def test_mark_subtasks_routes_correctly(dual_branch_repo):
     # Create tasks.md with subtasks (required by mark-status)
     tasks_md = feature_dir / "tasks.md"
     tasks_md.write_text(
-        "# Tasks\n\n"
-        "## WP01 - Setup\n\n"
-        "### Subtasks\n"
-        "- [ ] WP01.1 - First subtask\n"
-        "- [ ] WP01.2 - Second subtask\n"
+        "# Tasks\n\n## WP01 - Setup\n\n### Subtasks\n- [ ] WP01.1 - First subtask\n- [ ] WP01.2 - Second subtask\n"
     )
 
     # Also add subtasks to WP01 file for consistency
@@ -419,7 +405,7 @@ def test_race_condition_prevented(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature with target_branch: "2.x"
-    feature_dir = create_feature_with_target(repo, "028-race-test", target_branch="2.x")
+    create_feature_with_target(repo, "028-race-test", target_branch="2.x")
 
     # Checkout 2.x and create implementation branch
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
@@ -497,7 +483,7 @@ def test_fallback_when_target_missing(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature with target_branch pointing to nonexistent branch
-    feature_dir = create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
+    create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
 
     # Try to move task (should fallback to current branch: main)
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
@@ -506,8 +492,9 @@ def test_fallback_when_target_missing(dual_branch_repo):
     assert result.returncode == 0, f"Should fallback gracefully: {result.stderr}"
 
     # Should have warning in output
-    assert "Warning" in result.stdout or "could not checkout" in result.stderr.lower(), \
+    assert "Warning" in result.stdout or "could not checkout" in result.stderr.lower(), (
         "Should warn about missing target branch"
+    )
 
     # Commit should land on current branch (main)
     assert_commit_on_branch(repo, "main", "Move WP01 to in_progress")
@@ -549,16 +536,6 @@ def test_migration_detection_and_routing(dual_branch_repo):
     assert_commit_on_branch(repo, "main", "Move WP01 to in_progress")
 
 
-def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
-    """Check if ancestor is an ancestor of descendant."""
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        cwd=repo,
-        capture_output=True,
-    )
-    return result.returncode == 0
-
-
 # ============================================================================
 # Additional Edge Cases
 # ============================================================================
@@ -597,13 +574,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
         wp_id = f"WP0{wp_num}"
         wp_file = tasks_dir / f"{wp_id}-test.md"
         wp_file.write_text(
-            f"---\n"
-            f"work_package_id: {wp_id}\n"
-            f"title: Test {wp_id}\n"
-            f"lane: planned\n"
-            f"dependencies: []\n"
-            f"---\n\n"
-            f"# {wp_id}\n"
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n"
         )
 
     # Commit to main
@@ -624,8 +595,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
         capture_output=True,
     )
 
-    # Count commits on main and 2.x before status changes
-    main_commits_before = len(get_commits_on_branch(repo, "main"))
+    # Count commits on main and 2.x before status changes (baseline established)
 
     # Move each WP to doing (each should create a commit on 2.x)
     for wp_num in range(1, 4):
@@ -674,7 +644,7 @@ def test_target_branch_detection_from_worktree_path(dual_branch_repo):
 
     # Create feature on main with target_branch: "2.x"
     subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-    feature_dir = create_feature_with_target(repo, "032-worktree-detection", target_branch="2.x")
+    create_feature_with_target(repo, "032-worktree-detection", target_branch="2.x")
 
     # Merge to 2.x
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)

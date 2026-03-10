@@ -12,10 +12,9 @@ period, the WP is considered stale.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-
-from specify_cli.core.vcs import get_vcs, VCSError
+from typing import Any
 
 
 @dataclass
@@ -70,13 +69,13 @@ def get_default_branch(repo_path: Path) -> str:
 
     # Method 2: Check which common branch exists
     for branch in ["main", "master", "develop"]:
-        result = subprocess.run(
+        check = subprocess.run(
             ["git", "rev-parse", "--verify", branch],
             cwd=repo_path,
             capture_output=True,
             timeout=5,
         )
-        if result.returncode == 0:
+        if check.returncode == 0:
             return branch
 
     # Method 3: Fallback
@@ -222,10 +221,10 @@ def check_wp_staleness(
                 error=None if not has_own_commits else "Could not determine last commit time",
             )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Ensure last_commit is timezone-aware
         if last_commit.tzinfo is None:
-            last_commit = last_commit.replace(tzinfo=timezone.utc)
+            last_commit = last_commit.replace(tzinfo=UTC)
 
         delta = now - last_commit
         minutes_since = delta.total_seconds() / 60
@@ -289,7 +288,7 @@ def find_worktree_for_wp(
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
     feature_slug: str,
-    doing_wps: list[dict],
+    doing_wps: list[dict[str, Any]],
     threshold_minutes: int = 10,
 ) -> dict[str, StaleCheckResult]:
     """

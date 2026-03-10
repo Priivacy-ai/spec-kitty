@@ -31,12 +31,7 @@ def _init_repo(repo: Path) -> None:
 
 
 def _hook_script() -> Path:
-    hook_script = (
-        Path(__file__).resolve().parents[2]
-        / "scripts"
-        / "git-hooks"
-        / "pre-commit-task-workflow.sh"
-    )
+    hook_script = Path(__file__).resolve().parents[2] / "scripts" / "git-hooks" / "pre-commit-task-workflow.sh"
     assert hook_script.exists()
     return hook_script
 
@@ -59,9 +54,9 @@ def test_wp_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     blocked_file.write_text(
         "---\n"
         "work_package_id: WP01\n"
-        "lane: \"doing\"\n"
-        "shell_pid: \"123\"\n"
-        "agent: \"tester\"\n"
+        'lane: "doing"\n'
+        'shell_pid: "123"\n'
+        'agent: "tester"\n'
         "---\n\n"
         "## Activity Log\n"
         "- 2026-01-01T00:00:00Z – tester – lane=doing – Started implementation\n",
@@ -92,9 +87,9 @@ def test_wp_branch_hook_allows_non_wp_branches(tmp_path: Path) -> None:
     allowed_file.write_text(
         "---\n"
         "work_package_id: WP01\n"
-        "lane: \"doing\"\n"
-        "shell_pid: \"123\"\n"
-        "agent: \"tester\"\n"
+        'lane: "doing"\n'
+        'shell_pid: "123"\n'
+        'agent: "tester"\n'
         "---\n\n"
         "## Activity Log\n"
         "- 2026-01-01T00:00:00Z – tester – lane=doing – Started implementation\n",

@@ -11,7 +11,6 @@ import os
 import subprocess
 from pathlib import Path
 
-import pytest
 
 from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
@@ -27,9 +26,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -49,15 +46,10 @@ def create_test_feature(repo: Path) -> Path:
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
 
-    config = {
-        "vcs": {"type": "git"},
-        "agents": {"available": ["claude"]}
-    }
+    config = {"vcs": {"type": "git"}, "agents": {"available": ["claude"]}}
     (kittify / "config.yaml").write_text(yaml.dump(config))
 
-    metadata = {
-        "spec_kitty": {"version": "0.13.8"}
-    }
+    metadata = {"spec_kitty": {"version": "0.13.8"}}
     (kittify / "metadata.yaml").write_text(yaml.dump(metadata))
 
     # Create feature
@@ -115,13 +107,7 @@ def create_test_feature(repo: Path) -> Path:
     # Create WP files
     for wp_id in ["WP01", "WP02"]:
         wp_file = tasks_dir / f"{wp_id}-test.md"
-        wp_file.write_text(
-            f"---\n"
-            f"work_package_id: {wp_id}\n"
-            f"lane: planned\n"
-            f"---\n\n"
-            f"# {wp_id}\n"
-        )
+        wp_file.write_text(f"---\nwork_package_id: {wp_id}\nlane: planned\n---\n\n# {wp_id}\n")
 
     # Commit base state
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -160,7 +146,7 @@ def test_finalize_tasks_json_includes_commit_hash(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Run finalize-tasks
     result = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")
@@ -216,7 +202,7 @@ def test_finalize_tasks_json_includes_commit_created_flag(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Run finalize-tasks (should create commit)
     result = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")
@@ -271,7 +257,7 @@ def test_finalize_tasks_json_includes_files_committed(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Run finalize-tasks
     result = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")
@@ -318,7 +304,7 @@ def test_finalize_tasks_with_unrelated_dirty_files(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Create unrelated dirty files (simulating template deletions)
     templates_dir = repo / ".kittify/templates"
@@ -415,7 +401,7 @@ def test_json_output_prevents_agent_confusion(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Get HEAD before finalize-tasks
     result_before = subprocess.run(
@@ -495,7 +481,7 @@ def test_json_output_schema_complete(tmp_path):
         capture_output=True,
     )
 
-    feature_dir = create_test_feature(repo)
+    create_test_feature(repo)
 
     # Run finalize-tasks
     result = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")

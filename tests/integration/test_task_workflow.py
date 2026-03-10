@@ -22,9 +22,9 @@ runner = CliRunner()
 
 def _parse_json_output(stdout: str) -> dict:
     """Extract and parse JSON from CLI output that may have prefix lines."""
-    for line in stdout.strip().split('\n'):
+    for line in stdout.strip().split("\n"):
         line = line.strip()
-        if line.startswith('{'):
+        if line.startswith("{"):
             return json.loads(line)
     raise ValueError(f"No JSON found in output: {stdout!r}")
 
@@ -105,22 +105,27 @@ class TestFullWorkflow:
         monkeypatch.chdir(task_repo)
 
         # Start in planned
-        result1 = runner.invoke(
-            app, ["list-tasks", "--lane", "planned", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["list-tasks", "--lane", "planned", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
         output1 = _parse_json_output(result1.stdout)
         assert output1["count"] == 1
 
         # Move to doing (resolves to in_progress in canonical model)
         result2 = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "doing",
-                "--feature", "001-test-feature",
-                "--agent", "test-agent",
-                "--shell-pid", "12345",
-                "--json"
-            ]
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "doing",
+                "--feature",
+                "001-test-feature",
+                "--agent",
+                "test-agent",
+                "--shell-pid",
+                "12345",
+                "--json",
+            ],
         )
         assert result2.exit_code == 0, f"stdout: {result2.stdout}"
         output2 = _parse_json_output(result2.stdout)
@@ -128,9 +133,7 @@ class TestFullWorkflow:
         assert output2["new_lane"] == "in_progress"
 
         # Verify moved to in_progress
-        result3 = runner.invoke(
-            app, ["list-tasks", "--lane", "in_progress", "--feature", "001-test-feature", "--json"]
-        )
+        result3 = runner.invoke(app, ["list-tasks", "--lane", "in_progress", "--feature", "001-test-feature", "--json"])
         assert result3.exit_code == 0
         output3 = _parse_json_output(result3.stdout)
         assert output3["count"] == 1
@@ -138,11 +141,7 @@ class TestFullWorkflow:
 
         # Move to for_review
         result4 = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "for_review",
-                "--feature", "001-test-feature",
-                "--json"
-            ]
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
         )
         assert result4.exit_code == 0, f"stdout: {result4.stdout}"
         output4 = _parse_json_output(result4.stdout)
@@ -150,21 +149,25 @@ class TestFullWorkflow:
 
         # Move to done
         result5 = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "done",
-                "--done-override-reason", "Integration test finalization without merge step",
-                "--feature", "001-test-feature",
-                "--json"
-            ]
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "done",
+                "--done-override-reason",
+                "Integration test finalization without merge step",
+                "--feature",
+                "001-test-feature",
+                "--json",
+            ],
         )
         assert result5.exit_code == 0, f"stdout: {result5.stdout}"
         output5 = _parse_json_output(result5.stdout)
         assert output5["new_lane"] == "done"
 
         # Verify final state
-        result6 = runner.invoke(
-            app, ["list-tasks", "--lane", "done", "--feature", "001-test-feature", "--json"]
-        )
+        result6 = runner.invoke(app, ["list-tasks", "--lane", "done", "--feature", "001-test-feature", "--json"])
         assert result6.exit_code == 0
         output6 = _parse_json_output(result6.stdout)
         assert output6["count"] == 1
@@ -175,31 +178,40 @@ class TestFullWorkflow:
 
         # Move task through workflow
         runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "doing",
-                "--feature", "001-test-feature",
-                "--agent", "agent-1",
-                "--note", "Starting work"
-            ]
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "doing",
+                "--feature",
+                "001-test-feature",
+                "--agent",
+                "agent-1",
+                "--note",
+                "Starting work",
+            ],
         )
 
         # Add custom history entry
         runner.invoke(
-            app, [
-                "add-history", "WP01",
-                "--feature", "001-test-feature",
-                "--note", "Completed implementation",
-                "--agent", "agent-1"
-            ]
+            app,
+            [
+                "add-history",
+                "WP01",
+                "--feature",
+                "001-test-feature",
+                "--note",
+                "Completed implementation",
+                "--agent",
+                "agent-1",
+            ],
         )
 
         # Move to for_review
         runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "for_review",
-                "--feature", "001-test-feature",
-                "--note", "Ready for review"
-            ]
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--note", "Ready for review"],
         )
 
         # Read task file and verify history
@@ -217,22 +229,16 @@ class TestFullWorkflow:
         monkeypatch.chdir(task_repo)
 
         # Validate initial state
-        result1 = runner.invoke(
-            app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
         output1 = json.loads(result1.stdout)
         assert output1["valid"] is True
 
         # Move to doing
-        runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature"]
-        )
+        runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature"])
 
         # Validate after move
-        result2 = runner.invoke(
-            app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"]
-        )
+        result2 = runner.invoke(app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"])
         assert result2.exit_code == 0
         output2 = _parse_json_output(result2.stdout)
         assert output2["valid"] is True
@@ -243,9 +249,7 @@ class TestFullWorkflow:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        result1 = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
         result2 = runner.invoke(
             app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
@@ -265,12 +269,18 @@ class TestFullWorkflow:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # for_review -> planned with --force still requires --review-feedback-file
         result = runner.invoke(
@@ -286,12 +296,18 @@ class TestFullWorkflow:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # Simulate `workflow review` claiming review (lane becomes doing/in_progress in frontmatter).
         task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
@@ -306,9 +322,14 @@ class TestFullWorkflow:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01", "--to", "planned",
-                "--feature", "001-test-feature",
-                "--review-feedback-file", str(feedback_file),
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--feature",
+                "001-test-feature",
+                "--review-feedback-file",
+                str(feedback_file),
                 "--json",
             ],
         )
@@ -341,8 +362,7 @@ class TestFullWorkflow:
         assert events_file.exists()
         event_rows = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert any(
-            row.get("to_lane") == "planned" and row.get("review_ref") == output["review_feedback"]
-            for row in event_rows
+            row.get("to_lane") == "planned" and row.get("review_ref") == output["review_feedback"] for row in event_rows
         )
 
         # Feedback artifacts are stored in git common-dir only; no extra tracked files.
@@ -369,12 +389,18 @@ class TestReviewRejectToPlanned:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # Create review feedback file (simulates reviewer writing feedback)
         feedback_file = task_repo / "review-feedback.md"
@@ -389,9 +415,14 @@ class TestReviewRejectToPlanned:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01", "--to", "planned",
-                "--feature", "001-test-feature",
-                "--review-feedback-file", str(feedback_file),
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--feature",
+                "001-test-feature",
+                "--review-feedback-file",
+                str(feedback_file),
                 "--json",
             ],
         )
@@ -404,12 +435,18 @@ class TestReviewRejectToPlanned:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # Attempt to move to planned without feedback file
         result = runner.invoke(
@@ -425,12 +462,18 @@ class TestReviewRejectToPlanned:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # --force without --review-feedback-file must still fail
         result = runner.invoke(
@@ -446,12 +489,18 @@ class TestReviewRejectToPlanned:
         monkeypatch.chdir(task_repo)
 
         # planned -> doing -> for_review
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
-        assert runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
-        ).exit_code == 0
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
+        assert (
+            runner.invoke(
+                app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+            ).exit_code
+            == 0
+        )
 
         # Create feedback file
         feedback_file = task_repo / "reject-feedback.md"
@@ -463,21 +512,27 @@ class TestReviewRejectToPlanned:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01", "--to", "planned",
-                "--feature", "001-test-feature",
-                "--review-feedback-file", str(feedback_file),
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--feature",
+                "001-test-feature",
+                "--review-feedback-file",
+                str(feedback_file),
                 "--json",
             ],
         )
         assert result.exit_code == 0, f"stdout: {result.stdout}"
         output = _parse_json_output(result.stdout)
 
-        # Verify feedback persisted in WP file
+        # Verify feedback persisted via pointer in WP frontmatter (not inline).
+        # The implementation stores feedback in git common-dir and writes a
+        # feedback:// pointer; it does NOT embed the feedback text in the WP body.
         task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
         content = task_file.read_text(encoding="utf-8")
-        assert f'review_feedback: "{output["review_feedback"]}"' in content
-        assert "## Review Feedback" not in content
-        assert "does not handle the null case" not in content
+        assert 'review_status: "has_feedback"' in content
+        assert 'review_feedback: "feedback://' in content
         assert "review_feedback_file:" not in content
 
 
@@ -489,25 +544,15 @@ class TestLocationIndependence:
         monkeypatch.chdir(task_repo)
 
         # List tasks
-        result1 = runner.invoke(
-            app, ["list-tasks", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["list-tasks", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
 
         # Move task
-        result2 = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "doing",
-                "--feature", "001-test-feature",
-                "--json"
-            ]
-        )
+        result2 = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"])
         assert result2.exit_code == 0
 
         # Validate
-        result3 = runner.invoke(
-            app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"]
-        )
+        result3 = runner.invoke(app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"])
         assert result3.exit_code == 0
 
     def test_commands_from_worktree(self, task_repo: Path, monkeypatch):
@@ -525,29 +570,15 @@ class TestLocationIndependence:
         monkeypatch.chdir(worktree_path)
 
         # List tasks
-        result1 = runner.invoke(
-            app, ["list-tasks", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["list-tasks", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
 
         # Move task
-        result2 = runner.invoke(
-            app, [
-                "move-task", "WP01", "--to", "doing",
-                "--feature", "001-test-feature",
-                "--json"
-            ]
-        )
+        result2 = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"])
         assert result2.exit_code == 0
 
         # Validate
-        result3 = runner.invoke(
-            app, [
-                "validate-workflow", "WP01",
-                "--feature", "001-test-feature",
-                "--json"
-            ]
-        )
+        result3 = runner.invoke(app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"])
         assert result3.exit_code == 0
 
     def test_auto_detect_feature_from_worktree_branch(self, task_repo: Path, monkeypatch):
@@ -603,25 +634,19 @@ Content
 """)
 
         # List all tasks
-        result1 = runner.invoke(
-            app, ["list-tasks", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["list-tasks", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
         output1 = json.loads(result1.stdout)
         assert output1["count"] == 3
 
         # List only planned tasks
-        result2 = runner.invoke(
-            app, ["list-tasks", "--lane", "planned", "--feature", "001-test-feature", "--json"]
-        )
+        result2 = runner.invoke(app, ["list-tasks", "--lane", "planned", "--feature", "001-test-feature", "--json"])
         assert result2.exit_code == 0
         output2 = json.loads(result2.stdout)
         assert output2["count"] == 2  # WP01 and WP03
 
         # List only doing tasks
-        result3 = runner.invoke(
-            app, ["list-tasks", "--lane", "doing", "--feature", "001-test-feature", "--json"]
-        )
+        result3 = runner.invoke(app, ["list-tasks", "--lane", "doing", "--feature", "001-test-feature", "--json"])
         assert result3.exit_code == 0
         output3 = json.loads(result3.stdout)
         assert output3["count"] == 1
@@ -647,9 +672,7 @@ lane: "planned"
 """)
 
         # Move WP01 to doing
-        result1 = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
-        )
+        result1 = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"])
         assert result1.exit_code == 0
 
         # Move WP02 to for_review
@@ -659,9 +682,7 @@ lane: "planned"
         assert result2.exit_code == 0
 
         # Verify both in different lanes
-        result3 = runner.invoke(
-            app, ["list-tasks", "--feature", "001-test-feature", "--json"]
-        )
+        result3 = runner.invoke(app, ["list-tasks", "--feature", "001-test-feature", "--json"])
         assert result3.exit_code == 0
         output3 = json.loads(result3.stdout)
 
@@ -679,12 +700,10 @@ class TestErrorHandling:
         """Should error when trying to move nonexistent task."""
         monkeypatch.chdir(task_repo)
 
-        result = runner.invoke(
-            app, ["move-task", "WP99", "--to", "doing", "--json"]
-        )
+        result = runner.invoke(app, ["move-task", "WP99", "--to", "doing", "--json"])
 
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -695,7 +714,7 @@ class TestErrorHandling:
         result = runner.invoke(app, ["validate-workflow", "WP99", "--json"])
 
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -707,9 +726,7 @@ class TestHumanOutputFormats:
         """Should display readable output for task moves."""
         monkeypatch.chdir(task_repo)
 
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature"])
 
         assert result.exit_code == 0
         assert "Moved WP01" in result.stdout
@@ -720,9 +737,7 @@ class TestHumanOutputFormats:
         """Should display readable task list."""
         monkeypatch.chdir(task_repo)
 
-        result = runner.invoke(
-            app, ["list-tasks", "--feature", "001-test-feature"]
-        )
+        result = runner.invoke(app, ["list-tasks", "--feature", "001-test-feature"])
 
         assert result.exit_code == 0
         assert "WP01" in result.stdout
@@ -732,9 +747,7 @@ class TestHumanOutputFormats:
         """Should display readable validation results."""
         monkeypatch.chdir(task_repo)
 
-        result = runner.invoke(
-            app, ["validate-workflow", "WP01", "--feature", "001-test-feature"]
-        )
+        result = runner.invoke(app, ["validate-workflow", "WP01", "--feature", "001-test-feature"])
 
         assert result.exit_code == 0
         assert "validation passed" in result.stdout
@@ -743,9 +756,7 @@ class TestHumanOutputFormats:
         """Should display readable error messages."""
         monkeypatch.chdir(task_repo)
 
-        result = runner.invoke(
-            app, ["move-task", "WP99", "--to", "doing", "--feature", "001-test-feature"]
-        )
+        result = runner.invoke(app, ["move-task", "WP99", "--to", "doing", "--feature", "001-test-feature"])
 
         assert result.exit_code == 1
         assert "Error:" in result.stdout

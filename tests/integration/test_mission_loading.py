@@ -159,9 +159,12 @@ def kittify_dir(tmp_path, v0_mission_dir, v1_mission_dir) -> Path:
     # v1 mission at .kittify/missions/custom-v1/
     v1_dir = missions / "custom-v1"
     v1_dir.mkdir()
-    _write_yaml(v1_dir / "mission.yaml", _minimal_v1_config(
-        mission={"name": "Custom v1", "version": "1.0.0", "description": "Custom"},
-    ))
+    _write_yaml(
+        v1_dir / "mission.yaml",
+        _minimal_v1_config(
+            mission={"name": "Custom v1", "version": "1.0.0", "description": "Custom"},
+        ),
+    )
 
     return kittify
 

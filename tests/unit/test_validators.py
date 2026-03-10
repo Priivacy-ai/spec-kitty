@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict
 
 import pytest
 
@@ -159,7 +158,7 @@ def test_validation_result_format_report() -> None:
 class _MissionStub:
     """Minimal mission-like object for path validator tests."""
 
-    def __init__(self, name: str, paths: Dict[str, str]) -> None:
+    def __init__(self, name: str, paths: dict[str, str]) -> None:
         self.name = name
         self.config = SimpleNamespace(paths=paths)
 

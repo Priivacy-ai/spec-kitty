@@ -7,7 +7,6 @@ agent lifecycle implementations.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 import typer
 
@@ -24,7 +23,7 @@ def _slugify_feature_input(value: str) -> str:
 
 def specify(
     feature: str = typer.Argument(..., help="Feature name or slug (e.g., user-authentication)"),
-    mission: Optional[str] = typer.Option(None, "--mission", help="Mission type (e.g., software-dev, research)"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission type (e.g., software-dev, research)"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
@@ -33,7 +32,7 @@ def specify(
 
 
 def plan(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug (e.g., 001-user-authentication)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug (e.g., 001-user-authentication)"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""

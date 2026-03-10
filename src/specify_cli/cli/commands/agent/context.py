@@ -5,11 +5,9 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional, cast
-
 import typer
 from rich.console import Console
-from typing_extensions import Annotated
+from typing import Annotated, Optional, cast
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.agent_context import (
@@ -29,11 +27,7 @@ from specify_cli.core.execution_context import (
     resolve_action_context,
 )
 
-app = typer.Typer(
-    name="context",
-    help="Agent context management commands",
-    no_args_is_help=True
-)
+app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
 
 console = Console()
 
@@ -61,7 +55,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"  # Raise error if ambiguous
+            mode="strict",  # Raise error if ambiguous
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
@@ -133,22 +127,16 @@ def resolve_context(
 
 @app.command(name="update-context")
 def update_context(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     agent_type: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--agent-type",
             "-a",
-            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'."
-        )
+            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'.",
+        ),
     ] = "claude",
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Output results as JSON for agent parsing"
-        )
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
 ) -> None:
     """Update agent context file with tech stack from plan.md.
 
@@ -173,7 +161,11 @@ def update_context(
     try:
         # Locate repository root
         repo_root = locate_project_root()
+        if repo_root is None:
+            console.print("[red]Error:[/red] Not inside a spec-kitty project. Run 'spec-kitty init' first.")
+            sys.exit(1)
         cwd = Path.cwd()
+        resolved_agent_type = agent_type or "claude"
 
         # Find feature directory using centralized detection
         try:
@@ -193,11 +185,11 @@ def update_context(
                 print(json.dumps({"error": error_msg, "success": False}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(f"[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
+                console.print("[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
             sys.exit(1)
 
         # Verify agent file exists
-        agent_file_path = get_agent_file_path(agent_type, repo_root)
+        agent_file_path = get_agent_file_path(resolved_agent_type, repo_root)
         if not agent_file_path.exists():
             error_msg = f"Agent file not found: {agent_file_path}"
             if json_output:
@@ -215,7 +207,7 @@ def update_context(
 
         # Update agent context file
         update_context_file(
-            agent_type=agent_type,
+            agent_type=resolved_agent_type,
             tech_stack=tech_stack,
             feature_slug=feature_slug,
             repo_root=repo_root,
@@ -226,7 +218,7 @@ def update_context(
         if json_output:
             result = {
                 "success": True,
-                "agent_type": agent_type,
+                "agent_type": resolved_agent_type,
                 "agent_file": str(agent_file_path),
                 "feature": feature_slug,
                 "tech_stack": {k: v for k, v in tech_stack.items() if v},

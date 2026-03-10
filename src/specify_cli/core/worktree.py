@@ -10,12 +10,13 @@ repository or existing worktree/workspace.
 
 from __future__ import annotations
 
+import contextlib
 import platform
 import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
@@ -58,10 +59,8 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     # Read existing exclusions
     existing = set()
     if exclude_file.exists():
-        try:
+        with contextlib.suppress(OSError):
             existing = set(exclude_file.read_text().splitlines())
-        except OSError:
-            pass
 
     # Add new patterns if not already present
     new_patterns = [p for p in patterns if p not in existing]
@@ -126,11 +125,7 @@ def get_next_feature_number(repo_root: Path) -> int:
     return max_number + 1
 
 
-def create_feature_worktree(
-    repo_root: Path,
-    feature_slug: str,
-    feature_number: Optional[int] = None
-) -> Tuple[Path, Path]:
+def create_feature_worktree(repo_root: Path, feature_slug: str, feature_number: int | None = None) -> tuple[Path, Path]:
     """Create workspace (git worktree or jj workspace) for feature development.
 
     Creates a new workspace with a feature branch and sets up the
@@ -175,7 +170,7 @@ def create_feature_worktree(
         try:
             vcs = get_vcs(worktree_path)
             is_valid_workspace = vcs.is_repo(worktree_path)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # If VCS says no (or failed), fall back to simple git check
@@ -232,12 +227,10 @@ def create_feature_worktree(
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
         except subprocess.CalledProcessError as git_error:
-            raise RuntimeError(
-                f"Failed to create workspace: {git_error.stderr}"
-            ) from git_error
+            raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
 
     # Create feature directory structure
     feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
@@ -250,10 +243,7 @@ def create_feature_worktree(
 
 
 def setup_feature_directory(
-    feature_dir: Path,
-    worktree_path: Path,
-    repo_root: Path,
-    create_symlinks: bool = True
+    feature_dir: Path, worktree_path: Path, repo_root: Path, create_symlinks: bool = True
 ) -> None:
     """Setup standard feature directory structure.
 
@@ -288,7 +278,7 @@ def setup_feature_directory(
     (tasks_dir / ".gitkeep").touch()
 
     # Create tasks/README.md with frontmatter format reference
-    tasks_readme_content = '''# Tasks Directory
+    tasks_readme_content = """# Tasks Directory
 
 This directory contains work package (WP) prompt files with lane status in frontmatter.
 
@@ -302,7 +292,8 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`. The lane (planned, doing,
+for_review, done) is stored in the YAML frontmatter `lane:` field.
 
 ## Work Package File Format
 
@@ -358,8 +349,8 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
+"""
+    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
 
     # Create worktree .kittify directory if it doesn't exist
     worktree_kittify = worktree_path / KITTIFY_DIR
@@ -439,10 +430,7 @@ spec-kitty agent tasks move-task WP01 --to doing
             spec_file.touch()
 
 
-def validate_feature_structure(
-    feature_dir: Path,
-    check_tasks: bool = False
-) -> dict:
+def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> dict[str, Any]:
     """Validate feature directory structure and required files.
 
     Checks for:
@@ -469,8 +457,8 @@ def validate_feature_structure(
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
-    errors = []
-    warnings = []
+    errors: list[str] = []
+    warnings: list[str] = []
     paths: dict[str, str] = {}
     artifact_files: dict[str, str] = {}
     artifact_dirs: dict[str, str] = {}

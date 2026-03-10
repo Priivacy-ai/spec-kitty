@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from unittest.mock import patch
 
@@ -22,27 +22,31 @@ from specify_cli.status.doctor import (
 )
 
 
-def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, feature_slug: str = "034-test") -> None:
+def _create_events_file(
+    feature_dir: Path, wp_states: dict[str, str], timestamp: str, feature_slug: str = "034-test"
+) -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
     Prevents doctor from flagging 'status.json exists but events file missing'.
     """
     events = []
     for wp_id, lane in wp_states.items():
-        events.append(json.dumps({
-            "event_id": f"01EVT{wp_id}",
-            "feature_slug": feature_slug,
-            "wp_id": wp_id,
-            "from_lane": "planned",
-            "to_lane": lane,
-            "at": timestamp,
-            "actor": "agent",
-            "force": False,
-            "execution_mode": "worktree",
-        }))
-    (feature_dir / "status.events.jsonl").write_text(
-        "\n".join(events) + "\n", encoding="utf-8"
-    )
+        events.append(
+            json.dumps(
+                {
+                    "event_id": f"01EVT{wp_id}",
+                    "feature_slug": feature_slug,
+                    "wp_id": wp_id,
+                    "from_lane": "planned",
+                    "to_lane": lane,
+                    "at": timestamp,
+                    "actor": "agent",
+                    "force": False,
+                    "execution_mode": "worktree",
+                }
+            )
+        )
+    (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
 
 def _healthy_global_checks() -> list[DoctorCheck]:
@@ -246,9 +250,7 @@ class TestCheckStaleClaims:
 
     def test_stale_claimed_detected(self, tmp_path: Path):
         """WP in claimed for 10 days with threshold 7 -> finding."""
-        ten_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=10)
-        ).isoformat()
+        ten_days_ago = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -258,9 +260,7 @@ class TestCheckStaleClaims:
                 }
             }
         )
-        findings = check_stale_claims(
-            tmp_path, snapshot, claimed_threshold_days=7
-        )
+        findings = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=7)
         assert len(findings) == 1
         assert findings[0].category == Category.STALE_CLAIM
         assert findings[0].wp_id == "WP01"
@@ -270,9 +270,7 @@ class TestCheckStaleClaims:
 
     def test_stale_in_progress_detected(self, tmp_path: Path):
         """WP in in_progress for 20 days with threshold 14 -> finding."""
-        twenty_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=20)
-        ).isoformat()
+        twenty_days_ago = (datetime.now(UTC) - timedelta(days=20)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP02": {
@@ -282,9 +280,7 @@ class TestCheckStaleClaims:
                 }
             }
         )
-        findings = check_stale_claims(
-            tmp_path, snapshot, in_progress_threshold_days=14
-        )
+        findings = check_stale_claims(tmp_path, snapshot, in_progress_threshold_days=14)
         assert len(findings) == 1
         assert findings[0].wp_id == "WP02"
         assert "in_progress" in findings[0].message
@@ -292,9 +288,7 @@ class TestCheckStaleClaims:
 
     def test_no_stale_within_threshold(self, tmp_path: Path):
         """WP in claimed for 3 days with threshold 7 -> no finding."""
-        three_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=3)
-        ).isoformat()
+        three_days_ago = (datetime.now(UTC) - timedelta(days=3)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -304,16 +298,12 @@ class TestCheckStaleClaims:
                 }
             }
         )
-        findings = check_stale_claims(
-            tmp_path, snapshot, claimed_threshold_days=7
-        )
+        findings = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=7)
         assert len(findings) == 0
 
     def test_done_not_stale(self, tmp_path: Path):
         """WP in done for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=100)
-        ).isoformat()
+        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -328,9 +318,7 @@ class TestCheckStaleClaims:
 
     def test_canceled_not_stale(self, tmp_path: Path):
         """WP in canceled for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=100)
-        ).isoformat()
+        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -345,9 +333,7 @@ class TestCheckStaleClaims:
 
     def test_blocked_not_stale(self, tmp_path: Path):
         """WP in blocked for 30 days -> no finding (blocking is intentional)."""
-        thirty_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=30)
-        ).isoformat()
+        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -362,9 +348,7 @@ class TestCheckStaleClaims:
 
     def test_for_review_not_stale(self, tmp_path: Path):
         """WP in for_review for 30 days -> no finding."""
-        thirty_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=30)
-        ).isoformat()
+        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -379,9 +363,7 @@ class TestCheckStaleClaims:
 
     def test_custom_thresholds(self, tmp_path: Path):
         """Custom thresholds are respected."""
-        two_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=2)
-        ).isoformat()
+        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -396,9 +378,7 @@ class TestCheckStaleClaims:
         assert len(findings_default) == 0
 
         # With custom threshold (1 day), finding
-        findings_custom = check_stale_claims(
-            tmp_path, snapshot, claimed_threshold_days=1
-        )
+        findings_custom = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=1)
         assert len(findings_custom) == 1
 
     def test_missing_last_transition_at(self, tmp_path: Path):
@@ -436,7 +416,7 @@ class TestCheckStaleClaims:
 
     def test_multiple_stale_wps(self, tmp_path: Path):
         """Multiple stale WPs produce multiple findings."""
-        old = (datetime.now(timezone.utc) - timedelta(days=15)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=15)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -468,7 +448,7 @@ class TestCheckStaleClaims:
 
     def test_actor_unknown_when_missing(self, tmp_path: Path):
         """Actor defaults to 'unknown' in message when not in snapshot."""
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -477,9 +457,7 @@ class TestCheckStaleClaims:
                 }
             }
         )
-        findings = check_stale_claims(
-            tmp_path, snapshot, claimed_threshold_days=7
-        )
+        findings = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=7)
         assert len(findings) == 1
         assert "unknown" in findings[0].message
 
@@ -505,13 +483,9 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 2
-        assert all(
-            f.category == Category.ORPHAN_WORKSPACE for f in findings
-        )
+        assert all(f.category == Category.ORPHAN_WORKSPACE for f in findings)
 
     def test_no_orphan_active_wps(self, tmp_path: Path):
         """Worktree exists, but WP01 is still in_progress -> no finding."""
@@ -525,9 +499,7 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
     def test_all_done_no_worktrees(self, tmp_path: Path):
@@ -537,9 +509,7 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
     def test_no_worktrees_directory(self, tmp_path: Path):
@@ -549,9 +519,7 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
     def test_mixed_terminal_states(self, tmp_path: Path):
@@ -566,17 +534,13 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "canceled"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 1
 
     def test_empty_work_packages(self, tmp_path: Path):
         """Empty work_packages -> no findings."""
         snapshot = {"work_packages": {}}
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
     def test_worktree_file_not_dir_ignored(self, tmp_path: Path):
@@ -591,9 +555,7 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
     def test_unrelated_worktrees_not_flagged(self, tmp_path: Path):
@@ -607,9 +569,7 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(
-            tmp_path, "034-test-feature", snapshot
-        )
+        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
         assert len(findings) == 0
 
 
@@ -625,9 +585,7 @@ class TestCheckDrift:
         """When validation engine is not available -> empty findings, no crash."""
         # The default state is that specify_cli.status.validate doesn't exist.
         # We patch the import to raise ImportError.
-        with patch.dict(
-            "sys.modules", {"specify_cli.status.validate": None}
-        ):
+        with patch.dict("sys.modules", {"specify_cli.status.validate": None}):
             findings = check_drift(tmp_path)
         assert findings == []
 
@@ -674,9 +632,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (
-            datetime.now(timezone.utc) - timedelta(hours=1)
-        ).isoformat()
+        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": recent,
@@ -693,17 +649,37 @@ class TestRunDoctor:
             },
             "summary": {"in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         # Doctor checks for events file existence alongside status.json
         events = [
-            json.dumps({"event_id": "01AAA", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "at": recent, "actor": "agent", "force": False, "execution_mode": "worktree"}),
-            json.dumps({"event_id": "01ABC", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "claimed", "to_lane": "in_progress", "at": recent, "actor": "agent", "force": False, "execution_mode": "worktree"}),
+            json.dumps(
+                {
+                    "event_id": "01AAA",
+                    "feature_slug": "034-test",
+                    "wp_id": "WP01",
+                    "from_lane": "planned",
+                    "to_lane": "claimed",
+                    "at": recent,
+                    "actor": "agent",
+                    "force": False,
+                    "execution_mode": "worktree",
+                }
+            ),
+            json.dumps(
+                {
+                    "event_id": "01ABC",
+                    "feature_slug": "034-test",
+                    "wp_id": "WP01",
+                    "from_lane": "claimed",
+                    "to_lane": "in_progress",
+                    "at": recent,
+                    "actor": "agent",
+                    "force": False,
+                    "execution_mode": "worktree",
+                }
+            ),
         ]
-        (feature_dir / "status.events.jsonl").write_text(
-            "\n".join(events) + "\n", encoding="utf-8"
-        )
+        (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -717,7 +693,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": old,
@@ -734,16 +710,24 @@ class TestRunDoctor:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         # Create events file so doctor doesn't flag missing events
         events = [
-            json.dumps({"event_id": "01ABC", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "at": old, "actor": "agent", "force": False, "execution_mode": "worktree"}),
+            json.dumps(
+                {
+                    "event_id": "01ABC",
+                    "feature_slug": "034-test",
+                    "wp_id": "WP01",
+                    "from_lane": "planned",
+                    "to_lane": "claimed",
+                    "at": old,
+                    "actor": "agent",
+                    "force": False,
+                    "execution_mode": "worktree",
+                }
+            ),
         ]
-        (feature_dir / "status.events.jsonl").write_text(
-            "\n".join(events) + "\n", encoding="utf-8"
-        )
+        (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -781,9 +765,7 @@ class TestRunDoctor:
             },
             "summary": {"done": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "done"}, "2026-01-01T00:00:00Z")
 
         result = run_doctor(
@@ -803,7 +785,7 @@ class TestRunDoctor:
         worktrees_dir.mkdir()
         (worktrees_dir / "034-other-WP01").mkdir()
 
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": old,
@@ -827,9 +809,7 @@ class TestRunDoctor:
             },
             "summary": {"claimed": 1, "in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "claimed", "WP02": "in_progress"}, old)
 
         result = run_doctor(
@@ -848,9 +828,7 @@ class TestRunDoctor:
         """Corrupted status.json with no event log -> healthy (nothing to check)."""
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
-        (feature_dir / "status.json").write_text(
-            "not valid json", encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text("not valid json", encoding="utf-8")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -865,7 +843,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         event = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
             "feature_slug": "034-test",
@@ -878,9 +856,7 @@ class TestRunDoctor:
             "execution_mode": "worktree",
         }
         events_file = feature_dir / "status.events.jsonl"
-        events_file.write_text(
-            json.dumps(event) + "\n", encoding="utf-8"
-        )
+        events_file.write_text(json.dumps(event) + "\n", encoding="utf-8")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -914,9 +890,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (
-            datetime.now(timezone.utc) - timedelta(hours=1)
-        ).isoformat()
+        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": recent,
@@ -933,17 +907,18 @@ class TestDoctorCLI:
             },
             "summary": {"in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "in_progress"}, recent)
 
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result = runner.invoke(app, ["doctor", "--json"])
 
@@ -967,12 +942,15 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result = runner.invoke(app, ["doctor"])
 
@@ -990,7 +968,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": old,
@@ -1007,17 +985,18 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result = runner.invoke(app, ["doctor"])
 
@@ -1035,7 +1014,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": old,
@@ -1052,17 +1031,18 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result = runner.invoke(app, ["doctor", "--json"])
 
@@ -1088,12 +1068,15 @@ class TestDoctorCLI:
 
         nonexistent = tmp_path / "kitty-specs" / "999-missing"
 
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(nonexistent, "999-missing", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(nonexistent, "999-missing", tmp_path),
+            ),
         ):
             result = runner.invoke(app, ["doctor"])
 
@@ -1112,9 +1095,7 @@ class TestDoctorCLI:
         feature_dir.mkdir(parents=True)
 
         # 2 days ago - below default 7-day threshold but above custom 1-day
-        two_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=2)
-        ).isoformat()
+        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
         status_data = {
             "feature_slug": "034-test",
             "materialized_at": two_days_ago,
@@ -1131,29 +1112,33 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(
-            json.dumps(status_data), encoding="utf-8"
-        )
+        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         _create_events_file(feature_dir, {"WP01": "claimed"}, two_days_ago)
 
         # Default threshold: healthy
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result_default = runner.invoke(app, ["doctor", "--json"])
         assert result_default.exit_code == 0
 
         # Custom threshold: finding
-        with patch(
-            "specify_cli.runtime.doctor.run_global_checks",
-            return_value=_healthy_global_checks(),
-        ), patch(
-            "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-            return_value=(feature_dir, "034-test", tmp_path),
+        with (
+            patch(
+                "specify_cli.runtime.doctor.run_global_checks",
+                return_value=_healthy_global_checks(),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                return_value=(feature_dir, "034-test", tmp_path),
+            ),
         ):
             result_custom = runner.invoke(
                 app,

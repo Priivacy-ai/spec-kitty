@@ -15,13 +15,12 @@ import pytest
 from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 from specify_cli.status.migrate import (
-    FeatureMigrationResult,
     migrate_feature,
 )
 from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
 from specify_cli.status.reducer import materialize, SNAPSHOT_FILENAME
-from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.emit import emit_status_transition
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -158,7 +157,10 @@ class TestLegacyFeatureFullMigrationPipeline:
         tasks_dir.mkdir(parents=True)
 
         _create_wp_file(
-            tasks_dir, "WP01", "done", history=[
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
                 {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
                 {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "agent-a"},
                 {"timestamp": "2026-01-01T12:00:00Z", "lane": "for_review", "agent": "agent-a"},
@@ -199,9 +201,7 @@ class TestMigrationThenTransition:
         repo_root = tmp_path
 
         # Set up phase 1
-        (feature_dir / "meta.json").write_text(
-            json.dumps({"status_phase": 1}), encoding="utf-8"
-        )
+        (feature_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
 
         # Migrate
         result = migrate_feature(feature_dir)
@@ -245,9 +245,7 @@ class TestMigrationAliasEndToEnd:
         assert result.status == "migrated"
 
         # Check wp_details for alias resolution
-        wp01_detail = next(
-            (d for d in result.wp_details if d.wp_id == "WP01"), None
-        )
+        wp01_detail = next((d for d in result.wp_details if d.wp_id == "WP01"), None)
         assert wp01_detail is not None
         assert wp01_detail.original_lane == "doing"
         assert wp01_detail.canonical_lane == "in_progress"

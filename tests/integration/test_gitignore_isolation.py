@@ -100,9 +100,7 @@ dependencies: []
         text=True,
         check=True,
     )
-    assert git_status.stdout.strip() == "", (
-        ".gitignore should not be modified (no git status changes)"
-    )
+    assert git_status.stdout.strip() == "", ".gitignore should not be modified (no git status changes)"
 
     # CRITICAL TEST: Verify .gitignore in WORKTREE was not created/modified either
     worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
@@ -247,15 +245,11 @@ dependencies: []
     )
 
     # Only the initial commit should mention .gitignore
-    gitignore_commits = [
-        line for line in git_log.stdout.split("\n")
-        if line.strip()
-    ]
+    gitignore_commits = [line for line in git_log.stdout.split("\n") if line.strip()]
 
     # Should only be 1 commit (initial commit)
     assert len(gitignore_commits) <= 1, (
-        f".gitignore should not appear in merge commits. "
-        f"Found commits: {gitignore_commits}"
+        f".gitignore should not appear in merge commits. Found commits: {gitignore_commits}"
     )
 
 
@@ -339,19 +333,15 @@ dependencies: []
     git_dir = Path(git_dir_str)
     exclude_path = git_dir / "info" / "exclude"
 
-    assert exclude_path.exists(), (
-        f".git/info/exclude should exist at {exclude_path}"
-    )
+    assert exclude_path.exists(), f".git/info/exclude should exist at {exclude_path}"
 
     # Verify it contains the exclusion pattern for the full planning tree
     exclude_content = exclude_path.read_text()
     assert "kitty-specs/" in exclude_content, (
-        ".git/info/exclude should contain 'kitty-specs/' pattern. "
-        f"Content:\n{exclude_content}"
+        f".git/info/exclude should contain 'kitty-specs/' pattern. Content:\n{exclude_content}"
     )
 
     # Verify comment is included
     assert "Excluded via sparse-checkout" in exclude_content, (
-        ".git/info/exclude should contain explanatory comment. "
-        f"Content:\n{exclude_content}"
+        f".git/info/exclude should contain explanatory comment. Content:\n{exclude_content}"
     )
