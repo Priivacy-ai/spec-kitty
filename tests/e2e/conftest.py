@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 import yaml
@@ -106,22 +106,28 @@ def e2e_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "e2e@example.com"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "E2E Test"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial project"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
 
     # Align metadata version with source to avoid version mismatch errors
     metadata_file = project / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         current_version = get_installed_version()
@@ -141,7 +147,9 @@ def e2e_project(tmp_path: Path) -> Path:
         subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "Align metadata version", "--allow-empty"],
-            cwd=project, check=True, capture_output=True,
+            cwd=project,
+            check=True,
+            capture_output=True,
         )
 
     # Create a minimal source directory for realism
@@ -151,7 +159,9 @@ def e2e_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Add source skeleton"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
 
     return project

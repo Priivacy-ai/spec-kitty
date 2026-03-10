@@ -1,12 +1,13 @@
 import hashlib
 import json
 import sqlite3
+import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
-import toml
+import toml  # type: ignore[import-untyped]
 
 
 class _BatchEventResultLike(Protocol):
@@ -26,7 +27,7 @@ class QueueStats:
 
     total_queued: int = 0
     total_retried: int = 0
-    oldest_event_age: Optional[timedelta] = None
+    oldest_event_age: timedelta | None = None
     retry_distribution: dict[str, int] = field(default_factory=dict)
     top_event_types: list[tuple[str, int]] = field(default_factory=list)
 
@@ -64,7 +65,7 @@ def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
     return f"{server}|{user}|{team}"
 
 
-def read_queue_scope_from_credentials(credentials_path: Optional[Path] = None) -> Optional[str]:
+def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
     """Read queue scope from credentials file.
 
     Returns None when credentials are missing, invalid, or incomplete.
@@ -98,7 +99,7 @@ def scope_db_path(scope: str) -> Path:
     return _scoped_queue_dir() / f"queue-{digest}.db"
 
 
-def default_queue_db_path(credentials_path: Optional[Path] = None) -> Path:
+def default_queue_db_path(credentials_path: Path | None = None) -> Path:
     """Resolve default queue DB path.
 
     Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
@@ -110,7 +111,7 @@ def default_queue_db_path(credentials_path: Optional[Path] = None) -> Path:
     return _legacy_queue_db_path()
 
 
-def read_active_scope(path: Optional[Path] = None) -> Optional[str]:
+def read_active_scope(path: Path | None = None) -> str | None:
     """Read previously active queue scope marker."""
     marker = path or _active_scope_path()
     if not marker.exists():
@@ -122,7 +123,7 @@ def read_active_scope(path: Optional[Path] = None) -> Optional[str]:
     return value or None
 
 
-def write_active_scope(scope: str, path: Optional[Path] = None) -> None:
+def write_active_scope(scope: str, path: Path | None = None) -> None:
     """Persist active queue scope marker."""
     marker = path or _active_scope_path()
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -183,7 +184,7 @@ class OfflineQueue:
 
     MAX_QUEUE_SIZE = 10000
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Path | None = None) -> None:
         """
         Initialize offline queue.
 
@@ -203,7 +204,7 @@ class OfflineQueue:
         """Initialize database schema with indexes"""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute('''
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS queue (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     event_id TEXT UNIQUE NOT NULL,
@@ -212,9 +213,9 @@ class OfflineQueue:
                     timestamp INTEGER NOT NULL,
                     retry_count INTEGER DEFAULT 0
                 )
-            ''')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)')
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
             conn.commit()
             ensure_body_queue_schema(conn)
         finally:
@@ -231,19 +232,22 @@ class OfflineQueue:
             True if queued successfully, False if queue is full
         """
         if self.size() >= self.MAX_QUEUE_SIZE:
-            print(f"⚠️  Offline queue full ({self.MAX_QUEUE_SIZE:,} events). Cannot sync until reconnected.")
+            print(
+                f"⚠️  Offline queue full ({self.MAX_QUEUE_SIZE:,} events). Cannot sync until reconnected.",
+                file=sys.stderr,
+            )
             return False
 
         conn = sqlite3.connect(self.db_path)
         try:
             conn.execute(
-                'INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)',
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
                 (
                     str(event["event_id"]),
                     str(event["event_type"]),
                     json.dumps(event),
                     int(datetime.now().timestamp()),
-                )
+                ),
             )
             conn.commit()
             return True
@@ -269,10 +273,7 @@ class OfflineQueue:
         try:
             # Order by timestamp first, then by id for deterministic FIFO ordering
             # when multiple events are queued within the same second
-            cursor = conn.execute(
-                'SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?',
-                (limit,)
-            )
+            cursor = conn.execute("SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?", (limit,))
             events: list[dict[str, Any]] = []
             for row in cursor:
                 _, data = row
@@ -293,8 +294,8 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            placeholders = ','.join('?' * len(event_ids))
-            conn.execute(f'DELETE FROM queue WHERE event_id IN ({placeholders})', event_ids)
+            placeholders = ",".join("?" * len(event_ids))
+            conn.execute(f"DELETE FROM queue WHERE event_id IN ({placeholders})", event_ids)  # noqa: S608
             conn.commit()
         finally:
             conn.close()
@@ -311,10 +312,9 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            placeholders = ','.join('?' * len(event_ids))
+            placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f'UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})',
-                event_ids
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})", event_ids  # noqa: S608
             )
             conn.commit()
         finally:
@@ -341,7 +341,7 @@ class OfflineQueue:
         """Remove all events from queue"""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute('DELETE FROM queue')
+            conn.execute("DELETE FROM queue")
             conn.commit()
         finally:
             conn.close()
@@ -370,13 +370,13 @@ class OfflineQueue:
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608
                     synced_or_duplicate,
                 )
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608
                     rejected,
                 )
             conn.commit()
@@ -399,8 +399,7 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.execute(
-                'SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC',
-                (max_retries,)
+                "SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC", (max_retries,)
             )
             events: list[dict[str, Any]] = []
             for row in cursor:
@@ -431,22 +430,20 @@ class OfflineQueue:
                 return QueueStats()
 
             # Total retried (retry_count > 0)
-            total_retried_row = conn.execute(
-                "SELECT COUNT(*) FROM queue WHERE retry_count > 0"
-            ).fetchone()
+            total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()
             total_retried = int(total_retried_row[0]) if total_retried_row is not None else 0
 
             # Oldest event age
             oldest_ts_row = conn.execute("SELECT MIN(timestamp) FROM queue").fetchone()
             oldest_ts = oldest_ts_row[0] if oldest_ts_row is not None else None
-            oldest_event_age: Optional[timedelta] = None
+            oldest_event_age: timedelta | None = None
             if oldest_ts is not None:
-                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=timezone.utc)
-                now_dt = datetime.now(tz=timezone.utc)
+                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=UTC)
+                now_dt = datetime.now(tz=UTC)
                 oldest_event_age = now_dt - oldest_dt
 
             # Retry distribution buckets
-            cursor = conn.execute('''
+            cursor = conn.execute("""
                 SELECT
                     CASE
                         WHEN retry_count = 0 THEN '0 retries'
@@ -456,19 +453,19 @@ class OfflineQueue:
                     COUNT(*) as count
                 FROM queue
                 GROUP BY bucket
-            ''')
+            """)
             retry_distribution: dict[str, int] = {}
             for bucket, count in cursor:
                 retry_distribution[str(bucket)] = int(count)
 
             # Top 5 event types by count
-            cursor = conn.execute('''
+            cursor = conn.execute("""
                 SELECT event_type, COUNT(*) as count
                 FROM queue
                 GROUP BY event_type
                 ORDER BY count DESC
                 LIMIT 5
-            ''')
+            """)
             top_event_types: list[tuple[str, int]] = []
             for event_type, count in cursor:
                 top_event_types.append((str(event_type), int(count)))

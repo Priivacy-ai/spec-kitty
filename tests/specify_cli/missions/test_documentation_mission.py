@@ -1,14 +1,8 @@
 """Tests for documentation mission configuration."""
 
-import pytest
 from pathlib import Path
 
-from specify_cli.mission import (
-    Mission,
-    MissionError,
-    get_mission_by_name,
-    list_available_missions
-)
+from specify_cli.mission import Mission
 
 
 # Get source missions directory for testing
@@ -59,14 +53,7 @@ def test_documentation_mission_workflow_phases():
 
     # Check phase names in order
     phase_names = [p["name"] for p in phases]
-    assert phase_names == [
-        "discover",
-        "audit",
-        "design",
-        "generate",
-        "validate",
-        "publish"
-    ]
+    assert phase_names == ["discover", "audit", "design", "generate", "validate", "publish"]
 
 
 def test_documentation_mission_phase_descriptions():

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -87,10 +86,10 @@ class FixMemoryStructureMigration(BaseMigration):
 
         return True, "Ready to apply"
 
-    def apply(self, project_path: Path, *, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Move memory/ and fix broken symlinks."""
-        warnings: List[str] = []
-        changes_made: List[str] = []
+        warnings: list[str] = []
+        changes_made: list[str] = []
 
         root_memory = project_path / "memory"
         kittify_dir = project_path / ".kittify"
@@ -99,14 +98,13 @@ class FixMemoryStructureMigration(BaseMigration):
         templates_agents = kittify_dir / "templates" / "AGENTS.md"
 
         # Step 1: Fix .kittify/memory
-        if kittify_memory.exists():
-            if kittify_memory.is_symlink():
-                # Remove broken symlink
-                if dry_run:
-                    changes_made.append(f"Would remove broken symlink: {kittify_memory}")
-                else:
-                    kittify_memory.unlink()
-                    changes_made.append(f"Removed broken symlink: {kittify_memory}")
+        if kittify_memory.exists() and kittify_memory.is_symlink():
+            # Remove broken symlink
+            if dry_run:
+                changes_made.append(f"Would remove broken symlink: {kittify_memory}")
+            else:
+                kittify_memory.unlink()
+                changes_made.append(f"Removed broken symlink: {kittify_memory}")
 
         # Step 2: Move or copy root memory/ to .kittify/memory/
         if root_memory.exists() and root_memory.is_dir():
@@ -129,7 +127,7 @@ class FixMemoryStructureMigration(BaseMigration):
                                 success=False,
                                 changes_made=changes_made,
                                 warnings=warnings,
-                                errors=[f"Failed to move or copy memory/: {copy_error}"]
+                                errors=[f"Failed to move or copy memory/: {copy_error}"],
                             )
             else:
                 warnings.append(f"{kittify_memory} already exists, skipping root memory/ migration")
@@ -225,9 +223,8 @@ class FixMemoryStructureMigration(BaseMigration):
                 if wt_agents.is_symlink():
                     try:
                         resolved = wt_agents.resolve()
-                        if not resolved.exists() or resolved == wt_agents:
-                            if not dry_run:
-                                wt_agents.unlink()
+                        if (not resolved.exists() or resolved == wt_agents) and not dry_run:
+                            wt_agents.unlink()
                     except (OSError, RuntimeError):
                         if not dry_run:
                             wt_agents.unlink()
@@ -244,9 +241,4 @@ class FixMemoryStructureMigration(BaseMigration):
                             shutil.copy2(kittify_agents, wt_agents)
                             changes_made.append(f"Copied to worktree (symlink failed): {wt_agents}")
 
-        return MigrationResult(
-            success=True,
-            changes_made=changes_made,
-            warnings=warnings,
-            errors=[]
-        )
+        return MigrationResult(success=True, changes_made=changes_made, warnings=warnings, errors=[])

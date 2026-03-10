@@ -22,9 +22,9 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from specify_cli.glossary.scope import GlossaryScope
 from specify_cli.glossary.strictness import Strictness
@@ -65,9 +65,7 @@ class StepCheckpoint:
     def __post_init__(self) -> None:
         """Validate checkpoint fields."""
         # Validate hash format (64 hex chars for SHA256)
-        if len(self.input_hash) != 64 or not all(
-            c in "0123456789abcdef" for c in self.input_hash
-        ):
+        if len(self.input_hash) != 64 or not all(c in "0123456789abcdef" for c in self.input_hash):
             raise ValueError(f"Invalid input_hash format: {self.input_hash}")
 
         # Validate retry token is UUID format (36 chars with hyphens)
@@ -127,7 +125,7 @@ def create_checkpoint(
         input_hash=compute_input_hash(inputs),
         cursor=cursor,
         retry_token=str(uuid.uuid4()),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -141,7 +139,7 @@ def load_checkpoint(
     step_id: str,
     mission_id: str | None = None,
     retry_token: str | None = None,
-) -> Optional[StepCheckpoint]:
+) -> StepCheckpoint | None:
     """Load latest checkpoint for step_id from event log.
 
     Reads StepCheckpointed events from event log and returns the most recent
@@ -164,7 +162,7 @@ def load_checkpoint(
         logger.info("No glossary events directory for step=%s", step_id)
         return None
 
-    latest: Optional[StepCheckpoint] = None
+    latest: StepCheckpoint | None = None
 
     # Scan all mission event logs in the glossary events directory
     for event_log_path in events_dir.glob("*.events.jsonl"):
@@ -179,9 +177,7 @@ def load_checkpoint(
             try:
                 checkpoint = parse_checkpoint_event(event_payload)
             except ValueError as exc:
-                logger.warning(
-                    "Invalid checkpoint event in %s: %s", event_log_path.name, exc
-                )
+                logger.warning("Invalid checkpoint event in %s: %s", event_log_path.name, exc)
                 continue
 
             if latest is None or checkpoint.timestamp > latest.timestamp:
@@ -255,10 +251,7 @@ def checkpoint_to_dict(checkpoint: StepCheckpoint) -> dict[str, Any]:
         "run_id": checkpoint.run_id,
         "step_id": checkpoint.step_id,
         "strictness": checkpoint.strictness.value,
-        "scope_refs": [
-            {"scope": ref.scope.value, "version_id": ref.version_id}
-            for ref in checkpoint.scope_refs
-        ],
+        "scope_refs": [{"scope": ref.scope.value, "version_id": ref.version_id} for ref in checkpoint.scope_refs],
         "input_hash": checkpoint.input_hash,
         "cursor": checkpoint.cursor,
         "retry_token": checkpoint.retry_token,

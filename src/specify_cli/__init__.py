@@ -31,9 +31,9 @@ if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
     __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
 else:
     from specify_cli.version_utils import get_version
+
     __version__ = get_version()
 
-from specify_cli.mission import MissionNotFoundError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import (
     BannerGroup,
@@ -44,6 +44,7 @@ from specify_cli.cli.helpers import (
 from specify_cli.cli.commands import register_commands
 from specify_cli.cli.commands.init import register_init_command
 from specify_cli.core.project_resolver import locate_project_root
+
 
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
@@ -84,10 +85,13 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
+
 @app.callback()
 def main_callback(
     ctx: typer.Context,
-    version: bool = typer.Option(None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit")
+    version: bool = typer.Option(  # noqa: ARG001
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
+    ),
 ) -> None:
     """Main callback for root CLI setup."""
     root_callback(ctx)
@@ -104,38 +108,39 @@ def main_callback(
         check_version_pin(project_root)
 
 
-def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
-    if os.name == "nt":
-        return  # Windows: skip silently
-    scripts_root = project_path / ".kittify" / "scripts"
-    if not scripts_root.is_dir():
-        return
-    failures: list[str] = []
-    updated = 0
-    for script in scripts_root.rglob("*.sh"):
+def _compute_execute_mode(mode: int) -> int:
+    new_mode = mode
+    if mode & 0o400:
+        new_mode |= 0o100
+    if mode & 0o040:
+        new_mode |= 0o010
+    if mode & 0o004:
+        new_mode |= 0o001
+    if not (new_mode & 0o100):
+        new_mode |= 0o100
+    return new_mode
+
+
+def _try_chmod_script(script: Path, scripts_root: Path) -> tuple[bool, str | None]:
+    try:
+        if script.is_symlink() or not script.is_file():
+            return False, None
         try:
-            if script.is_symlink() or not script.is_file():
-                continue
-            try:
-                with script.open("rb") as f:
-                    if f.read(2) != b"#!":
-                        continue
-            except Exception:
-                continue
-            st = script.stat(); mode = st.st_mode
-            if mode & 0o111:
-                continue
-            new_mode = mode
-            if mode & 0o400: new_mode |= 0o100
-            if mode & 0o040: new_mode |= 0o010
-            if mode & 0o004: new_mode |= 0o001
-            if not (new_mode & 0o100):
-                new_mode |= 0o100
-            os.chmod(script, new_mode)
-            updated += 1
-        except Exception as e:
-            failures.append(f"{script.relative_to(scripts_root)}: {e}")
+            with script.open("rb") as f:
+                if f.read(2) != b"#!":
+                    return False, None
+        except Exception:
+            return False, None
+        mode = script.stat().st_mode
+        if mode & 0o111:
+            return False, None
+        os.chmod(script, _compute_execute_mode(mode))
+        return True, None
+    except Exception as e:
+        return False, f"{script.relative_to(scripts_root)}: {e}"
+
+
+def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: list[str]) -> None:
     if tracker:
         detail = f"{updated} updated" + (f", {len(failures)} failed" if failures else "")
         tracker.add("chmod", "Set script permissions recursively")
@@ -149,6 +154,24 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
                 console.print(f"  - {f}")
 
 
+def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
+    """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
+    if os.name == "nt":
+        return  # Windows: skip silently
+    scripts_root = project_path / ".kittify" / "scripts"
+    if not scripts_root.is_dir():
+        return
+    failures: list[str] = []
+    updated = 0
+    for script in scripts_root.rglob("*.sh"):
+        was_updated, error = _try_chmod_script(script, scripts_root)
+        if was_updated:
+            updated += 1
+        if error:
+            failures.append(error)
+    _report_chmod_results(tracker, updated, failures)
+
+
 # Register the init command with necessary dependencies
 register_init_command(
     app,
@@ -160,25 +183,29 @@ register_init_command(
 
 register_commands(app)
 
-def main():
+
+def main() -> None:
     import sys
+
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         try:
-            sys.stdout.reconfigure(encoding='utf-8')
-            sys.stderr.reconfigure(encoding='utf-8')
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
         except (AttributeError, OSError):
             # Python < 3.7 or reconfigure not available
             pass
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
+
     if not EventAdapter.check_library_available():
         console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
     app()
+
 
 __all__ = ["main", "app", "__version__"]
 

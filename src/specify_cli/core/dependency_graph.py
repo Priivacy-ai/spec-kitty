@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter
 
@@ -67,15 +66,10 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
         >>> graph = build_dependency_graph(feature_dir)
         >>> print(graph)  # {"WP01": [], "WP02": ["WP01"]}
     """
-    graph = {}
+    graph: dict[str, list[str]] = {}
 
     # Support both feature_dir and tasks_dir as input
-    if feature_dir.name == "tasks":
-        # Already pointing to tasks directory
-        tasks_dir = feature_dir
-    else:
-        # Pointing to feature directory, append tasks/
-        tasks_dir = feature_dir / "tasks"
+    tasks_dir = feature_dir if feature_dir.name == "tasks" else feature_dir / "tasks"
 
     if not tasks_dir.exists():
         return graph
@@ -95,8 +89,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
             # Verify filename matches frontmatter (catch misnamed files)
             if frontmatter_wp_id and frontmatter_wp_id != filename_wp_id:
                 raise ValueError(
-                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} "
-                    f"in {wp_file}"
+                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} in {wp_file}"
                 )
 
             wp_id = frontmatter_wp_id or filename_wp_id
@@ -112,7 +105,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
     return graph
 
 
-def extract_wp_id_from_filename(filename: str) -> Optional[str]:
+def extract_wp_id_from_filename(filename: str) -> str | None:
     """Extract WP ID from filename.
 
     Args:
@@ -156,7 +149,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
         >>> print(cycles)  # None (acyclic)
     """
     WHITE, GRAY, BLACK = 0, 1, 2
-    color = {wp: WHITE for wp in graph}
+    color = dict.fromkeys(graph, WHITE)
     cycles = []
 
     def dfs(node: str, path: list[str]) -> None:
@@ -186,11 +179,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
     return cycles if cycles else None
 
 
-def validate_dependencies(
-    wp_id: str,
-    declared_deps: list[str],
-    graph: dict[str, list[str]]
-) -> tuple[bool, list[str]]:
+def validate_dependencies(wp_id: str, declared_deps: list[str], graph: dict[str, list[str]]) -> tuple[bool, list[str]]:
     """Validate that WP's dependencies are valid.
 
     Checks:
@@ -277,7 +266,7 @@ def topological_sort(graph: dict[str, list[str]]) -> list[str]:
         ['WP01', 'WP02', 'WP03']
     """
     # Build in-degree map and reverse adjacency
-    in_degree: dict[str, int] = {node: 0 for node in graph}
+    in_degree: dict[str, int] = dict.fromkeys(graph, 0)
     reverse_adj: dict[str, list[str]] = {node: [] for node in graph}
 
     for node, deps in graph.items():

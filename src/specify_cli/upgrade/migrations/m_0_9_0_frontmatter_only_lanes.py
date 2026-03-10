@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -31,19 +30,21 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
     description = "Flatten task lanes to frontmatter-only (no more directory-based lanes)"
     target_version = "0.9.0"
 
-    LANE_DIRS: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+    LANE_DIRS: tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
     # System files to ignore when determining if a directory is empty
     # These files are created automatically by operating systems and should not
     # prevent lane directory cleanup
-    IGNORE_FILES = frozenset({
-        ".gitkeep",      # Git placeholder
-        ".DS_Store",     # macOS Finder metadata
-        "Thumbs.db",     # Windows thumbnail cache
-        "desktop.ini",   # Windows folder settings
-        ".directory",    # KDE folder settings
-        "._*",           # macOS resource fork prefix (pattern)
-    })
+    IGNORE_FILES = frozenset(
+        {
+            ".gitkeep",  # Git placeholder
+            ".DS_Store",  # macOS Finder metadata
+            "Thumbs.db",  # Windows thumbnail cache
+            "desktop.ini",  # Windows folder settings
+            ".directory",  # KDE folder settings
+            "._*",  # macOS resource fork prefix (pattern)
+        }
+    )
 
     @classmethod
     def _should_ignore_file(cls, filename: str) -> bool:
@@ -61,13 +62,10 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
 
         # Check pattern matches (e.g., ._* for macOS resource forks)
         # Check for macOS resource fork files (._filename)
-        if filename.startswith("._"):
-            return True
-
-        return False
+        return bool(filename.startswith("._"))
 
     @classmethod
-    def _get_real_contents(cls, directory: Path) -> List[Path]:
+    def _get_real_contents(cls, directory: Path) -> list[Path]:
         """Get directory contents, excluding system files.
 
         Args:
@@ -79,11 +77,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         if not directory.exists() or not directory.is_dir():
             return []
 
-        return [
-            item
-            for item in directory.iterdir()
-            if not cls._should_ignore_file(item.name)
-        ]
+        return [item for item in directory.iterdir() if not cls._should_ignore_file(item.name)]
 
     def detect(self, project_path: Path) -> bool:
         """Check if any feature uses legacy directory-based lanes."""
@@ -121,24 +115,20 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                 # Directory exists - this is legacy format
                 # Check if it has any real content (ignoring system files)
                 real_contents = self._get_real_contents(lane_path)
-                if real_contents:
-                    return True
-                # Even if only system files, still need migration to remove the directory
-                # (The directory itself shouldn't exist in new format)
-                elif any(lane_path.iterdir()):
+                if real_contents or any(lane_path.iterdir()):
                     return True
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Migration can always be applied if legacy format is detected."""
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Migrate all features from directory-based to frontmatter-only lanes."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         features_found = self._find_features_to_migrate(project_path)
 
@@ -155,8 +145,8 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         total_skipped = 0
 
         for feature_dir, location_label in features_found:
-            feature_changes, feature_warnings, feature_errors, migrated, skipped = (
-                self._migrate_feature(feature_dir, location_label, dry_run)
+            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(
+                feature_dir, location_label, dry_run
             )
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
@@ -180,9 +170,9 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _find_features_to_migrate(self, project_path: Path) -> List[Tuple[Path, str]]:
+    def _find_features_to_migrate(self, project_path: Path) -> list[tuple[Path, str]]:
         """Find all features with legacy format in main repo and worktrees."""
-        features: List[Tuple[Path, str]] = []
+        features: list[tuple[Path, str]] = []
 
         # Scan main kitty-specs/
         main_specs = project_path / "kitty-specs"
@@ -204,16 +194,16 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
 
         return features
 
-    def _migrate_feature(
+    def _migrate_feature(  # noqa: C901
         self,
         feature_dir: Path,
         location_label: str,
         dry_run: bool,
-    ) -> Tuple[List[str], List[str], List[str], int, int]:
+    ) -> tuple[list[str], list[str], list[str], int, int]:
         """Migrate a single feature from directory-based to flat structure."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
         migrated = 0
         skipped = 0
 
@@ -312,10 +302,10 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             return f'---\nlane: "{expected_lane}"\n---\n{content}'
 
         frontmatter_lines = lines[1:closing_idx]
-        body_lines = lines[closing_idx + 1:]
+        body_lines = lines[closing_idx + 1 :]
 
         # Check if lane field exists
-        lane_pattern = re.compile(r'^lane:\s*(.*)$')
+        lane_pattern = re.compile(r"^lane:\s*(.*)$")
         lane_found = False
         updated_lines = []
 
@@ -323,7 +313,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             match = lane_pattern.match(line)
             if match:
                 lane_found = True
-                current_value = match.group(1).strip().strip('"\'')
+                current_value = match.group(1).strip().strip("\"'")
                 if current_value != expected_lane:
                     # Replace with expected lane from directory
                     updated_lines.append(f'lane: "{expected_lane}"')

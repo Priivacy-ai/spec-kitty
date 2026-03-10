@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Type
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
@@ -13,15 +14,13 @@ if TYPE_CHECKING:
 class MigrationRegistry:
     """Registry of all available migrations, ordered by target version."""
 
-    _migrations: Dict[str, Type["BaseMigration"]] = {}
+    _migrations: dict[str, type[BaseMigration]] = {}
 
     # Required fields for all migrations
-    REQUIRED_FIELDS = ['migration_id', 'description', 'target_version']
+    REQUIRED_FIELDS = ["migration_id", "description", "target_version"]
 
     @classmethod
-    def register(
-        cls, migration_class: Type["BaseMigration"]
-    ) -> Type["BaseMigration"]:
+    def register(cls, migration_class: type[BaseMigration]) -> type[BaseMigration]:
         """Decorator to register a migration class.
 
         Args:
@@ -38,9 +37,7 @@ class MigrationRegistry:
         for field in cls.REQUIRED_FIELDS:
             value = getattr(migration_class, field, None)
             if not value:
-                raise ValueError(
-                    f"Migration {migration_class.__name__} is missing required field '{field}'"
-                )
+                raise ValueError(f"Migration {migration_class.__name__} is missing required field '{field}'")
 
         migration_id = migration_class.migration_id
 
@@ -57,7 +54,7 @@ class MigrationRegistry:
         return migration_class
 
     @classmethod
-    def get_all(cls) -> List["BaseMigration"]:
+    def get_all(cls) -> list[BaseMigration]:
         """Get all migrations as instances, ordered by target version.
 
         Returns:
@@ -68,8 +65,8 @@ class MigrationRegistry:
 
     @classmethod
     def get_applicable(
-        cls, from_version: str, to_version: str, project_path: "Path | None" = None
-    ) -> List["BaseMigration"]:
+        cls, from_version: str, to_version: str, project_path: Path | None = None
+    ) -> list[BaseMigration]:
         """Get migrations needed to go from one version to another.
 
         Args:
@@ -81,6 +78,7 @@ class MigrationRegistry:
             List of applicable migrations in order
         """
         from pathlib import Path
+
         from_v = Version(from_version)
         to_v = Version(to_version)
 
@@ -91,14 +89,14 @@ class MigrationRegistry:
             if from_v < target <= to_v:
                 applicable.append(migration)
             # ALSO include migrations at current version if detect() returns True
-            elif target == from_v and project_path is not None:
+            elif target == from_v and project_path is not None:  # noqa: SIM102
                 if migration.detect(Path(project_path) if isinstance(project_path, str) else project_path):
                     applicable.append(migration)
 
         return applicable
 
     @classmethod
-    def get_by_id(cls, migration_id: str) -> "BaseMigration | None":
+    def get_by_id(cls, migration_id: str) -> BaseMigration | None:
         """Get a specific migration by ID.
 
         Args:

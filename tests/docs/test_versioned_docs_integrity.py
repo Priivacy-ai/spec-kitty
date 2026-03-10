@@ -79,15 +79,11 @@ def test_versioned_docs_relative_links_resolve(source_path: Path) -> None:
         try:
             destination.relative_to(REPO_ROOT.resolve())
         except ValueError:
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repo: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repo: {target}")
             continue
 
         if not destination.exists():
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}")
 
     assert not failures, "\n".join(failures)
 

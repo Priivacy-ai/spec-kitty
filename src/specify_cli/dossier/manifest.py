@@ -13,16 +13,15 @@ Key concepts:
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class ArtifactClassEnum(str, Enum):
+class ArtifactClassEnum(StrEnum):
     """Classification of artifacts in the dossier system.
 
     - INPUT: Artifacts provided by user or external source (spec.md, requirements.txt)
@@ -98,15 +97,15 @@ class ExpectedArtifactManifest(BaseModel):
         default="1",
         description="Manifest data version",
     )
-    required_always: List[ExpectedArtifactSpec] = Field(
+    required_always: list[ExpectedArtifactSpec] = Field(
         default_factory=list,
         description="Artifacts required regardless of mission step",
     )
-    required_by_step: Dict[str, List[ExpectedArtifactSpec]] = Field(
+    required_by_step: dict[str, list[ExpectedArtifactSpec]] = Field(
         default_factory=dict,
         description="Dict mapping step_id to required artifacts for that step",
     )
-    optional_always: List[ExpectedArtifactSpec] = Field(
+    optional_always: list[ExpectedArtifactSpec] = Field(
         default_factory=list,
         description="Artifacts optional regardless of mission step",
     )
@@ -136,7 +135,7 @@ class ExpectedArtifactManifest(BaseModel):
 
         return cls(**data)
 
-    def get_step_ids(self) -> List[str]:
+    def get_step_ids(self) -> list[str]:
         """Return all step IDs in required_by_step.
 
         Returns:
@@ -158,10 +157,10 @@ class ManifestRegistry:
         ...     print(f"Specify step requires {len(specs)} artifacts")
     """
 
-    _cache: Dict[str, Optional[ExpectedArtifactManifest]] = {}
+    _cache: dict[str, ExpectedArtifactManifest | None] = {}
 
     @staticmethod
-    def load_manifest(mission_type: str) -> Optional[ExpectedArtifactManifest]:
+    def load_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
         """Load manifest for mission type.
 
         Returns cached manifest if available. Gracefully returns None if manifest
@@ -176,12 +175,7 @@ class ManifestRegistry:
         if mission_type in ManifestRegistry._cache:
             return ManifestRegistry._cache[mission_type]
 
-        manifest_path = (
-            Path(__file__).parent.parent
-            / "missions"
-            / mission_type
-            / "expected-artifacts.yaml"
-        )
+        manifest_path = Path(__file__).parent.parent / "missions" / mission_type / "expected-artifacts.yaml"
 
         if not manifest_path.exists():
             logger.debug(f"Manifest not found for mission type: {mission_type}")
@@ -202,7 +196,7 @@ class ManifestRegistry:
     def get_required_artifacts(
         manifest: ExpectedArtifactManifest,
         step_id: str,
-    ) -> List[ExpectedArtifactSpec]:
+    ) -> list[ExpectedArtifactSpec]:
         """Get required artifact specs for a mission step.
 
         Combines required_always with required_by_step[step_id].
@@ -221,8 +215,8 @@ class ManifestRegistry:
 
     @staticmethod
     def get_blocking_artifacts(
-        specs: List[ExpectedArtifactSpec],
-    ) -> List[ExpectedArtifactSpec]:
+        specs: list[ExpectedArtifactSpec],
+    ) -> list[ExpectedArtifactSpec]:
         """Filter artifact specs to only blocking ones.
 
         Args:
@@ -234,7 +228,7 @@ class ManifestRegistry:
         return [s for s in specs if s.blocking]
 
     @staticmethod
-    def get_optional_artifacts(manifest: ExpectedArtifactManifest) -> List[ExpectedArtifactSpec]:
+    def get_optional_artifacts(manifest: ExpectedArtifactManifest) -> list[ExpectedArtifactSpec]:
         """Get optional artifact specs for a mission.
 
         Args:
@@ -248,8 +242,8 @@ class ManifestRegistry:
     @staticmethod
     def validate_manifest(
         manifest: ExpectedArtifactManifest,
-        mission_dir: Path,
-    ) -> Tuple[bool, List[str]]:
+        mission_dir: Path,  # noqa: ARG004
+    ) -> tuple[bool, list[str]]:
         """Validate manifest against mission structure.
 
         Checks:
@@ -275,8 +269,7 @@ class ManifestRegistry:
             for spec in specs_list:
                 if spec.path_pattern.startswith("/"):
                     errors.append(
-                        f"Path pattern must be relative: '{spec.path_pattern}' "
-                        f"(artifact_key={spec.artifact_key})"
+                        f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})"
                     )
                 if ".." in spec.path_pattern:
                     errors.append(

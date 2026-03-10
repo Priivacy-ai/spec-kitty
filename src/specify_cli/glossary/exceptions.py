@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .models import SemanticConflict
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 class GlossaryError(Exception):
     """Base exception for glossary errors."""
+
     pass
 
 
@@ -23,8 +24,8 @@ class BlockedByConflict(GlossaryError):
 
     def __init__(
         self,
-        conflicts: List["SemanticConflict"],
-        strictness: "Strictness | None" = None,
+        conflicts: list[SemanticConflict],
+        strictness: Strictness | None = None,
         message: str | None = None,
     ):
         """Initialize BlockedByConflict exception.

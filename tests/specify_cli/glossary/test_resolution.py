@@ -23,54 +23,64 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
     )
 
     # mission_local: workspace (Git worktree)
-    store.add_sense(TermSense(
-        surface=TermSurface("workspace"),
-        scope=GlossaryScope.MISSION_LOCAL.value,
-        definition="Git worktree directory for a work package",
-        provenance=provenance,
-        confidence=1.0,
-        status=SenseStatus.ACTIVE,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("workspace"),
+            scope=GlossaryScope.MISSION_LOCAL.value,
+            definition="Git worktree directory for a work package",
+            provenance=provenance,
+            confidence=1.0,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     # team_domain: workspace (VS Code workspace)
-    store.add_sense(TermSense(
-        surface=TermSurface("workspace"),
-        scope=GlossaryScope.TEAM_DOMAIN.value,
-        definition="VS Code workspace configuration file",
-        provenance=provenance,
-        confidence=0.9,
-        status=SenseStatus.ACTIVE,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("workspace"),
+            scope=GlossaryScope.TEAM_DOMAIN.value,
+            definition="VS Code workspace configuration file",
+            provenance=provenance,
+            confidence=0.9,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     # team_domain: mission (workflow machine)
-    store.add_sense(TermSense(
-        surface=TermSurface("mission"),
-        scope=GlossaryScope.TEAM_DOMAIN.value,
-        definition="Purpose-specific workflow machine",
-        provenance=provenance,
-        confidence=1.0,
-        status=SenseStatus.ACTIVE,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("mission"),
+            scope=GlossaryScope.TEAM_DOMAIN.value,
+            definition="Purpose-specific workflow machine",
+            provenance=provenance,
+            confidence=1.0,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     # audience_domain: mission (user-facing definition)
-    store.add_sense(TermSense(
-        surface=TermSurface("mission"),
-        scope=GlossaryScope.AUDIENCE_DOMAIN.value,
-        definition="A project goal or objective",
-        provenance=provenance,
-        confidence=0.8,
-        status=SenseStatus.ACTIVE,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("mission"),
+            scope=GlossaryScope.AUDIENCE_DOMAIN.value,
+            definition="A project goal or objective",
+            provenance=provenance,
+            confidence=0.8,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     # spec_kitty_core: feature (canonical definition)
-    store.add_sense(TermSense(
-        surface=TermSurface("feature"),
-        scope=GlossaryScope.SPEC_KITTY_CORE.value,
-        definition="A unit of work with specifications and work packages",
-        provenance=provenance,
-        confidence=1.0,
-        status=SenseStatus.ACTIVE,
-    ))
+    store.add_sense(
+        TermSense(
+            surface=TermSurface("feature"),
+            scope=GlossaryScope.SPEC_KITTY_CORE.value,
+            definition="A unit of work with specifications and work packages",
+            provenance=provenance,
+            confidence=1.0,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     return store
 
@@ -144,14 +154,16 @@ def test_resolve_term_normalized_surface(glossary_store: GlossaryStore) -> None:
         source="user_clarification",
     )
 
-    glossary_store.add_sense(TermSense(
-        surface=TermSurface("worktree"),
-        scope=GlossaryScope.TEAM_DOMAIN.value,
-        definition="Git worktree",
-        provenance=provenance,
-        confidence=1.0,
-        status=SenseStatus.ACTIVE,
-    ))
+    glossary_store.add_sense(
+        TermSense(
+            surface=TermSurface("worktree"),
+            scope=GlossaryScope.TEAM_DOMAIN.value,
+            definition="Git worktree",
+            provenance=provenance,
+            confidence=1.0,
+            status=SenseStatus.ACTIVE,
+        )
+    )
 
     # Resolution should work with exact normalized surface
     results = resolve_term("worktree", SCOPE_RESOLUTION_ORDER, glossary_store)

@@ -1,5 +1,5 @@
 """Conflict detection using Lamport clocks."""
-from typing import Tuple
+
 from .models import Event
 
 
@@ -38,7 +38,7 @@ def is_concurrent(event1: Event, event2: Event) -> bool:
     )
 
 
-def total_order_key(event: Event) -> Tuple[int, str]:
+def total_order_key(event: Event) -> tuple[int, str]:
     """Generate sortable key for deterministic total ordering.
 
     When multiple events have the same lamport_clock (concurrent events),

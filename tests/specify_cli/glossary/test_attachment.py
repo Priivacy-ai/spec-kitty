@@ -1,8 +1,5 @@
 """Tests for glossary pipeline attachment (T042)."""
 
-import pytest
-from unittest.mock import MagicMock
-
 from specify_cli.glossary.attachment import (
     attach_glossary_pipeline,
     glossary_enabled,
@@ -15,14 +12,14 @@ from specify_cli.missions.primitives import PrimitiveExecutionContext
 
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""
-    defaults = dict(
-        step_id="test-001",
-        mission_id="test-mission",
-        run_id="run-001",
-        inputs={"description": "test input"},
-        metadata={},
-        config={},
-    )
+    defaults = {
+        "step_id": "test-001",
+        "mission_id": "test-mission",
+        "run_id": "run-001",
+        "inputs": {"description": "test input"},
+        "metadata": {},
+        "config": {},
+    }
     defaults.update(overrides)
     return PrimitiveExecutionContext(**defaults)
 
@@ -228,12 +225,14 @@ class TestGlossaryAwarePrimitiveRunner:
 
     def test_runner_creates_successfully(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
         assert runner is not None
 
     def test_runner_execute_calls_pipeline_then_primitive(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
@@ -251,6 +250,7 @@ class TestGlossaryAwarePrimitiveRunner:
 
     def test_runner_passes_extra_args_to_primitive(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(
@@ -269,4 +269,5 @@ class TestGlossaryAwarePrimitiveRunner:
     def test_runner_is_importable_from_glossary_package(self):
         """GlossaryAwarePrimitiveRunner is exported from glossary package."""
         from specify_cli.glossary import GlossaryAwarePrimitiveRunner
+
         assert GlossaryAwarePrimitiveRunner is not None

@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.reducer import materialize_to_json, reduce

@@ -1,0 +1,8 @@
+# GENERATED FILE — do not edit manually.
+# Run: python scripts/generate_contextive_glossaries.py generate
+#
+# Imports context glossaries relevant to this package.
+# See .kittify/traceability/contextive-map.yaml for the scope mapping.
+
+imports:
+  - "../.contextive/orchestration.yml"

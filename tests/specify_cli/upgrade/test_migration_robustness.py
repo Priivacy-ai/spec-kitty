@@ -1,4 +1,5 @@
 """Migration Robustness Tests."""
+
 from __future__ import annotations
 
 import multiprocessing
@@ -17,6 +18,7 @@ from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore i
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
+import contextlib
 
 # Get migrations directory path
 MIGRATIONS_DIR = Path(__file__).parents[3] / "src" / "specify_cli" / "upgrade" / "migrations"
@@ -55,10 +57,8 @@ class LockingMigration(BaseMigration):
             if lock_fd is not None:
                 os.close(lock_fd)
             if lock_path is not None:
-                try:
+                with contextlib.suppress(OSError):
                     lock_path.unlink()
-                except OSError:
-                    pass
 
 
 class FlakyMigration(BaseMigration):
@@ -245,10 +245,7 @@ class TestMigrationRegistryCompleteness:
         Bug prevented: 0.13.2 release blocker (4 migrations missing from registry)
         """
         # Find all migration files (m_*.py, excluding __init__.py)
-        migration_files = sorted([
-            f.stem for f in MIGRATIONS_DIR.glob("m_*.py")
-            if f.stem != "__init__"
-        ])
+        migration_files = sorted([f.stem for f in MIGRATIONS_DIR.glob("m_*.py") if f.stem != "__init__"])
 
         # Get all registered migrations
         registered_migrations = MigrationRegistry.get_all()

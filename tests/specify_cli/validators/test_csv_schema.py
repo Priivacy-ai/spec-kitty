@@ -26,8 +26,7 @@ def wrong_column_names_csv(tmp_path: Path) -> Path:
     """CSV file with wrong column names."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        "timestamp,type,ref,finding,confidence,notes\n"
-        "2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
+        "timestamp,type,ref,finding,confidence,notes\n2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
         encoding="utf-8",
     )
     return csv_file
@@ -49,9 +48,7 @@ def wrong_column_order_csv(tmp_path: Path) -> Path:
 def missing_columns_csv(tmp_path: Path) -> Path:
     """CSV file with missing columns."""
     csv_file = tmp_path / "test.csv"
-    csv_file.write_text(
-        "timestamp,citation,key_finding\n" "2025-01-25T10:00:00,Citation,Finding\n", encoding="utf-8"
-    )
+    csv_file.write_text("timestamp,citation,key_finding\n2025-01-25T10:00:00,Citation,Finding\n", encoding="utf-8")
     return csv_file
 
 

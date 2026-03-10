@@ -12,7 +12,7 @@ import dataclasses
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 CONTRACT_VERSION = "1.0.0"
@@ -29,9 +29,7 @@ BANNED_FLAGS: frozenset[str] = frozenset(
     ]
 )
 
-SECRET_PATTERN = re.compile(
-    r"(token|secret|key|password|credential)", re.IGNORECASE
-)
+SECRET_PATTERN = re.compile(r"(token|secret|key|password|credential)", re.IGNORECASE)
 
 _REQUIRED_POLICY_FIELDS = (
     "orchestrator_id",
@@ -68,7 +66,7 @@ def make_envelope(
     return {
         "contract_version": CONTRACT_VERSION,
         "command": f"orchestrator-api.{command}",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "correlation_id": _new_correlation_id(),
         "success": success,
         "error_code": error_code,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -49,7 +48,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 if ".kittify/scripts/powershell/" in content or "scripts/powershell/" in content:
                     return True
                 # Check for subdirectory violations (feature 007)
-                if "tasks/planned/" in content or "tasks/doing/" in content:
+                if "tasks/planned/" in content or "tasks/doing/" in content:  # noqa: SIM102
                     # Exclude "WRONG" examples
                     if "WRONG" not in content or content.count("tasks/planned/") > 2:
                         return True
@@ -76,14 +75,13 @@ class UpdateSlashCommandsMigration(BaseMigration):
 
         return False, "No mission command templates found"
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update slash commands with latest templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         missions_dir = project_path / ".kittify" / "missions"
-        claude_commands = project_path / ".claude" / "commands"
 
         # Find mission templates
         command_templates_dir = None

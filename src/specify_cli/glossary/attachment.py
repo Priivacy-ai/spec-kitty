@@ -36,7 +36,8 @@ import functools
 import logging
 import time
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from specify_cli.glossary.exceptions import (
     AbortResume,
@@ -51,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 def attach_glossary_pipeline(
     repo_root: Path,
-    runtime_strictness: Optional[Strictness] = None,
+    runtime_strictness: Strictness | None = None,
     interaction_mode: str = "interactive",
 ) -> Callable[[Any], Any]:
     """Create a glossary pipeline processor for mission primitives.
@@ -146,7 +147,7 @@ def read_glossary_check_metadata(step_metadata: dict[str, Any]) -> bool:
 def run_with_glossary(
     context: Any,
     repo_root: Path,
-    runtime_strictness: Optional[Strictness] = None,
+    runtime_strictness: Strictness | None = None,
     interaction_mode: str = "interactive",
 ) -> Any:
     """Run the glossary pipeline on a PrimitiveExecutionContext.
@@ -204,7 +205,7 @@ class GlossaryAwarePrimitiveRunner:
     def __init__(
         self,
         repo_root: Path,
-        runtime_strictness: Optional[Strictness] = None,
+        runtime_strictness: Strictness | None = None,
         interaction_mode: str = "interactive",
     ) -> None:
         """Initialize the runner.
@@ -254,7 +255,7 @@ class GlossaryAwarePrimitiveRunner:
 
 def glossary_enabled(
     repo_root: Path,
-    runtime_strictness: Optional[Strictness] = None,
+    runtime_strictness: Strictness | None = None,
     interaction_mode: str = "interactive",
 ) -> Callable[..., Any]:
     """Decorator that runs the glossary pipeline before a mission primitive.
@@ -278,6 +279,7 @@ def glossary_enabled(
             # context has already been processed by the glossary pipeline
             return {"result": context.effective_strictness}
     """
+
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(fn)
         def wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
@@ -288,5 +290,7 @@ def glossary_enabled(
                 interaction_mode=interaction_mode,
             )
             return fn(processed, *args, **kwargs)
+
         return wrapper
+
     return decorator

@@ -51,7 +51,7 @@ def safe_commit(
     normalized_files = []
     for file in files_to_commit:
         if file.is_absolute():
-            try:
+            try:  # noqa: SIM105
                 file = file.relative_to(repo_path)
             except ValueError:
                 # File is not under repo_path, use as-is

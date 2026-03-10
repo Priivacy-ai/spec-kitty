@@ -52,10 +52,7 @@ def _read_meta(repo: Path, feature_slug: str) -> dict:
 def _get_feature_slugs(repo: Path) -> list[str]:
     """Get list of feature directory names from kitty-specs/."""
     kitty_specs = repo / "kitty-specs"
-    return sorted(
-        d.name for d in kitty_specs.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    )
+    return sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
 
 
 # ============================================================================

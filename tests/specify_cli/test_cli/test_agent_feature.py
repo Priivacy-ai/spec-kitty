@@ -24,8 +24,13 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_json_output(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_get_number: Mock,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -66,14 +71,20 @@ class TestCreateFeatureCommand:
         assert meta["feature_slug"] == "001-test-feature"
         assert meta["mission"] == "software-dev"
         assert meta["target_branch"] == "main"
+
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_human_output(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_get_number: Mock,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -106,7 +117,7 @@ class TestCreateFeatureCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "Could not locate project root" in output["error"]
@@ -174,9 +185,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    def test_handles_git_errors(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_handles_git_errors(self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path):
         """Should handle errors when not in git repo or wrong branch."""
         # Setup: Not in git repo
         mock_locate.return_value = tmp_path
@@ -188,7 +197,7 @@ class TestCreateFeatureCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "git" in output["error"].lower()
@@ -199,8 +208,13 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_allows_feature_creation_from_any_branch(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_get_number: Mock,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
@@ -218,7 +232,7 @@ class TestCreateFeatureCommand:
 
         # Verify — should succeed, recording "develop" as target_branch
         assert result.exit_code == 0
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
 
@@ -228,8 +242,13 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_on_primary_branch(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_get_number: Mock,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
@@ -247,7 +266,7 @@ class TestCreateFeatureCommand:
 
         # Verify
         assert result.exit_code == 0
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
 
@@ -314,9 +333,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
-    def test_shows_validation_errors(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_shows_validation_errors(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should show validation errors in output."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -341,9 +358,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
-    def test_shows_validation_warnings(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_shows_validation_warnings(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should show validation warnings in output."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -368,9 +383,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
-    def test_paths_only_flag_json(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_paths_only_flag_json(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should output only paths when --paths-only flag is used."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -404,9 +417,7 @@ class TestCheckPrerequisitesCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
-    def test_include_tasks_flag(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
+    def test_include_tasks_flag(self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path):
         """Should validate tasks.md when --include-tasks flag is used."""
         # Setup
         mock_locate.return_value = tmp_path
@@ -491,10 +502,7 @@ class TestCheckPrerequisitesCommand:
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
         assert len(payload["candidate_features"]) == 2
         assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-        assert any(
-            "check-prerequisites --feature" in command
-            for command in payload["suggested_commands"]
-        )
+        assert any("check-prerequisites --feature" in command for command in payload["suggested_commands"])
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
@@ -508,7 +516,7 @@ class TestCheckPrerequisitesCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -597,9 +605,7 @@ class TestGitPreflightEnforcement:
 
     @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    def test_setup_plan_exits_on_preflight_failure_json(
-        self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
-    ):
+    def test_setup_plan_exits_on_preflight_failure_json(self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path):
         """setup-plan should emit JSON remediation payload on preflight failure."""
         from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
 
@@ -678,10 +684,7 @@ class TestFinalizeTasksCommand:
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
         assert len(payload["candidate_features"]) == 2
         assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-        assert any(
-            "finalize-tasks --feature" in command
-            for command in payload["suggested_commands"]
-        )
+        assert any("finalize-tasks --feature" in command for command in payload["suggested_commands"])
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -943,7 +946,7 @@ class TestSetupPlanCommand:
 
         # Verify
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert output["error_code"] == "SPEC_FILE_MISSING"
         assert output["feature_slug"] == "001-test"
@@ -962,7 +965,7 @@ class TestSetupPlanCommand:
         # Verify
         assert result.exit_code == 1
         # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
 
@@ -1015,9 +1018,7 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_finds_latest_feature_in_main_repo(
-        self, mock_is_worktree: Mock, tmp_path: Path
-    ):
+    def test_finds_latest_feature_in_main_repo(self, mock_is_worktree: Mock, tmp_path: Path):
         """Should find highest numbered feature in main repo."""
         # Setup
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
@@ -1040,9 +1041,7 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "003-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_raises_error_when_no_features_in_main_repo(
-        self, mock_is_worktree: Mock, tmp_path: Path
-    ):
+    def test_raises_error_when_no_features_in_main_repo(self, mock_is_worktree: Mock, tmp_path: Path):
         """Should raise error when no features exist in main repo."""
         # Setup
         from specify_cli.cli.commands.agent.feature import _find_feature_directory

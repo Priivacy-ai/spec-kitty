@@ -12,7 +12,6 @@ Key behaviors tested:
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
@@ -102,9 +101,7 @@ class TestMigrationRespectsConfig:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode (will be updated)
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement without scroll warning")
 
         # Create old template for claude (should NOT be updated - not configured)
@@ -210,6 +207,7 @@ class TestMigrationDetection:
         # This is acceptable - the important thing is that claude didn't cause detection
         # So we just verify that if we remove claude, the result stays the same
         import shutil
+
         shutil.rmtree(claude_dir)
 
         result_without_claude = migration.detect(tmp_path)
@@ -286,9 +284,7 @@ class TestDryRunBehavior:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement")
 
         # Run dry-run

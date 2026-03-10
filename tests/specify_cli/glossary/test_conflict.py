@@ -3,13 +3,9 @@
 import pytest
 from datetime import datetime
 
-from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
-)
+from specify_cli.glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
 from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.conflict import (
-    classify_conflict, score_severity, create_conflict, make_sense_ref
-)
+from specify_cli.glossary.conflict import classify_conflict, score_severity, create_conflict, make_sense_ref
 
 
 @pytest.fixture
@@ -203,9 +199,7 @@ def test_score_severity_inconsistent() -> None:
 
 def test_score_severity_unresolved_critical() -> None:
     """Test HIGH severity for unresolved critical term."""
-    severity = score_severity(
-        ConflictType.UNRESOLVED_CRITICAL, 0.3, is_critical_step=True
-    )
+    severity = score_severity(ConflictType.UNRESOLVED_CRITICAL, 0.3, is_critical_step=True)
 
     assert severity == Severity.HIGH
 

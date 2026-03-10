@@ -43,29 +43,31 @@ def test_no_lane_subdirectories_in_templates():
 
     # Patterns that violate flat structure (not in "WRONG" examples)
     forbidden_patterns = [
-        r'tasks/planned/',
-        r'tasks/doing/',
-        r'tasks/for_review/',
-        r'tasks/done/',
+        r"tasks/planned/",
+        r"tasks/doing/",
+        r"tasks/for_review/",
+        r"tasks/done/",
     ]
 
     for template_path in templates:
-        content = template_path.read_text(encoding='utf-8')
-        lines = content.split('\n')
+        content = template_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
 
         for line_num, line in enumerate(lines, 1):
             # Skip lines that are showing what NOT to do
-            if 'WRONG' in line or 'do not create' in line.lower() or '❌' in line:
+            if "WRONG" in line or "do not create" in line.lower() or "❌" in line:
                 continue
 
             for pattern in forbidden_patterns:
                 if re.search(pattern, line):
-                    violations.append({
-                        'file': template_path.relative_to(template_path.parent.parent.parent),
-                        'line': line_num,
-                        'content': line.strip(),
-                        'pattern': pattern
-                    })
+                    violations.append(
+                        {
+                            "file": template_path.relative_to(template_path.parent.parent.parent),
+                            "line": line_num,
+                            "content": line.strip(),
+                            "pattern": pattern,
+                        }
+                    )
 
     if violations:
         msg = "\n\nFeature 007 violations found (templates referencing lane subdirectories):\n"
@@ -83,31 +85,33 @@ def test_no_phase_subdirectories_in_templates():
     violations = []
 
     forbidden_phrases = [
-        'phase subfolders',
-        'phase subdirectories',
-        'phase-<n>-<label>',
-        'phase-X-name',
-        'tasks/planned/phase-',
-        'tasks/doing/phase-',
+        "phase subfolders",
+        "phase subdirectories",
+        "phase-<n>-<label>",
+        "phase-X-name",
+        "tasks/planned/phase-",
+        "tasks/doing/phase-",
     ]
 
     for template_path in templates:
-        content = template_path.read_text(encoding='utf-8')
-        lines = content.split('\n')
+        content = template_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
 
         for line_num, line in enumerate(lines, 1):
             # Skip WRONG examples
-            if 'WRONG' in line or 'do not create' in line.lower() or '❌' in line:
+            if "WRONG" in line or "do not create" in line.lower() or "❌" in line:
                 continue
 
             for phrase in forbidden_phrases:
                 if phrase in line:
-                    violations.append({
-                        'file': template_path.relative_to(template_path.parent.parent.parent),
-                        'line': line_num,
-                        'content': line.strip(),
-                        'phrase': phrase
-                    })
+                    violations.append(
+                        {
+                            "file": template_path.relative_to(template_path.parent.parent.parent),
+                            "line": line_num,
+                            "content": line.strip(),
+                            "phrase": phrase,
+                        }
+                    )
 
     if violations:
         msg = "\n\nPhase subdirectory references found in templates:\n"
@@ -120,30 +124,23 @@ def test_templates_require_flat_structure():
     """Templates must explicitly require flat tasks/ structure."""
     spec_kitty_root = Path(__file__).parent.parent
     tasks_template = (
-        spec_kitty_root
-        / "src"
-        / "specify_cli"
-        / "missions"
-        / "software-dev"
-        / "command-templates"
-        / "tasks.md"
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md"
     )
 
     assert tasks_template.exists(), "tasks.md template not found"
 
-    content = tasks_template.read_text(encoding='utf-8')
+    content = tasks_template.read_text(encoding="utf-8")
 
     # Must have explicit instruction about flat structure
-    assert 'FLAT' in content.upper() or 'flat' in content, \
-        "tasks.md must explicitly mention flat structure"
+    assert "FLAT" in content.upper() or "flat" in content, "tasks.md must explicitly mention flat structure"
 
     # Must warn against subdirectories
-    assert 'no subdirectories' in content.lower() or 'NO subdirectories' in content, \
+    assert "no subdirectories" in content.lower() or "NO subdirectories" in content, (
         "tasks.md must warn against creating subdirectories"
+    )
 
     # Must have correct example
-    assert 'tasks/WP01' in content or 'tasks/WPxx' in content, \
-        "tasks.md must show correct flat path examples"
+    assert "tasks/WP01" in content or "tasks/WPxx" in content, "tasks.md must show correct flat path examples"
 
 
 def test_agents_md_shows_flat_structure():
@@ -154,11 +151,10 @@ def test_agents_md_shows_flat_structure():
     if not agents_md.exists():
         pytest.skip("AGENTS.md not found")
 
-    content = agents_md.read_text(encoding='utf-8')
+    content = agents_md.read_text(encoding="utf-8")
 
     # Should not show old subdirectory structure
-    assert 'tasks/planned/WP' not in content, \
-        "AGENTS.md should not show old subdirectory structure"
+    assert "tasks/planned/WP" not in content, "AGENTS.md should not show old subdirectory structure"
 
 
 def test_no_deprecated_script_references():
@@ -178,29 +174,31 @@ def test_no_deprecated_script_references():
 
     # Deprecated script patterns
     deprecated_patterns = [
-        r'\.kittify/scripts/tasks/tasks_cli\.py',
-        r'python3?\s+\.kittify/scripts/',
-        r'python3?\s+scripts/tasks/tasks_cli\.py',
-        r'\btasks_cli\.py\s+(move|update)',  # Direct reference to tasks_cli.py commands
+        r"\.kittify/scripts/tasks/tasks_cli\.py",
+        r"python3?\s+\.kittify/scripts/",
+        r"python3?\s+scripts/tasks/tasks_cli\.py",
+        r"\btasks_cli\.py\s+(move|update)",  # Direct reference to tasks_cli.py commands
     ]
 
     for template_path in templates:
-        content = template_path.read_text(encoding='utf-8')
-        lines = content.split('\n')
+        content = template_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
 
         for line_num, line in enumerate(lines, 1):
             # Skip comments explaining what NOT to do
-            if 'deprecated' in line.lower() or 'old' in line.lower() or 'WRONG' in line:
+            if "deprecated" in line.lower() or "old" in line.lower() or "WRONG" in line:
                 continue
 
             for pattern in deprecated_patterns:
                 if re.search(pattern, line):
-                    violations.append({
-                        'file': template_path.relative_to(template_path.parent.parent.parent),
-                        'line': line_num,
-                        'content': line.strip(),
-                        'pattern': pattern
-                    })
+                    violations.append(
+                        {
+                            "file": template_path.relative_to(template_path.parent.parent.parent),
+                            "line": line_num,
+                            "content": line.strip(),
+                            "pattern": pattern,
+                        }
+                    )
 
     if violations:
         msg = "\n\nDeprecated script references found (Issue #68):\n"
@@ -224,15 +222,17 @@ def test_templates_do_not_instruct_manual_lane_moves_to_doing():
     violations = []
 
     for template_path in templates:
-        content = template_path.read_text(encoding='utf-8')
+        content = template_path.read_text(encoding="utf-8")
 
         # Only flag move-task to "doing" since workflow implement handles that automatically
         # move-task to "for_review" is allowed (completion step after implementation)
-        if 'move-task' in content and '--to doing' in content and 'deprecated' not in content.lower():
-            violations.append({
-                'file': template_path.relative_to(template_path.parent.parent.parent),
-                'issue': 'Manual move-task --to doing is deprecated (use workflow implement instead)'
-            })
+        if "move-task" in content and "--to doing" in content and "deprecated" not in content.lower():
+            violations.append(
+                {
+                    "file": template_path.relative_to(template_path.parent.parent.parent),
+                    "issue": "Manual move-task --to doing is deprecated (use workflow implement instead)",
+                }
+            )
 
     if violations:
         msg = "\n\nTemplates with deprecated manual 'doing' lane moves:\n"

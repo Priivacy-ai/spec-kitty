@@ -16,16 +16,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "2.0.0a5_remove_wp_status_gitignore_rule"
 MIGRATION_VERSION = "2.0.0a5"
-MIGRATION_DESCRIPTION = (
-    "Remove stale WP status ignore rules from tracked .gitignore"
-)
+MIGRATION_DESCRIPTION = "Remove stale WP status ignore rules from tracked .gitignore"
 
 # Patterns to remove from tracked .gitignore.
 PATTERNS_TO_REMOVE = [
@@ -42,13 +39,10 @@ def is_wp_status_ignore_pattern(line: str) -> bool:
     if not stripped:
         return False
 
-    for pattern in PATTERNS_TO_REMOVE:
-        if re.match(pattern, stripped):
-            return True
-    return False
+    return any(re.match(pattern, stripped) for pattern in PATTERNS_TO_REMOVE)
 
 
-def find_wp_status_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
+def find_wp_status_entries(gitignore_path: Path) -> list[tuple[int, str]]:
     """Find stale WP status ignore entries in .gitignore.
 
     Returns:
@@ -58,23 +52,21 @@ def find_wp_status_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
         return []
 
     content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    matches: List[Tuple[int, str]] = []
+    matches: list[tuple[int, str]] = []
     for line_no, line in enumerate(content.splitlines(), start=1):
         if is_wp_status_ignore_pattern(line):
             matches.append((line_no, line.strip()))
     return matches
 
 
-def remove_wp_status_entries(
-    gitignore_path: Path, dry_run: bool = False
-) -> Tuple[List[str], List[str]]:
+def remove_wp_status_entries(gitignore_path: Path, dry_run: bool = False) -> tuple[list[str], list[str]]:
     """Remove stale WP status ignore entries from .gitignore.
 
     Returns:
         Tuple of (changes, errors).
     """
-    changes: List[str] = []
-    errors: List[str] = []
+    changes: list[str] = []
+    errors: list[str] = []
 
     if not gitignore_path.exists():
         changes.append("No .gitignore file found")
@@ -87,7 +79,7 @@ def remove_wp_status_entries(
         return changes, errors
 
     lines = content.splitlines(keepends=True)
-    new_lines: List[str] = []
+    new_lines: list[str] = []
     removed_count = 0
 
     for index, line in enumerate(lines, start=1):
@@ -102,18 +94,14 @@ def remove_wp_status_entries(
         return changes, errors
 
     if dry_run:
-        changes.insert(
-            0, f"Would remove {removed_count} stale WP status ignore entries from .gitignore"
-        )
+        changes.insert(0, f"Would remove {removed_count} stale WP status ignore entries from .gitignore")
         return changes, errors
 
     try:
         new_content = "".join(new_lines)
         new_content = re.sub(r"\n{3,}", "\n\n", new_content)
         gitignore_path.write_text(new_content, encoding="utf-8")
-        changes.insert(
-            0, f"Removed {removed_count} stale WP status ignore entries from .gitignore"
-        )
+        changes.insert(0, f"Removed {removed_count} stale WP status ignore entries from .gitignore")
     except OSError as exc:
         errors.append(f"Failed to write .gitignore: {exc}")
 

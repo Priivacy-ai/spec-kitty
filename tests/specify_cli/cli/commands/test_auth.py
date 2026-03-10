@@ -121,13 +121,9 @@ url = "https://test.example.com"
         assert result.exit_code == 0
         assert "Already authenticated" in result.stdout
 
-    def test_login_blocks_account_switch_when_previous_scope_has_pending_events(
-        self, runner, temp_credentials
-    ):
+    def test_login_blocks_account_switch_when_previous_scope_has_pending_events(self, runner, temp_credentials):
         """Login should block account switch unless --force when previous queue has pending events."""
-        previous_scope = build_queue_scope(
-            "https://test.example.com", "old@example.com", "old-team"
-        )
+        previous_scope = build_queue_scope("https://test.example.com", "old@example.com", "old-team")
         write_active_scope(previous_scope)
         old_queue = OfflineQueue(scope_db_path(previous_scope))
         old_queue.queue_event(
@@ -147,7 +143,7 @@ url = "https://test.example.com"
             "team_slug": "new-team",
         }
 
-        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):
+        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):  # noqa: SIM117
             with patch("specify_cli.sync.auth.httpx.Client") as mock_client_class:
                 mock_client_class.return_value.post.return_value = mock_response
                 result = runner.invoke(
@@ -164,9 +160,7 @@ url = "https://test.example.com"
         self, runner, temp_credentials
     ):
         """--force allows switching accounts while preserving old scoped queue."""
-        previous_scope = build_queue_scope(
-            "https://test.example.com", "old@example.com", "old-team"
-        )
+        previous_scope = build_queue_scope("https://test.example.com", "old@example.com", "old-team")
         write_active_scope(previous_scope)
         old_queue = OfflineQueue(scope_db_path(previous_scope))
         old_queue.queue_event(
@@ -186,7 +180,7 @@ url = "https://test.example.com"
             "team_slug": "new-team",
         }
 
-        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):
+        with patch("specify_cli.sync.auth.SyncConfig.get_server_url", return_value="https://test.example.com"):  # noqa: SIM117
             with patch("specify_cli.sync.auth.httpx.Client") as mock_client_class:
                 mock_client_class.return_value.post.return_value = mock_response
                 result = runner.invoke(

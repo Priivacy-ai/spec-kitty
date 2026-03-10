@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -96,9 +96,7 @@ class ClarificationMiddleware:
             if self.prompt_fn is not None:
                 # Interactive mode: prompt user
                 try:
-                    choice, custom_def = self.prompt_fn(
-                        conflict, conflict.candidate_senses
-                    )
+                    choice, custom_def = self.prompt_fn(conflict, conflict.candidate_senses)
                 except Exception as exc:
                     logger.error(
                         "Prompt function failed for %s: %s",
@@ -115,23 +113,19 @@ class ClarificationMiddleware:
                         selected_sense = conflict.candidate_senses[selected_idx]
                     else:
                         selected_sense = conflict.candidate_senses[0]
-                    self._handle_candidate_selection(
-                        conflict, conflict_id, selected_sense, context
-                    )
+                    self._handle_candidate_selection(conflict, conflict_id, selected_sense, context)
                     resolved_conflicts.append(conflict)
                 elif choice == "custom" and custom_def:
                     # User provided custom definition
-                    self._handle_custom_sense(
-                        conflict, conflict_id, custom_def, context
-                    )
+                    self._handle_custom_sense(conflict, conflict_id, custom_def, context)
                     resolved_conflicts.append(conflict)
                 # Any other response means deferred. Request event already emitted.
             # No prompt function means deferred (request event already emitted).
 
         # Remove resolved conflicts from context
         remaining = [c for c in conflicts if c not in resolved_conflicts]
-        setattr(context, "conflicts", remaining)
-        setattr(context, "resolved_conflicts", resolved_conflicts)
+        context.conflicts = remaining
+        context.resolved_conflicts = resolved_conflicts
 
         return context
 
@@ -211,7 +205,7 @@ class ClarificationMiddleware:
     def _handle_custom_sense(
         self,
         conflict: Any,
-        conflict_id: str,
+        _conflict_id: str,
         custom_definition: str,
         context: Any,
     ) -> None:
@@ -241,7 +235,7 @@ class ClarificationMiddleware:
                 actor_id = getattr(context, "actor_id", "unknown")
                 provenance = Provenance(
                     actor_id=str(actor_id),
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     source="user_clarification",
                 )
                 term_sense = TermSense(

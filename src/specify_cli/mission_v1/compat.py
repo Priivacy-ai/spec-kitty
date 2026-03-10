@@ -49,10 +49,7 @@ class PhaseMission:
         self._phases = [p["name"] for p in mission.get_workflow_phases()]
 
         if not self._phases:
-            raise ValueError(
-                f"Mission '{mission.name}' has no workflow phases; "
-                "cannot create PhaseMission"
-            )
+            raise ValueError(f"Mission '{mission.name}' has no workflow phases; cannot create PhaseMission")
 
         # Generate linear state machine: [phase1, phase2, ..., phaseN, done]
         states = self._phases + ["done"]
@@ -79,11 +76,13 @@ class PhaseMission:
         all_states = self._phases + ["done"]
 
         for i in range(len(all_states) - 1):
-            transitions.append({
-                "trigger": "advance",
-                "source": all_states[i],
-                "dest": all_states[i + 1],
-            })
+            transitions.append(
+                {
+                    "trigger": "advance",
+                    "source": all_states[i],
+                    "dest": all_states[i + 1],
+                }
+            )
 
         return transitions
 
@@ -156,7 +155,4 @@ class PhaseMission:
         return self._mission.get_command_template(command_name, project_dir)
 
     def __repr__(self) -> str:
-        return (
-            f"PhaseMission(name={self.name!r}, version={self.version!r}, "
-            f"state={self.state!r})"
-        )
+        return f"PhaseMission(name={self.name!r}, version={self.version!r}, state={self.state!r})"

@@ -1,12 +1,10 @@
 """State-machine merge logic with priority-based conflict resolution."""
-from typing import List, Dict
+
 from .models import Event, ConflictResolution, ValidationError
 
 
 def state_machine_merge(
-    events: List[Event],
-    priority_map: Dict[str, int],
-    state_key: str = "state"
+    events: list[Event], priority_map: dict[str, int], state_key: str = "state"
 ) -> ConflictResolution:
     """Merge concurrent state-machine events using priority-based selection.
 
@@ -53,7 +51,7 @@ def state_machine_merge(
             )
 
     # Extract state values and validate against priority_map
-    event_priorities: List[tuple[int, str, Event]] = []
+    event_priorities: list[tuple[int, str, Event]] = []
     for event in events:
         state_value = event.payload.get(state_key)
         # Fallback to "status" if using default "state" key and "state" not found
@@ -64,8 +62,7 @@ def state_machine_merge(
             raise ValidationError(f"Event {event.event_id} missing {keys_tried} in payload")
         if state_value not in priority_map:
             raise ValidationError(
-                f"State value '{state_value}' not in priority_map. "
-                f"Available states: {list(priority_map.keys())}"
+                f"State value '{state_value}' not in priority_map. Available states: {list(priority_map.keys())}"
             )
         priority = priority_map[state_value]
         event_priorities.append((priority, event.node_id, event))
@@ -96,12 +93,12 @@ def state_machine_merge(
         else:
             resolution_note = (
                 f"Selected state '{winner_state}' (priority={winner_priority}) "
-                f"from node '{winner_node_id}' over {len(events)-1} conflicting states"
+                f"from node '{winner_node_id}' over {len(events) - 1} conflicting states"
             )
 
     return ConflictResolution(
         merged_event=winner_event,
         resolution_note=resolution_note,
         requires_manual_review=False,  # Always automatic for MVP
-        conflicting_events=list(events)
+        conflicting_events=list(events),
     )

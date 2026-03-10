@@ -54,14 +54,13 @@ def update_frontmatter_views(
         # Find the WP file by glob pattern
         wp_files = list(tasks_dir.glob(f"{wp_id}-*.md"))
         if not wp_files:
-            logger.warning(
-                "No task file found for %s in %s", wp_id, tasks_dir
-            )
+            logger.warning("No task file found for %s in %s", wp_id, tasks_dir)
             continue
         if len(wp_files) > 1:
             logger.warning(
                 "Multiple task files for %s: %s (using first)",
-                wp_id, wp_files,
+                wp_id,
+                wp_files,
             )
 
         wp_file = wp_files[0]
@@ -77,7 +76,9 @@ def update_frontmatter_views(
         fm.write(wp_file, frontmatter, body)
         logger.debug(
             "Updated %s lane: %s -> %s",
-            wp_id, current_lane, lane_value,
+            wp_id,
+            current_lane,
+            lane_value,
         )
 
 
@@ -191,9 +192,7 @@ def update_all_views(
     phase, source = resolve_phase(repo_root, snapshot.feature_slug)
 
     if phase == 0:
-        logger.debug(
-            "Phase 0 (%s): legacy bridge is no-op", source
-        )
+        logger.debug("Phase 0 (%s): legacy bridge is no-op", source)
         return
 
     # Phase 1 and Phase 2: update views
@@ -202,5 +201,7 @@ def update_all_views(
 
     logger.debug(
         "Legacy views updated for %s (phase %d: %s)",
-        snapshot.feature_slug, phase, source,
+        snapshot.feature_slug,
+        phase,
+        source,
     )

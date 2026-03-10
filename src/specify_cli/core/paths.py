@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
@@ -22,13 +21,10 @@ def _is_worktree_gitdir(gitdir: Path) -> bool:
     # gitdir = …/<repo>.git/worktrees/<name>  (bare)
     #   gitdir.parent.name  == "worktrees"
     #   gitdir.parent.parent.name endswith ".git"
-    return (
-        gitdir.parent.name == "worktrees"
-        and gitdir.parent.parent.name.endswith(".git")
-    )
+    return gitdir.parent.name == "worktrees" and gitdir.parent.parent.name.endswith(".git")
 
 
-def locate_project_root(start: Path | None = None) -> Optional[Path]:
+def locate_project_root(start: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -74,7 +70,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
             # submodules, and separate-git-dir clones.  Only follow the
             # pointer when it has the .git/worktrees/<name> topology.
             try:
-                content = git_path.read_text().strip()
+                content = git_path.read_text(encoding="utf-8", errors="replace").strip()
                 if content.startswith("gitdir:"):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
@@ -87,7 +83,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir():
+        elif git_path.is_dir():  # noqa: SIM102
             # This is the main repo (or a regular git repo)
             if (candidate / KITTIFY_DIR).is_dir():
                 return candidate
@@ -138,7 +134,7 @@ def is_worktree_context(path: Path) -> bool:
         git_path = candidate / ".git"
         if git_path.is_file():
             try:
-                content = git_path.read_text().strip()
+                content = git_path.read_text(encoding="utf-8", errors="replace").strip()
                 if content.startswith("gitdir:"):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
@@ -153,7 +149,7 @@ def is_worktree_context(path: Path) -> bool:
     return False
 
 
-def resolve_with_context(start: Path | None = None) -> Tuple[Optional[Path], bool]:
+def resolve_with_context(start: Path | None = None) -> tuple[Path | None, bool]:
     """
     Resolve project root and detect worktree context in one call.
 
@@ -226,17 +222,21 @@ def get_main_repo_root(current_path: Path) -> Path:
 
     if git_file.is_file():
         try:
-            git_content = git_file.read_text().strip()
+            git_content = git_file.read_text(encoding="utf-8", errors="replace").strip()
             if git_content.startswith("gitdir:"):
-                gitdir = Path(git_content.split(":", 1)[1].strip())
-                # Navigate: .git/worktrees/name -> .git -> main repo root
-                main_git_dir = gitdir.parent.parent
-                main_repo_root = main_git_dir.parent
-                return main_repo_root
+                gitdir_str = git_content.split(":", 1)[1].strip()
+                # Validate the gitdir path is not empty (bug discovered via mutation testing)
+                if gitdir_str:
+                    gitdir = Path(gitdir_str)
+                    # Navigate: .git/worktrees/name -> .git -> main repo root
+                    main_git_dir = gitdir.parent.parent
+                    main_repo_root = main_git_dir.parent
+                    return main_repo_root
         except (OSError, ValueError):
             pass
 
-    return current_path
+    # Not a worktree - return the resolved current path
+    return current_path.resolve()
 
 
 # DEPRECATED: find_feature_slug() has been removed

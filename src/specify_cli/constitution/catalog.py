@@ -72,7 +72,7 @@ def _load_yaml_id_catalog(directory: Path, pattern: str) -> set[str]:
     for path in sorted(directory.glob(pattern)):
         try:
             data = yaml.load(path.read_text(encoding="utf-8")) or {}
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
         if isinstance(data, dict):

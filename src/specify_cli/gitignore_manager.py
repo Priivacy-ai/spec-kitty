@@ -9,7 +9,6 @@ It replaces the fragmented approach where only .codex/ was protected.
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 
 @dataclass
@@ -39,16 +38,16 @@ class ProtectionResult:
     modified: bool
     """Whether .gitignore was modified"""
 
-    entries_added: List[str] = field(default_factory=list)
+    entries_added: list[str] = field(default_factory=list)
     """New entries added to .gitignore"""
 
-    entries_skipped: List[str] = field(default_factory=list)
+    entries_skipped: list[str] = field(default_factory=list)
     """Entries already present in .gitignore"""
 
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     """Error messages if any occurred"""
 
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     """Warning messages if any were generated"""
 
 
@@ -100,9 +99,9 @@ class GitignoreManager:
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
-        self._line_ending = None
+        self._line_ending: str = os.linesep
 
-    def ensure_entries(self, entries: List[str]) -> bool:
+    def ensure_entries(self, entries: list[str]) -> bool:
         """
         Core method to add entries to .gitignore.
 
@@ -171,13 +170,13 @@ class GitignoreManager:
         Returns:
             Line ending string ('\r\n' for Windows, '\n' for Unix/Mac)
         """
-        if '\r\n' in content:
-            return '\r\n'
+        if "\r\n" in content:
+            return "\r\n"
         else:
-            return '\n'
+            return "\n"
 
     @classmethod
-    def get_agent_directories(cls) -> List[AgentDirectory]:
+    def get_agent_directories(cls) -> list[AgentDirectory]:
         """
         Get a copy of the registry of all known agent directories.
 
@@ -251,7 +250,7 @@ class GitignoreManager:
 
         return self._protect_entries(all_directories, "agent directories")
 
-    def protect_selected_agents(self, agents: List[str]) -> ProtectionResult:
+    def protect_selected_agents(self, agents: list[str]) -> ProtectionResult:
         """
         Add specific agent directories to .gitignore based on selection.
 

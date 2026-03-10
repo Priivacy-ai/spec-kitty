@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Optional
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.feature_detection import (
@@ -25,11 +24,15 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 @require_main_repo
 def next_step(
     agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
-    result: Annotated[str, typer.Option("--result", help="Result of previous step: success|failed|blocked")] = "success",
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    result: Annotated[
+        str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
+    ] = "success",
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
-    answer: Annotated[Optional[str], typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
+    answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
+    decision_id: Annotated[
+        str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")
+    ] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -60,7 +63,7 @@ def next_step(
         feature_slug = detect_feature_slug(repo_root, explicit_feature=feature)
     except FeatureDetectionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Handle --answer flow
     answered_id = None
@@ -148,7 +151,11 @@ def _handle_answer(
                 raise typer.Exit(1)
 
         answer_decision_via_runtime(
-            feature_slug, decision_id, answer, agent, repo_root_path,
+            feature_slug,
+            decision_id,
+            answer,
+            agent,
+            repo_root_path,
         )
 
         return decision_id
@@ -157,7 +164,7 @@ def _handle_answer(
         raise
     except Exception as exc:
         print(f"Error answering decision: {exc}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 def _print_human(decision) -> None:
@@ -201,5 +208,5 @@ def _print_human(decision) -> None:
 
     if decision.prompt_file:
         print()
-        print(f"  Next step: read the prompt file:")
+        print("  Next step: read the prompt file:")
         print(f"    cat {decision.prompt_file}")

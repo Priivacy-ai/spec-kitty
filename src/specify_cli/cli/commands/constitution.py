@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -47,7 +46,7 @@ def _resolve_constitution_path(repo_root: Path) -> Path:
     raise TaskCliError(f"Constitution not found. Expected:\n  - {new_path}\n  - {legacy_path} (legacy)")
 
 
-def _parse_csv_option(raw: Optional[str]) -> list[str] | None:
+def _parse_csv_option(raw: str | None) -> list[str] | None:
     if raw is None:
         return None
     values = [part.strip() for part in raw.split(",")]
@@ -64,17 +63,17 @@ def interview(
     mission: str = typer.Option("software-dev", "--mission", help="Mission key for constitution defaults"),
     profile: str = typer.Option("minimal", "--profile", help="Interview profile: minimal or comprehensive"),
     use_defaults: bool = typer.Option(False, "--defaults", help="Use deterministic defaults without prompts"),
-    selected_paradigms: Optional[str] = typer.Option(
+    selected_paradigms: str | None = typer.Option(
         None,
         "--selected-paradigms",
         help="Comma-separated paradigm IDs override",
     ),
-    selected_directives: Optional[str] = typer.Option(
+    selected_directives: str | None = typer.Option(
         None,
         "--selected-directives",
         help="Comma-separated directive IDs override",
     ),
-    available_tools: Optional[str] = typer.Option(
+    available_tools: str | None = typer.Option(
         None,
         "--available-tools",
         help="Comma-separated tool IDs override",
@@ -157,21 +156,23 @@ def interview(
 
     except (TaskCliError, ValueError) as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
 def generate(
-    mission: Optional[str] = typer.Option(None, "--mission", help="Mission key for template-set defaults"),
-    template_set: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(None, "--mission", help="Mission key for template-set defaults"),
+    template_set: str | None = typer.Option(
         None,
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
+    from_interview: bool = typer.Option(
+        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
+    ),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing constitution bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
@@ -246,15 +247,12 @@ def generate(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
-    except FileExistsError as e:
+    except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
-    except (TaskCliError, ValueError, RuntimeError) as e:
-        console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -290,10 +288,10 @@ def context(
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -335,10 +333,10 @@ def sync(
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -428,7 +426,7 @@ def status(
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
