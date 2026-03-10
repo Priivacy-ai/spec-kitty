@@ -198,7 +198,7 @@ class TrackerService:
     ) -> dict[str, Any]:
         config, credentials, store = self._load_runtime()
 
-        provider = str(config.provider)
+        provider = normalize_provider(str(config.provider))
         workspace = str(config.workspace)
         issues = self._run_async(store.list_issues(system=provider))
         mappings = store.list_mappings()

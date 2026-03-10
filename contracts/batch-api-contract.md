@@ -820,10 +820,12 @@ The CLI publishes tracker snapshots to a **separate endpoint** from the batch ev
 
 ```
 POST {server_url}/api/v1/connectors/trackers/snapshots/
-Authorization: Bearer <jwt_access_token>
+Authorization: Bearer <token>
 Content-Type: application/json
 Idempotency-Key: <sha256-hash>
 ```
+
+**Authorization token resolution**: The CLI resolves the bearer token from, in order: (1) an explicit `--auth-token` parameter, (2) `credentials["access_token"]`, (3) `credentials["token"]`. If all sources are empty, the `Authorization` header is omitted entirely. The SaaS should expect any of these token types and must reject unauthenticated requests.
 
 This endpoint is independent of the batch event pipeline (`/api/v1/events/batch/`). The 15-field event envelope (Section 2) is unchanged by this feature.
 

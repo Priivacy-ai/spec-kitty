@@ -199,6 +199,36 @@ class TestSyncPublishPayload:
             assert sent_payload["external_resource_type"] is None
             assert sent_payload["external_resource_id"] is None
 
+    @pytest.mark.parametrize("raw_provider", ["Jira", "JIRA", "jIrA"])
+    def test_unnormalized_provider_still_resolves_routing(self, raw_provider):
+        """P3 regression: provider casing from config must be normalized before routing lookup."""
+        config = TrackerProjectConfig(
+            provider=raw_provider,
+            workspace="acme.atlassian.net",
+            doctrine_mode="external_authoritative",
+        )
+        credentials = {
+            "base_url": "https://acme.atlassian.net",
+            "email": "a@b.com",
+            "api_token": "tok",
+            "project_key": "ACME",
+        }
+        store = _make_mock_store()
+        service = TrackerService(Path("/tmp/fake-repo"))
+
+        with (
+            patch.object(TrackerService, "_load_runtime", return_value=(config, credentials, store)),
+            patch.object(TrackerService, "_project_identity", return_value={"uuid": "test-uuid", "slug": "test-proj"}),
+            patch("specify_cli.tracker.service.httpx.Client") as mock_client_cls,
+        ):
+            mock_ctx = _make_mock_http(mock_client_cls)
+            service.sync_publish(server_url="https://example.com", auth_token="test-token")
+
+            sent_payload = mock_ctx.post.call_args[1]["json"]
+            assert sent_payload["external_resource_type"] == "jira_project"
+            assert sent_payload["external_resource_id"] == "ACME"
+            assert sent_payload["provider"] == "jira"
+
     def test_idempotency_key_changes_on_rebind(self):
         """Rebinding to a different project_key must produce a different
         idempotency key, even when issue/mapping/cursor state is identical."""
