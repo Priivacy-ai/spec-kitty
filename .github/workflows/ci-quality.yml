@@ -251,6 +251,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           if python -m ruff check src tests 2>&1 | tee out/reports/static-analysis/ruff-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
@@ -262,6 +263,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set -o pipefail
           if python -m mypy --strict src/specify_cli 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
