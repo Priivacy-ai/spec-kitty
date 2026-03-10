@@ -1,7 +1,7 @@
 ---
 description: Merge a completed feature into the target branch and clean up worktree
 scripts:
-  sh: "spec-kitty agent feature merge"
+  sh: "spec-kitty merge --feature <feature-slug>"
   ps: "spec-kitty agent"
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root.

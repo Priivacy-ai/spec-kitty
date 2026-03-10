@@ -728,8 +728,20 @@ def merge(
             from specify_cli.core.feature_detection import get_feature_target_branch
             target_branch = get_feature_target_branch(repo_root, feature)
         else:
-            from specify_cli.core.git_ops import resolve_primary_branch
-            target_branch = resolve_primary_branch(repo_root)
+            # Attempt to derive feature slug from current branch before falling
+            # back to resolve_primary_branch().  This handles the case where the
+            # user is on a feature/WP branch and omits --feature.
+            _, _current_branch, _ = run_command(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True
+            )
+            _inferred_slug = extract_feature_slug(_current_branch)
+            _feature_dir = repo_root / "kitty-specs" / _inferred_slug
+            if _inferred_slug != _current_branch and (_feature_dir / "meta.json").exists():
+                from specify_cli.core.feature_detection import get_feature_target_branch
+                target_branch = get_feature_target_branch(repo_root, _inferred_slug)
+            else:
+                from specify_cli.core.git_ops import resolve_primary_branch
+                target_branch = resolve_primary_branch(repo_root)
 
     # Validate resolved target branch exists (FR-006: hard error, no silent fallback)
     if feature and target_branch:
