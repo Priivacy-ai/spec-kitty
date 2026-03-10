@@ -186,7 +186,7 @@ class GitignoreManager:
         # Return a copy to prevent external modification
         return AGENT_DIRECTORIES.copy()
 
-    def _protect_entries(self, directories: List[str], error_context: str) -> ProtectionResult:
+    def _protect_entries(self, directories: list[str], error_context: str) -> ProtectionResult:
         """
         Shared implementation for adding entries to .gitignore with tracking.
 
