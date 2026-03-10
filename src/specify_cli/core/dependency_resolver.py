@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from specify_cli.frontmatter import read_frontmatter
 
@@ -75,9 +76,7 @@ class DependencyStatus:
         )
 
 
-def check_dependency_status(
-    feature_dir: Path, wp_id: str, dependencies: list[str]
-) -> DependencyStatus:
+def check_dependency_status(feature_dir: Path, wp_id: str, dependencies: list[str]) -> DependencyStatus:
     """Check status of a WP's dependencies.
 
     Args:
@@ -119,9 +118,7 @@ def check_dependency_status(
     )
 
 
-def predict_merge_conflicts(
-    repo_root: Path, branches: list[str], target: str | None = None
-) -> dict[str, list[str]]:
+def predict_merge_conflicts(repo_root: Path, branches: list[str], target: str | None = None) -> dict[str, list[str]]:
     """Predict which files will conflict when merging branches.
 
     Uses git merge-tree to simulate merge without touching working directory.
@@ -139,9 +136,10 @@ def predict_merge_conflicts(
 
     if target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
+
         target = resolve_primary_branch(repo_root)
 
-    conflicts = {}
+    conflicts: dict[str, list[str]] = {}
 
     # Check each branch against target
     for branch in branches:
@@ -161,7 +159,7 @@ def predict_merge_conflicts(
             if result.returncode != 0 or "<<<<<<<" in result.stdout:
                 # Has conflicts - parse which files
                 for line in result.stdout.split("\n"):
-                    if line.startswith("CONFLICT"):
+                    if line.startswith("CONFLICT"):  # noqa: SIM102
                         # Example: "CONFLICT (add/add): Merge conflict in .gitignore"
                         if " in " in line:
                             file_path = line.split(" in ")[-1].strip()
@@ -169,14 +167,14 @@ def predict_merge_conflicts(
                                 conflicts[file_path] = []
                             conflicts[file_path].append(branch)
 
-        except Exception:
+        except Exception:  # noqa: S110
             # merge-tree failed or not available - skip prediction
             pass
 
     return conflicts
 
 
-def get_merge_strategy_recommendation(status: DependencyStatus) -> dict:
+def get_merge_strategy_recommendation(status: DependencyStatus) -> dict[str, Any]:
     """Get recommended merge strategy for dependencies.
 
     Args:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
+from datetime import timedelta
 from urllib.parse import urlparse
 
 import typer
@@ -37,12 +37,11 @@ from specify_cli.sync.feature_flags import (
 console = Console()
 
 
-def humanize_timedelta(td: "timedelta") -> str:
+def humanize_timedelta(td: timedelta) -> str:
     """Convert a timedelta into a concise human-readable string.
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
     """
-    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
 
     total_seconds = int(td.total_seconds())
     if total_seconds < 0:
@@ -178,7 +177,7 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
             match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", branch_name)
             if match:
                 return cwd, match.group(1)
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
     # Not in a recognized workspace
@@ -331,7 +330,7 @@ def _jj_repair(workspace_path: Path) -> bool:
 
 
 @app.command(name="workspace")
-def sync_workspace(
+def sync_workspace(  # noqa: C901
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -384,9 +383,9 @@ def sync_workspace(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
-    console.print(f"[cyan]Backend:[/cyan] git")
+    console.print("[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode
@@ -395,10 +394,7 @@ def sync_workspace(
         console.print("[dim]Note: This may lose uncommitted work[/dim]")
         console.print()
 
-        if vcs.backend == VCSBackend.JUJUTSU:
-            success = _jj_repair(workspace_path)
-        else:
-            success = _git_repair(workspace_path)
+        success = _jj_repair(workspace_path) if vcs.backend == VCSBackend.JUJUTSU else _git_repair(workspace_path)
 
         if success:
             console.print("[green]✓ Recovery successful[/green]")
@@ -466,7 +462,7 @@ def sync_workspace(
             _display_changes_integrated(result.changes_integrated)
 
     elif result.status == SyncStatus.FAILED:
-        console.print(f"\n[red]✗ Sync failed[/red]")
+        console.print("\n[red]✗ Sync failed[/red]")
         if result.message:
             console.print(f"[dim]{result.message}[/dim]")
 
@@ -598,22 +594,20 @@ def sync_server(
     parsed = urlparse(normalized_url)
     if parsed.scheme != "https" or not parsed.netloc:
         console.print(
-            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
-            "for example: https://spec-kitty-dev.fly.dev"
+            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, for example: https://spec-kitty-dev.fly.dev"
         )
         raise typer.Exit(1)
 
     config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
     console.print(
-        "[dim]If you switched environments, run "
-        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
+        "[dim]If you switched environments, run 'spec-kitty auth login --force' to refresh credentials.[/dim]"
     )
 
 
 @app.command()
 def now(
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Export per-event failure details to a JSON file",
@@ -871,9 +865,7 @@ def diagnose(
     for r in results:
         if not r.valid:
             category_label = f" [{r.error_category}]" if r.error_category else ""
-            console.print(
-                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
-            )
+            console.print(f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}")
             for err in r.errors:
                 console.print(f"    - {err}")
 

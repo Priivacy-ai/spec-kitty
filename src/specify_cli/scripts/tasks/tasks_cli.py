@@ -9,8 +9,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
+from typing import Any
+from datetime import datetime, UTC
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -23,15 +23,12 @@ from task_helpers import (  # noqa: E402
     append_activity_log,
     activity_entries,
     build_document,
-    detect_conflicting_wp_status,
     ensure_lane,
     find_repo_root,
     get_lane_from_frontmatter,
-    git_status_lines,
     is_legacy_format,
     normalize_note,
     now_utc,
-    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -39,7 +36,6 @@ from task_helpers import (  # noqa: E402
 )
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
-    AcceptanceResult,
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
@@ -96,7 +92,7 @@ def _collect_summary_with_encoding(
             feature,
             strict_metadata=strict_metadata,
         )
-    except ArtifactEncodingError as exc:
+    except ArtifactEncodingError:
         if not normalize_encoding:
             raise
         cleaned = normalize_feature_encoding(repo_root, feature)
@@ -207,9 +203,7 @@ def update_command(args: argparse.Namespace) -> None:
 
     print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
-    print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}"
-    )
+    print(f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}")
 
 
 def history_command(args: argparse.Namespace) -> None:
@@ -331,9 +325,7 @@ def list_command(args: argparse.Namespace) -> None:
     width_id = max(len(row["id"]) for row in rows)
     width_lane = max(len(row["lane"]) for row in rows)
     width_agent = max(len(row["agent"]) for row in rows) if any(row["agent"] for row in rows) else 5
-    width_assignee = (
-        max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
-    )
+    width_assignee = max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
 
     header = (
         f"{'Lane'.ljust(width_lane)}  "
@@ -378,14 +370,14 @@ def rollback_command(args: argparse.Namespace) -> None:
     update_command(args_for_update)
 
 
-def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
+def _resolve_feature(repo_root: Path, requested: str | None) -> str:
     if requested:
         return requested
     return detect_feature_slug(repo_root)
 
 
-def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
-    lines: List[str] = []
+def _summary_to_text(summary: AcceptanceSummary) -> list[str]:
+    lines: list[str] = []
     lines.append(f"Feature: {summary.feature}")
     lines.append(f"Branch: {summary.branch or 'N/A'}")
     lines.append(f"Worktree: {summary.worktree_root}")
@@ -452,7 +444,7 @@ def verify_command(args: argparse.Namespace) -> None:
     sys.exit(0 if summary.ok else 1)
 
 
-def accept_command(args: argparse.Namespace) -> None:
+def accept_command(args: argparse.Namespace) -> None:  # noqa: C901
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
     try:
@@ -532,15 +524,15 @@ def _prepare_merge_metadata(
     target: str,
     strategy: str,
     pushed: bool,
-) -> Optional[Path]:
+) -> Path | None:
     feature_dir = repo_root / "kitty-specs" / feature
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     merged_by = _merge_actor(repo_root)
 
-    entry: Dict[str, Any] = {
+    entry: dict[str, Any] = {
         "merged_at": timestamp,
         "merged_by": merged_by,
         "target": target,
@@ -549,7 +541,7 @@ def _prepare_merge_metadata(
         "merge_commit": None,
     }
 
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
@@ -574,7 +566,7 @@ def _prepare_merge_metadata(
     return meta_path
 
 
-def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> None:
+def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
     if not meta_path or not meta_path.exists():
         return
 
@@ -584,38 +576,39 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
         meta = {}
 
     history = meta.get("merge_history")
-    if isinstance(history, list) and history:
-        if isinstance(history[-1], dict):
-            history[-1]["merge_commit"] = merge_commit
+    if isinstance(history, list) and history and isinstance(history[-1], dict):
+        history[-1]["merge_commit"] = merge_commit
     meta["merged_commit"] = merge_commit
 
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-def merge_command(args: argparse.Namespace) -> None:
+
+def merge_command(args: argparse.Namespace) -> None:  # noqa: C901
     # merge_command needs the LOCAL git root (may be a worktree), not the main
     # repo root that find_repo_root() returns.  git rev-parse --show-toplevel
     # gives us exactly that.
-    local_root = Path(
-        run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip()
-    )
+    local_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip())
     repo_root = local_root
     feature = _resolve_feature(find_repo_root(), args.feature)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
+
         args.target = resolve_primary_branch(repo_root)
 
-    current_branch = run_git([
-        "rev-parse",
-        "--abbrev-ref",
-        "HEAD",
-    ], cwd=repo_root, check=True).stdout.strip()
+    current_branch = run_git(
+        [
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+        ],
+        cwd=repo_root,
+        check=True,
+    ).stdout.strip()
 
     if current_branch == args.target:
-        raise TaskCliError(
-            f"Already on target branch '{args.target}'. Switch to the feature branch before merging."
-        )
+        raise TaskCliError(f"Already on target branch '{args.target}'. Switch to the feature branch before merging.")
 
     if current_branch != feature:
         raise TaskCliError(
@@ -636,9 +629,7 @@ def merge_command(args: argparse.Namespace) -> None:
     def ensure_clean(cwd: Path) -> None:
         status = run_git(["status", "--porcelain"], cwd=cwd, check=True).stdout.strip()
         if status:
-            raise TaskCliError(
-                f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging."
-            )
+            raise TaskCliError(f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging.")
 
     ensure_clean(repo_root)
     if in_worktree:
@@ -651,9 +642,7 @@ def merge_command(args: argparse.Namespace) -> None:
         if args.strategy == "squash":
             steps.append(f"  - Merge {feature} with --squash and commit")
         elif args.strategy == "rebase":
-            steps.append(
-                f"  - Rebase {feature} onto {args.target} manually (command exits before merge)"
-            )
+            steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
         else:
             steps.append(f"  - Merge {feature} with --no-ff")
         if args.push:
@@ -665,7 +654,7 @@ def merge_command(args: argparse.Namespace) -> None:
         print("\n".join(steps))
         return
 
-    def git(cmd: List[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
+    def git(cmd: list[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
         return run_git(cmd, cwd=cwd, check=check)
 
     git(["checkout", args.target])
@@ -676,17 +665,15 @@ def merge_command(args: argparse.Namespace) -> None:
         git(["fetch"], check=False)
         pull = git(["pull", "--ff-only"], check=False)
         if pull.returncode != 0:
-            raise TaskCliError(
-                "Failed to fast-forward target branch. Resolve upstream changes and retry."
-            )
+            raise TaskCliError("Failed to fast-forward target branch. Resolve upstream changes and retry.")
 
     if args.strategy == "rebase":
         raise TaskCliError(
-            "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
+            "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."  # noqa: E501
         )
 
-    meta_path: Optional[Path] = None
-    meta_rel: Optional[str] = None
+    meta_path: Path | None = None
+    meta_rel: str | None = None
 
     if args.strategy == "squash":
         merge_proc = git(["merge", "--squash", feature], check=False)
@@ -725,9 +712,8 @@ def merge_command(args: argparse.Namespace) -> None:
     elif args.push and not has_remote:
         print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
 
-    if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git(["worktree", "remove", str(repo_root), "--force"])
 
     if args.delete_branch:
         delete = git(["branch", "-d", feature], check=False)
@@ -735,6 +721,8 @@ def merge_command(args: argparse.Namespace) -> None:
             git(["branch", "-D", feature])
 
     print(f"Merge complete: {feature} -> {args.target}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -826,7 +814,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

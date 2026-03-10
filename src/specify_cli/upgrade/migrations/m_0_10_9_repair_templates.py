@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -52,21 +51,21 @@ class RepairTemplatesMigration(BaseMigration):
                     content = cmd_file.read_text(encoding="utf-8")
                     if "scripts/bash/" in content or "scripts/powershell/" in content:
                         return True  # Found broken template
-                except Exception:
+                except Exception:  # noqa: S112
                     # Skip files we can't read
                     continue
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Migration can always be applied if broken templates detected."""
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Regenerate templates from correct source."""
-        changes: List[str] = []
-        errors: List[str] = []
-        warnings: List[str] = []
+        changes: list[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         # Step 1: Remove broken templates from .kittify/templates/
         kittify_templates = project_path / ".kittify" / "templates"
@@ -92,18 +91,14 @@ class RepairTemplatesMigration(BaseMigration):
             if local_repo:
                 # For local dev, get templates from .kittify/templates/
                 if not dry_run:
-                    command_templates_dir = copy_specify_base_from_local(
-                        local_repo, project_path, "sh"
-                    )
+                    command_templates_dir = copy_specify_base_from_local(local_repo, project_path, "sh")
                     changes.append("Copied correct templates from local repo")
                 else:
                     changes.append("Would copy correct templates from local repo")
             else:
                 # For package install, use bundled templates (now fixed)
                 if not dry_run:
-                    command_templates_dir = copy_specify_base_from_package(
-                        project_path, "sh"
-                    )
+                    command_templates_dir = copy_specify_base_from_package(project_path, "sh")
                     changes.append("Copied correct templates from package")
                 else:
                     changes.append("Would copy correct templates from package")
@@ -122,7 +117,7 @@ class RepairTemplatesMigration(BaseMigration):
                         with open(metadata_file, encoding="utf-8") as f:
                             metadata = yaml.safe_load(f)
                             ai_config = metadata.get("ai", "claude")
-                    except Exception:
+                    except Exception:  # noqa: S110
                         # Use default if we can't read metadata
                         pass
 
@@ -132,7 +127,7 @@ class RepairTemplatesMigration(BaseMigration):
                         command_templates_dir=command_templates_dir,
                         project_path=project_path,
                         agent_key=ai_config,
-                        script_type="sh"
+                        script_type="sh",
                     )
                     changes.append("Regenerated all agent slash commands")
                 except Exception as e:

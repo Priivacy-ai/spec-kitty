@@ -17,7 +17,8 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from .schema import MissionValidationError
 
@@ -50,10 +51,7 @@ def parse_guard_expression(expr: str) -> tuple[str, list[Any]]:
     """
     match = _EXPR_RE.match(expr.strip())
     if not match:
-        raise ValueError(
-            f"Invalid guard expression syntax: '{expr}'. "
-            "Expected format: function_name(arg1, arg2, ...)"
-        )
+        raise ValueError(f"Invalid guard expression syntax: '{expr}'. Expected format: function_name(arg1, arg2, ...)")
 
     func_name = match.group(1)
     raw_args = match.group(2).strip()
@@ -71,9 +69,7 @@ def parse_guard_expression(expr: str) -> tuple[str, list[Any]]:
         except ValueError:
             pass
         # Try unquoting string
-        if (token.startswith('"') and token.endswith('"')) or (
-            token.startswith("'") and token.endswith("'")
-        ):
+        if (token.startswith('"') and token.endswith('"')) or (token.startswith("'") and token.endswith("'")):
             args.append(token[1:-1])
         else:
             # Bare identifier — keep as string
@@ -303,7 +299,7 @@ def _is_guard_expression(s: str) -> bool:
     return "(" in s and s.rstrip().endswith(")")
 
 
-def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> dict[str, Any]:
+def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> dict[str, Any]:  # noqa: ARG001
     """Process a v1 config dict, compiling guard expression strings into callables.
 
     For each transition in ``config["transitions"]``, this function inspects
@@ -333,9 +329,7 @@ def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> d
     """
     transitions = config.get("transitions", [])
 
-    for idx, transition in enumerate(transitions):
-        trigger = transition.get("trigger", f"t{idx}")
-
+    for _idx, transition in enumerate(transitions):
         for key in ("conditions", "unless"):
             entries = transition.get(key)
             if not entries:

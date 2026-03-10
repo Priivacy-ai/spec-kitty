@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ SNAPSHOT_FILENAME = "status.json"
 
 def _now_utc() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _is_rollback_event(event: StatusEvent) -> bool:
@@ -30,11 +30,7 @@ def _is_rollback_event(event: StatusEvent) -> bool:
     A rollback is a transition from for_review back to in_progress
     with a review reference (indicating a reviewer requested changes).
     """
-    return (
-        event.from_lane == Lane.FOR_REVIEW
-        and event.to_lane == Lane.IN_PROGRESS
-        and event.review_ref is not None
-    )
+    return event.from_lane == Lane.FOR_REVIEW and event.to_lane == Lane.IN_PROGRESS and event.review_ref is not None
 
 
 def _wp_state_from_event(
@@ -89,9 +85,7 @@ def _should_apply_event(
                 if ev.event_id == current_event_id:
                     current_setter = ev
                     break
-            if current_setter is not None and not _is_rollback_event(
-                current_setter
-            ):
+            if current_setter is not None and not _is_rollback_event(current_setter):
                 return True  # Rollback beats forward
 
         # If the current state was set by a rollback, don't let a
@@ -102,11 +96,8 @@ def _should_apply_event(
                 if ev.event_id == current_event_id:
                     current_setter = ev
                     break
-            if current_setter is not None and _is_rollback_event(
-                current_setter
-            ):
-                if not _is_rollback_event(new_event):
-                    return False  # Forward does not beat rollback
+            if current_setter is not None and _is_rollback_event(current_setter) and not _is_rollback_event(new_event):
+                return False  # Forward does not beat rollback
 
     # Default: apply the event (later in sort order wins)
     return True

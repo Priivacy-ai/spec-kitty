@@ -13,9 +13,10 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Iterable, List, Literal
+from typing import Literal
+from collections.abc import Iterable
 
 BIBTEX_PATTERN = r"@\w+\{[\w-]+,"
 APA_PATTERN = r"^[\w\s\.,&]+?,\s?.+\(\d{4}\)\."
@@ -49,7 +50,7 @@ class ResearchValidationError(Exception):
     """Raised when research validation fails unexpectedly."""
 
 
-class CitationFormat(str, Enum):
+class CitationFormat(StrEnum):
     """Supported citation formats."""
 
     BIBTEX = "bibtex"
@@ -75,7 +76,7 @@ class CitationValidationResult:
     file_path: Path
     total_entries: int
     valid_entries: int
-    issues: List[CitationIssue]
+    issues: list[CitationIssue]
 
     @property
     def has_errors(self) -> bool:
@@ -225,8 +226,7 @@ def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
                             field="source_type",
                             issue_type="error",
                             message=(
-                                f"Invalid source_type '{source_type}'. "
-                                f"Must be one of: {', '.join(VALID_SOURCE_TYPES)}"
+                                f"Invalid source_type '{source_type}'. Must be one of: {', '.join(VALID_SOURCE_TYPES)}"
                             ),
                         )
                     )
@@ -370,10 +370,7 @@ def validate_source_register(source_register_path: Path) -> CitationValidationRe
                             line_number=line_number,
                             field="relevance",
                             issue_type="error",
-                            message=(
-                                f"Invalid relevance '{relevance}'. "
-                                f"Must be: {', '.join(VALID_RELEVANCE_LEVELS)}"
-                            ),
+                            message=(f"Invalid relevance '{relevance}'. Must be: {', '.join(VALID_RELEVANCE_LEVELS)}"),
                         )
                     )
                     entry_valid = False
@@ -384,9 +381,7 @@ def validate_source_register(source_register_path: Path) -> CitationValidationRe
                             line_number=line_number,
                             field="status",
                             issue_type="error",
-                            message=(
-                                f"Invalid status '{status}'. Must be: {', '.join(VALID_SOURCE_STATUS)}"
-                            ),
+                            message=(f"Invalid status '{status}'. Must be: {', '.join(VALID_SOURCE_STATUS)}"),
                         )
                     )
                     entry_valid = False

@@ -23,7 +23,7 @@ import json
 import re
 import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
@@ -57,7 +57,7 @@ class _JSONErrorGroup(TyperGroup):
     envelope and exits non-zero.
     """
 
-    def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]
+    def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]  # noqa: ARG002
         try:
             rv = super().main(*args, standalone_mode=False, **kwargs)
             # With standalone_mode=False, typer.Exit(code) is caught by
@@ -83,9 +83,7 @@ class _JSONErrorGroup(TyperGroup):
                 error_code="USAGE_ERROR",
             )
             _emit(envelope)
-            raise SystemExit(2)
-        except SystemExit:
-            raise
+            raise SystemExit(2) from None
 
 
 # The public ``app`` used by the main CLI to register orchestrator-api.
@@ -330,10 +328,7 @@ def list_ready(
             continue
 
         # Check all dependencies are done
-        all_deps_done = all(
-            wp_states.get(dep, {}).get("lane") == "done"
-            for dep in deps
-        )
+        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
 
         recommended_base = deps[-1] if deps else None
 
@@ -704,7 +699,7 @@ def append_history(
     raw = wp_path.read_text(encoding="utf-8")
     fm, body, padding = split_frontmatter(raw)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry_text = f"- [{timestamp}] {actor}: {note}"
     new_body = append_activity_log(body, entry_text)
 
@@ -756,11 +751,7 @@ def accept_feature(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"
-    ]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
     if incomplete:
         _fail(
             cmd,
@@ -781,7 +772,7 @@ def accept_feature(
         except Exception:
             meta = {}
 
-    accepted_at = datetime.now(timezone.utc).isoformat()
+    accepted_at = datetime.now(UTC).isoformat()
     meta["accepted_at"] = accepted_at
     meta["accepted_by"] = actor
     meta_path.write_text(_json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")
@@ -831,6 +822,7 @@ def merge_feature(
     # Auto-detect target branch from meta.json if not specified
     if target is None:
         from specify_cli.core.feature_detection import get_feature_target_branch
+
         target = get_feature_target_branch(main_repo_root, feature)
 
     # Discover worktrees for this feature
@@ -840,7 +832,7 @@ def merge_feature(
         for wt_path in sorted(worktrees_root.iterdir()):
             if wt_path.name.startswith(f"{feature}-") and wt_path.is_dir():
                 # Extract WP ID from directory name: e.g. "034-feature-WP01" → "WP01"
-                suffix = wt_path.name[len(feature) + 1:]
+                suffix = wt_path.name[len(feature) + 1 :]
                 if suffix.startswith("WP"):
                     wp_id = suffix
                     branch_name = wt_path.name
@@ -868,7 +860,7 @@ def merge_feature(
 
     # Execute merges using git directly (simplified)
     merged_wps = []
-    for wt_path, wp_id, branch_name in ordered_workspaces:
+    for wt_path, wp_id, branch_name in ordered_workspaces:  # noqa: B007
         try:
             # Checkout target branch and merge
             subprocess.run(
@@ -885,8 +877,12 @@ def merge_feature(
                 # squash leaves staged changes; commit them
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "commit",
-                        "-m", f"squash merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "commit",
+                        "-m",
+                        f"squash merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
@@ -917,9 +913,14 @@ def merge_feature(
                 # Default: --no-ff merge
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "merge",
-                        "--no-ff", branch_name,
-                        "-m", f"merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "merge",
+                        "--no-ff",
+                        branch_name,
+                        "-m",
+                        f"merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,

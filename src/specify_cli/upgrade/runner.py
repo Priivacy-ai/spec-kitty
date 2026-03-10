@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 
 from rich.console import Console
 
@@ -26,17 +26,17 @@ class UpgradeResult:
     success: bool
     from_version: str
     to_version: str
-    migrations_applied: List[str] = field(default_factory=list)
-    migrations_skipped: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    migrations_applied: list[str] = field(default_factory=list)
+    migrations_skipped: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
 
 
 class MigrationRunner:
     """Orchestrates the migration process."""
 
-    def __init__(self, project_path: Path, console: Optional[Console] = None):
+    def __init__(self, project_path: Path, console: Console | None = None):
         """Initialize the runner.
 
         Args:
@@ -52,7 +52,7 @@ class MigrationRunner:
         self,
         target_version: str,
         dry_run: bool = False,
-        force: bool = False,
+        force: bool = False,  # noqa: ARG002
         include_worktrees: bool = True,
     ) -> UpgradeResult:
         """Run all needed migrations to reach target version.
@@ -86,9 +86,7 @@ class MigrationRunner:
                 metadata.last_upgraded_at = datetime.now()
                 metadata.save(self.kittify_dir)
 
-            result.warnings.append(
-                f"No migrations needed from {from_version} to {target_version}"
-            )
+            result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
 
         # Load or create metadata
@@ -119,16 +117,12 @@ class MigrationRunner:
 
         # Handle worktrees
         if include_worktrees:
-            worktrees_result = self._upgrade_worktrees(
-                target_version, migrations, dry_run
-            )
+            worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run)
             result.warnings.extend(worktrees_result.get("warnings", []))
             if worktrees_result.get("errors"):
                 result.errors.extend(worktrees_result["errors"])
                 # Don't fail the whole upgrade for worktree issues
-                result.warnings.append(
-                    "Some worktrees had issues - check errors above"
-                )
+                result.warnings.append("Some worktrees had issues - check errors above")
 
         return result
 
@@ -163,16 +157,10 @@ class MigrationRunner:
         if not migration.detect(self.project_path):
             # Migration not needed - project doesn't have old state
             if not dry_run:
-                metadata.record_migration(
-                    migration.migration_id, "skipped", "Not applicable"
-                )
-            return (
-                MigrationResult(
-                    success=True,
-                    warnings=[
-                        f"Migration {migration.migration_id} not needed (project already in target state)"
-                    ],
-                ),
+                metadata.record_migration(migration.migration_id, "skipped", "Not applicable")
+            return (MigrationResult(
+                success=True,
+                warnings=[f"Migration {migration.migration_id} not needed (project already in target state)"],),
                 "skipped",
             )
 
@@ -203,9 +191,9 @@ class MigrationRunner:
     def _upgrade_worktrees(
         self,
         target_version: str,
-        migrations: List[BaseMigration],
+        migrations: list[BaseMigration],
         dry_run: bool,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Upgrade all worktrees in .worktrees/ directory.
 
         Args:
@@ -216,7 +204,7 @@ class MigrationRunner:
         Returns:
             Dict with warnings and errors lists
         """
-        result: dict = {"warnings": [], "errors": []}
+        result: dict[str, Any] = {"warnings": [], "errors": []}
 
         worktrees_dir = self.project_path / WORKTREES_DIR
         if not worktrees_dir.exists():
@@ -246,9 +234,7 @@ class MigrationRunner:
 
                 if not migration.detect(worktree):
                     if not dry_run:
-                        wt_metadata.record_migration(
-                            migration.migration_id, "skipped", "Not applicable"
-                        )
+                        wt_metadata.record_migration(migration.migration_id, "skipped", "Not applicable")
                     continue
 
                 can_apply, reason = migration.can_apply(worktree)
@@ -265,17 +251,11 @@ class MigrationRunner:
                         wt_metadata.record_migration(
                             migration.migration_id,
                             "success",
-                            "; ".join(migration_result.changes_made)
-                            if migration_result.changes_made
-                            else None,
+                            "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
                         )
-                    result["warnings"].extend(
-                        [f"Worktree {worktree.name}: {w}" for w in migration_result.warnings]
-                    )
+                    result["warnings"].extend([f"Worktree {worktree.name}: {w}" for w in migration_result.warnings])
                 else:
-                    result["errors"].extend(
-                        [f"Worktree {worktree.name}: {e}" for e in migration_result.errors]
-                    )
+                    result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
             # Save worktree metadata
             if not dry_run:

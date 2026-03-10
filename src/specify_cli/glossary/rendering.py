@@ -5,7 +5,6 @@ displaying ranked candidate senses with color-coded severity.
 """
 
 import logging
-from typing import List
 
 from rich.console import Console
 from rich.panel import Panel
@@ -36,7 +35,7 @@ SCOPE_PRECEDENCE: dict[str, int] = {
 }
 
 
-def sort_candidates(candidates: List[SenseRef]) -> List[SenseRef]:
+def sort_candidates(candidates: list[SenseRef]) -> list[SenseRef]:
     """Sort candidate senses by scope precedence then descending confidence.
 
     Candidates with scope precedence mission_local (0) appear first,
@@ -94,15 +93,13 @@ def render_conflict(
     severity_icon = _get_severity_icon(conflict.severity)
 
     # Create title with severity
-    title = (
-        f"[{severity_color}]{severity_icon}[/{severity_color}] "
-        f'conflict: "{conflict.term.surface_text}"'
-    )
+    title = f'[{severity_color}]{severity_icon}[/{severity_color}] conflict: "{conflict.term.surface_text}"'
 
     # Sort candidates by scope precedence then descending confidence
     ranked_candidates = sort_candidates(conflict.candidate_senses)
 
     # Create table for candidates
+    body: Table | str
     if ranked_candidates:
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("#", style="cyan", width=3)
@@ -142,9 +139,9 @@ def render_conflict(
 
 def render_conflict_batch(
     console: Console,
-    conflicts: List[SemanticConflict],
+    conflicts: list[SemanticConflict],
     max_questions: int = 3,
-) -> List[SemanticConflict]:
+) -> list[SemanticConflict]:
     """Render conflicts prioritized by severity, capped at max_questions.
 
     Args:

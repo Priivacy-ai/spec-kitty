@@ -12,7 +12,6 @@ Commands:
 import json as json_lib
 import logging
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -26,10 +25,6 @@ from specify_cli.glossary.events import (
     read_events,
 )
 from specify_cli.glossary.models import (
-    ConflictType,
-    SenseRef,
-    SemanticConflict,
-    Severity,
     TermSense,
     TermSurface,
 )
@@ -96,9 +91,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=new_sense_data.get("definition", ""),
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(
-                                    event.get("timestamp", datetime.now().isoformat())
-                                ),
+                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
                                 source="event_log",
                             ),
                             confidence=new_sense_data.get("confidence", 1.0),
@@ -121,9 +114,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=selected["definition"],
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(
-                                    event.get("timestamp", datetime.now().isoformat())
-                                ),
+                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
                                 source="clarification_resolved",
                             ),
                             confidence=selected.get("confidence", 1.0),
@@ -138,8 +129,8 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
 
 def _get_all_terms_from_store(
     store: GlossaryStore,
-    scope_filter: Optional[GlossaryScope] = None,
-    status_filter: Optional[str] = None,
+    scope_filter: GlossaryScope | None = None,
+    status_filter: str | None = None,
 ) -> list:
     """Retrieve all terms from a GlossaryStore.
 
@@ -170,11 +161,11 @@ def _get_all_terms_from_store(
     return terms
 
 
-def _extract_conflicts_from_events(
+def _extract_conflicts_from_events(  # noqa: C901
     events: list[dict],
-    mission_filter: Optional[str] = None,
+    mission_filter: str | None = None,
     unresolved_only: bool = False,
-    strictness_filter: Optional[str] = None,
+    strictness_filter: str | None = None,
 ) -> list[dict]:
     """Extract conflict records from event log.
 
@@ -232,16 +223,18 @@ def _extract_conflicts_from_events(
             finding = finding_index.get((step_id, term_text), {})
             check_event = check_event_index.get(step_id, {})
 
-            conflict_events.append({
-                "conflict_id": cid,
-                "term": term_text,
-                "type": finding.get("conflict_type", "unknown"),
-                "severity": event.get("urgency", finding.get("severity", "unknown")),
-                "mission_id": event.get("mission_id", ""),
-                "timestamp": event.get("timestamp", ""),
-                "status": "unresolved",
-                "effective_strictness": check_event.get("effective_strictness", "unknown"),
-            })
+            conflict_events.append(
+                {
+                    "conflict_id": cid,
+                    "term": term_text,
+                    "type": finding.get("conflict_type", "unknown"),
+                    "severity": event.get("urgency", finding.get("severity", "unknown")),
+                    "mission_id": event.get("mission_id", ""),
+                    "timestamp": event.get("timestamp", ""),
+                    "status": "unresolved",
+                    "effective_strictness": check_event.get("effective_strictness", "unknown"),
+                }
+            )
 
         elif event_type == "GlossaryClarificationResolved":
             cid = event.get("conflict_id", "")
@@ -260,16 +253,18 @@ def _extract_conflicts_from_events(
             # it was resolved immediately (no Requested event)
             existing_ids = {c["conflict_id"] for c in conflict_events}
             if cid and cid not in existing_ids:
-                conflict_events.append({
-                    "conflict_id": cid,
-                    "term": term_text,
-                    "type": "unknown",
-                    "severity": "unknown",
-                    "mission_id": "",
-                    "timestamp": event.get("timestamp", ""),
-                    "status": "resolved",
-                    "effective_strictness": "unknown",
-                })
+                conflict_events.append(
+                    {
+                        "conflict_id": cid,
+                        "term": term_text,
+                        "type": "unknown",
+                        "severity": "unknown",
+                        "mission_id": "",
+                        "timestamp": event.get("timestamp", ""),
+                        "status": "resolved",
+                        "effective_strictness": "unknown",
+                    }
+                )
 
     # Mark resolved conflicts
     for conflict in conflict_events:
@@ -284,22 +279,19 @@ def _extract_conflicts_from_events(
         conflict_events = [c for c in conflict_events if c["status"] == "unresolved"]
 
     if strictness_filter:
-        conflict_events = [
-            c for c in conflict_events
-            if c["effective_strictness"] == strictness_filter
-        ]
+        conflict_events = [c for c in conflict_events if c["effective_strictness"] == strictness_filter]
 
     return conflict_events
 
 
 @app.command("list")
 def list_terms(
-    scope: Optional[str] = typer.Option(
+    scope: str | None = typer.Option(
         None,
         "--scope",
         help="Filter by scope (mission_local, team_domain, audience_domain, spec_kitty_core)",
     ),
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None,
         "--status",
         help="Filter by status (active, deprecated, draft)",
@@ -314,12 +306,11 @@ def list_terms(
     repo_root = Path.cwd()
 
     # Validate scope
-    scope_enum: Optional[GlossaryScope] = None
+    scope_enum: GlossaryScope | None = None
     if scope:
         if scope not in _VALID_SCOPES:
             console.print(
-                f"[red]Error: Invalid scope '{scope}'. "
-                f"Valid scopes: {', '.join(sorted(_VALID_SCOPES))}[/red]"
+                f"[red]Error: Invalid scope '{scope}'. Valid scopes: {', '.join(sorted(_VALID_SCOPES))}[/red]"
             )
             raise typer.Exit(1)
         scope_enum = GlossaryScope(scope)
@@ -328,18 +319,14 @@ def list_terms(
     valid_statuses = {"active", "deprecated", "draft"}
     if status and status not in valid_statuses:
         console.print(
-            f"[red]Error: Invalid status '{status}'. "
-            f"Valid statuses: {', '.join(sorted(valid_statuses))}[/red]"
+            f"[red]Error: Invalid status '{status}'. Valid statuses: {', '.join(sorted(valid_statuses))}[/red]"
         )
         raise typer.Exit(1)
 
     # Check glossary directory exists
     glossaries_dir = repo_root / ".kittify" / "glossaries"
     if not glossaries_dir.exists():
-        console.print(
-            "[red]Error: Glossary not initialized. "
-            "Run 'spec-kitty init' with glossary enabled.[/red]"
-        )
+        console.print("[red]Error: Glossary not initialized. Run 'spec-kitty init' with glossary enabled.[/red]")
         raise typer.Exit(1)
 
     # Load store from seed files
@@ -403,7 +390,7 @@ def list_terms(
 
 @app.command()
 def conflicts(
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Filter conflicts by mission ID",
@@ -413,7 +400,7 @@ def conflicts(
         "--unresolved",
         help="Show only unresolved conflicts",
     ),
-    strictness: Optional[str] = typer.Option(
+    strictness: str | None = typer.Option(
         None,
         "--strictness",
         help="Filter by effective strictness level (off, medium, max)",
@@ -430,8 +417,7 @@ def conflicts(
     # Validate strictness filter
     if strictness and strictness not in _VALID_STRICTNESS:
         console.print(
-            f"[red]Error: Invalid strictness '{strictness}'. "
-            f"Valid values: {', '.join(sorted(_VALID_STRICTNESS))}[/red]"
+            f"[red]Error: Invalid strictness '{strictness}'. Valid values: {', '.join(sorted(_VALID_STRICTNESS))}[/red]"
         )
         raise typer.Exit(1)
 
@@ -464,7 +450,7 @@ def conflicts(
             print("[]")
         else:
             console.print("[dim]No conflicts found[/dim]")
-            console.print(f"\n[dim]Total: 0 conflict(s)[/dim]")
+            console.print("\n[dim]Total: 0 conflict(s)[/dim]")
         return
 
     # JSON output (use print() to avoid Rich markup)
@@ -524,9 +510,9 @@ def conflicts(
 
 
 @app.command()
-def resolve(
+def resolve(  # noqa: C901
     conflict_id: str = typer.Argument(..., help="Conflict ID to resolve"),
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Mission ID for event log (auto-detected if omitted)",
@@ -538,7 +524,6 @@ def resolve(
     # Collect events from all mission event logs
     events_dir = repo_root / ".kittify" / "events" / "glossary"
     all_events: list[dict] = []
-    event_mission_map: dict[str, str] = {}  # conflict_id -> mission_id
 
     if events_dir.exists():
         for event_file in sorted(events_dir.glob("*.events.jsonl")):
@@ -547,9 +532,9 @@ def resolve(
 
     # Find the conflict by UUID in GlossaryClarificationRequested events
     # (canonical source of conflict_id UUIDs)
-    requested_event: Optional[dict] = None
-    conflict_finding: Optional[dict] = None
-    conflict_mission_id: Optional[str] = None
+    requested_event: dict | None = None
+    conflict_finding: dict | None = None
+    conflict_mission_id: str | None = None
 
     # Index SemanticCheckEvaluated findings for enrichment
     finding_index: dict[tuple[str, str], dict] = {}
@@ -558,15 +543,12 @@ def resolve(
             step_id = event.get("step_id", "unknown")
             for finding in event.get("findings", []):
                 term_data = finding.get("term", {})
-                if isinstance(term_data, dict):
-                    term_text = term_data.get("surface_text", "unknown")
-                else:
-                    term_text = str(term_data)
+                term_text = term_data.get("surface_text", "unknown") if isinstance(term_data, dict) else str(term_data)
                 finding_index[(step_id, term_text)] = finding
 
     # Search GlossaryClarificationRequested events for the UUID conflict_id
     for event in all_events:
-        if event.get("event_type") == "GlossaryClarificationRequested":
+        if event.get("event_type") == "GlossaryClarificationRequested":  # noqa: SIM102
             if event.get("conflict_id") == conflict_id:
                 requested_event = event
                 conflict_mission_id = event.get("mission_id", "unknown")
@@ -582,8 +564,7 @@ def resolve(
 
     # Check if already resolved
     resolved = any(
-        e.get("event_type") == "GlossaryClarificationResolved"
-        and e.get("conflict_id") == conflict_id
+        e.get("event_type") == "GlossaryClarificationResolved" and e.get("conflict_id") == conflict_id
         for e in all_events
     )
 
@@ -613,17 +594,13 @@ def resolve(
         # Build candidates from requested event options
         options = requested_event.get("options", [])
         candidates = [
-            {"surface": term_text, "scope": "unknown", "definition": opt, "confidence": 0.5}
-            for opt in options
+            {"surface": term_text, "scope": "unknown", "definition": opt, "confidence": 0.5} for opt in options
         ]
 
     if candidates:
         console.print("\n[bold]Candidate senses:[/bold]")
         for i, candidate in enumerate(candidates, 1):
-            console.print(
-                f"  {i}. [{candidate.get('scope', '?')}] "
-                f"{candidate.get('definition', 'No definition')}"
-            )
+            console.print(f"  {i}. [{candidate.get('scope', '?')}] {candidate.get('definition', 'No definition')}")
     console.print()
 
     # Prompt for resolution

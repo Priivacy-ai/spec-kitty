@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .exceptions import VCSSyncError
@@ -73,22 +73,16 @@ def _extract_jj_error(stderr: str) -> str | None:
         return None
 
     lines = stderr.strip().split("\n")
-    error_lines = []
+    error_lines: list[str] = []
 
     for line in lines:
         stripped = line.strip()
 
         # Actual jj errors start with "Error:"
-        if stripped.startswith("Error:"):
-            error_lines.append(stripped)
-        # Also capture "Caused by:" lines that follow errors
-        elif stripped.startswith("Caused by:") and error_lines:
+        if stripped.startswith("Error:") or stripped.startswith("Caused by:") and error_lines:
             error_lines.append(stripped)
         # Skip benign patterns
-        elif any(pattern in stripped for pattern in JJ_BENIGN_STDERR_PATTERNS):
-            continue
-        # Skip empty lines
-        elif not stripped:
+        elif any(pattern in stripped for pattern in JJ_BENIGN_STDERR_PATTERNS) or not stripped:
             continue
 
     if error_lines:
@@ -132,7 +126,7 @@ class JujutsuVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
-        sparse_exclude: list[str] | None = None,
+        sparse_exclude: list[str] | None = None,  # noqa: ARG002 - protocol compat
     ) -> WorkspaceCreateResult:
         """
         Create a new jj workspace.
@@ -231,7 +225,7 @@ class JujutsuVCS:
                         cwd=str(repo_root),
                     )
                     shutil.rmtree(workspace_path, ignore_errors=True)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
                 return WorkspaceCreateResult(
                     success=False,
@@ -347,7 +341,7 @@ class JujutsuVCS:
                     "@",
                     "--no-graph",
                     "-T",
-                    'change_id ++ "|" ++ commit_id ++ "|" ++ description.first_line() ++ "|" ++ if(conflict, "conflict", "") ++ "\n"',
+                    'change_id ++ "|" ++ commit_id ++ "|" ++ description.first_line() ++ "|" ++ if(conflict, "conflict", "") ++ "\n"',  # noqa: E501
                 ],
                 capture_output=True,
                 text=True,
@@ -436,7 +430,7 @@ class JujutsuVCS:
 
                 # For default workspace, the path is repo_root
                 if workspace_name == "default":
-                    workspace_path = repo_root
+                    workspace_path: Path = repo_root
                 else:
                     # For other workspaces, we need to find them
                     # jj workspace list doesn't show paths, so we check common locations
@@ -444,14 +438,15 @@ class JujutsuVCS:
                         repo_root.parent / workspace_name,
                         repo_root / ".worktrees" / workspace_name,
                     ]
-                    workspace_path = None
+                    found_path: Path | None = None
                     for path in potential_paths:
                         if path.exists() and (path / ".jj").exists():
-                            workspace_path = path
+                            found_path = path
                             break
 
-                    if workspace_path is None:
+                    if found_path is None:
                         continue
+                    workspace_path = found_path
 
                 info = self.get_workspace_info(workspace_path)
                 if info:
@@ -540,9 +535,9 @@ class JujutsuVCS:
             )
 
         except subprocess.TimeoutExpired:
-            raise VCSSyncError("Sync operation timed out")
+            raise VCSSyncError("Sync operation timed out") from None
         except OSError as e:
-            raise VCSSyncError(f"OS error during sync: {e}")
+            raise VCSSyncError(f"OS error during sync: {e}") from e
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
         """
@@ -648,7 +643,7 @@ class JujutsuVCS:
                 cwd=str(workspace_path),
             )
 
-            if log_result.returncode == 0 and "conflict" in log_result.stdout:
+            if log_result.returncode == 0 and "conflict" in log_result.stdout:  # noqa: SIM102
                 # Current commit has conflicts
                 # If we didn't find specific files, add a generic indicator
                 if not conflicts:
@@ -707,11 +702,7 @@ class JujutsuVCS:
             )
 
             # Look for conflict indicator in status
-            for line in status_result.stdout.split("\n"):
-                if line.strip().startswith("C "):
-                    return True
-
-            return False
+            return any(line.strip().startswith("C ") for line in status_result.stdout.split("\n"))
 
         except (subprocess.TimeoutExpired, OSError):
             return False
@@ -834,7 +825,7 @@ class JujutsuVCS:
         self,
         workspace_path: Path,
         message: str,
-        paths: list[Path] | None = None,
+        paths: list[Path] | None = None,  # noqa: ARG002
     ) -> ChangeInfo | None:
         """
         Set the commit message for the current change.
@@ -989,7 +980,7 @@ class JujutsuVCS:
     # Private Helper Methods
     # =========================================================================
 
-    def _parse_sync_stats(self, output: str) -> tuple[int, int, int]:
+    def _parse_sync_stats(self, output: str) -> tuple[int, int, int]:  # noqa: ARG002
         """Parse sync output for file statistics."""
         # jj doesn't give detailed stats in a standard format
         # Return zeros for now
@@ -1017,7 +1008,7 @@ class JujutsuVCS:
             try:
                 timestamp = datetime.fromisoformat(timestamp_str)
             except ValueError:
-                timestamp = datetime.now(timezone.utc)
+                timestamp = datetime.now(UTC)
 
             # Parse parents
             parents = [p for p in parents_str.split(",") if p]
@@ -1059,7 +1050,7 @@ class JujutsuVCS:
             try:
                 timestamp = datetime.fromisoformat(timestamp_str)
             except ValueError:
-                timestamp = datetime.now(timezone.utc)
+                timestamp = datetime.now(UTC)
 
             # Parse parents
             parents = [p for p in parents_str.split(",") if p]
@@ -1139,7 +1130,7 @@ def jj_get_operation_log(repo_path: Path, limit: int = 20) -> list[OperationInfo
                     op_id = parts[start_idx] if start_idx < len(parts) else ""
 
                     # Try to parse timestamp from "X ago" format
-                    timestamp = datetime.now(timezone.utc)
+                    timestamp = datetime.now(UTC)
 
                     current_op = OperationInfo(
                         operation_id=op_id,

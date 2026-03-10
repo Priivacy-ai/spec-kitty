@@ -10,7 +10,6 @@ Updates existing generated agent prompts in user projects to fix:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -68,14 +67,14 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
                 return True
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Apply textual repairs to generated prompt files."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         for file_path in self._iter_generated_prompt_files(project_path):
             try:

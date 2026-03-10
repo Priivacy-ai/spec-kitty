@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List
+from collections.abc import Iterable
 
 from specify_cli.mission import Mission
 
@@ -19,7 +19,7 @@ __all__ = [
 class PathValidationError(Exception):
     """Raised when required mission paths are missing in strict mode."""
 
-    def __init__(self, result: "PathValidationResult") -> None:
+    def __init__(self, result: PathValidationResult) -> None:
         self.result = result
         message = result.format_errors() or "Path convention validation failed."
         super().__init__(message)
@@ -30,11 +30,11 @@ class PathValidationResult:
     """Result of validating mission-declared paths against the workspace."""
 
     mission_name: str
-    required_paths: Dict[str, str]
-    existing_paths: List[str] = field(default_factory=list)
-    missing_paths: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    required_paths: dict[str, str]
+    existing_paths: list[str] = field(default_factory=list)
+    missing_paths: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
@@ -74,18 +74,15 @@ class PathValidationResult:
                 lines.append(f"  - {suggestion}")
 
         lines.append("")
-        lines.append(
-            "These directories are required by the active mission. "
-            "Create them before continuing."
-        )
+        lines.append("These directories are required by the active mission. Create them before continuing.")
         return "\n".join(lines)
 
 
-def suggest_directory_creation(missing_paths: Iterable[str]) -> List[str]:
+def suggest_directory_creation(missing_paths: Iterable[str]) -> list[str]:
     """Generate shell-friendly suggestions for fixing missing paths."""
 
     missing = list(missing_paths)
-    suggestions: List[str] = []
+    suggestions: list[str] = []
 
     for path_str in missing:
         path = Path(path_str)
@@ -142,9 +139,7 @@ def validate_mission_paths(
             continue
 
         result.missing_paths.append(relative_path)
-        result.warnings.append(
-            f"{mission.name} expects {key} path: {relative_path} (not found)"
-        )
+        result.warnings.append(f"{mission.name} expects {key} path: {relative_path} (not found)")
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

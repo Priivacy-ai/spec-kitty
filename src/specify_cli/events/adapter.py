@@ -6,7 +6,7 @@ for future flexibility.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 # Import from vendored spec_kitty_events module
@@ -92,13 +92,13 @@ class LamportClock:
     def tick(self) -> int:
         """Increment clock and return new value."""
         self.value += 1
-        self.last_updated = datetime.now(timezone.utc).isoformat()
+        self.last_updated = datetime.now(UTC).isoformat()
         return self.value
 
     def update(self, remote_clock: int) -> int:
         """Update clock to max(local, remote) + 1."""
         self.value = max(self.value, remote_clock) + 1
-        self.last_updated = datetime.now(timezone.utc).isoformat()
+        self.last_updated = datetime.now(UTC).isoformat()
         return self.value
 
     @classmethod
@@ -109,7 +109,7 @@ class LamportClock:
 
         return cls(
             value=lib_clock.value,
-            last_updated=lib_clock.last_updated or datetime.now(timezone.utc).isoformat(),
+            last_updated=lib_clock.last_updated or datetime.now(UTC).isoformat(),
         )
 
     def to_lib_clock(self) -> Any:

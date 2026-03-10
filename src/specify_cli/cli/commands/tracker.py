@@ -76,7 +76,9 @@ def providers_command(as_json: bool = typer.Option(False, "--json", help="Render
 
 @app.command("bind")
 def bind_command(
-    provider: str = typer.Option(..., "--provider", help="Provider name (jira, linear, azure_devops, github, gitlab, beads, fp)"),
+    provider: str = typer.Option(
+        ..., "--provider", help="Provider name (jira, linear, azure_devops, github, gitlab, beads, fp)"
+    ),
     workspace: str = typer.Option(..., "--workspace", help="Provider workspace/team/project identifier"),
     doctrine_mode: str = typer.Option(
         "external_authoritative",

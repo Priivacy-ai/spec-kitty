@@ -1,9 +1,10 @@
 """WebSocket client for real-time sync with exponential backoff reconnection"""
+
 import asyncio
 import json
 import random
 from contextlib import suppress
-from typing import Optional, Callable
+from collections.abc import Callable
 import websockets
 from websockets import ConnectionClosed
 
@@ -16,6 +17,7 @@ from specify_cli.sync.feature_flags import (
 
 class ConnectionStatus:
     """Connection status constants"""
+
     CONNECTED = "Connected"
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
@@ -43,8 +45,8 @@ class WebSocketClient:
     def __init__(
         self,
         server_url: str,
-        token: Optional[str] = None,
-        auth_client: Optional[AuthClient] = None,
+        token: str | None = None,
+        auth_client: AuthClient | None = None,
     ):
         """
         Initialize WebSocket client.
@@ -62,12 +64,12 @@ class WebSocketClient:
         self.server_url = server_url
         self._direct_token = token
         self._auth_client = auth_client
-        self.ws: Optional[websockets.ClientConnection] = None
+        self.ws: websockets.ClientConnection | None = None
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
-        self.message_handler: Optional[Callable] = None
+        self.message_handler: Callable | None = None
         self.reconnect_attempts = 0
-        self._listen_task: Optional[asyncio.Task] = None
+        self._listen_task: asyncio.Task | None = None
 
     def _get_ws_token(self) -> str:
         """
@@ -110,7 +112,7 @@ class WebSocketClient:
                     uri,
                     additional_headers=headers,
                     ping_interval=None,  # We handle heartbeat manually
-                    ping_timeout=None
+                    ping_timeout=None,
                 )
                 self.connected = True
                 self.status = ConnectionStatus.CONNECTED
@@ -180,12 +182,9 @@ class WebSocketClient:
 
         while self.reconnect_attempts < self.MAX_RECONNECT_ATTEMPTS:
             # Calculate exponential backoff delay
-            delay = min(
-                self.BASE_DELAY_SECONDS * (2 ** self.reconnect_attempts),
-                self.MAX_DELAY_SECONDS
-            )
+            delay = min(self.BASE_DELAY_SECONDS * (2**self.reconnect_attempts), self.MAX_DELAY_SECONDS)
             # Add jitter to prevent thundering herd
-            jitter = random.uniform(-self.JITTER_RANGE, self.JITTER_RANGE)
+            jitter = random.uniform(-self.JITTER_RANGE, self.JITTER_RANGE)  # noqa: S311
             delay = max(0, delay + jitter)
 
             attempt_num = self.reconnect_attempts + 1
@@ -225,10 +224,7 @@ class WebSocketClient:
         Returns:
             Delay in seconds (without jitter)
         """
-        return min(
-            self.BASE_DELAY_SECONDS * (2 ** attempt),
-            self.MAX_DELAY_SECONDS
-        )
+        return min(self.BASE_DELAY_SECONDS * (2**attempt), self.MAX_DELAY_SECONDS)
 
     async def send_event(self, event: dict):
         """
@@ -245,7 +241,7 @@ class WebSocketClient:
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            raise ConnectionError("Connection closed")
+            raise ConnectionError("Connection closed") from None
 
     async def _listen(self):
         """Listen for messages from server"""
@@ -255,7 +251,7 @@ class WebSocketClient:
                 await self._handle_message(data)
         except asyncio.CancelledError:
             # Expected during explicit disconnect/shutdown.
-            pass
+            raise
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
@@ -265,13 +261,13 @@ class WebSocketClient:
 
     async def _handle_message(self, data: dict):
         """Handle incoming message"""
-        msg_type = data.get('type')
+        msg_type = data.get("type")
 
-        if msg_type == 'snapshot':
+        if msg_type == "snapshot":
             await self._handle_snapshot(data)
-        elif msg_type == 'event':
+        elif msg_type == "event":
             await self._handle_event(data)
-        elif msg_type == 'ping':
+        elif msg_type == "ping":
             await self._handle_ping(data)
         else:
             # Unknown message type
@@ -282,7 +278,7 @@ class WebSocketClient:
         message = await self.ws.recv()
         data = json.loads(message)
 
-        if data.get('type') == 'snapshot':
+        if data.get("type") == "snapshot":
             print(f"📦 Received snapshot: {len(data.get('work_packages', []))} work packages")
         else:
             print(f"⚠️  Expected snapshot, got {data.get('type')}")
@@ -299,10 +295,7 @@ class WebSocketClient:
 
     async def _handle_ping(self, data: dict):
         """Respond to server ping"""
-        pong = {
-            'type': 'pong',
-            'timestamp': data.get('timestamp')
-        }
+        pong = {"type": "pong", "timestamp": data.get("timestamp")}
         await self.ws.send(json.dumps(pong))
 
     def set_message_handler(self, handler: Callable):

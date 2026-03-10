@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from io import StringIO
 from pathlib import Path
 import re
@@ -164,9 +164,7 @@ def _resolve_template_set(
     if requested_template_set:
         if catalog.template_sets and requested_template_set not in catalog.template_sets:
             options = ", ".join(sorted(catalog.template_sets))
-            raise ValueError(
-                f"Unknown template set '{requested_template_set}'. Available template sets: {options}"
-            )
+            raise ValueError(f"Unknown template set '{requested_template_set}'. Available template sets: {options}")
         return requested_template_set
 
     mission_default = f"{mission}-default"
@@ -304,11 +302,7 @@ def _doctrine_yaml_reference(
     source_path = str(source.get("_source_path", ""))
     display_path = _trim_source_path(source_path)
     title = str(source.get("title") or source.get("name") or raw_id)
-    summary = str(
-        source.get("summary")
-        or source.get("intent")
-        or "No summary provided."
-    )
+    summary = str(source.get("summary") or source.get("intent") or "No summary provided.")
 
     source_yaml = _dump_yaml(source)
     local_slug = _slugify(raw_id)
@@ -402,7 +396,7 @@ def _render_constitution_markdown(
     available_tools: list[str],
     references: list[ConstitutionReference],
 ) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     testing = interview.answers.get("testing_requirements", "Use pytest with measurable coverage goals.")
     quality = interview.answers.get("quality_gates", "Tests, lint, and type checks must pass before merge.")
@@ -449,17 +443,11 @@ def _render_constitution_markdown(
         f"available_tools: {_yaml_inline_list(available_tools)}\n"
         f"template_set: {template_set}\n"
         "```\n\n"
-        "## Policy Summary\n\n"
-        + "\n".join(policy_summary_lines)
-        + "\n\n"
-        "## Project Directives\n\n"
-        + numbered_directives
-        + "\n\n"
-        "## Reference Index\n\n"
-        + "\n".join(reference_rows)
-        + "\n\n"
+        "## Policy Summary\n\n" + "\n".join(policy_summary_lines) + "\n\n"
+        "## Project Directives\n\n" + numbered_directives + "\n\n"
+        "## Reference Index\n\n" + "\n".join(reference_rows) + "\n\n"
         "## Amendment Process\n\n"
-        f"{interview.answers.get('amendment_process', 'Amendments are proposed by PR and reviewed before adoption.')}\n\n"
+        f"{interview.answers.get('amendment_process', 'Amendments are proposed by PR and reviewed before adoption.')}\n\n"  # noqa: E501
         "## Exception Policy\n\n"
         f"{interview.answers.get('exception_policy', 'Exceptions must include rationale and expiration criteria.')}\n"
     )
@@ -492,7 +480,7 @@ def _render_directives(interview: ConstitutionInterview, selected_directives: li
 def _write_references_yaml(path: Path, compiled: CompiledConstitution) -> None:
     payload = {
         "schema_version": "1.0.0",
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mission": compiled.mission,
         "template_set": compiled.template_set,
         "references": [
@@ -528,7 +516,7 @@ def _trim_source_path(source_path: str) -> str:
         return ""
     marker = "src/doctrine/"
     if marker in source_path:
-        return source_path[source_path.index(marker):]
+        return source_path[source_path.index(marker) :]
     return source_path
 
 

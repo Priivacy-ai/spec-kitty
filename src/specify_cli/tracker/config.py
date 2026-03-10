@@ -38,7 +38,7 @@ class TrackerProjectConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object] | None) -> "TrackerProjectConfig":
+    def from_dict(cls, data: dict[str, object] | None) -> TrackerProjectConfig:
         if not isinstance(data, dict):
             return cls()
 
@@ -71,9 +71,7 @@ def require_repo_root() -> Path:
     """Resolve the current project root or raise a user-facing error."""
     repo_root = locate_project_root(Path.cwd())
     if repo_root is None:
-        raise TrackerConfigError(
-            "Not inside a spec-kitty project. Run this command from a project with .kittify/."
-        )
+        raise TrackerConfigError("Not inside a spec-kitty project. Run this command from a project with .kittify/.")
     return repo_root
 
 

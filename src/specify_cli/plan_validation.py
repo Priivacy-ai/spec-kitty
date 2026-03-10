@@ -6,7 +6,6 @@ Detects whether a plan.md file has been meaningfully filled out or is still in t
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 # Template markers that indicate an unfilled plan
@@ -68,7 +67,7 @@ def detect_unfilled_plan(plan_path: Path) -> tuple[bool, list[str]]:
 def validate_plan_filled(
     plan_path: Path,
     *,
-    feature_slug: Optional[str] = None,
+    feature_slug: str | None = None,
     strict: bool = True,
 ) -> None:
     """Validate that plan.md has been filled out.
@@ -101,6 +100,7 @@ def validate_plan_filled(
         raise PlanValidationError(error_msg)
     else:
         import sys
+
         print(f"Warning: {error_msg}", file=sys.stderr)
 
 

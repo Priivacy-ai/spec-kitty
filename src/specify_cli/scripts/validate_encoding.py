@@ -17,10 +17,9 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 
-def check_utf8_encoding(file_path: Path) -> Tuple[bool, Optional[str]]:
+def check_utf8_encoding(file_path: Path) -> tuple[bool, str | None]:
     """
     Check if a file is valid UTF-8.
 
@@ -28,7 +27,7 @@ def check_utf8_encoding(file_path: Path) -> Tuple[bool, Optional[str]]:
         (is_valid, error_message)
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             f.read()
         return (True, None)
     except UnicodeDecodeError as e:
@@ -44,45 +43,45 @@ def detect_encoding(file_path: Path) -> str:
 
     Returns encoding name or 'unknown'.
     """
-    encodings = ['utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'utf-32']
+    encodings = ["utf-8", "windows-1252", "iso-8859-1", "utf-16", "utf-32"]
 
     for encoding in encodings:
         try:
-            with open(file_path, 'r', encoding=encoding) as f:
+            with open(file_path, encoding=encoding) as f:
                 f.read()
             return encoding
         except (UnicodeDecodeError, UnicodeError):
             continue
 
-    return 'unknown'
+    return "unknown"
 
 
-def convert_to_utf8(file_path: Path, source_encoding: str = 'windows-1252', dry_run: bool = False) -> bool:
+def convert_to_utf8(file_path: Path, source_encoding: str = "windows-1252", dry_run: bool = False) -> bool:
     """
     Convert a file from source_encoding to UTF-8.
 
     Returns True if successful.
     """
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             data = f.read()
 
         # Decode with source encoding
-        text = data.decode(source_encoding, errors='replace')
+        text = data.decode(source_encoding, errors="replace")
 
         # Common Windows-1252 → UTF-8 fixes
-        text = text.replace('\u0086\u0092', '→')  # Dagger + right-quote = arrow
-        text = text.replace('\u0093', '→')  # Sometimes used as arrow
-        text = text.replace('\u0094', '"')  # Right double quote
-        text = text.replace('\u0091', "'")  # Left single quote
-        text = text.replace('\u0092', "'")  # Right single quote
+        text = text.replace("\u0086\u0092", "→")  # Dagger + right-quote = arrow
+        text = text.replace("\u0093", "→")  # Sometimes used as arrow
+        text = text.replace("\u0094", '"')  # Right double quote
+        text = text.replace("\u0091", "'")  # Left single quote
+        text = text.replace("\u0092", "'")  # Right single quote
 
         if dry_run:
             print(f"  [DRY RUN] Would convert {file_path.name}")
             return True
 
         # Write as UTF-8
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(text)
 
         return True
@@ -91,7 +90,7 @@ def convert_to_utf8(file_path: Path, source_encoding: str = 'windows-1252', dry_
         return False
 
 
-def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> List[Path]:
+def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> list[Path]:
     """
     Scan directory for markdown files with encoding issues.
 
@@ -99,7 +98,7 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
     """
     problem_files = []
 
-    markdown_files = list(directory.rglob('*.md'))
+    markdown_files = list(directory.rglob("*.md"))
 
     if not markdown_files:
         print(f"No markdown files found in {directory}")
@@ -120,16 +119,15 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
                 detected = detect_encoding(md_file)
                 print(f"   Detected encoding: {detected}")
 
-                if detected != 'utf-8' and detected != 'unknown':
-                    if convert_to_utf8(md_file, detected, dry_run):
-                        if not dry_run:
-                            # Verify the fix worked
-                            is_valid_now, _ = check_utf8_encoding(md_file)
-                            if is_valid_now:
-                                print(f"   ✅ Fixed! Converted from {detected} to UTF-8")
-                            else:
-                                print(f"   ⚠️ Conversion completed but file still has issues")
-                                problem_files.append(md_file)
+                if detected != "utf-8" and detected != "unknown":
+                    if convert_to_utf8(md_file, detected, dry_run) and not dry_run:
+                        # Verify the fix worked
+                        is_valid_now, _ = check_utf8_encoding(md_file)
+                        if is_valid_now:
+                            print(f"   ✅ Fixed! Converted from {detected} to UTF-8")
+                        else:
+                            print("   ⚠️ Conversion completed but file still has issues")
+                            problem_files.append(md_file)
                 else:
                     problem_files.append(md_file)
             else:
@@ -141,18 +139,15 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate UTF-8 encoding in markdown files')
-    parser.add_argument('path', nargs='?', default='kitty-specs', help='Path to scan (default: kitty-specs)')
-    parser.add_argument('--fix', action='store_true', help='Attempt to fix encoding issues')
-    parser.add_argument('--dry-run', action='store_true', help='Show what would be fixed without making changes')
-    parser.add_argument('--scan-all', action='store_true', help='Scan entire repository')
+    parser = argparse.ArgumentParser(description="Validate UTF-8 encoding in markdown files")
+    parser.add_argument("path", nargs="?", default="kitty-specs", help="Path to scan (default: kitty-specs)")
+    parser.add_argument("--fix", action="store_true", help="Attempt to fix encoding issues")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be fixed without making changes")
+    parser.add_argument("--scan-all", action="store_true", help="Scan entire repository")
 
     args = parser.parse_args()
 
-    if args.scan_all:
-        scan_path = Path.cwd()
-    else:
-        scan_path = Path(args.path)
+    scan_path = Path.cwd() if args.scan_all else Path(args.path)
 
     if not scan_path.exists():
         print(f"❌ Error: Path does not exist: {scan_path}")
@@ -160,7 +155,7 @@ def main():
 
     problem_files = scan_directory(scan_path, fix=args.fix, dry_run=args.dry_run)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     if problem_files:
         print(f"❌ Found {len(problem_files)} file(s) with encoding issues:")
         for f in problem_files:
@@ -176,5 +171,5 @@ def main():
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

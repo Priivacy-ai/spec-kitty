@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from .metadata import ProjectMetadata
 
@@ -53,7 +52,7 @@ class VersionDetector:
         # Heuristic detection based on directory structure
         return self._detect_from_structure()
 
-    def _detect_from_structure(self) -> str:
+    def _detect_from_structure(self) -> str:  # noqa: C901
         """Detect version from project structure."""
         # v0.1.x: Uses .specify/ directory and /specs/
         if self.specify_dir.exists():
@@ -107,7 +106,7 @@ class VersionDetector:
             return "0.7.0"
 
         # v0.6.5+: Has command-templates (not commands)
-        if has_command_templates or has_mission_command_templates:
+        if has_command_templates or has_mission_command_templates:  # noqa: SIM102
             if not has_old_commands and not has_mission_commands:
                 return "0.6.5"
 
@@ -119,9 +118,7 @@ class VersionDetector:
         git_hooks = self.project_path / ".git" / "hooks"
         if git_hooks.exists() and (git_hooks / "pre-commit").exists():
             try:
-                hook_content = (git_hooks / "pre-commit").read_text(
-                    encoding="utf-8", errors="ignore"
-                )
+                hook_content = (git_hooks / "pre-commit").read_text(encoding="utf-8", errors="ignore")
                 if "spec-kitty" in hook_content.lower() or "encoding" in hook_content.lower():
                     return "0.5.0"
             except OSError:
@@ -146,7 +143,7 @@ class VersionDetector:
         # Default to oldest .kittify-based version
         return "0.2.0"
 
-    def get_needed_migrations(self, target_version: str) -> List[str]:
+    def get_needed_migrations(self, target_version: str) -> list[str]:
         """Get list of migration IDs needed to reach target version.
 
         Args:
@@ -256,7 +253,4 @@ class VersionDetector:
                 return True
 
         # If no mission directories found, that's broken
-        if not has_any_mission:
-            return True
-
-        return False
+        return bool(not has_any_mission)

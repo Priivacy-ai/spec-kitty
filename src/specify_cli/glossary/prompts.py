@@ -8,7 +8,6 @@ import logging
 import os
 import sys
 from enum import StrEnum
-from typing import List, Tuple
 
 import typer
 
@@ -55,11 +54,7 @@ def is_interactive() -> bool:
         return False
 
     # Check common CI environment variables
-    for var in _CI_ENV_VARS:
-        if os.getenv(var):
-            return False
-
-    return True
+    return all(not os.getenv(var) for var in _CI_ENV_VARS)
 
 
 def log_non_interactive_context() -> None:
@@ -73,8 +68,8 @@ def log_non_interactive_context() -> None:
 
 
 def auto_defer_conflicts(
-    conflicts: List[SemanticConflict],
-) -> List[Tuple[SemanticConflict, PromptChoice, None]]:
+    conflicts: list[SemanticConflict],
+) -> list[tuple[SemanticConflict, PromptChoice, None]]:
     """Auto-defer all conflicts in non-interactive mode.
 
     Args:
@@ -93,7 +88,7 @@ def auto_defer_conflicts(
 
 def prompt_conflict_resolution(
     conflict: SemanticConflict,
-) -> Tuple[PromptChoice, int | str | None]:
+) -> tuple[PromptChoice, int | str | None]:
     """Prompt user to resolve a semantic conflict.
 
     Displays options:
@@ -116,7 +111,7 @@ def prompt_conflict_resolution(
     num_candidates = len(conflict.candidate_senses)
 
     # Build prompt message
-    options: List[str] = []
+    options: list[str] = []
     if num_candidates > 0:
         options.append(f"  1-{num_candidates}: Choose candidate sense")
     options.append("  C: Provide custom definition")
@@ -155,25 +150,17 @@ def prompt_conflict_resolution(
                 else:
                     if num_candidates > 0:
                         typer.echo(
-                            f"Error: Please enter a number between 1 and "
-                            f"{num_candidates}, C for custom, or D to defer."
+                            f"Error: Please enter a number between 1 and {num_candidates}, C for custom, or D to defer."
                         )
                     else:
-                        typer.echo(
-                            "Error: No candidates available. Enter C for custom or D to defer."
-                        )
+                        typer.echo("Error: No candidates available. Enter C for custom or D to defer.")
                     continue
 
             # Invalid input
             if num_candidates > 0:
-                typer.echo(
-                    f"Error: Invalid choice '{response}'. "
-                    f"Enter 1-{num_candidates}, C, or D."
-                )
+                typer.echo(f"Error: Invalid choice '{response}'. Enter 1-{num_candidates}, C, or D.")
             else:
-                typer.echo(
-                    f"Error: Invalid choice '{response}'. Enter C or D."
-                )
+                typer.echo(f"Error: Invalid choice '{response}'. Enter C or D.")
 
         except typer.Abort:
             typer.echo("\nAborted by user.")
@@ -182,7 +169,7 @@ def prompt_conflict_resolution(
 
 def prompt_conflict_resolution_safe(
     conflict: SemanticConflict,
-) -> Tuple[PromptChoice, int | str | None]:
+) -> tuple[PromptChoice, int | str | None]:
     """Safe prompt that auto-defers in non-interactive mode.
 
     Args:
@@ -192,10 +179,7 @@ def prompt_conflict_resolution_safe(
         (DEFER, None) if non-interactive, otherwise delegates to interactive prompt
     """
     if not is_interactive():
-        typer.echo(
-            f"Non-interactive mode detected: "
-            f"Auto-deferring conflict for '{conflict.term.surface_text}'"
-        )
+        typer.echo(f"Non-interactive mode detected: Auto-deferring conflict for '{conflict.term.surface_text}'")
         return (PromptChoice.DEFER, None)
 
     return prompt_conflict_resolution(conflict)

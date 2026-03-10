@@ -17,9 +17,9 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 import fnmatch
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Iterator, List, Optional
+from collections.abc import Iterator
 
 from specify_cli.dossier.hasher import hash_file_with_validation
 from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
@@ -47,12 +47,10 @@ class Indexer:
             manifest_registry: ManifestRegistry instance for loading manifests
         """
         self.manifest_registry = manifest_registry
-        self.artifacts: List[ArtifactRef] = []
-        self.errors: List[dict] = []
+        self.artifacts: list[ArtifactRef] = []
+        self.errors: list[dict] = []
 
-    def index_feature(
-        self, feature_dir: Path, mission_type: str, step_id: Optional[str] = None
-    ) -> MissionDossier:
+    def index_feature(self, feature_dir: Path, mission_type: str, step_id: str | None = None) -> MissionDossier:
         """Scan feature directory and build MissionDossier.
 
         Recursively scans feature_dir, indexes all artifacts, loads manifest,
@@ -85,7 +83,7 @@ class Indexer:
             feature_slug=self._extract_feature_slug(feature_dir),
             feature_dir=str(feature_dir),
             artifacts=self.artifacts,
-            manifest=manifest.dict() if manifest else None,
+            manifest=manifest.model_dump() if manifest else None,
         )
 
         # Detect missing artifacts
@@ -93,7 +91,7 @@ class Indexer:
         dossier.artifacts.extend(missing)
 
         # Update timestamp
-        dossier.dossier_updated_at = datetime.now(timezone.utc)
+        dossier.dossier_updated_at = datetime.now(UTC)
 
         return dossier
 
@@ -113,9 +111,7 @@ class Indexer:
             if item.is_file():
                 yield item
 
-    def _index_file(
-        self, file_path: Path, feature_dir: Path, mission_type: str
-    ) -> Optional[ArtifactRef]:
+    def _index_file(self, file_path: Path, feature_dir: Path, mission_type: str) -> ArtifactRef | None:
         """Index single file, return ArtifactRef or None if unindexable.
 
         Handles errors gracefully: permission errors, UTF-8 validation failures,
@@ -135,9 +131,7 @@ class Indexer:
 
         # Try to classify (with fallback for unreadable files)
         try:
-            artifact_class = self._classify_artifact(
-                file_path, manifest, feature_dir=feature_dir
-            )
+            artifact_class = self._classify_artifact(file_path, manifest, feature_dir=feature_dir)
         except ValueError:
             # If classification fails, use a generic fallback
             artifact_class = "output"
@@ -150,21 +144,17 @@ class Indexer:
                 # UTF-8 validation failed or I/O error
                 try:
                     size_bytes = file_path.stat().st_size
-                except (OSError, FileNotFoundError):
+                except OSError:
                     size_bytes = 0
 
-                logger.warning(
-                    f"Artifact unreadable {relative_path}: {error_reason}"
-                )
+                logger.warning(f"Artifact unreadable {relative_path}: {error_reason}")
                 return ArtifactRef(
                     artifact_key=artifact_key,
                     artifact_class=artifact_class,
                     relative_path=relative_path,
                     content_hash_sha256="",
                     size_bytes=size_bytes,
-                    required_status=self._get_required_status(
-                        artifact_key, manifest
-                    ),
+                    required_status=self._get_required_status(artifact_key, manifest),
                     is_present=False,
                     error_reason=error_reason,
                 )
@@ -176,9 +166,7 @@ class Indexer:
                 relative_path=relative_path,
                 content_hash_sha256=file_hash,
                 size_bytes=file_path.stat().st_size,
-                required_status=self._get_required_status(
-                    artifact_key, manifest
-                ),
+                required_status=self._get_required_status(artifact_key, manifest),
                 is_present=True,
                 error_reason=None,
             )
@@ -191,13 +179,11 @@ class Indexer:
                 relative_path=relative_path,
                 content_hash_sha256="",
                 size_bytes=0,
-                required_status=self._get_required_status(
-                    artifact_key, manifest
-                ),
+                required_status=self._get_required_status(artifact_key, manifest),
                 is_present=False,
                 error_reason="unreadable",
             )
-        except (IOError, OSError) as e:
+        except OSError as e:
             logger.error(f"I/O error reading {relative_path}: {e}")
             return ArtifactRef(
                 artifact_key=artifact_key,
@@ -205,18 +191,16 @@ class Indexer:
                 relative_path=relative_path,
                 content_hash_sha256="",
                 size_bytes=0,
-                required_status=self._get_required_status(
-                    artifact_key, manifest
-                ),
+                required_status=self._get_required_status(artifact_key, manifest),
                 is_present=False,
                 error_reason="unreadable",
             )
 
-    def _classify_artifact(
+    def _classify_artifact(  # noqa: C901
         self,
         file_path: Path,
-        manifest: Optional[ExpectedArtifactManifest],
-        feature_dir: Optional[Path] = None,
+        manifest: ExpectedArtifactManifest | None,
+        feature_dir: Path | None = None,
     ) -> str:
         """Deterministically classify artifact into one of 6 classes.
 
@@ -240,13 +224,9 @@ class Indexer:
         # Strategy 1: Check manifest definitions (if manifest exists)
         if manifest:
             for specs in (
-                manifest.required_always
-                + sum(manifest.required_by_step.values(), [])
-                + manifest.optional_always
+                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
             ):
-                if self._matches_pattern(
-                    file_path, specs.path_pattern, feature_dir=feature_dir
-                ):
+                if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                     return specs.artifact_class.value
 
         # Strategy 2: Filename-based patterns (fallback)
@@ -289,13 +269,9 @@ class Indexer:
             return "runtime"
 
         # Strategy 3: Fail explicitly if can't classify
-        raise ValueError(
-            f"Cannot classify artifact: {file_path} (not in manifest, no pattern match)"
-        )
+        raise ValueError(f"Cannot classify artifact: {file_path} (not in manifest, no pattern match)")
 
-    def _matches_pattern(
-        self, file_path: Path, pattern: str, feature_dir: Optional[Path] = None
-    ) -> bool:
+    def _matches_pattern(self, file_path: Path, pattern: str, feature_dir: Path | None = None) -> bool:
         """Check if file_path matches feature-relative glob pattern.
 
         Args:
@@ -306,16 +282,10 @@ class Indexer:
         Returns:
             True if file_path matches pattern, False otherwise
         """
-        relative = (
-            str(file_path.relative_to(feature_dir))
-            if feature_dir
-            else file_path.name
-        )
+        relative = str(file_path.relative_to(feature_dir)) if feature_dir else file_path.name
         return fnmatch.fnmatch(relative, pattern)
 
-    def _detect_missing_artifacts(
-        self, dossier: MissionDossier, step_id: Optional[str] = None
-    ) -> List[ArtifactRef]:
+    def _detect_missing_artifacts(self, dossier: MissionDossier, step_id: str | None = None) -> list[ArtifactRef]:
         """Detect required artifacts that are not present.
 
         Compares indexed artifacts against manifest requirements. Creates
@@ -364,7 +334,7 @@ class Indexer:
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
-                    indexed_at=datetime.now(timezone.utc),
+                    indexed_at=datetime.now(UTC),
                 )
                 missing.append(ghost)
 
@@ -388,9 +358,7 @@ class Indexer:
 
         if manifest:
             for specs in (
-                manifest.required_always
-                + sum(manifest.required_by_step.values(), [])
-                + manifest.optional_always
+                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
             ):
                 if self._matches_pattern(file_path, specs.path_pattern):
                     return specs.artifact_key
@@ -401,9 +369,7 @@ class Indexer:
         key = name_lower.replace("_", "-").replace(" ", "-")
         return f"artifact.{key}"
 
-    def _get_required_status(
-        self, artifact_key: str, manifest: Optional[ExpectedArtifactManifest]
-    ) -> str:
+    def _get_required_status(self, artifact_key: str, manifest: ExpectedArtifactManifest | None) -> str:
         """Determine if artifact is required or optional.
 
         Args:
