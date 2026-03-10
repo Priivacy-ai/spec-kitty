@@ -16,3 +16,12 @@ migrations:
     applied_at: '2026-02-25T17:00:32.951661'
     result: success
     notes: Constitution already at .kittify/constitution/constitution.md
+  - id: 2.0.1_fix_generated_command_templates
+    applied_at: '2026-03-01T07:17:27.010878'
+    result: success
+    notes: 'Updated: .claude/commands/spec-kitty.accept.md; Updated: .claude/commands/spec-kitty.analyze.md;
+      Updated: .claude/commands/spec-kitty.checklist.md; Updated: .claude/commands/spec-kitty.merge.md;
+      Updated: .opencode/command/spec-kitty.accept.md; Updated: .opencode/command/spec-kitty.analyze.md;
+      Updated: .opencode/command/spec-kitty.checklist.md; Updated: .opencode/command/spec-kitty.merge.md;
+      Updated: .codex/prompts/spec-kitty.accept.md; Updated: .codex/prompts/spec-kitty.analyze.md;
+      Updated: .codex/prompts/spec-kitty.checklist.md; Updated: .codex/prompts/spec-kitty.merge.md'
