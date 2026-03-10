@@ -338,7 +338,7 @@ agents:
 **See**:
 - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Command syntax and options
-- [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
+- [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
 > **Legacy behavior**: Projects without `agents.available` field default to all 12 agents for backward compatibility. To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
 

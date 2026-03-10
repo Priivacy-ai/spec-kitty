@@ -46,6 +46,15 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 
 `candidate` -> `canonical` -> `deprecated` / `superseded`
 
+## Term Entry Schema
+
+Each glossary term table should include:
+
+1. `Definition`
+2. `Context`
+3. `Status`
+4. `Applicable to` (version scope, for example `` `1.x`, `2.x` ``)
+
 ## Runtime Anchors (`2.x`)
 
 - `src/specify_cli/glossary/`

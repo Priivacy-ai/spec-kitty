@@ -2,7 +2,7 @@
 
 ## Audit Summary
 
-A fresh-clone audit compared `architecture/adrs/` against current 2.x code surfaces.
+A fresh-clone audit compared `architecture/2.x/adr/` against current 2.x code surfaces.
 
 Result:
 
@@ -22,6 +22,6 @@ Result:
 
 ## New ADR Files Added in This Update
 
-1. `architecture/adrs/2026-02-23-1-doctrine-artifact-governance-model.md`
-2. `architecture/adrs/2026-02-23-2-living-glossary-context-and-curation-model.md`
-3. `architecture/adrs/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md`
+1. `architecture/2.x/adr/2026-02-23-1-doctrine-artifact-governance-model.md`
+2. `architecture/2.x/adr/2026-02-23-2-living-glossary-context-and-curation-model.md`
+3. `architecture/2.x/adr/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md`

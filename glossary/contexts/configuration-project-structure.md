@@ -9,7 +9,8 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Project-local configuration and shared memory directory. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
-| **Key contents** | `config.yaml`, `memory/constitution.md`, command templates, migration metadata |
+| **Applicable to** | `1.x`, `2.x` |
+| **Key contents** | `config.yaml`, `constitution/constitution.md` (canonical), command templates, migration metadata |
 | **Related terms** | [Constitution](./governance.md#constitution), [Mission](./orchestration.md#mission) |
 
 ---
@@ -21,6 +22,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Feature planning artifacts (`spec.md`, `plan.md`, `tasks.md`, plus supporting files). |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Feature](./orchestration.md#feature), [Work Package](./orchestration.md#work-package) |
 
 ---
@@ -32,6 +34,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Isolated implementation workspaces used for parallel work package execution. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Work Package](./orchestration.md#work-package), [Lane](./orchestration.md#lane) |
 
 ---
@@ -43,6 +46,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Policy-level language authority for terminology and semantic contracts. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Glossary Scope](./system-events.md#glossary-scope), [Semantic Check](./execution.md#semantic-check) |
 
 ---
@@ -54,6 +58,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | Proposed onboarding flow to collect project intent, constraints, and glossary context early. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution](./governance.md#constitution), [Mission](./orchestration.md#mission) |
 
 ---
@@ -64,7 +69,8 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 |---|---|
 | **Definition** | The compiled, project-specific constitution containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/constitution/`. Use "Project Constitution" when distinguishing from the Constitution Library. |
 | **Context** | Configuration & Project Structure |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Constitution](./governance.md#constitution), [Constitution Library](#constitution-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
@@ -76,4 +82,5 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Definition** | The project-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Constitution and indexed by a reference manifest. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
+| **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Project Constitution](#project-constitution), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
