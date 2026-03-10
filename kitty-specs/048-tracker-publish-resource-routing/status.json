@@ -1,15 +1,15 @@
 {
-  "event_count": 8,
+  "event_count": 10,
   "feature_slug": "048-tracker-publish-resource-routing",
-  "last_event_id": "01KKBM3ZS4FXF0GK38CJ5VV0EQ",
-  "materialized_at": "2026-03-10T10:19:12.549226+00:00",
+  "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
+  "materialized_at": "2026-03-10T10:20:44.928825+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 1,
+    "done": 2,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "planned": 0
   },
   "work_packages": {
@@ -21,11 +21,11 @@
       "last_transition_at": "2026-03-10T10:16:27.581223+00:00"
     },
     "WP02": {
-      "actor": "claude-opus",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KKBM3ZS4FXF0GK38CJ5VV0EQ",
-      "last_transition_at": "2026-03-10T10:19:12.548940+00:00"
+      "lane": "done",
+      "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
+      "last_transition_at": "2026-03-10T10:20:44.928639+00:00"
     }
   }
 }
