@@ -95,3 +95,8 @@
 | T007 | Run event envelope regression tests | WP02 | P1 | Yes |
 | T008 | Run existing tracker tests | WP02 | P1 | Yes |
 | T009 | Verify event-envelope.md unchanged | WP02 | P1 | Yes |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->

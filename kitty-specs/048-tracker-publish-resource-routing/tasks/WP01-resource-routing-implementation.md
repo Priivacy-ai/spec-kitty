@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Resource Routing Implementation and Tests
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: cbae93b2edf7e9ef4460f944e676a884b2130957
@@ -14,8 +14,8 @@ subtasks:
 - T005
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "claude"
-shell_pid: "42429"
+agent: claude
+shell_pid: '42429'
 review_status: ''
 reviewed_by: ''
 history:
@@ -486,3 +486,4 @@ python -m pytest tests/specify_cli/tracker/ -v
 
 - 2026-03-10T09:49:14Z – system – lane=planned – Prompt created.
 - 2026-03-10T10:12:11Z – claude – shell_pid=42429 – lane=doing – Assigned agent via workflow command
+- 2026-03-10T10:14:18Z – claude – shell_pid=42429 – lane=for_review – Ready for review: resource routing fields added to sync_publish() with 16 passing tests
