@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Resource Routing Implementation and Tests
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: cbae93b2edf7e9ef4460f944e676a884b2130957
@@ -14,10 +14,10 @@ subtasks:
 - T005
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "43032"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus
+shell_pid: '43032'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-03-10T09:49:14Z'
   lane: planned
@@ -488,3 +488,4 @@ python -m pytest tests/specify_cli/tracker/ -v
 - 2026-03-10T10:12:11Z – claude – shell_pid=42429 – lane=doing – Assigned agent via workflow command
 - 2026-03-10T10:14:18Z – claude – shell_pid=42429 – lane=for_review – Ready for review: resource routing fields added to sync_publish() with 16 passing tests
 - 2026-03-10T10:14:57Z – claude-opus – shell_pid=43032 – lane=doing – Started review via workflow command
+- 2026-03-10T10:16:27Z – claude-opus – shell_pid=43032 – lane=done – Review passed: All 16 tests pass, no regressions. RESOURCE_ROUTING_MAP maps jira/linear to canonical wire values. Pure static _resolve_resource_routing() with atomic null semantics. Payload includes both new fields per contract. Idempotency key includes routing fields. | Done override: Review approved; merge to 2.x is the next workflow step after review approval
