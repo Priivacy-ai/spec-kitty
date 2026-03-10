@@ -69,6 +69,23 @@ def test_detect_skips_when_global_runtime_is_configured(
     assert migration.detect(tmp_path) is False
 
 
+def test_detect_still_repairs_metadata_less_legacy_repo(
+    migration: InstallDocumentationMission,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 0.x repo with .kittify but no metadata should not be treated as 2.x."""
+    home = tmp_path / "home"
+    (home / "cache").mkdir(parents=True)
+    (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / "kitty-specs").mkdir()
+
+    assert migration.detect(tmp_path) is True
+
+
 def test_detect_no_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Migration detects when missions directory doesn't exist."""
     kittify = tmp_path / ".kittify"
