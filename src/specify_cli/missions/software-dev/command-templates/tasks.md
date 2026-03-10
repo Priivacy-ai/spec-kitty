@@ -51,38 +51,25 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Check (0.11.0+)
+## Context Resolution (0.11.0+)
 
-Before proceeding, verify you are in the planning repository:
+Before proceeding, resolve canonical command context:
 
-1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture:
-   - `target_branch` / `base_branch`
-   - `TARGET_BRANCH` / `BASE_BRANCH` (uppercase aliases)
-   - `feature_dir`, `artifact_files`, `artifact_dirs`
-
-   Treat this JSON as canonical branch context for this command. Do not read `meta.json` to infer branch expectations.
-
-**Check your current branch:**
 ```bash
-git branch --show-current
+spec-kitty agent context resolve --action tasks --json
 ```
 
-**Expected output:** the value from `TARGET_BRANCH` (typically `main` or `2.x`)
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
-```bash
-cd $(git rev-parse --show-toplevel)
-git checkout "$TARGET_BRANCH"
-```
+Treat the resolver JSON as canonical for:
+- `feature_slug`
+- `feature_dir`
+- `target_branch`
+- exact follow-up commands (`check_prerequisites`, `finalize_tasks`)
 
-Work packages are generated directly in `kitty-specs/###-feature/` and committed to the target branch. Worktrees are created later when implementing each work package.
+Prompts do not rediscover feature context. Commands do.
 
 ## Outline
 
-1. **Detect feature context** (mandatory in new sessions):
-   - Resolve the feature slug from explicit user direction, current branch, or current directory path.
-   - If context is ambiguous, run `check-prerequisites` once without `--feature`, parse the JSON candidate list, and pick one explicit feature slug before continuing.
-
-2. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` from the repository root and capture:
+1. **Setup**: Run the exact `check_prerequisites` command returned by the resolver and capture:
    - `feature_dir`
    - `artifact_files` / `artifact_dirs` (if present)
    - `available_docs`
@@ -465,7 +452,7 @@ For each WP, generate `feature_dir/tasks/WPxx-slug.md` using the template.
 
 ### Step 8: Finalize Tasks
 
-Run `spec-kitty agent feature finalize-tasks --json --feature <feature-slug>` to:
+Run the resolver-returned `finalize_tasks` command to:
 - Parse dependencies
 - Update frontmatter
 - Validate (cycles, invalid refs)

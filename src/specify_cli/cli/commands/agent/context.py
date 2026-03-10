@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import typer
 from rich.console import Console
@@ -21,6 +21,12 @@ from specify_cli.core.agent_context import (
 from specify_cli.core.feature_detection import (
     detect_feature_directory,
     FeatureDetectionError,
+)
+from specify_cli.core.execution_context import (
+    ACTION_NAMES,
+    ActionName,
+    ActionContextError,
+    resolve_action_context,
 )
 
 app = typer.Typer(
@@ -60,6 +66,69 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e
+
+
+@app.command(name="resolve")
+def resolve_context(
+    action: Annotated[
+        str,
+        typer.Option(
+            "--action",
+            help=(
+                "Action to resolve context for "
+                f"({', '.join(ACTION_NAMES)})"
+            ),
+        ),
+    ],
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
+    base: Annotated[Optional[str], typer.Option("--base", help="Explicit base WP for implement")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
+) -> None:
+    """Resolve canonical feature/work-package/action context for prompt execution."""
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            raise ActionContextError(
+                "PROJECT_ROOT_UNRESOLVED",
+                "Could not locate project root.",
+            )
+
+        if action not in ACTION_NAMES:
+            raise ActionContextError(
+                "INVALID_ACTION",
+                f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
+            )
+
+        context = resolve_action_context(
+            repo_root,
+            action=cast(ActionName, action),
+            feature=feature,
+            wp_id=wp_id,
+            base=base,
+            agent=agent,
+            cwd=Path.cwd(),
+        )
+
+        if json_output:
+            print(json.dumps({"success": True, **context.to_dict()}, indent=2))
+        else:
+            console.print(f"[green]✓[/green] Resolved {action} context")
+            console.print(f"  Feature: {context.feature_slug} ({context.detection_method})")
+            console.print(f"  Target branch: {context.target_branch}")
+            if context.wp_id:
+                console.print(f"  Work package: {context.wp_id} ({context.lane})")
+            if context.workspace_path:
+                console.print(f"  Workspace: {context.workspace_path}")
+            for name, command in context.commands.items():
+                console.print(f"  {name}: {command}")
+    except ActionContextError as exc:
+        if json_output:
+            print(json.dumps({"success": False, "error_code": exc.code, "error": str(exc)}, indent=2))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
 
 
 @app.command(name="update-context")

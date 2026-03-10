@@ -43,23 +43,27 @@ If a file/path is uncertain, verify first with `ls` or `test -f` before reading 
 
 **You MUST scroll to the BOTTOM** to see the completion command!
 
-Run this command to get the work package prompt and implementation instructions:
+Resolve canonical action context first:
 
 ```bash
-spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+spec-kitty agent context resolve --action implement --agent <your-name> --json
 ```
+
+Then run the returned `workflow` command to get the work package prompt and
+implementation instructions.
 
 <details><summary>PowerShell equivalent</summary>
 
 ```powershell
-spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+spec-kitty agent context resolve --action implement --agent <your-name> --json
 ```
 
 </details>
 
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is implementing!
 
-If no WP ID is provided, it will automatically find the first work package with `lane: "planned"` and move it to "doing" for you.
+The resolver returns the exact work package and base workspace command. Do not
+guess the feature slug, work package, or `--base` value in the prompt.
 
 If the workflow prompt indicates `review_status: "has_feedback"`, read the frontmatter `review_feedback` pointer first (`feedback://...`). That pointer is the canonical reviewer feedback artifact.
 

@@ -27,7 +27,14 @@ $ARGUMENTS
 
 ### 1. Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir`. All paths must be absolute.
+Run:
+
+```bash
+spec-kitty agent context resolve --action tasks_packages --json
+```
+
+Then execute the returned `check_prerequisites` command and capture
+`feature_dir`. All paths must be absolute.
 
 ### 2. Load tasks.md
 

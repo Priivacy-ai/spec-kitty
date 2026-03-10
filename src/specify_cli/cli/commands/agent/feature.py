@@ -532,7 +532,7 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, approved, done) is stored in the YAML frontmatter `lane:` field.
 
 ## Work Package File Format
 
@@ -570,6 +570,7 @@ history:
 - `planned` - Ready for implementation
 - `doing` - Currently being worked on
 - `for_review` - Awaiting review
+- `approved` - Review passed; awaiting merge-complete recording
 - `done` - Completed
 
 ## Moving Between Lanes
@@ -1429,8 +1430,8 @@ def finalize_tasks(
     It post-processes the generated files to add dependency information and commits everything.
 
     Examples:
-        spec-kitty agent feature finalize-tasks --json
         spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
+        spec-kitty agent feature finalize-tasks --feature 021-my-feature --json
     """
     try:
         repo_root = locate_project_root()

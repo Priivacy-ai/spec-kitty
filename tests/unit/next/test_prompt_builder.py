@@ -160,6 +160,7 @@ class TestBuildPromptWP:
         assert "WP01" in text
         assert "REVIEWING" in text
         assert "APPROVE" in text
+        assert "--to approved" in text
         assert "REJECT" in text
         assert path.exists()
         path.unlink()

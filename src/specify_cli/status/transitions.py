@@ -1,6 +1,6 @@
 """Transition matrix, guard conditions, alias resolution, and validation.
 
-Implements the 7-lane state machine with 17 legal transition pairs,
+Implements the 8-lane state machine, its legal transition pairs,
 guard condition functions, alias resolution, and force-override logic.
 """
 
@@ -15,6 +15,7 @@ CANONICAL_LANES: tuple[str, ...] = (
     "claimed",
     "in_progress",
     "for_review",
+    "approved",
     "done",
     "blocked",
     "canceled",
@@ -29,19 +30,26 @@ ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         ("planned", "claimed"),
         ("claimed", "in_progress"),
         ("in_progress", "for_review"),
+        ("in_progress", "approved"),
+        ("for_review", "approved"),
         ("for_review", "done"),
+        ("approved", "done"),
         ("for_review", "in_progress"),
         ("for_review", "planned"),
+        ("approved", "in_progress"),
+        ("approved", "planned"),
         ("in_progress", "planned"),
         ("planned", "blocked"),
         ("claimed", "blocked"),
         ("in_progress", "blocked"),
         ("for_review", "blocked"),
+        ("approved", "blocked"),
         ("blocked", "in_progress"),
         ("planned", "canceled"),
         ("claimed", "canceled"),
         ("in_progress", "canceled"),
         ("for_review", "canceled"),
+        ("approved", "canceled"),
         ("blocked", "canceled"),
     }
 )
@@ -51,9 +59,14 @@ _GUARDED_TRANSITIONS: dict[tuple[str, str], str] = {
     ("planned", "claimed"): "actor_required",
     ("claimed", "in_progress"): "workspace_context",
     ("in_progress", "for_review"): "subtasks_complete_or_force",
+    ("in_progress", "approved"): "reviewer_approval",
+    ("for_review", "approved"): "reviewer_approval",
     ("for_review", "done"): "reviewer_approval",
+    ("approved", "done"): "reviewer_approval",
     ("for_review", "in_progress"): "review_ref_required",
     ("for_review", "planned"): "review_ref_required",
+    ("approved", "in_progress"): "review_ref_required",
+    ("approved", "planned"): "review_ref_required",
     ("in_progress", "planned"): "reason_required",
 }
 
@@ -114,11 +127,11 @@ def _guard_subtasks_complete_or_force(
 def _guard_reviewer_approval(
     evidence: Any,
 ) -> tuple[bool, str | None]:
-    """Guard: for_review -> done requires reviewer approval evidence."""
+    """Guard: approval and done transitions require reviewer approval evidence."""
     if evidence is None:
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     review = getattr(evidence, "review", None)
@@ -127,13 +140,13 @@ def _guard_reviewer_approval(
     if not reviewer or not str(reviewer).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     if not reference or not str(reference).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
+            "Transition to approved/done requires evidence "
             "(reviewer identity and approval reference)",
         )
     return True, None

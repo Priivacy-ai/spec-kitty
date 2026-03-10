@@ -17,8 +17,8 @@ from specify_cli.status.models import (
 
 
 class TestLaneEnum:
-    def test_lane_enum_has_seven_values(self) -> None:
-        assert len(Lane) == 7
+    def test_lane_enum_has_eight_values(self) -> None:
+        assert len(Lane) == 8
 
     def test_lane_enum_string_values(self) -> None:
         expected = {
@@ -26,6 +26,7 @@ class TestLaneEnum:
             "claimed",
             "in_progress",
             "for_review",
+            "approved",
             "done",
             "blocked",
             "canceled",
@@ -264,6 +265,7 @@ class TestStatusSnapshot:
             "claimed",
             "in_progress",
             "for_review",
+            "approved",
             "done",
             "blocked",
             "canceled",
@@ -289,6 +291,7 @@ class TestStatusSnapshot:
                 "claimed": 0,
                 "in_progress": 0,
                 "for_review": 0,
+                "approved": 0,
                 "done": 0,
                 "blocked": 0,
                 "canceled": 0,

@@ -216,6 +216,7 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
     counts = {
         "total_wps": 0,
         "done_wps": 0,
+        "approved_wps": 0,
         "in_progress_wps": 0,
         "planned_wps": 0,
         "for_review_wps": 0,
@@ -226,6 +227,8 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
         lane = _read_lane_from_frontmatter(wp_file) or "planned"
         if lane == "done":
             counts["done_wps"] += 1
+        elif lane == "approved":
+            counts["approved_wps"] += 1
         elif lane in ("doing", "in_progress"):
             counts["in_progress_wps"] += 1
         elif lane == "for_review":

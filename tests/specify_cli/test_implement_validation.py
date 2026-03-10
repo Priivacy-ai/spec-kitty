@@ -68,8 +68,8 @@ class TestValidateAndResolveBase:
         assert base == "WP01"
         assert auto_merge is False
 
-    def test_single_dependency_no_base_errors(self, tmp_path, capsys):
-        """WP with single dependency but no --base should error."""
+    def test_single_dependency_no_base_auto_detects(self, tmp_path, capsys):
+        """WP with single dependency and no --base should auto-detect the base."""
         # Create WP file with single dependency
         wp_file = tmp_path / "WP02-task.md"
         wp_file.write_text(
@@ -81,20 +81,20 @@ class TestValidateAndResolveBase:
             encoding="utf-8"
         )
 
-        # Should raise typer.Exit
-        with pytest.raises(typer.Exit):
-            validate_and_resolve_base(
-                wp_id="WP02",
-                wp_file=wp_file,
-                base=None,
-                feature_slug="001-test",
-                repo_root=tmp_path
-            )
+        base, auto_merge = validate_and_resolve_base(
+            wp_id="WP02",
+            wp_file=wp_file,
+            base=None,
+            feature_slug="001-test",
+            repo_root=tmp_path
+        )
 
-        # Check error message suggests --base
+        assert base == "WP01"
+        assert auto_merge is False
+
         captured = capsys.readouterr()
-        assert "WP02 depends on WP01" in captured.out
-        assert "spec-kitty implement WP02 --base WP01" in captured.out
+        assert "Auto-detected" in captured.out
+        assert "Using --base WP01 automatically" in captured.out
 
     def test_single_dependency_with_matching_base(self, tmp_path):
         """WP with single dependency and matching --base should succeed."""

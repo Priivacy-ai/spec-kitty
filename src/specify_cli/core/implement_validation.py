@@ -20,18 +20,37 @@ from specify_cli.core.dependency_graph import parse_wp_dependencies
 console = Console()
 
 
+class BaseResolutionError(RuntimeError):
+    """Raised when a base workspace cannot be resolved in library contexts."""
+
+
+def _fail_resolution(message_lines: list[str], *, raise_on_error: bool) -> None:
+    """Report a validation failure as either CLI exit or domain exception."""
+    message = "\n".join(line for line in message_lines if line)
+    if raise_on_error:
+        raise BaseResolutionError(message)
+    for line in message_lines:
+        if line:
+            console.print(line)
+    raise typer.Exit(1)
+
+
 def validate_and_resolve_base(
     wp_id: str,
     wp_file: Path,
     base: str | None,
     feature_slug: str,
-    repo_root: Path
+    repo_root: Path,
+    *,
+    auto_detect_single_dependency: bool = True,
+    quiet: bool = False,
+    raise_on_error: bool = False,
 ) -> tuple[str | None, bool]:
     """Validate dependencies and resolve base workspace.
 
     This function implements the core dependency validation logic:
     - Multi-parent: Returns (None, True) to trigger auto-merge mode
-    - Single parent: Errors if --base not provided, validates if provided
+    - Single parent: Auto-detects the dependency as base by default
     - No dependencies: Accepts provided base or None (branches from main)
 
     Args:
@@ -55,43 +74,54 @@ def validate_and_resolve_base(
     # Multi-parent dependency handling
     if len(declared_deps) > 1:
         if base is None:
-            # Auto-merge mode: Create merge commit combining all dependencies
-            console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
-            console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
-            console.print(f"  Auto-creating merge base combining all dependencies...")
+            if not quiet:
+                console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+                console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
+                console.print("  Auto-creating merge base combining all dependencies...")
             return (None, True)  # Auto-merge mode
         else:
             # User provided explicit base - validate it's in dependencies
             if base not in declared_deps:
-                console.print(
-                    f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} "
-                    f"as dependency"
-                )
-                console.print(f"Declared dependencies: {declared_deps}")
+                if not quiet:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} "
+                        f"as dependency"
+                    )
+                    console.print(f"Declared dependencies: {declared_deps}")
                 # Allow but warn (user might know better than parser)
             return (base, False)  # Use provided base, no auto-merge
 
     # Single dependency handling
     elif len(declared_deps) == 1:
         if base is None:
-            # ERROR: Must provide --base for single dependency
-            console.print(f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}")
-            console.print(f"\nSpecify base workspace:")
-            console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
-            console.print(f"\n[dim]Or for agent commands:[/dim]")
-            console.print(
-                f"  spec-kitty agent workflow implement {wp_id} "
-                f"--base {declared_deps[0]} --agent <name>"
-            )
-            raise typer.Exit(1)
+            if auto_detect_single_dependency:
+                base = declared_deps[0]
+                if not quiet:
+                    console.print(f"\n[cyan]Auto-detected:[/cyan] {wp_id} depends on {base}")
+                    console.print(f"Using --base {base} automatically")
+            else:
+                _fail_resolution(
+                    [
+                        f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}",
+                        "\nSpecify base workspace:",
+                        f"  spec-kitty implement {wp_id} --base {declared_deps[0]}",
+                        "\n[dim]Or for agent commands:[/dim]",
+                        (
+                            f"  spec-kitty agent workflow implement {wp_id} "
+                            f"--base {declared_deps[0]} --agent <name>"
+                        ),
+                    ],
+                    raise_on_error=raise_on_error,
+                )
 
         # Validate provided base matches dependency
         if base not in declared_deps:
-            console.print(
-                f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency "
-                f"on {base}"
-            )
-            console.print(f"Declared dependencies: {declared_deps}")
+            if not quiet:
+                console.print(
+                    f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency "
+                    f"on {base}"
+                )
+                console.print(f"Declared dependencies: {declared_deps}")
             # Allow but warn (user might know better than parser)
 
         return (base, False)  # Use provided base
@@ -145,6 +175,7 @@ def validate_base_workspace_exists(
 
 
 __all__ = [
+    "BaseResolutionError",
     "validate_and_resolve_base",
     "validate_base_workspace_exists",
 ]

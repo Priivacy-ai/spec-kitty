@@ -109,7 +109,7 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         # Group by lane (resolve aliases)
         by_lane = {
             "planned": [], "claimed": [], "in_progress": [],
-            "for_review": [], "done": [], "blocked": [], "canceled": [],
+            "for_review": [], "approved": [], "done": [], "blocked": [], "canceled": [],
         }
         for wp in work_packages:
             lane = wp["lane"]
@@ -172,7 +172,7 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     ready_wps = []
     for wp in work_packages:
         # Skip if already done or in progress
-        if wp["lane"] in ["done", "in_progress", "claimed", "for_review", "canceled"]:
+        if wp["lane"] in ["done", "approved", "in_progress", "claimed", "for_review", "canceled"]:
             continue
 
         # Check if all dependencies are satisfied
@@ -259,6 +259,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
         ("claimed", "Claimed", "bright_yellow"),
         ("in_progress", "In Progress", "blue"),
         ("for_review", "For Review", "cyan"),
+        ("approved", "Approved", "magenta"),
         ("done", "Done", "green"),
         ("blocked", "Blocked", "red"),
         ("canceled", "Canceled", "dim"),
@@ -294,6 +295,12 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
     if by_lane["for_review"]:
         console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
         for wp in by_lane["for_review"]:
+            console.print(f"  • {wp['id']} - {wp['title']}")
+        console.print()
+
+    if by_lane["approved"]:
+        console.print("[bold magenta]👍 Approved Awaiting Merge:[/bold magenta]")
+        for wp in by_lane["approved"]:
             console.print(f"  • {wp['id']} - {wp['title']}")
         console.print()
 
@@ -366,7 +373,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
                     console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
 
         console.print()
-    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"]:
+    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"] and not by_lane["approved"]:
         # All planned WPs are blocked
         console.print("[bold red]⚠️  All remaining WPs are blocked[/bold red]")
         console.print("  Check dependency status above\n")

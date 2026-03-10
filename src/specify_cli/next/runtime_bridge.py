@@ -36,6 +36,7 @@ from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
+from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
@@ -90,8 +91,9 @@ def _is_wp_iteration_step(step_id: str) -> bool:
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
-    For implement: all WPs must be done or for_review.
-    For review: all WPs must be done.
+    For implement: all WPs must be handed off or complete
+    (for_review, approved, or done).
+    For review: all WPs must be approved or done.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -102,12 +104,12 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
         return True
 
     for wp_file in wp_files:
-        lane = _read_lane_from_frontmatter(wp_file) or "planned"
+        lane = resolve_lane_alias(_read_lane_from_frontmatter(wp_file) or "planned")
         if step_id == "implement":
-            if lane not in ("done", "for_review"):
+            if lane not in ("done", "approved", "for_review"):
                 return False
         elif step_id == "review":
-            if lane != "done":
+            if lane not in ("done", "approved"):
                 return False
 
     return True
@@ -162,12 +164,12 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     elif step_id == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
             failures.append(
-                "Not all work packages have required status (done or for_review)"
+                "Not all work packages have required status (for_review, approved, or done)"
             )
 
     elif step_id == "review":
         if not _should_advance_wp_step("review", feature_dir):
-            failures.append("Not all work packages are done")
+            failures.append("Not all work packages are approved or done")
 
     return failures
 

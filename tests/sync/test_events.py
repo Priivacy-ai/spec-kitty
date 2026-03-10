@@ -213,8 +213,8 @@ class TestWPStatusChanged:
         assert temp_queue.size() == 1
 
     def test_all_valid_status_transitions(self, emitter: EventEmitter, temp_queue):
-        """All 7 canonical lane values pass validation."""
-        lanes = ["planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"]
+        """All canonical lane values pass validation."""
+        lanes = ["planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"]
         for lane in lanes:
             event = emitter.emit_wp_status_changed("WP01", "planned", lane)
             assert event is not None, f"Failed for to_lane={lane}"

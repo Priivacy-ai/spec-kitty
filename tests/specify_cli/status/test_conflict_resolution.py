@@ -34,8 +34,8 @@ class TestLanePriority:
     """Tests for the expanded LANE_PRIORITY map."""
 
     def test_all_canonical_lanes_present(self):
-        """All 7 canonical lanes must be in LANE_PRIORITY."""
-        canonical = {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+        """All canonical lanes must be in LANE_PRIORITY."""
+        canonical = {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"}
         for lane in canonical:
             assert lane in LANE_PRIORITY, f"Missing canonical lane: {lane}"
 
@@ -48,11 +48,12 @@ class TestLanePriority:
         assert LANE_PRIORITY["doing"] == LANE_PRIORITY["in_progress"]
 
     def test_priority_ordering(self):
-        """planned < claimed < in_progress < for_review < done."""
+        """planned < claimed < in_progress < for_review < approved < done."""
         assert LANE_PRIORITY["planned"] < LANE_PRIORITY["claimed"]
         assert LANE_PRIORITY["claimed"] < LANE_PRIORITY["in_progress"]
         assert LANE_PRIORITY["in_progress"] < LANE_PRIORITY["for_review"]
-        assert LANE_PRIORITY["for_review"] < LANE_PRIORITY["done"]
+        assert LANE_PRIORITY["for_review"] < LANE_PRIORITY["approved"]
+        assert LANE_PRIORITY["approved"] < LANE_PRIORITY["done"]
 
     def test_blocked_lowest_priority(self):
         """'blocked' should have priority 0 (lowest)."""
@@ -62,18 +63,19 @@ class TestLanePriority:
         """'canceled' should be the highest monotonic priority."""
         assert LANE_PRIORITY["canceled"] > LANE_PRIORITY["done"]
 
-    def test_total_count_is_eight(self):
-        """7 canonical lanes + 1 'doing' alias = 8 entries total."""
-        assert len(LANE_PRIORITY) == 8
+    def test_total_count_is_nine(self):
+        """8 canonical lanes + 1 'doing' alias = 9 entries total."""
+        assert len(LANE_PRIORITY) == 9
 
     @pytest.mark.parametrize("lane,expected_priority", [
         ("planned", 1),
         ("claimed", 2),
         ("in_progress", 3),
         ("for_review", 4),
-        ("done", 5),
+        ("approved", 5),
+        ("done", 6),
         ("blocked", 0),
-        ("canceled", 6),
+        ("canceled", 7),
         ("doing", 3),
     ])
     def test_specific_priority_values(self, lane, expected_priority):

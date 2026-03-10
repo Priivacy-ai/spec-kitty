@@ -40,21 +40,23 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Check
+## Context Resolution
 
-Before proceeding, verify you are in the planning repository:
+Before proceeding, resolve canonical command context:
 
 ```bash
-git branch --show-current
+spec-kitty agent context resolve --action tasks_outline --json
 ```
 
-**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
+Treat that JSON as canonical for feature slug, feature directory, and target branch.
+Do not probe git branch state manually inside the prompt.
 
 ## Steps
 
 ### 1. Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+Run the exact `check_prerequisites` command returned by the resolver. Capture
+`feature_dir` plus `available_docs`. All paths must be absolute.
 
 **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 

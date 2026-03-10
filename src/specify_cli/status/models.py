@@ -1,6 +1,6 @@
 """Canonical status models for spec-kitty work package lifecycle.
 
-Defines the 7-lane state machine data types: Lane enum, StatusEvent,
+Defines the 8-lane state machine data types: Lane enum, StatusEvent,
 DoneEvidence (with ReviewApproval, RepoEvidence, VerificationResult),
 and StatusSnapshot.
 """
@@ -14,12 +14,13 @@ from typing import Any
 
 
 class Lane(StrEnum):
-    """7-lane canonical work package lifecycle states."""
+    """8-lane canonical work package lifecycle states."""
 
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     FOR_REVIEW = "for_review"
+    APPROVED = "approved"
     DONE = "done"
     BLOCKED = "blocked"
     CANCELED = "canceled"
