@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Contract Documentation and Regression Validation
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 048-tracker-publish-resource-routing-WP01
 base_commit: 401b0ba0d7da501680053933014d4cef89fcafab
@@ -13,8 +13,8 @@ subtasks:
 - T009
 phase: Phase 2 - Documentation and Validation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "43426"
+agent: claude-opus
+shell_pid: '43426'
 review_status: ''
 reviewed_by: ''
 history:
@@ -188,3 +188,4 @@ All must pass with zero failures, zero modifications to existing test files.
 
 - 2026-03-10T09:49:14Z – system – lane=planned – Prompt created.
 - 2026-03-10T10:16:58Z – claude-opus – shell_pid=43426 – lane=doing – Assigned agent via workflow command
+- 2026-03-10T10:18:43Z – claude-opus – shell_pid=43426 – lane=for_review – Ready for review: Section 8 added to batch-api-contract.md with resource routing fields. All regression tests pass: 32/32 event envelope fixtures, 22/22 tracker tests. event-envelope.md confirmed unchanged.
