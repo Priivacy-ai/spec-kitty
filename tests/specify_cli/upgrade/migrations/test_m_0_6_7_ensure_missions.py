@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_0_6_7_ensure_missions import (
     EnsureMissionsMigration,
 )
@@ -24,6 +26,10 @@ def test_detect_skips_when_global_runtime_is_configured(
     project = tmp_path / "project"
     (project / ".kittify").mkdir(parents=True)
     (project / "kitty-specs").mkdir()
+    ProjectMetadata(
+        version="2.0.6",
+        initialized_at=datetime.now(),
+    ).save(project / ".kittify")
 
     migration = EnsureMissionsMigration()
     assert migration.detect(project) is False

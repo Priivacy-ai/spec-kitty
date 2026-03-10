@@ -25,6 +25,7 @@ def uses_centralized_runtime(project_path: Path) -> bool:
     if not global_runtime_configured():
         return False
 
+    kittify_dir = project_path / ".kittify"
     metadata = ProjectMetadata.load(project_path / ".kittify")
     if metadata is not None:
         try:
@@ -32,4 +33,7 @@ def uses_centralized_runtime(project_path: Path) -> bool:
         except InvalidVersion:
             return False
 
-    return (project_path / "kitty-specs").exists()
+    # Metadata-less worktrees can still be runtime-managed in 2.x, but
+    # metadata-less repos that already have .kittify/ are ambiguous and
+    # should continue to receive the legacy repair migrations.
+    return not kittify_dir.exists() and (project_path / "kitty-specs").exists()
