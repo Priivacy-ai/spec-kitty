@@ -110,9 +110,9 @@ runs:
       id: get-version
       shell: bash
       run: |
-        VERSION=$(spec-kitty --version 2>&1 | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
-        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        VERSION=$(spec-kitty --version 2>&1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "unknown")
         echo "Installed spec-kitty-cli version: $VERSION"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
     
     - name: Verify installation
       shell: bash
