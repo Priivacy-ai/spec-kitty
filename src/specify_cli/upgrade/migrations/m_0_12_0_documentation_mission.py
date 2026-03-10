@@ -6,11 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from packaging.version import InvalidVersion, Version
-
-from specify_cli.runtime.home import get_kittify_home
-
-from ..metadata import ProjectMetadata
+from ..compat import uses_centralized_runtime
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -40,7 +36,7 @@ class InstallDocumentationMission(BaseMigration):
         Returns:
             True if documentation mission is missing, False if already installed
         """
-        if _uses_centralized_runtime(project_path):
+        if uses_centralized_runtime(project_path):
             # Centralized runtime provides managed missions globally in 2.x.
             return False
 
@@ -159,27 +155,3 @@ class InstallDocumentationMission(BaseMigration):
             return source_mission
 
         return None
-
-
-def _global_runtime_configured() -> bool:
-    """Return True when ``~/.kittify`` has been bootstrapped."""
-    try:
-        home = get_kittify_home()
-    except RuntimeError:
-        return False
-    return (home / "cache" / "version.lock").is_file()
-
-
-def _uses_centralized_runtime(project_path: Path) -> bool:
-    """Return True when project state indicates 2.x global runtime usage."""
-    if not _global_runtime_configured():
-        return False
-
-    metadata = ProjectMetadata.load(project_path / ".kittify")
-    if metadata is not None:
-        try:
-            return Version(metadata.version) >= Version("2.0.0")
-        except InvalidVersion:
-            return False
-
-    return (project_path / "kitty-specs").exists()
