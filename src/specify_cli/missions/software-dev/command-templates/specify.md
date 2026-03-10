@@ -107,7 +107,8 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Work in: **Planning repository** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
-- Commits to: target branch (from `create-feature --json` → `target_branch`)
+- Commits to: feature branch (from `create-feature --json` → `target_branch`, which equals the feature slug, e.g. `014-checkout-upsell-flow`)
+- After all WPs are accepted, open a PR from the feature branch into `main`
 
 ## Outline
 
@@ -169,7 +170,7 @@ Given that feature description, do this:
      "slug": "014-checkout-upsell-flow",
      "feature_slug": "014-checkout-upsell-flow",
      "created_at": "2026-03-06T12:34:56Z",
-     "target_branch": "main",
+     "target_branch": "014-checkout-upsell-flow",
      "friendly_name": "Checkout Upsell Flow",
      "mission": "software-dev",
      "source_description": "optional source summary",

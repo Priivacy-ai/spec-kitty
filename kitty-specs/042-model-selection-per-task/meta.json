@@ -1,0 +1,11 @@
+{
+  "feature_number": "042",
+  "slug": "042-model-selection-per-task",
+  "feature_slug": "042-model-selection-per-task",
+  "friendly_name": "Model Selection per Task",
+  "source_description": "Users configure a global model mapping (e.g., specify: opus, implement: sonnet) and spec-kitty injects the model into each agent's command files during upgrade.",
+  "vcs": "git",
+  "mission": "software-dev",
+  "target_branch": "042-model-selection-per-task",
+  "created_at": "2026-03-09T10:56:48.306476+00:00"
+}

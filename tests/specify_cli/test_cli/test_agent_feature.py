@@ -23,9 +23,10 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
     def test_creates_feature_with_json_output(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_subprocess: Mock, mock_commit: Mock, mock_get_number: Mock,
+        mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -33,6 +34,8 @@ class TestCreateFeatureCommand:
         mock_is_git.return_value = True
         mock_branch.return_value = "main"
         mock_get_number.return_value = 1
+        # Simulate successful branch creation
+        mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -47,10 +50,11 @@ class TestCreateFeatureCommand:
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
         assert "feature_dir" in output
-        assert output["target_branch"] == "main"
-        assert output["base_branch"] == "main"
-        assert output["TARGET_BRANCH"] == "main"
-        assert output["BASE_BRANCH"] == "main"
+        # Git-flow: target_branch is the feature slug branch
+        assert output["target_branch"] == "001-test-feature"
+        assert output["base_branch"] == "001-test-feature"
+        assert output["TARGET_BRANCH"] == "001-test-feature"
+        assert output["BASE_BRANCH"] == "001-test-feature"
 
         # Verify feature directory was created
         feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -65,16 +69,17 @@ class TestCreateFeatureCommand:
         assert meta["slug"] == "001-test-feature"
         assert meta["feature_slug"] == "001-test-feature"
         assert meta["mission"] == "software-dev"
-        assert meta["target_branch"] == "main"
+        assert meta["target_branch"] == "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
     def test_creates_feature_with_human_output(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_subprocess: Mock, mock_commit: Mock, mock_get_number: Mock,
+        mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -82,6 +87,8 @@ class TestCreateFeatureCommand:
         mock_is_git.return_value = True
         mock_branch.return_value = "main"
         mock_get_number.return_value = 1
+        # Simulate successful branch creation
+        mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -153,9 +160,10 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
     @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
     def test_creates_feature_from_any_branch(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_subprocess: Mock, mock_commit: Mock, mock_get_number: Mock,
+        mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should allow feature creation from any branch (not just main)."""
         # Setup: On non-main branch
@@ -163,6 +171,8 @@ class TestCreateFeatureCommand:
         mock_is_git.return_value = True
         mock_branch.return_value = "develop"
         mock_get_number.return_value = 1
+        # Simulate successful branch creation
+        mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -171,10 +181,11 @@ class TestCreateFeatureCommand:
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
-        # Verify - should succeed from any branch
+        # Verify - should succeed from any branch, feature branch is the target
         assert result.exit_code == 0
         output = json.loads(result.stdout)
         assert output["result"] == "success"
+        assert output["target_branch"] == "001-test-feature"
 
 
 class TestCheckPrerequisitesCommand:
