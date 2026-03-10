@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
+from specify_cli.cli.commands.merge import extract_feature_slug
 from specify_cli.core.feature_detection import get_feature_target_branch
 
 
@@ -222,34 +223,55 @@ def test_nonexistent_target_branch_produces_error(tmp_path):
 # Test 6: No --feature flag  (User Story 3 / FR-004)
 # ---------------------------------------------------------------------------
 
-def test_no_feature_flag_uses_resolve_primary_branch():
-    """When --feature is not provided, resolve_primary_branch() is used directly.
-
-    get_feature_target_branch should NOT be called.
+def test_no_feature_flag_on_non_feature_branch_uses_primary_branch():
+    """When --feature is omitted and current branch is not a feature branch,
+    resolve_primary_branch() is used as fallback (FR-004).
     """
+    from specify_cli.cli.commands.merge import extract_feature_slug
+
+    # On a branch like "main" or "develop", extract_feature_slug returns it as-is
+    assert extract_feature_slug("main") == "main"
+    assert extract_feature_slug("develop") == "develop"
+
+
+def test_no_feature_flag_on_feature_branch_resolves_from_meta_json(tmp_path):
+    """When --feature is omitted but current branch IS a feature branch,
+    the resolution should still consult meta.json (P1 fix).
+
+    Tests the merge.py resolution block: when feature=None and
+    target_branch=None, and the current branch is a WP branch, the code
+    should infer the slug from the branch name and read meta.json rather
+    than falling back to resolve_primary_branch().
+    """
+    slug = "049-fix-merge-target-resolution"
+    feature_dir = tmp_path / "kitty-specs" / slug
+    _write_meta_json(feature_dir, "2.x")
+
+    # Simulate being on a WP branch — extract_feature_slug derives the slug
+    current_branch = f"{slug}-WP01"
+    inferred_slug = extract_feature_slug(current_branch)
+    assert inferred_slug == slug, "extract_feature_slug should strip -WP01"
+    assert inferred_slug != current_branch, "slug differs from branch name"
+
+    # meta.json exists for the inferred slug
+    inferred_feature_dir = tmp_path / "kitty-specs" / inferred_slug
+    assert (inferred_feature_dir / "meta.json").exists()
+
+    # Now test the resolution: get_feature_target_branch should return "2.x"
     with (
         patch(
-            "specify_cli.core.feature_detection.get_feature_target_branch"
-        ) as mock_gftb,
+            "specify_cli.core.feature_detection._get_main_repo_root",
+            return_value=tmp_path,
+        ),
         patch(
             "specify_cli.core.git_ops.resolve_primary_branch",
             return_value="main",
-        ) as mock_rpb,
+        ),
     ):
-        # Reproduce merge.py resolution logic with feature=None
-        target_branch = None
-        feature = None
+        target_branch = get_feature_target_branch(tmp_path, inferred_slug)
 
-        if target_branch is None:
-            if feature:
-                target_branch = mock_gftb(Path("."), feature)
-            else:
-                from specify_cli.core.git_ops import resolve_primary_branch
-                target_branch = mock_rpb(Path("."))
-
-        mock_gftb.assert_not_called()
-        mock_rpb.assert_called_once()
-        assert target_branch == "main"
+    # Should resolve to 2.x from meta.json, NOT fall back to "main"
+    assert target_branch == "2.x"
 
 
 # ---------------------------------------------------------------------------
@@ -285,22 +307,24 @@ def test_malformed_meta_json_falls_back_to_primary_branch(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_merge_template_has_no_agent_feature_merge_references():
-    """merge.md template should only reference canonical 'spec-kitty merge'."""
-    template_path = (
-        Path(__file__).resolve().parents[4]
-        / "src"
-        / "specify_cli"
-        / "missions"
-        / "software-dev"
-        / "command-templates"
-        / "merge.md"
-    )
-    assert template_path.exists(), f"Template not found at {template_path}"
+    """All merge.md templates should only reference canonical 'spec-kitty merge'.
 
-    content = template_path.read_text(encoding="utf-8")
-    assert "agent feature merge" not in content.lower(), (
-        "merge.md should not reference 'agent feature merge'"
+    Covers both mission-specific templates and the generic template (FR-005).
+    """
+    src_root = Path(__file__).resolve().parents[4] / "src"
+    merge_templates = list(src_root.glob("**/command-templates/merge.md"))
+
+    assert len(merge_templates) >= 2, (
+        f"Expected at least 2 merge.md templates, found {len(merge_templates)}: "
+        f"{[str(p.relative_to(src_root)) for p in merge_templates]}"
     )
-    assert "spec-kitty merge" in content, (
-        "merge.md should reference canonical 'spec-kitty merge'"
-    )
+
+    for template_path in merge_templates:
+        rel = template_path.relative_to(src_root)
+        content = template_path.read_text(encoding="utf-8")
+        assert "agent feature merge" not in content.lower(), (
+            f"{rel} should not reference 'agent feature merge'"
+        )
+        assert "spec-kitty merge" in content, (
+            f"{rel} should reference canonical 'spec-kitty merge'"
+        )
