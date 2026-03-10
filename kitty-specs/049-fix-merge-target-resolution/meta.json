@@ -1,0 +1,11 @@
+{
+  "feature_number": "049",
+  "slug": "049-fix-merge-target-resolution",
+  "feature_slug": "049-fix-merge-target-resolution",
+  "friendly_name": "Fix Merge Target Branch Resolution",
+  "mission": "software-dev",
+  "source_description": "CRITICAL: top-level spec-kitty merge in 2.0.5 defaults to repo primary branch instead of feature meta.json target_branch. merge.py line 721 calls resolve_primary_branch() and never consults feature metadata. The agent merge path (feature.py line 1336) already does the right thing. The merge template also routes agents to the broken top-level command path.",
+  "target_branch": "2.x",
+  "created_at": "2026-03-10T11:27:07.742806+00:00",
+  "vcs": "git"
+}
