@@ -45,6 +45,24 @@ def test_detect_non_kittify_project(migration: InstallDocumentationMission, tmp_
     assert migration.detect(tmp_path) is False
 
 
+def test_detect_skips_when_global_runtime_is_configured(
+    migration: InstallDocumentationMission,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2.x runtime-managed installs do not require project-local missions."""
+    home = tmp_path / "home"
+    (home / "cache").mkdir(parents=True)
+    (home / "cache" / "version.lock").write_text("2.0.5", encoding="utf-8")
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (tmp_path / "kitty-specs").mkdir()
+
+    assert migration.detect(tmp_path) is False
+
+
 def test_detect_no_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Migration detects when missions directory doesn't exist."""
     kittify = tmp_path / ".kittify"

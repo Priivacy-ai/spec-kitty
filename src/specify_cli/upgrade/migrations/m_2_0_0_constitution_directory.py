@@ -23,8 +23,7 @@ class ConstitutionDirectoryMigration(BaseMigration):
     def detect(self, project_path: Path) -> bool:
         """Return True when legacy constitution location is still in use."""
         old_path = project_path / ".kittify" / "memory" / "constitution.md"
-        new_path = project_path / ".kittify" / "constitution" / "constitution.md"
-        return old_path.exists() or new_path.exists()
+        return old_path.exists()
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """This migration only requires project filesystem access."""

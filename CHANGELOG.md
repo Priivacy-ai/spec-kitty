@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-03-10
+
+### 🐛 Fixed
+
+- **Upgrade consistency sweep**: added a new `2.0.6_consistency_sweep` migration that backfills missing or blank feature `meta.json`, infers `target_branch` from feature docs or the repo primary branch, reconstructs missing `status.events.jsonl`, regenerates `status.json` and generated `tasks.md` status blocks, normalizes legacy WP frontmatter lane aliases/quoting, rewrites stale prompt paths, and archives orphan empty `status.json` snapshots before rebuilding canonical state.
+- **Worktree upgrade coverage**: `spec-kitty upgrade` now upgrades worktrees that have `kitty-specs/` or legacy `.specify/` state even when `.kittify/` has not been created yet.
+- **Detector false positives**: runtime-managed 2.x installs no longer trip legacy project-local mission migrations, and the constitution migration only flags the legacy `.kittify/memory/constitution.md` path.
+- **Target-branch backfill correctness**: the `0.13.8_target_branch` migration now uses repo-aware branch inference instead of the obsolete hardcoded Feature 025 exception.
+
 ## [2.0.5] - 2026-03-10
 
 ### ✅ Added

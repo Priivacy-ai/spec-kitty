@@ -5,11 +5,30 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from specify_cli.upgrade.migrations.m_2_0_0_constitution_directory import Migration
+from specify_cli.upgrade.migrations.m_2_0_0_constitution_directory import (
+    ConstitutionDirectoryMigration,
+    Migration,
+)
 
 
 class TestConstitutionDirectoryMigration:
     """Test the constitution directory migration."""
+
+    def test_detect_only_flags_legacy_path(self, tmp_path: Path):
+        """detect() should not fire when only the canonical path exists."""
+        migration = ConstitutionDirectoryMigration()
+
+        canonical = tmp_path / ".kittify" / "constitution" / "constitution.md"
+        canonical.parent.mkdir(parents=True)
+        canonical.write_text("# Canonical")
+
+        assert migration.detect(tmp_path) is False
+
+        legacy = tmp_path / ".kittify" / "memory" / "constitution.md"
+        legacy.parent.mkdir(parents=True, exist_ok=True)
+        legacy.write_text("# Legacy")
+
+        assert migration.detect(tmp_path) is True
 
     def test_scenario_1_old_exists_new_doesnt(self, tmp_path: Path):
         """Scenario 1: Old path exists, new doesn't → file moved."""

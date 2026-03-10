@@ -91,3 +91,31 @@ def test_already_applied_migration_is_reported_as_skipped(
     assert result.migrations_applied == []
     assert result.migrations_skipped == [migration.migration_id]
     assert any("already applied" in warning for warning in result.warnings)
+
+
+def test_upgrade_creates_worktree_metadata_when_only_kitty_specs_exists(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Worktrees without .kittify should still be upgraded when they have kitty-specs."""
+    project_path = _setup_project(tmp_path)
+    worktree = project_path / ".worktrees" / "001-feature-WP01"
+    (worktree / "kitty-specs" / "001-feature" / "tasks").mkdir(parents=True)
+    (worktree / "kitty-specs" / "001-feature" / "tasks" / "WP01-test.md").write_text(
+        "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\n---\n# WP01\n",
+        encoding="utf-8",
+    )
+
+    runner = MigrationRunner(project_path)
+    migration = _AppliedMigration()
+
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+        lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
+    )
+
+    result = runner.upgrade("9.9.9", include_worktrees=True)
+
+    assert result.success is True
+    assert (worktree / ".kittify" / "metadata.yaml").exists()
