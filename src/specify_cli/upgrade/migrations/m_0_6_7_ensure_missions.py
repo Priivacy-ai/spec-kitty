@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import List
 
+from ..compat import uses_centralized_runtime
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -30,6 +31,10 @@ class EnsureMissionsMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Check if any required missions are missing."""
+        if uses_centralized_runtime(project_path):
+            # In the 2.x centralized runtime model, project-local missions are optional.
+            return False
+
         missions_dir = project_path / ".kittify" / "missions"
 
         if not missions_dir.exists():

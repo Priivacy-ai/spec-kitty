@@ -303,7 +303,20 @@ def emit_status_transition(
     # Step 8: SaaS fan-out (never blocks canonical persistence)
     _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)
 
-    # Step 9: Return the event
+    # Step 9: Dossier sync (fire-and-forget, never blocks)
+    if repo_root is not None:
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir, feature_slug, repo_root,
+            )
+        except Exception:
+            pass  # Never block status transitions
+
+    # Step 10: Return the event
     return event
 
 

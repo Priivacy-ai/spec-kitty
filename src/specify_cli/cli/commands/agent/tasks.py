@@ -1396,6 +1396,18 @@ def mark_status(
         except Exception as e:
             console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
 
+        # Dossier sync (fire-and-forget)
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir, feature_slug, repo_root,
+            )
+        except Exception:
+            pass
+
         # Build result
         result = {
             "result": "success",

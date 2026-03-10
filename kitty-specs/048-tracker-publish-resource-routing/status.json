@@ -1,0 +1,31 @@
+{
+  "event_count": 10,
+  "feature_slug": "048-tracker-publish-resource-routing",
+  "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
+  "materialized_at": "2026-03-10T10:20:44.928825+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBKYYNX1814AECTWCBX8ZX0",
+      "last_transition_at": "2026-03-10T10:16:27.581223+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
+      "last_transition_at": "2026-03-10T10:20:44.928639+00:00"
+    }
+  }
+}

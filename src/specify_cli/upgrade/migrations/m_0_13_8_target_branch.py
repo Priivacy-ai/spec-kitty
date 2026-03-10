@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from specify_cli.upgrade.feature_meta import infer_target_branch
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -87,30 +89,11 @@ class TargetBranchMigration(BaseMigration):
                 if "target_branch" in meta:
                     continue
 
-                # Detect target from spec.md for Feature 025
-                target_branch = "main"  # Default for all features
-
-                if meta.get("feature_number") == "025":
-                    spec_file = feature_dir / "spec.md"
-                    if spec_file.exists():
-                        try:
-                            content = spec_file.read_text(encoding="utf-8")
-                            # Look for explicit target branch markers
-                            if any(
-                                marker in content
-                                for marker in [
-                                    "**Target Branch**: 2.x",
-                                    "Target Branch**: 2.x development",
-                                    "**Target**: 2.x branch",
-                                ]
-                            ):
-                                target_branch = "2.x"
-                                warnings.append(
-                                    f"Feature 025 auto-detected as 2.x target from spec.md"
-                                )
-                        except OSError:
-                            # Can't read spec, use default
-                            pass
+                target_branch = infer_target_branch(feature_dir, project_path)
+                if target_branch != "main":
+                    warnings.append(
+                        f"{feature_dir.name} auto-detected target_branch={target_branch}"
+                    )
 
                 # Add target_branch field
                 meta["target_branch"] = target_branch

@@ -13,6 +13,9 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 runner = CliRunner()
 
@@ -438,6 +441,7 @@ class TestReviewRejectToPlanned:
         output = _parse_json_output(result.stdout)
         assert "requires review feedback" in output["error"]
 
+    @pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
     def test_for_review_to_planned_persists_feedback(self, task_repo: Path, monkeypatch):
         """Should persist review feedback content in the WP file body and frontmatter."""
         monkeypatch.chdir(task_repo)

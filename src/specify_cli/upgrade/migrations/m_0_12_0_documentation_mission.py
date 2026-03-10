@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from ..compat import uses_centralized_runtime
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -35,6 +36,10 @@ class InstallDocumentationMission(BaseMigration):
         Returns:
             True if documentation mission is missing, False if already installed
         """
+        if uses_centralized_runtime(project_path):
+            # Centralized runtime provides managed missions globally in 2.x.
+            return False
+
         kittify_dir = project_path / ".kittify"
 
         if not kittify_dir.exists():

@@ -145,6 +145,18 @@ def research(
 
     console.print(tracker.render())
 
+    # Dossier sync (fire-and-forget)
+    try:
+        from specify_cli.sync.dossier_pipeline import (
+            trigger_feature_dossier_sync_if_enabled,
+        )
+
+        trigger_feature_dossier_sync_if_enabled(
+            feature_dir, feature_slug, repo_root,
+        )
+    except Exception:
+        pass
+
     relative_paths = [
         str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path)
         for path in created_paths

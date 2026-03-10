@@ -680,6 +680,18 @@ spec-kitty agent tasks move-task WP01 --to doing
         except Exception:
             pass  # Non-blocking, event emission failures are not fatal
 
+        # Dossier sync (fire-and-forget)
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir, feature_slug_formatted, repo_root,
+            )
+        except Exception:
+            pass
+
         if json_output:
             create_payload = {
                 "result": "success",
@@ -1034,6 +1046,18 @@ def setup_plan(
                         console.print(
                             f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
                         )
+        # Dossier sync (fire-and-forget)
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir, feature_slug, repo_root,
+            )
+        except Exception:
+            pass
+
         if json_output:
             result = {
                 "result": "success",
@@ -1765,6 +1789,18 @@ def finalize_tasks(
                 console.print(
                     f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}"
                 )
+
+        # Dossier sync (fire-and-forget)
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir, feature_slug, repo_root,
+            )
+        except Exception:
+            pass
 
         if json_output:
             _emit_json(

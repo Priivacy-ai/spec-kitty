@@ -134,7 +134,33 @@ def test_apply_detects_025_as_2x_target(repo_with_features: Path):
     assert meta_025["target_branch"] == "2.x"
 
     # Should have a warning about auto-detection
-    assert any("auto-detected" in warning for warning in result.warnings)
+    assert any("auto-detected target_branch=2.x" in warning for warning in result.warnings)
+
+
+def test_apply_uses_primary_branch_as_default(
+    repo_with_features: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Features without explicit markers inherit the repo's primary branch."""
+    monkeypatch.setattr(
+        "specify_cli.upgrade.feature_meta.resolve_primary_branch",
+        lambda _repo_root: "2.x",
+    )
+
+    migration = TargetBranchMigration()
+    result = migration.apply(repo_with_features, dry_run=False)
+
+    assert result.success is True
+
+    meta_020 = json.loads(
+        (repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text()
+    )
+    meta_024 = json.loads(
+        (repo_with_features / "kitty-specs" / "024-another-feature" / "meta.json").read_text()
+    )
+
+    assert meta_020["target_branch"] == "2.x"
+    assert meta_024["target_branch"] == "2.x"
 
 
 def test_apply_dry_run_does_not_modify_files(repo_with_features: Path):

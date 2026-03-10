@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "2.0.4"
+version = "2.0.6"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -73,7 +73,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/Priivacy-ai/spec-kitty"
 Issues = "https://github.com/Priivacy-ai/spec-kitty/issues"
-Documentation = "https://priivacy-ai.github.io/spec-kitty/"
+Documentation = "https://docs.spec-kitty.ai/"
 Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]

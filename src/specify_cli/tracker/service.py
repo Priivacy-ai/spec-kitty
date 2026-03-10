@@ -20,6 +20,16 @@ from specify_cli.tracker.factory import SUPPORTED_PROVIDERS, build_connector, no
 from specify_cli.tracker.store import TrackerSqliteStore, default_tracker_db_path
 
 
+# Canonical wire values for tracker resource routing.
+# Keys: normalized provider name (from normalize_provider()).
+# Values: (external_resource_type, credential_key_for_resource_id).
+# These are stable contract strings — not display labels.
+RESOURCE_ROUTING_MAP: dict[str, tuple[str, str]] = {
+    "jira": ("jira_project", "project_key"),
+    "linear": ("linear_team", "team_id"),
+}
+
+
 class TrackerServiceError(RuntimeError):
     """Raised when tracker service operations fail."""
 
@@ -188,17 +198,20 @@ class TrackerService:
     ) -> dict[str, Any]:
         config, credentials, store = self._load_runtime()
 
-        provider = str(config.provider)
+        provider = normalize_provider(str(config.provider))
         workspace = str(config.workspace)
         issues = self._run_async(store.list_issues(system=provider))
         mappings = store.list_mappings()
         checkpoint = store.get_checkpoint(checkpoint_key=f"{provider}:{workspace}")
 
         project_identity = self._project_identity()
+        resource_type, resource_id = self._resolve_resource_routing(provider, credentials)
 
         payload = {
             "provider": provider,
             "workspace": workspace,
+            "external_resource_type": resource_type,
+            "external_resource_id": resource_id,
             "doctrine_mode": config.doctrine_mode,
             "doctrine_field_owners": dict(config.doctrine_field_owners),
             "project_uuid": project_identity.get("uuid"),
@@ -213,7 +226,7 @@ class TrackerService:
 
         endpoint = server_url.rstrip("/") + "/api/v1/connectors/trackers/snapshots/"
         idempotency_key = hashlib.sha256(
-            f"{provider}|{workspace}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode("utf-8")
+            f"{provider}|{workspace}|{resource_type}|{resource_id}|{len(issues)}|{len(mappings)}|{payload['checkpoint']['cursor']}".encode("utf-8")
         ).hexdigest()
 
         token = auth_token or str(credentials.get("access_token") or credentials.get("token") or "").strip()
@@ -361,6 +374,26 @@ class TrackerService:
             "uuid": str(uuid) if uuid is not None else None,
             "slug": str(slug) if slug is not None else None,
         }
+
+    @staticmethod
+    def _resolve_resource_routing(
+        provider: str,
+        credentials: dict[str, Any],
+    ) -> tuple[str | None, str | None]:
+        """Derive resource routing fields from provider and credentials.
+
+        Returns (external_resource_type, external_resource_id) if the provider
+        has a routing mapping and the required credential key is present and
+        non-empty. Otherwise returns (None, None).
+        """
+        entry = RESOURCE_ROUTING_MAP.get(provider)
+        if entry is None:
+            return None, None
+        resource_type, credential_key = entry
+        resource_id = credentials.get(credential_key)
+        if resource_id is None or not str(resource_id).strip():
+            return None, None
+        return resource_type, str(resource_id).strip()
 
     @staticmethod
     def _run_async(awaitable: Any) -> Any:

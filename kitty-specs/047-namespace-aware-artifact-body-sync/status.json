@@ -1,0 +1,66 @@
+{
+  "event_count": 35,
+  "feature_slug": "047-namespace-aware-artifact-body-sync",
+  "last_event_id": "01KK91WAH9GSGFNC7PNF0YHAZF",
+  "materialized_at": "2026-03-09T10:21:58.185546+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK8R1ZEH5VS3M167ES8M3CZX",
+      "last_transition_at": "2026-03-09T07:30:17.681491+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK8VTJ3S0WSMC78T73BH7H6Z",
+      "last_transition_at": "2026-03-09T08:36:08.953650+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK8W8TH5YBDFMKECN4YGPMDJ",
+      "last_transition_at": "2026-03-09T08:43:56.325643+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK8WQ9RCN23E9SM11NE66AQD",
+      "last_transition_at": "2026-03-09T08:51:50.668314+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK90HZD1XFPNM478Q50KJNR3",
+      "last_transition_at": "2026-03-09T09:58:50.529904+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK9126YJP6BX3456FJ8B031G",
+      "last_transition_at": "2026-03-09T10:07:42.546636+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK91WAH9GSGFNC7PNF0YHAZF",
+      "last_transition_at": "2026-03-09T10:21:58.185121+00:00"
+    }
+  }
+}

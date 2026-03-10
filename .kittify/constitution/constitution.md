@@ -240,6 +240,28 @@ This constitution captures the technical standards, architectural principles, an
 
 ---
 
+## Local Docker Development Governance (`spec-kitty-saas`)
+
+When work in this program touches the SaaS repository, all contributors and agents must use a two-mode Docker workflow:
+
+1. **`dev-live` mode** for active implementation loops
+- Live code volumes
+- Django autoreload
+- Vite dev server
+- Primary commands: `make docker-app-up-live`, `make docker-app-down-live`
+
+2. **`prod-like` mode** for pre-merge and pre-deploy validation
+- Image-based parity stack
+- Primary commands: `make docker-app-up`, `make docker-auth-check`, `make docker-app-down`
+
+Mandatory gate:
+- A `prod-like` authenticated preflight must pass before Fly promotion and before considering SaaS integration work complete.
+
+Operational reference:
+- `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`
+
+---
+
 ## Governance
 
 ### Amendment Process
@@ -269,3 +291,13 @@ Exceptions discussed case-by-case. Strong justification required.
 **Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
 **License:** MIT (All Rights Reserved for Priivacy AI code)
+
+---
+
+## Terminology Canon (Mission vs Feature)
+
+- Canonical product term is **Mission** (plural: **Missions**).
+- `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
+- Hard-break policy: do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
+- Use `Mission` / `Missions` as the only canonical term in active codepaths and interfaces.
+- Historical archived artifacts may retain legacy wording only as immutable snapshots and must be explicitly marked legacy.
