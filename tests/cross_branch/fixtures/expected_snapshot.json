@@ -3,6 +3,7 @@
   "feature_slug": "099-parity-test",
   "last_event_id": "01JFAA0000000000000000AAAA",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 1,
     "claimed": 1,
