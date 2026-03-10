@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Manage Agents How-To Guide - Core Commands
+lane: "doing"
+dependencies: [WP01]
+base_branch: 023-documentation-sprint-agent-management-cleanup-WP01
+base_commit: 25f4b615be5b11bd0f1728f14cfc79046e99b40c
+created_at: '2026-03-03T04:12:31.393333+00:00'
 subtasks:
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Manage Agents How-To Guide - Core Commands"
-phase: "Phase 1 - Core Documentation"
-lane: "planned"
-assignee: ""
-agent: "codex"
-shell_pid: "24794"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T004
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Phase 1 - Core Documentation
+assignee: ''
+agent: codex
+shell_pid: "1491792"
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-23T10:23:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-23T10:23:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Manage Agents How-To Guide - Core Commands

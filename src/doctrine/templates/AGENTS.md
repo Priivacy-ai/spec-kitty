@@ -13,7 +13,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 ✅ **CORRECT**:
 
 - `kitty-specs/001-feature/tasks/WP01.md`
-- `/Users/robert/Code/myproject/kitty-specs/001-feature/spec.md`
+- `/path/to/project/kitty-specs/001-feature/spec.md`
 - `tasks/WP01.md` (relative to feature directory)
 
 ❌ **WRONG**:

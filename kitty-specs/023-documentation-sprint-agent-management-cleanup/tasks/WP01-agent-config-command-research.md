@@ -1,24 +1,27 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-title: "Agent Config Command Research"
-phase: "Phase 0 - Research & Validation"
-lane: "done"
-assignee: ""
-agent: "Claude"
-shell_pid: "18985"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP01
+title: Agent Config Command Research
+lane: done
 dependencies: []
+base_branch: develop
+base_commit: 25f4b615be5b11bd0f1728f14cfc79046e99b40c
+created_at: '2026-03-03T04:12:25.161063+00:00'
+subtasks:
+- T001
+- T002
+- T003
+phase: Phase 0 - Research & Validation
+assignee: ''
+agent: Claude
+shell_pid: '18985'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-23T10:23:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-23T10:23:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Agent Config Command Research

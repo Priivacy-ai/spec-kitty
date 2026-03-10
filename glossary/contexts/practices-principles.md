@@ -9,6 +9,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Definition** | Glossary checks should run by default with minimal interruption during normal flow. |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 
@@ -19,6 +20,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Definition** | Conflict results, block reasons, and clarification decisions must be visible in artifacts/logs. |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 
@@ -29,6 +31,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Definition** | Term/sense changes and conflict decisions are recorded as immutable events, not rewritten in place. |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 
@@ -39,6 +42,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Definition** | Conflict detection/gating is deterministic; only ambiguity resolution requires human input. |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 
@@ -49,6 +53,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 | **Definition** | Generation is blocked only when high-severity semantic conflicts remain unresolved. |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 
@@ -58,6 +63,6 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 |---|---|
 | **Definition** | The principle that the human remains responsible and accountable for all decisions. Agents assist and propose; the HiC owns the final call. See full definition in Identity context. |
 | **Context** | Practices & Principles |
-| **Status** | candidate |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
 | **Canonical entry** | [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
-

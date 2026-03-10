@@ -1,0 +1,23 @@
+# GENERATED FILE — do not edit manually.
+# Run: python scripts/generate_contextive_glossaries.py generate
+#
+# Source: glossary/contexts/technology-foundations.md
+
+contexts:
+  - name: "Technology Foundations"
+    domainVisionStatement: "General technology terms that appear throughout Spec Kitty documentation. Included here so that readers unfamiliar with these concepts have a clear reference point."
+    terms:
+      - name: "API"
+        definition: "Application Programming Interface — a defined way for one piece of software to talk to another. Instead of a human clicking buttons, an API lets programs send requests and receive structured responses."
+      - name: "CLI"
+        definition: "Command Line Interface — a text-based way to interact with software by typing commands into a terminal, rather than clicking through a graphical interface. Spec Kitty's primary interface is a CLI."
+      - name: "JSON"
+        definition: "A structured data format using curly braces and key-value pairs, commonly used for machine-to-machine communication. Less human-readable than YAML but widely supported by programming tools."
+      - name: "Markdown"
+        definition: "A lightweight text formatting language that uses simple symbols (like `#` for headings and `**` for bold) to create readable documents. Files use the `.md` extension."
+      - name: "SHA256"
+        definition: "A hashing algorithm that produces a fixed-length checksum from any input. Even a tiny change in the input produces a completely different checksum, making it useful for detecting whether content has been modified."
+      - name: "UI"
+        definition: "User Interface — any surface through which a person interacts with software. This can be graphical (buttons, windows) or text-based (a CLI)."
+      - name: "YAML"
+        definition: "A human-readable configuration file format that uses indentation and key-value pairs to structure data. Files use the `.yaml` or `.yml` extension. Used in Spec Kitty for mission definitions and project configuration."

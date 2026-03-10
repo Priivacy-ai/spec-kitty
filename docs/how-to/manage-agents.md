@@ -74,7 +74,7 @@ Agent directories are created and removed automatically by CLI commands. You sho
 
 > **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](upgrade-to-0-11-0.md#upgrading-to-0120) for details.
 
-For architectural details, see [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md).
+For architectural details, see [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md).
 
 ## Listing Agents
 
@@ -619,7 +619,7 @@ For more information on agent management and related topics:
 
 ### Architecture
 
-- [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
+- [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
 
 ### Migration Guides
 

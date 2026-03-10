@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✅ Added
+
+- **Mutation testing CI integration (feat #047)**: mutmut toolchain setup, CI integration, and targeted kill sessions for `status/` reducer and transitions.
+- **Agentic mutation testing remediation workflow**: GitHub Agentic Workflow (gh-aw) replaces the legacy Claude workflow for mutation testing remediation.
+- **SonarCloud integration**: added SonarCloud config; `develop` branch recognized as 2.x-equivalent in CI quality gates.
+- **Architecture corpus restructure**: versioned architecture docs under `architecture/1.x/` and `architecture/2.x/`, 45 ADRs, glossary contexts across 10 bounded domains, Contextive integration, and stakeholder persona definitions.
+- **`meta.json` schema example in specify template**: documents `"target_branch"` and `"vcs"` as required explicit fields.
+
+### 🐛 Fixed
+
+- **Post-rebase quality fixes**: resolved unmatched `)` syntax error, `gap_analysis_path` undefined name (F821), `timezone` → `UTC` reference, unused `type: ignore` comments, and `toml` import-untyped mypy errors.
+- **Test isolation**: moved misplaced test package; fixed 3 test failures and Pydantic V1 deprecation warnings.
+- **Sync offline queue**: redirect offline queue warning to stderr instead of stdout.
+- **CI branch detection**: `develop` now recognized as a 2.x branch for branch-contract guards.
+
+### 🔧 Changed
+
+- **Ruff lint compliance**: full ruff clean pass across `src/` and `tests/`; added ruff lint config to `pyproject.toml`.
+- **Documentation site updates**: 2.x docs site refresh with Contextive IDE integration guide.
+
 ## [2.0.6] - 2026-03-10
 
 ### 🐛 Fixed

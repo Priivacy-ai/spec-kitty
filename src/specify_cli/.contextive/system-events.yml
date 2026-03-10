@@ -1,0 +1,29 @@
+# GENERATED FILE — do not edit manually.
+# Run: python scripts/generate_contextive_glossaries.py generate
+#
+# Source: glossary/contexts/system-events.md
+
+contexts:
+  - name: "System Events"
+    domainVisionStatement: "Terms describing Spec Kitty's append-only event model, replay behavior, and system-level event types."
+    terms:
+      - name: "Anomaly Event"
+        definition: "An event that is only emitted when something unexpected happens — such as a required artifact being missing or parity drift being detected. Unlike routine lifecycle events, anomaly events signal conditions that may need the Human-in-Charge's attention."
+      - name: "Dossier Event"
+        definition: "An event emitted during dossier operations. Four types: `ArtifactIndexed` (artifact scanned), `SnapshotComputed` (snapshot created), `ArtifactMissing` (required artifact not found), `ParityDriftDetected` (content changed since baseline)."
+      - name: "Event Envelope"
+        definition: "Standard wrapper for an emitted event, including identity, ordering, and payload fields."
+      - name: "Glossary Evolution Log"
+        definition: "Append-only sequence of glossary-related events that records candidate extraction, semantic checks, clarifications, and sense updates."
+      - name: "Glossary Scope"
+        definition: "Bounded semantic scope used for term/sense resolution."
+      - name: "Lamport Clock"
+        definition: "A logical counter included in event envelopes that tracks the order events happened in, without relying on wall-clock time. Each new event increments the counter, ensuring events can be reliably ordered even across different machines."
+      - name: "Replay"
+        definition: "Reconstructing effective glossary state and decisions from canonical append-only events."
+      - name: "Semantic Check Evaluation"
+        definition: "Deterministic pre-generation evaluation of extracted terms against active glossary scopes."
+      - name: "Telemetry (Out of Scope for This Slice)"
+        definition: "Optional usage/cost analytics and operational observability fields layered on top of core event contracts."
+      - name: "WPStatusChanged"
+        definition: "The standard event emitted when a work package moves from one lane to another (e.g., from `planned` to `in_progress`). Part of the status model's event contract."

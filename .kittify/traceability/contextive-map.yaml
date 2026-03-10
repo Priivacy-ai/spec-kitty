@@ -1,0 +1,56 @@
+# Contextive Traceability Map
+# Maps src/ directory scopes to canonical glossary contexts.
+# Used by: scripts/generate_contextive_glossaries.py
+#
+# How to add a new scope mapping:
+#   1. Add an entry under `scopes` with:
+#      - path: relative path from repo root to the src directory
+#      - contexts: list of context slugs (filenames without .md from glossary/contexts/)
+#      - description: short human-readable note
+#   2. Run: python scripts/generate_contextive_glossaries.py generate
+#   3. Commit the updated generated files alongside this map.
+#
+# Available context slugs (from glossary/contexts/):
+#   configuration-project-structure, doctrine, dossier, execution,
+#   governance, identity, lexical, orchestration, practices-principles,
+#   system-events, technology-foundations
+
+# Where context-level YAML files are written (relative to repo root).
+# Each referenced context gets one file here: <context_base_dir>/<slug>.yml
+context_base_dir: "src/specify_cli/.contextive"
+
+scopes:
+  - path: "src/specify_cli/glossary"
+    description: "Core glossary subsystem — term model, pipeline, and events"
+    contexts:
+      - lexical
+      - system-events
+
+  - path: "src/specify_cli/status"
+    description: "Work-package status model and lane transitions"
+    contexts:
+      - orchestration
+
+  - path: "src/specify_cli/merge"
+    description: "Feature merge workflow and preflight validation"
+    contexts:
+      - orchestration
+
+  - path: "src/specify_cli/missions"
+    description: "Mission definition, lifecycle, and primitive execution"
+    contexts:
+      - orchestration
+      - execution
+      - governance
+
+  - path: "src/specify_cli/cli"
+    description: "CLI command surfaces and tool invocation"
+    contexts:
+      - execution
+      - technology-foundations
+
+  - path: "src/specify_cli/dossier"
+    description: "Artifact inventory, integrity validation, and drift detection"
+    contexts:
+      - dossier
+      - orchestration

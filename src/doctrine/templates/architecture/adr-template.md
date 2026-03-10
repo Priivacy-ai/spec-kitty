@@ -1,14 +1,12 @@
 # [Short descriptive title]
 
-**Filename:** `YYYY-MM-DD-N-descriptive-title-with-dashes.md` (where N is 1, 2, 3... for that day)
-
-**Status:** [Proposed | Accepted | Deprecated | Superseded]
-
-**Date:** [YYYY-MM-DD]
-
-**Deciders:** [List of people involved in decision]
-
-**Technical Story:** [Optional: Link to ticket/issue]
+| Field | Value |
+|---|---|
+| Filename | `YYYY-MM-DD-N-descriptive-title-with-dashes.md` (where N is 1, 2, 3... for that day) |
+| Status | [Proposed \| Accepted \| Deprecated \| Superseded] |
+| Date | [YYYY-MM-DD] |
+| Deciders | [List of people involved in decision] |
+| Technical Story | [Optional: Link to ticket/issue] |
 
 ---
 

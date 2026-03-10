@@ -28,10 +28,15 @@
   - Actors with no design influence (pure observers)
 -->
 
-**Category**: `INTERNAL Stakeholder` | `EXTERNAL Stakeholder`
-**Actor Type**: `human` | `llm` | `system`
-**Primary Goal**: [What outcome are they seeking?]
-**Referenced In**: [Link to user journey(s) where this actor appears]
+| Field | Value |
+|---|---|
+| **Category** | `INTERNAL Stakeholder` or `EXTERNAL Stakeholder` |
+| **Actor Type** | `human`, `llm`, or `system` |
+| **Primary Goal** | [What outcome are they seeking?] |
+| **Persona ID** | `[UUID or short identifier]` |
+| **Created / Updated** | `YYYY-MM-DD` |
+| **Domain / Context** | [Project / Organization] |
+| **Status** | `canonical` |
 
 ---
 
@@ -135,12 +140,3 @@ What would delight them?]
 
 ---
 
-## Metadata
-
-| Field | Value |
-|-------|-------|
-| **Persona ID** | `[UUID or short identifier]` |
-| **Created / Updated** | `YYYY-MM-DD` |
-| **Domain / Context** | [Project / Organization] |
-| **Linked Journeys** | [User journey files referencing this persona] |
-| **Linked ADRs** | [Design decisions that cite this persona] |

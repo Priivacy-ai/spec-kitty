@@ -6,7 +6,7 @@
 
 ADR reference:
 
-1. `architecture/adrs/2026-02-17-1-canonical-next-command-runtime-loop.md`
+1. `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 ## Mission Discovery Ownership
 
@@ -14,7 +14,7 @@ Mission discovery and loading are runtime-owned and resolved through explicit pr
 
 ADR and implementation references:
 
-1. `architecture/adrs/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
+1. `architecture/2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
 2. `src/specify_cli/runtime/home.py`
 3. `src/specify_cli/runtime/resolver.py`
 
@@ -33,10 +33,10 @@ Packaged mission defaults for 2.x live under doctrine:
 
 ADR references:
 
-1. `architecture/adrs/2026-02-09-1-canonical-wp-status-model.md`
-2. `architecture/adrs/2026-02-09-2-wp-lifecycle-state-machine.md`
-3. `architecture/adrs/2026-02-09-3-event-log-merge-semantics.md`
-4. `architecture/adrs/2026-02-09-4-cross-repo-evidence-completion.md`
+1. `architecture/2.x/adr/2026-02-09-1-canonical-wp-status-model.md`
+2. `architecture/2.x/adr/2026-02-09-2-wp-lifecycle-state-machine.md`
+3. `architecture/2.x/adr/2026-02-09-3-event-log-merge-semantics.md`
+4. `architecture/2.x/adr/2026-02-09-4-cross-repo-evidence-completion.md`
 
 ## External Orchestration Boundary
 

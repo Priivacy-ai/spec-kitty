@@ -19,9 +19,23 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ### Who it's for
 
-- Engineering teams using tools like Claude Code, Cursor, Codex, Gemini CLI, and Copilot
-- Tech leads who want predictable, auditable AI-assisted delivery
-- Projects where traceability from requirements to code matters
+- [Project Owners](architecture/audience/external/project-owner.md) who need explicit approval boundaries and outcome accountability
+- [External Tech Lead Evaluators](architecture/audience/external/tech-lead-evaluator.md) assessing delivery predictability and adoption fit
+- [External Architect Evaluators](architecture/audience/external/architect-evaluator.md) evaluating governance durability and boundary clarity
+- [External Product Manager Evaluators](architecture/audience/external/product-manager-evaluator.md) validating intent-to-delivery traceability
+- [Lead Developers](architecture/audience/internal/lead-developer.md) coordinating implementation quality and handoffs
+- [Maintainers](architecture/audience/internal/maintainer.md) preserving operational consistency across features and agents
+
+### Stakeholder Value Proposition
+
+| Stakeholder Persona | Value Proposition |
+|---|---|
+| [Project Owner](architecture/audience/external/project-owner.md) | Faster onboarding with explicit governance checkpoints and acceptance accountability |
+| [External Tech Lead Evaluator](architecture/audience/external/tech-lead-evaluator.md) | Deterministic, auditable multi-agent workflow with clear lifecycle guardrails |
+| [External Architect Evaluator](architecture/audience/external/architect-evaluator.md) | C4 + ADR traceability with explicit host authority and integration boundaries |
+| [External Product Manager Evaluator](architecture/audience/external/product-manager-evaluator.md) | Clear intent-to-artifact mapping and lower handoff ambiguity between product and engineering |
+| [Lead Developer](architecture/audience/internal/lead-developer.md) | Structured work package flow, quality gates, and review-ready evidence trails |
+| [Maintainer](architecture/audience/internal/maintainer.md) | Stable operational model with bounded external integrations and trackable state transitions |
 
 **Try it now:** `pip install spec-kitty-cli && spec-kitty init my-project --ai claude`
 
@@ -32,7 +46,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
 | **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
-| **Work package execution** | Uses lane-based work package prompts (`planned`, `doing`, `for_review`, `done`) |
+| **Work package execution** | Uses canonical 2.x lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
 | **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution |
 | **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
 | **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
@@ -146,7 +160,7 @@ sequenceDiagram
         Lead->>Cursor: implement WP02
     end
 
-    Cursor->>Dashboard: WP01 → doing
+    Cursor->>Dashboard: WP01 → in_progress (Doing)
     Cursor->>Dashboard: WP01 → for_review
     Lead->>Gemini: /spec-kitty.review WP01
     Gemini->>Dashboard: WP01 → done
@@ -179,7 +193,7 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
 The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
 
 **Key Features:**
-- 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
+- 📋 **Kanban Board**: Visual workflow across canonical lifecycle lanes (including `blocked` and `canceled`) with `Doing` rendered as `in_progress`
 - 📈 **Progress Tracking**: Real-time completion percentages and task counts
 - 👥 **Multi-Agent Support**: See which AI agents are working on which tasks
 - 📦 **Artifact Status**: Track specification, plan, tasks, and other deliverables
@@ -187,37 +201,31 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 
 ### Kanban Workflow Automation
 
-Work packages flow through automated quality gates. Agents move tasks between lanes, and the dashboard tracks state transitions in real-time.
+Work packages flow through automated quality gates using the canonical 2.x lifecycle FSM. Agents move tasks between lanes, and the dashboard tracks state transitions in real-time.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Planned: /spec-kitty.tasks
-    Planned --> Doing: /spec-kitty.implement
-    Doing --> ForReview: Agent completes work
-    ForReview --> Done: /spec-kitty.review (approved)
-    ForReview --> Planned: /spec-kitty.review (changes needed)
-    Done --> [*]: /spec-kitty.merge
-
-    note right of Planned
-        Ready to start
-        Dependencies clear
-    end note
-
-    note right of Doing
-        Agent assigned
-        Work in progress
-    end note
-
-    note right of ForReview
-        Code complete
-        Awaiting review
-    end note
-
-    note right of Done
-        Approved
-        Ready to merge
-    end note
+    [*] --> planned
+    planned --> claimed
+    claimed --> in_progress
+    in_progress --> for_review
+    for_review --> done
+    for_review --> in_progress: changes requested
+    for_review --> planned: replan
+    planned --> blocked
+    claimed --> blocked
+    in_progress --> blocked
+    for_review --> blocked
+    blocked --> in_progress
+    planned --> canceled
+    claimed --> canceled
+    in_progress --> canceled
+    for_review --> canceled
+    blocked --> canceled
 ```
+
+Lane terminology follows the glossary: see
+[`glossary/contexts/orchestration.md#lane`](glossary/contexts/orchestration.md#lane).
 
 ---
 
@@ -410,7 +418,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 - `kitty-specs/001-auth-system/tasks/WP01.md` - Work package prompts (flat structure)
 - Up to 10 work packages ready for implementation
 
-**Check your dashboard:** You'll now see tasks in the "Planned" lane!
+**Check your dashboard:** You'll now see tasks in the `planned` lane.
 
 ### Phase 5: Implement Features (In Feature Worktree)
 
@@ -422,7 +430,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **What this does:**
 - Auto-detects first WP with `lane: "planned"` (or specify WP ID)
-- Automatically moves to `lane: "doing"` and displays the prompt
+- Automatically advances toward `lane: "in_progress"` (displayed as "Doing") and shows the prompt
 - Shows clear "WHEN YOU'RE DONE" instructions
 - Agent implements, then runs command to move to `lane: "for_review"`
 
@@ -436,7 +444,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **What this does:**
 - Auto-detects first WP with `lane: "for_review"` (or specify WP ID)
-- Automatically moves to `lane: "doing"` and displays the prompt
+- Moves review execution to `lane: "in_progress"` (displayed as "Doing") and shows the prompt
 - Agent reviews code and provides feedback or approval
 - Shows commands to move to `lane: "done"` (passed) or `lane: "planned"` (changes needed)
 
@@ -610,13 +618,12 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - Validation rules (tests pass vs. citations documented)
 - Path conventions (e.g., `src/` vs. `research/`)
 
-**Scope**: Entire project. Switch missions before starting a new feature if you need a different workflow.
+**Scope**: Entire project. In current 2.x, mission is selected at init and remains fixed for the project lifecycle.
 
 **Runtime note**: Mission-run identity (`mission_id` / `mission_run_id`) is the preferred runtime collaboration scope when available.
 
 **Commands**:
 - Select at init: `spec-kitty init my-project --mission research`
-- Switch later: `spec-kitty mission switch research`
 - Inspect: `spec-kitty mission current` / `spec-kitty mission list`
 
 ---
@@ -627,7 +634,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 |------|-------|---------|-------------|
 | **Project** | Entire codebase | "spec-kitty project" | `spec-kitty init my-project` |
 | **Feature** | Unit of work | "001-auth-system feature" | `/spec-kitty.specify "auth system"` |
-| **Mission** | Workflow adapter | "research mission" | `spec-kitty mission switch research` |
+| **Mission** | Workflow adapter | "research mission" | `spec-kitty init --mission research` |
 
 ### Common Questions
 
@@ -635,7 +642,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 A project is your entire git repository. A feature is one unit of work inside that project with its own spec/plan/tasks.
 
 **Q: Can I have multiple missions in one project?**  
-Only one mission is active at a time, but you can switch missions between features with `spec-kitty mission switch`.
+Only one mission is active at a time in current 2.x. Select it during `spec-kitty init`.
 
 **Q: Should I create a new project for every feature?**  
 No. Initialize a project once, then create as many features as you need with `/spec-kitty.specify`.
@@ -825,16 +832,16 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 - `spec-kitty agent feature merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
-- `spec-kitty agent workflow implement <id> --agent __AGENT__` – Move planned → doing → for_review automatically
-- `spec-kitty agent workflow review <id> --agent __AGENT__` – Move for_review → doing → planned/done automatically
+- `spec-kitty agent workflow implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
+- `spec-kitty agent workflow review <id> --agent __AGENT__` – Advance for_review → in_progress → planned/done automatically
 - `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
 - `spec-kitty agent tasks mark-status <id> --status <status>` – Mark task status
 - `spec-kitty agent tasks add-history <id> --note <message>` – Add activity log entry
 - `spec-kitty agent tasks validate-workflow <id>` – Validate task metadata
 
 **Workflow Commands:**
-- `spec-kitty agent workflow implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to "doing" lane
-- `spec-kitty agent workflow review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to "doing" lane
+- `spec-kitty agent workflow implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to `in_progress` ("Doing")
+- `spec-kitty agent workflow review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to `in_progress` ("Doing")
 
 **Note:** In generated agent command files, `__AGENT__` is replaced at init time with the agent key (e.g., `codex`, `claude`). If you run commands manually, replace `__AGENT__` with your agent name.
 
@@ -843,7 +850,7 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 # Create feature (agent-friendly)
 spec-kitty agent feature create-feature "Payment Flow" --json
 
-# Display WP prompt and auto-move to doing
+# Display WP prompt and auto-move to in_progress ("Doing")
 spec-kitty agent workflow implement WP01 --agent __AGENT__
 
 # Run workflow to advance lanes
@@ -980,8 +987,8 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
 | 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
 | 5 | `/spec-kitty.tasks`         | Generate actionable task lists and work package prompts in flat tasks/ directory |
-| 6 | `/spec-kitty.implement`     | Display WP prompt, auto-move to "doing" lane, show completion instructions |
-| 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to "doing" lane, show next steps |
+| 6 | `/spec-kitty.implement`     | Display WP prompt, auto-move to `in_progress` ("Doing"), show completion instructions |
+| 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to `in_progress` ("Doing"), show next steps |
 | 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
 | 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
 
@@ -1104,18 +1111,17 @@ spec-kitty init research-project --ai claude --mission research
 
 ### Mission Configuration
 
-After initialization, the active mission is configured via symlink:
+After initialization, mission selection is recorded in project metadata:
 
 ```bash
 # View active mission
-ls -l .kittify/active-mission
-# → .kittify/active-mission -> missions/software-dev/
+spec-kitty mission current
 
-# Mission configuration
-cat .kittify/active-mission/mission.yaml
+# Project metadata
+cat .kittify/metadata.yaml
 ```
 
-**Note:** Mission switching commands (`spec-kitty mission switch`, etc.) are planned for a future release. Currently, missions are selected during `spec-kitty init` and remain active for the project lifecycle.
+**Note:** In current 2.x, missions are selected during `spec-kitty init` and remain active for the project lifecycle.
 
 ### Environment Variables
 
