@@ -31,7 +31,7 @@ class RemoveActiveMissionMigration(BaseMigration):
         # Check for file, symlink, or broken symlink
         return active_mission.exists() or active_mission.is_symlink()
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Migration can always be applied if active-mission exists."""
         return True, ""
 
@@ -46,32 +46,18 @@ class RemoveActiveMissionMigration(BaseMigration):
 
         if active_mission.exists() or active_mission.is_symlink():
             if dry_run:
-                changes.append(
-                    "Would remove .kittify/active-mission"
-                )
-                changes.append(
-                    "  -> Missions are now selected per-feature during /spec-kitty.specify"
-                )
+                changes.append("Would remove .kittify/active-mission")
+                changes.append("  -> Missions are now selected per-feature during /spec-kitty.specify")
             else:
                 try:
                     active_mission.unlink()
-                    changes.append(
-                        "Removed deprecated .kittify/active-mission"
-                    )
-                    changes.append(
-                        "  -> Missions are now selected per-feature during /spec-kitty.specify"
-                    )
-                    changes.append(
-                        "  -> Existing features will use 'software-dev' mission by default"
-                    )
+                    changes.append("Removed deprecated .kittify/active-mission")
+                    changes.append("  -> Missions are now selected per-feature during /spec-kitty.specify")
+                    changes.append("  -> Existing features will use 'software-dev' mission by default")
                 except OSError as e:
-                    errors.append(
-                        f"Failed to remove .kittify/active-mission: {e}"
-                    )
+                    errors.append(f"Failed to remove .kittify/active-mission: {e}")
         else:
-            warnings.append(
-                "No .kittify/active-mission found (already migrated or new project)"
-            )
+            warnings.append("No .kittify/active-mission found (already migrated or new project)")
 
         success = len(errors) == 0
         return MigrationResult(

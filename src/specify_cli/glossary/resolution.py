@@ -6,7 +6,6 @@ Terms are resolved in precedence order: mission_local → team_domain → audien
 
 from __future__ import annotations
 
-from typing import List
 
 from .models import TermSense
 from .scope import GlossaryScope
@@ -15,9 +14,9 @@ from .store import GlossaryStore
 
 def resolve_term(
     surface: str,
-    scopes: List[GlossaryScope],
+    scopes: list[GlossaryScope],
     store: GlossaryStore,
-) -> List[TermSense]:
+) -> list[TermSense]:
     """Resolve term against scope hierarchy.
 
     Args:

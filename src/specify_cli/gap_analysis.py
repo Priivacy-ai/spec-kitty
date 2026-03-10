@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -80,7 +80,7 @@ class DivioType(Enum):
     UNCLASSIFIED = "unclassified"
 
 
-def parse_frontmatter(content: str) -> Optional[Dict[str, Any]]:
+def parse_frontmatter(content: str) -> dict[str, Any] | None:
     """Parse YAML frontmatter from markdown file.
 
     Args:
@@ -179,9 +179,7 @@ def classify_by_content_heuristics(content: str) -> DivioType:
         "how it works",
         "understanding",
     ]
-    explanation_score = sum(
-        1 for marker in explanation_markers if marker in content_lower
-    )
+    explanation_score = sum(1 for marker in explanation_markers if marker in content_lower)
 
     # Determine type by highest score
     scores = {
@@ -203,7 +201,7 @@ def classify_by_content_heuristics(content: str) -> DivioType:
     return DivioType.UNCLASSIFIED
 
 
-def classify_divio_type(content: str) -> Tuple[DivioType, float]:
+def classify_divio_type(content: str) -> tuple[DivioType, float]:
     """Classify document into Divio type.
 
     Uses multi-strategy approach:
@@ -245,15 +243,13 @@ class CoverageMatrix:
     documentation for each Divio type (tutorial, how-to, reference, explanation).
     """
 
-    project_areas: List[str] = field(default_factory=list)  # e.g., ["auth", "api", "cli"]
-    divio_types: List[str] = field(
-        default_factory=lambda: ["tutorial", "how-to", "reference", "explanation"]
-    )
+    project_areas: list[str] = field(default_factory=list)  # e.g., ["auth", "api", "cli"]
+    divio_types: list[str] = field(default_factory=lambda: ["tutorial", "how-to", "reference", "explanation"])
 
     # Maps (area, type) to doc file path (None if missing)
-    cells: Dict[Tuple[str, str], Optional[Path]] = field(default_factory=dict)
+    cells: dict[tuple[str, str], Path | None] = field(default_factory=dict)
 
-    def get_coverage_for_area(self, area: str) -> Dict[str, Optional[Path]]:
+    def get_coverage_for_area(self, area: str) -> dict[str, Path | None]:
         """Get all Divio type coverage for one project area.
 
         Args:
@@ -264,7 +260,7 @@ class CoverageMatrix:
         """
         return {dtype: self.cells.get((area, dtype)) for dtype in self.divio_types}
 
-    def get_coverage_for_type(self, divio_type: str) -> Dict[str, Optional[Path]]:
+    def get_coverage_for_type(self, divio_type: str) -> dict[str, Path | None]:
         """Get all project area coverage for one Divio type.
 
         Args:
@@ -273,11 +269,9 @@ class CoverageMatrix:
         Returns:
             Dict mapping project area to doc file path (or None if missing)
         """
-        return {
-            area: self.cells.get((area, divio_type)) for area in self.project_areas
-        }
+        return {area: self.cells.get((area, divio_type)) for area in self.project_areas}
 
-    def get_gaps(self) -> List[Tuple[str, str]]:
+    def get_gaps(self) -> list[tuple[str, str]]:
         """Return list of (area, type) tuples with missing documentation.
 
         Returns:
@@ -335,7 +329,7 @@ class CoverageMatrix:
 
         # Add coverage percentage
         coverage_pct = self.get_coverage_percentage() * 100
-        summary = f"\n**Coverage**: {len([c for c in self.cells.values() if c])}/{len(self.cells)} cells = {coverage_pct:.1f}%"
+        summary = f"\n**Coverage**: {len([c for c in self.cells.values() if c])}/{len(self.cells)} cells = {coverage_pct:.1f}%"  # noqa: E501
 
         return "\n".join(table_lines) + summary
 
@@ -369,10 +363,10 @@ class DocumentationGap:
 
 
 def prioritize_gaps(
-    gaps: List[Tuple[str, str]],
-    project_areas: List[str],
-    existing_docs: Dict[Path, DivioType],
-) -> List[DocumentationGap]:
+    gaps: list[tuple[str, str]],
+    project_areas: list[str],
+    existing_docs: dict[Path, DivioType],  # noqa: ARG001
+) -> list[DocumentationGap]:
     """Assign priorities to documentation gaps based on user impact.
 
     Prioritization rules (from research):
@@ -425,11 +419,7 @@ def prioritize_gaps(
             priority = GapPriority.LOW
             reason = "Unknown Divio type"
 
-        prioritized.append(
-            DocumentationGap(
-                area=area, divio_type=divio_type, priority=priority, reason=reason
-            )
-        )
+        prioritized.append(DocumentationGap(area=area, divio_type=divio_type, priority=priority, reason=reason))
 
     # Sort by priority (high first)
     priority_order = {GapPriority.HIGH: 0, GapPriority.MEDIUM: 1, GapPriority.LOW: 2}
@@ -438,7 +428,7 @@ def prioritize_gaps(
     return prioritized
 
 
-def extract_public_api_from_python(source_dir: Path) -> List[str]:
+def extract_public_api_from_python(source_dir: Path) -> list[str]:
     """Extract public API elements from Python source.
 
     Finds:
@@ -457,28 +447,22 @@ def extract_public_api_from_python(source_dir: Path) -> List[str]:
 
     for py_file in source_dir.rglob("*.py"):
         try:
-            source = py_file.read_text(encoding='utf-8')
+            source = py_file.read_text(encoding="utf-8")
             tree = ast.parse(source)
 
             for node in ast.walk(tree):
                 # Extract public functions
-                if isinstance(node, ast.FunctionDef):
-                    if not node.name.startswith("_"):
-                        api_elements.append(node.name)
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and not node.name.startswith("_"):
+                    api_elements.append(node.name)
 
-                # Extract public classes
-                elif isinstance(node, ast.ClassDef):
-                    if not node.name.startswith("_"):
-                        api_elements.append(node.name)
-
-        except Exception:
+        except Exception:  # noqa: S112
             # Skip files that can't be parsed
             continue
 
     return sorted(set(api_elements))  # Unique, sorted
 
 
-def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
+def extract_documented_api_from_sphinx(docs_dir: Path) -> list[str]:
     """Extract documented API elements from Sphinx documentation.
 
     Parses generated Sphinx HTML or source .rst files for documented APIs.
@@ -497,7 +481,7 @@ def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
     if build_dir.exists():
         # Parse HTML for documented classes/functions
         for html_file in build_dir.rglob("*.html"):
-            content = html_file.read_text(encoding='utf-8')
+            content = html_file.read_text(encoding="utf-8")
             # Simple heuristic: look for Sphinx autodoc class/function markers
             # Example: <dt class="sig sig-object py" id="ClassName">
             import re
@@ -508,9 +492,7 @@ def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
     return sorted(set(documented))  # Unique, sorted
 
 
-def detect_version_mismatch(
-    code_dir: Path, docs_dir: Path, language: str = "python"
-) -> List[str]:
+def detect_version_mismatch(code_dir: Path, docs_dir: Path, language: str = "python") -> list[str]:
     """Detect API elements in code that are missing from documentation.
 
     Args:
@@ -550,15 +532,11 @@ class GapAnalysis:
     analysis_date: datetime
     framework: DocFramework
     coverage_matrix: CoverageMatrix
-    gaps: List[DocumentationGap]
-    outdated: List[Tuple[Path, str]] = field(
-        default_factory=list
-    )  # (file, reason)
-    existing: Dict[Path, Tuple[DivioType, float]] = field(
-        default_factory=dict
-    )  # (type, confidence)
+    gaps: list[DocumentationGap]
+    outdated: list[tuple[Path, str]] = field(default_factory=list)  # (file, reason)
+    existing: dict[Path, tuple[DivioType, float]] = field(default_factory=dict)  # (type, confidence)
 
-    def to_markdown(self) -> str:
+    def to_markdown(self) -> str:  # noqa: C901
         """Generate Markdown report of gap analysis.
 
         Returns:
@@ -594,27 +572,21 @@ class GapAnalysis:
                 lines.append("### High Priority")
                 lines.append("")
                 for gap in high_gaps:
-                    lines.append(
-                        f"- **{gap.area} → {gap.divio_type}**: {gap.reason}"
-                    )
+                    lines.append(f"- **{gap.area} → {gap.divio_type}**: {gap.reason}")
                 lines.append("")
 
             if medium_gaps:
                 lines.append("### Medium Priority")
                 lines.append("")
                 for gap in medium_gaps:
-                    lines.append(
-                        f"- **{gap.area} → {gap.divio_type}**: {gap.reason}"
-                    )
+                    lines.append(f"- **{gap.area} → {gap.divio_type}**: {gap.reason}")
                 lines.append("")
 
             if low_gaps:
                 lines.append("### Low Priority")
                 lines.append("")
                 for gap in low_gaps:
-                    lines.append(
-                        f"- **{gap.area} → {gap.divio_type}**: {gap.reason}"
-                    )
+                    lines.append(f"- **{gap.area} → {gap.divio_type}**: {gap.reason}")
                 lines.append("")
 
         # Existing documentation inventory
@@ -632,7 +604,7 @@ class GapAnalysis:
             lines.append("")
 
             # Group by Divio type
-            by_type: Dict[DivioType, List[Tuple[Path, float]]] = {}
+            by_type: dict[DivioType, list[tuple[Path, float]]] = {}
             for path, (dtype, confidence) in self.existing.items():
                 if dtype not in by_type:
                     by_type[dtype] = []
@@ -643,11 +615,7 @@ class GapAnalysis:
                     lines.append(f"### {dtype.value.title()}")
                     lines.append("")
                     for path, confidence in by_type[dtype]:
-                        conf_str = (
-                            f"({confidence * 100:.0f}% confidence)"
-                            if confidence < 1.0
-                            else ""
-                        )
+                        conf_str = f"({confidence * 100:.0f}% confidence)" if confidence < 1.0 else ""
                         lines.append(f"- {path} {conf_str}")
                     lines.append("")
 
@@ -684,9 +652,7 @@ class GapAnalysis:
         if high_gaps:
             lines.append("**Immediate action needed**:")
             for gap in high_gaps[:3]:  # Top 3 high-priority gaps
-                lines.append(
-                    f"1. Create {gap.divio_type} for {gap.area} - {gap.reason}"
-                )
+                lines.append(f"1. Create {gap.divio_type} for {gap.area} - {gap.reason}")
             lines.append("")
 
         if medium_gaps:
@@ -696,15 +662,13 @@ class GapAnalysis:
             lines.append("")
 
         if low_gaps:
-            lines.append(
-                f"**Nice to have**: {len(low_gaps)} low-priority gaps (see above)"
-            )
+            lines.append(f"**Nice to have**: {len(low_gaps)} low-priority gaps (see above)")
             lines.append("")
 
         return "\n".join(lines)
 
 
-def detect_project_areas(docs_dir: Path, project_root: Path) -> List[str]:
+def detect_project_areas(docs_dir: Path, project_root: Path) -> list[str]:
     """Detect project areas from directory structure.
 
     Heuristics:
@@ -740,7 +704,7 @@ def detect_project_areas(docs_dir: Path, project_root: Path) -> List[str]:
     return sorted(areas)
 
 
-def infer_area_from_path(doc_path: Path, project_areas: List[str]) -> Optional[str]:
+def infer_area_from_path(doc_path: Path, project_areas: list[str]) -> str | None:
     """Infer which project area a doc file belongs to.
 
     Args:
@@ -760,9 +724,7 @@ def infer_area_from_path(doc_path: Path, project_areas: List[str]) -> Optional[s
     return project_areas[0] if project_areas else None
 
 
-def build_coverage_matrix(
-    classified: Dict[Path, Tuple[DivioType, float]], project_areas: List[str]
-) -> CoverageMatrix:
+def build_coverage_matrix(classified: dict[Path, tuple[DivioType, float]], project_areas: list[str]) -> CoverageMatrix:
     """Build coverage matrix from classified documents.
 
     Args:
@@ -787,9 +749,7 @@ def build_coverage_matrix(
     return matrix
 
 
-def analyze_documentation_gaps(
-    docs_dir: Path, project_root: Optional[Path] = None
-) -> GapAnalysis:
+def analyze_documentation_gaps(docs_dir: Path, project_root: Path | None = None) -> GapAnalysis:
     """Analyze documentation directory and identify gaps.
 
     Args:
@@ -814,7 +774,7 @@ def analyze_documentation_gaps(
     classified = {}
     for doc_file in doc_files:
         try:
-            content = doc_file.read_text(encoding='utf-8')
+            content = doc_file.read_text(encoding="utf-8")
             divio_type, confidence = classify_divio_type(content)
             classified[doc_file] = (divio_type, confidence)
         except Exception:
@@ -848,9 +808,7 @@ def analyze_documentation_gaps(
     )
 
 
-def generate_gap_analysis_report(
-    docs_dir: Path, output_file: Path, project_root: Optional[Path] = None
-) -> GapAnalysis:
+def generate_gap_analysis_report(docs_dir: Path, output_file: Path, project_root: Path | None = None) -> GapAnalysis:
     """Analyze documentation and generate gap analysis report.
 
     This is the main entry point for gap analysis. It:
@@ -884,7 +842,7 @@ def generate_gap_analysis_report(
 
     # Write to file
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(report_content, encoding='utf-8')
+    output_file.write_text(report_content, encoding="utf-8")
 
     return analysis
 

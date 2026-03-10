@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from ..compat import uses_centralized_runtime
 from ..registry import MigrationRegistry
@@ -56,14 +55,9 @@ class InstallDocumentationMission(BaseMigration):
         doc_mission_dir = missions_dir / "documentation"
 
         # Check if documentation mission already exists
-        if doc_mission_dir.exists() and (doc_mission_dir / "mission.yaml").exists():
-            # Already installed
-            return False
+        return not (doc_mission_dir.exists() and (doc_mission_dir / "mission.yaml").exists())
 
-        # Documentation mission is missing, migration should run
-        return True
-
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if migration can be safely applied.
 
         Args:
@@ -140,7 +134,7 @@ class InstallDocumentationMission(BaseMigration):
 
         return MigrationResult(success=True, changes_made=changes)
 
-    def _find_source_mission(self) -> Optional[Path]:
+    def _find_source_mission(self) -> Path | None:
         """Find the documentation mission in spec-kitty's installation.
 
         Returns:

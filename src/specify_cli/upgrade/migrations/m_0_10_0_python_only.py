@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -64,7 +63,6 @@ class PythonOnlyMigration(BaseMigration):
         r"scripts/bash/accept-feature\.sh": "spec-kitty agent feature accept",
         r"\.kittify/scripts/bash/merge-feature\.sh": "spec-kitty agent feature merge",
         r"scripts/bash/merge-feature\.sh": "spec-kitty agent feature merge",
-
         # Task workflow
         r"\.kittify/scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",
         r"scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",
@@ -80,7 +78,6 @@ class PythonOnlyMigration(BaseMigration):
         r"scripts/bash/validate-task-workflow\.sh": "spec-kitty agent validate-workflow",
         r"\.kittify/scripts/bash/move-task-to-doing\.sh": "spec-kitty agent move-task",
         r"scripts/bash/move-task-to-doing\.sh": "spec-kitty agent move-task",
-
         # Legacy tasks_cli.py references
         r"tasks_cli\.py move": "spec-kitty agent move-task",
         r"tasks_cli\.py list": "spec-kitty agent list-tasks",
@@ -102,40 +99,32 @@ class PythonOnlyMigration(BaseMigration):
         bash_scripts = list(kittify_bash.glob("*.sh"))
         return len(bash_scripts) > 0
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Migration can always be applied if bash scripts are detected."""
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Remove bash scripts and update templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Step 1: Detect and remove bash scripts from .kittify
-        bash_changes, bash_warnings = self._remove_bash_scripts(
-            project_path, dry_run
-        )
+        bash_changes, bash_warnings = self._remove_bash_scripts(project_path, dry_run)
         changes.extend(bash_changes)
         warnings.extend(bash_warnings)
 
         # Step 2: Clean up bash scripts in worktrees
-        worktree_changes = self._cleanup_worktree_bash_scripts(
-            project_path, dry_run
-        )
+        worktree_changes = self._cleanup_worktree_bash_scripts(project_path, dry_run)
         changes.extend(worktree_changes)
 
         # Step 2.5: Remove obsolete task helpers
-        tasks_changes, tasks_warnings = self._remove_tasks_helpers(
-            project_path, dry_run
-        )
+        tasks_changes, tasks_warnings = self._remove_tasks_helpers(project_path, dry_run)
         changes.extend(tasks_changes)
         warnings.extend(tasks_warnings)
 
         # Step 3: Update slash command templates
-        template_changes, template_errors = self._update_command_templates(
-            project_path, dry_run
-        )
+        template_changes, template_errors = self._update_command_templates(project_path, dry_run)
         changes.extend(template_changes)
         errors.extend(template_errors)
 
@@ -150,12 +139,10 @@ class PythonOnlyMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _remove_bash_scripts(
-        self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str]]:
+    def _remove_bash_scripts(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
         """Remove bash scripts from .kittify/scripts/bash/."""
-        changes: List[str] = []
-        warnings: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
 
         kittify_bash = project_path / ".kittify" / "scripts" / "bash"
 
@@ -215,11 +202,9 @@ class PythonOnlyMigration(BaseMigration):
 
         return changes, warnings
 
-    def _cleanup_worktree_bash_scripts(
-        self, project_path: Path, dry_run: bool
-    ) -> List[str]:
+    def _cleanup_worktree_bash_scripts(self, project_path: Path, dry_run: bool) -> list[str]:
         """Remove bash scripts from all worktrees."""
-        changes: List[str] = []
+        changes: list[str] = []
 
         worktrees_dir = project_path / ".worktrees"
         if not worktrees_dir.exists():
@@ -246,12 +231,10 @@ class PythonOnlyMigration(BaseMigration):
 
         return changes
 
-    def _remove_tasks_helpers(
-        self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str]]:
+    def _remove_tasks_helpers(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
         """Remove obsolete .kittify/scripts/tasks/ directory."""
-        changes: List[str] = []
-        warnings: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
 
         tasks_dir = project_path / ".kittify" / "scripts" / "tasks"
         if not tasks_dir.exists():
@@ -269,12 +252,10 @@ class PythonOnlyMigration(BaseMigration):
 
         return changes, warnings
 
-    def _update_command_templates(
-        self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str]]:
+    def _update_command_templates(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
         """Update slash command templates to use Python CLI."""
-        changes: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        errors: list[str] = []
 
         # Templates in .kittify/templates/command-templates/
         templates_dir = project_path / ".kittify" / "templates" / "command-templates"
@@ -293,9 +274,7 @@ class PythonOnlyMigration(BaseMigration):
         templates_updated = 0
         for template_path in sorted(templates_dir.glob("*.md")):
             try:
-                updated, replacements = self._update_template_file(
-                    template_path, dry_run
-                )
+                updated, replacements = self._update_template_file(template_path, dry_run)
                 if updated:
                     templates_updated += 1
                     if dry_run:
@@ -310,9 +289,7 @@ class PythonOnlyMigration(BaseMigration):
 
         return changes, errors
 
-    def _update_template_file(
-        self, template_path: Path, dry_run: bool
-    ) -> Tuple[bool, int]:
+    def _update_template_file(self, template_path: Path, dry_run: bool) -> tuple[bool, int]:
         """Update a single template file with bash → Python replacements."""
         content = template_path.read_text(encoding="utf-8")
         original_content = content
@@ -333,9 +310,9 @@ class PythonOnlyMigration(BaseMigration):
 
         return False, 0
 
-    def _detect_custom_modifications(self, project_path: Path) -> List[str]:
+    def _detect_custom_modifications(self, project_path: Path) -> list[str]:
         """Detect custom modifications to bash scripts."""
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         kittify_bash = project_path / ".kittify" / "scripts" / "bash"
         if not kittify_bash.exists():
@@ -348,9 +325,7 @@ class PythonOnlyMigration(BaseMigration):
                 custom_scripts.append(script_path.name)
 
         if custom_scripts:
-            warnings.append(
-                f"Custom bash scripts detected: {', '.join(custom_scripts)}"
-            )
+            warnings.append(f"Custom bash scripts detected: {', '.join(custom_scripts)}")
             warnings.append(
                 "These scripts will NOT be removed automatically. "
                 "Please migrate them manually or remove if no longer needed."

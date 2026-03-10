@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -13,11 +12,11 @@ from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory, sanitize_file
+from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 
 
 def validate_encoding(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
     fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),
@@ -32,7 +31,7 @@ def validate_encoding(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     project_root = get_project_root_or_exit(repo_root)
     check_version_compatibility(project_root, "validate-encoding")
@@ -61,13 +60,15 @@ def validate_encoding(
             total_fixed += fixed
 
         console.print()
-        console.print(Panel(
-            f"[bold]Summary:[/bold]\n"
-            f"Total files with issues: [yellow]{total_issues}[/yellow]\n"
-            f"Total files fixed: [green]{total_fixed}[/green]",
-            title="Encoding Validation Complete",
-            border_style="cyan" if total_issues == 0 else "yellow",
-        ))
+        console.print(
+            Panel(
+                f"[bold]Summary:[/bold]\n"
+                f"Total files with issues: [yellow]{total_issues}[/yellow]\n"
+                f"Total files fixed: [green]{total_fixed}[/green]",
+                title="Encoding Validation Complete",
+                border_style="cyan" if total_issues == 0 else "yellow",
+            )
+        )
 
         raise typer.Exit(0 if total_issues == 0 or fix else 1)
 
@@ -76,7 +77,7 @@ def validate_encoding(
         feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
 
@@ -105,7 +106,7 @@ def validate_encoding(
         raise typer.Exit(1)
 
 
-def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tuple[int, int]:
+def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tuple[int, int]:  # noqa: C901
     """Validate encoding for a single feature directory.
 
     Returns:
@@ -166,12 +167,10 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
                     console.print()
                     console.print(f"[yellow]Example issues in {files_with_issues[0]}:[/yellow]")
                     for line_num, col, char, replacement in issues[:5]:  # Show first 5
-                        console.print(
-                            f"  Line {line_num}, col {col}: '{char}' (U+{ord(char):04X}) → '{replacement}'"
-                        )
+                        console.print(f"  Line {line_num}, col {col}: '{char}' (U+{ord(char):04X}) → '{replacement}'")
                     if len(issues) > 5:
                         console.print(f"  ... and {len(issues) - 5} more")
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     if file_errors:

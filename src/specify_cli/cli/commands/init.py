@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import typer
 from rich.console import Console
@@ -268,7 +268,7 @@ def _detect_default_vcs() -> VCSBackend:
         raise VCSNotFoundError("git is not available. Please install git.")
 
 
-def _display_vcs_info(detected_vcs: VCSBackend, console: Console) -> None:
+def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
     """Display informational message about VCS selection.
 
     Args:
@@ -278,7 +278,7 @@ def _display_vcs_info(detected_vcs: VCSBackend, console: Console) -> None:
     console.print("[green]✓ git detected[/green] - will be used for version control")
 
 
-def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
+def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
     """Save VCS preference to config.yaml.
 
     Args:
@@ -292,7 +292,7 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
 
     # Load existing config or create new
     if config_file.exists():
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.load(f) or {}
     else:
         config = {}
@@ -308,7 +308,7 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
         yaml.dump(config, f)
 
 
-def init(
+def init(  # noqa: C901
     project_name: str | None = typer.Argument(
         None,
         help="Name for your new project directory (omit to initialize current directory, equivalent to --here)",
@@ -385,7 +385,7 @@ def init(
             _console.print(
                 "[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible"
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
         existing_items = list(project_path.iterdir())
         if existing_items:
@@ -398,7 +398,7 @@ def init(
             else:
                 if non_interactive:
                     _console.print(
-                        "[red]Error:[/red] Non-interactive mode requires --force when using --here in a non-empty directory"
+                        "[red]Error:[/red] Non-interactive mode requires --force when using --here in a non-empty directory"  # noqa: E501
                     )
                     raise typer.Exit(1)
                 response = typer.confirm("Do you want to continue?")
@@ -533,7 +533,7 @@ def init(
             )
         except ValueError as exc:
             _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
     else:
         # Ask for preferred implementer
         agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
@@ -582,7 +582,7 @@ def init(
             selected_preferred_reviewer = selected_preferred_implementer
             if selected_preferred_implementer is not None:
                 _console.print(
-                    f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]"
+                    f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]"  # noqa: E501
                 )
     # Build agent config to save later
     agent_config = AgentConfig(
@@ -597,7 +597,7 @@ def init(
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
             _console.print(
-                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"
+                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"  # noqa: E501
             )
             raise typer.Exit(1)
         selected_script = script_type
@@ -609,7 +609,7 @@ def init(
     # Mission selection deprecated - missions are now per-feature
     if mission_key:
         _console.print(
-            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"
+            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"  # noqa: E501
         )
         _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
         _console.print()
@@ -632,7 +632,7 @@ def init(
             repo_owner, repo_name = parse_repo_slug(remote_slug_env)
         except ValueError as exc:
             _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         template_mode = "remote"
         if debug:
             _console.print(f"[cyan]Using remote templates from[/cyan] {repo_owner}/{repo_name}")
@@ -648,7 +648,7 @@ def init(
     # New tree-based progress (no emojis); include earlier substeps
     tracker = StepTracker("Initialize Specify Project")
     # Flag to allow suppressing legacy headings
-    setattr(sys, "_specify_tracker_active", True)
+    sys._specify_tracker_active = True
     # Pre steps recorded as completed before live rendering
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
@@ -858,7 +858,7 @@ def init(
                 _console.print(Panel("\n".join(env_lines), title="Debug Environment", border_style="magenta"))
             if not here and project_path.exists():
                 shutil.rmtree(project_path)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
         finally:
             # Force final render
             pass
@@ -881,7 +881,6 @@ def init(
         "copilot": ".github/",
         "roo": ".roo/",
         "q": ".amazonq/",
-        "antigravity": ".agent/",
     }
 
     notice_entries = []
@@ -892,7 +891,7 @@ def init(
 
     if notice_entries:
         body_lines = [
-            "Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.",
+            "Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.",  # noqa: E501
             "Consider adding the following folders (or subsets) to [cyan].gitignore[/cyan]:",
             "",
         ]
@@ -916,7 +915,7 @@ def init(
     step_num += 1
 
     steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"
+        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
     )
     step_num += 1
 
@@ -941,9 +940,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",
-        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",
-        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",
+        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",  # noqa: E501
+        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",  # noqa: E501
+        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]
     enhancements_panel = Panel(
         "\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2)
@@ -972,7 +971,7 @@ def init(
             f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n"
             f"[bold cyan]Port:[/bold cyan] {port}\n\n"
             f"{status_line}\n\n"
-            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
+            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",  # noqa: E501
             title=title,
             border_style="green",
             padding=(1, 2),
@@ -1076,9 +1075,9 @@ def init(
     if kittify_dir.is_dir():
         for scratch in kittify_dir.iterdir():
             if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
-                try:
+                try:  # noqa: SIM105
                     shutil.rmtree(scratch)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass  # best-effort cleanup
 
     # Keep freshly initialized repos clean after post-init file updates and template cleanup.
@@ -1130,7 +1129,7 @@ def register_init_command(
 
     # Ensure app is in multi-command mode by checking if there are existing commands
     # If not, add a hidden dummy command to force subcommand mode
-    if not hasattr(app, "registered_commands") or not getattr(app, "registered_commands"):
+    if not hasattr(app, "registered_commands") or not app.registered_commands:
 
         @app.command("__force_multi_command_mode__", hidden=True)
         def _dummy() -> None:

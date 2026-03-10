@@ -47,9 +47,7 @@ def build_connector(
     """Build a TaskTrackerConnector instance from provider+credentials."""
     provider_name = normalize_provider(provider)
     if provider_name not in SUPPORTED_PROVIDERS:
-        raise TrackerFactoryError(
-            f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_PROVIDERS)}"
-        )
+        raise TrackerFactoryError(f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 
     try:
         from spec_kitty_tracker import (
@@ -69,9 +67,7 @@ def build_connector(
             LinearConnectorConfig,
         )
     except Exception as exc:  # pragma: no cover - dependency boundary
-        raise TrackerFactoryError(
-            "spec-kitty-tracker is not installed. Install it to use tracker commands."
-        ) from exc
+        raise TrackerFactoryError("spec-kitty-tracker is not installed. Install it to use tracker commands.") from exc
 
     if provider_name == "jira":
         config = JiraConnectorConfig(

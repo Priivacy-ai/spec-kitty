@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Dict, Mapping, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from collections.abc import Mapping
 
 if TYPE_CHECKING:
     from specify_cli.cli import StepTracker
@@ -16,7 +16,7 @@ from specify_cli.core.config import AGENT_TOOL_REQUIREMENTS, IDE_AGENTS
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 
 
-def check_tool_for_tracker(tool: str, tracker: "StepTracker") -> bool:
+def check_tool_for_tracker(tool: str, tracker: StepTracker) -> bool:
     """Check if a tool is installed and update the provided StepTracker instance."""
     if shutil.which(tool):
         tracker.complete(tool, "available")
@@ -25,7 +25,7 @@ def check_tool_for_tracker(tool: str, tracker: "StepTracker") -> bool:
     return False
 
 
-def check_tool(tool: str, install_hint: str, agent_name: str | None = None) -> bool:
+def check_tool(tool: str, install_hint: str, agent_name: str | None = None) -> bool:  # noqa: ARG001
     """Return True when the tool is available on PATH (with Claude CLI override and IDE agent bypass).
 
     IDE-integrated agents (cursor, windsurf, copilot, kilocode) don't require CLI
@@ -61,10 +61,10 @@ def get_tool_version(command: str) -> str | None:
 
 
 def check_all_tools(
-    requirements: Mapping[str, Tuple[str, str]] | None = None,
-) -> Dict[str, Tuple[bool, str]]:
+    requirements: Mapping[str, tuple[str, str]] | None = None,
+) -> dict[str, tuple[bool, str]]:
     """Check tool availability for all known agents, returning {agent: (ok, detail)}."""
-    results: Dict[str, Tuple[bool, str]] = {}
+    results: dict[str, tuple[bool, str]] = {}
     entries = requirements or AGENT_TOOL_REQUIREMENTS
     for agent, (tool, url) in entries.items():
         ok = check_tool(tool, url)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from .extraction import ExtractedTerm, extract_all_terms
 
@@ -32,16 +32,16 @@ class PrimitiveExecutionContext(Protocol):
     needed for extraction middleware.
     """
 
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     """Step metadata (may contain glossary_* fields)"""
 
-    step_input: Dict[str, Any]
+    step_input: dict[str, Any]
     """Step input data"""
 
-    step_output: Dict[str, Any]
+    step_output: dict[str, Any]
     """Step output data"""
 
-    extracted_terms: List[ExtractedTerm]
+    extracted_terms: list[ExtractedTerm]
     """List of extracted terms (populated by middleware)"""
 
 
@@ -52,10 +52,10 @@ class MockContext:
     This will be replaced by the actual PrimitiveExecutionContext in WP08.
     """
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
-    extracted_terms: List[ExtractedTerm] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
+    extracted_terms: list[ExtractedTerm] = field(default_factory=list)
 
 
 class GlossaryCandidateExtractionMiddleware:
@@ -74,7 +74,7 @@ class GlossaryCandidateExtractionMiddleware:
 
     def __init__(
         self,
-        glossary_fields: List[str] | None = None,
+        glossary_fields: list[str] | None = None,
         repo_root: Path | None = None,
     ) -> None:
         """Initialize middleware.
@@ -106,13 +106,11 @@ class GlossaryCandidateExtractionMiddleware:
         if context.metadata and "glossary_fields" in context.metadata:
             metadata_fields = context.metadata["glossary_fields"]
             # Validate it's a list of strings
-            if isinstance(metadata_fields, list) and all(
-                isinstance(f, str) for f in metadata_fields
-            ):
+            if isinstance(metadata_fields, list) and all(isinstance(f, str) for f in metadata_fields):
                 fields_to_scan = metadata_fields
 
         # 2. Collect text from glossary fields
-        text_parts: List[str] = []
+        text_parts: list[str] = []
 
         # Scan configured fields in step_input
         for field_name in fields_to_scan:
@@ -168,13 +166,14 @@ class GlossaryCandidateExtractionMiddleware:
             )
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).error(
                 "Failed to emit TermCandidateObserved for %s: %s",
                 term.surface,
                 exc,
             )
 
-    def scan_fields(self, data: Dict[str, Any]) -> str:
+    def scan_fields(self, data: dict[str, Any]) -> str:
         """Scan configured fields in a data dictionary.
 
         Args:
@@ -183,7 +182,7 @@ class GlossaryCandidateExtractionMiddleware:
         Returns:
             Combined text from all matching fields
         """
-        text_parts: List[str] = []
+        text_parts: list[str] = []
 
         for field_name in self.glossary_fields:
             if field_name in data:
@@ -211,8 +210,8 @@ class SemanticCheckMiddleware:
 
     def __init__(
         self,
-        glossary_store: "store.GlossaryStore",
-        scope_order: List["scope.GlossaryScope"] | None = None,
+        glossary_store: store.GlossaryStore,
+        scope_order: list[scope.GlossaryScope] | None = None,
         repo_root: Path | None = None,
     ) -> None:
         """Initialize middleware.
@@ -246,7 +245,7 @@ class SemanticCheckMiddleware:
         from .conflict import classify_conflict, create_conflict, score_severity
         from .resolution import resolve_term
 
-        conflicts: List[models.SemanticConflict] = []
+        conflicts: list[models.SemanticConflict] = []
 
         # Get step criticality flag from metadata (default: False)
         is_critical_step = False
@@ -254,10 +253,10 @@ class SemanticCheckMiddleware:
             is_critical_step = context.metadata.get("critical_step", False)
 
         # Get LLM output text for INCONSISTENT detection (if available)
-        llm_output_text: Optional[str] = None
+        llm_output_text: str | None = None
         if hasattr(context, "step_output") and context.step_output:
             # Extract text from output fields for contradiction detection
-            output_parts: List[str] = []
+            output_parts: list[str] = []
             for value in context.step_output.values():
                 if isinstance(value, str):
                     output_parts.append(value)
@@ -304,7 +303,7 @@ class SemanticCheckMiddleware:
 
         # Add conflicts to context (using setattr to handle Protocol)
         if not hasattr(context, "conflicts"):
-            setattr(context, "conflicts", [])
+            context.conflicts = []
         cast(Any, context).conflicts.extend(conflicts)
 
         # Emit SemanticCheckEvaluated event
@@ -315,7 +314,7 @@ class SemanticCheckMiddleware:
     def _emit_semantic_check_evaluated(
         self,
         context: PrimitiveExecutionContext,
-        conflicts: List["models.SemanticConflict"],
+        conflicts: list[models.SemanticConflict],
     ) -> None:
         """Emit SemanticCheckEvaluated event to event log.
 
@@ -333,9 +332,8 @@ class SemanticCheckMiddleware:
             )
         except Exception as exc:
             import logging
-            logging.getLogger(__name__).error(
-                "Failed to emit SemanticCheckEvaluated: %s", exc
-            )
+
+            logging.getLogger(__name__).error("Failed to emit SemanticCheckEvaluated: %s", exc)
 
 
 class GenerationGateMiddleware:
@@ -419,7 +417,7 @@ class GenerationGateMiddleware:
         )
 
         # Store effective strictness in context for observability
-        setattr(context, "effective_strictness", effective_strictness)
+        context.effective_strictness = effective_strictness
 
         # Evaluate blocking decision
         if should_block(effective_strictness, conflicts):
@@ -455,13 +453,14 @@ class GenerationGateMiddleware:
                 )
 
                 # Store checkpoint in context for downstream access
-                setattr(context, "checkpoint", checkpoint)
+                context.checkpoint = checkpoint
                 # Keep token on context for resume middleware compatibility.
-                setattr(context, "retry_token", checkpoint.retry_token)
+                context.retry_token = checkpoint.retry_token
                 # Backward-compat field used by some callers/tests.
-                setattr(context, "checkpoint_token", checkpoint.retry_token)
+                context.checkpoint_token = checkpoint.retry_token
             except Exception as ckpt_err:
                 import logging
+
                 _logger = logging.getLogger(__name__)
                 _logger.error(
                     "Failed to emit checkpoint (blocking proceeds): %s",
@@ -482,6 +481,7 @@ class GenerationGateMiddleware:
                 )
             except Exception as emit_err:
                 import logging
+
                 _logger = logging.getLogger(__name__)
                 _logger.error(
                     "Failed to emit generation-blocked event (blocking proceeds): %s",
@@ -523,17 +523,15 @@ class GenerationGateMiddleware:
                 refs.append(ScopeRef(scope=scope_val, version_id=version))
             else:
                 # Try to convert string to GlossaryScope
-                try:
-                    refs.append(
-                        ScopeRef(scope=GlossaryScope(scope_val), version_id=version)
-                    )
+                try:  # noqa: SIM105
+                    refs.append(ScopeRef(scope=GlossaryScope(scope_val), version_id=version))
                 except ValueError:
                     pass  # Skip unknown scopes
         return refs
 
     def _format_block_message(
         self,
-        conflicts: List["models.SemanticConflict"],
+        conflicts: list[models.SemanticConflict],
     ) -> str:
         """Format user-facing error message for blocked generation.
 
@@ -646,9 +644,7 @@ class ResumeMiddleware:
 
         # Verify input context hasn't changed
         inputs = getattr(context, "inputs", {})
-        if not handle_context_change(
-            checkpoint, inputs, confirm_fn=self.confirm_fn
-        ):
+        if not handle_context_change(checkpoint, inputs, confirm_fn=self.confirm_fn):
             # User declined resumption
             raise AbortResume("User declined resumption due to context change")
 
@@ -656,7 +652,7 @@ class ResumeMiddleware:
         self._restore_context(context, checkpoint)
 
         # Mark as resumed for downstream middleware
-        setattr(context, "resumed_from_checkpoint", True)
+        context.resumed_from_checkpoint = True
 
         _logger.info(
             "Resumed from checkpoint: step=%s cursor=%s",
@@ -669,7 +665,7 @@ class ResumeMiddleware:
     def _restore_context(
         self,
         context: PrimitiveExecutionContext,
-        checkpoint: "StepCheckpoint",
+        checkpoint: StepCheckpoint,
     ) -> None:
         """Restore execution context from checkpoint state.
 
@@ -681,17 +677,13 @@ class ResumeMiddleware:
             checkpoint: Checkpoint with saved state
         """
         # Restore strictness
-        setattr(context, "strictness", checkpoint.strictness)
+        context.strictness = checkpoint.strictness
 
         # Restore scope refs as active_scopes dict
-        setattr(
-            context,
-            "active_scopes",
-            {ref.scope: ref.version_id for ref in checkpoint.scope_refs},
-        )
+        context.active_scopes = {ref.scope: ref.version_id for ref in checkpoint.scope_refs}
 
         # Store checkpoint cursor for pipeline resumption
-        setattr(context, "checkpoint_cursor", checkpoint.cursor)
+        context.checkpoint_cursor = checkpoint.cursor
 
         # Store retry token for idempotency
-        setattr(context, "retry_token", checkpoint.retry_token)
+        context.retry_token = checkpoint.retry_token

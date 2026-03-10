@@ -15,11 +15,10 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import List, Optional
 
-from .models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from .models import MissionDossier, MissionDossierSnapshot
 
 
 def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
@@ -39,11 +38,7 @@ def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
         Hex string of SHA256 parity hash (64 characters)
     """
     # 1. Extract hashes from present artifacts only
-    present_hashes = [
-        a.content_hash_sha256
-        for a in dossier.artifacts
-        if a.is_present and a.content_hash_sha256
-    ]
+    present_hashes = [a.content_hash_sha256 for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
 
     # 2. Sort lexicographically
     sorted_hashes = sorted(present_hashes)
@@ -57,7 +52,7 @@ def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
     return parity_hash
 
 
-def get_parity_hash_components(dossier: MissionDossier) -> List[str]:
+def get_parity_hash_components(dossier: MissionDossier) -> list[str]:
     """Return sorted list of artifact hashes (for audit).
 
     Args:
@@ -66,11 +61,7 @@ def get_parity_hash_components(dossier: MissionDossier) -> List[str]:
     Returns:
         Sorted list of SHA256 hashes from present artifacts
     """
-    present_hashes = [
-        a.content_hash_sha256
-        for a in dossier.artifacts
-        if a.is_present and a.content_hash_sha256
-    ]
+    present_hashes = [a.content_hash_sha256 for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
     return sorted(present_hashes)
 
 
@@ -94,21 +85,14 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
     sorted_artifacts = sorted(dossier.artifacts, key=lambda a: a.artifact_key)
 
     # 2. Count artifacts
-    required_artifacts = [
-        a for a in sorted_artifacts if a.required_status == "required"
-    ]
-    optional_artifacts = [
-        a for a in sorted_artifacts if a.required_status == "optional"
-    ]
+    required_artifacts = [a for a in sorted_artifacts if a.required_status == "required"]
+    optional_artifacts = [a for a in sorted_artifacts if a.required_status == "optional"]
     required_present = sum(1 for a in required_artifacts if a.is_present)
     required_missing = len(required_artifacts) - required_present
     optional_present = sum(1 for a in optional_artifacts if a.is_present)
 
     # 3. Completeness status
-    if not dossier.manifest:
-        completeness_status = "unknown"
-    else:
-        completeness_status = "complete" if required_missing == 0 else "incomplete"
+    completeness_status = "unknown" if not dossier.manifest else "complete" if required_missing == 0 else "incomplete"
 
     # 4. Parity hash
     parity_hash = compute_parity_hash_from_dossier(dossier)
@@ -142,7 +126,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
             }
             for a in sorted_artifacts
         ],
-        computed_at=datetime.now(timezone.utc),
+        computed_at=datetime.now(UTC),
     )
 
 
@@ -160,12 +144,10 @@ def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
 
     snapshot_file = dossier_dir / "snapshot-latest.json"
     with open(snapshot_file, "w") as f:
-        json.dump(snapshot.dict(), f, indent=2, default=str)
+        json.dump(snapshot.model_dump(), f, indent=2, default=str)
 
 
-def load_snapshot(
-    feature_dir: Path, feature_slug: str
-) -> Optional[MissionDossierSnapshot]:
+def load_snapshot(feature_dir: Path, feature_slug: str) -> MissionDossierSnapshot | None:
     """Load snapshot from JSON file.
 
     Args:
@@ -175,9 +157,7 @@ def load_snapshot(
     Returns:
         MissionDossierSnapshot or None if not found
     """
-    snapshot_file = (
-        feature_dir / ".kittify" / "dossiers" / feature_slug / "snapshot-latest.json"
-    )
+    snapshot_file = feature_dir / ".kittify" / "dossiers" / feature_slug / "snapshot-latest.json"
     if not snapshot_file.exists():
         return None
 
@@ -186,9 +166,7 @@ def load_snapshot(
     return MissionDossierSnapshot(**data)
 
 
-def get_latest_snapshot(
-    feature_dir: Path, feature_slug: str
-) -> Optional[MissionDossierSnapshot]:
+def get_latest_snapshot(feature_dir: Path, feature_slug: str) -> MissionDossierSnapshot | None:
     """Get most recent snapshot (convenience alias).
 
     Args:

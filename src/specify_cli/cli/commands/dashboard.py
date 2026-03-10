@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import webbrowser
-from typing import Optional
 
 import typer
 
@@ -12,7 +11,7 @@ from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 
 
 def dashboard(
-    port: Optional[int] = typer.Option(
+    port: int | None = typer.Option(
         None,
         "--port",
         help="Preferred port for the dashboard (falls back to the first available port).",
@@ -55,7 +54,7 @@ def dashboard(
         console.print(f"  [cyan]cd {project_root}[/cyan]")
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except OSError as exc:  # Port conflict or permission error
         error_msg = str(exc).lower()
         if "address already in use" in error_msg or "port" in error_msg:
@@ -73,7 +72,7 @@ def dashboard(
             console.print("[red]❌ Unable to start dashboard[/red]")
             console.print(f"   {exc}")
             console.print()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except Exception as exc:  # pragma: no cover
         console.print("[red]❌ Unable to start or locate the dashboard[/red]")
         console.print(f"   {exc}")
@@ -82,7 +81,7 @@ def dashboard(
         console.print(f"  [cyan]cd {project_root}[/cyan]")
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")

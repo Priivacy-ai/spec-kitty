@@ -8,7 +8,7 @@ Maps parsed constitution sections to validated Pydantic models:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -92,7 +92,7 @@ class Extractor:
             metadata=metadata,
         )
 
-    def _extract_governance(self, sections: list[ConstitutionSection]) -> GovernanceConfig:
+    def _extract_governance(self, sections: list[ConstitutionSection]) -> GovernanceConfig:  # noqa: C901
         """Extract governance configuration from classified sections.
 
         Args:
@@ -318,7 +318,7 @@ class Extractor:
         constitution_hash = hash_content(content)
 
         # ISO timestamp
-        extracted_at = datetime.now(timezone.utc).isoformat()
+        extracted_at = datetime.now(UTC).isoformat()
 
         return ExtractionMetadata(
             schema_version="1.0.0",
@@ -354,7 +354,7 @@ class Extractor:
 
 def extract_with_ai(
     prose_sections: list[ConstitutionSection],
-    schema_hint: dict[str, Any],
+    _schema_hint: dict[str, Any],
 ) -> dict[str, Any]:
     """Send prose sections to configured AI agent for structured extraction.
 

@@ -15,9 +15,7 @@ agent directories.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 try:
     from importlib.resources import files
@@ -65,14 +63,12 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
         # Try to load from packaged data
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.exists():
                 return True, ""
         except Exception as e:
@@ -82,16 +78,14 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update implement slash command across all agent directories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Load template from packaged missions
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if not template_path.exists():
                 errors.append("Template not found in packaged missions")

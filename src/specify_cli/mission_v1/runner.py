@@ -16,7 +16,7 @@ from transitions import MachineError
 from transitions.extensions.markup import MarkupMachine
 
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.mission_v1.schema import MissionValidationError, validate_mission_v1
+from specify_cli.mission_v1.schema import validate_mission_v1
 
 
 __all__ = [
@@ -132,6 +132,7 @@ def _sanitize_states(states: list[Any]) -> list[Any]:
             cleaned_state["on_exit"] = state["on_exit"]
         cleaned_states.append(cleaned_state)
     return cleaned_states
+
 
 class StateMachineMission:
     """v1 state machine mission backed by ``transitions.MarkupMachine``.

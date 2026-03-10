@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -63,7 +62,6 @@ class WorkflowAgentFlagMigration(BaseMigration):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
                 continue
-            agent_name = self._agent_name(agent_root)
             for filename in self.TARGET_FILES:
                 path = agent_dir / filename
                 if not path.exists():
@@ -85,9 +83,9 @@ class WorkflowAgentFlagMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         agent_dirs = get_agent_dirs_for_project(project_path)
         for agent_root, subdir in agent_dirs:

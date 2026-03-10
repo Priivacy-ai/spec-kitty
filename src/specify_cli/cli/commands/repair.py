@@ -3,7 +3,6 @@
 import typer
 from pathlib import Path
 from rich.console import Console
-from typing import Optional
 
 from specify_cli.upgrade.migrations.m_0_10_9_repair_templates import RepairTemplatesMigration
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
@@ -14,18 +13,9 @@ console = Console()
 
 @app.command()
 def repair(
-    project_path: Path = typer.Option(
-        Path.cwd(),
-        "--project-path",
-        "-p",
-        help="Path to project to repair"
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Show what would be changed without making changes"
-    )
-):
+    project_path: Path = typer.Option(Path.cwd(), "--project-path", "-p", help="Path to project to repair"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be changed without making changes"),
+) -> None:
     """Repair broken templates caused by v0.10.0-0.10.8 bundling bug.
 
     This command fixes templates that reference non-existent bash scripts
@@ -73,17 +63,12 @@ def repair(
 
 
 @app.command(name="worktree")
-def repair_worktree(
-    all_worktrees: bool = typer.Option(
-        False,
-        "--all",
-        help="Check all worktrees in .worktrees/ directory"
+def repair_worktree(  # noqa: C901
+    all_worktrees: bool = typer.Option(False, "--all", help="Check all worktrees in .worktrees/ directory"),
+    worktree_path: Path | None = typer.Argument(
+        None, help="Specific worktree path to check (defaults to current directory if in a worktree)"
     ),
-    worktree_path: Optional[Path] = typer.Argument(
-        None,
-        help="Specific worktree path to check (defaults to current directory if in a worktree)"
-    ),
-):
+) -> None:
     """Diagnose worktree kitty-specs/ status.
 
     This command checks if worktrees have kitty-specs/ directories and explains
@@ -151,20 +136,18 @@ def repair_worktree(
 
     for wt_path in worktrees_to_check:
         has_kitty_specs = (wt_path / "kitty-specs").exists()
-        has_tasks = (wt_path / "kitty-specs").exists() and any(
-            (wt_path / "kitty-specs").rglob("tasks/*.md")
-        )
+        has_tasks = (wt_path / "kitty-specs").exists() and any((wt_path / "kitty-specs").rglob("tasks/*.md"))
 
         console.print(f"[bold]{wt_path.name}[/bold]")
 
         if not has_kitty_specs:
             console.print("  [dim]No kitty-specs/ directory[/dim]")
         else:
-            console.print(f"  kitty-specs/: [green]present[/green]")
+            console.print("  kitty-specs/: [green]present[/green]")
             if has_tasks:
-                console.print(f"  tasks/*.md: [yellow]present (stale copies)[/yellow]")
+                console.print("  tasks/*.md: [yellow]present (stale copies)[/yellow]")
             else:
-                console.print(f"  tasks/*.md: [dim]none[/dim]")
+                console.print("  tasks/*.md: [dim]none[/dim]")
 
     console.print()
     console.print("[bold cyan]How WP operations work:[/bold cyan]")

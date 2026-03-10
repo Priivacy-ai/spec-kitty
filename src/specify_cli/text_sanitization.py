@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 __all__ = [
     "sanitize_markdown_text",
@@ -47,12 +46,10 @@ PROBLEMATIC_CHARS = {
 }
 
 # Compile regex for detecting any problematic character
-_PROBLEMATIC_PATTERN = re.compile(
-    "[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS.keys()) + "]"
-)
+_PROBLEMATIC_PATTERN = re.compile("[" + "".join(re.escape(char) for char in PROBLEMATIC_CHARS) + "]")
 
 
-def sanitize_markdown_text(text: str, *, preserve_utf8: bool = False) -> str:
+def sanitize_markdown_text(text: str, *, preserve_utf8: bool = False) -> str:  # noqa: ARG001
     """Sanitize markdown text by replacing problematic characters.
 
     Args:
@@ -123,7 +120,7 @@ def sanitize_file(
     *,
     backup: bool = True,
     dry_run: bool = False,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Sanitize a markdown file in place.
 
     Args:
@@ -172,7 +169,7 @@ def sanitize_file(
                 original_text = original_bytes.decode("utf-8", errors="replace")
 
         # Strip UTF-8 BOM if present in the text
-        original_text = original_text.lstrip('\ufeff')
+        original_text = original_text.lstrip("\ufeff")
 
         # Sanitize the text
         sanitized_text = sanitize_markdown_text(original_text)
@@ -203,7 +200,7 @@ def sanitize_directory(
     pattern: str = "**/*.md",
     backup: bool = False,
     dry_run: bool = False,
-) -> dict[str, tuple[bool, Optional[str]]]:
+) -> dict[str, tuple[bool, str | None]]:
     """Sanitize all markdown files in a directory.
 
     Args:
@@ -215,7 +212,7 @@ def sanitize_directory(
     Returns:
         Dictionary mapping file paths to (was_modified, error_message) tuples
     """
-    results: dict[str, tuple[bool, Optional[str]]] = {}
+    results: dict[str, tuple[bool, str | None]] = {}
 
     for file_path in directory.glob(pattern):
         if file_path.is_file():

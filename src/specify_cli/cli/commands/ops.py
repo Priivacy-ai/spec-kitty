@@ -110,9 +110,9 @@ def log(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
-    console.print(f"\n[cyan]Backend:[/cyan] git")
+    console.print("\n[cyan]Backend:[/cyan] git")
     console.print()
 
     # Get operation history (git reflog only)
@@ -157,7 +157,7 @@ def undo(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Capability check - undo only supported for jj
     if not vcs.capabilities.supports_operation_undo:
@@ -217,7 +217,7 @@ def restore(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Capability check - restore only supported for jj
     if not vcs.capabilities.supports_operation_undo:
@@ -259,9 +259,9 @@ def restore(
 
     except subprocess.TimeoutExpired:
         console.print("[red]✗ Restore timed out[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except FileNotFoundError:
         console.print("[red]✗ jj command not found[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     console.print()

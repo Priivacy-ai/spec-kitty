@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -14,6 +14,7 @@ from .models import Provenance, SenseStatus, TermSense, TermSurface
 
 class GlossaryScope(Enum):
     """Glossary scope levels in the hierarchy."""
+
     MISSION_LOCAL = "mission_local"
     TEAM_DOMAIN = "team_domain"
     AUDIENCE_DOMAIN = "audience_domain"
@@ -21,7 +22,7 @@ class GlossaryScope(Enum):
 
 
 # Resolution order (highest to lowest precedence)
-SCOPE_RESOLUTION_ORDER: List[GlossaryScope] = [
+SCOPE_RESOLUTION_ORDER: list[GlossaryScope] = [
     GlossaryScope.MISSION_LOCAL,
     GlossaryScope.TEAM_DOMAIN,
     GlossaryScope.AUDIENCE_DOMAIN,
@@ -46,7 +47,7 @@ def get_scope_precedence(scope: GlossaryScope) -> int:
         return len(SCOPE_RESOLUTION_ORDER)
 
 
-def should_use_scope(scope: GlossaryScope, configured_scopes: List[GlossaryScope]) -> bool:
+def should_use_scope(scope: GlossaryScope, configured_scopes: list[GlossaryScope]) -> bool:
     """
     Check if a scope should be used in resolution.
 
@@ -60,7 +61,7 @@ def should_use_scope(scope: GlossaryScope, configured_scopes: List[GlossaryScope
     return scope in configured_scopes
 
 
-def validate_seed_file(data: Dict[str, Any]) -> None:
+def validate_seed_file(data: dict[str, Any]) -> None:
     """
     Validate seed file schema.
 
@@ -103,7 +104,7 @@ def _parse_sense_status(raw: str | None) -> SenseStatus:
     return _STATUS_MAP.get(raw, SenseStatus.DRAFT)
 
 
-def load_seed_file(scope: GlossaryScope, repo_root: Path) -> List[TermSense]:
+def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
     """
     Load seed file for a scope.
 

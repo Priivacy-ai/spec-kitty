@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 
 def _spec_kitty_dir() -> Path:
@@ -141,7 +142,7 @@ def _deserialize_ref(payload: dict[str, Any]) -> Any:
             "id": str(payload.get("id") or ""),
             "key": str(payload["key"]) if payload.get("key") is not None else None,
             "url": str(payload["url"]) if payload.get("url") is not None else None,
-            "identity": f"{payload.get('system','')}:{payload.get('workspace','')}:{payload.get('id','')}",
+            "identity": f"{payload.get('system', '')}:{payload.get('workspace', '')}:{payload.get('id', '')}",
         }
 
     ExternalRef = models["ExternalRef"]
@@ -158,7 +159,7 @@ def _serialize_issue(issue: Any) -> dict[str, Any]:
     ref = _serialize_ref(_read_attr(issue, "ref", {}))
 
     links: list[dict[str, Any]] = []
-    for link in list(_read_attr(issue, "links", []) or []):
+    for link in _read_attr(issue, "links", []) or []:
         links.append(
             {
                 "type": _enum_value(_read_attr(link, "type"), "relates_to"),
@@ -179,8 +180,8 @@ def _serialize_issue(issue: Any) -> dict[str, Any]:
         "status": _enum_value(_read_attr(issue, "status"), "todo"),
         "issue_type": _enum_value(_read_attr(issue, "issue_type"), "task"),
         "priority": _read_attr(issue, "priority"),
-        "assignees": [str(item) for item in list(_read_attr(issue, "assignees", []) or [])],
-        "labels": [str(item) for item in list(_read_attr(issue, "labels", []) or [])],
+        "assignees": [str(item) for item in (_read_attr(issue, "assignees", []) or [])],
+        "labels": [str(item) for item in (_read_attr(issue, "labels", []) or [])],
         "parent": parent,
         "links": links,
         "custom_fields": dict(_read_attr(issue, "custom_fields", {}) or {}),
@@ -356,7 +357,7 @@ class TrackerSqliteStore:
         return _deserialize_issue(payload)
 
     async def upsert_issue(self, issue: Any) -> None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         payload = json.dumps(_serialize_issue(issue), separators=(",", ":"))
         ref = _read_attr(issue, "ref", {})
 
@@ -448,7 +449,7 @@ class TrackerSqliteStore:
             conn.close()
 
     def upsert_mapping(self, *, wp_id: str, ref: Any) -> None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         conn = self._connect()
         try:
             conn.execute(

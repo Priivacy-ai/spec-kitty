@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
@@ -22,14 +22,14 @@ from typing import Literal
 # =============================================================================
 
 
-class VCSBackend(str, Enum):
+class VCSBackend(StrEnum):
     """Supported VCS backends."""
 
     GIT = "git"
     JUJUTSU = "jj"
 
 
-class SyncStatus(str, Enum):
+class SyncStatus(StrEnum):
     """Result status of a sync operation."""
 
     UP_TO_DATE = "up_to_date"
@@ -38,7 +38,7 @@ class SyncStatus(str, Enum):
     FAILED = "failed"
 
 
-class ConflictType(str, Enum):
+class ConflictType(StrEnum):
     """Types of file conflicts."""
 
     CONTENT = "content"  # Both sides modified same lines

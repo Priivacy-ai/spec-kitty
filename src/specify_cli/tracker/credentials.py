@@ -8,12 +8,13 @@ import sys
 import tomllib
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 
 try:  # pragma: no cover - optional dependency
-    import toml  # type: ignore
+    import toml  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover - optional dependency
-    toml = None  # type: ignore[assignment]
+    toml = None
 
 if sys.platform == "win32":
     import msvcrt

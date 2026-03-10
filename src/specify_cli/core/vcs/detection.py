@@ -153,7 +153,7 @@ def detect_available_backends() -> list[VCSBackend]:
 # =============================================================================
 
 
-def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
+def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:  # noqa: C901
     """
     Read VCS from feature meta.json if path is inside that feature.
 
@@ -181,7 +181,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                     meta = json.loads(meta_path.read_text())
                     if "vcs" in meta:
                         return VCSBackend(meta["vcs"])
-                except (json.JSONDecodeError, ValueError, OSError):
+                except (ValueError, OSError):
                     pass
             # Path is in a feature dir but no valid meta.json
             return None
@@ -209,16 +209,14 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 if kitty_specs.is_dir():
                     # Find the specific feature directory matching feature_num
                     for feature_dir in kitty_specs.iterdir():
-                        if feature_dir.is_dir() and feature_dir.name.startswith(
-                            f"{feature_num}-"
-                        ):
+                        if feature_dir.is_dir() and feature_dir.name.startswith(f"{feature_num}-"):
                             meta_path = feature_dir / "meta.json"
                             if meta_path.is_file():
                                 try:
                                     meta = json.loads(meta_path.read_text())
                                     if "vcs" in meta:
                                         return VCSBackend(meta["vcs"])
-                                except (json.JSONDecodeError, ValueError, OSError):
+                                except (ValueError, OSError):
                                     pass
                             # Found feature dir but no valid meta.json
                             return None
@@ -227,7 +225,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
     return None
 
 
-def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
+def _instantiate_backend(backend: VCSBackend) -> VCSProtocol:
     """
     Instantiate the appropriate VCS implementation.
 
@@ -242,9 +240,7 @@ def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
     """
     if backend == VCSBackend.JUJUTSU:
         if not is_jj_available():
-            raise VCSNotFoundError(
-                "jj is not available. Install jj from https://github.com/martinvonz/jj"
-            )
+            raise VCSNotFoundError("jj is not available. Install jj from https://github.com/martinvonz/jj")
         # Lazy import to avoid circular imports
         from .jujutsu import JujutsuVCS
 
@@ -263,8 +259,8 @@ def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
 def get_vcs(
     path: Path,
     backend: VCSBackend | None = None,
-    prefer_jj: bool = True,
-) -> "VCSProtocol":
+    prefer_jj: bool = True,  # noqa: ARG001
+) -> VCSProtocol:
     """
     Factory function to get appropriate VCS implementation.
 
@@ -319,10 +315,7 @@ def get_vcs(
         return GitVCS()
 
     # 4. git not available
-    raise VCSNotFoundError(
-        "git is not available. "
-        "Please install git: https://git-scm.com/downloads"
-    )
+    raise VCSNotFoundError("git is not available. Please install git: https://git-scm.com/downloads")
 
 
 # =============================================================================
