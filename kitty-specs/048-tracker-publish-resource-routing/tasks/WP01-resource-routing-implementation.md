@@ -14,7 +14,7 @@ subtasks:
 - T005
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: ''
+agent: "claude"
 shell_pid: "42429"
 review_status: ''
 reviewed_by: ''
@@ -485,3 +485,4 @@ python -m pytest tests/specify_cli/tracker/ -v
 ## Activity Log
 
 - 2026-03-10T09:49:14Z – system – lane=planned – Prompt created.
+- 2026-03-10T10:12:11Z – claude – shell_pid=42429 – lane=doing – Assigned agent via workflow command
