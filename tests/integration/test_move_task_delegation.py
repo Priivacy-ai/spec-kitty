@@ -18,6 +18,9 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.store import read_events, EVENTS_FILENAME
 from specify_cli.status.reducer import SNAPSHOT_FILENAME
 from specify_cli.tasks_support import split_frontmatter, extract_scalar
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 runner = CliRunner()
 
