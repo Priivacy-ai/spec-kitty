@@ -2,39 +2,42 @@
 
 from __future__ import annotations
 
+import contextlib
+from typing import Any
+
 from rich.tree import Tree
 
 
 class StepTracker:
     """Track and render hierarchical steps with Rich trees."""
 
-    def __init__(self, title: str):
+    def __init__(self, title: str) -> None:
         self.title = title
-        self.steps = []  # list of dicts: {key, label, status, detail}
+        self.steps: list[dict[str, Any]] = []  # list of dicts: {key, label, status, detail}
         self.status_order = {"pending": 0, "running": 1, "done": 2, "error": 3, "skipped": 4}
-        self._refresh_cb = None  # callable to trigger UI refresh
+        self._refresh_cb: Any = None  # callable to trigger UI refresh
 
-    def attach_refresh(self, cb):
+    def attach_refresh(self, cb: Any) -> None:
         self._refresh_cb = cb
 
-    def add(self, key: str, label: str):
+    def add(self, key: str, label: str) -> None:
         if key not in [s["key"] for s in self.steps]:
             self.steps.append({"key": key, "label": label, "status": "pending", "detail": ""})
             self._maybe_refresh()
 
-    def start(self, key: str, detail: str = ""):
+    def start(self, key: str, detail: str = "") -> None:
         self._update(key, status="running", detail=detail)
 
-    def complete(self, key: str, detail: str = ""):
+    def complete(self, key: str, detail: str = "") -> None:
         self._update(key, status="done", detail=detail)
 
-    def error(self, key: str, detail: str = ""):
+    def error(self, key: str, detail: str = "") -> None:
         self._update(key, status="error", detail=detail)
 
-    def skip(self, key: str, detail: str = ""):
+    def skip(self, key: str, detail: str = "") -> None:
         self._update(key, status="skipped", detail=detail)
 
-    def _update(self, key: str, status: str, detail: str):
+    def _update(self, key: str, status: str, detail: str) -> None:
         for s in self.steps:
             if s["key"] == key:
                 s["status"] = status
@@ -46,12 +49,10 @@ class StepTracker:
         self.steps.append({"key": key, "label": key, "status": status, "detail": detail})
         self._maybe_refresh()
 
-    def _maybe_refresh(self):
+    def _maybe_refresh(self) -> None:
         if self._refresh_cb:
-            try:
+            with contextlib.suppress(Exception):
                 self._refresh_cb()
-            except Exception:
-                pass
 
     def render(self) -> Tree:
         tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")

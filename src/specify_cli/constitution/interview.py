@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 from ruamel.yaml import YAML
 
@@ -80,10 +80,7 @@ class ConstitutionInterview:
         profile = str(data.get("profile", "minimal")).strip() or "minimal"
         raw_answers = data.get("answers")
         answers: dict[str, str]
-        if isinstance(raw_answers, dict):
-            answers = {str(k): str(v) for k, v in raw_answers.items()}
-        else:
-            answers = {}
+        answers = {str(k): str(v) for k, v in raw_answers.items()} if isinstance(raw_answers, dict) else {}
 
         return cls(
             mission=mission,

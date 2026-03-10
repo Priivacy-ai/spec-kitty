@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -40,8 +40,8 @@ class MissionDossierArtifactIndexedPayload(BaseModel):
     relative_path: str = Field(..., min_length=1, description="Path relative to feature directory")
     content_hash_sha256: str = Field(..., description="SHA256 hash of artifact bytes")
     size_bytes: int = Field(..., ge=0, description="File size in bytes")
-    wp_id: Optional[str] = Field(None, description="Work package ID if linked")
-    step_id: Optional[str] = Field(None, description="Mission step if step-specific")
+    wp_id: str | None = Field(None, description="Work package ID if linked")
+    step_id: str | None = Field(None, description="Mission step if step-specific")
     required_status: str = Field(..., description="'required' or 'optional'")
 
     @field_validator("content_hash_sha256")
@@ -82,7 +82,7 @@ class MissionDossierArtifactMissingPayload(BaseModel):
     artifact_class: str = Field(..., description="Classification (input|workflow|output|evidence|policy|runtime|other)")
     expected_path_pattern: str = Field(..., description="Expected path pattern or glob")
     reason_code: str = Field(..., description="Reason code for absence")
-    reason_detail: Optional[str] = Field(None, description="Additional detail about reason")
+    reason_detail: str | None = Field(None, description="Additional detail about reason")
     blocking: bool = Field(..., description="True if blocks completeness")
 
     @field_validator("artifact_class")
@@ -187,8 +187,8 @@ def emit_artifact_indexed(
     relative_path: str,
     content_hash_sha256: str,
     size_bytes: int,
-    wp_id: Optional[str] = None,
-    step_id: Optional[str] = None,
+    wp_id: str | None = None,
+    step_id: str | None = None,
     required_status: str = "optional",
     namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
@@ -253,7 +253,7 @@ def emit_artifact_missing(
     artifact_class: str,
     expected_path_pattern: str,
     reason_code: str,
-    reason_detail: Optional[str] = None,
+    reason_detail: str | None = None,
     blocking: bool = True,
     namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
@@ -389,8 +389,8 @@ def emit_parity_drift_detected(
     feature_slug: str,
     local_parity_hash: str,
     baseline_parity_hash: str,
-    missing_in_local: Optional[list[str]] = None,
-    missing_in_baseline: Optional[list[str]] = None,
+    missing_in_local: list[str] | None = None,
+    missing_in_baseline: list[str] | None = None,
     severity: str = "warning",
     namespace: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 import typer
 from rich.panel import Panel
@@ -22,7 +22,6 @@ from specify_cli.mission import (
 )
 from specify_cli.core.feature_detection import (
     detect_feature,
-    FeatureDetectionError,
 )
 
 app = typer.Typer(
@@ -47,13 +46,13 @@ def _resolve_primary_repo_root(project_root: Path) -> Path:
     return base
 
 
-def _list_active_worktrees(repo_root: Path) -> List[str]:
+def _list_active_worktrees(repo_root: Path) -> list[str]:
     """Return list of active worktree directories relative to the repo root."""
     worktrees_dir = repo_root / ".worktrees"
     if not worktrees_dir.exists():
         return []
 
-    active: List[str] = []
+    active: list[str] = []
     for entry in sorted(worktrees_dir.iterdir()):
         if not entry.is_dir():
             continue
@@ -65,9 +64,9 @@ def _list_active_worktrees(repo_root: Path) -> List[str]:
     return active
 
 
-def _mission_details_lines(mission: Mission, include_description: bool = True) -> List[str]:
+def _mission_details_lines(mission: Mission, include_description: bool = True) -> list[str]:
     """Return formatted mission details."""
-    details: List[str] = [
+    details: list[str] = [
         f"[cyan]Name:[/cyan] {mission.name}",
         f"[cyan]Domain:[/cyan] {mission.domain}",
         f"[cyan]Version:[/cyan] {mission.version}",
@@ -148,7 +147,9 @@ def list_cmd() -> None:
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
         console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
-        console.print("[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]")
+        console.print(
+            "[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]"  # noqa: E501
+        )
         raise typer.Exit(1)
 
     try:
@@ -157,10 +158,10 @@ def list_cmd() -> None:
         raise
     except Exception as exc:
         console.print(f"[red]Error listing missions:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
-def _detect_current_feature(project_root: Path) -> Optional[str]:
+def _detect_current_feature(project_root: Path) -> str | None:
     """Detect feature slug from current working directory using centralized detection.
 
     This function uses lenient mode to return None on failure (UI convenience).
@@ -175,7 +176,7 @@ def _detect_current_feature(project_root: Path) -> Optional[str]:
         ctx = detect_feature(
             project_root,
             cwd=Path.cwd(),
-            mode="lenient"  # Return None instead of raising error
+            mode="lenient",  # Return None instead of raising error
         )
         return ctx.slug if ctx else None
     except Exception:
@@ -185,12 +186,12 @@ def _detect_current_feature(project_root: Path) -> Optional[str]:
 
 @app.command("current")
 def current_cmd(
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None,
         "--feature",
         "-f",
         help="Feature slug (auto-detects from current directory if omitted)",
-    )
+    ),
 ) -> None:
     """Show currently active mission for a feature (auto-detects feature from cwd)."""
     project_root = get_project_root_or_exit()
@@ -217,10 +218,10 @@ def current_cmd(
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except MissionError as exc:
         console.print(f"[red]Failed to load active mission:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     panel = Panel(
         "\n".join(_mission_details_lines(mission)),
@@ -248,10 +249,10 @@ def info_cmd(
             console.print("\n[yellow]Available missions:[/yellow]")
             for name in available:
                 console.print(f"  • {name}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except MissionError as exc:
         console.print(f"[red]Error loading mission '{mission_name}':[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     panel = Panel(
         "\n".join(_mission_details_lines(mission, include_description=True)),
@@ -266,15 +267,13 @@ def _print_active_worktrees(active_worktrees: Iterable[str]) -> None:
     console.print("\n[yellow]Active worktrees:[/yellow]")
     for wt in active_worktrees:
         console.print(f"  • {wt}")
-    console.print(
-        "\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions."
-    )
+    console.print("\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions.")
 
 
 @app.command("switch", deprecated=True)
 def switch_cmd(
-    mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),
-    force: bool = typer.Option(False, "--force", help="(ignored)"),
+    mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),  # noqa: ARG001
+    force: bool = typer.Option(False, "--force", help="(ignored)"),  # noqa: ARG001
 ) -> None:
     """[REMOVED] Switch active mission - this command was removed in v0.8.0."""
     console.print("[bold red]Error:[/bold red] The 'mission switch' command was removed in v0.8.0.")

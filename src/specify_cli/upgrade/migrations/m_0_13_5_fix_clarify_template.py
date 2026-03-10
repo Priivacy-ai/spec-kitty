@@ -8,7 +8,6 @@ placeholder with the proper `spec-kitty agent feature check-prerequisites` comma
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 try:
     from importlib.resources import files
@@ -52,13 +51,11 @@ class FixClarifyTemplateMigration(BaseMigration):
                     return True
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.exists():
                 return True, ""
         except Exception as e:
@@ -67,16 +64,14 @@ class FixClarifyTemplateMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update clarify slash command across all agent directories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Load template from packaged missions
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if not template_path.exists():
                 errors.append("Clarify template not found in packaged missions")
@@ -118,8 +113,8 @@ class FixClarifyTemplateMigration(BaseMigration):
 
                 # Check if needs migration (has broken placeholder or old logic)
                 needs_migration = (
-                    "(Missing script command for sh)" in current_content or
-                    "Check git branch name for pattern" in current_content
+                    "(Missing script command for sh)" in current_content
+                    or "Check git branch name for pattern" in current_content
                 )
 
                 if needs_migration:

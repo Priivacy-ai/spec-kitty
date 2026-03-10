@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -71,11 +70,11 @@ class WorkflowSimplificationMigration(BaseMigration):
 
         return True, ""
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update implement and review slash commands with new workflow-based templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         missions_dir = project_path / ".kittify" / "missions"
         software_dev_templates = missions_dir / "software-dev" / "command-templates"
@@ -161,9 +160,7 @@ class WorkflowSimplificationMigration(BaseMigration):
             changes.append("Templates now use 'spec-kitty agent workflow' commands")
             changes.append("Agents now see prompts directly, no file navigation needed")
         elif not changes:
-            warnings.append(
-                "No templates were updated (already updated or mission templates missing)"
-            )
+            warnings.append("No templates were updated (already updated or mission templates missing)")
 
         success = len(errors) == 0
         return MigrationResult(

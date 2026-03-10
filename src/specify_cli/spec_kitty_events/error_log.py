@@ -1,5 +1,5 @@
 """Error logging system for tracking failed actions (Manus pattern)."""
-from typing import List
+
 from .storage import ErrorStorage
 from .models import ErrorEntry
 
@@ -55,7 +55,7 @@ class ErrorLog:
         """
         self._storage.append(entry)
 
-    def get_recent_errors(self, limit: int = 10) -> List[ErrorEntry]:
+    def get_recent_errors(self, limit: int = 10) -> list[ErrorEntry]:
         """Retrieve most recent error entries.
 
         Args:

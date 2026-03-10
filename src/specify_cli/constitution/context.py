@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -74,7 +74,7 @@ def build_constitution_context(
 
     if mark_loaded and first_load and mode != "missing":
         actions = state.setdefault("actions", {})
-        actions[normalized] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        actions[normalized] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         _write_state(state_path, state)
 
     return ConstitutionContextResult(
@@ -183,11 +183,13 @@ def _load_references(path: Path) -> list[dict[str, str]]:
     for item in raw_references:
         if not isinstance(item, dict):
             continue
-        refs.append({
-            "id": str(item.get("id", "")),
-            "title": str(item.get("title", "")),
-            "local_path": str(item.get("local_path", "")),
-        })
+        refs.append(
+            {
+                "id": str(item.get("id", "")),
+                "title": str(item.get("title", "")),
+                "local_path": str(item.get("local_path", "")),
+            }
+        )
     return refs
 
 

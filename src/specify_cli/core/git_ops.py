@@ -7,7 +7,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from collections.abc import Sequence
 
 from rich.console import Console
 
@@ -75,7 +75,9 @@ def run_command(
     except subprocess.CalledProcessError as exc:
         if check_return:
             resolved_console = _resolve_console(console)
-            resolved_console.print(f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+            resolved_console.print(
+                f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}"
+            )
             resolved_console.print(f"[red]Exit code:[/red] {exc.returncode}")
             if exc.stderr:
                 resolved_console.print(f"[red]Error output:[/red] {exc.stderr.strip()}")
@@ -303,14 +305,14 @@ def resolve_primary_branch(repo_root: Path) -> str:
     # Method 3: Check which common branch exists
     for branch in ["main", "master", "develop"]:
         try:
-            result = subprocess.run(
+            check = subprocess.run(
                 ["git", "rev-parse", "--verify", branch],
                 cwd=repo_root,
                 capture_output=True,
                 timeout=5,
                 check=False,
             )
-            if result.returncode == 0:
+            if check.returncode == 0:
                 return branch
         except subprocess.TimeoutExpired:
             continue

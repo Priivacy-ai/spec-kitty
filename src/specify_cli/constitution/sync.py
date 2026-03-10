@@ -62,7 +62,7 @@ def sync(
         content = constitution_path.read_text("utf-8")
 
         # Check staleness using the content (eliminates TOCTOU race)
-        stale, current_hash, stored_hash = is_stale(None, metadata_path, content=content)
+        stale, _, _ = is_stale(None, metadata_path, content=content)
 
         # Skip if not stale and not forced
         if not stale and not force:

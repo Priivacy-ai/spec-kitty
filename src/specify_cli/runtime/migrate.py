@@ -145,7 +145,7 @@ class MigrationReport:
 def execute_migration(
     project_dir: Path,
     dry_run: bool = False,
-    verbose: bool = False,
+    verbose: bool = False,  # noqa: ARG001
     mission: str = "software-dev",
 ) -> MigrationReport:
     """Scan and migrate per-project .kittify/ shared assets.

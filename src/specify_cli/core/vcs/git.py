@@ -12,10 +12,9 @@ and adds VCS abstraction layer functionality.
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .exceptions import VCSSyncError
@@ -35,7 +34,7 @@ from .types import (
 
 # Import existing git helpers where they provide reusable functionality
 from ..git_preflight import run_git_preflight
-from ..git_ops import get_current_branch, is_git_repo, run_command
+from ..git_ops import get_current_branch, is_git_repo
 
 
 class GitVCS:
@@ -383,9 +382,7 @@ class GitVCS:
                 errors="replace",
                 timeout=10,
             )
-            current_commit = (
-                commit_result.stdout.strip() if commit_result.returncode == 0 else ""
-            )
+            current_commit = commit_result.stdout.strip() if commit_result.returncode == 0 else ""
 
             # Check for uncommitted changes
             status_result = subprocess.run(
@@ -571,9 +568,7 @@ class GitVCS:
                 )
 
             # 4. Get commits that will be integrated
-            changes_to_integrate = self._get_commits_between(
-                workspace_path, "HEAD", base_branch
-            )
+            changes_to_integrate = self._get_commits_between(workspace_path, "HEAD", base_branch)
 
             # 4b. Capture HEAD before rebase for stats calculation
             pre_rebase_result = subprocess.run(
@@ -584,11 +579,7 @@ class GitVCS:
                 errors="replace",
                 timeout=10,
             )
-            pre_rebase_head = (
-                pre_rebase_result.stdout.strip()
-                if pre_rebase_result.returncode == 0
-                else None
-            )
+            pre_rebase_head = pre_rebase_result.stdout.strip() if pre_rebase_result.returncode == 0 else None
 
             # 5. Try rebase
             rebase_result = subprocess.run(
@@ -648,9 +639,9 @@ class GitVCS:
             )
 
         except subprocess.TimeoutExpired:
-            raise VCSSyncError("Sync operation timed out")
+            raise VCSSyncError("Sync operation timed out") from None
         except OSError as e:
-            raise VCSSyncError(f"OS error during sync: {e}")
+            raise VCSSyncError(f"OS error during sync: {e}") from e
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
         """
@@ -991,7 +982,7 @@ class GitVCS:
     # Repository Operations
     # =========================================================================
 
-    def init_repo(self, path: Path, colocate: bool = True) -> bool:
+    def init_repo(self, path: Path, colocate: bool = True) -> bool:  # noqa: ARG002
         """
         Initialize a new git repository.
 
@@ -1107,9 +1098,7 @@ class GitVCS:
                 continue
         return None
 
-    def _get_commits_between(
-        self, workspace_path: Path, from_ref: str, to_ref: str
-    ) -> list[ChangeInfo]:
+    def _get_commits_between(self, workspace_path: Path, from_ref: str, to_ref: str) -> list[ChangeInfo]:
         """Get commits between two refs."""
         return self.get_changes(workspace_path, f"{from_ref}..{to_ref}")
 
@@ -1189,7 +1178,7 @@ class GitVCS:
         start_line = 0
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(file_path, encoding="utf-8", errors="replace") as f:
                 for i, line in enumerate(f, 1):
                     if line.startswith("<<<<<<<"):
                         in_conflict = True
@@ -1208,11 +1197,7 @@ class GitVCS:
             return ConflictType.CONTENT
         elif status == "AA":
             return ConflictType.ADD_ADD
-        elif status == "DD":
-            return ConflictType.MODIFY_DELETE
-        elif status in ("AU", "UA"):
-            return ConflictType.MODIFY_DELETE
-        elif status in ("DU", "UD"):
+        elif status == "DD" or status in ("AU", "UA") or status in ("DU", "UD"):
             return ConflictType.MODIFY_DELETE
         return ConflictType.CONTENT
 
@@ -1226,7 +1211,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
             message = parts[4]
             parents = parts[5].split() if parts[5] else []
             message_full = parts[6] if len(parts) > 6 else message
@@ -1257,7 +1242,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
             message = parts[4]
             parents = parts[5].split() if len(parts) > 5 and parts[5] else []
 
@@ -1327,17 +1312,14 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
                     continue
 
                 commit_id = parts[0]
-                ref = parts[1]
                 description = parts[2]
                 timestamp_str = parts[3]
 
                 # Parse timestamp
                 try:
-                    timestamp = datetime.fromisoformat(
-                        timestamp_str.replace(" ", "T").replace(" ", "")
-                    )
+                    timestamp = datetime.fromisoformat(timestamp_str.replace(" ", "T").replace(" ", ""))
                 except ValueError:
-                    timestamp = datetime.now(timezone.utc)
+                    timestamp = datetime.now(UTC)
 
                 operations.append(
                     OperationInfo(
@@ -1347,7 +1329,7 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
                         heads=[commit_id],
                         working_copy_commit=commit_id,
                         is_undoable=False,  # Git reflog entries aren't truly undoable
-                        parent_operation=f"reflog-{i+1}" if i < limit - 1 else None,
+                        parent_operation=f"reflog-{i + 1}" if i < limit - 1 else None,
                     )
                 )
             except (ValueError, IndexError):

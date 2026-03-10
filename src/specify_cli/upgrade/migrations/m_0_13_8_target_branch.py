@@ -99,9 +99,7 @@ class TargetBranchMigration(BaseMigration):
                 meta["target_branch"] = target_branch
 
                 if dry_run:
-                    changes.append(
-                        f"Would add target_branch={target_branch} to {feature_dir.name}"
-                    )
+                    changes.append(f"Would add target_branch={target_branch} to {feature_dir.name}")
                 else:
                     # Write updated meta.json with pretty formatting
                     meta_file.write_text(

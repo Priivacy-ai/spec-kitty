@@ -7,7 +7,6 @@ instead of /spec-kitty.plan as the next step after creating a project constituti
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 try:
     from importlib.resources import files
@@ -50,7 +49,7 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
                     return True
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
         try:
             data_root = files("specify_cli")
@@ -63,9 +62,9 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update constitution slash command across all agent directories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Load template from packaged missions
         try:

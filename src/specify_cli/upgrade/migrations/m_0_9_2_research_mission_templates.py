@@ -55,7 +55,7 @@ class ResearchMissionTemplatesMigration(BaseMigration):
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can copy templates from the package."""
         package_research = self._find_package_research_mission()
         if package_research is None:
@@ -142,20 +142,14 @@ class ResearchMissionTemplatesMigration(BaseMigration):
                         continue
 
                     if dry_run:
-                        changes.append(
-                            f"Would add research/{subdir}/{filename} to worktree {worktree.name}"
-                        )
+                        changes.append(f"Would add research/{subdir}/{filename} to worktree {worktree.name}")
                     else:
                         try:
                             dest_dir.mkdir(parents=True, exist_ok=True)
                             shutil.copy2(src, dest)
-                            changes.append(
-                                f"Added research/{subdir}/{filename} to worktree {worktree.name}"
-                            )
+                            changes.append(f"Added research/{subdir}/{filename} to worktree {worktree.name}")
                         except OSError as e:
-                            warnings.append(
-                                f"Could not copy to worktree {worktree.name}: {e}"
-                            )
+                            warnings.append(f"Could not copy to worktree {worktree.name}: {e}")
 
         success = len(errors) == 0
         return MigrationResult(

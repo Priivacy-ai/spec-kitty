@@ -93,11 +93,9 @@ def load_mission(
         # Lazy import to avoid circular deps (mission.py must NOT import mission_v1)
         from specify_cli.mission import MissionNotFoundError
 
-        raise MissionNotFoundError(
-            f"Mission config not found: {config_file}"
-        )
+        raise MissionNotFoundError(f"Mission config not found: {config_file}")
 
-    with open(config_file, "r", encoding="utf-8") as fh:
+    with open(config_file, encoding="utf-8") as fh:
         raw_config = yaml.safe_load(fh) or {}
 
     if is_v1_mission(raw_config):

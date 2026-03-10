@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -74,15 +74,10 @@ def render_template(
     return metadata, rendered, raw_frontmatter
 
 
-def _resolve_variables(
-    variables: VariablesResolver | None, metadata: Dict[str, Any]
-) -> Mapping[str, str]:
+def _resolve_variables(variables: VariablesResolver | None, metadata: dict[str, Any]) -> Mapping[str, str]:
     if variables is None:
         return {}
-    if callable(variables):
-        resolved = variables(metadata) or {}
-    else:
-        resolved = variables
+    resolved = variables(metadata) or {} if callable(variables) else variables
     return resolved
 
 
