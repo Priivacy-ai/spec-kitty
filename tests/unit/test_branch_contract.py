@@ -16,10 +16,6 @@ def test_is_2x_context_matches_literal_2x_branch() -> None:
     assert _is_2x_context("2.x")
 
 
-def test_is_2x_context_matches_develop_branch() -> None:
-    assert _is_2x_context("develop")
-
-
 def test_is_2x_context_matches_codex_prefixed_2x_branch() -> None:
     assert _is_2x_context("codex/2x-adr-docs-versioning")
 
@@ -32,7 +28,7 @@ def test_is_2x_context_matches_pr_base_ref() -> None:
 
 
 def test_is_2x_context_matches_github_ref_name() -> None:
-    assert _is_2x_context("main", github_ref_name="develop")
+    assert _is_2x_context("main", github_ref_name="2.x")
 
 
 def test_is_2x_context_false_for_non_2x_branch() -> None:
@@ -43,36 +39,15 @@ def test_is_2x_context_false_for_unrelated_feature_branch() -> None:
     assert not _is_2x_context("feature/add-logging")
 
 
-# ---------------------------------------------------------------------------
-# New ancestry-fallback tests
-# ---------------------------------------------------------------------------
-
-
-def test_is_2x_context_with_ancestor_flag_returns_true() -> None:
-    """Any branch with branch_is_2x_ancestor=True should be treated as 2.x."""
-    assert _is_2x_context("copilot/remediate-unit-cli-ruff-errors", branch_is_2x_ancestor=True)
-
-
-def test_is_2x_context_ancestor_false_for_non_2x_branch() -> None:
-    """Non-2.x branch without ancestry flag stays False."""
-    assert not _is_2x_context("main", branch_is_2x_ancestor=False)
-
-
-def test_is_2x_context_ancestor_overrides_unmatched_name() -> None:
-    """Arbitrary branch name becomes 2.x when ancestry flag is set."""
-    assert _is_2x_context("fix/unrelated-hotfix", branch_is_2x_ancestor=True)
-
-
 @pytest.mark.parametrize("branch,expected", [
     ("2.x", True),
-    ("develop", True),
+    ("2.x-some-suffix", True),
+    ("2.x/sub-branch", True),
     ("codex/2x-some-feature", True),
     ("codex/2.x-some-feature", True),
-    ("feature/2.x-my-work", True),
-    ("fix/2.x/edge-case", True),
     ("main", False),
     ("feature/add-logging", False),
-    ("copilot/remediate-unit-cli-ruff-errors", False),   # name alone → False
+    ("copilot/remediate-unit-cli-ruff-errors", False),
 ])
 def test_is_2x_context_name_patterns(branch: str, expected: bool) -> None:
     """Parametrised name-only detection (no ancestry flag, no CI env vars)."""

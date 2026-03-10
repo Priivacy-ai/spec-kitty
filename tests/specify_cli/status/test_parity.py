@@ -138,19 +138,13 @@ class TestBackportReadiness:
         source = inspect.getsource(emit_module)
 
         # Check that 'from specify_cli.sync' does NOT appear at module level
-        # It should only appear inside function bodies
-        lines = source.split("\n")
-        indent_depth = 0
-        for line in lines:
+        # Module-level imports start at column 0 (no leading whitespace)
+        for line in source.split("\n"):
             stripped = line.strip()
-            # Track whether we're inside a function body by indentation
-            if stripped.startswith("def ") and not line.startswith(" "):
-                # Top-level function definition
-                indent_depth = 0
-            elif stripped.startswith("def "):
-                indent_depth = len(line) - len(line.lstrip())
-
-            if not in_function and "from specify_cli.sync" in stripped and not stripped.startswith("#"):
+            if not stripped or stripped.startswith("#"):
+                continue
+            is_toplevel = not line.startswith(" ") and not line.startswith("\t")
+            if is_toplevel and "from specify_cli.sync" in stripped:
                 pytest.fail(f"Module-level sync import found in emit.py: {stripped}")
 
     def test_no_status_module_directly_imports_sync_at_toplevel(self):

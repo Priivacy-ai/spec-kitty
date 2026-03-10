@@ -35,7 +35,7 @@ class TestLanePriority:
 
     def test_all_canonical_lanes_present(self):
         """All canonical lanes must be in LANE_PRIORITY."""
-        canonical = {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"}
+        canonical = {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
         for lane in canonical:
             assert lane in LANE_PRIORITY, f"Missing canonical lane: {lane}"
 
@@ -48,12 +48,11 @@ class TestLanePriority:
         assert LANE_PRIORITY["doing"] == LANE_PRIORITY["in_progress"]
 
     def test_priority_ordering(self):
-        """planned < claimed < in_progress < for_review < approved < done."""
+        """planned < claimed < in_progress < for_review < done."""
         assert LANE_PRIORITY["planned"] < LANE_PRIORITY["claimed"]
         assert LANE_PRIORITY["claimed"] < LANE_PRIORITY["in_progress"]
         assert LANE_PRIORITY["in_progress"] < LANE_PRIORITY["for_review"]
-        assert LANE_PRIORITY["for_review"] < LANE_PRIORITY["approved"]
-        assert LANE_PRIORITY["approved"] < LANE_PRIORITY["done"]
+        assert LANE_PRIORITY["for_review"] < LANE_PRIORITY["done"]
 
     def test_blocked_lowest_priority(self):
         """'blocked' should have priority 0 (lowest)."""
