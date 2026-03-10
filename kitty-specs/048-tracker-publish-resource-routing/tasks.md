@@ -53,10 +53,10 @@
 **Estimated prompt size**: ~250 lines
 
 ### Included Subtasks
-- [ ] T006 Update `contracts/batch-api-contract.md` with a new section documenting the tracker snapshot publish payload extension
-- [ ] T007 [P] Run `tests/contract/test_handoff_fixtures.py` to confirm event envelope fixtures pass unchanged
-- [ ] T008 [P] Run `tests/specify_cli/tracker/test_credentials.py` and `tests/specify_cli/tracker/test_store.py` to confirm zero regressions
-- [ ] T009 Verify `docs/reference/event-envelope.md` requires no changes (git event envelope untouched)
+- [x] T006 Update `contracts/batch-api-contract.md` with a new section documenting the tracker snapshot publish payload extension
+- [x] T007 [P] Run `tests/contract/test_handoff_fixtures.py` to confirm event envelope fixtures pass unchanged
+- [x] T008 [P] Run `tests/specify_cli/tracker/test_credentials.py` and `tests/specify_cli/tracker/test_store.py` to confirm zero regressions
+- [x] T009 Verify `docs/reference/event-envelope.md` requires no changes (git event envelope untouched)
 
 ### Implementation Notes
 - The batch-api-contract.md already covers the event envelope (Section 2) and batch request/response (Section 3). Add a new section or appendix for the tracker snapshot publish payload, referencing `kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md` for full detail.
