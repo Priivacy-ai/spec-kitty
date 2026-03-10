@@ -117,6 +117,7 @@ def sample_status_snapshot() -> StatusSnapshot:
             "claimed": 0,
             "in_progress": 1,
             "for_review": 0,
+            "approved": 0,
             "done": 1,
             "blocked": 0,
             "canceled": 0,
