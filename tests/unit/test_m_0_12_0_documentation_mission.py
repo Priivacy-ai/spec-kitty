@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_0_12_0_documentation_mission import (
     InstallDocumentationMission,
 )
@@ -59,8 +61,29 @@ def test_detect_skips_when_global_runtime_is_configured(
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     (tmp_path / "kitty-specs").mkdir()
+    ProjectMetadata(
+        version="2.0.6",
+        initialized_at=datetime.now(),
+    ).save(kittify)
 
     assert migration.detect(tmp_path) is False
+
+
+def test_detect_still_repairs_metadata_less_legacy_repo(
+    migration: InstallDocumentationMission,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 0.x repo with .kittify but no metadata should not be treated as 2.x."""
+    home = tmp_path / "home"
+    (home / "cache").mkdir(parents=True)
+    (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / "kitty-specs").mkdir()
+
+    assert migration.detect(tmp_path) is True
 
 
 def test_detect_no_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:
