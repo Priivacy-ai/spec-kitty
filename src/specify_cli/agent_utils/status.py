@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -25,7 +24,7 @@ from specify_cli.tasks_support import extract_scalar, split_frontmatter
 console = Console()
 
 
-def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
+def show_kanban_status(feature_slug: str | None = None) -> dict:
     """Display kanban status board for work packages in a feature.
 
     This function can be called directly by agents to get a beautiful
@@ -77,7 +76,7 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         # Collect all work packages with dependencies
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
-            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
+            front, _, _ = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
@@ -88,19 +87,22 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             dependencies = []
             if "dependencies:" in front:
                 import re
+
                 dep_match = re.search(r'dependencies:\s*\n((?:\s+-\s+"[^"]+"\s*\n)*)', front, re.MULTILINE)
                 if dep_match:
                     dep_text = dep_match.group(1)
                     dependencies = re.findall(r'"([^"]+)"', dep_text)
 
-            work_packages.append({
-                "id": wp_id,
-                "title": title,
-                "lane": lane,
-                "phase": phase,
-                "file": wp_file.name,
-                "dependencies": dependencies
-            })
+            work_packages.append(
+                {
+                    "id": wp_id,
+                    "title": title,
+                    "lane": lane,
+                    "phase": phase,
+                    "file": wp_file.name,
+                    "dependencies": dependencies,
+                }
+            )
 
         if not work_packages:
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
@@ -108,8 +110,13 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
 
         # Group by lane (resolve aliases)
         by_lane = {
-            "planned": [], "claimed": [], "in_progress": [],
-            "for_review": [], "approved": [], "done": [], "blocked": [], "canceled": [],
+            "planned": [],
+            "claimed": [],
+            "in_progress": [],
+            "for_review": [],
+            "done": [],
+            "blocked": [],
+            "canceled": [],
         }
         for wp in work_packages:
             lane = wp["lane"]
@@ -127,8 +134,6 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         done_count = len(by_lane["done"])
         in_progress = len(by_lane["claimed"]) + len(by_lane["in_progress"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
-        blocked_count = len(by_lane["blocked"])
-        canceled_count = len(by_lane["canceled"])
         progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
 
         # Analyze parallelization opportunities
@@ -136,8 +141,17 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
 
         # Display the status board
-        _display_status_board(feature_slug, work_packages, by_lane, total, done_count,
-                            in_progress, planned_count, progress_pct, parallel_info)
+        _display_status_board(
+            feature_slug,
+            work_packages,
+            by_lane,
+            total,
+            done_count,
+            in_progress,
+            planned_count,
+            progress_pct,
+            parallel_info,
+        )
 
         # Return structured data
         lane_counts = Counter(wp["lane"] for wp in work_packages)
@@ -150,12 +164,39 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             "done_count": done_count,
             "in_progress": in_progress,
             "planned_count": planned_count,
-            "parallelization": parallel_info
+            "parallelization": parallel_info,
         }
 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         return {"error": str(e)}
+
+
+def _find_ready_wps(work_packages: list, done_wp_ids: set) -> list:
+    active_lanes = {"done", "in_progress", "claimed", "for_review", "canceled"}
+    return [
+        wp
+        for wp in work_packages
+        if wp["lane"] not in active_lanes and all(dep in done_wp_ids for dep in wp.get("dependencies", []))
+    ]
+
+
+def _build_parallel_groups(ready_wps: list) -> list:
+    if not ready_wps:
+        return []
+    ready_ids = {wp["id"] for wp in ready_wps}
+    independent = [wp for wp in ready_wps if not (set(wp.get("dependencies", [])) & ready_ids)]
+    dependent = [wp for wp in ready_wps if set(wp.get("dependencies", [])) & ready_ids]
+    groups = []
+    if independent:
+        group_type = "parallel" if len(independent) > 1 else "single"
+        note = f"These {len(independent)} WPs can run in parallel" if len(independent) > 1 else "Ready to start"
+        groups.append({"type": group_type, "wps": independent, "note": note})
+    if dependent:
+        groups.append(
+            {"type": "sequential", "wps": dependent, "note": "Must wait for other ready WPs to complete first"}
+        )
+    return groups
 
 
 def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
@@ -226,34 +267,26 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     }
 
 
-def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
-                         total: int, done_count: int, in_progress: int,
-                         planned_count: int, progress_pct: float, parallel_info: dict) -> None:
-    """Display the rich-formatted status board."""
-    # Create title panel
+def _display_progress_header(feature_slug: str, done_count: int, total: int, progress_pct: float) -> None:
     title_text = Text()
-    title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+    title_text.append("📊 Work Package Status: ", style="bold cyan")
     title_text.append(feature_slug, style="bold white")
-
     console.print()
     console.print(Panel(title_text, border_style="cyan"))
 
-    # Progress bar
     progress_text = Text()
-    progress_text.append(f"Progress: ", style="bold")
+    progress_text.append("Progress: ", style="bold")
     progress_text.append(f"{done_count}/{total}", style="bold green")
     progress_text.append(f" ({progress_pct}%)", style="dim")
-
-    # Create visual progress bar
     bar_width = 40
     filled = int(bar_width * progress_pct / 100)
     bar = "█" * filled + "░" * (bar_width - filled)
     progress_text.append(f"\n{bar}", style="green")
-
     console.print(progress_text)
     console.print()
 
-    # Kanban board table
+
+def _display_kanban_table(by_lane: dict, work_packages: list) -> None:
     kanban_lanes = [
         ("planned", "Planned", "yellow"),
         ("claimed", "Claimed", "bright_yellow"),
@@ -264,34 +297,29 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
         ("blocked", "Blocked", "red"),
         ("canceled", "Canceled", "dim"),
     ]
-
     table = Table(title="Kanban Board", show_header=True, header_style="bold magenta", border_style="dim")
     for _, label, style in kanban_lanes:
         table.add_column(label, style=style, no_wrap=False, width=16)
 
-    # Find max length for rows
     max_rows = max(len(by_lane[lane_key]) for lane_key, _, _ in kanban_lanes) if work_packages else 0
-
-    # Add rows
     for i in range(max_rows):
         row = []
         for lane_key, _, _ in kanban_lanes:
             if i < len(by_lane[lane_key]):
                 wp = by_lane[lane_key][i]
-                cell = f"{wp['id']}\n{wp['title'][:14]}..." if len(wp['title']) > 14 else f"{wp['id']}\n{wp['title']}"
+                cell = f"{wp['id']}\n{wp['title'][:14]}..." if len(wp["title"]) > 14 else f"{wp['id']}\n{wp['title']}"
                 row.append(cell)
             else:
                 row.append("")
         table.add_row(*row)
 
-    # Add count row
     count_row = [f"[bold]{len(by_lane[lane_key])} WPs[/bold]" for lane_key, _, _ in kanban_lanes]
     table.add_row(*count_row, style="dim")
-
     console.print(table)
     console.print()
 
-    # Next steps section
+
+def _display_active_wps(by_lane: dict) -> None:
     if by_lane["for_review"]:
         console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
         for wp in by_lane["for_review"]:
@@ -324,61 +352,60 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
 
     if by_lane["planned"]:
         console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
-        # Show first 3 planned items
         for wp in by_lane["planned"][:3]:
             console.print(f"  • {wp['id']} - {wp['title']}")
         if len(by_lane["planned"]) > 3:
             console.print(f"  [dim]... and {len(by_lane['planned']) - 3} more[/dim]")
         console.print()
 
-    # Parallelization opportunities
+
+def _display_parallel_group(group: dict, latest_base: str, ready_wp_ids: set) -> None:
+    if group["type"] == "parallel":
+        console.print("\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
+        for wp in group["wps"]:
+            console.print(f"     • {wp['id']} - {wp['title']}")
+        console.print("  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
+        console.print("\n  [bold]Start commands:[/bold]")
+        for wp in group["wps"]:
+            wp_deps = wp.get("dependencies", [])
+            base = wp_deps[-1] if wp_deps else latest_base
+            console.print(f"     spec-kitty implement {wp['id']} --base {base} &")
+    elif group["type"] == "single":
+        console.print("\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
+        for wp in group["wps"]:
+            wp_deps = wp.get("dependencies", [])
+            base = wp_deps[-1] if wp_deps else latest_base
+            console.print(f"     • {wp['id']} - {wp['title']}")
+            console.print(f"     spec-kitty implement {wp['id']} --base {base}")
+    elif group["type"] == "sequential":
+        console.print("\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
+        for wp in group["wps"]:
+            deps_in_ready = [d for d in wp.get("dependencies", []) if d in ready_wp_ids]
+            console.print(f"     • {wp['id']} - {wp['title']}")
+            console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
+
+
+def _display_parallelization(parallel_info: dict, work_packages: list, by_lane: dict) -> None:
     if parallel_info["ready_wps"]:
         console.print("[bold magenta]🔀 Parallelization Strategy:[/bold magenta]")
-
-        # Get latest done WP for base
-        done_wps = sorted([wp for wp in work_packages if wp["lane"] == "done"],
-                         key=lambda x: x["id"], reverse=True)
+        done_wps = sorted(
+            [wp for wp in work_packages if wp["lane"] == "done"],
+            key=lambda x: x["id"],
+            reverse=True,
+        )
         latest_base = done_wps[0]["id"] if done_wps else "main"
-
+        ready_wp_ids = {wp["id"] for wp in parallel_info["ready_wps"]}
         for group in parallel_info["parallel_groups"]:
-            if group["type"] == "parallel":
-                console.print(f"\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
-                for wp in group["wps"]:
-                    console.print(f"     • {wp['id']} - {wp['title']}")
-                console.print(f"  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
-
-                # Show implementation commands
-                console.print(f"\n  [bold]Start commands:[/bold]")
-                for wp in group["wps"]:
-                    # Find best base for this WP
-                    wp_deps = wp.get("dependencies", [])
-                    base = wp_deps[-1] if wp_deps else latest_base
-                    console.print(f"     spec-kitty implement {wp['id']} --base {base} &")
-
-            elif group["type"] == "single":
-                console.print(f"\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
-                for wp in group["wps"]:
-                    console.print(f"     • {wp['id']} - {wp['title']}")
-                    # Find best base for this WP
-                    wp_deps = wp.get("dependencies", [])
-                    base = wp_deps[-1] if wp_deps else latest_base
-                    console.print(f"     spec-kitty implement {wp['id']} --base {base}")
-
-            elif group["type"] == "sequential":
-                console.print(f"\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
-                for wp in group["wps"]:
-                    deps_in_ready = [d for d in wp.get("dependencies", [])
-                                    if d in {w["id"] for w in parallel_info["ready_wps"]}]
-                    console.print(f"     • {wp['id']} - {wp['title']}")
-                    console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
-
+            _display_parallel_group(group, latest_base, ready_wp_ids)
         console.print()
-    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"] and not by_lane["approved"]:
-        # All planned WPs are blocked
+    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"]:
         console.print("[bold red]⚠️  All remaining WPs are blocked[/bold red]")
         console.print("  Check dependency status above\n")
 
-    # Summary metrics
+
+def _display_summary_metrics(
+    total: int, done_count: int, in_progress: int, planned_count: int, progress_pct: float
+) -> None:
     summary = Table.grid(padding=(0, 2))
     summary.add_column(style="bold")
     summary.add_column()
@@ -386,6 +413,24 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
     summary.add_row("Completed:", f"[green]{done_count}[/green] ({progress_pct}%)")
     summary.add_row("In Progress:", f"[blue]{in_progress}[/blue]")
     summary.add_row("Planned:", f"[yellow]{planned_count}[/yellow]")
-
     console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
     console.print()
+
+
+def _display_status_board(
+    feature_slug: str,
+    work_packages: list,
+    by_lane: dict,
+    total: int,
+    done_count: int,
+    in_progress: int,
+    planned_count: int,
+    progress_pct: float,
+    parallel_info: dict,
+) -> None:
+    """Display the rich-formatted status board."""
+    _display_progress_header(feature_slug, done_count, total, progress_pct)
+    _display_kanban_table(by_lane, work_packages)
+    _display_active_wps(by_lane)
+    _display_parallelization(parallel_info, work_packages, by_lane)
+    _display_summary_metrics(total, done_count, in_progress, planned_count, progress_pct)

@@ -10,7 +10,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
 from specify_cli.cli.commands.sync import _check_server_connection
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
@@ -117,7 +116,7 @@ class TestCheckServerConnectionValidToken:
         # Verify it used real token, not a hardcoded test token
         call_args = mock_client.post.call_args
         auth_header = call_args.kwargs.get("headers", {}).get("Authorization", "")
-        assert "Bearer valid-access-token" == auth_header
+        assert auth_header == "Bearer valid-access-token"
 
     @patch("httpx.Client")
     @patch("specify_cli.sync.auth.AuthClient.get_access_token", return_value="stale-token")
@@ -164,9 +163,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_timeout(self, mock_exists, mock_get_token, MockClient):
         """When server times out, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            side_effect=httpx.TimeoutException("Connection timed out")
-        )
+        MockClient.return_value = _mock_httpx_client(side_effect=httpx.TimeoutException("Connection timed out"))
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -178,9 +175,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_refused(self, mock_exists, mock_get_token, MockClient):
         """When connection is refused, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        MockClient.return_value = _mock_httpx_client(side_effect=httpx.ConnectError("Connection refused"))
 
         status, note = _check_server_connection(SERVER_URL)
 

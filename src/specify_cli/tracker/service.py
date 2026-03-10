@@ -135,7 +135,7 @@ class TrackerService:
                 "spec-kitty-tracker is not installed. Install it to use tracker commands."
             ) from exc
 
-        config, credentials, store = self._load_runtime()
+        config, _, store = self._load_runtime()
         ref = ExternalRef(
             system=str(config.provider),
             workspace=str(config.workspace),
@@ -156,7 +156,7 @@ class TrackerService:
             connector, engine = self._build_engine(config, credentials, store)
             checkpoint = store.get_checkpoint(checkpoint_key=f"{config.provider}:{config.workspace}")
             if checkpoint is not None:
-                setattr(engine, "_checkpoint", checkpoint)
+                engine._checkpoint = checkpoint
 
             result = await engine.pull(limit=limit)
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
@@ -181,7 +181,7 @@ class TrackerService:
             connector, engine = self._build_engine(config, credentials, store)
             checkpoint = store.get_checkpoint(checkpoint_key=f"{config.provider}:{config.workspace}")
             if checkpoint is not None:
-                setattr(engine, "_checkpoint", checkpoint)
+                engine._checkpoint = checkpoint
 
             result = await engine.sync(limit=limit)
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
@@ -220,7 +220,9 @@ class TrackerService:
             "mappings": mappings,
             "checkpoint": {
                 "cursor": checkpoint.cursor if checkpoint else None,
-                "updated_since": checkpoint.updated_since.isoformat() if checkpoint and checkpoint.updated_since else None,
+                "updated_since": checkpoint.updated_since.isoformat()
+                if checkpoint and checkpoint.updated_since
+                else None,
             },
         }
 
@@ -242,10 +244,7 @@ class TrackerService:
 
         content_type = response.headers.get("content-type", "")
         body: Any
-        if "application/json" in content_type:
-            body = response.json()
-        else:
-            body = response.text
+        body = response.json() if "application/json" in content_type else response.text
 
         return {
             "endpoint": endpoint,
@@ -280,7 +279,9 @@ class TrackerService:
             team_slug=team_slug,
         )
 
-    def _build_engine(self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore) -> Any:
+    def _build_engine(
+        self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore
+    ) -> Any:
         try:
             from spec_kitty_tracker import FieldOwner, OwnershipMode, OwnershipPolicy, SyncEngine
         except Exception as exc:  # pragma: no cover - dependency boundary

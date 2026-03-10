@@ -133,15 +133,11 @@ class TestMoveTaskGitValidation:
         # Verify failure
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         error_text = output["error"].lower()
-        assert (
-            "uncommitted" in error_text
-            or "changes" in error_text
-            or "merge ancestry" in error_text
-        )
+        assert "uncommitted" in error_text or "changes" in error_text or "merge ancestry" in error_text
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
@@ -172,7 +168,7 @@ class TestMoveTaskGitValidation:
 
         # Verify failure
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "merge ancestry" in output["error"].lower()
@@ -191,13 +187,11 @@ class TestMoveTaskGitValidation:
         (worktree / "uncommitted.txt").write_text("Uncommitted work\n")
 
         # Move to done with --force (should still fail without explicit override reason)
-        result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "done", "--force", "--json"]
-        )
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--force", "--json"])
 
         # Verify failure
         assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "done-override-reason" in output["error"]
@@ -278,7 +272,7 @@ class TestMoveTaskGitValidation:
         # Verify failure (existing behavior preserved)
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
@@ -303,7 +297,7 @@ class TestMoveTaskGitValidation:
         # Verify failure
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
-        first_line = result.stdout.strip().split('\n')[0]
+        first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
@@ -388,9 +382,7 @@ class TestMoveTaskGitValidation:
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
 
-        contaminated_file = (
-            worktree / "kitty-specs" / "017-test-feature" / "tasks" / "WP01-test-task.md"
-        )
+        contaminated_file = worktree / "kitty-specs" / "017-test-feature" / "tasks" / "WP01-test-task.md"
         contaminated_file.write_text(
             contaminated_file.read_text(encoding="utf-8") + "\n<!-- accidental edit -->\n",
             encoding="utf-8",

@@ -132,11 +132,7 @@ def validate_and_resolve_base(
         return (base, False)
 
 
-def validate_base_workspace_exists(
-    base: str,
-    feature_slug: str,
-    repo_root: Path
-) -> None:
+def validate_base_workspace_exists(base: str, feature_slug: str, repo_root: Path) -> None:
     """Validate that a base workspace exists and is valid.
 
     Args:
@@ -157,17 +153,10 @@ def validate_base_workspace_exists(
         raise typer.Exit(1)
 
     # Verify it's a valid worktree
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"],
-        cwd=base_workspace,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=base_workspace, capture_output=True, check=False)
 
     if result.returncode != 0:
-        console.print(
-            f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree"
-        )
+        console.print(f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree")
         console.print("This directory may be corrupted. Remove it and re-create:")
         console.print(f"  rm -rf {base_workspace}")
         console.print(f"  spec-kitty implement {base}")

@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 import yaml
@@ -96,7 +96,7 @@ def test_project(tmp_path: Path) -> Path:
     # Update metadata.yaml to current version to avoid version mismatch errors
     metadata_file = project / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         # Align project version with the CLI version used by tests.
@@ -198,10 +198,11 @@ def dual_branch_repo(tmp_path: Path) -> Path:
     # Update metadata.yaml to current version
     metadata_file = repo / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         from tests.test_isolation_helpers import get_installed_version
+
         current_version = get_installed_version()
         if current_version is None:
             with open(REPO_ROOT / "pyproject.toml", "rb") as f:

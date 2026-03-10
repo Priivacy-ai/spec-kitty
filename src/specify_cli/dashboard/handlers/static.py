@@ -7,8 +7,8 @@ from pathlib import Path
 
 from .base import DashboardHandler
 
-STATIC_URL_PREFIX = '/static/'
-STATIC_DIR = (Path(__file__).resolve().parents[1] / 'static').resolve()
+STATIC_URL_PREFIX = "/static/"
+STATIC_DIR = (Path(__file__).resolve().parents[1] / "static").resolve()
 
 __all__ = ["STATIC_DIR", "STATIC_URL_PREFIX", "StaticHandler"]
 
@@ -17,7 +17,7 @@ class StaticHandler(DashboardHandler):
     """Serve files from the dashboard/static directory."""
 
     def handle_static(self, path: str) -> None:
-        relative_path = path[len(STATIC_URL_PREFIX):]
+        relative_path = path[len(STATIC_URL_PREFIX) :]
         static_root = STATIC_DIR
         try:
             safe_path = (STATIC_DIR / relative_path).resolve()
@@ -43,8 +43,8 @@ class StaticHandler(DashboardHandler):
 
         mime_type, _ = mimetypes.guess_type(safe_path.name)
         self.send_response(200)
-        self.send_header('Content-type', mime_type or 'application/octet-stream')
-        self.send_header('Cache-Control', 'no-cache')
+        self.send_header("Content-type", mime_type or "application/octet-stream")
+        self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        with safe_path.open('rb') as static_file:
+        with safe_path.open("rb") as static_file:
             self.wfile.write(static_file.read())

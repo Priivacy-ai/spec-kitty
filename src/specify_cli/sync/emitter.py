@@ -6,11 +6,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-logger = logging.getLogger(__name__)
 
 import ulid
 from rich.console import Console
@@ -18,6 +16,9 @@ from rich.console import Console
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .auth import AuthClient
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 _console = Console(stderr=True)
 
 
-def _get_project_identity() -> "ProjectIdentity":
+def _get_project_identity() -> ProjectIdentity:
     """Lazily load and resolve project identity.
 
     Uses lazy import to prevent circular dependency issues.
@@ -46,7 +47,7 @@ def _get_project_identity() -> "ProjectIdentity":
     return ensure_identity(repo_root)
 
 
-def _create_git_resolver() -> "GitMetadataResolver":
+def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
     from .project_identity import ensure_identity
@@ -97,7 +98,6 @@ def _load_contract_schema() -> dict | None:
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
@@ -123,8 +123,12 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
-            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
+            "from_lane": lambda v: (
+                v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+            ),
+            "to_lane": lambda v: (
+                v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+            ),
             "actor": lambda v: isinstance(v, str) if v is not None else True,
             "feature_slug": lambda v: _is_nullable_string(v),
             "policy_metadata": lambda v: v is None or isinstance(v, dict),
@@ -136,8 +140,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "dependencies": lambda v: isinstance(v, list)
-            and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
+            "dependencies": lambda v: (
+                isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v)
+            ),
         },
     },
     "WPAssigned": {
@@ -197,7 +202,15 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     },
     # WP04: Dossier events
     "MissionDossierArtifactIndexed": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
+        "required": {
+            "feature_slug",
+            "artifact_key",
+            "artifact_class",
+            "relative_path",
+            "content_hash_sha256",
+            "size_bytes",
+            "required_status",
+        },
         "validators": {
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -211,7 +224,14 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierArtifactMissing": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
+        "required": {
+            "feature_slug",
+            "artifact_key",
+            "artifact_class",
+            "expected_path_pattern",
+            "reason_code",
+            "blocking",
+        },
         "validators": {
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -286,10 +306,10 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
-    _identity: "ProjectIdentity | None" = field(default=None, repr=False)
-    _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _identity: ProjectIdentity | None = field(default=None, repr=False)
+    _git_resolver: GitMetadataResolver | None = field(default=None, repr=False)
 
-    def _get_identity(self) -> "ProjectIdentity":
+    def _get_identity(self) -> ProjectIdentity:
         """Get cached project identity, lazily loading on first access.
 
         Identity is resolved once per emitter lifetime to avoid repeated I/O.
@@ -298,7 +318,7 @@ class EventEmitter:
             self._identity = _get_project_identity()
         return self._identity
 
-    def _get_git_metadata(self) -> "GitMetadata":
+    def _get_git_metadata(self) -> GitMetadata:
         """Get per-event git metadata via cached resolver.
 
         Never raises: returns GitMetadata with None fields on any error.
@@ -318,6 +338,7 @@ class EventEmitter:
         """Lazy-load AuthClient to avoid circular imports."""
         if self._auth is None:
             from .auth import AuthClient
+
             self._auth = AuthClient()
         return self._auth
 
@@ -548,7 +569,8 @@ class EventEmitter:
             clock_value = self.clock.tick()
             logger.debug(
                 "Emitting %s event with Lamport clock: %d",
-                event_type, clock_value,
+                event_type,
+                clock_value,
             )
 
             # Resolve identity and team_slug
@@ -568,7 +590,7 @@ class EventEmitter:
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,
@@ -584,9 +606,7 @@ class EventEmitter:
 
             # Check project_uuid: if missing, queue only (no WebSocket send)
             if not event.get("project_uuid"):
-                _console.print(
-                    "[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]"
-                )
+                _console.print("[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]")
                 self.queue.queue_event(event)
                 return event
 
@@ -638,18 +658,13 @@ class EventEmitter:
                 return False
 
             if event.get("aggregate_type") not in VALID_AGGREGATE_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Invalid aggregate_type: "
-                    f"{event.get('aggregate_type')}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Invalid aggregate_type: {event.get('aggregate_type')}[/yellow]")
                 return False
 
             # 3. Validate event_type is one of the 8 known types
             event_type = event["event_type"]
             if event_type not in VALID_EVENT_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]")
                 return False
 
             # 3b. Normalize + validate envelope IDs (ULID or UUID accepted)
@@ -677,10 +692,7 @@ class EventEmitter:
                     return False
 
             # 4. Validate payload against per-event-type rules
-            if not self._validate_payload(event_type, event["payload"]):
-                return False
-
-            return True
+            return self._validate_payload(event_type, event["payload"])
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event validation failed: {e}[/yellow]")
@@ -698,10 +710,7 @@ class EventEmitter:
         # Check required fields
         missing = rules["required"] - set(payload.keys())
         if missing:
-            _console.print(
-                f"[yellow]Warning: {event_type} payload missing required "
-                f"fields: {missing}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: {event_type} payload missing required fields: {missing}[/yellow]")
             return False
 
         # Run field-level validators
@@ -728,31 +737,27 @@ class EventEmitter:
             try:
                 if hasattr(self.auth, "is_authenticated"):
                     authenticated = self.auth.is_authenticated()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
             # If authenticated and WebSocket connected, send directly
             if authenticated and self.ws_client is not None and self.ws_client.connected:
                 try:
                     import asyncio
+
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.ensure_future(self.ws_client.send_event(event))
+                        _task = asyncio.ensure_future(self.ws_client.send_event(event))  # prevent GC
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
                 except Exception as e:
-                    _console.print(
-                        f"[yellow]Warning: WebSocket send failed, "
-                        f"queueing: {e}[/yellow]"
-                    )
+                    _console.print(f"[yellow]Warning: WebSocket send failed, queueing: {e}[/yellow]")
                     # Fall through to queue
 
             # Queue event for later sync
             return self.queue.queue_event(event)
 
         except Exception as e:
-            _console.print(
-                f"[yellow]Warning: Event routing failed: {e}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")
             return False

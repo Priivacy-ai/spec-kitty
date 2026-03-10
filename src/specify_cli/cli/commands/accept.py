@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional
 
 import typer
 from rich.table import Table
@@ -28,7 +27,7 @@ def _safe_emit_error_logged(message: str) -> None:
         from specify_cli.sync.events import emit_error_logged
 
         emit_error_logged(error_type="runtime", error_message=message)
-    except Exception:
+    except Exception:  # noqa: S110
         # Non-blocking: never fail the command on emission errors
         pass
 
@@ -55,10 +54,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
 
     if summary.optional_missing:
-        console.print(
-            "\n[yellow]Optional artifacts missing:[/yellow] "
-            + ", ".join(summary.optional_missing)
-        )
+        console.print("\n[yellow]Optional artifacts missing:[/yellow] " + ", ".join(summary.optional_missing))
         console.print()
 
 
@@ -92,7 +88,7 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
+def _emit_acceptance_events(feature_slug: str, wp_ids: list[str]) -> None:
     if not wp_ids:
         return
     for wp_id in wp_ids:
@@ -105,16 +101,16 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
                 feature_slug=feature_slug,
             )
         except Exception as exc:
-            console.print(
-                f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}")
 
 
-def accept(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to accept (auto-detected by default)"),
-    mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
-    actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
-    test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
+def accept(  # noqa: C901
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug to accept (auto-detected by default)"),
+    mode: str = typer.Option(
+        "auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"
+    ),
+    actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
+    test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
     lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
@@ -132,7 +128,7 @@ def accept(
             print(json.dumps({"error": str(exc)}))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if not json_output:
         check_version_compatibility(repo_root, "accept")
@@ -159,7 +155,7 @@ def accept(
             tracker.error("detect", str(exc))
             console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if not json_output:
         tracker.complete("detect", feature_slug)
 
@@ -187,7 +183,7 @@ def accept(
             tracker.error("verify", str(exc))
             console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if not json_output:
         tracker.complete("verify", "ready" if summary.ok else "issues found")
 
@@ -207,7 +203,7 @@ def accept(
             _safe_emit_error_logged("Outstanding acceptance issues detected")
             if not json_output:
                 console.print(
-                    "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
+                    "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"  # noqa: E501
                 )
             raise typer.Exit(1)
         raise typer.Exit(1)
@@ -236,7 +232,7 @@ def accept(
                 tracker.error("commit", str(exc))
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
 

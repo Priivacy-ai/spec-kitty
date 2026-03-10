@@ -123,3 +123,85 @@ def test_new_path_preferred_when_both_exist(tmp_path):
 
     resolved = resolve_project_constitution_path(tmp_path)
     assert resolved == new_path
+
+
+# --- Regression tests for canonical lane name mismatch (issue: in_progress vs doing) ---
+
+
+def _create_flat_feature(tmp_path: Path, slug: str = "047-test-feature") -> Path:
+    """Create a flat-format feature (new layout: WPs in tasks/, lane in frontmatter)."""
+    feature_dir = tmp_path / "kitty-specs" / slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    return feature_dir
+
+
+def _wp_file(tasks_dir: Path, wp_id: str, lane: str) -> None:
+    """Write a minimal WP prompt file with the given lane in frontmatter."""
+    content = f"""---
+work_package_id: {wp_id}
+lane: {lane}
+subtasks:
+- T001
+---
+# Work Package Prompt: {wp_id}
+
+Body text.
+"""
+    (tasks_dir / f"{wp_id}-test.md").write_text(content, encoding="utf-8")
+
+
+def test_scan_feature_kanban_canonical_in_progress_appears_in_doing_lane(tmp_path):
+    """Regression: WPs with lane=in_progress (canonical) must appear in 'doing' kanban column.
+
+    The status model writes canonical 'in_progress' to WP frontmatter when the user
+    runs `move-task --to doing`. The scanner's 'doing' lane key must include these WPs;
+    previously they silently fell back to 'planned'.
+    """
+    feature_dir = _create_flat_feature(tmp_path)
+    _wp_file(feature_dir / "tasks", "WP01", "in_progress")
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+
+    assert lanes["doing"], (
+        "WP with lane='in_progress' should appear in 'doing' kanban column, "
+        f"but got: planned={[t['id'] for t in lanes['planned']]}, "
+        f"doing={[t['id'] for t in lanes['doing']]}"
+    )
+    assert lanes["doing"][0]["id"] == "WP01"
+    assert not lanes["planned"], "WP should NOT fall back to 'planned'"
+
+
+def test_scan_feature_kanban_doing_alias_still_works(tmp_path):
+    """Regression: WPs with lane=doing (legacy alias) must still appear in 'doing' column."""
+    feature_dir = _create_flat_feature(tmp_path)
+    _wp_file(feature_dir / "tasks", "WP01", "doing")
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+
+    assert lanes["doing"], "WP with lane='doing' should appear in 'doing' kanban column"
+    assert lanes["doing"][0]["id"] == "WP01"
+
+
+def test_scan_feature_kanban_all_canonical_lanes_mapped(tmp_path):
+    """Regression: verify all canonical status lane values land in the correct kanban column.
+
+    Canonical lanes: planned, in_progress, for_review, done.
+    Alias: doing -> in_progress.
+    """
+    feature_dir = _create_flat_feature(tmp_path)
+    tasks_dir = feature_dir / "tasks"
+    _wp_file(tasks_dir, "WP01", "planned")
+    _wp_file(tasks_dir, "WP02", "in_progress")
+    _wp_file(tasks_dir, "WP03", "for_review")
+    _wp_file(tasks_dir, "WP04", "done")
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+
+    assert [t["id"] for t in lanes["planned"]] == ["WP01"], "planned lane"
+    assert [t["id"] for t in lanes["doing"]] == ["WP02"], "doing/in_progress lane"
+    assert [t["id"] for t in lanes["for_review"]] == ["WP03"], "for_review lane"
+    assert [t["id"] for t in lanes["done"]] == ["WP04"], "done lane"

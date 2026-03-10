@@ -73,12 +73,17 @@ def build_decision_prompt(
         lines.append("")
 
     lines.append("To answer:")
-    lines.append(f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+    lines.append(
+        f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"'  # noqa: E501
+    )
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
-        "decision", None, prompt_text,
-        agent=agent, feature_slug=feature_slug,
+        "decision",
+        None,
+        prompt_text,
+        agent=agent,
+        feature_slug=feature_slug,
     )
     return prompt_text, prompt_file
 
@@ -131,7 +136,7 @@ def _build_wp_prompt(
 
     # WP isolation rules
     lines.append("=" * 78)
-    lines.append(f"  CRITICAL: WORK PACKAGE ISOLATION RULES")
+    lines.append("  CRITICAL: WORK PACKAGE ISOLATION RULES")
     lines.append("=" * 78)
     lines.append(f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}")
     lines.append("")
@@ -146,14 +151,14 @@ def _build_wp_prompt(
     lines.append("")
 
     # Working directory
-    lines.append(f"WORKING DIRECTORY:")
+    lines.append("WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
     lines.append("")
 
     if action == "review":
         lines.append("REVIEW COMMANDS:")
-        lines.append(f"  git log main..HEAD --oneline")
-        lines.append(f"  git diff main..HEAD --stat")
+        lines.append("  git log main..HEAD --oneline")
+        lines.append("  git diff main..HEAD --stat")
         lines.append("")
 
     # WP content
@@ -171,11 +176,12 @@ def _build_wp_prompt(
     # Completion instructions
     lines.append("WHEN DONE:")
     if action == "implement":
-        lines.append(f"  spec-kitty agent tasks move-task {wp_id} --to for_review --note \"Ready for review\"")
+        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --note "Ready for review"')
     else:
-        lines.append(f"  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --note \"Review passed\"")
-        lines.append("           approved means review-passed; merge will later record done")
-        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file>")
+        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to done --note "Review passed"')
+        lines.append(
+            f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file>"
+        )
 
     return "\n".join(lines)
 
@@ -203,7 +209,7 @@ def _governance_context(repo_root: Path, action: str | None = None) -> str:
             context = build_constitution_context(repo_root, action=action, mark_loaded=True)
             if context.mode != "missing":
                 return context.text
-        except Exception:
+        except Exception:  # noqa: S110
             # Non-fatal: fall back to compact governance rendering.
             pass
 
@@ -219,9 +225,10 @@ def _legacy_governance_context(repo_root: Path) -> str:
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
-    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
-    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+    _NONE = "(none)"
+    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else _NONE
+    directives = ", ".join(resolution.directives) if resolution.directives else _NONE
+    tools = ", ".join(resolution.tools) if resolution.tools else _NONE
 
     lines = [
         "Governance:",

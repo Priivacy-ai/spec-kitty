@@ -66,10 +66,7 @@ def _write_wp(
             }
         ],
     }
-    wp_body = (
-        "# WP01 Prompt\n\n## Activity Log\n"
-        f"- 2026-01-01T00:00:00Z – system – lane={lane} – Prompt created.\n"
-    )
+    wp_body = f"# WP01 Prompt\n\n## Activity Log\n- 2026-01-01T00:00:00Z – system – lane={lane} – Prompt created.\n"
     write_frontmatter(wp_path, wp_frontmatter, wp_body)
 
 
@@ -156,17 +153,18 @@ def test_resolve_feedback_pointer_handles_blank_and_legacy_missing(tmp_path: Pat
     assert workflow._resolve_review_feedback_pointer(repo, "   ") is None
 
     with patch.object(workflow, "_resolve_git_common_dir", return_value=None):
-        assert workflow._resolve_review_feedback_pointer(
-            repo,
-            "feedback://001-test-feature/WP01/file.md",
-        ) is None
+        assert (
+            workflow._resolve_review_feedback_pointer(
+                repo,
+                "feedback://001-test-feature/WP01/file.md",
+            )
+            is None
+        )
 
     assert workflow._resolve_review_feedback_pointer(repo, "relative/path/that/does-not-exist.md") is None
 
 
-def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(
-    workflow_repo: tuple[Path, str, Path]
-):
+def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workflow_repo: tuple[Path, str, Path]):
     repo, feedback_pointer, feedback_file = workflow_repo
     _write_wp(
         _wp_path(repo),
@@ -187,7 +185,7 @@ def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(
 
 
 def test_implement_prompt_warns_when_review_status_has_feedback_without_reference(
-    workflow_repo: tuple[Path, str, Path]
+    workflow_repo: tuple[Path, str, Path],
 ):
     repo, _feedback_pointer, _feedback_file = workflow_repo
     _write_wp(
@@ -209,9 +207,7 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
 
 
-def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(
-    workflow_repo: tuple[Path, str, Path]
-):
+def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_repo: tuple[Path, str, Path]):
     repo, feedback_pointer, _feedback_file = workflow_repo
     _write_wp(
         _wp_path(repo),

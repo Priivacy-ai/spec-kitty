@@ -66,10 +66,7 @@ def is_status_file(file_path: str) -> bool:
     Returns:
         True if file matches a status file pattern
     """
-    for pattern in STATUS_FILE_PATTERNS:
-        if fnmatch.fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(fnmatch.fnmatch(file_path, pattern) for pattern in STATUS_FILE_PATTERNS)
 
 
 def build_file_wp_mapping(
@@ -110,7 +107,7 @@ def build_file_wp_mapping(
                         if line not in file_to_wps:
                             file_to_wps[line] = []
                         file_to_wps[line].append(wp_id)
-        except Exception:
+        except Exception:  # noqa: S112
             continue  # Skip this WP if diff fails
 
     return file_to_wps
@@ -178,7 +175,9 @@ def display_conflict_forecast(
     auto_count = len(auto_resolvable)
     manual_count = len(manual_required)
 
-    console.print(f"[dim]Found {total} potential conflict(s): {auto_count} auto-resolvable, {manual_count} manual[/dim]\n")
+    console.print(
+        f"[dim]Found {total} potential conflict(s): {auto_count} auto-resolvable, {manual_count} manual[/dim]\n"
+    )
 
     # Create table for conflicts
     if manual_required:
@@ -212,6 +211,4 @@ def display_conflict_forecast(
     if manual_count == 0:
         console.print("[green]All conflicts can be auto-resolved.[/green]\n")
     else:
-        console.print(
-            f"[yellow]Prepare to resolve {manual_count} conflict(s) manually during merge.[/yellow]\n"
-        )
+        console.print(f"[yellow]Prepare to resolve {manual_count} conflict(s) manually during merge.[/yellow]\n")

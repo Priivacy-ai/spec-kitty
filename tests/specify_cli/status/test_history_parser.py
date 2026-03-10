@@ -28,16 +28,12 @@ from specify_cli.status.models import DoneEvidence, ReviewApproval
 
 class TestNormalizedHistoryEntry:
     def test_frozen(self) -> None:
-        entry = NormalizedHistoryEntry(
-            timestamp="2026-01-01T00:00:00Z", lane="planned", actor="system"
-        )
+        entry = NormalizedHistoryEntry(timestamp="2026-01-01T00:00:00Z", lane="planned", actor="system")
         with pytest.raises(AttributeError):
             entry.lane = "done"  # type: ignore[misc]
 
     def test_fields(self) -> None:
-        entry = NormalizedHistoryEntry(
-            timestamp="2026-01-01T00:00:00Z", lane="in_progress", actor="claude"
-        )
+        entry = NormalizedHistoryEntry(timestamp="2026-01-01T00:00:00Z", lane="in_progress", actor="claude")
         assert entry.timestamp == "2026-01-01T00:00:00Z"
         assert entry.lane == "in_progress"
         assert entry.actor == "claude"
@@ -64,11 +60,7 @@ class TestTransition:
         assert t.evidence is None
 
     def test_evidence_can_be_set(self) -> None:
-        evidence = DoneEvidence(
-            review=ReviewApproval(
-                reviewer="bob", verdict="approved", reference="test"
-            )
-        )
+        evidence = DoneEvidence(review=ReviewApproval(reviewer="bob", verdict="approved", reference="test"))
         t = Transition(
             from_lane="for_review",
             to_lane="done",
@@ -94,9 +86,7 @@ class TestTransitionChain:
         assert len(chain.transitions) == 1
 
     def test_fields(self) -> None:
-        chain = TransitionChain(
-            transitions=[], history_entries=5, has_evidence=True
-        )
+        chain = TransitionChain(transitions=[], history_entries=5, has_evidence=True)
         assert chain.history_entries == 5
         assert chain.has_evidence is True
 
@@ -158,9 +148,7 @@ class TestNormalizeEntries:
         assert result[0].actor == "migration"
 
     def test_fallback_actor_when_empty(self) -> None:
-        history = [
-            {"lane": "planned", "agent": "", "timestamp": "2026-01-01T00:00:00Z"}
-        ]
+        history = [{"lane": "planned", "agent": "", "timestamp": "2026-01-01T00:00:00Z"}]
         result = normalize_entries(history)
         assert result[0].actor == "migration"
 

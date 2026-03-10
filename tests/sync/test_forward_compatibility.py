@@ -12,19 +12,19 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from specify_cli.sync.clock import LamportClock
-from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.client import WebSocketClient
 
 
 # ---------------------------------------------------------------------------
 # Sample SaaS-originated event messages (wrapped in WebSocket 'event' envelope)
 # ---------------------------------------------------------------------------
+
 
 def _gate_passed_message(lamport_clock: int = 42) -> dict:
     """Build a WebSocket message containing a GatePassed event from SaaS."""
@@ -94,6 +94,7 @@ def _unknown_message_type() -> dict:
 # T023: Lamport clock receive() handles GatePassed/GateFailed values
 # ---------------------------------------------------------------------------
 
+
 class TestLamportClockReceiveConnectorEvents:
     """Verify clock.receive() correctly updates for connector event clock values.
 
@@ -158,6 +159,7 @@ class TestLamportClockReceiveConnectorEvents:
 # ---------------------------------------------------------------------------
 # T024: WebSocket client doesn't crash on unknown event types
 # ---------------------------------------------------------------------------
+
 
 class TestWebSocketClientForwardCompatibility:
     """Verify the WebSocket client handles unknown event/message types gracefully.
@@ -255,6 +257,7 @@ class TestWebSocketClientForwardCompatibility:
 # T025: End-to-end: message handler wired to clock updates for all event types
 # ---------------------------------------------------------------------------
 
+
 class TestClockUpdateViaMessageHandler:
     """Verify a message handler that wires clock.receive() works for all event types.
 
@@ -341,7 +344,7 @@ class TestClockUpdateViaMessageHandler:
 
         # Clock must be monotonically increasing
         assert clock_values == sorted(clock_values)
-        assert all(b > a for a, b in zip(clock_values, clock_values[1:]))
+        assert all(b > a for a, b in zip(clock_values, clock_values[1:], strict=False))
 
         # Verify final value: max(0,10)+1=11, max(11,15)+1=16, max(16,12)+1=17, max(17,20)+1=21
         assert clock_values == [11, 16, 17, 21]
@@ -377,6 +380,7 @@ class TestClockUpdateViaMessageHandler:
 # T024 supplement: VALID_EVENT_TYPES only gates outgoing events
 # ---------------------------------------------------------------------------
 
+
 class TestValidEventTypesOnlyGatesOutgoing:
     """Verify VALID_EVENT_TYPES allowlist only applies to outgoing event emission.
 
@@ -388,23 +392,31 @@ class TestValidEventTypesOnlyGatesOutgoing:
     def test_gate_passed_not_in_valid_event_types(self):
         """GatePassed is not in VALID_EVENT_TYPES (and that's fine for incoming)."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         assert "GatePassed" not in VALID_EVENT_TYPES
 
     def test_gate_failed_not_in_valid_event_types(self):
         """GateFailed is not in VALID_EVENT_TYPES (and that's fine for incoming)."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         assert "GateFailed" not in VALID_EVENT_TYPES
 
     def test_valid_event_types_only_contains_cli_originated_types(self):
         """VALID_EVENT_TYPES contains only CLI-originated event types."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         expected = {
-            "WPStatusChanged", "WPCreated", "WPAssigned",
-            "FeatureCreated", "FeatureCompleted", "HistoryAdded",
-            "ErrorLogged", "DependencyResolved",
+            "WPStatusChanged",
+            "WPCreated",
+            "WPAssigned",
+            "FeatureCreated",
+            "FeatureCompleted",
+            "HistoryAdded",
+            "ErrorLogged",
+            "DependencyResolved",
             "MissionDossierArtifactIndexed",
             "MissionDossierArtifactMissing",
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
         }
-        assert VALID_EVENT_TYPES == expected
+        assert expected == VALID_EVENT_TYPES

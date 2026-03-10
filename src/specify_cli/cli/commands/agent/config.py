@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 import typer
 from rich.console import Console
@@ -42,7 +41,7 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
         return load_agent_config(repo_root)
     except AgentConfigError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 @app.command(name="list")
@@ -52,7 +51,7 @@ def list_agents():
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)
@@ -86,7 +85,7 @@ def list_agents():
 
 @app.command(name="add")
 def add_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
 ):
     """Add agents to the project.
 
@@ -99,7 +98,7 @@ def add_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load current config
     config = _load_config_or_exit(repo_root)
@@ -167,7 +166,7 @@ def add_agents(
 
 @app.command(name="remove")
 def remove_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to remove"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to remove"),
     keep_config: bool = typer.Option(
         False,
         "--keep-config",
@@ -185,7 +184,7 @@ def remove_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load current config
     config = _load_config_or_exit(repo_root)
@@ -207,7 +206,7 @@ def remove_agents(
             errors.append(f"Unknown agent: {agent_key}")
             continue
 
-        agent_root, subdir = agent_dir_info
+        agent_root, _ = agent_dir_info
 
         # Delete directory
         agent_path = repo_root / agent_root
@@ -249,7 +248,7 @@ def agent_status():
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)
@@ -290,17 +289,12 @@ def agent_status():
 
     # Summary
     orphaned = [
-        key
-        for key in all_agent_keys
-        if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
+        key for key in all_agent_keys if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
     ]
 
     if orphaned:
-        console.print(
-            f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
-            f"(present but not configured)"
-        )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print(f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] (present but not configured)")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")
@@ -325,7 +319,7 @@ def sync_agents(
         repo_root = find_repo_root()
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Load config
     config = _load_config_or_exit(repo_root)

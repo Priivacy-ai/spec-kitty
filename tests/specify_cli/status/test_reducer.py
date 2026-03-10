@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import (
@@ -15,7 +14,7 @@ from specify_cli.status.reducer import (
     materialize_to_json,
     reduce,
 )
-from specify_cli.status.store import EVENTS_FILENAME, append_event
+from specify_cli.status.store import append_event
 
 
 def _make_event(
@@ -368,9 +367,7 @@ class TestByteIdenticalOutput:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snapshot_a = reduce(events)
             snapshot_b = reduce(events)
 
@@ -474,3 +471,267 @@ class TestMaterializeFile:
 
         assert snapshot.event_count == 2
         assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+
+
+class TestRollbackPrecedence:
+    """Tests for concurrent rollback event precedence (kills _is_rollback_event
+    and _should_apply_event mutants)."""
+
+    def test_rollback_beats_concurrent_forward_event(self) -> None:
+        """A rollback (for_review→in_progress with review_ref) wins over a
+        concurrent forward event even when the rollback sorts second."""
+        # Forward event sorts first (lower event_id)
+        fwd = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-08T12:00:00Z",
+            review_ref=None,
+        )
+        # Rollback sorts second (higher event_id) but should win
+        rollback = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-02-08T12:00:00Z",  # same timestamp = concurrent
+            review_ref="PR#123",
+        )
+        snapshot = reduce([fwd, rollback])
+        # Rollback beats the forward event: WP01 should end in in_progress
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+
+    def test_forward_does_not_beat_concurrent_rollback(self) -> None:
+        """A concurrent forward event does not override a rollback that sorts first."""
+        # Rollback sorts first (lower event_id)
+        rollback = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-02-08T12:00:00Z",
+            review_ref="PR#42",
+        )
+        # Forward sorts second but should NOT override the rollback
+        fwd = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-08T12:00:00Z",  # same timestamp = concurrent
+            review_ref=None,
+        )
+        snapshot = reduce([rollback, fwd])
+        # Forward should not beat rollback: WP01 remains in_progress
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+
+    def test_rollback_requires_review_ref_to_win(self) -> None:
+        """for_review→in_progress WITHOUT review_ref is not a rollback and does
+        not win over a concurrent forward event in normal sort order."""
+        fwd = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-08T12:00:00Z",
+            review_ref=None,
+        )
+        # Not a rollback: no review_ref, so both events are "forward"
+        not_rollback = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-02-08T12:00:00Z",  # concurrent
+            review_ref=None,  # no review_ref → NOT a rollback
+        )
+        snapshot = reduce([fwd, not_rollback])
+        # Without review_ref the later event wins in sort order
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+
+    def test_rollback_requires_from_for_review(self) -> None:
+        """A transition to in_progress from a non-for_review lane is NOT a rollback."""
+        # claimed → in_progress with review_ref: NOT a rollback (wrong from_lane)
+        not_rollback = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,  # not FOR_REVIEW
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-02-08T12:00:00Z",
+            review_ref="PR#123",  # has review_ref but from_lane is wrong
+        )
+        fwd = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-08T12:00:00Z",  # concurrent
+            review_ref=None,
+        )
+        snapshot = reduce([not_rollback, fwd])
+        # not_rollback is not a rollback, so fwd (second in sort) wins normally
+        assert snapshot.work_packages["WP01"]["lane"] == "for_review"
+
+    def test_rollback_requires_to_in_progress(self) -> None:
+        """for_review→done is NOT a rollback even with review_ref."""
+        fwd = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-08T12:00:00Z",
+            review_ref=None,
+        )
+        # for_review→done with review_ref: NOT a rollback (wrong to_lane)
+        not_rollback = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.DONE,  # not IN_PROGRESS
+            at="2026-02-08T12:00:00Z",  # concurrent
+            review_ref="PR#123",
+        )
+        snapshot = reduce([fwd, not_rollback])
+        # not_rollback is not a rollback, so it wins by sort order (later)
+        assert snapshot.work_packages["WP01"]["lane"] == "done"
+
+    def test_non_concurrent_events_are_not_affected_by_rollback_logic(self) -> None:
+        """Events at different timestamps follow normal sort order."""
+        early = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-02-08T11:00:00Z",
+        )
+        later = _make_event(
+            event_id="01HXYZ0000000000000000000B",
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-02-08T12:00:00Z",  # different timestamp
+        )
+        snapshot = reduce([later, early])  # reversed order, still sorted correctly
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+
+
+class TestNowUtcTimezone:
+    """Tests for _now_utc producing timezone-aware output."""
+
+    def test_materialized_at_contains_utc_offset(self) -> None:
+        """materialized_at must be UTC-aware (contains +00:00 or Z)."""
+        snapshot = reduce([])
+        # datetime.now(timezone.utc).isoformat() produces "+00:00"
+        # datetime.now(None).isoformat() produces no offset
+        assert snapshot.materialized_at is not None
+        assert "+" in snapshot.materialized_at or snapshot.materialized_at.endswith("Z")
+
+    def test_reduce_nonempty_materialized_at_is_not_none(self) -> None:
+        """reduce() with events must set materialized_at to a non-None string."""
+        event = _make_event(
+            event_id="01HXYZ0000000000000000000A",
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-02-08T12:00:00Z",
+        )
+        snapshot = reduce([event])
+        assert snapshot.materialized_at is not None
+        assert isinstance(snapshot.materialized_at, str)
+        assert len(snapshot.materialized_at) > 0
+
+
+class TestMaterializeToJsonFormat:
+    """Tests for materialize_to_json JSON formatting specifics."""
+
+    def _make_snapshot(self) -> StatusSnapshot:
+        return StatusSnapshot(
+            feature_slug="034-feature",
+            materialized_at="2026-02-08T15:00:00Z",
+            event_count=1,
+            last_event_id="01HXYZ0000000000000000000A",
+            work_packages={
+                "WP01": {
+                    "lane": "claimed",
+                    "actor": "agent",
+                    "last_transition_at": "2026-02-08T12:00:00Z",
+                    "last_event_id": "01HXYZ0000000000000000000A",
+                    "force_count": 0,
+                }
+            },
+            summary={lane.value: 0 for lane in Lane},
+        )
+
+    def test_keys_are_sorted(self) -> None:
+        """sort_keys=True: top-level keys appear in lexicographic order."""
+        import json
+
+        snapshot = self._make_snapshot()
+        json_str = materialize_to_json(snapshot)
+        parsed = json.loads(json_str)
+        keys = list(parsed.keys())
+        assert keys == sorted(keys), f"Keys not sorted: {keys}"
+
+    def test_indent_is_two_spaces(self) -> None:
+        """indent=2: lines inside the object are indented with exactly 2 spaces."""
+        snapshot = self._make_snapshot()
+        json_str = materialize_to_json(snapshot)
+        lines = json_str.splitlines()
+        # At least one line starts with exactly 2-space indent
+        indented_lines = [ln for ln in lines if ln.startswith("  ") and not ln.startswith("   ")]
+        assert len(indented_lines) > 0, "Expected lines with 2-space indent"
+        # No lines should start with 3-space indent at the top level
+        three_space_lines = [ln for ln in lines if ln.startswith("   ") and not ln.startswith("    ")]
+        assert len(three_space_lines) == 0, f"Unexpected 3-space indent: {three_space_lines}"
+
+    def test_non_ascii_not_escaped(self) -> None:
+        """ensure_ascii=False: non-ASCII characters appear as-is, not \\uXXXX."""
+        snapshot = StatusSnapshot(
+            feature_slug="034-féature-ü",  # non-ASCII
+            materialized_at="2026-02-08T15:00:00Z",
+            event_count=0,
+            last_event_id=None,
+            work_packages={},
+            summary={lane.value: 0 for lane in Lane},
+        )
+        json_str = materialize_to_json(snapshot)
+        assert "féature-ü" in json_str, "Non-ASCII should appear verbatim"
+        # With ensure_ascii=True, 'é' → '\\u00e9', 'ü' → '\\u00fc'
+        assert "\\u00e9" not in json_str
+        assert "\\u00fc" not in json_str
+
+    def test_ends_with_newline(self) -> None:
+        """Output ends with a trailing newline."""
+        snapshot = self._make_snapshot()
+        json_str = materialize_to_json(snapshot)
+        assert json_str.endswith("\n")
+
+    def test_different_key_order_produces_same_output(self) -> None:
+        """sort_keys=True means dicts with keys in different order produce identical output."""
+        import json
+
+        snapshot_a = StatusSnapshot(
+            feature_slug="034-feature",
+            materialized_at="2026-02-08T15:00:00Z",
+            event_count=1,
+            last_event_id="01HXYZ0000000000000000000A",
+            work_packages={
+                "WP01": {
+                    "lane": "claimed",
+                    "actor": "agent",
+                    "last_transition_at": "2026-02-08T12:00:00Z",
+                    "last_event_id": "01HXYZ0000000000000000000A",
+                    "force_count": 0,
+                }
+            },
+            summary={lane.value: 0 for lane in Lane},
+        )
+        json_str = materialize_to_json(snapshot_a)
+        parsed = json.loads(json_str)
+        # Re-serialise with random key order: sort_keys must normalise it
+        import io
+
+        out = io.StringIO()
+        json.dump(parsed, out, sort_keys=True, indent=2, ensure_ascii=False)
+        assert json_str == out.getvalue() + "\n"
