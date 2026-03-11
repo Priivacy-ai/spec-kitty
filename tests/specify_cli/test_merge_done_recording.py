@@ -44,7 +44,10 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     assert kwargs["evidence"]["review"]["reviewer"] == "reviewer-1"
 
 
-def test_mark_wp_merged_done_skips_without_approval_metadata(tmp_path: Path, monkeypatch) -> None:
+def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """WPs in approved lane without review_status/reviewed_by should still transition to done."""
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
@@ -52,6 +55,34 @@ def test_mark_wp_merged_done_skips_without_approval_metadata(tmp_path: Path, mon
     _write_wp(
         tasks_dir / "WP01-test.md",
         lane="approved",
+        review_status="",
+        reviewed_by="",
+    )
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+
+    _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
+
+    emit_mock.assert_called_once()
+    kwargs = emit_mock.call_args.kwargs
+    assert kwargs["to_lane"] == "done"
+    assert kwargs["actor"] == "merge"
+    assert kwargs["evidence"]["review"]["verdict"] == "approved"
+    assert kwargs["evidence"]["review"]["reference"] == "lane-approved:WP01"
+
+
+def test_mark_wp_merged_done_for_review_without_metadata_skips(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """WPs in for_review lane without approval metadata should NOT transition to done."""
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(
+        tasks_dir / "WP01-test.md",
+        lane="for_review",
         review_status="",
         reviewed_by="",
     )

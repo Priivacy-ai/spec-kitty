@@ -43,6 +43,7 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.history_parser import extract_done_evidence
+from specify_cli.status.models import DoneEvidence, ReviewApproval
 from specify_cli.status.transitions import resolve_lane_alias
 
 
@@ -72,11 +73,22 @@ def _mark_wp_merged_done(
 
     evidence = extract_done_evidence(frontmatter, wp_id)
     if evidence is None:
-        console.print(
-            f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; "
-            "skipping automatic move to done after merge."
-        )
-        return
+        if lane == "approved":
+            # WP was approved via move-task (no legacy review_status/reviewed_by).
+            # The approved lane itself is sufficient evidence for merge→done.
+            evidence = DoneEvidence(
+                review=ReviewApproval(
+                    reviewer=str(frontmatter.get("agent", "unknown")).strip() or "unknown",
+                    verdict="approved",
+                    reference=f"lane-approved:{wp_id}",
+                )
+            )
+        else:
+            console.print(
+                f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; "
+                "skipping automatic move to done after merge."
+            )
+            return
 
     if lane == "for_review":
         try:
