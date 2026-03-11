@@ -123,3 +123,31 @@ def test_new_path_preferred_when_both_exist(tmp_path):
 
     resolved = resolve_project_constitution_path(tmp_path)
     assert resolved == new_path
+
+
+def test_scan_feature_kanban_approved_lane(tmp_path):
+    """WPs with lane: approved should land in the approved column, not planned."""
+    feature_dir = tmp_path / "kitty-specs" / "001-demo"
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nlane: approved\n---\n# Work Package Prompt: WP01\n",
+        encoding="utf-8",
+    )
+    lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
+    assert len(lanes["approved"]) == 1
+    assert len(lanes["planned"]) == 0
+    assert lanes["approved"][0]["id"] == "WP01"
+
+
+def test_scan_feature_kanban_lane_mapping(tmp_path):
+    """claimed maps to planned, in_progress maps to doing."""
+    feature_dir = tmp_path / "kitty-specs" / "001-demo"
+    (feature_dir / "tasks").mkdir(parents=True)
+    for wp_id, lane in [("WP01", "claimed"), ("WP02", "in_progress")]:
+        (feature_dir / "tasks" / f"{wp_id}.md").write_text(
+            f"---\nwork_package_id: {wp_id}\nlane: {lane}\n---\n# Work Package Prompt: {wp_id}\n",
+            encoding="utf-8",
+        )
+    lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
+    assert len(lanes["planned"]) == 1  # claimed -> planned
+    assert len(lanes["doing"]) == 1  # in_progress -> doing
