@@ -1,16 +1,16 @@
 ---
 work_package_id: WP01
 title: Foundation & Data Models
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: c60760d595370200d1f4c30554b18a380b702a6d
 created_at: '2026-02-16T13:12:59.865818+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "38932"
-agent: "codex"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '38932'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'

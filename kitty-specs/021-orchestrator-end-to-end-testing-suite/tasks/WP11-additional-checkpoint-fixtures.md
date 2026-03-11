@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Additional Checkpoint Fixtures
-lane: "done"
+lane: done
 dependencies:
 - WP03
 subtasks:
@@ -11,10 +11,10 @@ subtasks:
 - T055
 phase: Phase 2 - Extended
 assignee: ''
-agent: "claude-opus"
-shell_pid: "58336"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '58336'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

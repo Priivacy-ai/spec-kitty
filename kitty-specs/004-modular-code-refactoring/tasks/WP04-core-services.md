@@ -1,12 +1,21 @@
 ---
 work_package_id: WP04
 lane: done
-priority: P2
-tags:
-- core
-- services
-- parallel
-- agent-c
+dependencies: []
+subtasks:
+- T030
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+assignee: codex
+agent: codex
+shell_pid: '33775'
 history:
 - date: 2025-11-11
   status: created
@@ -19,26 +28,18 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All DoD items complete, 19/19 tests passing
-agent: codex
-assignee: codex
 phases: foundational
+priority: P2
 reviewer:
   agent: sonnet-4.5
   shell_pid: '67729'
   date: '2025-11-11T18:15:30Z'
-shell_pid: '33775'
-subtasks:
-- T030
-- T031
-- T032
-- T033
-- T034
-- T035
-- T036
-- T037
-- T038
-- T039
 subtitle: Git operations, project resolution, and tool checking
+tags:
+- core
+- services
+- parallel
+- agent-c
 work_package_title: Core Services
 ---
 

@@ -1,28 +1,29 @@
 ---
-work_package_id: "WP01"
+work_package_id: WP01
+title: Merge Guide
+lane: done
+dependencies: []
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-title: "Merge Guide"
-phase: "Phase 1 - User Documentation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "93326"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+- T008
+phase: Phase 1 - User Documentation
+assignee: ''
+agent: claude
+shell_pid: '93326'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T13:21:55Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T13:21:55Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Merge Guide

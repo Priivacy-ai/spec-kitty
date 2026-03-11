@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-title: "Monitor"
-phase: "Phase 2 - Core Logic"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "77775"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP07
+title: Monitor
+lane: done
 dependencies:
-  - "WP06"
+- WP06
+subtasks:
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+phase: Phase 2 - Core Logic
+assignee: ''
+agent: claude-opus
+shell_pid: '77775'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Monitor

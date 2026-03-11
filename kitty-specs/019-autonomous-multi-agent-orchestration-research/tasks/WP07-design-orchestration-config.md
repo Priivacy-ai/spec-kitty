@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-title: "Design Agent Orchestration Config"
-phase: "Phase 3 - Configuration Design"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "31941"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP07
+title: Design Agent Orchestration Config
+lane: done
 dependencies:
-  - "WP06"
+- WP06
+subtasks:
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+phase: Phase 3 - Configuration Design
+assignee: ''
+agent: claude-opus
+shell_pid: '31941'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Design Agent Orchestration Config

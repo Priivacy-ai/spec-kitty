@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Squash Survivors — Batch 1 (status/, glossary/)
-lane: "done"
+lane: done
 dependencies:
 - WP02
 subtasks:

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Version Matrix Note
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: c68d22f347a00d33225c7ccf1f2a4dd1b7ba068a
@@ -14,8 +14,8 @@ phase: Phase 2 - Parallel Wave
 assignee: ''
 agent: claude-opus
 shell_pid: '27166'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned

@@ -1,26 +1,27 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Constitution Command Redesign
+lane: done
+dependencies: []
 subtasks:
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-  - "T033"
-title: "Constitution Command Redesign"
-phase: "Feature - Track 2 UX Improvements"
-lane: "done"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T028
+- T029
+- T030
+- T031
+- T032
+- T033
+phase: Feature - Track 2 UX Improvements
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-12T11:30:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T11:30:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Constitution Command Redesign

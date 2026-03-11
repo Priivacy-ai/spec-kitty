@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP07"
+work_package_id: WP07
+title: Reference - Configuration & Structure
+lane: done
+dependencies: [WP02]
 subtasks:
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-title: "Reference - Configuration & Structure"
-phase: "Phase 1 - Content Creation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "57036"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02"]
+- T026
+- T027
+- T028
+- T029
+- T030
+phase: Phase 1 - Content Creation
+assignee: ''
+agent: claude
+shell_pid: '57036'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Reference - Configuration & Structure

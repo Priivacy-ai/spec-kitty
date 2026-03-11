@@ -1,16 +1,16 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP08
 base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
 created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
-shell_pid: "60384"
-agent: "codex"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '60384'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'

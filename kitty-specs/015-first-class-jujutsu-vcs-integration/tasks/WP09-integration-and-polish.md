@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP09"
-title: "Integration and Polish"
+work_package_id: WP09
+title: Integration and Polish
+lane: done
+dependencies: [WP05, WP06, WP07, WP08]
 subtasks:
-  - "T051"
-  - "T052"
-  - "T053"
-  - "T054"
-  - "T055"
-  - "T056"
-  - "T057"
-  - "T058"
-phase: "Phase 3 - Migration"
-lane: "done"
-priority: "P3"
-dependencies: ["WP05", "WP06", "WP07", "WP08"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "9401"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T051
+- T052
+- T053
+- T054
+- T055
+- T056
+- T057
+- T058
+phase: Phase 3 - Migration
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '9401'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P3
 ---
 
 # Work Package Prompt: WP09 – Integration and Polish

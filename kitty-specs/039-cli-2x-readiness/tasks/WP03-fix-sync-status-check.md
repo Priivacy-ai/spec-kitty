@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Fix sync status --check to use real token
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 217972339dcfe9159fccf3fcfd5b71b36cfe4c39
@@ -13,10 +13,10 @@ subtasks:
 - T014
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp03-reviewer"
-shell_pid: "55363"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp03-reviewer
+shell_pid: '55363'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Extended Agent Smoke Tests
-lane: "done"
+lane: done
 dependencies:
 - WP01
 subtasks:
@@ -12,10 +12,10 @@ subtasks:
 - T051
 phase: Phase 2 - Extended
 assignee: ''
-agent: "claude-opus"
-shell_pid: "48751"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '48751'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

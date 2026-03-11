@@ -1,27 +1,28 @@
 ---
-work_package_id: "WP01"
+work_package_id: WP01
+title: Mission Infrastructure
+lane: done
+dependencies: []
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Mission Infrastructure"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "__AGENT__"
-shell_pid: "10160"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+phase: Phase 0 - Foundation
+assignee: ''
+agent: __AGENT__
+shell_pid: '10160'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Mission Infrastructure

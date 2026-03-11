@@ -2,6 +2,20 @@
 work_package_id: WP02
 title: Core Protection Methods
 lane: done
+dependencies: []
+subtasks:
+- T008
+- T009
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+phase: Phase 2 - Core Implementation
+assignee: claude
+agent: claude
+shell_pid: '62660'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
@@ -18,19 +32,6 @@ history:
   agent: claude
   shell_pid: '61538'
   action: Completed WP02 - Ready for review
-agent: claude
-assignee: claude
-phase: Phase 2 - Core Implementation
-shell_pid: '62660'
-subtasks:
-- T008
-- T009
-- T010
-- T011
-- T012
-- T013
-- T014
-- T015
 ---
 *Path: [tasks/planned/WP02-core-protection-methods.md](tasks/planned/WP02-core-protection-methods.md)*
 

@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP04"
-subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-title: "Command Templates"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: "acknowledged"
-reviewed_by: "codex"
+work_package_id: WP04
+title: Command Templates
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 0 - Foundation
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: acknowledged
+reviewed_by: codex
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Command Templates

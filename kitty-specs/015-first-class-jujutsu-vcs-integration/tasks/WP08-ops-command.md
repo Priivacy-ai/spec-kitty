@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP08"
-title: "Ops Command"
+work_package_id: WP08
+title: Ops Command
+lane: done
+dependencies: [WP03, WP04]
 subtasks:
-  - "T045"
-  - "T046"
-  - "T047"
-  - "T048"
-  - "T049"
-  - "T050"
-phase: "Phase 2 - Command Updates"
-lane: "done"
-priority: "P3"
-dependencies: ["WP03", "WP04"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "28708"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+- T045
+- T046
+- T047
+- T048
+- T049
+- T050
+phase: Phase 2 - Command Updates
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '28708'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P3
 ---
 
 # Work Package Prompt: WP08 – Ops Command

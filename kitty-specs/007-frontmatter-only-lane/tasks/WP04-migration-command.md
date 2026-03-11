@@ -2,6 +2,22 @@
 work_package_id: WP04
 title: Migration Command
 lane: done
+dependencies: []
+subtasks:
+- T017
+- T018
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: claude
+shell_pid: $$
+review_status: ''
+reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -17,21 +33,6 @@ activity_log: |-
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
   - 2025-12-17T16:45:00Z – claude – lane=for_review – Implementation complete
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
-agent: claude
-assignee: ''
-phase: Phase 1 - Core Implementation
-review_status: ''
-reviewed_by: claude-reviewer
-shell_pid: $$
-subtasks:
-- T017
-- T018
-- T019
-- T020
-- T021
-- T022
-- T023
-- T024
 ---
 
 # Work Package Prompt: WP04 – Migration Command

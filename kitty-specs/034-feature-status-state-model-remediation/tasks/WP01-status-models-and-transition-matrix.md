@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Status Models & Transition Matrix
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 7ba8f245c1d3bbcd59aa08059cc331c708fc1b79
@@ -14,10 +14,10 @@ subtasks:
 - T005
 phase: Phase 0 - Foundation
 assignee: ''
-agent: "claude-opus-reviewer"
-shell_pid: "43865"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus-reviewer
+shell_pid: '43865'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Toolchain Setup
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T001
@@ -13,8 +13,8 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
 shell_pid: ''
-review_status: "approved"
-reviewed_by: "Stijn Dejongh"
+review_status: approved
+reviewed_by: Stijn Dejongh
 review_feedback: ''
 history:
 - timestamp: '2026-03-01T16:00:00Z'

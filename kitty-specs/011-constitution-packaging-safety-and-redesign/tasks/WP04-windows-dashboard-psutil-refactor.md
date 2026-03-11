@@ -1,31 +1,32 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Windows Dashboard psutil Refactor
+lane: done
+dependencies: []
 subtasks:
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-title: "Windows Dashboard psutil Refactor"
-phase: "Feature - Track 2 UX Improvements"
-lane: "done"
-assignee: ""
-agent: "claude-sonnet-4-5"
-shell_pid: ""
-review_status: "approved"
-reviewed_by: "claude-sonnet-4-5"
+- T022
+- T023
+- T024
+- T025
+- T026
+- T027
+phase: Feature - Track 2 UX Improvements
+assignee: ''
+agent: claude-sonnet-4-5
+shell_pid: ''
+review_status: approved
+reviewed_by: claude-sonnet-4-5
 history:
-  - timestamp: "2026-01-12T11:30:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2026-01-12T12:30:00Z"
-    lane: "done"
-    agent: "claude-sonnet-4-5"
-    shell_pid: ""
-    action: "Code review approved - psutil>=5.9.0 added, all signal calls replaced with psutil, proper exception handling, 41/41 dashboard tests passed. Fixes #71 Windows ERR_EMPTY_RESPONSE."
+- timestamp: '2026-01-12T11:30:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-12T12:30:00Z'
+  lane: done
+  agent: claude-sonnet-4-5
+  shell_pid: ''
+  action: 'Code review approved - psutil>=5.9.0 added, all signal calls replaced with psutil, proper exception handling, 41/41 dashboard tests passed. Fixes #71 Windows ERR_EMPTY_RESPONSE.'
 ---
 
 # Work Package Prompt: WP04 – Windows Dashboard psutil Refactor

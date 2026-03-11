@@ -2,24 +2,25 @@
 work_package_id: WP01
 title: Core Mission Discovery
 lane: done
-history:
-- timestamp: '2025-12-15T11:55:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: ''
-phase: Phase 1 - Foundation
-review_status: ''
-reviewed_by: ''
-shell_pid: '41190'
+dependencies: []
 subtasks:
 - T001
 - T002
 - T003
 - T004
 - T005
+phase: Phase 1 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '41190'
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2025-12-15T11:55:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Core Mission Discovery

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Opportunistic Documentation Fixes
-lane: "done"
+lane: done
 dependencies:
 - WP01
 subtasks:
@@ -10,10 +10,10 @@ subtasks:
 - T036
 phase: Phase 3 - Cleanup
 assignee: ''
-agent: "Claude"
-shell_pid: "51920"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: Claude
+shell_pid: '51920'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned

@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP05"
-title: "Init Command Update"
+work_package_id: WP05
+title: Init Command Update
+lane: done
+dependencies: [WP02]
 subtasks:
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-phase: "Phase 2 - Command Updates"
-lane: "done"
-priority: "P1"
-dependencies: ["WP02"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "90012"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+- T026
+- T027
+- T028
+- T029
+- T030
+- T031
+phase: Phase 2 - Command Updates
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '90012'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P1
 ---
 
 # Work Package Prompt: WP05 – Init Command Update

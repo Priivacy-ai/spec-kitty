@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP04"
-title: "JujutsuVCS Implementation"
+work_package_id: WP04
+title: JujutsuVCS Implementation
+lane: done
+dependencies: [WP01, WP02]
 subtasks:
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-phase: "Phase 1 - Abstraction Layer"
-lane: "done"
-priority: "P1"
-dependencies: ["WP01", "WP02"]
-assignee: "__AGENT__"
-agent: "claude-code"
-shell_pid: "84083"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T018
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+- T025
+phase: Phase 1 - Abstraction Layer
+assignee: __AGENT__
+agent: claude-code
+shell_pid: '84083'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P1
 ---
 
 # Work Package Prompt: WP04 – JujutsuVCS Implementation

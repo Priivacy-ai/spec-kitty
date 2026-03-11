@@ -1,27 +1,28 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: CLAUDE.md Reference Update
+lane: done
+dependencies: []
 subtasks:
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-title: "CLAUDE.md Reference Update"
-phase: "Phase 2 - Developer Documentation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "94131"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
+- T018
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 2 - Developer Documentation
+assignee: ''
+agent: claude
+shell_pid: '94131'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T13:21:55Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T13:21:55Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – CLAUDE.md Reference Update

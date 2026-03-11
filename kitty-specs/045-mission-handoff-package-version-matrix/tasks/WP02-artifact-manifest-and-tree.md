@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Artifact Manifest Snapshot + Tree Snapshot
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: daad18d1a6cc861106e5879e1875fda34517d0a2
@@ -15,8 +15,8 @@ phase: Phase 2 - Parallel Wave
 assignee: ''
 agent: claude-opus
 shell_pid: '44442'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned

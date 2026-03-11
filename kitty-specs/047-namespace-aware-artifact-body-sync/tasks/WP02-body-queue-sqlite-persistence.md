@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Body Queue - SQLite Persistence Layer
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 047-namespace-aware-artifact-body-sync-WP01
 base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
@@ -18,8 +18,8 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: claude-opus
 shell_pid: '50890'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

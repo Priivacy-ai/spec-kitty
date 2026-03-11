@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: EventStore & AOP Middleware
-lane: "done"
+lane: done
 dependencies: [WP02]
 base_branch: 025-cli-event-log-integration-WP02
 base_commit: 7d9a6690405ccf8b835a49d27262d99a5c337997
@@ -15,10 +15,10 @@ subtasks:
 - T018
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "claude-final-reviewer"
-shell_pid: "78964"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-final-reviewer
+shell_pid: '78964'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

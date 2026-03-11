@@ -2,19 +2,7 @@
 work_package_id: WP01
 title: Dependency Graph Utilities (TDD Foundation)
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: Codex
-assignee: team
 dependencies: []
-phase: Phase 0 - Test Infrastructure
-review_status: ''
-reviewed_by: ''
-shell_pid: '80441'
 subtasks:
 - T001
 - T002
@@ -23,6 +11,18 @@ subtasks:
 - T005
 - T006
 - T007
+phase: Phase 0 - Test Infrastructure
+assignee: team
+agent: Codex
+shell_pid: '80441'
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Dependency Graph Utilities (TDD Foundation)

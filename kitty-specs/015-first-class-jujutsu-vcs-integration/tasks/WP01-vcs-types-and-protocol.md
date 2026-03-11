@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP01"
-title: "VCS Types and Protocol"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-phase: "Phase 1 - Abstraction Layer"
-lane: "done"
-priority: "P0"
+work_package_id: WP01
+title: VCS Types and Protocol
+lane: done
 dependencies: []
-assignee: "__AGENT__"
-agent: "claude-opus"
-shell_pid: "40761"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 1 - Abstraction Layer
+assignee: __AGENT__
+agent: claude-opus
+shell_pid: '40761'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P0
 ---
 
 # Work Package Prompt: WP01 – VCS Types and Protocol

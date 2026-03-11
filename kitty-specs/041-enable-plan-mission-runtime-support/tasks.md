@@ -368,3 +368,12 @@ Individual work package prompts are generated in `tasks/` directory:
 - `WP05-finalization-commit.md` - Finalization and commit
 
 Each prompt includes detailed implementation guidance, code examples, test cases, and success criteria.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+<!-- status-model:end -->

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Indexing & Missing Detection
-lane: "done"
+lane: done
 dependencies:
 - WP01
 - WP02
@@ -12,11 +12,11 @@ subtasks:
 - T015
 - T016
 - T017
+agent: coordinator
+shell_pid: '85771'
+review_status: approved
+reviewed_by: Robert Douglass
 feature_slug: 042-local-mission-dossier-authority-parity-export
-agent: "coordinator"
-shell_pid: "85771"
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 ---
 
 # WP03: Indexing & Missing Detection

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync & Runtime Integration
-lane: "done"
+lane: done
 dependencies: [WP02, WP04]
 base_branch: 047-namespace-aware-artifact-body-sync-WP06-merge-base
 base_commit: 192ee0b889e1235647c4d3c7aac8af04a58cb04f
@@ -17,8 +17,8 @@ phase: Phase 3 - Integration
 assignee: ''
 agent: claude-opus
 shell_pid: '14904'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

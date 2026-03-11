@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync Service
-lane: "done"
+lane: done
 dependencies: [WP05]
 base_branch: 028-cli-event-emission-sync-WP05
 base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
@@ -16,10 +16,10 @@ subtasks:
 - T035
 phase: Phase 3 - Infrastructure
 assignee: ''
-agent: "claude-opus"
-shell_pid: "56464"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '56464'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned

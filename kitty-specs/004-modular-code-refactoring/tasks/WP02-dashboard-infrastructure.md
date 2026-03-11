@@ -1,36 +1,7 @@
 ---
 work_package_id: WP02
 lane: done
-priority: P2
-tags:
-- dashboard
-- parallel
-- agent-a
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-- date: 2025-11-11
-  status: updated
-  by: claude
-  notes: Added missing infrastructure components (server, lifecycle, base handler)
-- date: 2025-11-11
-  status: returned_for_changes
-  by: sonnet-4.5
-  notes: Missing test_diagnostics.py and handlers/base.py scope creep
-- date: 2025-11-11
-  status: approved
-  by: sonnet-4.5
-  notes: All feedback addressed, tests passing, module sizes compliant
-agent: codex
-assignee: sonnet-4.5
-phases: foundational
-review_status: approved
-reviewer:
-  agent: sonnet-4.5
-  shell_pid: '67420'
-  date: '2025-11-11T18:11:15Z'
-shell_pid: '57706'
+dependencies: []
 subtasks:
 - T010
 - T011
@@ -48,7 +19,37 @@ subtasks:
 - T023
 - T024
 - T025
+assignee: sonnet-4.5
+agent: codex
+shell_pid: '57706'
+review_status: approved
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+- date: 2025-11-11
+  status: updated
+  by: claude
+  notes: Added missing infrastructure components (server, lifecycle, base handler)
+- date: 2025-11-11
+  status: returned_for_changes
+  by: sonnet-4.5
+  notes: Missing test_diagnostics.py and handlers/base.py scope creep
+- date: 2025-11-11
+  status: approved
+  by: sonnet-4.5
+  notes: All feedback addressed, tests passing, module sizes compliant
+phases: foundational
+priority: P2
+reviewer:
+  agent: sonnet-4.5
+  shell_pid: '67420'
+  date: '2025-11-11T18:11:15Z'
 subtitle: Complete dashboard foundation - static assets, server, lifecycle, and core functions
+tags:
+- dashboard
+- parallel
+- agent-a
 work_package_title: Dashboard Infrastructure
 ---
 

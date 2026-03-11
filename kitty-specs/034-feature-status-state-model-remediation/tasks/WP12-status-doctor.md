@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 title: Status Doctor
-lane: "done"
+lane: done
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 0217a254f9762da0bb27cdfb856eccf5a1e0d8d4
@@ -15,9 +15,9 @@ subtasks:
 phase: Phase 3 - Operational
 assignee: ''
 agent: ''
-shell_pid: "50840"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+shell_pid: '50840'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

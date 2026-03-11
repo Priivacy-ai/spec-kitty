@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-  - "T033"
-title: "Jujutsu Reference Cleanup"
-phase: "Phase 3 - Cleanup"
-lane: "done"
-assignee: ""
-agent: "Claude"
-shell_pid: "51011"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP07
+title: Jujutsu Reference Cleanup
+lane: done
 dependencies: []
+subtasks:
+- T029
+- T030
+- T031
+- T032
+- T033
+phase: Phase 3 - Cleanup
+assignee: ''
+agent: Claude
+shell_pid: '51011'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-23T10:23:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-23T10:23:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Jujutsu Reference Cleanup

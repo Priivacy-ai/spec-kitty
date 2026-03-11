@@ -2,8 +2,9 @@
   "event_count": 7,
   "feature_slug": "023-documentation-sprint-agent-management-cleanup",
   "last_event_id": "01KJ5V38T8VK8WZ6ENTH8VF8M7",
-  "materialized_at": "2026-02-23T18:10:00.649557+00:00",
+  "materialized_at": "2026-03-11T07:08:18.957882+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

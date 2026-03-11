@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP02"
-title: "VCS Detection and Factory"
+work_package_id: WP02
+title: VCS Detection and Factory
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-phase: "Phase 1 - Abstraction Layer"
-lane: "done"
-priority: "P0"
-dependencies: ["WP01"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "38749"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T006
+- T007
+- T008
+- T009
+phase: Phase 1 - Abstraction Layer
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '38749'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P0
 ---
 
 # Work Package Prompt: WP02 – VCS Detection and Factory

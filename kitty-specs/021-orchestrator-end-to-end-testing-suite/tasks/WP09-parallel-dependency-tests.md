@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Parallel and Dependency Tests
-lane: "done"
+lane: done
 dependencies:
 - WP05
 subtasks:
@@ -13,10 +13,10 @@ subtasks:
 - T046
 phase: Phase 1 - Core Tests
 assignee: ''
-agent: "claude-opus"
-shell_pid: "46994"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '46994'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

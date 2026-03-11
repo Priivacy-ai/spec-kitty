@@ -1,42 +1,43 @@
 ---
-work_package_id: "WP01"
+work_package_id: WP01
+title: Foundation Infrastructure
+lane: done
+dependencies: []
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-title: "Foundation Infrastructure"
-phase: "Phase 1 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "18142"
-review_status: ""
-reviewed_by: "claude"
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+phase: Phase 1 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '18142'
+review_status: ''
+reviewed_by: claude
 history:
-  - timestamp: "2025-12-17T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2025-12-18T23:00:00Z"
-    lane: "done"
-    agent: "claude"
-    shell_pid: "18142"
-    action: "Code review complete - approved"
+- timestamp: '2025-12-17T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2025-12-18T23:00:00Z'
+  lane: done
+  agent: claude
+  shell_pid: '18142'
+  action: Code review complete - approved
 ---
 
 # Work Package Prompt: WP01 – Foundation Infrastructure

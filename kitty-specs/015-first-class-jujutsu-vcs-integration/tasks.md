@@ -413,3 +413,16 @@ WP02 (Detection/Factory)
 | T056 | Integration: CLAUDE.md update | WP09 | P3 | Yes |
 | T057 | Integration: conflict gates | WP09 | P3 | Yes |
 | T058 | Integration: final testing | WP09 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+<!-- status-model:end -->

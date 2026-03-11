@@ -1,24 +1,24 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Landing Page & Navigation
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Landing Page & Navigation"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "57826"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T005
+- T006
+- T007
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '57826'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Landing Page & Navigation

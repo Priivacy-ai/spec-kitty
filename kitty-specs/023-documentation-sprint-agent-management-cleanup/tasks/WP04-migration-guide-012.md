@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migration Guide for 0.12.0
-lane: "done"
+lane: done
 dependencies:
 - WP01
 - WP02
@@ -13,10 +13,10 @@ subtasks:
 - T018
 phase: Phase 1 - Core Documentation
 assignee: ''
-agent: "Claude"
-shell_pid: "42078"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: Claude
+shell_pid: '42078'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned

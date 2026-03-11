@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Validation & Polish
-lane: "done"
+lane: done
 dependencies:
 - WP01
 subtasks:
@@ -12,10 +12,10 @@ subtasks:
 - T047
 phase: Phase 2 - Polish
 assignee: ''
-agent: "claude"
-shell_pid: "73051"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude
+shell_pid: '73051'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned

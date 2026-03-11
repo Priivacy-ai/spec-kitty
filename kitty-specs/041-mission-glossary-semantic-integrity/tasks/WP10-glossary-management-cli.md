@@ -1,16 +1,16 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
 created_at: '2026-02-16T17:59:56.173426+00:00'
 subtasks: [T044, T045, T046, T047]
-shell_pid: "82698"
-agent: "codex"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '82698'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'

@@ -2,8 +2,9 @@
   "event_count": 8,
   "feature_slug": "025-cli-event-log-integration",
   "last_event_id": "01KJ5V38TS13JV2JTWG5N2QCDV",
-  "materialized_at": "2026-02-23T18:10:00.666236+00:00",
+  "materialized_at": "2026-03-11T07:08:19.056859+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

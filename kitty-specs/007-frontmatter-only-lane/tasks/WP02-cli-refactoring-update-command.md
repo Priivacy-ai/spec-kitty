@@ -2,6 +2,21 @@
 work_package_id: WP02
 title: CLI Refactoring - Update Command
 lane: done
+dependencies: []
+subtasks:
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: claude-reviewer
+shell_pid: $$
+review_status: ''
+reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -11,20 +26,6 @@ history:
 activity_log: |-
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
-agent: claude-reviewer
-assignee: ''
-phase: Phase 1 - Core Implementation
-review_status: ''
-reviewed_by: claude-reviewer
-shell_pid: $$
-subtasks:
-- T005
-- T006
-- T007
-- T008
-- T009
-- T010
-- T011
 ---
 
 # Work Package Prompt: WP02 – CLI Refactoring - Update Command

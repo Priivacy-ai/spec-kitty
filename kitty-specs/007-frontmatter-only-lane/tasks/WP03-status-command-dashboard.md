@@ -2,6 +2,19 @@
 work_package_id: WP03
 title: Status Command & Dashboard
 lane: done
+dependencies: []
+subtasks:
+- T012
+- T013
+- T014
+- T015
+- T016
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: claude
+shell_pid: $$
+review_status: ''
+reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -17,18 +30,6 @@ activity_log: |-
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
   - 2025-12-17T16:30:00Z – claude – lane=for_review – Implementation complete
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
-agent: claude
-assignee: ''
-phase: Phase 1 - Core Implementation
-review_status: ''
-reviewed_by: claude-reviewer
-shell_pid: $$
-subtasks:
-- T012
-- T013
-- T014
-- T015
-- T016
 ---
 
 # Work Package Prompt: WP03 – Status Command & Dashboard

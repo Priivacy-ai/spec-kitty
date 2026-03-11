@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T040"
-  - "T041"
-  - "T042"
-  - "T043"
-  - "T044"
-  - "T045"
-  - "T046"
-title: "Iteration State Management"
-phase: "Phase 1 - Core Logic"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "94140"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP07
+title: Iteration State Management
+lane: done
 dependencies:
-  - "WP01"
-  - "WP06"
+- WP01
+- WP06
+subtasks:
+- T040
+- T041
+- T042
+- T043
+- T044
+- T045
+- T046
+phase: Phase 1 - Core Logic
+assignee: ''
+agent: claude
+shell_pid: '94140'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Iteration State Management

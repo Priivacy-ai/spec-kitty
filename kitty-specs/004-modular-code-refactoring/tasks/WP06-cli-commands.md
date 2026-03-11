@@ -1,31 +1,7 @@
 ---
 work_package_id: WP06
 lane: done
-priority: P3
-tags:
-- cli
-- commands
-- parallel
-- agent-e
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-- date: 2025-11-11T18:23:00Z
-  status: started
-  by: sonnet-4.5
-  shell_pid: '84843'
-  notes: Starting implementation
-agent: codex
-assignee: codex
-phases: story-based
-review_status: approved
-reviewed_by: agent-d
-reviewer:
-  agent: sonnet-4.5
-  shell_pid: '93012'
-  date: '2025-11-11T18:45:00Z'
-shell_pid: '84843'
+dependencies: []
 subtasks:
 - T050
 - T051
@@ -37,7 +13,32 @@ subtasks:
 - T057
 - T058
 - T059
+assignee: codex
+agent: codex
+shell_pid: '84843'
+review_status: approved
+reviewed_by: agent-d
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+- date: 2025-11-11T18:23:00Z
+  status: started
+  by: sonnet-4.5
+  shell_pid: '84843'
+  notes: Starting implementation
+phases: story-based
+priority: P3
+reviewer:
+  agent: sonnet-4.5
+  shell_pid: '93012'
+  date: '2025-11-11T18:45:00Z'
 subtitle: Extract CLI commands into separate modules
+tags:
+- cli
+- commands
+- parallel
+- agent-e
 work_package_title: CLI Commands Extraction
 ---
 

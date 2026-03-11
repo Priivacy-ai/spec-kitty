@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Generator Script
-lane: "done"
+lane: done
 dependencies:
 - WP01
 - WP02
@@ -19,8 +19,8 @@ phase: Phase 3 - Synthesis
 assignee: ''
 agent: claude-opus
 shell_pid: '7566'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned

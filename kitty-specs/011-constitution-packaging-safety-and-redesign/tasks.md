@@ -52,7 +52,7 @@ None required - all design artifacts complete.
 
 **Priority**: P0 - MUST complete before Track 2 constitution work
 **Status**: `done`
-**Prompt**: [tasks/WP01-template-relocation-packaging.md](tasks/WP01-template-relocation-packaging.md)
+**Prompt**: [tasks/WP01-template-relocation-packaging.md
 
 **Success Criteria**:
 - All templates moved to `src/specify_cli/templates/`, `src/specify_cli/missions/`, `src/specify_cli/scripts/`
@@ -89,7 +89,7 @@ None required - all design artifacts complete.
 
 **Priority**: P0 - Critical for upgrade path reliability
 **Status**: `done`
-**Prompt**: [tasks/WP02-migration-repairs-graceful-handling.md](tasks/WP02-migration-repairs-graceful-handling.md)
+**Prompt**: [tasks/WP02-migration-repairs-graceful-handling.md
 
 **Success Criteria**:
 - All 4 migrations (`m_0_7_3`, `m_0_10_2`, `m_0_10_6`, `m_0_10_0`) have graceful `can_apply()` and robust `apply()`
@@ -122,7 +122,7 @@ None required - all design artifacts complete.
 
 **Priority**: P0 - Required for architectural cleanup
 **Status**: `done`
-**Prompt**: [tasks/WP03-mission-constitution-removal.md](tasks/WP03-mission-constitution-removal.md)
+**Prompt**: [tasks/WP03-mission-constitution-removal.md
 
 **Success Criteria**:
 - `src/specify_cli/mission.py` no longer has `constitution_dir` property
@@ -154,7 +154,7 @@ None required - all design artifacts complete.
 
 **Priority**: P1 - Fixes Windows ERR_EMPTY_RESPONSE issue (#71)
 **Status**: `done`
-**Prompt**: [tasks/WP04-windows-dashboard-psutil-refactor.md](tasks/WP04-windows-dashboard-psutil-refactor.md)
+**Prompt**: [tasks/WP04-windows-dashboard-psutil-refactor.md
 
 **Success Criteria**:
 - `psutil>=5.9.0` added to `pyproject.toml` dependencies
@@ -187,7 +187,7 @@ None required - all design artifacts complete.
 
 **Priority**: P1 - Improves constitution UX, makes it optional
 **Status**: `done`
-**Prompt**: [tasks/WP05-constitution-command-redesign.md](tasks/WP05-constitution-command-redesign.md)
+**Prompt**: [tasks/WP05-constitution-command-redesign.md
 
 **Success Criteria**:
 - Constitution command template updated with 4-phase discovery workflow
@@ -223,7 +223,7 @@ None required - all design artifacts complete.
 
 **Priority**: P0 - Gate for release
 **Status**: `done`
-**Prompt**: [tasks/WP06-integration-testing-validation.md](tasks/WP06-integration-testing-validation.md)
+**Prompt**: [tasks/WP06-integration-testing-validation.md
 
 **Success Criteria**:
 - Package build produces clean wheel (no `.kittify/` or filled constitutions)
@@ -408,3 +408,13 @@ However, all 6 work packages are recommended for a complete emergency release ad
 **Estimated Effort**: 6 work packages, 40 subtasks, 2 parallel tracks
 **Critical Path**: WP01 → WP05 → WP06 (template relocation gates constitution redesign)
 **Recommended Next Command**: `/spec-kitty.implement WP01` (start with template relocation)
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+<!-- status-model:end -->

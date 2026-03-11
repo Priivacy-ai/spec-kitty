@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP05"
-title: "Status File Auto-Resolution"
-phase: "Phase 3 - User Story 4 (P3)"
+work_package_id: WP05
+title: Status File Auto-Resolution
+lane: in_progress
+dependencies: [WP03]
 subtasks:
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T024"
-  - "T028"
-  - "T029"
-dependencies: ["WP03"]
-lane: "doing"
-assignee: ""
-agent: "codex"
-shell_pid: "9049"
-review_status: ""
-reviewed_by: ""
+- T013
+- T014
+- T015
+- T016
+- T024
+- T028
+- T029
+phase: Phase 3 - User Story 4 (P3)
+assignee: ''
+agent: codex
+shell_pid: '9049'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-18T10:37:13Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T10:37:13Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Status File Auto-Resolution

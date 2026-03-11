@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: CLI Reference - Agent Config Commands
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-title: "CLI Reference - Agent Config Commands"
-phase: "Phase 2 - Reference Documentation"
-lane: "done"
-assignee: ""
-agent: "Claude"
-shell_pid: "38505"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 2 - Reference Documentation
+assignee: ''
+agent: Claude
+shell_pid: '38505'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-23T10:23:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-23T10:23:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – CLI Reference - Agent Config Commands

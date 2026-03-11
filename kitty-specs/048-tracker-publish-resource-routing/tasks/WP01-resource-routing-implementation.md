@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Resource Routing Implementation and Tests
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: cbae93b2edf7e9ef4460f944e676a884b2130957
@@ -16,8 +16,8 @@ phase: Phase 1 - Core Implementation
 assignee: ''
 agent: claude-opus
 shell_pid: '43032'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-10T09:49:14Z'
   lane: planned

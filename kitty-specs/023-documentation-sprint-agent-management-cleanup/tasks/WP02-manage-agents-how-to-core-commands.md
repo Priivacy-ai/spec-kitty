@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Manage Agents How-To Guide - Core Commands
-lane: "doing"
+lane: in_progress
 dependencies: [WP01]
 base_branch: 023-documentation-sprint-agent-management-cleanup-WP01
 base_commit: 25f4b615be5b11bd0f1728f14cfc79046e99b40c
@@ -17,7 +17,7 @@ subtasks:
 phase: Phase 1 - Core Documentation
 assignee: ''
 agent: codex
-shell_pid: "1491792"
+shell_pid: '1491792'
 review_status: has_feedback
 reviewed_by: Robert Douglass
 history:

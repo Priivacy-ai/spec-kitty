@@ -400,3 +400,14 @@ WP08 (Opportunistic Fixes) - Independent (loosely depends on WP01)
 ---
 
 > This task breakdown provides 8 well-sized work packages (200-500 lines each) covering all 36 subtasks. Each WP is independently deliverable, testable, and focused on a specific documentation area.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+<!-- status-model:end -->

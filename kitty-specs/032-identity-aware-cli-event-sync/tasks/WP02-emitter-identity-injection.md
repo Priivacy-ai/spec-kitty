@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Emitter Identity Injection
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 032-identity-aware-cli-event-sync-WP01
 base_commit: 4bbad8021d63761ee7d8deaeaf13542c9197e839
@@ -14,10 +14,10 @@ subtasks:
 - T011
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "codex"
-shell_pid: "25757"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '25757'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned

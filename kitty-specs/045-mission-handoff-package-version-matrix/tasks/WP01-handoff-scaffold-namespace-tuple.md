@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Handoff Directory Scaffold + Namespace Tuple
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 595bf2762385da04c26488fec4d96ea3b1c23939
@@ -14,8 +14,8 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: claude-opus
 shell_pid: '31424'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned

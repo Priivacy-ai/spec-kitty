@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: How-To Guides - Core Workflow
+lane: done
+dependencies: [WP02]
 subtasks:
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "How-To Guides - Core Workflow"
-phase: "Phase 1 - Content Creation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "58526"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02"]
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 1 - Content Creation
+assignee: ''
+agent: claude
+shell_pid: '58526'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – How-To Guides - Core Workflow

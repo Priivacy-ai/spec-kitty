@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-title: "Foundation & Config"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "43211"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP01
+title: Foundation & Config
+lane: done
 dependencies: []
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude-opus
+shell_pid: '43211'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Foundation & Config

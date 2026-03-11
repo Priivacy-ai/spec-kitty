@@ -1,12 +1,17 @@
 ---
 work_package_id: WP05
 lane: done
-priority: P3
-tags:
-- dashboard
-- handlers
-- parallel
-- agent-d
+dependencies: []
+subtasks:
+- T040
+- T041
+- T042
+- T043
+- T044
+- T045
+assignee: agent-d
+agent: agent-d
+shell_pid: unknown
 history:
 - date: 2025-11-11
   status: created
@@ -24,22 +29,18 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All handlers implemented, tests passing, architecture clean
-agent: agent-d
-assignee: agent-d
 phases: story-based
+priority: P3
 reviewer:
   agent: sonnet-4.5
   shell_pid: '69441'
   date: '2025-11-11T18:21:00Z'
-shell_pid: unknown
-subtasks:
-- T040
-- T041
-- T042
-- T043
-- T044
-- T045
 subtitle: Implement HTTP endpoint handlers using WP02 infrastructure
+tags:
+- dashboard
+- handlers
+- parallel
+- agent-d
 work_package_title: Dashboard Handlers
 ---
 

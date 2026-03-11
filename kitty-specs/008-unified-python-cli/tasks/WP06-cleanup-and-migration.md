@@ -1,35 +1,36 @@
 ---
-work_package_id: "WP06"
-subtasks: ["T092", "T093", "T094", "T095", "T096", "T097", "T098", "T099", "T100", "T101", "T102", "T103", "T104", "T105", "T106", "T107", "T108", "T109", "T110", "T111", "T112", "T113", "T114"]
-title: "Cleanup & Migration"
-phase: "Phase 6 - Cleanup & Migration (Sequential)"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "18142"
-review_status: ""
-reviewed_by: "claude"
+work_package_id: WP06
+title: Cleanup & Migration
+lane: done
+dependencies: []
+subtasks: [T092, T093, T094, T095, T096, T097, T098, T099, T100, T101, T102, T103, T104, T105, T106, T107, T108, T109, T110, T111, T112, T113, T114]
+phase: Phase 6 - Cleanup & Migration (Sequential)
+assignee: ''
+agent: claude
+shell_pid: '18142'
+review_status: ''
+reviewed_by: claude
 history:
-  - timestamp: "2025-12-17T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2025-12-18T00:18:45Z"
-    lane: "doing"
-    agent: "claude"
-    shell_pid: "4302"
-    action: "Started cleanup and migration implementation"
-  - timestamp: "2025-12-18T01:35:00Z"
-    lane: "for_review"
-    agent: "claude"
-    shell_pid: "4302"
-    action: "Completed implementation - ready for review"
-  - timestamp: "2025-12-18T22:30:00Z"
-    lane: "done"
-    agent: "claude"
-    shell_pid: "18142"
-    action: "Code review complete - approved without changes"
+- timestamp: '2025-12-17T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2025-12-18T00:18:45Z'
+  lane: doing
+  agent: claude
+  shell_pid: '4302'
+  action: Started cleanup and migration implementation
+- timestamp: '2025-12-18T01:35:00Z'
+  lane: for_review
+  agent: claude
+  shell_pid: '4302'
+  action: Completed implementation - ready for review
+- timestamp: '2025-12-18T22:30:00Z'
+  lane: done
+  agent: claude
+  shell_pid: '18142'
+  action: Code review complete - approved without changes
 ---
 
 # Work Package Prompt: WP06 – Cleanup & Migration

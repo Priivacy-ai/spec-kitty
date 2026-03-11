@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Add sync diagnose command
-lane: "done"
+lane: done
 dependencies: [WP02]
 base_branch: 039-cli-2x-readiness-WP02
 base_commit: 0cf3f906f4f979a000cf04c78688a397d69b6a37
@@ -14,10 +14,10 @@ subtasks:
 - T019
 phase: Wave 2 - Dependent
 assignee: ''
-agent: "wp04-reviewer"
-shell_pid: "75195"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp04-reviewer
+shell_pid: '75195'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

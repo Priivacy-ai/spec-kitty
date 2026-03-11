@@ -1,16 +1,16 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
 created_at: '2026-02-16T16:27:51.105337+00:00'
 subtasks: [T036, T037, T038, T039]
-shell_pid: "45969"
-agent: "codex"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '45969'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'

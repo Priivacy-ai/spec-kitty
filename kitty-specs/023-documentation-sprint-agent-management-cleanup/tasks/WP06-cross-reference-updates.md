@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Cross-Reference Updates
+lane: done
+dependencies: [WP02, WP05]
 subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-title: "Cross-Reference Updates"
-phase: "Phase 2 - Reference Documentation"
-lane: "done"
-assignee: ""
-agent: "Claude"
-shell_pid: "38575"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02", "WP05"]
+- T025
+- T026
+- T027
+- T028
+phase: Phase 2 - Reference Documentation
+assignee: ''
+agent: Claude
+shell_pid: '38575'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-23T10:23:45Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-23T10:23:45Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Cross-Reference Updates

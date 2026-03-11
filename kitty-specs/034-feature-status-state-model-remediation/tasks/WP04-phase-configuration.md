@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Phase Configuration
-lane: "done"
+lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -15,10 +15,10 @@ subtasks:
 - T021
 phase: Phase 0 - Foundation
 assignee: ''
-agent: "claude-wp04"
-shell_pid: "42771"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-wp04
+shell_pid: '42771'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

@@ -2,19 +2,7 @@
 work_package_id: WP06
 title: Merge Command Updates
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: team
-assignee: team
 dependencies: []
-phase: Phase 1 - Core Implementation
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
 subtasks:
 - T041
 - T042
@@ -24,6 +12,18 @@ subtasks:
 - T046
 - T047
 - T048
+phase: Phase 1 - Core Implementation
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Merge Command Updates

@@ -1,0 +1,9 @@
+{
+  "feature_number": "006",
+  "slug": "006-per-feature-mission",
+  "feature_slug": "006-per-feature-mission",
+  "friendly_name": "per feature mission",
+  "mission": "software-dev",
+  "target_branch": "main",
+  "created_at": "2026-03-09T06:17:37.431968+00:00"
+}

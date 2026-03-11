@@ -2,19 +2,20 @@
 work_package_id: WP01
 title: Release Validation Tooling
 lane: done
+dependencies: []
+subtasks:
+- T001
+- T002
+phase: Phase 1 - Foundations
+assignee: claude-code-reviewer
+agent: claude-sonnet-4.5
+shell_pid: '9337'
 history:
 - timestamp: '2025-11-02T16:58:36Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-agent: claude-sonnet-4.5
-assignee: claude-code-reviewer
-phase: Phase 1 - Foundations
-shell_pid: '9337'
-subtasks:
-- T001
-- T002
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md)*
 

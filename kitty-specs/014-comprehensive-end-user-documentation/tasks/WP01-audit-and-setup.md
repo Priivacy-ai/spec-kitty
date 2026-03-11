@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-title: "Audit & Directory Setup"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "57334"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+work_package_id: WP01
+title: Audit & Directory Setup
+lane: done
 dependencies: []
+subtasks:
+- T001
+- T002
+- T003
+- T004
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '57334'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Audit & Directory Setup

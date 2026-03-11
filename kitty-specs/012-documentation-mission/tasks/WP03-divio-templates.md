@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "Divio Documentation Templates"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "test"
-shell_pid: "71983"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP03
+title: Divio Documentation Templates
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 0 - Foundation
+assignee: ''
+agent: test
+shell_pid: '71983'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Divio Documentation Templates

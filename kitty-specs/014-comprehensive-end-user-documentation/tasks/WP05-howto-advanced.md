@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: How-To Guides - Advanced Workflow
+lane: done
+dependencies: [WP02]
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-title: "How-To Guides - Advanced Workflow"
-phase: "Phase 1 - Content Creation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "58769"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02"]
+- T019
+- T020
+- T021
+- T022
+phase: Phase 1 - Content Creation
+assignee: ''
+agent: claude
+shell_pid: '58769'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – How-To Guides - Advanced Workflow

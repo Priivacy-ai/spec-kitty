@@ -2,19 +2,7 @@
 work_package_id: WP05
 title: Implement Command (NEW)
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: team
-assignee: team
 dependencies: [WP01, WP03]
-phase: Phase 1 - Core Implementation
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
 subtasks:
 - T031
 - T032
@@ -26,6 +14,18 @@ subtasks:
 - T038
 - T039
 - T040
+phase: Phase 1 - Core Implementation
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Implement Command (NEW)

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Deterministic Reducer
-lane: "done"
+lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -16,10 +16,10 @@ subtasks:
 - T016
 phase: Phase 0 - Foundation
 assignee: ''
-agent: "claude-wp03"
-shell_pid: "42678"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-wp03
+shell_pid: '42678'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

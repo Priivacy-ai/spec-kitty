@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-title: "Research VS Code Extensions"
-phase: "Phase 1 - Agent Investigation"
-lane: "done"
-assignee: ""
-agent: "opencode"
-shell_pid: "21385"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP05
+title: Research VS Code Extensions
+lane: done
 dependencies: []
+subtasks:
+- T019
+- T020
+- T021
+- T022
+- T023
+phase: Phase 1 - Agent Investigation
+assignee: ''
+agent: opencode
+shell_pid: '21385'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Research VS Code Extensions

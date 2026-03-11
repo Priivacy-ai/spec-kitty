@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Converge global runtime resolution
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: f04321d857c6d91834af9b3d61d395d30c6ab73d
@@ -15,10 +15,10 @@ subtasks:
 - T039
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp08-reviewer"
-shell_pid: "70234"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp08-reviewer
+shell_pid: '70234'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

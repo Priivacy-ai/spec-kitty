@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Event Factory Module"
-phase: "Phase 1 - Foundation"
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "25757"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+work_package_id: WP01
+title: Event Factory Module
+lane: done
 dependencies: []
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+phase: Phase 1 - Foundation
+assignee: ''
+agent: codex
+shell_pid: '25757'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 - Event Factory Module

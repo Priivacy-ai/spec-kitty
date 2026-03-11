@@ -2,16 +2,7 @@
 work_package_id: WP02
 title: Pydantic Mission Schema Validation
 lane: done
-history:
-- timestamp: '2025-01-16T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: claude
-phase: Phase 1 - Foundation
-shell_pid: '70190'
+dependencies: []
 subtasks:
 - T008
 - T009
@@ -22,6 +13,16 @@ subtasks:
 - T014
 - T015
 - T016
+phase: Phase 1 - Foundation
+assignee: claude
+agent: claude
+shell_pid: '70190'
+history:
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Pydantic Mission Schema Validation

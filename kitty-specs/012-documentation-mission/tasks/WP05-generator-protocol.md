@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-title: "Documentation Generator Protocol"
-phase: "Phase 1 - Core Logic"
-lane: "done"
-assignee: "test"
-agent: "claude"
-shell_pid: "69274"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+work_package_id: WP05
+title: Documentation Generator Protocol
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+- T031
+- T032
+phase: Phase 1 - Core Logic
+assignee: test
+agent: claude
+shell_pid: '69274'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Documentation Generator Protocol

@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-title: "Research IDE-Primary Agents"
-phase: "Phase 1 - Agent Investigation"
-lane: "done"
-assignee: ""
-agent: "opencode"
-shell_pid: "21385"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP03
+title: Research IDE-Primary Agents
+lane: done
 dependencies: []
+subtasks:
+- T011
+- T012
+- T013
+- T014
+phase: Phase 1 - Agent Investigation
+assignee: ''
+agent: opencode
+shell_pid: '21385'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Research IDE-Primary Agents

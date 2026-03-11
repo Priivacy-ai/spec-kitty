@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Event Stream Export
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: d9cacce44e9b10233e49d0f9fdd19a2f0f4a78da
@@ -14,8 +14,8 @@ phase: Phase 2 - Parallel Wave
 assignee: ''
 agent: claude-opus
 shell_pid: '96811'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned

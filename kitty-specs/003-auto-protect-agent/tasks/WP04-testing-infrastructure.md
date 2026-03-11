@@ -2,16 +2,7 @@
 work_package_id: WP04
 title: Testing Infrastructure
 lane: done
-history:
-- timestamp: '2025-11-10T10:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: claude
-phase: Phase 4 - Quality Assurance
-shell_pid: '64252'
+dependencies: []
 subtasks:
 - T023
 - T024
@@ -23,6 +14,16 @@ subtasks:
 - T030
 - T031
 - T032
+phase: Phase 4 - Quality Assurance
+assignee: claude
+agent: claude
+shell_pid: '64252'
+history:
+- timestamp: '2025-11-10T10:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 *Path: [tasks/planned/WP04-testing-infrastructure.md](tasks/planned/WP04-testing-infrastructure.md)*
 

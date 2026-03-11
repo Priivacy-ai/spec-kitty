@@ -1,32 +1,32 @@
 ---
-work_package_id: "WP08"
-subtasks:
-  - "T047"
-  - "T048"
-  - "T049"
-  - "T050"
-  - "T051"
-  - "T052"
-title: "Mission Installation Migration"
-phase: "Phase 1 - Integration"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "94285"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP08
+title: Mission Installation Migration
+lane: done
 dependencies:
-  - "WP01"
-  - "WP02"
-  - "WP03"
-  - "WP04"
-  - "WP05"
+- WP01
+- WP02
+- WP03
+- WP04
+- WP05
+subtasks:
+- T047
+- T048
+- T049
+- T050
+- T051
+- T052
+phase: Phase 1 - Integration
+assignee: ''
+agent: claude
+shell_pid: '94285'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP08 – Mission Installation Migration

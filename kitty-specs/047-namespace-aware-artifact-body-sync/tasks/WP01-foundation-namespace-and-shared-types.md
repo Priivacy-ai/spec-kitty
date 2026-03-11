@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation - NamespaceRef & Shared Types
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 25ddd221bc402b8ddfbbd57e5046708bbc953a37
@@ -16,8 +16,8 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: claude-opus
 shell_pid: '45749'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

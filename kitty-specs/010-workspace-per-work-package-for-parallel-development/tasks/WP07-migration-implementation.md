@@ -2,23 +2,7 @@
 work_package_id: WP07
 title: Migration Implementation
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-- timestamp: '2026-01-08T10:05:00Z'
-  agent: claude
-  shell_pid: ''
-  action: 'CORRECTED: Changed from updating 48 agent directory files to updating 4 template source files'
-agent: Codex
-assignee: team
 dependencies: [WP02]
-phase: Phase 2 - Migration & Templates
-review_status: ''
-reviewed_by: ''
-shell_pid: '80475'
 subtasks:
 - T049
 - T050
@@ -30,6 +14,22 @@ subtasks:
 - T056
 - T057
 - T058
+phase: Phase 2 - Migration & Templates
+assignee: team
+agent: Codex
+shell_pid: '80475'
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-08T10:05:00Z'
+  agent: claude
+  shell_pid: ''
+  action: 'CORRECTED: Changed from updating 48 agent directory files to updating 4 template source files'
 ---
 
 # Work Package Prompt: WP07 – Migration Implementation (CORRECTED)

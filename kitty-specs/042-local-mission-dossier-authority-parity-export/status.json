@@ -2,8 +2,9 @@
   "event_count": 10,
   "feature_slug": "042-local-mission-dossier-authority-parity-export",
   "last_event_id": "01KJ5V38YMPN8MTAZD2M3KY4G9",
-  "materialized_at": "2026-02-23T18:10:00.789003+00:00",
+  "materialized_at": "2026-03-11T07:08:19.934627+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

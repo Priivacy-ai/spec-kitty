@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Diagnostics, Logging & End-to-End Tests
-lane: "done"
+lane: done
 dependencies: [WP05, WP06]
 base_branch: 047-namespace-aware-artifact-body-sync-WP07-merge-base
 base_commit: 6a2e9982824aa43dfa11e43c0f2d471442d0de41
@@ -15,8 +15,8 @@ phase: Phase 4 - Polish
 assignee: ''
 agent: claude-opus
 shell_pid: '18698'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

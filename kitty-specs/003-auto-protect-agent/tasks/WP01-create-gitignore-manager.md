@@ -2,6 +2,19 @@
 work_package_id: WP01
 title: Create GitignoreManager Module
 lane: done
+dependencies: []
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+phase: Phase 1 - Foundation
+assignee: claude
+agent: claude
+shell_pid: '62660'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
@@ -18,18 +31,6 @@ history:
   agent: claude
   shell_pid: '61538'
   action: Completed WP01 - Ready for review
-agent: claude
-assignee: claude
-phase: Phase 1 - Foundation
-shell_pid: '62660'
-subtasks:
-- T001
-- T002
-- T003
-- T004
-- T005
-- T006
-- T007
 ---
 *Path: [tasks/planned/WP01-create-gitignore-manager.md](tasks/planned/WP01-create-gitignore-manager.md)*
 

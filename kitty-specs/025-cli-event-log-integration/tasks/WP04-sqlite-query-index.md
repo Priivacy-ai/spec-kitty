@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: "done"
+lane: done
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -15,10 +15,10 @@ subtasks:
 - T024
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "claude-wp04-final-reviewer"
-shell_pid: "3709"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude-wp04-final-reviewer
+shell_pid: '3709'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

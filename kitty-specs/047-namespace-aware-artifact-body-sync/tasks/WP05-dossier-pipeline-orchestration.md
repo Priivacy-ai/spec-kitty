@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Dossier Pipeline Orchestration
-lane: "done"
+lane: done
 dependencies:
 - WP03
 - WP01
@@ -17,8 +17,8 @@ phase: Phase 3 - Integration
 assignee: ''
 agent: claude-opus
 shell_pid: '11265'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

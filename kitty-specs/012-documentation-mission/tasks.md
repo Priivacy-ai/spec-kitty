@@ -511,3 +511,17 @@ This enables:
 **Total**: 87 subtasks across 10 work packages
 **MVP**: 25 subtasks (T001-T024 + migration T047-T052)
 **Full Feature**: All 87 subtasks
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+<!-- status-model:end -->

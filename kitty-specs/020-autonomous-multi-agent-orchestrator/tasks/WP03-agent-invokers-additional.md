@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-title: "Agent Invokers - Additional Agents"
-phase: "Phase 1 - Components"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "46825"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP03
+title: Agent Invokers - Additional Agents
+lane: done
 dependencies:
-  - "WP01"
-  - "WP02"
+- WP01
+- WP02
+subtasks:
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+phase: Phase 1 - Components
+assignee: ''
+agent: claude-opus
+shell_pid: '46825'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Agent Invokers - Additional Agents

@@ -2,6 +2,20 @@
 work_package_id: WP02
 title: Migration Tests (TDD - Template Source Validation)
 lane: done
+dependencies: [WP01]
+subtasks:
+- T008
+- T009
+- T010
+- T011
+- T012
+- T013
+phase: Phase 0 - Test Infrastructure
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
@@ -16,20 +30,6 @@ history:
   agent: claude
   shell_pid: ''
   action: 'CORRECTED: Changed from testing agent directories (gitignored) to testing template sources (committed)'
-agent: team
-assignee: team
-dependencies: [WP01]
-phase: Phase 0 - Test Infrastructure
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
-subtasks:
-- T008
-- T009
-- T010
-- T011
-- T012
-- T013
 ---
 
 # Work Package Prompt: WP02 – Migration Tests (CORRECTED - Template Source Validation)

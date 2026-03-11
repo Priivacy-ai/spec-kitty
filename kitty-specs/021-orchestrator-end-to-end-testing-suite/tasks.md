@@ -476,3 +476,19 @@ Phase 3 (Polish):
 | T058 | Add test output helpers | WP12 | P3 | Yes |
 | T059 | Add timeout configuration | WP12 | P3 | Yes |
 | T060 | Validate quickstart scenarios | WP12 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+- WP11: done
+- WP12: done
+<!-- status-model:end -->

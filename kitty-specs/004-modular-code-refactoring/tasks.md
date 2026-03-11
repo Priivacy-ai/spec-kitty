@@ -17,7 +17,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP01: Foundation Layer [Priority: P1] ✅
 **Goal**: Create core infrastructure modules that all other packages depend on
-**Prompt**: `tasks/done/WP01-foundation-layer.md`
+**Prompt**: `tasks/WP01-foundation-layer.md`
 **Owner**: codex (shell_pid: 18347)
 **Reviewer**: claude
 **Duration**: Day 1
@@ -46,7 +46,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP02: Dashboard Infrastructure [Priority: P2] ✅
 **Goal**: Extract dashboard static assets and core scanning/diagnostic functions
-**Prompt**: `tasks/done/WP02-dashboard-infrastructure.md`
+**Prompt**: `tasks/WP02-dashboard-infrastructure.md`
 **Owner**: codex (shell_pid: 57706)
 **Reviewer**: sonnet-4.5
 **Duration**: Days 2-3
@@ -78,7 +78,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP03: Template System [Priority: P2] ✅
 **Goal**: Create template management and rendering infrastructure
-**Prompt**: `tasks/done/WP03-template-system.md`
+**Prompt**: `tasks/WP03-template-system.md`
 **Owner**: codex (shell_pid: 32837)
 **Reviewer**: sonnet-4.5
 **Duration**: Days 2-3
@@ -104,7 +104,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP04: Core Services [Priority: P2] ✅
 **Goal**: Extract git operations, project resolution, and tool checking
-**Prompt**: `tasks/done/WP04-core-services.md`
+**Prompt**: `tasks/WP04-core-services.md`
 **Owner**: codex (shell_pid: 33775)
 **Reviewer**: sonnet-4.5
 **Duration**: Days 2-3
@@ -134,7 +134,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP05: Dashboard Handlers [Priority: P3] ✅
 **Goal**: Refactor HTTP request handling into modular handler classes
-**Prompt**: `tasks/done/WP05-dashboard-handlers.md`
+**Prompt**: `tasks/WP05-dashboard-handlers.md`
 **Owner**: agent-d
 **Reviewer**: sonnet-4.5
 **Duration**: Days 4-5
@@ -156,7 +156,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP06: CLI Commands Extraction [Priority: P3] [P] ✅
 **Goal**: Extract CLI commands (except init) into separate modules
-**Prompt**: `tasks/done/WP06-cli-commands.md`
+**Prompt**: `tasks/WP06-cli-commands.md`
 **Owner**: codex (shell_pid: multiple)
 **Reviewer**: sonnet-4.5
 **Duration**: Days 4-5
@@ -182,7 +182,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP07: GitHub Client and Init Command [Priority: P3] [P] ✅
 **Goal**: Extract GitHub operations and refactor the complex init command
-**Prompt**: `tasks/done/WP07-github-init.md`
+**Prompt**: `tasks/WP07-github-init.md`
 **Owner**: codex (shell_pid: multiple)
 **Reviewer**: sonnet-4.5
 **Duration**: Days 4-5
@@ -212,7 +212,7 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 
 #### WP08: Integration and Cleanup [Priority: P4] ✅
 **Goal**: Update main __init__.py, fix imports, and ensure everything works together
-**Prompt**: `tasks/done/WP08-integration-cleanup.md`
+**Prompt**: `tasks/WP08-integration-cleanup.md`
 **Owner**: sonnet-4.5 (shell_pid: 50329)
 **Reviewer**: sonnet-4.5
 **Duration**: Day 6
@@ -305,3 +305,15 @@ This allows the team to validate the approach before committing to the full refa
 - Each work package has a corresponding prompt file in tasks/planned/
 - Agents must sync at end of each day to avoid drift
 - Keep original files as reference until WP08 cleanup
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+<!-- status-model:end -->

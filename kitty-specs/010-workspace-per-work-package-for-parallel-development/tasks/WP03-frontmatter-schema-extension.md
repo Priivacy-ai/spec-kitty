@@ -2,19 +2,7 @@
 work_package_id: WP03
 title: Frontmatter Schema Extension
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: team
-assignee: team
 dependencies: [WP01]
-phase: Phase 0 - Test Infrastructure
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
 subtasks:
 - T016
 - T017
@@ -22,6 +10,18 @@ subtasks:
 - T019
 - T020
 - T021
+phase: Phase 0 - Test Infrastructure
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Frontmatter Schema Extension

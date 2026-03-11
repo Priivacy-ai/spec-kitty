@@ -2,8 +2,9 @@
   "event_count": 35,
   "feature_slug": "047-namespace-aware-artifact-body-sync",
   "last_event_id": "01KK91WAH9GSGFNC7PNF0YHAZF",
-  "materialized_at": "2026-03-09T10:21:58.185546+00:00",
+  "materialized_at": "2026-03-11T07:08:20.197448+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

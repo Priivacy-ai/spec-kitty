@@ -2,6 +2,19 @@
 work_package_id: WP03
 title: Replace Existing Implementation
 lane: done
+dependencies: []
+subtasks:
+- T016
+- T017
+- T018
+- T019
+- T020
+- T021
+- T022
+phase: Phase 3 - Integration
+assignee: claude
+agent: claude
+shell_pid: '62660'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
@@ -18,18 +31,6 @@ history:
   agent: claude
   shell_pid: '61538'
   action: Completed WP03 - Ready for review
-agent: claude
-assignee: claude
-phase: Phase 3 - Integration
-shell_pid: '62660'
-subtasks:
-- T016
-- T017
-- T018
-- T019
-- T020
-- T021
-- T022
 ---
 *Path: [tasks/planned/WP03-replace-existing-implementation.md](tasks/planned/WP03-replace-existing-implementation.md)*
 

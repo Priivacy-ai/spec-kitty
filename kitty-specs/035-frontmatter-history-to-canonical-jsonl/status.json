@@ -2,8 +2,9 @@
   "event_count": 18,
   "feature_slug": "035-frontmatter-history-to-canonical-jsonl",
   "last_event_id": "01KH0P68T8TDMGD0BVRTP34GVQ",
-  "materialized_at": "2026-02-09T07:52:22.088732+00:00",
+  "materialized_at": "2026-03-11T07:08:19.478225+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

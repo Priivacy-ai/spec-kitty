@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-title: "Fixture Data Structures"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "10945"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP03
+title: Fixture Data Structures
+lane: done
 dependencies: []
+subtasks:
+- T010
+- T011
+- T012
+- T013
+- T014
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '10945'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-19T09:30:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-19T09:30:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Fixture Data Structures

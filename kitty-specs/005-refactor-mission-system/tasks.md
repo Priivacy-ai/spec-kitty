@@ -13,7 +13,7 @@
 
 **Goal**: Extract duplicated worktree location checks to shared `src/specify_cli/guards.py` module, eliminating 60+ lines of duplication across 8 command prompt files.
 **Independent Test**: Run `/spec-kitty.plan` from main branch and verify it fails with standardized error from guards module.
-**Prompt**: `/tasks/planned/phase-1-foundation/WP01-guards-module-preflight-validation.md`
+**Prompt**: `/tasks/WP01-guards-module-preflight-validation.md`
 
 ### Included Subtasks
 - [X] T001 Create `src/specify_cli/guards.py` module with docstring and imports
@@ -46,7 +46,7 @@
 
 **Goal**: Add Pydantic v2 models to `src/specify_cli/mission.py` for mission.yaml validation, catching typos and structural errors with clear error messages.
 **Independent Test**: Create mission.yaml with intentional typo (`validaton:`), verify Pydantic raises clear validation error.
-**Prompt**: `/tasks/planned/phase-1-foundation/WP02-pydantic-mission-schema.md`
+**Prompt**: `/tasks/WP02-pydantic-mission-schema.md`
 
 ### Included Subtasks
 - [X] T008 Add `pydantic>=2.0` to pyproject.toml or requirements.txt
@@ -85,7 +85,7 @@
 
 **Goal**: Implement `spec-kitty mission` command group with subcommands: list, current, switch, info.
 **Independent Test**: Run `spec-kitty mission list` and verify it displays software-dev and research missions.
-**Prompt**: `/tasks/planned/phase-2-mission-cli/WP03-mission-cli-commands.md`
+**Prompt**: `/tasks/WP03-mission-cli-commands.md`
 
 ### Included Subtasks
 - [X] T017 Create `src/specify_cli/cli/commands/mission.py` with Typer app
@@ -121,7 +121,7 @@
 
 **Goal**: Update research mission templates to be production-ready with complete sections, research-specific prompts, and integrated CSV tracking.
 **Independent Test**: Initialize `--mission research` project, run full workflow (specify → accept), verify all templates work without errors.
-**Prompt**: `/tasks/planned/phase-3-research-mission/WP04-research-mission-templates.md`
+**Prompt**: `/tasks/WP04-research-mission-templates.md`
 
 ### Included Subtasks
 - [X] T025 [P] Update `.kittify/missions/research/templates/spec-template.md` with research question format
@@ -154,7 +154,7 @@
 
 **Goal**: Create citation validation module enforcing bibliography completeness and format quality in research mission.
 **Independent Test**: Create evidence-log.csv with valid/invalid citations, run validation, verify clear errors for problems.
-**Prompt**: `/tasks/planned/phase-3-research-mission/WP05-research-citation-validators.md`
+**Prompt**: `/tasks/WP05-research-citation-validators.md`
 
 ### Included Subtasks
 - [X] T031 Create `src/specify_cli/validators/` directory
@@ -191,7 +191,7 @@
 
 **Goal**: Remove duplicated pre-flight checks from 8 command prompt files, replace with Python validation calls.
 **Independent Test**: Run commands from wrong location, verify they fail with guards.py error.
-**Prompt**: `/tasks/planned/phase-4-integration/WP06-update-command-prompts.md`
+**Prompt**: `/tasks/WP06-update-command-prompts.md`
 
 ### Included Subtasks
 - [X] T041 Update `.kittify/missions/software-dev/commands/plan.md` - replace inline checks with Python call
@@ -227,7 +227,7 @@
 
 **Goal**: Implement path convention validation with progressive enforcement (warnings at switch, errors at acceptance).
 **Independent Test**: Create project without `src/` directory, run validation, verify clear warning with suggestion.
-**Prompt**: `/tasks/planned/phase-4-integration/WP07-path-convention-validation.md`
+**Prompt**: `/tasks/WP07-path-convention-validation.md`
 
 ### Included Subtasks
 - [X] T049 Create `src/specify_cli/validators/paths.py` module
@@ -263,7 +263,7 @@
 
 **Goal**: Clarify Project/Feature/Mission terminology across all documentation, add glossary, ensure consistent usage.
 **Independent Test**: Search README for term usage, verify consistent definitions.
-**Prompt**: `/tasks/planned/phase-5-polish/WP08-documentation-terminology.md`
+**Prompt**: `/tasks/WP08-documentation-terminology.md`
 
 ### Included Subtasks
 - [X] T057 [P] Add glossary section to README.md with Project/Feature/Mission definitions
@@ -297,7 +297,7 @@
 
 **Goal**: Add active mission display to dashboard header with manual refresh button.
 **Independent Test**: View dashboard, verify mission shown, switch missions, refresh, verify update.
-**Prompt**: `/tasks/planned/phase-5-polish/WP09-dashboard-mission-display.md`
+**Prompt**: `/tasks/WP09-dashboard-mission-display.md`
 
 ### Included Subtasks
 - [X] T062 Update `src/specify_cli/dashboard/server.py` to include mission in context
@@ -330,7 +330,7 @@
 
 **Goal**: Create integration tests validating end-to-end mission switching and research workflows.
 **Independent Test**: Run integration test suite, verify all scenarios pass.
-**Prompt**: `/tasks/planned/phase-6-testing/WP10-integration-testing.md`
+**Prompt**: `/tasks/WP10-integration-testing.md`
 
 ### Included Subtasks
 - [X] T068 Create `tests/integration/test_mission_switching.py`
@@ -496,3 +496,16 @@ Phase 3 - Integration (Days 6-7):
 **Parallel-Safe**: 45 subtasks marked [P] (59%)
 **Critical Path**: WP01 → WP06 → WP10 (3-4 days)
 **With Parallelization**: 6-8 days total
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+<!-- status-model:end -->

@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Reference Documentation
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-title: "Reference Documentation"
-phase: "Phase 1 - MVP Content"
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "35960"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T004
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+phase: Phase 1 - MVP Content
+assignee: ''
+agent: codex
+shell_pid: '35960'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Reference Documentation

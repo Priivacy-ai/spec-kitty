@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Explanations & Validation
+lane: done
+dependencies: [WP01, WP02, WP03, WP04, WP05]
 subtasks:
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-title: "Explanations & Validation"
-phase: "Phase 3 - Polish"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "75825"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01", "WP02", "WP03", "WP04", "WP05"]
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+phase: Phase 3 - Polish
+assignee: ''
+agent: claude
+shell_pid: '75825'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Explanations & Validation

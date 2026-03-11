@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP02"
-title: "Pre-flight Validation"
-phase: "Phase 1 - User Story 1 (P1)"
+work_package_id: WP02
+title: Pre-flight Validation
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T026"
-  - "T027"
-dependencies: ["WP01"]
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "9049"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T003
+- T004
+- T005
+- T006
+- T026
+- T027
+phase: Phase 1 - User Story 1 (P1)
+assignee: ''
+agent: codex
+shell_pid: '9049'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T10:37:13Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T10:37:13Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Pre-flight Validation

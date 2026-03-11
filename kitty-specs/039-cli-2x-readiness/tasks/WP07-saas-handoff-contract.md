@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: SaaS handoff contract document
-lane: "done"
+lane: done
 dependencies:
 - WP02
 base_branch: 039-cli-2x-readiness-WP02
@@ -15,10 +15,10 @@ subtasks:
 - T033
 phase: Wave 2 - Dependent
 assignee: ''
-agent: "wp07-reviewer"
-shell_pid: "75824"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp07-reviewer
+shell_pid: '75824'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

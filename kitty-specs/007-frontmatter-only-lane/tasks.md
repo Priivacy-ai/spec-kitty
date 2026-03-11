@@ -338,3 +338,13 @@ WP01 (Foundation) ──┬──→ WP02 (CLI) ────────┬─�
 | T033 | Create test_migration.py | WP06 | P2 | Yes |
 | T034 | Update test_scanner.py | WP06 | P2 | Yes |
 | T035 | Run full test suite and fix regressions | WP06 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+<!-- status-model:end -->

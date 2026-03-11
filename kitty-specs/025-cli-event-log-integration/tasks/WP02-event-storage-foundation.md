@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -16,10 +16,10 @@ subtasks:
 - T012
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "codex"
-shell_pid: "14744"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '14744'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

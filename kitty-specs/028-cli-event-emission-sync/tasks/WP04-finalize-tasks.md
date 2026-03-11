@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Finalize-Tasks Integration
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -14,10 +14,10 @@ subtasks:
 - T022
 phase: Phase 2 - Command Wiring
 assignee: ''
-agent: "claude-opus"
-shell_pid: "41706"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '41706'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned

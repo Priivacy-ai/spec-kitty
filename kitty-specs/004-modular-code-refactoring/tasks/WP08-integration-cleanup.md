@@ -1,20 +1,7 @@
 ---
 work_package_id: WP08
 lane: done
-priority: P4
-tags:
-- integration
-- cleanup
-- final
-- sequential
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-agent: sonnet-4.5
-assignee: sonnet-4.5
-phases: polish
-shell_pid: '50329'
+dependencies: []
 subtasks:
 - T070
 - T071
@@ -26,7 +13,21 @@ subtasks:
 - T077
 - T078
 - T079
+assignee: sonnet-4.5
+agent: sonnet-4.5
+shell_pid: '50329'
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+phases: polish
+priority: P4
 subtitle: Final integration and cleanup
+tags:
+- integration
+- cleanup
+- final
+- sequential
 work_package_title: Integration and Cleanup
 ---
 

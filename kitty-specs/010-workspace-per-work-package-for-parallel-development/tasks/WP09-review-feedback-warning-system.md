@@ -2,19 +2,7 @@
 work_package_id: WP09
 title: Review Feedback Warning System
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: team
-assignee: team
 dependencies: [WP01, WP03, WP05]
-phase: Phase 3 - Quality & Polish
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
 subtasks:
 - T079
 - T080
@@ -23,6 +11,18 @@ subtasks:
 - T083
 - T084
 - T085
+phase: Phase 3 - Quality & Polish
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP09 – Review Feedback Warning System

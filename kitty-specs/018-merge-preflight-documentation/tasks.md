@@ -189,3 +189,11 @@
 | T028 | Update accept-and-merge.md links | WP04 | P3 | Yes |
 | T029 | Verify command examples | WP04 | P3 | No |
 | T030 | Final style consistency check | WP04 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+<!-- status-model:end -->

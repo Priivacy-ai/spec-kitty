@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Squash Survivors — Batch 2 (merge/, core/)
-lane: "done"
+lane: done
 dependencies:
 - WP03
 subtasks:

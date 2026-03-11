@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Integration & Cross-References
+lane: done
+dependencies: [WP01, WP02, WP03]
 subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-title: "Integration & Cross-References"
-phase: "Phase 3 - Polish"
-lane: "done"
-dependencies: ["WP01", "WP02", "WP03"]
-assignee: ""
-agent: "claude"
-shell_pid: "94502"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+phase: Phase 3 - Polish
+assignee: ''
+agent: claude
+shell_pid: '94502'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T13:21:55Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T13:21:55Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Integration & Cross-References

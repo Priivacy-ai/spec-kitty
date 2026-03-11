@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP06"
-title: "Implement Command Update"
+work_package_id: WP06
+title: Implement Command Update
+lane: done
+dependencies: [WP03, WP04]
 subtasks:
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-phase: "Phase 2 - Command Updates"
-lane: "done"
-priority: "P1"
-dependencies: ["WP03", "WP04"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "16163"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+phase: Phase 2 - Command Updates
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '16163'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P1
 ---
 
 # Work Package Prompt: WP06 – Implement Command Update

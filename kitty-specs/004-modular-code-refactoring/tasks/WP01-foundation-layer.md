@@ -1,25 +1,7 @@
 ---
 work_package_id: WP01
 lane: done
-priority: P1
-tags:
-- foundation
-- blocking
-- sequential
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-- date: 2025-11-11
-  status: approved
-  by: claude
-  notes: Review approved - all modules properly integrated and tested
-agent: codex
-assignee: codex
-phases: setup
-reviewer_agent: claude
-reviewer_shell_pid: claude
-shell_pid: '18347'
+dependencies: []
 subtasks:
 - T001
 - T002
@@ -30,7 +12,26 @@ subtasks:
 - T007
 - T008
 - T009
+assignee: codex
+agent: codex
+shell_pid: '18347'
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+- date: 2025-11-11
+  status: approved
+  by: claude
+  notes: Review approved - all modules properly integrated and tested
+phases: setup
+priority: P1
+reviewer_agent: claude
+reviewer_shell_pid: claude
 subtitle: Core infrastructure modules
+tags:
+- foundation
+- blocking
+- sequential
 work_package_title: Foundation Layer
 ---
 

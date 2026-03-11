@@ -67,3 +67,8 @@
 | T005       | Test is_legacy_format (new) | WP01 | P1 | Yes |
 | T006       | Test is_legacy_format (legacy) | WP01 | P1 | Yes |
 | T007       | Regression verification | WP01 | P1 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+<!-- status-model:end -->

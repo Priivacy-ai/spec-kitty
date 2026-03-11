@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP02"
-subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Research Cursor CLI"
-phase: "Phase 1 - Agent Investigation"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "27736"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP02
+title: Research Cursor CLI
+lane: done
 dependencies: []
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Phase 1 - Agent Investigation
+assignee: ''
+agent: claude-opus
+shell_pid: '27736'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Research Cursor CLI

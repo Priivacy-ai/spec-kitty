@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Jujutsu Workflow Tutorial
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-title: "Jujutsu Workflow Tutorial"
-phase: "Phase 1 - MVP Content"
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "35960"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+- T019
+phase: Phase 1 - MVP Content
+assignee: ''
+agent: codex
+shell_pid: '35960'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Jujutsu Workflow Tutorial

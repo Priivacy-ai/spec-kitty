@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Legacy Bridge (Compatibility Views)
-lane: "done"
+lane: done
 dependencies:
 - WP03
 base_branch: 2.x
@@ -16,9 +16,9 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: "50563"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+shell_pid: '50563'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

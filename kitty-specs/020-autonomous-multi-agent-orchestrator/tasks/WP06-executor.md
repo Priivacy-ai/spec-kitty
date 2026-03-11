@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-title: "Executor"
-phase: "Phase 2 - Core Logic"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "50038"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP06
+title: Executor
+lane: done
 dependencies:
-  - "WP02"
-  - "WP03"
-  - "WP04"
+- WP02
+- WP03
+- WP04
+subtasks:
+- T027
+- T028
+- T029
+- T030
+- T031
+phase: Phase 2 - Core Logic
+assignee: ''
+agent: claude-opus
+shell_pid: '50038'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Executor

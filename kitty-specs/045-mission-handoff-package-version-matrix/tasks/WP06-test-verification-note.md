@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Test Run + Verification Note
-lane: "done"
+lane: done
 dependencies: [WP02, WP03, WP04, WP05]
 base_branch: 2.x
 base_commit: 21a6cf3bce5293de281d8f0b2a272ab505eae166

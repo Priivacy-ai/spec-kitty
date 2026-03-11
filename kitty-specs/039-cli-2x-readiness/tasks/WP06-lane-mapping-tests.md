@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Test and document 7-to-4 lane collapse mapping
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 93014a047608b387e301437a965f3c6944fcef7f
@@ -13,10 +13,10 @@ subtasks:
 - T028
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp06-reviewer"
-shell_pid: "53766"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp06-reviewer
+shell_pid: '53766'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

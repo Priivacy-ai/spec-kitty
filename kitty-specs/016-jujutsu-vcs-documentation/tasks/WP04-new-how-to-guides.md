@@ -1,24 +1,24 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: New How-To Guides
+lane: done
+dependencies: [WP01, WP02]
 subtasks:
-  - "T020"
-  - "T021"
-  - "T022"
-title: "New How-To Guides"
-phase: "Phase 1 - MVP Content"
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "40527"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01", "WP02"]
+- T020
+- T021
+- T022
+phase: Phase 1 - MVP Content
+assignee: ''
+agent: codex
+shell_pid: '40527'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – New How-To Guides

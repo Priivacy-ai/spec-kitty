@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Integration Tests
-lane: "done"
+lane: done
 dependencies: [WP01, WP02, WP04, WP05]
 base_branch: 032-identity-aware-cli-event-sync-WP05
 base_commit: d33c73c5a1e39aeb7f97aefec13efba66c6287fe
@@ -15,10 +15,10 @@ subtasks:
 - T032
 phase: Phase 4 - Validation
 assignee: ''
-agent: "codex"
-shell_pid: "49562"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '49562'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned

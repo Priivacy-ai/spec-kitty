@@ -260,3 +260,13 @@ WP01 (Setup)
 | T027 | Add --feature flag for main-branch invocation | WP02 | P1 | No |
 | T028 | Ensure cleanup continues on partial failure | WP05 | P3 | No |
 | T029 | Update slash command templates for all agents | WP05 | P3 | Yes |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: in_progress
+- WP04: in_progress
+- WP05: in_progress
+- WP06: done
+<!-- status-model:end -->

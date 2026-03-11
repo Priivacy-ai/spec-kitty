@@ -19,7 +19,7 @@
 
 **Goal**: Add `get_mission_for_feature()` function and update mission discovery to support per-feature resolution.
 **Independent Test**: Unit tests pass for new mission resolution functions; can load mission from a feature's meta.json.
-**Prompt**: `tasks/planned/WP01-core-mission-discovery.md`
+**Prompt**: `tasks/WP01-core-mission-discovery.md`
 
 ### Included Subtasks
 - [ ] T001 Add `get_mission_for_feature()` function in `src/specify_cli/mission.py`
@@ -52,7 +52,7 @@
 
 **Goal**: Update `create-new-feature.sh` to accept `--mission <key>` parameter and write mission to meta.json.
 **Independent Test**: Run script with `--mission research` and verify meta.json contains `"mission": "research"`.
-**Prompt**: `tasks/planned/WP02-script-mission-parameter.md`
+**Prompt**: `tasks/WP02-script-mission-parameter.md`
 
 ### Included Subtasks
 - [ ] T006 Add `--mission` flag parsing in `.kittify/scripts/bash/create-new-feature.sh`
@@ -82,7 +82,7 @@
 
 **Goal**: Update `/spec-kitty.specify` prompt to include mission inference and pass `--mission` flag to script.
 **Independent Test**: Run `/spec-kitty.specify` with software description, verify LLM suggests software-dev mission and stores it in meta.json.
-**Prompt**: `tasks/planned/WP03-specify-command-integration.md`
+**Prompt**: `tasks/WP03-specify-command-integration.md`
 
 ### Included Subtasks
 - [ ] T011 Add mission inference section to `.kittify/missions/software-dev/command-templates/specify.md`
@@ -120,7 +120,7 @@
 
 **Goal**: Update all downstream commands to read mission from feature's meta.json instead of project-level active-mission.
 **Independent Test**: Run `/spec-kitty.plan` on a feature with `"mission": "research"` and verify research templates are used.
-**Prompt**: `tasks/planned/WP04-downstream-command-updates.md`
+**Prompt**: `tasks/WP04-downstream-command-updates.md`
 
 ### Included Subtasks
 - [ ] T017 Identify all files calling `get_active_mission()`
@@ -155,7 +155,7 @@
 
 **Goal**: Remove deprecated mission switch command and clean up init command.
 **Independent Test**: Running `spec-kitty mission switch` returns helpful error; `spec-kitty init` works without mission prompt.
-**Prompt**: `tasks/planned/WP05-deprecation-and-cleanup.md`
+**Prompt**: `tasks/WP05-deprecation-and-cleanup.md`
 
 ### Included Subtasks
 - [ ] T025 Remove `switch` subcommand from `src/specify_cli/cli/commands/mission.py`
@@ -186,7 +186,7 @@
 
 **Goal**: Add migration to upgrade command and prepare v0.8.0 release.
 **Independent Test**: Running `spec-kitty upgrade` on project with `.kittify/active-mission` removes the file; version shows 0.8.0.
-**Prompt**: `tasks/planned/WP06-migration-and-release.md`
+**Prompt**: `tasks/WP06-migration-and-release.md`
 
 ### Included Subtasks
 - [ ] T031 Add migration step to `spec-kitty upgrade` to remove `.kittify/active-mission`
@@ -274,3 +274,13 @@ WP01 (Core Discovery) ─┬─► WP02 (Script Parameter) ─► WP03 (Specify 
 | T034 | Update README | WP06 | P2 | Yes |
 | T035 | Update other docs | WP06 | P2 | Yes |
 | T036 | Final validation | WP06 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+<!-- status-model:end -->

@@ -15,7 +15,7 @@
 
 **Goal**: Ship a deterministic CLI (`scripts/release/validate_release.py`) that verifies version, changelog, and tag alignment for both branch and tag contexts.  
 **Independent Test**: `python -m pytest tests/release/test_validate_release.py` passes and `python scripts/release/validate_release.py --tag vX.Y.Z --changelog CHANGELOG.md` exits 0 on a prepared release branch.  
-**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md`
+**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/WP01-release-validation-tooling.md`
 
 ### Included Subtasks
 - [X] T001 Implement `scripts/release/validate_release.py` with branch/tag modes, changelog parsing, semantic version comparisons, and actionable errors. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP01-release-validation-tooling.md`)
@@ -43,7 +43,7 @@
 
 **Goal**: Automate tag-triggered builds via `.github/workflows/release.yml`, producing validated artifacts and publishing to PyPI with `PYPI_API_TOKEN`.  
 **Independent Test**: Create a dry-run tag (`vX.Y.Z`) with secrets disabled; workflow should execute through validation/build/check steps and halt gracefully before publish when token missing, logging remediation guidance.  
-**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md`
+**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/WP02-pypi-release-automation.md`
 
 ### Included Subtasks
 - [X] T003 Update packaging metadata in `pyproject.toml` (readme, project URLs, classifiers) and ensure `CHANGELOG.md` links release notes for PyPI presentation. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP02-pypi-release-automation.md`)
@@ -72,7 +72,7 @@
 
 **Goal**: Enforce branch readiness and reject direct pushes to `main` using GitHub Actions checks prior to tagging.  
 **Independent Test**: Open a PR with mismatched version/changelog—`release-readiness` workflow fails with validator output. Attempt a direct push to `main` locally—the guard workflow fails and surfaces remediation guidance.  
-**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md`
+**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/WP03-release-readiness-guardrails.md`
 
 ### Included Subtasks
 - [X] T005 [P] Add `.github/workflows/release-readiness.yml` (pull_request + workflow_dispatch) to execute tests, run the validator in branch mode, and surface checklist reminders in the job summary. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP03-release-readiness-guardrails.md`)
@@ -100,7 +100,7 @@
 
 **Goal**: Document the automated pipeline, secret management, and maintainer workflow across README and docs.  
 **Independent Test**: New maintainer can follow updated docs to configure `PYPI_API_TOKEN`, run readiness checklist, and understand branch protection expectations without external coaching.  
-**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP04-documentation-and-secret-hygiene.md`
+**Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/WP04-documentation-and-secret-hygiene.md`
 
 ### Included Subtasks
 - [X] T007 [P] Expand documentation (`docs/index.md`, `docs/toc.yml`, `docs/releases/readiness-checklist.md`, `scripts/release/README.md`) to reference the validator, workflows, and rotation cadence. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP04-documentation-and-secret-hygiene.md`)
@@ -144,3 +144,11 @@
 | T008 | Update README with automated release guidance | WP04 | P1 | Yes |
 
 ---
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+<!-- status-model:end -->

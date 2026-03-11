@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: "done"
+lane: done
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -17,10 +17,10 @@ subtasks:
 - T043
 phase: Phase 4 - Validation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "83862"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '83862'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned

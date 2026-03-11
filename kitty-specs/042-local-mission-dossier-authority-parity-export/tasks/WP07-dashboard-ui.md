@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Dashboard UI Integration
-lane: "done"
+lane: done
 dependencies:
 - WP06
 base_branch: 042-local-mission-dossier-authority-parity-export-WP06
@@ -14,11 +14,11 @@ subtasks:
 - T037
 - T038
 - T039
+agent: coordinator
+shell_pid: '3863'
+review_status: approved
+reviewed_by: Robert Douglass
 feature_slug: 042-local-mission-dossier-authority-parity-export
-shell_pid: "3863"
-agent: "coordinator"
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 ---
 
 # WP07: Dashboard UI Integration

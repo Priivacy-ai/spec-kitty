@@ -1,16 +1,16 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
 created_at: '2026-02-16T14:05:12.902282+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
-agent: "codex"
-shell_pid: "80719"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '80719'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'

@@ -347,3 +347,16 @@
 | T042 | Implement full E2E test sequence | WP09 | P0 | No |
 | T043 | Add pytest.mark.e2e marker | WP09 | P0 | Yes |
 | T044 | Verify test passes locally | WP09 | P0 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+<!-- status-model:end -->

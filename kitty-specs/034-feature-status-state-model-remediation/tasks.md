@@ -696,3 +696,24 @@ This gives: models, store, reducer, lane expansion, legacy bridge, emit orchestr
 | T090 | Parity/delta table in report | WP17 | P3 | Yes |
 | T091 | Risk register and rollback plan | WP17 | P3 | Yes |
 | T092 | Validate quickstart.md scenario | WP17 | P3 | Yes |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+- WP11: done
+- WP12: done
+- WP13: done
+- WP14: done
+- WP15: done
+- WP16: done
+- WP17: done
+<!-- status-model:end -->

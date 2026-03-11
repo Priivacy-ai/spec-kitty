@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SyncRuntime Lazy Singleton
-lane: "done"
+lane: done
 dependencies: [WP02]
 base_branch: 032-identity-aware-cli-event-sync-WP02
 base_commit: bd4f06a514bfcaa0d68b6ea3b4e24e0371ea2945
@@ -15,10 +15,10 @@ subtasks:
 - T021
 phase: Phase 2 - Runtime Bootstrap
 assignee: ''
-agent: "codex"
-shell_pid: "25757"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '25757'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned

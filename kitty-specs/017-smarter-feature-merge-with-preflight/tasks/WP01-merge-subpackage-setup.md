@@ -1,23 +1,23 @@
 ---
-work_package_id: "WP01"
-title: "Merge Subpackage Setup"
-phase: "Phase 0 - Foundation"
-subtasks:
-  - "T001"
-  - "T002"
+work_package_id: WP01
+title: Merge Subpackage Setup
+lane: done
 dependencies: []
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "9049"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+subtasks:
+- T001
+- T002
+phase: Phase 0 - Foundation
+assignee: ''
+agent: codex
+shell_pid: '9049'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T10:37:13Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T10:37:13Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Merge Subpackage Setup

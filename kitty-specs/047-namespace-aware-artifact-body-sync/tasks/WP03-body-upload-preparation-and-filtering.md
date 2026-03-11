@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Body Upload Preparation & Filtering
-lane: "done"
+lane: done
 dependencies: [WP01, WP02]
 base_branch: 047-namespace-aware-artifact-body-sync-WP03-merge-base
 base_commit: ab125a790b2bbd1290f8fa047688ae68978a2c92
@@ -17,8 +17,8 @@ phase: Phase 2 - Core Logic
 assignee: ''
 agent: claude-opus
 shell_pid: '52547'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

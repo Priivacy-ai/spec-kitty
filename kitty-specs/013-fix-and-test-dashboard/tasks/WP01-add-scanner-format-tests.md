@@ -1,27 +1,28 @@
 ---
-work_package_id: "WP01"
+work_package_id: WP01
+title: Add Scanner Format Tests
+lane: done
+dependencies: []
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Add Scanner Format Tests"
-phase: "Phase 1 - Test Coverage"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "89648"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+phase: Phase 1 - Test Coverage
+assignee: ''
+agent: claude
+shell_pid: '89648'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T13:44:43Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T13:44:43Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Add Scanner Format Tests

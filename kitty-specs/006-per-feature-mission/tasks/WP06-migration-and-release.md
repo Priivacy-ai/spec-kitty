@@ -2,18 +2,7 @@
 work_package_id: WP06
 title: Migration and Release
 lane: done
-history:
-- timestamp: '2025-12-15T11:55:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: ''
-assignee: ''
-phase: Phase 5 - Release
-review_status: ''
-reviewed_by: ''
-shell_pid: ''
+dependencies: []
 subtasks:
 - T031
 - T032
@@ -21,6 +10,18 @@ subtasks:
 - T034
 - T035
 - T036
+phase: Phase 5 - Release
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2025-12-15T11:55:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Migration and Release

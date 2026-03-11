@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP02"
-subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Agent Invokers - Core Agents"
-phase: "Phase 1 - Components"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "44441"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP02
+title: Agent Invokers - Core Agents
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Phase 1 - Components
+assignee: ''
+agent: claude-opus
+shell_pid: '44441'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Agent Invokers - Core Agents

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Store (JSONL I/O)
-lane: "done"
+lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -15,10 +15,10 @@ subtasks:
 - T010
 phase: Phase 0 - Foundation
 assignee: ''
-agent: "claude-wp02"
-shell_pid: "42565"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-wp02
+shell_pid: '42565'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

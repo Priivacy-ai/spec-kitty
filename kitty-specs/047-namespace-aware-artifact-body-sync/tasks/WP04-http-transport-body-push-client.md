@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: HTTP Transport - Body Push Client
-lane: "done"
+lane: done
 dependencies: [WP01]
 base_branch: 047-namespace-aware-artifact-body-sync-WP01
 base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
@@ -16,8 +16,8 @@ phase: Phase 2 - Core Logic
 assignee: ''
 agent: claude-opus
 shell_pid: '56289'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned

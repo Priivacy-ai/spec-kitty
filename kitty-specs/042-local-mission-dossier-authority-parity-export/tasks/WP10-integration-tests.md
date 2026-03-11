@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Integration & Edge Cases
-lane: "done"
+lane: done
 dependencies:
 - WP01
 - WP02
@@ -24,11 +24,11 @@ subtasks:
 - T056
 - T057
 - T058
+agent: coordinator
+shell_pid: '4443'
+review_status: approved
+reviewed_by: Robert Douglass
 feature_slug: 042-local-mission-dossier-authority-parity-export
-shell_pid: "4443"
-agent: "coordinator"
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 ---
 
 # WP10: Integration & Edge Cases

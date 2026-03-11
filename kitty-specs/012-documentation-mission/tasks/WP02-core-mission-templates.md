@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP02"
-subtasks:
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-title: "Core Mission Templates"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: "acknowledged"
-reviewed_by: "codex"
+work_package_id: WP02
+title: Core Mission Templates
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T008
+- T009
+- T010
+- T011
+phase: Phase 0 - Foundation
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: acknowledged
+reviewed_by: codex
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Core Mission Templates

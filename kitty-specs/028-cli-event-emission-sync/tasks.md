@@ -316,3 +316,14 @@
 ---
 
 > All placeholder text has been replaced with feature-specific content based on spec.md, plan.md, data-model.md, and contracts/events.schema.json.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+<!-- status-model:end -->

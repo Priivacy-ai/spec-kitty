@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP06"
-title: "Merge State & Resume"
-phase: "Phase 4 - User Story 6 (P4)"
+work_package_id: WP06
+title: Merge State & Resume
+lane: done
+dependencies: [WP03]
 subtasks:
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T025"
-dependencies: ["WP03"]
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "9049"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T017
+- T018
+- T019
+- T020
+- T025
+phase: Phase 4 - User Story 6 (P4)
+assignee: ''
+agent: codex
+shell_pid: '9049'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T10:37:13Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T10:37:13Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Merge State & Resume

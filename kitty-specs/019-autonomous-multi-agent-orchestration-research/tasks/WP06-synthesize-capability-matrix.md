@@ -1,33 +1,33 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-title: "Synthesize CLI Capability Matrix"
-phase: "Phase 2 - Synthesis"
-lane: "done"
-assignee: ""
-agent: "claude-wp06-reviewer"
-shell_pid: "30399"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP06
+title: Synthesize CLI Capability Matrix
+lane: done
 dependencies:
-  - "WP01"
-  - "WP02"
-  - "WP03"
-  - "WP04"
-  - "WP05"
+- WP01
+- WP02
+- WP03
+- WP04
+- WP05
+subtasks:
+- T024
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+phase: Phase 2 - Synthesis
+assignee: ''
+agent: claude-wp06-reviewer
+shell_pid: '30399'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Synthesize CLI Capability Matrix

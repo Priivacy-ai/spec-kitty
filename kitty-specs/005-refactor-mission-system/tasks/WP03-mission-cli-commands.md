@@ -2,16 +2,7 @@
 work_package_id: WP03
 title: Mission CLI Commands
 lane: done
-history:
-- timestamp: '2025-01-16T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: claude
-phase: Phase 2 - Mission CLI
-shell_pid: '88714'
+dependencies: []
 subtasks:
 - T017
 - T018
@@ -21,6 +12,16 @@ subtasks:
 - T022
 - T023
 - T024
+phase: Phase 2 - Mission CLI
+assignee: claude
+agent: claude
+shell_pid: '88714'
+history:
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Mission CLI Commands

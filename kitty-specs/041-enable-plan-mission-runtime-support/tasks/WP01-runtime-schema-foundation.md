@@ -1,19 +1,19 @@
 ---
 work_package_id: WP01
 title: Runtime Schema Foundation
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 7605f1577bdaa18cc2ab61c4f0fd5ba28fc1ae4c
 created_at: '2026-02-22T08:12:56.105802+00:00'
 subtasks: [T001, T002, T003, T016]
+agent: codex
+shell_pid: '92995'
+review_status: approved
+reviewed_by: Robert Douglass
 description: Create the runtime schema that enables plan mission discovery in the runtime loop
 estimated_duration: 1-2 hours
 priority: P0
-shell_pid: "92995"
-agent: "codex"
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 ---
 
 # WP01: Runtime Schema Foundation

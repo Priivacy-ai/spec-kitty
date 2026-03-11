@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Integration Updates
+lane: done
+dependencies: [WP02, WP03, WP04]
 subtasks:
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-title: "Integration Updates"
-phase: "Phase 2 - Integration"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "72761"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02", "WP03", "WP04"]
+- T023
+- T024
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+- T031
+phase: Phase 2 - Integration
+assignee: ''
+agent: claude
+shell_pid: '72761'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Integration Updates

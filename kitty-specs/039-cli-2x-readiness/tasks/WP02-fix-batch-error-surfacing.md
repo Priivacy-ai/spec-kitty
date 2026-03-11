@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Fix batch error surfacing and diagnostics
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: e33f4bdc95fe3778a35d961a0058e50a4a155643
@@ -16,10 +16,10 @@ subtasks:
 - T010
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp02-reviewer"
-shell_pid: "55202"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: wp02-reviewer
+shell_pid: '55202'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned

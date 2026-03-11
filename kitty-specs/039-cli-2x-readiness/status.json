@@ -2,8 +2,9 @@
   "event_count": 9,
   "feature_slug": "039-cli-2x-readiness",
   "last_event_id": "01KJ5V38X7CH1VS5CQAYH80BBG",
-  "materialized_at": "2026-02-23T18:10:00.744299+00:00",
+  "materialized_at": "2026-03-11T07:08:19.645515+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

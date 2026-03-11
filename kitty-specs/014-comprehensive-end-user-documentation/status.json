@@ -2,8 +2,9 @@
   "event_count": 11,
   "feature_slug": "014-comprehensive-end-user-documentation",
   "last_event_id": "01KJ5V38Q3ACN8M3DEB5D6BYR6",
-  "materialized_at": "2026-02-23T18:10:00.549440+00:00",
+  "materialized_at": "2026-03-11T07:08:18.318100+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: pytest Configuration
-lane: "done"
+lane: done
 dependencies:
 - WP01
 subtasks:
@@ -12,10 +12,10 @@ subtasks:
 - T030
 phase: Phase 1 - Core Tests
 assignee: ''
-agent: "claude-opus"
-shell_pid: "29153"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '29153'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

@@ -2,8 +2,9 @@
   "event_count": 11,
   "feature_slug": "003-auto-protect-agent",
   "last_event_id": "01KJ5V38JM9MQD0BHZ6Y3MKSKP",
-  "materialized_at": "2026-02-23T18:10:00.407519+00:00",
+  "materialized_at": "2026-03-11T07:08:17.491619+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

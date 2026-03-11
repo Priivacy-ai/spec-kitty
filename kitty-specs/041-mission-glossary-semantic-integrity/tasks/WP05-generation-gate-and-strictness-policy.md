@@ -1,14 +1,14 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
 created_at: '2026-02-16T15:38:23.226688+00:00'
 subtasks: [T021, T022, T023, T024]
-agent: "codex"
-shell_pid: "11394"
+agent: codex
+shell_pid: '11394'
 review_status: acknowledged
 reviewed_by: Robert Douglass
 history:

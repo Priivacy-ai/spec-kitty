@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-title: "Scheduler"
-phase: "Phase 2 - Core Logic"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "48486"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP05
+title: Scheduler
+lane: done
 dependencies:
-  - "WP01"
-  - "WP04"
+- WP01
+- WP04
+subtasks:
+- T022
+- T023
+- T024
+- T025
+- T026
+phase: Phase 2 - Core Logic
+assignee: ''
+agent: claude-opus
+shell_pid: '48486'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Scheduler

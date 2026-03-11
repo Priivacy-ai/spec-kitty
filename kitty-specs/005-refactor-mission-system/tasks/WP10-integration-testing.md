@@ -2,18 +2,7 @@
 work_package_id: WP10
 title: Integration Testing
 lane: done
-history:
-- timestamp: '2025-01-16T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: codex
-assignee: codex
-phase: Phase 6 - Testing
-review_status: ''
-reviewed_by: codex
-shell_pid: '59270'
+dependencies: []
 subtasks:
 - T068
 - T069
@@ -24,6 +13,18 @@ subtasks:
 - T074
 - T075
 - T076
+phase: Phase 6 - Testing
+assignee: codex
+agent: codex
+shell_pid: '59270'
+review_status: ''
+reviewed_by: codex
+history:
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 ## Review Feedback

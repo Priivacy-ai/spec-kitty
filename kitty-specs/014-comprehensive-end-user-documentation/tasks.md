@@ -394,3 +394,17 @@ WP02 (Landing & Navigation)
 | T045 | Review consistency | WP10 | P3 | Yes |
 | T046 | Update docfx.json | WP10 | P3 | No |
 | T047 | Final review vs spec | WP10 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+<!-- status-model:end -->

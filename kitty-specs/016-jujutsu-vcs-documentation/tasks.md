@@ -268,3 +268,13 @@ WP01 (Setup) ──────────────────────�
 | T035 | Test DocFX build locally | WP06 | P2 | No |
 | T036 | Verify all internal links | WP06 | P2 | No |
 | T037 | Verify search terms coverage | WP06 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+<!-- status-model:end -->

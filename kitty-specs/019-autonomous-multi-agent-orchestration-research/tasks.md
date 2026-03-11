@@ -328,3 +328,15 @@ WP05 (VS Code Ext)   ─┘
 | T042 | Document gaps & future research | WP08 | P1 | No |
 | T043 | Final quality gate verification | WP08 | P1 | No |
 | T044 | Update cross-references | WP08 | P1 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+<!-- status-model:end -->

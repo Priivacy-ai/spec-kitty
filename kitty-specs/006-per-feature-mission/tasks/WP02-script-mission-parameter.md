@@ -2,24 +2,25 @@
 work_package_id: WP02
 title: Script Mission Parameter
 lane: done
-history:
-- timestamp: '2025-12-15T11:55:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: ''
-phase: Phase 1 - Foundation
-review_status: ''
-reviewed_by: ''
-shell_pid: '41644'
+dependencies: []
 subtasks:
 - T006
 - T007
 - T008
 - T009
 - T010
+phase: Phase 1 - Foundation
+assignee: ''
+agent: claude
+shell_pid: '41644'
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2025-12-15T11:55:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Script Mission Parameter

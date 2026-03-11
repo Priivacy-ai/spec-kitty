@@ -6,5 +6,6 @@
   "source_description": "in a documentation mission, I want to prepare the docs site for the 2.x branch and pre-write the 2.x documentation but not publish it",
   "created_at": "2026-02-05T12:15:00Z",
   "target_branch": "main",
-  "vcs": "git"
+  "vcs": "git",
+  "feature_slug": "030-2x-sync-auth-docs"
 }

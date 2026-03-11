@@ -1,30 +1,31 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Mission Constitution Removal
+lane: done
+dependencies: []
 subtasks:
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-title: "Mission Constitution Removal"
-phase: "Feature - Track 1 Critical Safety"
-lane: "done"
-assignee: ""
-agent: "claude-sonnet-4-5"
-shell_pid: ""
-review_status: "approved"
-reviewed_by: "claude-sonnet-4-5"
+- T017
+- T018
+- T019
+- T020
+- T021
+phase: Feature - Track 1 Critical Safety
+assignee: ''
+agent: claude-sonnet-4-5
+shell_pid: ''
+review_status: approved
+reviewed_by: claude-sonnet-4-5
 history:
-  - timestamp: "2026-01-12T11:30:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2026-01-12T11:50:00Z"
-    lane: "done"
-    agent: "claude-sonnet-4-5"
-    shell_pid: ""
-    action: "Code review approved - constitution_dir removed from mission.py, constitution scanning removed from manifest.py, no mission constitution directories remain. 5/5 tests passed."
+- timestamp: '2026-01-12T11:30:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-12T11:50:00Z'
+  lane: done
+  agent: claude-sonnet-4-5
+  shell_pid: ''
+  action: Code review approved - constitution_dir removed from mission.py, constitution scanning removed from manifest.py, no mission constitution directories remain. 5/5 tests passed.
 ---
 
 # Work Package Prompt: WP03 – Mission Constitution Removal

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 title: Integration and Polish
-lane: "done"
+lane: done
 dependencies: []
 subtasks:
 - T056
@@ -11,10 +11,10 @@ subtasks:
 - T060
 phase: Phase 3 - Polish
 assignee: ''
-agent: "claude-opus"
-shell_pid: "67957"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '67957'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

@@ -284,3 +284,13 @@ WP06: Integration tests
 | T030 | Test config backfill | WP06 | P2 | Yes |
 | T031 | Test read-only fallback | WP06 | P2 | Yes |
 | T032 | Test no duplicate emissions | WP06 | P2 | Yes |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+<!-- status-model:end -->

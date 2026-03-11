@@ -451,3 +451,17 @@ WP01 (Dependency Graph) ─┬─→ WP02 (Migration Tests)
 ## Next Steps
 
 Run `/spec-kitty.implement WP01` to begin implementation following TDD approach (tests first!).
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+<!-- status-model:end -->

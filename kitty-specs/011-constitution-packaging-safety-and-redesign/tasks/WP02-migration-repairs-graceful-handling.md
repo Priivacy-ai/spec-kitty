@@ -1,32 +1,33 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Migration Repairs & Graceful Handling
+lane: done
+dependencies: []
 subtasks:
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-title: "Migration Repairs & Graceful Handling"
-phase: "Feature - Track 1 Critical Safety"
-lane: "done"
-assignee: ""
-agent: "claude-sonnet-4-5"
-shell_pid: ""
-review_status: "approved"
-reviewed_by: "claude-sonnet-4-5"
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+phase: Feature - Track 1 Critical Safety
+assignee: ''
+agent: claude-sonnet-4-5
+shell_pid: ''
+review_status: approved
+reviewed_by: claude-sonnet-4-5
 history:
-  - timestamp: "2026-01-12T11:30:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2026-01-12T11:45:00Z"
-    lane: "done"
-    agent: "claude-sonnet-4-5"
-    shell_pid: ""
-    action: "Code review approved - All migrations implemented correctly with graceful handling and idempotency. 21/21 tests passed."
+- timestamp: '2026-01-12T11:30:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-12T11:45:00Z'
+  lane: done
+  agent: claude-sonnet-4-5
+  shell_pid: ''
+  action: Code review approved - All migrations implemented correctly with graceful handling and idempotency. 21/21 tests passed.
 ---
 
 # Work Package Prompt: WP02 – Migration Repairs & Graceful Handling

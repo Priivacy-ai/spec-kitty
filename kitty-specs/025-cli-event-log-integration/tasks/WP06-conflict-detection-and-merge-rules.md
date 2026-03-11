@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Conflict Detection & Merge Rules
-lane: "done"
+lane: done
 dependencies: [WP05]
 base_branch: 025-cli-event-log-integration-WP05
 base_commit: 96e941d0bff07d34ec73e9dc8b865db2e12746fe
@@ -14,10 +14,10 @@ subtasks:
 - T035
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
-agent: "claude-wp06-reviewer"
-shell_pid: "21622"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-wp06-reviewer
+shell_pid: '21622'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

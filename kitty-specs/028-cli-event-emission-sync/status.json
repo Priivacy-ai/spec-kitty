@@ -2,8 +2,9 @@
   "event_count": 7,
   "feature_slug": "028-cli-event-emission-sync",
   "last_event_id": "01KJ5V38V68YESCE5WNNWX2PR4",
-  "materialized_at": "2026-02-23T18:10:00.679530+00:00",
+  "materialized_at": "2026-03-11T07:08:19.165275+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP07"
-title: "Sync Command"
+work_package_id: WP07
+title: Sync Command
+lane: done
+dependencies: [WP03, WP04]
 subtasks:
-  - "T039"
-  - "T040"
-  - "T041"
-  - "T042"
-  - "T043"
-  - "T044"
-phase: "Phase 2 - Command Updates"
-lane: "done"
-priority: "P2"
-dependencies: ["WP03", "WP04"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "16064"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+- T039
+- T040
+- T041
+- T042
+- T043
+- T044
+phase: Phase 2 - Command Updates
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '16064'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P2
 ---
 
 # Work Package Prompt: WP07 – Sync Command

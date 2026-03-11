@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP04"
-subtasks:
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-title: "State Management"
-phase: "Phase 1 - Components"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "47674"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP04
+title: State Management
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T017
+- T018
+- T019
+- T020
+- T021
+phase: Phase 1 - Components
+assignee: ''
+agent: claude-opus
+shell_pid: '47674'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T16:21:51Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T16:21:51Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – State Management

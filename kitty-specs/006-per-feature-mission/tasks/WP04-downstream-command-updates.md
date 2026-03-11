@@ -2,18 +2,7 @@
 work_package_id: WP04
 title: Downstream Command Updates
 lane: done
-history:
-- timestamp: '2025-12-15T11:55:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: ''
-assignee: ''
-phase: Phase 3 - Integration
-review_status: ''
-reviewed_by: ''
-shell_pid: ''
+dependencies: []
 subtasks:
 - T017
 - T018
@@ -23,6 +12,18 @@ subtasks:
 - T022
 - T023
 - T024
+phase: Phase 3 - Integration
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2025-12-15T11:55:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Downstream Command Updates

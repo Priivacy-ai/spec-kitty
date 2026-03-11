@@ -1,27 +1,27 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Fixture Loader
+lane: done
+dependencies: [WP03]
 subtasks:
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-title: "Fixture Loader"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "20551"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP03"]
+- T015
+- T016
+- T017
+- T018
+- T019
+- T020
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude-opus
+shell_pid: '20551'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-19T09:30:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-19T09:30:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Fixture Loader

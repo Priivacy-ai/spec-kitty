@@ -1,27 +1,28 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Integration Testing & Validation
+lane: done
+dependencies: []
 subtasks:
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-title: "Integration Testing & Validation"
-phase: "Integration - Quality Gate"
-lane: "done"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+- T040
+phase: Integration - Quality Gate
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-12T11:30:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T11:30:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Integration Testing & Validation

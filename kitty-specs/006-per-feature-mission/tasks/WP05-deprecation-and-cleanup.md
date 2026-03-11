@@ -2,18 +2,7 @@
 work_package_id: WP05
 title: Deprecation and Cleanup
 lane: done
-history:
-- timestamp: '2025-12-15T11:55:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: ''
-assignee: ''
-phase: Phase 4 - Cleanup
-review_status: ''
-reviewed_by: ''
-shell_pid: ''
+dependencies: []
 subtasks:
 - T025
 - T026
@@ -21,6 +10,18 @@ subtasks:
 - T028
 - T029
 - T030
+phase: Phase 4 - Cleanup
+assignee: ''
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2025-12-15T11:55:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Deprecation and Cleanup

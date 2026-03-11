@@ -2,19 +2,7 @@
 work_package_id: WP10
 title: Documentation and Migration Guide
 lane: done
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: team
-assignee: team
 dependencies: [WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP09]
-phase: Phase 3 - Quality & Polish
-review_status: ''
-reviewed_by: ''
-shell_pid: manual
 subtasks:
 - T086
 - T087
@@ -24,6 +12,18 @@ subtasks:
 - T091
 - T092
 - T093
+phase: Phase 3 - Quality & Polish
+assignee: team
+agent: team
+shell_pid: manual
+review_status: ''
+reviewed_by: ''
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP10 – Documentation and Migration Guide

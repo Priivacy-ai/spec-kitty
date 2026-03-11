@@ -2,16 +2,7 @@
 work_package_id: WP05
 title: Documentation and Polish
 lane: done
-history:
-- timestamp: '2025-11-10T10:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: claude
-phase: Phase 5 - Finalization
-shell_pid: '64252'
+dependencies: []
 subtasks:
 - T033
 - T034
@@ -21,6 +12,16 @@ subtasks:
 - T038
 - T039
 - T040
+phase: Phase 5 - Finalization
+assignee: claude
+agent: claude
+shell_pid: '64252'
+history:
+- timestamp: '2025-11-10T10:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 *Path: [tasks/planned/WP05-documentation-polish.md](tasks/planned/WP05-documentation-polish.md)*
 

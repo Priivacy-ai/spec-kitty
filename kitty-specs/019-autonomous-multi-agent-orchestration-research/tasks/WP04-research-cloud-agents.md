@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP04"
-subtasks:
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "Research Cloud/API Agents"
-phase: "Phase 1 - Agent Investigation"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "26919"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP04
+title: Research Cloud/API Agents
+lane: done
 dependencies: []
+subtasks:
+- T015
+- T016
+- T017
+- T018
+phase: Phase 1 - Agent Investigation
+assignee: ''
+agent: claude-opus
+shell_pid: '26919'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T14:41:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T14:41:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Research Cloud/API Agents

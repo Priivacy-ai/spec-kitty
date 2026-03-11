@@ -26,7 +26,7 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 
 **Goal**: Create the new GitignoreManager class with core functionality and agent registry.
 **Independent Test**: GitignoreManager can be imported and instantiated with a project path.
-**Prompt**: `/tasks/planned/WP01-create-gitignore-manager.md`
+**Prompt**: `/tasks/WP01-create-gitignore-manager.md`
 
 ### Included Subtasks
 - [ ] T001 Create `src/specify_cli/gitignore_manager.py` file with class skeleton
@@ -58,7 +58,7 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 
 **Goal**: Implement the core protection methods that add agent directories to .gitignore.
 **Independent Test**: Can successfully protect all agent directories in a test project.
-**Prompt**: `/tasks/planned/WP02-core-protection-methods.md`
+**Prompt**: `/tasks/WP02-core-protection-methods.md`
 
 ### Included Subtasks
 - [ ] T008 Implement protect_all_agents() method to add all directories
@@ -91,7 +91,7 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 
 **Goal**: Replace the old handle_codex_security and integrate GitignoreManager into init flow.
 **Independent Test**: Running spec-kitty init successfully protects all agent directories.
-**Prompt**: `/tasks/planned/WP03-replace-existing-implementation.md`
+**Prompt**: `/tasks/WP03-replace-existing-implementation.md`
 
 ### Included Subtasks
 - [ ] T016 Import GitignoreManager in src/specify_cli/__init__.py
@@ -123,7 +123,7 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 
 **Goal**: Create comprehensive test coverage for GitignoreManager.
 **Independent Test**: All tests pass with >90% coverage of new module.
-**Prompt**: `/tasks/planned/WP04-testing-infrastructure.md`
+**Prompt**: `/tasks/WP04-testing-infrastructure.md`
 
 ### Included Subtasks
 - [ ] T023 [P] Create tests/unit/test_gitignore_manager.py with test class structure
@@ -158,7 +158,7 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 
 **Goal**: Update documentation and finalize the feature.
 **Independent Test**: Documentation is accurate and examples work as described.
-**Prompt**: `/tasks/planned/WP05-documentation-polish.md`
+**Prompt**: `/tasks/WP05-documentation-polish.md`
 
 ### Included Subtasks
 - [ ] T033 Update CHANGELOG.md with feature description
@@ -243,3 +243,12 @@ description: "Work package task list for Auto-protect Agent Directories implemen
 ---
 
 > Work packages generated for Auto-protect Agent Directories feature implementation.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+<!-- status-model:end -->

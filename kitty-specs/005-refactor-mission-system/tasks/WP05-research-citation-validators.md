@@ -2,16 +2,7 @@
 work_package_id: WP05
 title: Research Citation Validators
 lane: done
-history:
-- timestamp: '2025-01-16T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
-agent: claude
-assignee: claude
-phase: Phase 3 - Research Mission
-shell_pid: '96219'
+dependencies: []
 subtasks:
 - T031
 - T032
@@ -23,6 +14,16 @@ subtasks:
 - T038
 - T039
 - T040
+phase: Phase 3 - Research Mission
+assignee: claude
+agent: claude
+shell_pid: '96219'
+history:
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Research Citation Validators

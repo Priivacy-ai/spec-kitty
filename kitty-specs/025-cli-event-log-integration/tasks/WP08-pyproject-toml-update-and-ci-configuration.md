@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: pyproject.toml Update & CI Configuration
-lane: "done"
+lane: done
 dependencies:
 - WP01
 base_branch: 025-cli-event-log-integration-WP01
@@ -15,10 +15,10 @@ subtasks:
 - T045
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
-agent: "codex"
-shell_pid: "14744"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '14744'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

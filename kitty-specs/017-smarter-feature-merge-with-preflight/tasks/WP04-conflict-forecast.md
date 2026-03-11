@@ -1,24 +1,24 @@
 ---
-work_package_id: "WP04"
-title: "Conflict Forecast"
-phase: "Phase 2 - User Story 2 (P2)"
+work_package_id: WP04
+title: Conflict Forecast
+lane: in_progress
+dependencies: [WP01, WP03]
 subtasks:
-  - "T007"
-  - "T008"
-  - "T009"
-dependencies: ["WP01", "WP03"]
-lane: "doing"
-assignee: ""
-agent: "codex"
-shell_pid: "9049"
-review_status: ""
-reviewed_by: ""
+- T007
+- T008
+- T009
+phase: Phase 2 - User Story 2 (P2)
+assignee: ''
+agent: codex
+shell_pid: '9049'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-18T10:37:13Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T10:37:13Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Conflict Forecast

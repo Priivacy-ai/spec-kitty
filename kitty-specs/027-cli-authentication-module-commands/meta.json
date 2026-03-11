@@ -8,5 +8,7 @@
   "extracted_from": "009-cli-saas-event-sync-dashboards",
   "priority": "P0",
   "vcs": "git",
-  "vcs_locked_at": "2026-02-03T16:08:22.598513+00:00"
+  "vcs_locked_at": "2026-02-03T16:08:22.598513+00:00",
+  "feature_slug": "027-cli-authentication-module-commands",
+  "target_branch": "2.x"
 }

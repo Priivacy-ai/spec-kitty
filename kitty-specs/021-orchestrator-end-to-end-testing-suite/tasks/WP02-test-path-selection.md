@@ -1,25 +1,25 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Test Path Selection
+lane: done
+dependencies: [WP01]
 subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-title: "Test Path Selection"
-phase: "Phase 0 - Foundation"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "13006"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP01"]
+- T006
+- T007
+- T008
+- T009
+phase: Phase 0 - Foundation
+assignee: ''
+agent: claude-opus
+shell_pid: '13006'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-19T09:30:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-19T09:30:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Test Path Selection

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP17
 title: Documentation & Final Report
-lane: "done"
+lane: done
 dependencies: [WP16]
 base_branch: 034-feature-status-state-model-remediation-WP16
 base_commit: 8347639aec1184f893a75c81e9d60c058914ba5d
@@ -16,9 +16,9 @@ subtasks:
 phase: Phase 3 - Delivery
 assignee: ''
 agent: ''
-shell_pid: "81788"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+shell_pid: '81788'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned

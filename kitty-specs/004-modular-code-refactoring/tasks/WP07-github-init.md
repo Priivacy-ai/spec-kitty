@@ -1,31 +1,7 @@
 ---
 work_package_id: WP07
 lane: done
-priority: P3
-tags:
-- github
-- init
-- complex
-- parallel
-- agent-f
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-- date: 2025-11-11T18:23:00Z
-  status: started
-  by: codex
-  shell_pid: '84843'
-  notes: Starting implementation
-agent: codex
-assignee: codex
-phases: story-based
-reviewed_by: agent-d
-reviewer:
-  agent: sonnet-4.5
-  shell_pid: '46891'
-  date: '2025-11-11T18:50:00Z'
-shell_pid: '84843'
+dependencies: []
 subtasks:
 - T060
 - T061
@@ -37,7 +13,32 @@ subtasks:
 - T067
 - T068
 - T069
+assignee: codex
+agent: codex
+shell_pid: '84843'
+reviewed_by: agent-d
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+- date: 2025-11-11T18:23:00Z
+  status: started
+  by: codex
+  shell_pid: '84843'
+  notes: Starting implementation
+phases: story-based
+priority: P3
+reviewer:
+  agent: sonnet-4.5
+  shell_pid: '46891'
+  date: '2025-11-11T18:50:00Z'
 subtitle: Extract GitHub operations and refactor init command
+tags:
+- github
+- init
+- complex
+- parallel
+- agent-f
 work_package_title: GitHub Client and Init Command
 ---
 

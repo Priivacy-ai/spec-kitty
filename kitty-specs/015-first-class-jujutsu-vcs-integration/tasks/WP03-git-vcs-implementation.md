@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP03"
-title: "GitVCS Implementation"
+work_package_id: WP03
+title: GitVCS Implementation
+lane: done
+dependencies: [WP01, WP02]
 subtasks:
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-phase: "Phase 1 - Abstraction Layer"
-lane: "done"
-priority: "P1"
-dependencies: ["WP01", "WP02"]
-assignee: "__AGENT__"
-agent: "__AGENT__"
-shell_pid: "38749"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+phase: Phase 1 - Abstraction Layer
+assignee: __AGENT__
+agent: __AGENT__
+shell_pid: '38749'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T10:38:23Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T10:38:23Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+priority: P1
 ---
 
 # Work Package Prompt: WP03 – GitVCS Implementation

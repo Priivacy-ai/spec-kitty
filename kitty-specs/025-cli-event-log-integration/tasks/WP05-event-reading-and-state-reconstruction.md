@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "done"
+lane: done
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -15,10 +15,10 @@ subtasks:
 - T030
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "claude-wp05-final-reviewer"
-shell_pid: "18406"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: claude-wp05-final-reviewer
+shell_pid: '18406'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned

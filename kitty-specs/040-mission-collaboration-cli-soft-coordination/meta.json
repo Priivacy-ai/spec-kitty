@@ -1,0 +1,9 @@
+{
+  "feature_number": "040",
+  "slug": "040-mission-collaboration-cli-soft-coordination",
+  "feature_slug": "040-mission-collaboration-cli-soft-coordination",
+  "friendly_name": "mission collaboration cli soft coordination",
+  "mission": "software-dev",
+  "target_branch": "main",
+  "created_at": "2026-03-10T14:16:49.121626+00:00"
+}

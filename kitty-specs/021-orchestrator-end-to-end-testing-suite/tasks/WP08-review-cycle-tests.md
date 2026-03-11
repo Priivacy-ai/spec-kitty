@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Review Cycle Tests
-lane: "done"
+lane: done
 dependencies:
 - WP05
 subtasks:
@@ -12,10 +12,10 @@ subtasks:
 - T040
 phase: Phase 1 - Core Tests
 assignee: ''
-agent: "claude-opus"
-shell_pid: "43990"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: claude-opus
+shell_pid: '43990'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned

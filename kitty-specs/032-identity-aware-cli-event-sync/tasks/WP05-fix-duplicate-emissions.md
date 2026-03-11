@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Fix Duplicate Emissions
-lane: "done"
+lane: done
 dependencies: [WP04]
 base_branch: 032-identity-aware-cli-event-sync-WP04
 base_commit: 0325bb79d05bf9264d3825aae0d7e7f61b4342fb
@@ -14,10 +14,10 @@ subtasks:
 - T026
 phase: Phase 3 - Bug Fixes
 assignee: ''
-agent: "codex"
-shell_pid: "49562"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '49562'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned

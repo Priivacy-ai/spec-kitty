@@ -1,24 +1,24 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-title: "Setup & TOC Update"
-phase: "Phase 0 - Setup"
-lane: "done"
-assignee: ""
-agent: "codex"
-shell_pid: "35960"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP01
+title: Setup & TOC Update
+lane: done
 dependencies: []
+subtasks:
+- T001
+- T002
+- T003
+phase: Phase 0 - Setup
+assignee: ''
+agent: codex
+shell_pid: '35960'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-17T18:14:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-17T18:14:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Setup & TOC Update

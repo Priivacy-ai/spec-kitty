@@ -2,8 +2,9 @@
   "event_count": 10,
   "feature_slug": "010-workspace-per-work-package-for-parallel-development",
   "last_event_id": "01KJ5V38NKT8XX7DG03MYRJTQG",
-  "materialized_at": "2026-02-23T18:10:00.500339+00:00",
+  "materialized_at": "2026-03-11T07:08:18.009569+00:00",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

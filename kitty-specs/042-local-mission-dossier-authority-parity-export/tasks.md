@@ -452,3 +452,17 @@ All work packages collectively deliver complete feature 042 specification.
 - **Test-driven**: Each WP includes unit tests + integration tests (WP10 comprehensive)
 - **Scope containment**: No FastAPI migration, no manifest versioning, no cross-org federation (deferred to post-042)
 - **Quality bar**: Zero silent failures, explicit error handling, deterministic hashing, full spec compliance
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
+- WP05: done
+- WP06: done
+- WP07: done
+- WP08: done
+- WP09: done
+- WP10: done
+<!-- status-model:end -->

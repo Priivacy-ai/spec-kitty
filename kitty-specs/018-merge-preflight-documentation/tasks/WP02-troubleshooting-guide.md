@@ -1,29 +1,30 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Troubleshooting Guide
+lane: done
+dependencies: []
 subtasks:
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-title: "Troubleshooting Guide"
-phase: "Phase 1 - User Documentation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "93764"
-review_status: "acknowledged"
-reviewed_by: "Robert Douglass"
+- T009
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+phase: Phase 1 - User Documentation
+assignee: ''
+agent: claude
+shell_pid: '93764'
+review_status: acknowledged
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-18T13:21:55Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-18T13:21:55Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Troubleshooting Guide

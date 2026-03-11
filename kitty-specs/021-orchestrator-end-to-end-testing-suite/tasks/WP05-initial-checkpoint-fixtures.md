@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Initial Checkpoint Fixtures
+lane: done
+dependencies: [WP03]
 subtasks:
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-title: "Initial Checkpoint Fixtures"
-phase: "Phase 1 - Fixtures"
-lane: "done"
-assignee: ""
-agent: "claude-opus"
-shell_pid: "24127"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP03"]
+- T021
+- T022
+- T023
+- T024
+- T025
+phase: Phase 1 - Fixtures
+assignee: ''
+agent: claude-opus
+shell_pid: '24127'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-19T09:30:27Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-19T09:30:27Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Initial Checkpoint Fixtures

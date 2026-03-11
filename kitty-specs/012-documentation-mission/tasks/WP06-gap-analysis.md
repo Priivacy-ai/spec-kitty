@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-title: "Gap Analysis & Coverage Matrix"
-phase: "Phase 1 - Core Logic"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "65629"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+work_package_id: WP06
+title: Gap Analysis & Coverage Matrix
+lane: done
 dependencies:
-  - "WP01"
+- WP01
+subtasks:
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+phase: Phase 1 - Core Logic
+assignee: ''
+agent: claude
+shell_pid: '65629'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-12T17:18:56Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-12T17:18:56Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Gap Analysis & Coverage Matrix

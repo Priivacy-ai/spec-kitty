@@ -2,19 +2,20 @@
 work_package_id: WP03
 title: Release Readiness Guardrails
 lane: done
+dependencies: []
+subtasks:
+- T005
+- T006
+phase: Phase 2 - Quality Gates
+assignee: ''
+agent: claude-sonnet-4.5
+shell_pid: '16185'
 history:
 - timestamp: '2025-11-02T16:58:36Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-agent: claude-sonnet-4.5
-assignee: ''
-phase: Phase 2 - Quality Gates
-shell_pid: '16185'
-subtasks:
-- T005
-- T006
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md)*
 

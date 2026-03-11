@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP08"
+work_package_id: WP08
+title: Explanations
+lane: done
+dependencies: [WP02]
 subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-title: "Explanations"
-phase: "Phase 1 - Content Creation"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "59218"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-dependencies: ["WP02"]
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+phase: Phase 1 - Content Creation
+assignee: ''
+agent: claude
+shell_pid: '59218'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
-  - timestamp: "2026-01-16T16:16:58Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-16T16:16:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP08 – Explanations

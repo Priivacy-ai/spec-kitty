@@ -1,41 +1,42 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Feature Management Commands
+lane: done
+dependencies: []
 subtasks:
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-  - "T033"
-title: "Feature Management Commands"
-phase: "Phase 2 - Feature Commands (Stream A)"
-lane: "done"
-assignee: ""
-agent: "claude"
-shell_pid: "18142"
-review_status: ""
-reviewed_by: "claude"
+- T018
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+- T031
+- T032
+- T033
+phase: Phase 2 - Feature Commands (Stream A)
+assignee: ''
+agent: claude
+shell_pid: '18142'
+review_status: ''
+reviewed_by: claude
 history:
-  - timestamp: "2025-12-17T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2025-12-18T23:05:00Z"
-    lane: "done"
-    agent: "claude"
-    shell_pid: "18142"
-    action: "Code review complete - approved (63/63 tests passed)"
+- timestamp: '2025-12-17T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2025-12-18T23:05:00Z'
+  lane: done
+  agent: claude
+  shell_pid: '18142'
+  action: Code review complete - approved (63/63 tests passed)
 ---
 
 # Work Package Prompt: WP02 – Feature Management Commands

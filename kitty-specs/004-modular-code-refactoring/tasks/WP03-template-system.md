@@ -1,27 +1,7 @@
 ---
 work_package_id: WP03
 lane: done
-priority: P2
-tags:
-- template
-- parallel
-- agent-b
-history:
-- date: 2025-11-11
-  status: created
-  by: spec-kitty.tasks
-- date: 2025-11-11
-  status: approved
-  by: sonnet-4.5
-  notes: All DoD items complete, 9/9 tests passing
-agent: codex
-assignee: codex
-phases: foundational
-reviewer:
-  agent: sonnet-4.5
-  shell_pid: '56818'
-  date: '2025-11-11T17:41:22Z'
-shell_pid: '32837'
+dependencies: []
 subtasks:
 - T020
 - T021
@@ -33,7 +13,28 @@ subtasks:
 - T027
 - T028
 - T029
+assignee: codex
+agent: codex
+shell_pid: '32837'
+history:
+- date: 2025-11-11
+  status: created
+  by: spec-kitty.tasks
+- date: 2025-11-11
+  status: approved
+  by: sonnet-4.5
+  notes: All DoD items complete, 9/9 tests passing
+phases: foundational
+priority: P2
+reviewer:
+  agent: sonnet-4.5
+  shell_pid: '56818'
+  date: '2025-11-11T17:41:22Z'
 subtitle: Template management and rendering infrastructure
+tags:
+- template
+- parallel
+- agent-b
 work_package_title: Template System
 ---
 

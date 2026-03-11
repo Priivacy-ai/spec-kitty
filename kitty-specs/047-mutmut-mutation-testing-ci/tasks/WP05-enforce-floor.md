@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Enforce Floor
-lane: "done"
+lane: done
 dependencies:
 - WP04
 subtasks:
@@ -14,8 +14,8 @@ phase: Phase 3 - Hardening
 assignee: ''
 agent: ''
 shell_pid: ''
-review_status: "approved"
-reviewed_by: "Stijn Dejongh"
+review_status: approved
+reviewed_by: Stijn Dejongh
 review_feedback: ''
 history:
 - timestamp: '2026-03-01T16:00:00Z'

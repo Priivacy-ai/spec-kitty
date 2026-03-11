@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: ProjectIdentity Module
-lane: "done"
+lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: fe5dd26eb9160377ee55f83b072f5dc3db322843
@@ -15,10 +15,10 @@ subtasks:
 - T006
 phase: Phase 0 - Foundation
 assignee: ''
-agent: "codex"
-shell_pid: "25757"
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '25757'
+review_status: approved
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned
