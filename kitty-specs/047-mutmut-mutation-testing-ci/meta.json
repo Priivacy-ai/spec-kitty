@@ -1,0 +1,11 @@
+{
+  "feature_number": "047",
+  "slug": "047-mutmut-mutation-testing-ci",
+  "feature_slug": "047-mutmut-mutation-testing-ci",
+  "friendly_name": "Mutmut Mutation Testing CI Integration",
+  "mission": "software-dev",
+  "source_description": "Add mutmut mutation testing to the project. mutmut should run as a slow/parallel CI job (after unit tests, before SonarCloud). Reports should go to the standard out/reports/ location. The feature should: add mutmut>=3.5.0 to the test dependencies in pyproject.toml, configure mutmut via setup.cfg or pyproject.toml to target src/specify_cli/ and use the existing pytest test suite, add a mutation-testing job to .github/workflows/ci-quality.yml that runs after unit-tests and in parallel with other post-unit jobs, outputs HTML and JSON reports to out/reports/mutation/, and is marked as a slow job (only runs on push/workflow_dispatch, not on every PR). The job should fail if the mutation score drops below a configured floor (start at 0% to not block anything initially). Use the software-dev mission.",
+  "created_at": "2026-03-01T15:30:00+00:00",
+  "target_branch": "architecture/restructure_and_proposals",
+  "vcs": "git"
+}

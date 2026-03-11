@@ -81,8 +81,20 @@ test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
+    "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "mutmut>=3.5.0",  # Mutation testing
+]
+lint = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "types-jsonschema>=4.0.0",
+    "types-psutil>=5.9.0",
+    "types-PyYAML>=6.0",
+    "types-toml>=0.10.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.7.0",
 ]
 
 [project.scripts]
@@ -134,6 +146,37 @@ markers = [
     "requires_symlinks: Tests that need symlink support",
 ]
 
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "W",      # pycodestyle warnings
+    "C90",    # mccabe complexity (≈ Sonar S3776)
+    "C4",     # comprehension simplifications (≈ Sonar S7494, S7500)
+    "ARG",    # unused arguments (≈ Sonar S1172)
+    "B",      # bugbear (common bugs, raise-without-from, etc.)
+    "SIM",    # simplify (≈ Sonar S1066, S3358)
+    "UP",     # pyupgrade (deprecated patterns, Pydantic v1 compat)
+    "ASYNC",  # async issues (≈ Sonar S7497, S7502)
+    "S",      # bandit security checks (≈ Sonar S2083)
+]
+ignore = [
+    "S101",   # allow assert (used extensively in tests and guards)
+    "S603",   # subprocess without shell check (CLI tool by design)
+    "S607",   # partial executable path (CLI tool by design)
+    "B008",   # function calls in default arguments (intentional in CLI/Typer)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG", "S"]  # Relax unused-arg and security rules in tests
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15  # Match SonarCloud S3776 threshold
+
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true
@@ -143,22 +186,140 @@ strict = true
 module = [
     "specify_cli.agent_utils.status",
     "specify_cli.cli.commands.glossary",
+    "specify_cli.cli.commands",
+    "specify_cli.cli.commands.agent.config",
+    "specify_cli.cli.commands.agent.feature",
+    "specify_cli.cli.commands.agent.status",
+    "specify_cli.cli.commands.agent.tasks",
+    "specify_cli.cli.commands.agent.workflow",
+    "specify_cli.cli.commands.auth",
+    "specify_cli.cli.commands.implement",
+    "specify_cli.cli.commands.init",
+    "specify_cli.cli.commands.merge",
+    "specify_cli.cli.commands.next_cmd",
+    "specify_cli.cli.commands.sync",
+    "specify_cli.cli.commands.tracker",
+    "specify_cli.cli.commands.upgrade",
     "specify_cli.cli.ui",
+    "specify_cli.constitution.context",
+    "specify_cli.core.context_validation",
     "specify_cli.core.feature_detection",
+    "specify_cli.dashboard.diagnostics",
+    "specify_cli.dashboard.handlers.api",
+    "specify_cli.dashboard.handlers.base",
+    "specify_cli.dashboard.handlers.features",
+    "specify_cli.dashboard.lifecycle",
+    "specify_cli.dashboard.scanner",
+    "specify_cli.doc_state",
+    "specify_cli.dossier.api",
+    "specify_cli.dossier.drift_detector",
+    "specify_cli.dossier.indexer",
+    "specify_cli.dossier.manifest",
+    "specify_cli.dossier.models",
     "specify_cli.events.adapter",
+    "specify_cli.frontmatter",
+    "specify_cli.gap_analysis",
+    "specify_cli.glossary.events",
+    "specify_cli.glossary.middleware",
     "specify_cli.manifest",
+    "specify_cli.merge.ordering",
+    "specify_cli.mission",
     "specify_cli.mission_v1.compat",
     "specify_cli.mission_v1.events",
     "specify_cli.mission_v1.runner",
+    "specify_cli.mission_v1",
+    "specify_cli.next.decision",
+    "specify_cli.next.runtime_bridge",
+    "specify_cli.orchestrator_api.commands",
     "specify_cli.scripts.tasks.acceptance_support",
     "specify_cli.scripts.tasks.task_helpers",
     "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.scripts.validate_encoding",
+    "specify_cli.status.legacy_bridge",
     "specify_cli.status.validate",
     "specify_cli.sync.auth",
     "specify_cli.sync.background",
     "specify_cli.sync.batch",
     "specify_cli.sync.client",
+    "specify_cli.sync.emitter",
+    "specify_cli.sync.runtime",
     "specify_cli.tasks_support",
+    "specify_cli.template.github_client",
+    "specify_cli.tracker.factory",
+    "specify_cli.tracker.service",
+    "specify_cli.tracker.store",
+    "specify_cli.upgrade.migrations.m_0_10_14_update_implement_slash_command",
+    "specify_cli.upgrade.migrations.m_0_10_9_repair_templates",
+    "specify_cli.upgrade.migrations.m_0_11_1_update_implement_slash_command",
+    "specify_cli.upgrade.migrations.m_0_13_0_update_research_implement_templates",
+    "specify_cli.upgrade.migrations.m_0_13_5_add_commit_workflow_to_templates",
+    "specify_cli.upgrade.migrations.m_0_13_5_fix_clarify_template",
+    "specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration",
     "specify_cli.verify_enhanced",
 ]
 ignore_errors = true
+
+[tool.mutmut]
+# WP05 scope: all 4 priority modules — final floor measurement
+paths_to_mutate = [
+    "src/specify_cli/status/",
+    "src/specify_cli/glossary/",
+    "src/specify_cli/merge/",
+    "src/specify_cli/core/",
+]
+tests_dir = ["tests/unit/", "tests/specify_cli/"]
+pytest_add_cli_args = [
+    "--timeout=30",
+    # tests/unit/ subdirs that fail in the mutants environment
+    "--ignore=tests/unit/agent/",
+    "--ignore=tests/unit/mission_v1/",
+    "--ignore=tests/unit/next/",
+    "--ignore=tests/unit/orchestrator_api/",
+    "--ignore=tests/unit/runtime/",
+    # tests/unit/ flat files that fail in the mutants environment
+    "--ignore=tests/unit/test_atomic_status_commits.py",
+    "--ignore=tests/unit/test_move_task_git_validation.py",
+    # tests/unit/ file that uses inspect.getsource() on multi-mutation files
+    "--ignore=tests/unit/test_pre_commit_wp_guard.py",
+    # tests/specify_cli/ files that fail in the mutants environment
+    "--ignore=tests/specify_cli/cli/commands/test_event_emission.py",
+    "--ignore=tests/specify_cli/test_cli/",
+    "--ignore=tests/specify_cli/test_implement_command.py",
+    "--ignore=tests/specify_cli/test_review_warnings.py",
+    "--ignore=tests/specify_cli/test_workflow_auto_moves.py",
+    "--ignore=tests/specify_cli/upgrade/test_migration_robustness.py",
+    "--ignore=tests/specify_cli/status/test_parity.py",
+]
+also_copy = [
+    "LICENSE",
+    "README.md",
+    ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
+    "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
+    "src/doctrine/",         # Copy doctrine package for imports
+    "src/specify_cli/status/",  # Copy status module for status transitions
+    "src/specify_cli/glossary/",  # Copy glossary module
+    "src/specify_cli/cli/",   # Copy CLI commands
+    "src/specify_cli/agent_utils/",  # Copy agent utilities
+    "src/specify_cli/git/",  # Copy git utilities
+    "src/specify_cli/sync/",  # Copy sync module
+    "src/specify_cli/next/",  # Copy next module
+    "src/specify_cli/validators/",  # Copy validators
+    "src/specify_cli/template/",  # Copy template utilities
+    "src/specify_cli/constitution/",  # Copy constitution
+    "src/specify_cli/missions/",  # Copy missions
+    "src/specify_cli/upgrade/",  # Copy upgrade system
+    "src/specify_cli/runtime/",  # Copy runtime
+    "src/specify_cli/tracker/",  # Copy tracker
+    "src/specify_cli/events/",  # Copy events
+    "src/specify_cli/dossier/",  # Copy dossier
+    "src/specify_cli/dashboard/",  # Copy dashboard
+    "src/specify_cli/orchestrator_api/",  # Copy orchestrator API
+    "src/specify_cli/spec_kitty_events/",  # Copy spec kitty events
+    "src/specify_cli/templates/",  # Copy templates
+    "src/specify_cli/mission_v1/",  # Copy mission v1
+    "src/specify_cli/scripts/",  # Copy scripts
+]
+# Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
+do_not_mutate = [
+    "src/specify_cli/upgrade/migrations/",
+]
