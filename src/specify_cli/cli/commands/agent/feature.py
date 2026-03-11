@@ -1477,22 +1477,27 @@ def finalize_tasks(
             all_spec_requirement_ids = set(spec_requirement_ids["all"])
             functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
-        # Parse dependencies and requirement refs from tasks.md (if it exists)
+        # Parse dependencies and requirement refs using 2-tier priority:
+        # 1. WP frontmatter (primary — map-requirements writes here directly)
+        # 2. tasks.md text parsing (backward compat for pre-API projects)
+
         tasks_md = feature_dir / "tasks.md"
         wp_dependencies = {}
         wp_requirement_refs = {}
+
+        # PRIMARY: WP frontmatter (map-requirements writes here directly)
+        wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
+
         if tasks_md.exists():
-            # Read tasks.md and parse dependency + requirement mapping
+            # Read tasks.md and parse dependency mapping (always needed)
             tasks_content = tasks_md.read_text(encoding="utf-8")
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
-            wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
 
-        # Fallback: if tasks.md lacks requirement refs, recover from WP frontmatter.
-        # This keeps finalize-tasks deterministic even when an agent edits WP files first.
-        wp_requirement_refs_from_frontmatter = _parse_requirement_refs_from_wp_files(wp_files)
-        for wp_id, refs in wp_requirement_refs_from_frontmatter.items():
-            if refs and not wp_requirement_refs.get(wp_id):
-                wp_requirement_refs[wp_id] = refs
+            # FALLBACK: tasks.md text (backward compat for pre-API projects)
+            tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
+            for wp_id, refs in tasks_md_refs.items():
+                if refs and not wp_requirement_refs.get(wp_id):
+                    wp_requirement_refs[wp_id] = refs
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
@@ -1805,22 +1810,12 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 
 
 def _normalize_requirement_refs_value(raw_value: object) -> list[str]:
-    """Normalize requirement_refs frontmatter values to canonical IDs."""
-    refs: list[str] = []
-    if isinstance(raw_value, list):
-        for item in raw_value:
-            if isinstance(item, str):
-                refs.extend(
-                    ref_id.upper()
-                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", item, re.IGNORECASE)
-                )
-    elif isinstance(raw_value, str):
-        refs.extend(
-            ref_id.upper()
-            for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", raw_value, re.IGNORECASE)
-        )
+    """Normalize requirement_refs frontmatter values to canonical IDs.
 
-    return list(dict.fromkeys(refs))
+    Delegates to the shared implementation in requirement_mapping module.
+    """
+    from specify_cli.requirement_mapping import normalize_requirement_refs_value
+    return normalize_requirement_refs_value(raw_value)
 
 
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
@@ -1842,14 +1837,9 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
 
 
 def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
-    """Parse requirement IDs from spec.md content."""
-    all_ids = {
-        req_id.upper()
-        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
-    }
-    functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
+    """Parse requirement IDs from spec.md content.
 
-    return {
-        "all": sorted(all_ids),
-        "functional": sorted(functional_ids),
-    }
+    Delegates to the shared implementation in requirement_mapping module.
+    """
+    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
+    return parse_requirement_ids_from_spec_md(spec_content)

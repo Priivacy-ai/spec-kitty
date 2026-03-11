@@ -2001,3 +2001,263 @@ def list_dependents(
     except Exception as e:
         _output_error(json_output, str(e))
         raise typer.Exit(1)
+
+
+@app.command(name="map-requirements")
+def map_requirements(
+    wp: Annotated[Optional[str], typer.Option("--wp", help="WP ID (e.g., WP04)")] = None,
+    refs: Annotated[Optional[str], typer.Option("--refs", help="Comma-separated requirement refs (e.g., FR-001,FR-002)")] = None,
+    batch: Annotated[Optional[str], typer.Option("--batch", help='JSON batch mapping (e.g., \'{"WP01":["FR-001"],"WP02":["FR-003"]}\')')] = None,
+    replace: Annotated[bool, typer.Option("--replace", help="Replace existing refs instead of merging (default: merge/union)")] = False,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Register requirement-to-WP mappings with immediate validation.
+
+    Validates each ref against spec.md, checks WP files exist, and writes
+    requirement_refs directly into each WP file's YAML frontmatter.
+
+    Default behaviour unions new refs with existing ones.
+    Use --replace to overwrite existing refs for the targeted WPs.
+
+    Individual mode: --wp WP04 --refs FR-005,FR-006
+    Batch mode:      --batch '{"WP01":["FR-001"],"WP04":["FR-005","FR-006"]}'
+
+    Examples:
+        spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
+        spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001"]}' --replace --json
+    """
+    from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+    from specify_cli.requirement_mapping import (
+        compute_coverage,
+        normalize_requirement_refs_value,
+        parse_requirement_ids_from_spec_md,
+        read_all_wp_raw_requirement_refs,
+        read_all_wp_requirement_refs,
+        validate_ref_format,
+        validate_refs,
+    )
+
+    try:
+        # --- Validate input mode ---
+        if batch and (wp or refs):
+            msg = "Cannot combine --batch with --wp/--refs. Use one mode."
+            _output_error(json_output, msg)
+            raise typer.Exit(1)
+
+        if not batch and not (wp and refs):
+            msg = "Provide either --wp + --refs (individual) or --batch (batch mode)."
+            _output_error(json_output, msg)
+            raise typer.Exit(1)
+
+        # --- Resolve feature directory ---
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        feature_slug = _find_feature_slug(explicit_feature=feature)
+        main_repo_root, _ = _ensure_target_branch_checked_out(
+            repo_root, feature_slug, json_output
+        )
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+        if not feature_dir.exists():
+            _output_error(json_output, f"Feature directory not found: {feature_dir}")
+            raise typer.Exit(1)
+
+        # --- Read spec.md for validation ---
+        spec_md = feature_dir / "spec.md"
+        if not spec_md.exists():
+            _output_error(json_output, f"spec.md not found: {spec_md}")
+            raise typer.Exit(1)
+
+        spec_content = spec_md.read_text(encoding="utf-8")
+        spec_ids = parse_requirement_ids_from_spec_md(spec_content)
+        all_spec_ids = set(spec_ids["all"])
+        functional_ids = set(spec_ids["functional"])
+
+        # --- Parse input into new_mappings ---
+        new_mappings: dict[str, list[str]] = {}
+
+        if batch:
+            try:
+                parsed_batch = json.loads(batch)
+            except json.JSONDecodeError as e:
+                _output_error(json_output, f"Invalid JSON in --batch: {e}")
+                raise typer.Exit(1)
+            if not isinstance(parsed_batch, dict):
+                _output_error(json_output, "--batch must be a JSON object {WP_ID: [refs]}")
+                raise typer.Exit(1)
+            for wp_id, ref_list in parsed_batch.items():
+                if not isinstance(ref_list, list) or not all(
+                    isinstance(r, str) for r in ref_list
+                ):
+                    _output_error(
+                        json_output,
+                        f"Refs for {wp_id} must be a list of strings",
+                    )
+                    raise typer.Exit(1)
+                new_mappings[wp_id.upper()] = [r.upper() for r in ref_list]
+        else:
+            # Individual mode
+            assert wp is not None and refs is not None
+            ref_list_parsed = [r.strip() for r in refs.split(",") if r.strip()]
+            new_mappings[wp.upper()] = [r.upper() for r in ref_list_parsed]
+
+        # --- Validate WP files exist ---
+        tasks_dir = feature_dir / "tasks"
+        existing_wps: set[str] = set()
+        if tasks_dir.exists():
+            for f in tasks_dir.glob("WP*.md"):
+                m = re.match(r"(WP\d{2})", f.name)
+                if m:
+                    existing_wps.add(m.group(1))
+
+        unknown_wps = sorted(
+            wp_id for wp_id in new_mappings if wp_id not in existing_wps
+        )
+        if unknown_wps:
+            hint = f"Available WPs: {', '.join(sorted(existing_wps))}" if existing_wps else "No WP files found in tasks/"
+            if json_output:
+                print(json.dumps({
+                    "error": "Unknown WP IDs",
+                    "unknown_wps": unknown_wps,
+                    "hint": hint,
+                }))
+            else:
+                console.print(f"[red]Error:[/red] Unknown WP IDs: {', '.join(unknown_wps)}")
+                console.print(f"  {hint}")
+            raise typer.Exit(1)
+
+        # --- Validate ref format ---
+        all_new_refs: list[str] = []
+        for ref_list in new_mappings.values():
+            all_new_refs.extend(ref_list)
+
+        _, malformed = validate_ref_format(all_new_refs)
+        if malformed:
+            if json_output:
+                print(json.dumps({
+                    "error": "Invalid requirement ref format",
+                    "malformed_refs": malformed,
+                    "hint": "Refs must match FR-NNN, NFR-NNN, or C-NNN format",
+                }))
+            else:
+                console.print(f"[red]Error:[/red] Invalid ref format: {', '.join(malformed)}")
+            raise typer.Exit(1)
+
+        # --- Validate refs exist in spec.md ---
+        _, unknown_refs = validate_refs(all_new_refs, all_spec_ids)
+        if unknown_refs:
+            available_range = f"Available: {', '.join(sorted(all_spec_ids))}" if all_spec_ids else "No requirement IDs found in spec.md"
+            if json_output:
+                print(json.dumps({
+                    "error": "Invalid requirement refs",
+                    "unknown_refs": sorted(set(unknown_refs)),
+                    "hint": f"Refs not found in spec.md. {available_range}",
+                }))
+            else:
+                console.print(f"[red]Error:[/red] Unknown refs: {', '.join(sorted(set(unknown_refs)))}")
+                console.print(f"  {available_range}")
+            raise typer.Exit(1)
+
+        # --- Seed legacy refs from tasks.md for migration ---
+        # When a WP has refs only in tasks.md (no frontmatter yet), we need
+        # to seed from tasks.md so the first map-requirements call doesn't
+        # discard them.
+        tasks_md_refs: dict[str, list[str]] = {}
+        tasks_md_file = feature_dir / "tasks.md"
+        if tasks_md_file.exists():
+            from specify_cli.cli.commands.agent.feature import (
+                _parse_requirement_refs_from_tasks_md,
+            )
+            tasks_md_content = tasks_md_file.read_text(encoding="utf-8")
+            tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md_content)
+
+        # --- Write refs directly into WP frontmatter ---
+        for wp_id, new_refs in new_mappings.items():
+            wp_file = next(
+                (f for f in tasks_dir.glob(f"{wp_id}*.md")), None
+            )
+            if wp_file is None:
+                continue  # Already validated above
+
+            fm, body = read_frontmatter(wp_file)
+            if replace:
+                merged_refs = sorted(set(new_refs))
+            else:
+                existing_fm = normalize_requirement_refs_value(
+                    fm.get("requirement_refs", [])
+                )
+                # If frontmatter is empty, seed from tasks.md (migration)
+                if not existing_fm:
+                    existing_fm = tasks_md_refs.get(wp_id, [])
+                merged_refs = sorted(set(existing_fm) | set(new_refs))
+            fm["requirement_refs"] = merged_refs
+            write_frontmatter(wp_file, fm, body)
+
+        # --- Read all WP refs back and validate merged state ---
+        # Use raw reader to catch malformed values that normalize would drop
+        all_wp_raw = read_all_wp_raw_requirement_refs(tasks_dir)
+
+        # Validate the full post-merge state against spec using raw strings
+        all_raw_refs: list[str] = []
+        for ref_list in all_wp_raw.values():
+            all_raw_refs.extend(ref_list)
+
+        _, post_merge_malformed = validate_ref_format(all_raw_refs)
+        _, post_merge_unknown = validate_refs(all_raw_refs, all_spec_ids)
+        stale_refs: dict[str, list[str]] = {}
+        if post_merge_malformed or post_merge_unknown:
+            bad = set(post_merge_malformed) | set(post_merge_unknown)
+            for wp_id, ref_list in all_wp_raw.items():
+                wp_bad = sorted(set(ref_list) & bad)
+                if wp_bad:
+                    stale_refs[wp_id] = wp_bad
+
+        if stale_refs:
+            if json_output:
+                print(json.dumps({
+                    "error": "Stale or invalid refs in WP frontmatter",
+                    "stale_refs": stale_refs,
+                    "hint": "Re-run with --replace to correct, e.g.: "
+                            "map-requirements --wp WP01 --refs FR-001 --replace",
+                }))
+            else:
+                console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
+                for wp_id, bad_refs in sorted(stale_refs.items()):
+                    console.print(f"  {wp_id}: {', '.join(bad_refs)}")
+                console.print("  Use --replace to correct mappings")
+            raise typer.Exit(1)
+
+        # Use normalized reader for coverage (only valid refs count)
+        all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
+        coverage = compute_coverage(all_wp_refs, functional_ids)
+
+        # --- Output ---
+        payload = {
+            "result": "success",
+            "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
+            "total_mappings": {wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs},
+            "coverage": coverage,
+        }
+        if json_output:
+            print(json.dumps(payload))
+        else:
+            console.print("[green]✓[/green] Requirement mappings saved")
+            for wp_id, ref_list in sorted(new_mappings.items()):
+                console.print(f"  {wp_id}: {', '.join(ref_list)}")
+            console.print(
+                f"\n  Coverage: {coverage['mapped_functional']}/{coverage['total_functional']} FRs mapped"
+            )
+            if coverage["unmapped_functional"]:
+                console.print(
+                    f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}"
+                )
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
