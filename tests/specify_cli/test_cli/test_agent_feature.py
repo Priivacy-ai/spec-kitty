@@ -489,12 +489,9 @@ class TestCheckPrerequisitesCommand:
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert len(payload["candidate_features"]) == 2
-        assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-        assert any(
-            "check-prerequisites --feature" in command
-            for command in payload["suggested_commands"]
-        )
+        assert payload["available_features"] == ["001-alpha", "002-beta"]
+        assert "check-prerequisites --feature" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --feature <slug>"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
@@ -676,12 +673,9 @@ class TestFinalizeTasksCommand:
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert len(payload["candidate_features"]) == 2
-        assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-        assert any(
-            "finalize-tasks --feature" in command
-            for command in payload["suggested_commands"]
-        )
+        assert payload["available_features"] == ["001-alpha", "002-beta"]
+        assert "finalize-tasks --feature" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --feature <slug>"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
