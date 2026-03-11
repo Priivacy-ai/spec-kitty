@@ -1478,26 +1478,26 @@ def finalize_tasks(
             functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
         # Parse dependencies and requirement refs using 2-tier priority:
-        # 1. tasks.md text parsing (backward compat for pre-API projects)
-        # 2. WP frontmatter (primary — map-requirements writes here directly)
+        # 1. WP frontmatter (primary — map-requirements writes here directly)
+        # 2. tasks.md text parsing (backward compat for pre-API projects)
 
         tasks_md = feature_dir / "tasks.md"
         wp_dependencies = {}
         wp_requirement_refs = {}
+
+        # PRIMARY: WP frontmatter (map-requirements writes here directly)
+        wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
 
         if tasks_md.exists():
             # Read tasks.md and parse dependency mapping (always needed)
             tasks_content = tasks_md.read_text(encoding="utf-8")
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
 
-            # TIER 1: Parse requirement refs from tasks.md text
-            wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
-
-        # TIER 2: WP frontmatter (primary source — map-requirements writes here)
-        wp_requirement_refs_from_frontmatter = _parse_requirement_refs_from_wp_files(wp_files)
-        for wp_id, refs in wp_requirement_refs_from_frontmatter.items():
-            if refs and not wp_requirement_refs.get(wp_id):
-                wp_requirement_refs[wp_id] = refs
+            # FALLBACK: tasks.md text (backward compat for pre-API projects)
+            tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
+            for wp_id, refs in tasks_md_refs.items():
+                if refs and not wp_requirement_refs.get(wp_id):
+                    wp_requirement_refs[wp_id] = refs
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:

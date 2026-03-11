@@ -2008,6 +2008,7 @@ def map_requirements(
     wp: Annotated[Optional[str], typer.Option("--wp", help="WP ID (e.g., WP04)")] = None,
     refs: Annotated[Optional[str], typer.Option("--refs", help="Comma-separated requirement refs (e.g., FR-001,FR-002)")] = None,
     batch: Annotated[Optional[str], typer.Option("--batch", help='JSON batch mapping (e.g., \'{"WP01":["FR-001"],"WP02":["FR-003"]}\')')] = None,
+    replace: Annotated[bool, typer.Option("--replace", help="Replace existing refs instead of merging (default: merge/union)")] = False,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -2016,12 +2017,15 @@ def map_requirements(
     Validates each ref against spec.md, checks WP files exist, and writes
     requirement_refs directly into each WP file's YAML frontmatter.
 
+    Default behaviour unions new refs with existing ones.
+    Use --replace to overwrite existing refs for the targeted WPs.
+
     Individual mode: --wp WP04 --refs FR-005,FR-006
     Batch mode:      --batch '{"WP01":["FR-001"],"WP04":["FR-005","FR-006"]}'
 
     Examples:
         spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
-        spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001"]}' --json
+        spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001"]}' --replace --json
     """
     from specify_cli.frontmatter import read_frontmatter, write_frontmatter
     from specify_cli.requirement_mapping import (
@@ -2166,15 +2170,49 @@ def map_requirements(
                 continue  # Already validated above
 
             fm, body = read_frontmatter(wp_file)
-            existing = normalize_requirement_refs_value(
-                fm.get("requirement_refs", [])
-            )
-            merged_refs = sorted(set(existing) | set(new_refs))
+            if replace:
+                merged_refs = sorted(set(new_refs))
+            else:
+                existing = normalize_requirement_refs_value(
+                    fm.get("requirement_refs", [])
+                )
+                merged_refs = sorted(set(existing) | set(new_refs))
             fm["requirement_refs"] = merged_refs
             write_frontmatter(wp_file, fm, body)
 
-        # --- Read all WP refs back for coverage ---
+        # --- Read all WP refs back and validate merged state ---
         all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
+
+        # Validate the full post-merge state against spec
+        all_merged_refs: list[str] = []
+        for ref_list in all_wp_refs.values():
+            all_merged_refs.extend(ref_list)
+
+        _, post_merge_malformed = validate_ref_format(all_merged_refs)
+        _, post_merge_unknown = validate_refs(all_merged_refs, all_spec_ids)
+        stale_refs: dict[str, list[str]] = {}
+        if post_merge_malformed or post_merge_unknown:
+            bad = set(post_merge_malformed) | set(post_merge_unknown)
+            for wp_id, ref_list in all_wp_refs.items():
+                wp_bad = sorted(set(ref_list) & bad)
+                if wp_bad:
+                    stale_refs[wp_id] = wp_bad
+
+        if stale_refs:
+            if json_output:
+                print(json.dumps({
+                    "error": "Stale or invalid refs in WP frontmatter",
+                    "stale_refs": stale_refs,
+                    "hint": "Re-run with --replace to correct, e.g.: "
+                            "map-requirements --wp WP01 --refs FR-001 --replace",
+                }))
+            else:
+                console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
+                for wp_id, bad_refs in sorted(stale_refs.items()):
+                    console.print(f"  {wp_id}: {', '.join(bad_refs)}")
+                console.print("  Use --replace to correct mappings")
+            raise typer.Exit(1)
+
         coverage = compute_coverage(all_wp_refs, functional_ids)
 
         # --- Output ---

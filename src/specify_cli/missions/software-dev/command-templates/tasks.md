@@ -254,8 +254,8 @@ spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
 ```
 
 The response includes a coverage summary showing which FRs are still unmapped. Keep calling
-until `unmapped_functional` is empty. Individual mode unions new refs with existing ones in
-frontmatter — you can call it multiple times without losing previous mappings.
+until `unmapped_functional` is empty. Default mode unions new refs with existing ones in
+frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad mapping).
 
 ## Work Package Sizing Guidelines (CRITICAL)
 
