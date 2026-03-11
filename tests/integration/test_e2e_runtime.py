@@ -271,7 +271,7 @@ class TestUpgradeLegacyProjectE2E:
         fake_package_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """After migration, customized files land in .kittify/overrides/."""
+        """After migration, user-created files (no package counterpart) land in overrides/."""
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -279,23 +279,53 @@ class TestUpgradeLegacyProjectE2E:
 
         ensure_runtime()
 
-        # Create legacy project with customized template
+        # Create legacy project with user-created template (no package counterpart)
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# My Custom Spec\nThis is different from global."
+        (kittify / "templates" / "my-custom-template.md").write_text(
+            "# My Custom Spec\nThis is user-created content."
         )
 
         # Run migration
         report = execute_migration(project)
 
-        # Customized file should move to overrides
+        # User-created file (no package counterpart) should move to overrides
         assert len(report.moved) >= 1
-        assert (kittify / "overrides" / "templates" / "spec-template.md").exists()
+        assert (kittify / "overrides" / "templates" / "my-custom-template.md").exists()
         assert "My Custom Spec" in (
-            kittify / "overrides" / "templates" / "spec-template.md"
+            kittify / "overrides" / "templates" / "my-custom-template.md"
         ).read_text()
+
+    def test_migrate_supersedes_outdated_defaults(
+        self,
+        isolated_runtime: Path,
+        fake_package_assets: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """After migration, outdated defaults (with package counterpart) are SUPERSEDED."""
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap._get_cli_version",
+            lambda: FAKE_VERSION,
+        )
+
+        ensure_runtime()
+
+        # Create legacy project with an old version of a managed template
+        project = isolated_runtime.parent / "legacy_project"
+        kittify = project / ".kittify"
+        (kittify / "templates").mkdir(parents=True)
+        (kittify / "templates" / "spec-template.md").write_text(
+            "# Old Spec Template v1\nThis is different from the current package default."
+        )
+
+        # Run migration
+        report = execute_migration(project)
+
+        # Old default should be superseded (removed), NOT moved to overrides
+        assert len(report.superseded) >= 1
+        assert not (kittify / "templates" / "spec-template.md").exists()
+        assert not (kittify / "overrides" / "templates" / "spec-template.md").exists()
 
     def test_after_migration_resolves_from_override_tier(
         self,
@@ -303,7 +333,7 @@ class TestUpgradeLegacyProjectE2E:
         fake_package_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """After migration, customized templates resolve from OVERRIDE tier (no warning)."""
+        """After migration, user-created templates resolve from OVERRIDE tier (no warning)."""
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -311,12 +341,12 @@ class TestUpgradeLegacyProjectE2E:
 
         ensure_runtime()
 
-        # Create legacy project with customized template
+        # Create legacy project with user-created template (no package counterpart)
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# My Custom Spec\nThis is different from global."
+        (kittify / "templates" / "my-custom-template.md").write_text(
+            "# My Custom Spec\nThis is user-created content."
         )
 
         # Migrate
@@ -326,7 +356,7 @@ class TestUpgradeLegacyProjectE2E:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = resolve_template(
-                "spec-template.md", project, mission="software-dev"
+                "my-custom-template.md", project, mission="software-dev"
             )
 
         assert result.tier == ResolutionTier.OVERRIDE
@@ -455,15 +485,20 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
 
-        # Identical to global (should be removed)
+        # Identical to package (should be removed)
         (kittify / "templates").mkdir(parents=True)
         (kittify / "templates" / "spec-template.md").write_text(
             "# Spec Template\nThis is the default spec template."
         )
 
-        # Customized (should move to overrides)
+        # Superseded: old default that differs from current package (should be removed)
         (kittify / "templates" / "plan-template.md").write_text(
-            "# My Custom Plan\nThis differs from global."
+            "# Old Plan Template v1\nThis is an outdated default."
+        )
+
+        # Customized: user-created file with no package counterpart (should move to overrides)
+        (kittify / "templates" / "my-custom-template.md").write_text(
+            "# My Custom Template\nUser-created content."
         )
 
         # Project-specific (should be kept)
@@ -475,7 +510,8 @@ class TestUpgradeLegacyProjectE2E:
         report = execute_migration(project)
 
         assert len(report.removed) >= 1  # spec-template.md removed (identical)
-        assert len(report.moved) >= 1  # plan-template.md moved (customized)
+        assert len(report.superseded) >= 1  # plan-template.md superseded (old default)
+        assert len(report.moved) >= 1  # my-custom-template.md moved (customized)
         assert len(report.kept) >= 2  # config.yaml + memory/notes.md kept
 
         # Step 4: Verify post-migration resolution
@@ -485,18 +521,24 @@ class TestUpgradeLegacyProjectE2E:
         )
         assert result_spec.tier == ResolutionTier.GLOBAL_MISSION
 
-        # Customized file resolves from OVERRIDE (no deprecation warning)
+        # User-created file resolves from OVERRIDE (no deprecation warning)
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result_plan = resolve_template(
-                "plan-template.md", project, mission="software-dev"
+            result_custom = resolve_template(
+                "my-custom-template.md", project, mission="software-dev"
             )
-        assert result_plan.tier == ResolutionTier.OVERRIDE
-        assert "My Custom Plan" in result_plan.path.read_text()
+        assert result_custom.tier == ResolutionTier.OVERRIDE
+        assert "My Custom Template" in result_custom.path.read_text()
         deprecation_warnings = [
             x for x in w if issubclass(x.category, DeprecationWarning)
         ]
         assert len(deprecation_warnings) == 0
+
+        # Superseded file removed — falls through to GLOBAL_MISSION tier
+        result_plan = resolve_template(
+            "plan-template.md", project, mission="software-dev"
+        )
+        assert result_plan.tier == ResolutionTier.GLOBAL_MISSION
 
         # Project-specific files untouched
         assert (kittify / "config.yaml").exists()

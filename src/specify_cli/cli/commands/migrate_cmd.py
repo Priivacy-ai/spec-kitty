@@ -91,10 +91,15 @@ def migrate(
 
     action_removed = "would remove" if dry_run else "removed"
     action_moved = "would move" if dry_run else "moved"
+    action_superseded = "would remove" if dry_run else "removed"
 
     console.print(
         f"  {len(report.removed)} files identical to global -- {action_removed}"
     )
+    if report.superseded:
+        console.print(
+            f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}"
+        )
     console.print(
         f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
     )
@@ -108,6 +113,8 @@ def migrate(
     if verbose:
         for path in report.removed:
             console.print(f"    [dim]removed: {path}[/dim]")
+        for path in report.superseded:
+            console.print(f"    [dim]superseded: {path}[/dim]")
         for src, dst in report.moved:
             console.print(f"    [blue]moved: {src} -> {dst}[/blue]")
         for path in report.kept:

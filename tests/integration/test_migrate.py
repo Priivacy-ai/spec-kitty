@@ -5,6 +5,7 @@ Covers:
 - T021: execute_migration() dry-run and actual execution
 - T023: Dry-run correctness and idempotency (G3, 1A-03, 1A-04)
 - T024: Customized files moved to overrides (F-Legacy-003, 1A-05)
+- T025: SUPERSEDED disposition and version-skew regression
 """
 
 from __future__ import annotations
@@ -19,6 +20,24 @@ from specify_cli.runtime.migrate import (
     classify_asset,
     execute_migration,
 )
+
+
+# ---------------------------------------------------------------------------
+# Helpers: package asset setup
+# ---------------------------------------------------------------------------
+
+
+def _setup_package_assets(package_root: Path, mission: str = "software-dev") -> None:
+    """Create a minimal package asset tree (immutable comparison target)."""
+    mission_dir = package_root / mission
+    (mission_dir / "templates").mkdir(parents=True, exist_ok=True)
+    (mission_dir / "templates" / "spec.md").write_text("package spec content v2")
+    (mission_dir / "templates" / "plan.md").write_text("package plan content v2")
+    (mission_dir / "command-templates").mkdir(parents=True, exist_ok=True)
+    (mission_dir / "command-templates" / "implement.md").write_text("package implement content v2")
+    (package_root / "AGENTS.md").write_text("package agents content v2")
+    (mission_dir / "scripts").mkdir(parents=True, exist_ok=True)
+    (mission_dir / "scripts" / "deploy.sh").write_text("package deploy script v2")
 
 
 # ---------------------------------------------------------------------------
@@ -39,8 +58,10 @@ def _setup_global(global_home: Path, mission: str = "software-dev") -> None:
     (mission_dir / "command-templates" / "implement.md").write_text(
         "global implement content"
     )
-    # AGENTS.md at global root
+    # AGENTS.md at global root and under missions/ (for package_root compatibility)
     (global_home / "AGENTS.md").write_text("global agents content")
+    missions_dir = global_home / "missions"
+    (missions_dir / "AGENTS.md").write_text("global agents content")
     # scripts/deploy.sh
     (mission_dir / "scripts").mkdir(parents=True, exist_ok=True)
     (mission_dir / "scripts" / "deploy.sh").write_text("global deploy script")
@@ -303,6 +324,7 @@ class TestExecuteMigration:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         _setup_project_kittify(
@@ -318,6 +340,7 @@ class TestExecuteMigration:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         _setup_project_kittify(
@@ -351,6 +374,7 @@ class TestExecuteMigration:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
@@ -370,26 +394,31 @@ class TestExecuteMigration:
     def test_actual_execution_moves_customized_to_overrides(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Non-dry-run moves customized files to overrides/."""
+        """Non-dry-run moves customized files to overrides/.
+
+        Uses a file with no package counterpart (user-created template)
+        to trigger the CUSTOMIZED disposition.
+        """
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
             project,
-            customized_files={"templates/spec.md": "customized spec content"},
+            customized_files={"templates/my-custom-template.md": "customized content"},
         )
 
         report = execute_migration(project, dry_run=False)
 
         assert len(report.moved) == 1
         # Original should be gone
-        assert not (kittify / "templates" / "spec.md").exists()
+        assert not (kittify / "templates" / "my-custom-template.md").exists()
         # Override should exist with correct content
-        override = kittify / "overrides" / "templates" / "spec.md"
+        override = kittify / "overrides" / "templates" / "my-custom-template.md"
         assert override.exists()
-        assert override.read_text() == "customized spec content"
+        assert override.read_text() == "customized content"
 
     def test_cleanup_empty_dirs(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -398,6 +427,7 @@ class TestExecuteMigration:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
@@ -417,6 +447,7 @@ class TestExecuteMigration:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
@@ -447,6 +478,7 @@ class TestMigrateDryRun:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
@@ -487,6 +519,7 @@ class TestMigrateIdempotent:
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         _setup_project_kittify(
@@ -541,6 +574,7 @@ class TestMigrateIdempotent:
         global_home = tmp_path / "global"
         global_home.mkdir()
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -563,15 +597,16 @@ class TestCustomizedFilesMovedToOverrides:
     def test_customized_files_moved_to_overrides(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Customized files end up in .kittify/overrides/ with correct relative path."""
+        """User-created files (no package counterpart) end up in .kittify/overrides/."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
             project,
-            customized_files={"templates/spec.md": "customized content"},
+            customized_files={"templates/my-custom.md": "customized content"},
         )
 
         report = execute_migration(project)
@@ -579,33 +614,34 @@ class TestCustomizedFilesMovedToOverrides:
         # Verify: customized file moved to overrides
         assert len(report.moved) == 1
         src, dst = report.moved[0]
-        assert src == kittify / "templates" / "spec.md"
-        assert dst == kittify / "overrides" / "templates" / "spec.md"
+        assert src == kittify / "templates" / "my-custom.md"
+        assert dst == kittify / "overrides" / "templates" / "my-custom.md"
 
         # Verify on filesystem
-        assert (kittify / "overrides" / "templates" / "spec.md").exists()
+        assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
         assert (
-            (kittify / "overrides" / "templates" / "spec.md").read_text()
+            (kittify / "overrides" / "templates" / "my-custom.md").read_text()
             == "customized content"
         )
         # Verify: original location removed
-        assert not (kittify / "templates" / "spec.md").exists()
+        assert not (kittify / "templates" / "my-custom.md").exists()
 
     def test_multiple_customized_files_preserve_hierarchy(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Multiple customized files maintain their directory hierarchy under overrides/."""
+        """Multiple user-created files maintain their directory hierarchy under overrides/."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
             project,
             customized_files={
-                "templates/spec.md": "custom spec",
-                "command-templates/implement.md": "custom implement",
-                "scripts/deploy.sh": "custom deploy",
+                "templates/my-custom.md": "custom template",
+                "command-templates/my-workflow.md": "custom workflow",
+                "scripts/custom-script.sh": "custom script",
             },
         )
 
@@ -614,58 +650,64 @@ class TestCustomizedFilesMovedToOverrides:
         assert len(report.moved) == 3
 
         # All should exist under overrides/
-        assert (kittify / "overrides" / "templates" / "spec.md").exists()
-        assert (kittify / "overrides" / "command-templates" / "implement.md").exists()
-        assert (kittify / "overrides" / "scripts" / "deploy.sh").exists()
+        assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
+        assert (kittify / "overrides" / "command-templates" / "my-workflow.md").exists()
+        assert (kittify / "overrides" / "scripts" / "custom-script.sh").exists()
 
         # Content preserved
         assert (
-            (kittify / "overrides" / "templates" / "spec.md").read_text()
-            == "custom spec"
+            (kittify / "overrides" / "templates" / "my-custom.md").read_text()
+            == "custom template"
         )
         assert (
-            (kittify / "overrides" / "command-templates" / "implement.md").read_text()
-            == "custom implement"
+            (kittify / "overrides" / "command-templates" / "my-workflow.md").read_text()
+            == "custom workflow"
         )
         assert (
-            (kittify / "overrides" / "scripts" / "deploy.sh").read_text()
-            == "custom deploy"
+            (kittify / "overrides" / "scripts" / "custom-script.sh").read_text()
+            == "custom script"
         )
 
-    def test_customized_agents_md_moved(
+    def test_outdated_agents_md_superseded(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Customized AGENTS.md (root-level shared file) is moved to overrides/."""
+        """AGENTS.md with package counterpart but different content is SUPERSEDED (removed)."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
             project,
-            customized_files={"AGENTS.md": "my custom agents list"},
+            customized_files={"AGENTS.md": "old agents content v1"},
         )
 
         report = execute_migration(project)
 
-        assert len(report.moved) == 1
-        assert (kittify / "overrides" / "AGENTS.md").exists()
-        assert (kittify / "overrides" / "AGENTS.md").read_text() == "my custom agents list"
+        # AGENTS.md has a package counterpart, so it's superseded (not moved to overrides)
+        assert len(report.superseded) == 1
+        assert len(report.moved) == 0
         assert not (kittify / "AGENTS.md").exists()
+        assert not (kittify / "overrides" / "AGENTS.md").exists()
 
-    def test_mix_of_identical_and_customized(
+    def test_mix_of_identical_customized_and_superseded(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Identical files removed, customized moved; project-specific untouched."""
+        """Identical removed, superseded removed, customized moved; project-specific untouched."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
         kittify = _setup_project_kittify(
             project,
             identical_files={"templates/spec.md": "global spec content"},
-            customized_files={"templates/plan.md": "my custom plan"},
+            customized_files={
+                "templates/plan.md": "old plan content v1",  # Has package counterpart → superseded
+                "templates/my-custom.md": "user-created content",  # No counterpart → customized
+            },
             project_specific_files={"config.yaml": "my config"},
         )
 
@@ -675,10 +717,14 @@ class TestCustomizedFilesMovedToOverrides:
         assert len(report.removed) == 1
         assert not (kittify / "templates" / "spec.md").exists()
 
-        # Customized moved
+        # Superseded removed (old default for plan.md)
+        assert len(report.superseded) == 1
+        assert not (kittify / "templates" / "plan.md").exists()
+
+        # Customized moved (user-created, no package counterpart)
         assert len(report.moved) == 1
-        assert (kittify / "overrides" / "templates" / "plan.md").exists()
-        assert (kittify / "overrides" / "templates" / "plan.md").read_text() == "my custom plan"
+        assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
+        assert (kittify / "overrides" / "templates" / "my-custom.md").read_text() == "user-created content"
 
         # Project-specific kept
         assert len(report.kept) == 1
@@ -749,3 +795,224 @@ class TestMigrationReport:
         """dry_run flag can be set at construction."""
         report = MigrationReport(dry_run=True)
         assert report.dry_run is True
+
+    def test_superseded_field_default(self) -> None:
+        """superseded list defaults to empty."""
+        report = MigrationReport()
+        assert report.superseded == []
+
+
+# ---------------------------------------------------------------------------
+# T025: SUPERSEDED disposition tests
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyAssetSuperseded:
+    """Test SUPERSEDED disposition when package_root is provided."""
+
+    def test_superseded_when_differs_from_package(self, tmp_path: Path) -> None:
+        """File with package counterpart but different content is SUPERSEDED."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "templates" / "spec.md"
+        f.parent.mkdir(parents=True)
+        f.write_text("old spec content v1")  # Differs from package v2
+
+        global_home = tmp_path / "global"
+        global_home.mkdir()
+
+        result = classify_asset(f, global_home, kittify, package_root=package_root)
+        assert result == AssetDisposition.SUPERSEDED
+
+    def test_identical_when_matches_package(self, tmp_path: Path) -> None:
+        """File matching package default is IDENTICAL even with package_root."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "templates" / "spec.md"
+        f.parent.mkdir(parents=True)
+        f.write_text("package spec content v2")  # Matches package exactly
+
+        global_home = tmp_path / "global"
+        global_home.mkdir()
+
+        result = classify_asset(f, global_home, kittify, package_root=package_root)
+        assert result == AssetDisposition.IDENTICAL
+
+    def test_customized_when_no_package_counterpart(self, tmp_path: Path) -> None:
+        """File with no package counterpart is CUSTOMIZED (genuinely user-created)."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "templates" / "user-template.md"
+        f.parent.mkdir(parents=True)
+        f.write_text("user-created template")
+
+        global_home = tmp_path / "global"
+        global_home.mkdir()
+
+        result = classify_asset(f, global_home, kittify, package_root=package_root)
+        assert result == AssetDisposition.CUSTOMIZED
+
+    def test_project_specific_still_kept_with_package_root(self, tmp_path: Path) -> None:
+        """Project-specific files are unaffected by package_root."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "config.yaml"
+        f.parent.mkdir(parents=True)
+        f.write_text("agents: [claude]")
+
+        global_home = tmp_path / "global"
+        global_home.mkdir()
+
+        result = classify_asset(f, global_home, kittify, package_root=package_root)
+        assert result == AssetDisposition.PROJECT_SPECIFIC
+
+
+class TestExecuteMigrationSuperseded:
+    """Test that execute_migration() removes superseded files."""
+
+    def test_superseded_files_removed_not_moved_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Superseded files are removed, NOT moved to overrides/."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            # Old default content that differs from both global and package
+            customized_files={
+                "templates/spec.md": "old spec content v1",
+                "templates/plan.md": "old plan content v1",
+            },
+            project_specific_files={"config.yaml": "keep me"},
+        )
+
+        report = execute_migration(project, dry_run=False)
+
+        # Old defaults should be classified as superseded and removed
+        assert len(report.superseded) == 2
+        assert len(report.moved) == 0  # NOT moved to overrides
+
+        # Files should be gone from filesystem
+        assert not (kittify / "templates" / "spec.md").exists()
+        assert not (kittify / "templates" / "plan.md").exists()
+
+        # No overrides created
+        assert not (kittify / "overrides").exists()
+
+    def test_genuine_customization_still_moved_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Files with no package counterpart are still moved to overrides/."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            customized_files={
+                "templates/my-custom-template.md": "user-created content",
+            },
+        )
+
+        report = execute_migration(project, dry_run=False)
+
+        assert len(report.moved) == 1
+        assert (kittify / "overrides" / "templates" / "my-custom-template.md").exists()
+
+    def test_version_skew_scenario_end_to_end(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Simulate upgrade where global is newer than project files.
+
+        This is the exact scenario from issue #285: ensure_runtime() has
+        already updated ~/.kittify/ to v2, but project files are still v1.
+        With the fix, old defaults are SUPERSEDED (removed), not CUSTOMIZED.
+        """
+        # Package assets represent the NEW version (immutable truth)
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        # Global home (~/.kittify/) already updated to new version
+        # (this is what ensure_runtime() does before migration runs)
+        global_home = tmp_path / "global"
+        mission_dir = global_home / "missions" / "software-dev"
+        (mission_dir / "templates").mkdir(parents=True, exist_ok=True)
+        (mission_dir / "templates" / "spec.md").write_text("package spec content v2")
+        (mission_dir / "templates" / "plan.md").write_text("package plan content v2")
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        # Project still has OLD version content
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            customized_files={
+                "templates/spec.md": "old spec content v1",
+                "templates/plan.md": "old plan content v1",
+            },
+            project_specific_files={"config.yaml": "keep me"},
+        )
+
+        report = execute_migration(project, dry_run=False)
+
+        # Key assertion: old defaults are SUPERSEDED, not moved to overrides
+        assert len(report.superseded) == 2
+        assert len(report.moved) == 0
+        assert not (kittify / "overrides").exists()
+
+        # Files removed from project
+        assert not (kittify / "templates" / "spec.md").exists()
+        assert not (kittify / "templates" / "plan.md").exists()
+
+        # Project-specific files untouched
+        assert (kittify / "config.yaml").exists()
+
+    def test_superseded_count_in_report(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """MigrationReport.superseded tracks superseded files separately from removed."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        project = tmp_path / "project"
+        _setup_project_kittify(
+            project,
+            identical_files={
+                # Matches package default exactly
+                "templates/spec.md": "package spec content v2",
+            },
+            customized_files={
+                # Old default, differs from package
+                "templates/plan.md": "old plan content v1",
+            },
+        )
+
+        report = execute_migration(project, dry_run=False)
+
+        assert len(report.removed) == 1  # identical
+        assert len(report.superseded) == 1  # superseded (old default)

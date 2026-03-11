@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ruff lint compliance**: full ruff clean pass across `src/` and `tests/`; added ruff lint config to `pyproject.toml`.
 - **Documentation site updates**: 2.x docs site refresh with Contextive IDE integration guide.
 
+## [2.0.7] - 2026-03-11
+
+### 🐛 Fixed
+
+- **Stale overrides from upgrade version-skew (#285)**: `classify_asset()` now compares project `.kittify/` files against immutable package-bundled defaults (`get_package_asset_root()`) instead of the mutable `~/.kittify/` directory. This prevents old managed templates from being misclassified as user customizations and permanently shadowing newer templates in `.kittify/overrides/` during upgrades.
+- **New `SUPERSEDED` disposition**: managed files that differ from the current package default are now correctly classified as `SUPERSEDED` (removed) rather than `CUSTOMIZED` (moved to overrides). Only files with no package counterpart are treated as genuine user customizations.
+- **Repair migration for already-affected users**: new `2.0.7_fix_stale_overrides` migration scans `.kittify/overrides/` for files byte-identical to current package defaults and removes them. Genuine user customizations are preserved.
+
 ## [2.0.6] - 2026-03-10
 
 ### 🐛 Fixed
