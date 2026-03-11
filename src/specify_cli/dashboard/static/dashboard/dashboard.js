@@ -365,6 +365,10 @@ return `
                 <div class="status-label">Review</div>
                 <div class="status-value">${stats.for_review}</div>
             </div>
+            <div class="status-card approved">
+                <div class="status-label">Approved</div>
+                <div class="status-value">${stats.approved || 0}</div>
+            </div>
             <div class="status-card completed">
                 <div class="status-label">Completed</div>
                 <div class="status-value">${completed}</div>
@@ -395,7 +399,7 @@ function loadKanban() {
 }
 
 function renderKanban(lanes) {
-    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + lanes.done.length;
+    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.approved || []).length + lanes.done.length;
     const completed = lanes.done.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -419,6 +423,10 @@ function renderKanban(lanes) {
         <div class="status-card review">
             <div class="status-label">Review</div>
             <div class="status-value">${lanes.for_review.length}</div>
+        </div>
+        <div class="status-card approved">
+            <div class="status-label">Approved</div>
+            <div class="status-value">${(lanes.approved || []).length}</div>
         </div>
         <div class="status-card completed">
             <div class="status-label">Completed</div>
@@ -469,6 +477,13 @@ function renderKanban(lanes) {
             </div>
             <div>${lanes.for_review.length === 0 ? '<div class="empty-state">No tasks</div>' : lanes.for_review.map(createCard).join('')}</div>
         </div>
+        <div class="lane approved">
+            <div class="lane-header">
+                <span>👍 Approved</span>
+                <span class="count">${(lanes.approved || []).length}</span>
+            </div>
+            <div>${(lanes.approved || []).length === 0 ? '<div class="empty-state">No tasks</div>' : (lanes.approved || []).map(createCard).join('')}</div>
+        </div>
         <div class="lane done">
             <div class="lane-header">
                 <span>✅ Done</span>
@@ -478,7 +493,7 @@ function renderKanban(lanes) {
         </div>
     `;
 
-    ['planned', 'doing', 'for_review', 'done'].forEach(laneName => {
+    ['planned', 'doing', 'for_review', 'approved', 'done'].forEach(laneName => {
         const laneCards = document.querySelectorAll(`.lane.${laneName} .card`);
         laneCards.forEach((card, index) => {
             const task = lanes[laneName][index];

@@ -285,7 +285,7 @@ def resolve_active_feature(
 
 def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
     """Count work packages by lane from frontmatter (new format)."""
-    counts = {"planned": 0, "doing": 0, "for_review": 0, "done": 0}
+    counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
 
     if not tasks_dir.exists():
         return counts
@@ -297,6 +297,10 @@ def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
 
         frontmatter, _, _ = parse_frontmatter(content)
         lane = frontmatter.get("lane", "planned") if isinstance(frontmatter, dict) else "planned"
+        if lane == "claimed":
+            lane = "planned"
+        elif lane == "in_progress":
+            lane = "doing"
         if lane in counts:
             counts[lane] += 1
 
@@ -327,7 +331,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         artifacts = get_feature_artifacts(feature_dir, project_dir)
         workflow = get_workflow_status(artifacts)
 
-        kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "done": 0}
+        kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
         if artifacts["kanban"]:
             tasks_dir = feature_dir / "tasks"
             use_legacy = is_legacy_format(feature_dir)
@@ -429,6 +433,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
         "planned": [],
         "doing": [],
         "for_review": [],
+        "approved": [],
         "done": [],
     }
 
@@ -465,6 +470,10 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 task_data = _process_wp_file(prompt_file, project_dir, "planned")
                 if task_data is not None:
                     lane = task_data.get("lane", "planned")
+                    if lane == "claimed":
+                        lane = "planned"
+                    elif lane == "in_progress":
+                        lane = "doing"
                     if lane not in lanes:
                         lane = "planned"
                     lanes[lane].append(task_data)
