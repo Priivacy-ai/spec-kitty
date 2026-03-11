@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.cli.commands.agent.feature import app as feature_app
+from specify_cli.frontmatter import read_frontmatter
 
 runner = CliRunner()
 
@@ -42,11 +43,19 @@ def _setup_feature(tmp_path: Path, *, wp_ids: list[str] | None = None) -> Path:
 
     for wp_id in (wp_ids or ["WP01", "WP02"]):
         (tasks_dir / f"{wp_id}-test.md").write_text(
-            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"{wp_id}\"\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"{wp_id}\"\nlane: planned\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
     return feature_dir
+
+
+def _read_wp_refs(feature_dir: Path, wp_id: str) -> list[str]:
+    """Read requirement_refs from a WP file's frontmatter."""
+    tasks_dir = feature_dir / "tasks"
+    wp_file = next(tasks_dir.glob(f"{wp_id}*.md"))
+    fm, _ = read_frontmatter(wp_file)
+    return fm.get("requirement_refs", [])
 
 
 # --- map-requirements command tests ---
@@ -57,7 +66,7 @@ class TestMapRequirementsIndividual:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_stores_correctly(
+    def test_writes_to_frontmatter(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
@@ -67,7 +76,7 @@ class TestMapRequirementsIndividual:
         mock_locate.return_value = tmp_path
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
-        _setup_feature(tmp_path)
+        feature_dir = _setup_feature(tmp_path)
 
         result = runner.invoke(
             tasks_app,
@@ -79,28 +88,65 @@ class TestMapRequirementsIndividual:
         assert payload["result"] == "success"
         assert payload["mapped"]["WP01"] == ["FR-001", "FR-002"]
 
+        # Verify frontmatter was written
+        refs = _read_wp_refs(feature_dir, "WP01")
+        assert refs == ["FR-001", "FR-002"]
+
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_merge_individual(
+    def test_individual_unions_refs_p2_regression(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
         mock_locate: Mock,
         tmp_path: Path,
     ):
-        """Second individual call merges, doesn't replace existing WPs."""
+        """P2 regression: individual call must union refs, not replace them."""
         mock_locate.return_value = tmp_path
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
-        _setup_feature(tmp_path)
+        feature_dir = _setup_feature(tmp_path)
 
-        # First call
+        # First call: map FR-001
         runner.invoke(
             tasks_app,
             ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--json"],
         )
-        # Second call for different WP
+        # Second call: map FR-002 to same WP
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-002", "--json"],
+        )
+
+        assert result.exit_code == 0
+        # Verify BOTH refs are present (union, not replace)
+        refs = _read_wp_refs(feature_dir, "WP01")
+        assert "FR-001" in refs
+        assert "FR-002" in refs
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_merge_individual_different_wps(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Second individual call for different WP preserves first WP."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path)
+
+        # First call for WP01
+        runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--json"],
+        )
+        # Second call for WP02
         result = runner.invoke(
             tasks_app,
             ["map-requirements", "--wp", "WP02", "--refs", "FR-002", "--json"],
@@ -119,7 +165,7 @@ class TestMapRequirementsBatch:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_stores_all_mappings(
+    def test_writes_all_mappings_to_frontmatter(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
@@ -129,7 +175,7 @@ class TestMapRequirementsBatch:
         mock_locate.return_value = tmp_path
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
-        _setup_feature(tmp_path)
+        feature_dir = _setup_feature(tmp_path)
 
         batch = json.dumps({"WP01": ["FR-001", "FR-002"], "WP02": ["FR-003"]})
         result = runner.invoke(
@@ -142,6 +188,36 @@ class TestMapRequirementsBatch:
         assert payload["result"] == "success"
         assert payload["mapped"]["WP01"] == ["FR-001", "FR-002"]
         assert payload["mapped"]["WP02"] == ["FR-003"]
+
+        # Verify frontmatter
+        assert _read_wp_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
+        assert _read_wp_refs(feature_dir, "WP02") == ["FR-003"]
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_batch_non_string_refs_p3_regression(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """P3 regression: batch with non-string refs returns error, not crash."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        _setup_feature(tmp_path)
+
+        batch = json.dumps({"WP01": [1, 2]})
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--batch", batch, "--json"],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip())
+        assert "list of strings" in payload["error"]
 
 
 class TestMapRequirementsValidation:
@@ -277,17 +353,17 @@ class TestMapRequirementsCoverage:
         assert "FR-003" in coverage["unmapped_functional"]
 
 
-# --- finalize-tasks integration with requirement-mapping.json ---
+# --- finalize-tasks integration ---
 
-class TestFinalizeTasksWithMappingJson:
-    """Tests for finalize-tasks reading from requirement-mapping.json."""
+class TestFinalizeTasksWithFrontmatterRefs:
+    """Tests for finalize-tasks reading from WP frontmatter."""
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
     @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
     @patch("specify_cli.cli.commands.agent.feature.run_command", return_value=(0, "a" * 40, ""))
-    def test_reads_from_mapping_json(
+    def test_reads_refs_from_frontmatter(
         self,
         mock_run: Mock,
         mock_commit: Mock,
@@ -296,9 +372,26 @@ class TestFinalizeTasksWithMappingJson:
         mock_locate: Mock,
         tmp_path: Path,
     ):
-        """finalize-tasks should use requirement-mapping.json as primary source."""
+        """finalize-tasks reads requirement_refs from WP frontmatter."""
         mock_locate.return_value = tmp_path
-        feature_dir = _setup_feature(tmp_path)
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (feature_dir / "spec.md").write_text(SPEC_CONTENT, encoding="utf-8")
+
+        # WP files with requirement_refs in frontmatter
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nlane: planned\n'
+            "requirement_refs:\n  - FR-001\n  - NFR-001\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-test.md").write_text(
+            '---\nwork_package_id: "WP02"\ntitle: "WP02"\nlane: planned\n'
+            "requirement_refs:\n  - FR-002\n  - FR-003\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+
         mock_find.return_value = feature_dir
 
         # Write tasks.md (no requirement refs in it)
@@ -308,22 +401,15 @@ class TestFinalizeTasksWithMappingJson:
             encoding="utf-8",
         )
 
-        # Write requirement-mapping.json via the module
-        from specify_cli.requirement_mapping import save_requirement_mapping
-        save_requirement_mapping(feature_dir, {
-            "WP01": ["FR-001", "NFR-001"],
-            "WP02": ["FR-002", "FR-003"],
-        })
-
         result = runner.invoke(feature_app, ["finalize-tasks", "--json"])
 
         assert result.exit_code == 0, result.stdout
         json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
         payload = json.loads(json_lines[-1])
         assert payload["result"] == "success"
-        assert payload["mapping_source"] == "api"
-        assert payload["requirement_refs_parsed"]["WP01"] == ["FR-001", "NFR-001"]
-        assert payload["requirement_refs_parsed"]["WP02"] == ["FR-002", "FR-003"]
+        assert "FR-001" in payload["requirement_refs_parsed"]["WP01"]
+        assert "NFR-001" in payload["requirement_refs_parsed"]["WP01"]
+        assert "FR-002" in payload["requirement_refs_parsed"]["WP02"]
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -339,7 +425,7 @@ class TestFinalizeTasksWithMappingJson:
         mock_locate: Mock,
         tmp_path: Path,
     ):
-        """No mapping JSON → parses tasks.md (backward compat)."""
+        """No frontmatter refs → parses tasks.md (backward compat)."""
         mock_locate.return_value = tmp_path
         feature_dir = _setup_feature(tmp_path, wp_ids=["WP01"])
         mock_find.return_value = feature_dir
@@ -356,42 +442,4 @@ class TestFinalizeTasksWithMappingJson:
         json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
         payload = json.loads(json_lines[-1])
         assert payload["result"] == "success"
-        assert payload["mapping_source"] == "tasks_md"
         assert "FR-001" in payload["requirement_refs_parsed"]["WP01"]
-
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
-    @patch("specify_cli.cli.commands.agent.feature.run_command", return_value=(0, "a" * 40, ""))
-    def test_reports_mapping_source(
-        self,
-        mock_run: Mock,
-        mock_commit: Mock,
-        mock_show_branch: Mock,
-        mock_find: Mock,
-        mock_locate: Mock,
-        tmp_path: Path,
-    ):
-        """JSON output includes mapping_source field."""
-        mock_locate.return_value = tmp_path
-        feature_dir = _setup_feature(tmp_path, wp_ids=["WP01"])
-        mock_find.return_value = feature_dir
-
-        (feature_dir / "tasks.md").write_text(
-            "## Work Package WP01\n**Dependencies**: None\n",
-            encoding="utf-8",
-        )
-        # WP frontmatter has refs
-        (feature_dir / "tasks" / "WP01-test.md").write_text(
-            "---\nwork_package_id: \"WP01\"\ntitle: \"WP01\"\nrequirement_refs:\n  - FR-001\n  - FR-002\n  - FR-003\n---\n\n# WP01\n",
-            encoding="utf-8",
-        )
-
-        result = runner.invoke(feature_app, ["finalize-tasks", "--json"])
-
-        assert result.exit_code == 0, result.stdout
-        json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
-        payload = json.loads(json_lines[-1])
-        assert payload["result"] == "success"
-        assert payload["mapping_source"] == "frontmatter"

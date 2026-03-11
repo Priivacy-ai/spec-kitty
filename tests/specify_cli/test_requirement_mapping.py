@@ -2,58 +2,18 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from specify_cli.requirement_mapping import (
-    MAPPING_FILENAME,
     compute_coverage,
-    load_requirement_mapping,
+    normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
-    save_requirement_mapping,
+    read_all_wp_requirement_refs,
     validate_ref_format,
     validate_refs,
 )
-
-
-class TestLoadSaveRoundTrip:
-    """Test JSON persistence round-trip."""
-
-    def test_load_returns_empty_when_missing(self, tmp_path: Path):
-        assert load_requirement_mapping(tmp_path) == {}
-
-    def test_save_and_load_round_trip(self, tmp_path: Path):
-        mappings = {"WP01": ["FR-001", "FR-002"], "WP02": ["NFR-001"]}
-        save_requirement_mapping(tmp_path, mappings)
-        loaded = load_requirement_mapping(tmp_path)
-        assert loaded == {"WP01": ["FR-001", "FR-002"], "WP02": ["NFR-001"]}
-
-    def test_save_uppercases_refs(self, tmp_path: Path):
-        save_requirement_mapping(tmp_path, {"WP01": ["fr-001", "nfr-002"]})
-        loaded = load_requirement_mapping(tmp_path)
-        assert loaded == {"WP01": ["FR-001", "NFR-002"]}
-
-    def test_save_deduplicates_refs(self, tmp_path: Path):
-        save_requirement_mapping(tmp_path, {"WP01": ["FR-001", "FR-001", "FR-002"]})
-        loaded = load_requirement_mapping(tmp_path)
-        assert loaded["WP01"] == ["FR-001", "FR-002"]
-
-    def test_load_returns_empty_on_malformed_json(self, tmp_path: Path):
-        (tmp_path / MAPPING_FILENAME).write_text("not json", encoding="utf-8")
-        assert load_requirement_mapping(tmp_path) == {}
-
-    def test_load_returns_empty_on_missing_mappings_key(self, tmp_path: Path):
-        (tmp_path / MAPPING_FILENAME).write_text('{"version": 1}', encoding="utf-8")
-        assert load_requirement_mapping(tmp_path) == {}
-
-    def test_save_includes_version_and_timestamp(self, tmp_path: Path):
-        save_requirement_mapping(tmp_path, {"WP01": ["FR-001"]})
-        data = json.loads((tmp_path / MAPPING_FILENAME).read_text(encoding="utf-8"))
-        assert data["version"] == 1
-        assert "updated_at" in data
-        assert "mappings" in data
 
 
 class TestValidateRefs:
@@ -144,3 +104,64 @@ class TestParseRequirementIdsFromSpecMd:
         result = parse_requirement_ids_from_spec_md(content)
         assert "FR-001" in result["all"]
         assert "NFR-002" in result["all"]
+
+
+class TestNormalizeRequirementRefsValue:
+    """Test normalize_requirement_refs_value()."""
+
+    def test_string_input(self):
+        assert normalize_requirement_refs_value("FR-001, FR-002") == [
+            "FR-001",
+            "FR-002",
+        ]
+
+    def test_list_of_strings(self):
+        assert normalize_requirement_refs_value(["FR-001", "NFR-002"]) == [
+            "FR-001",
+            "NFR-002",
+        ]
+
+    def test_mixed_list(self):
+        # Non-string items are skipped
+        assert normalize_requirement_refs_value(["FR-001", 42, "NFR-002"]) == [
+            "FR-001",
+            "NFR-002",
+        ]
+
+    def test_empty_list(self):
+        assert normalize_requirement_refs_value([]) == []
+
+    def test_none(self):
+        assert normalize_requirement_refs_value(None) == []
+
+    def test_deduplicates(self):
+        assert normalize_requirement_refs_value(["FR-001", "FR-001"]) == [
+            "FR-001",
+        ]
+
+    def test_uppercases(self):
+        assert normalize_requirement_refs_value(["fr-001"]) == ["FR-001"]
+
+
+class TestReadAllWpRequirementRefs:
+    """Test read_all_wp_requirement_refs()."""
+
+    def test_reads_from_wp_frontmatter(self, tmp_path: Path):
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-test.md").write_text(
+            '---\nwork_package_id: "WP02"\ntitle: "WP02"\n---\n\n# WP02\n',
+            encoding="utf-8",
+        )
+
+        result = read_all_wp_requirement_refs(tasks_dir)
+        assert result["WP01"] == ["FR-001", "FR-002"]
+        assert result["WP02"] == []
+
+    def test_returns_empty_for_missing_dir(self, tmp_path: Path):
+        assert read_all_wp_requirement_refs(tmp_path / "nonexistent") == {}

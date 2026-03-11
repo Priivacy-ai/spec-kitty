@@ -2013,9 +2013,8 @@ def map_requirements(
 ) -> None:
     """Register requirement-to-WP mappings with immediate validation.
 
-    Validates each ref against spec.md, checks WP files exist, and stores
-    mappings in requirement-mapping.json. finalize-tasks reads this as its
-    primary source.
+    Validates each ref against spec.md, checks WP files exist, and writes
+    requirement_refs directly into each WP file's YAML frontmatter.
 
     Individual mode: --wp WP04 --refs FR-005,FR-006
     Batch mode:      --batch '{"WP01":["FR-001"],"WP04":["FR-005","FR-006"]}'
@@ -2024,11 +2023,12 @@ def map_requirements(
         spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
         spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001"]}' --json
     """
+    from specify_cli.frontmatter import read_frontmatter, write_frontmatter
     from specify_cli.requirement_mapping import (
         compute_coverage,
-        load_requirement_mapping,
+        normalize_requirement_refs_value,
         parse_requirement_ids_from_spec_md,
-        save_requirement_mapping,
+        read_all_wp_requirement_refs,
         validate_ref_format,
         validate_refs,
     )
@@ -2085,8 +2085,13 @@ def map_requirements(
                 _output_error(json_output, "--batch must be a JSON object {WP_ID: [refs]}")
                 raise typer.Exit(1)
             for wp_id, ref_list in parsed_batch.items():
-                if not isinstance(ref_list, list):
-                    _output_error(json_output, f"Refs for {wp_id} must be a list, got {type(ref_list).__name__}")
+                if not isinstance(ref_list, list) or not all(
+                    isinstance(r, str) for r in ref_list
+                ):
+                    _output_error(
+                        json_output,
+                        f"Refs for {wp_id} must be a list of strings",
+                    )
                     raise typer.Exit(1)
                 new_mappings[wp_id.upper()] = [r.upper() for r in ref_list]
         else:
@@ -2152,28 +2157,31 @@ def map_requirements(
                 console.print(f"  {available_range}")
             raise typer.Exit(1)
 
-        # --- Load existing and merge ---
-        existing = load_requirement_mapping(feature_dir)
+        # --- Write refs directly into WP frontmatter ---
+        for wp_id, new_refs in new_mappings.items():
+            wp_file = next(
+                (f for f in tasks_dir.glob(f"{wp_id}*.md")), None
+            )
+            if wp_file is None:
+                continue  # Already validated above
 
-        if batch:
-            # Batch mode: replace all mappings
-            merged = dict(new_mappings)
-        else:
-            # Individual mode: merge into existing
-            merged = dict(existing)
-            for wp_id, ref_list in new_mappings.items():
-                merged[wp_id] = sorted(set(ref_list))
+            fm, body = read_frontmatter(wp_file)
+            existing = normalize_requirement_refs_value(
+                fm.get("requirement_refs", [])
+            )
+            merged_refs = sorted(set(existing) | set(new_refs))
+            fm["requirement_refs"] = merged_refs
+            write_frontmatter(wp_file, fm, body)
 
-        save_requirement_mapping(feature_dir, merged)
-
-        # --- Compute coverage ---
-        coverage = compute_coverage(merged, functional_ids)
+        # --- Read all WP refs back for coverage ---
+        all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
+        coverage = compute_coverage(all_wp_refs, functional_ids)
 
         # --- Output ---
         payload = {
             "result": "success",
             "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
-            "total_mappings": {wp_id: sorted(refs) for wp_id, refs in merged.items()},
+            "total_mappings": {wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs},
             "coverage": coverage,
         }
         if json_output:

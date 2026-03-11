@@ -1,63 +1,19 @@
-"""Structured requirement-to-WP mapping storage and validation.
+"""Structured requirement-to-WP mapping validation and frontmatter helpers.
 
-Provides a deterministic, JSON-based requirement mapping that replaces
-fragile regex parsing of markdown text in tasks.md.  The LLM registers
-mappings via ``spec-kitty agent tasks map-requirements`` and
-``finalize-tasks`` reads them as the primary source.
+The LLM registers mappings via ``spec-kitty agent tasks map-requirements``
+which writes ``requirement_refs`` directly into each WP file's YAML
+frontmatter.  ``finalize-tasks`` reads from frontmatter (2-tier fallback:
+tasks.md text → WP frontmatter).
 """
 
 from __future__ import annotations
 
-import json
 import re
-import datetime as _dt
 from pathlib import Path
-
-MAPPING_FILENAME = "requirement-mapping.json"
+from typing import Any
 
 # Matches FR-001, NFR-002, C-003 etc.
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
-
-
-def load_requirement_mapping(feature_dir: Path) -> dict[str, list[str]]:
-    """Load mappings from requirement-mapping.json.
-
-    Returns:
-        Dict of WP ID -> list of requirement ref strings.
-        Empty dict if file is missing or malformed.
-    """
-    path = feature_dir / MAPPING_FILENAME
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        mappings = data.get("mappings", {})
-        if not isinstance(mappings, dict):
-            return {}
-        # Normalize: uppercase all refs
-        return {
-            wp_id: [ref.upper() for ref in refs]
-            for wp_id, refs in mappings.items()
-            if isinstance(refs, list)
-        }
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def save_requirement_mapping(
-    feature_dir: Path, mappings: dict[str, list[str]]
-) -> None:
-    """Save mappings to requirement-mapping.json with version + timestamp."""
-    path = feature_dir / MAPPING_FILENAME
-    data = {
-        "version": 1,
-        "mappings": {
-            wp_id: sorted({ref.upper() for ref in refs})
-            for wp_id, refs in mappings.items()
-        },
-        "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
-    }
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def validate_refs(
@@ -129,3 +85,56 @@ def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]
         "all": sorted(all_ids),
         "functional": sorted(functional_ids),
     }
+
+
+def normalize_requirement_refs_value(value: Any) -> list[str]:
+    """Normalize frontmatter requirement_refs to list[str].
+
+    Handles str, list (of str/int/mixed), None, and empty values.
+    Extracts FR-NNN / NFR-NNN / C-NNN patterns and uppercases them.
+    """
+    refs: list[str] = []
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str):
+                refs.extend(
+                    ref_id.upper()
+                    for ref_id in re.findall(
+                        r"\b(?:FR|NFR|C)-\d+\b", item, re.IGNORECASE
+                    )
+                )
+    elif isinstance(value, str):
+        refs.extend(
+            ref_id.upper()
+            for ref_id in re.findall(
+                r"\b(?:FR|NFR|C)-\d+\b", value, re.IGNORECASE
+            )
+        )
+    return list(dict.fromkeys(refs))
+
+
+def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
+    """Read requirement_refs from all WP files' frontmatter.
+
+    Returns:
+        {wp_id: [refs]} for every WP file found.
+    """
+    from specify_cli.frontmatter import read_frontmatter
+
+    result: dict[str, list[str]] = {}
+    if not tasks_dir.exists():
+        return result
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        m = re.match(r"(WP\d{2})", wp_file.name)
+        if not m:
+            continue
+        wp_id = m.group(1)
+        try:
+            fm, _ = read_frontmatter(wp_file)
+        except Exception:
+            result[wp_id] = []
+            continue
+        result[wp_id] = normalize_requirement_refs_value(
+            fm.get("requirement_refs")
+        )
+    return result
