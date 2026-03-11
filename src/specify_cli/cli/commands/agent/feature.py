@@ -364,41 +364,41 @@ def _build_setup_plan_detection_error(
     command_name: str = "setup-plan",
     command_args: list[str] | None = None,
 ) -> dict[str, object]:
-    """Build structured feature-context detection error payload."""
+    """Build a concise feature-context detection error payload.
+
+    This payload is consumed by LLMs via ``--json`` output.  Keep it small:
+    slugs only (no absolute paths), one example command, and a short
+    remediation string so the agent can act without parsing kilobytes of
+    redundant path data.
+    """
     candidates = _list_feature_spec_candidates(repo_root)
     command_args = command_args if command_args is not None else ["--json"]
+
     payload: dict[str, object] = {
         "error_code": error_code,
-        "error": base_error,
         "feature_flag": feature_flag,
+        "spec_kitty_version": SPEC_KITTY_VERSION,
     }
 
     if not candidates:
-        payload["remediation"] = [
-            "Run /spec-kitty.specify first to create a feature and spec.md",
-            "Or run: spec-kitty agent feature create-feature <feature-name> --json",
-        ]
+        payload["error"] = "No features found in kitty-specs/"
+        payload["remediation"] = (
+            "Run /spec-kitty.specify or: "
+            "spec-kitty agent feature create-feature <name> --json"
+        )
         return payload
 
-    candidate_lines = []
-    suggested_commands = []
-    for candidate in candidates[:10]:
-        status = "present" if candidate["spec_exists"] else "missing"
-        candidate_lines.append(
-            f"{candidate['feature_slug']} -> {candidate['spec_file']} [{status}]"
-        )
-        suggested = f"spec-kitty agent feature {command_name} --feature {candidate['feature_slug']}"
-        if command_args:
-            suggested = f"{suggested} {' '.join(command_args)}"
-        suggested_commands.append(suggested)
+    slugs = [c["feature_slug"] for c in candidates]
+    n = len(slugs)
+    payload["error"] = f"{n} features found, pass --feature <slug> to disambiguate"
+    payload["available_features"] = slugs
 
-    payload["candidate_features"] = candidates
-    payload["remediation"] = [
-        f"Run {command_name} with an explicit feature slug.",
-        "Use one of the suggested commands.",
-    ]
-    payload["candidate_summary"] = candidate_lines
-    payload["suggested_commands"] = suggested_commands
+    # One example command so the LLM knows the exact syntax
+    args_suffix = f" {' '.join(command_args)}" if command_args else ""
+    payload["example_command"] = (
+        f"spec-kitty agent feature {command_name} --feature {slugs[0]}{args_suffix}"
+    )
+    payload["remediation"] = f"Re-run with --feature <slug>"
     return payload
 
 
@@ -789,10 +789,10 @@ def check_prerequisites(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
-                    console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
-                    console.print(f"  {cmd}")
+                for slug in payload.get("available_features", [])[:10]:
+                    console.print(f"  - {slug}")
+                if "example_command" in payload:
+                    console.print(f"  {payload['example_command']}")
             raise typer.Exit(1)
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
@@ -888,10 +888,10 @@ def setup_plan(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
-                    console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
-                    console.print(f"  {cmd}")
+                for slug in payload.get("available_features", [])[:10]:
+                    console.print(f"  - {slug}")
+                if "example_command" in payload:
+                    console.print(f"  {payload['example_command']}")
             raise typer.Exit(1)
 
         feature_slug = feature_dir.name
@@ -1465,10 +1465,10 @@ def finalize_tasks(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for line in payload.get("candidate_summary", []):
-                    console.print(f"  - {line}")
-                for cmd in payload.get("suggested_commands", [])[:3]:
-                    console.print(f"  {cmd}")
+                for slug in payload.get("available_features", [])[:10]:
+                    console.print(f"  - {slug}")
+                if "example_command" in payload:
+                    console.print(f"  {payload['example_command']}")
             raise typer.Exit(1)
 
         feature_slug = feature_dir.name

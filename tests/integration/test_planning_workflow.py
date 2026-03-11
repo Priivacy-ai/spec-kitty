@@ -174,9 +174,8 @@ def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run
     assert result.returncode != 0, "setup-plan should fail without explicit feature in ambiguous context"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
-    assert len(payload["candidate_features"]) >= 2
-    assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-    assert any("--feature" in command for command in payload["suggested_commands"])
+    assert len(payload["available_features"]) >= 2
+    assert "--feature" in payload["example_command"]
 
 
 def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_cli) -> None:
@@ -483,9 +482,8 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["candidate_features"]) >= 2
-    assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-    assert any("--feature" in command for command in payload["suggested_commands"])
+    assert len(payload["available_features"]) >= 2
+    assert "--feature" in payload["example_command"]
 
 
 def test_finalize_tasks_ambiguous_context_returns_candidates(
@@ -522,9 +520,8 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
     assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["candidate_features"]) >= 2
-    assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
-    assert any("finalize-tasks --feature" in command for command in payload["suggested_commands"])
+    assert len(payload["available_features"]) >= 2
+    assert "finalize-tasks --feature" in payload["example_command"]
 
 
 @pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
