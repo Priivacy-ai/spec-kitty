@@ -777,10 +777,58 @@ def merge(
 
     _enforce_git_preflight(repo_root, json_output=json_output)
 
+    resolved_feature = feature
+
     # Resolve target branch dynamically if not specified
     if target_branch is None:
-        from specify_cli.core.git_ops import resolve_primary_branch
-        target_branch = resolve_primary_branch(repo_root)
+        if resolved_feature:
+            from specify_cli.core.feature_detection import get_feature_target_branch
+            target_branch = get_feature_target_branch(repo_root, resolved_feature)
+        else:
+            # Attempt to derive feature slug from current branch before falling
+            # back to resolve_primary_branch().  This handles the case where the
+            # user is on a feature/WP branch and omits --feature.
+            _, _current_branch, _ = run_command(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True
+            )
+            _inferred_slug = extract_feature_slug(_current_branch)
+            _feature_dir = repo_root / "kitty-specs" / _inferred_slug
+            if re.match(r"^\d{3}-.+$", _inferred_slug) and (_feature_dir / "meta.json").exists():
+                from specify_cli.core.feature_detection import get_feature_target_branch
+                resolved_feature = _inferred_slug
+                target_branch = get_feature_target_branch(repo_root, resolved_feature)
+            else:
+                from specify_cli.core.git_ops import resolve_primary_branch
+                target_branch = resolve_primary_branch(repo_root)
+
+    # Validate resolved target branch exists (FR-006: hard error, no silent fallback)
+    if resolved_feature and target_branch:
+        ret_local, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/heads/{target_branch}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret_local != 0:
+            ret_remote, _, _ = run_command(
+                ["git", "rev-parse", "--verify", f"refs/remotes/origin/{target_branch}"],
+                capture=True,
+                check_return=False,
+                cwd=repo_root,
+            )
+            if ret_remote != 0:
+                error_msg = (
+                    f"Target branch '{target_branch}' (from meta.json) does not exist "
+                    f"locally or on origin. Check kitty-specs/{resolved_feature}/meta.json."
+                )
+                if json_output:
+                    print(json.dumps({
+                        "spec_kitty_version": SPEC_KITTY_VERSION,
+                        "error": error_msg,
+                    }))
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                raise typer.Exit(1)
 
     if json_output and not dry_run:
         print(json.dumps({
@@ -798,7 +846,7 @@ def merge(
             }))
             raise typer.Exit(1)
 
-        feature_slug = feature or extract_feature_slug(current_branch)
+        feature_slug = resolved_feature or extract_feature_slug(current_branch)
         structure = detect_worktree_structure(repo_root, feature_slug)
         main_repo = get_main_repo_root(repo_root)
 
@@ -988,7 +1036,7 @@ def merge(
         raise typer.Exit(1)
 
     # Detect workspace structure and extract feature slug
-    feature_slug = extract_feature_slug(current_branch)
+    feature_slug = resolved_feature or extract_feature_slug(current_branch)
     structure = detect_worktree_structure(repo_root, feature_slug)
 
     # Branch to workspace-per-WP merge if detected
