@@ -2032,6 +2032,7 @@ def map_requirements(
         compute_coverage,
         normalize_requirement_refs_value,
         parse_requirement_ids_from_spec_md,
+        read_all_wp_raw_requirement_refs,
         read_all_wp_requirement_refs,
         validate_ref_format,
         validate_refs,
@@ -2161,6 +2162,19 @@ def map_requirements(
                 console.print(f"  {available_range}")
             raise typer.Exit(1)
 
+        # --- Seed legacy refs from tasks.md for migration ---
+        # When a WP has refs only in tasks.md (no frontmatter yet), we need
+        # to seed from tasks.md so the first map-requirements call doesn't
+        # discard them.
+        tasks_md_refs: dict[str, list[str]] = {}
+        tasks_md_file = feature_dir / "tasks.md"
+        if tasks_md_file.exists():
+            from specify_cli.cli.commands.agent.feature import (
+                _parse_requirement_refs_from_tasks_md,
+            )
+            tasks_md_content = tasks_md_file.read_text(encoding="utf-8")
+            tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md_content)
+
         # --- Write refs directly into WP frontmatter ---
         for wp_id, new_refs in new_mappings.items():
             wp_file = next(
@@ -2173,27 +2187,31 @@ def map_requirements(
             if replace:
                 merged_refs = sorted(set(new_refs))
             else:
-                existing = normalize_requirement_refs_value(
+                existing_fm = normalize_requirement_refs_value(
                     fm.get("requirement_refs", [])
                 )
-                merged_refs = sorted(set(existing) | set(new_refs))
+                # If frontmatter is empty, seed from tasks.md (migration)
+                if not existing_fm:
+                    existing_fm = tasks_md_refs.get(wp_id, [])
+                merged_refs = sorted(set(existing_fm) | set(new_refs))
             fm["requirement_refs"] = merged_refs
             write_frontmatter(wp_file, fm, body)
 
         # --- Read all WP refs back and validate merged state ---
-        all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
+        # Use raw reader to catch malformed values that normalize would drop
+        all_wp_raw = read_all_wp_raw_requirement_refs(tasks_dir)
 
-        # Validate the full post-merge state against spec
-        all_merged_refs: list[str] = []
-        for ref_list in all_wp_refs.values():
-            all_merged_refs.extend(ref_list)
+        # Validate the full post-merge state against spec using raw strings
+        all_raw_refs: list[str] = []
+        for ref_list in all_wp_raw.values():
+            all_raw_refs.extend(ref_list)
 
-        _, post_merge_malformed = validate_ref_format(all_merged_refs)
-        _, post_merge_unknown = validate_refs(all_merged_refs, all_spec_ids)
+        _, post_merge_malformed = validate_ref_format(all_raw_refs)
+        _, post_merge_unknown = validate_refs(all_raw_refs, all_spec_ids)
         stale_refs: dict[str, list[str]] = {}
         if post_merge_malformed or post_merge_unknown:
             bad = set(post_merge_malformed) | set(post_merge_unknown)
-            for wp_id, ref_list in all_wp_refs.items():
+            for wp_id, ref_list in all_wp_raw.items():
                 wp_bad = sorted(set(ref_list) & bad)
                 if wp_bad:
                     stale_refs[wp_id] = wp_bad
@@ -2213,6 +2231,8 @@ def map_requirements(
                 console.print("  Use --replace to correct mappings")
             raise typer.Exit(1)
 
+        # Use normalized reader for coverage (only valid refs count)
+        all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
         coverage = compute_coverage(all_wp_refs, functional_ids)
 
         # --- Output ---

@@ -360,6 +360,120 @@ class TestMapRequirementsStaleRefDetection:
         assert "FR-999" not in refs
         assert "FR-001" in refs
 
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_detects_malformed_frontmatter_values(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """P2 regression: malformed values like BOGUS in frontmatter are detected."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path)
+
+        # Manually write a malformed ref into WP02's frontmatter
+        tasks_dir = feature_dir / "tasks"
+        wp02_file = next(tasks_dir.glob("WP02*.md"))
+        from specify_cli.frontmatter import write_frontmatter
+        fm, body = read_frontmatter(wp02_file)
+        fm["requirement_refs"] = ["BOGUS"]
+        write_frontmatter(wp02_file, fm, body)
+
+        # Map valid refs to WP01 — should still fail because WP02 has BOGUS
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--json"],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip())
+        assert "Stale or invalid refs" in payload["error"]
+        assert "WP02" in payload["stale_refs"]
+        assert "BOGUS" in payload["stale_refs"]["WP02"]
+
+
+class TestMapRequirementsLegacyMigration:
+    """Tests for legacy tasks.md → frontmatter migration."""
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_seeds_from_tasks_md_on_first_call(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """P1 regression: first map-requirements call preserves legacy tasks.md refs."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path, wp_ids=["WP01"])
+
+        # Write tasks.md with legacy FR-001, FR-002 refs for WP01
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n**Dependencies**: None\n"
+            "**Requirement Refs**: FR-001, FR-002\n",
+            encoding="utf-8",
+        )
+
+        # Now map FR-003 to WP01 — should union with legacy FR-001, FR-002
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-003", "--json"],
+        )
+
+        assert result.exit_code == 0
+        refs = _read_wp_refs(feature_dir, "WP01")
+        assert "FR-001" in refs, "Legacy FR-001 from tasks.md should be preserved"
+        assert "FR-002" in refs, "Legacy FR-002 from tasks.md should be preserved"
+        assert "FR-003" in refs, "New FR-003 should be added"
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_does_not_re_seed_from_tasks_md_on_second_call(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """After frontmatter is populated, tasks.md is no longer consulted."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path, wp_ids=["WP01"])
+
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n**Dependencies**: None\n"
+            "**Requirement Refs**: FR-001\n",
+            encoding="utf-8",
+        )
+
+        # First call seeds from tasks.md
+        runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-002", "--json"],
+        )
+
+        # Now replace with only FR-003 — tasks.md FR-001 should NOT come back
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-003", "--replace", "--json"],
+        )
+
+        assert result.exit_code == 0
+        refs = _read_wp_refs(feature_dir, "WP01")
+        assert refs == ["FR-003"]
+        assert "FR-001" not in refs
+
 
 class TestMapRequirementsValidation:
     """Tests for validation errors."""

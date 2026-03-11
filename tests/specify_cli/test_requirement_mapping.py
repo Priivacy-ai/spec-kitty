@@ -10,6 +10,7 @@ from specify_cli.requirement_mapping import (
     compute_coverage,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
+    read_all_wp_raw_requirement_refs,
     read_all_wp_requirement_refs,
     validate_ref_format,
     validate_refs,
@@ -165,3 +166,34 @@ class TestReadAllWpRequirementRefs:
 
     def test_returns_empty_for_missing_dir(self, tmp_path: Path):
         assert read_all_wp_requirement_refs(tmp_path / "nonexistent") == {}
+
+
+class TestReadAllWpRawRequirementRefs:
+    """Test read_all_wp_raw_requirement_refs() — preserves non-matching strings."""
+
+    def test_preserves_malformed_values(self, tmp_path: Path):
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        result = read_all_wp_raw_requirement_refs(tasks_dir)
+        assert "FR-001" in result["WP01"]
+        assert "BOGUS" in result["WP01"]
+
+    def test_normalized_reader_drops_malformed(self, tmp_path: Path):
+        """Contrast: the normalized reader drops BOGUS."""
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        normalized = read_all_wp_requirement_refs(tasks_dir)
+        assert "FR-001" in normalized["WP01"]
+        assert "BOGUS" not in normalized["WP01"]

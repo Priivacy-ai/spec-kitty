@@ -117,7 +117,8 @@ def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
     """Read requirement_refs from all WP files' frontmatter.
 
     Returns:
-        {wp_id: [refs]} for every WP file found.
+        {wp_id: [refs]} for every WP file found.  Values are normalized
+        (uppercased, pattern-matched FR/NFR/C-NNN only).
     """
     from specify_cli.frontmatter import read_frontmatter
 
@@ -137,4 +138,41 @@ def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
         result[wp_id] = normalize_requirement_refs_value(
             fm.get("requirement_refs")
         )
+    return result
+
+
+def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
+    """Read raw requirement_refs strings from all WP files' frontmatter.
+
+    Unlike ``read_all_wp_requirement_refs``, this does NOT pattern-filter
+    entries.  Every string in the YAML list is returned as-is (uppercased),
+    so callers can detect malformed values like ``BOGUS``.
+
+    Returns:
+        {wp_id: [raw_strings]} for every WP file found.
+    """
+    from specify_cli.frontmatter import read_frontmatter
+
+    result: dict[str, list[str]] = {}
+    if not tasks_dir.exists():
+        return result
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        m = re.match(r"(WP\d{2})", wp_file.name)
+        if not m:
+            continue
+        wp_id = m.group(1)
+        try:
+            fm, _ = read_frontmatter(wp_file)
+        except Exception:
+            result[wp_id] = []
+            continue
+        raw = fm.get("requirement_refs")
+        if isinstance(raw, list):
+            result[wp_id] = [
+                str(item).upper() for item in raw if isinstance(item, str)
+            ]
+        elif isinstance(raw, str):
+            result[wp_id] = [raw.upper()]
+        else:
+            result[wp_id] = []
     return result
