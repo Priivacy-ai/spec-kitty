@@ -197,3 +197,34 @@ class TestReadAllWpRawRequirementRefs:
         normalized = read_all_wp_requirement_refs(tasks_dir)
         assert "FR-001" in normalized["WP01"]
         assert "BOGUS" not in normalized["WP01"]
+
+    def test_splits_scalar_string(self, tmp_path: Path):
+        """P2 regression: scalar 'FR-002, FR-003' splits into individual tokens."""
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            'requirement_refs: "FR-002, FR-003"\n---\n\n# WP01\n',
+            encoding="utf-8",
+        )
+
+        result = read_all_wp_raw_requirement_refs(tasks_dir)
+        assert "FR-002" in result["WP01"]
+        assert "FR-003" in result["WP01"]
+
+    def test_surfaces_non_string_items(self, tmp_path: Path):
+        """P3 regression: non-string items are surfaced as sentinel tokens."""
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - 42\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        result = read_all_wp_raw_requirement_refs(tasks_dir)
+        assert "FR-001" in result["WP01"]
+        # Non-string item 42 surfaced as sentinel
+        non_string_tokens = [t for t in result["WP01"] if t.startswith("<NON_STRING:")]
+        assert len(non_string_tokens) == 1
+        assert "42" in non_string_tokens[0]

@@ -142,14 +142,19 @@ def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
 
 
 def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
-    """Read raw requirement_refs strings from all WP files' frontmatter.
+    """Read raw requirement_refs from all WP files' frontmatter.
 
     Unlike ``read_all_wp_requirement_refs``, this does NOT pattern-filter
-    entries.  Every string in the YAML list is returned as-is (uppercased),
-    so callers can detect malformed values like ``BOGUS``.
+    entries — every token is returned (uppercased) so callers can detect
+    malformed values like ``BOGUS``.
+
+    Handles the same input shapes as ``normalize_requirement_refs_value``:
+    scalar strings (``"FR-001, FR-002"``), lists of strings, and lists
+    containing non-string items (which are surfaced as ``"<NON_STRING:…>"``
+    sentinel tokens so validators catch them).
 
     Returns:
-        {wp_id: [raw_strings]} for every WP file found.
+        {wp_id: [raw_tokens]} for every WP file found.
     """
     from specify_cli.frontmatter import read_frontmatter
 
@@ -167,12 +172,33 @@ def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
             result[wp_id] = []
             continue
         raw = fm.get("requirement_refs")
-        if isinstance(raw, list):
-            result[wp_id] = [
-                str(item).upper() for item in raw if isinstance(item, str)
-            ]
-        elif isinstance(raw, str):
-            result[wp_id] = [raw.upper()]
-        else:
-            result[wp_id] = []
+        result[wp_id] = _extract_raw_tokens(raw)
     return result
+
+
+def _extract_raw_tokens(value: Any) -> list[str]:
+    """Extract individual uppercased tokens from a frontmatter value.
+
+    Splits comma/whitespace-separated scalar strings the same way
+    ``normalize_requirement_refs_value`` would, but keeps every token
+    (not just pattern-matched ones).  Non-string list items are
+    surfaced as ``<NON_STRING:…>`` sentinels.
+    """
+    tokens: list[str] = []
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str):
+                tokens.extend(
+                    tok.upper()
+                    for tok in re.split(r"[,\s]+", item)
+                    if tok.strip()
+                )
+            else:
+                tokens.append(f"<NON_STRING:{item}>")
+    elif isinstance(value, str):
+        tokens.extend(
+            tok.upper()
+            for tok in re.split(r"[,\s]+", value)
+            if tok.strip()
+        )
+    return tokens
