@@ -12,8 +12,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
-
 from specify_cli.status.migrate import (
     FeatureMigrationResult,
     migrate_feature,
@@ -336,23 +334,6 @@ class TestMigrationEdgeCases:
         result = migrate_feature(feature_dir)
         assert result.status == "failed"
         assert "WP" in (result.error or "")
-
-    @pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-    def test_migration_all_planned_wps(self, tmp_path: Path):
-        """Migration of all-planned WPs produces no events."""
-        feature_dir = _setup_legacy_feature(
-            tmp_path,
-            wp_lanes={"WP01": "planned", "WP02": "planned"},
-        )
-
-        result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
-
-        # No events because no transitions occurred (all at planned)
-        events_path = feature_dir / EVENTS_FILENAME
-        if events_path.exists():
-            events = read_events(feature_dir)
-            assert len(events) == 0
 
     def test_migration_custom_actor(self, tmp_path: Path):
         """Migration with custom actor name."""

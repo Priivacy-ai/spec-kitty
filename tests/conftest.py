@@ -10,6 +10,7 @@ from typing import Iterator
 
 import pytest
 
+from tests.branch_contract import IS_2X_BRANCH
 from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
 
 
@@ -28,6 +29,17 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "adversarial: adversarial scenarios for merge and dependency handling",
     )
+
+
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
+    """Skip legacy-only suites when collecting tests for the 2.x line."""
+    path = Path(str(collection_path))
+    try:
+        relative = path.relative_to(REPO_ROOT)
+    except ValueError:
+        return False
+
+    return IS_2X_BRANCH and relative.parts[:2] == ("tests", "legacy")
 
 
 @pytest.fixture(autouse=True)
