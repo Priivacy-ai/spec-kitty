@@ -6,12 +6,12 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
 
 from tests.branch_contract import IS_2X_BRANCH
-from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+from tests.utils import REPO_ROOT, run, write_wp
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -21,6 +21,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     # Block webbrowser.open() in the test process itself.
     import webbrowser
+
     webbrowser.open = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new_tab = lambda *args, **kwargs: None  # type: ignore[assignment]
@@ -97,9 +98,7 @@ def _create_test_venv(venv_dir: Path) -> None:
         )
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -112,13 +111,12 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     rebuild = False
-    if not venv_dir.exists():
-        rebuild = True
-    elif not venv_marker.exists():
-        rebuild = True
-    elif venv_marker.read_text(encoding="utf-8").strip() != source_version:
-        rebuild = True
-    elif not _venv_has_required_runtime(venv_dir):
+    if (
+        not venv_dir.exists()
+        or not venv_marker.exists()
+        or venv_marker.read_text(encoding="utf-8").strip() != source_version
+        or not _venv_has_required_runtime(venv_dir)
+    ):
         rebuild = True
 
     if rebuild:
@@ -128,6 +126,59 @@ def test_venv() -> Path:
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
     return venv_dir
+
+
+@pytest.fixture()
+def isolated_env() -> dict[str, str]:
+    """Create isolated environment blocking host spec-kitty installation.
+
+    Ensures tests use source code exclusively via:
+    - PYTHONPATH set to source only (no inheritance)
+    - SPEC_KITTY_CLI_VERSION from pyproject.toml
+    - SPEC_KITTY_TEST_MODE=1 to enforce test behavior
+    - SPEC_KITTY_TEMPLATE_ROOT to source templates
+
+    This fixture guarantees that tests will never accidentally use a
+    pip-installed version of spec-kitty-cli from the host system.
+    """
+    from tests.test_isolation_helpers import get_venv_python  # noqa: F401 (side-effect: ensures venv exists)
+
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+
+    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+        source_version = tomllib.load(f)["project"]["version"]
+
+    src_path = REPO_ROOT / "src"
+    env["PYTHONPATH"] = str(src_path)
+    env["SPEC_KITTY_CLI_VERSION"] = source_version
+    env["SPEC_KITTY_TEST_MODE"] = "1"
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
+
+    return env
+
+
+@pytest.fixture()
+def run_cli(isolated_env: dict[str, str]) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """Return a helper that executes the Spec Kitty CLI within a project.
+
+    Uses isolated_env to guarantee tests run against source code, not
+    installed packages. This prevents version mismatch errors.
+    """
+    from tests.test_isolation_helpers import get_venv_python
+
+    def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
+        return subprocess.run(
+            command,
+            cwd=str(project_path),
+            capture_output=True,
+            text=True,
+            env=isolated_env,
+            timeout=60,
+        )
+
+    return _run_cli
 
 
 @pytest.fixture()
@@ -164,7 +215,7 @@ def feature_slug() -> str:
 
 
 @pytest.fixture()
-def ensure_imports():
+def ensure_imports() -> None:
     # Import helper modules so tests can reference them directly.
     import task_helpers  # noqa: F401
     import acceptance_support  # noqa: F401
@@ -220,11 +271,7 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     feature_dir = worktree / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    return {
-        "repo_root": repo_root,
-        "worktree_path": worktree,
-        "feature_dir": feature_dir
-    }
+    return {"repo_root": repo_root, "worktree_path": worktree, "feature_dir": feature_dir}
 
 
 @pytest.fixture
@@ -321,7 +368,7 @@ dependencies: []
 
 
 @pytest.fixture
-def git_stale_workspace(tmp_path: Path) -> dict[str, Path]:
+def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     """
     Create main repo + stale WP worktree.
 

@@ -10,6 +10,16 @@ from specify_cli.cli import helpers
 
 cli_module = importlib.import_module("specify_cli.__init__")
 
+_AGENT_ENV_MARKERS = ("CLAUDECODE", "CLAUDE_CODE", "CODEX", "OPENCODE", "CURSOR_TRACE_ID")
+
+
+@pytest.fixture(autouse=False)
+def _clean_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove all agent runtime env markers so banner logic is not suppressed."""
+    for key in _AGENT_ENV_MARKERS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("SPEC_KITTY_NO_BANNER", raising=False)
+
 
 @pytest.mark.parametrize(
     ("argv", "expected"),
@@ -22,6 +32,7 @@ cli_module = importlib.import_module("specify_cli.__init__")
         (["agent", "feature", "check-prerequisites", "--json"], False),
     ],
 )
+@pytest.mark.usefixtures("_clean_agent_env")
 def test_banner_scope_is_limited_to_init_and_version(argv: list[str], expected: bool) -> None:
     """ASCII art should be limited to init and version invocations."""
     assert helpers._should_render_banner_for_invocation(argv) is expected
