@@ -24,6 +24,8 @@ from specify_cli.cli.commands.agent.tasks import (
 
 from typer.testing import CliRunner
 
+pytestmark = pytest.mark.git_repo
+
 runner = CliRunner()
 
 
@@ -98,11 +100,15 @@ class TestValidateReadyForReviewTasksMdFilter:
         subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "config", "user.name", "Test User"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         (repo / ".kittify").mkdir()
         (repo / ".kittify" / "config.yaml").write_text("# Config\n")
@@ -136,13 +142,17 @@ Test content.
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "Initial commit"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         return repo
 
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
     def test_root_tasks_md_does_not_block_review(
-        self, _mock_mission: Mock, git_repo: Path,
+        self,
+        _mock_mission: Mock,
+        git_repo: Path,
     ):
         """Root-level tasks.md changes should not block for_review transitions."""
         feature_dir = git_repo / "kitty-specs" / "017-test-feature"
@@ -174,7 +184,9 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
     def test_status_events_jsonl_does_not_block_review(
-        self, _mock_mission: Mock, git_repo: Path,
+        self,
+        _mock_mission: Mock,
+        git_repo: Path,
     ):
         """status.events.jsonl changes should not block for_review transitions."""
         feature_dir = git_repo / "kitty-specs" / "017-test-feature"
@@ -194,14 +206,16 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
     def test_status_json_does_not_block_review(
-        self, _mock_mission: Mock, git_repo: Path,
+        self,
+        _mock_mission: Mock,
+        git_repo: Path,
     ):
         """status.json changes should not block for_review transitions."""
         feature_dir = git_repo / "kitty-specs" / "017-test-feature"
 
         # Create dirty status.json
         status_file = feature_dir / "status.json"
-        status_file.write_text('{}')
+        status_file.write_text("{}")
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
@@ -214,7 +228,9 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
     def test_real_research_artifact_still_blocks_review(
-        self, _mock_mission: Mock, git_repo: Path,
+        self,
+        _mock_mission: Mock,
+        git_repo: Path,
     ):
         """Actual research artifacts (data-model.md, etc.) should still block for_review."""
         feature_dir = git_repo / "kitty-specs" / "017-test-feature"
@@ -234,7 +250,9 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
     def test_all_auto_artifacts_together_do_not_block(
-        self, _mock_mission: Mock, git_repo: Path,
+        self,
+        _mock_mission: Mock,
+        git_repo: Path,
     ):
         """All auto-generated artifacts together should not block review."""
         feature_dir = git_repo / "kitty-specs" / "017-test-feature"
@@ -242,7 +260,7 @@ Test content.
         # Create all possible auto-generated files at once
         (feature_dir / "tasks.md").write_text("# Tasks\n")
         (feature_dir / "status.events.jsonl").write_text('{"event":"test"}\n')
-        (feature_dir / "status.json").write_text('{}')
+        (feature_dir / "status.json").write_text("{}")
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
@@ -265,11 +283,15 @@ class TestMoveTaskAtomicCommit:
         subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "config", "user.name", "Test User"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         (repo / ".kittify").mkdir()
         (repo / ".kittify" / "config.yaml").write_text("# Config\n")
@@ -302,7 +324,9 @@ Test content.
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "Initial commit"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         return repo
 
@@ -347,14 +371,9 @@ Test content.
                 if not line.strip():
                     continue
                 file_part = line[3:] if len(line) > 3 else line.strip()
-                if any(
-                    file_part.endswith(f)
-                    for f in ("status.events.jsonl", "status.json", "tasks.md")
-                ):
+                if any(file_part.endswith(f) for f in ("status.events.jsonl", "status.json", "tasks.md")):
                     dirty_status.append(file_part)
-            assert dirty_status == [], (
-                f"Status artifacts left dirty after move_task: {dirty_status}"
-            )
+            assert dirty_status == [], f"Status artifacts left dirty after move_task: {dirty_status}"
 
         # Verify events.jsonl exists and was committed
         events_file = feature_dir / "status.events.jsonl"
@@ -368,6 +387,4 @@ Test content.
                 check=True,
             ).stdout.strip()
             # The commit should include both the WP file and status artifacts
-            assert "WP01" in committed_files, (
-                f"WP file should be in commit. Files: {committed_files}"
-            )
+            assert "WP01" in committed_files, f"WP file should be in commit. Files: {committed_files}"

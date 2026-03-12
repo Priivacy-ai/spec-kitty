@@ -11,6 +11,8 @@ import pytest
 from specify_cli.next.decision import Decision, DecisionKind
 from spec_kitty_runtime import DiscoveryContext
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # Helpers

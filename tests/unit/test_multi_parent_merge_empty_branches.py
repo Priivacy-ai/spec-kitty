@@ -13,6 +13,8 @@ import pytest
 
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestEmptyBranchDetection:
     """Tests for empty branch detection in create_multi_parent_base."""

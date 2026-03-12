@@ -6,8 +6,12 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = REPO_ROOT / "scripts" / "release" / "validate_release.py"
+
+pytestmark = pytest.mark.git_repo
 
 
 def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -234,9 +238,7 @@ def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
     )
     stage_and_commit(tmp_path, "chore: prep 2.0.1")
 
-    result_scoped = run_validator(
-        tmp_path, "--mode", "branch", "--tag-pattern", "v2.*.*"
-    )
+    result_scoped = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v2.*.*")
     assert result_scoped.returncode == 0, result_scoped.stderr
 
     result_unscoped = run_validator(tmp_path, "--mode", "branch")

@@ -20,6 +20,8 @@ from specify_cli.core.vcs import (
 )
 from specify_cli.core.vcs import detection
 
+pytestmark = pytest.mark.git_repo
+
 
 @pytest.fixture(autouse=True)
 def clear_detection_cache():

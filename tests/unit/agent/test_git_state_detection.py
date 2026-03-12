@@ -1,4 +1,5 @@
 """Git State Detection Tests for pre-review validation."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,7 +8,7 @@ import pytest
 
 from tests.utils import run
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.git_repo]
 
 FEATURE_SLUG = "024-git-state"
 WP_ID = "WP01"

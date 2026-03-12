@@ -23,6 +23,8 @@ from specify_cli.merge.preflight import (
     run_preflight,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 def _configure_test_git_identity(repo: Path) -> None:
     """Configure local git identity for temp repos in CI."""

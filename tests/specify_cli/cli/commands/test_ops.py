@@ -19,6 +19,8 @@ from specify_cli.core.vcs import (
     VCSBackend,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 # =============================================================================
 # Fixtures

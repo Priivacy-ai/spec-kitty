@@ -20,6 +20,8 @@ from specify_cli.core.multi_parent_merge import (
     create_multi_parent_base,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestMultiParentMerge:
     """Tests for create_multi_parent_base function."""
@@ -57,7 +59,6 @@ class TestMultiParentMerge:
 
         return repo
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_create_merge_base_two_dependencies(self, git_repo: Path):
         """Test creating merge base for WP with two dependencies."""
         # Create WP01 branch
@@ -151,7 +152,6 @@ class TestMultiParentMerge:
         assert (git_repo / "wp01.txt").exists()
         assert (git_repo / "wp02.txt").exists()
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_create_merge_base_three_dependencies(self, git_repo: Path):
         """Test creating merge base for WP with three dependencies."""
         # Create three independent branches
@@ -208,7 +208,6 @@ class TestMultiParentMerge:
         assert (git_repo / "wp02.txt").exists()
         assert (git_repo / "wp03.txt").exists()
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_create_merge_base_with_conflicts(self, git_repo: Path):
         """Test merge base creation when dependencies have conflicts."""
         # Create WP01 branch
@@ -279,7 +278,6 @@ class TestMultiParentMerge:
         )
         assert result_check.returncode != 0  # Branch should not exist
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_create_merge_base_missing_dependency(self, git_repo: Path):
         """Test merge base creation when dependency branch doesn't exist."""
         # Create only WP01
@@ -331,7 +329,6 @@ class TestMultiParentMerge:
         assert result.success is False
         assert "at least 2 dependencies" in result.error
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_create_merge_base_deterministic_ordering(self, git_repo: Path):
         """Test that merge base creation is deterministic (sorted dependencies)."""
         # Create branches in reverse order
@@ -415,7 +412,6 @@ class TestMultiParentMerge:
 
         assert tree1 == tree2  # Same final tree
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_cleanup_merge_base_branch(self, git_repo: Path):
         """Test cleanup of temporary merge base branch."""
         # Create a temporary branch manually
@@ -565,7 +561,6 @@ class TestDiamondDependencyPattern:
 
         return repo
 
-    @pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
     def test_diamond_merge_base(self, diamond_repo: Path):
         """Test creating merge base for diamond pattern (WP04 depends on WP02 + WP03)."""
         # Create merge base for WP04 (depends on WP02 and WP03)

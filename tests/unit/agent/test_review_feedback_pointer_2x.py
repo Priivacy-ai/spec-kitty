@@ -23,7 +23,10 @@ from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
-pytestmark = pytest.mark.skipif(not IS_2X_BRANCH, reason="2.x-only review feedback pointer contract")
+pytestmark = [
+    pytest.mark.skipif(not IS_2X_BRANCH, reason="2.x-only review feedback pointer contract"),
+    pytest.mark.git_repo,
+]
 runner = CliRunner()
 
 

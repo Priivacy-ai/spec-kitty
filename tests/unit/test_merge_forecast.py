@@ -21,6 +21,8 @@ from specify_cli.merge.forecast import (
     predict_conflicts,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestIsStatusFile:
     """Tests for is_status_file pattern matching."""
