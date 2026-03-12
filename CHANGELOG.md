@@ -7,41 +7,46 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+_No unreleased changes._
+
 ## [2.0.8] - 2026-03-11
 
 ### 🐛 Fixed
 
 - **Dashboard approved lane**: WPs with `lane: "approved"` no longer silently fall back to the "planned" column. Added "Approved" as a 5th kanban column between For Review and Done, with `claimed`→planned and `in_progress`→doing lane normalization in the scanner.
+- **Slim FEATURE_CONTEXT_UNRESOLVED payload**: reduced error payload size for LLM consumption to stay within agent context budgets.
 
-## [Unreleased]
+## [2.0.7] - 2026-03-11
 
 ### ✅ Added
 
-- **Mutation testing CI integration (feat #047)**: mutmut toolchain setup, CI integration, and targeted kill sessions for `status/` reducer and transitions.
+- **Mutation testing CI integration (feat #047)**: mutmut toolchain setup, CI integration, and targeted kill sessions for `status/` reducer and transitions (#275).
 - **Agentic mutation testing remediation workflow**: GitHub Agentic Workflow (gh-aw) replaces the legacy Claude workflow for mutation testing remediation.
 - **SonarCloud integration**: added SonarCloud config; `develop` branch recognized as 2.x-equivalent in CI quality gates.
 - **Architecture corpus restructure**: versioned architecture docs under `architecture/1.x/` and `architecture/2.x/`, 45 ADRs, glossary contexts across 10 bounded domains, Contextive integration, and stakeholder persona definitions.
-- **`meta.json` schema example in specify template**: documents `"target_branch"` and `"vcs"` as required explicit fields.
-
-### 🐛 Fixed
-
-- **Post-rebase quality fixes**: resolved unmatched `)` syntax error, `gap_analysis_path` undefined name (F821), `timezone` → `UTC` reference, unused `type: ignore` comments, and `toml` import-untyped mypy errors.
-- **Test isolation**: moved misplaced test package; fixed 3 test failures and Pydantic V1 deprecation warnings.
-- **Sync offline queue**: redirect offline queue warning to stderr instead of stdout.
-- **CI branch detection**: `develop` now recognized as a 2.x branch for branch-contract guards.
-
-### 🔧 Changed
-
-- **Ruff lint compliance**: full ruff clean pass across `src/` and `tests/`; added ruff lint config to `pyproject.toml`.
-- **Documentation site updates**: 2.x docs site refresh with Contextive IDE integration guide.
-
-## [2.0.7] - 2026-03-11
+- **Google Antigravity as first-class agent (#266)**: added Google Antigravity to the supported agent roster with directory, templates, and migration coverage.
+- **Commands own workflow context (#261)**: commands now carry their own workflow context rather than relying on ambient state.
+- **Tracker snapshot publish payload (feat #048)**: resource routing in publish path (WP01) and batch API contract for tracker snapshot publish (WP02).
 
 ### 🐛 Fixed
 
 - **Stale overrides from upgrade version-skew (#285)**: `classify_asset()` now compares project `.kittify/` files against immutable package-bundled defaults (`get_package_asset_root()`) instead of the mutable `~/.kittify/` directory. This prevents old managed templates from being misclassified as user customizations and permanently shadowing newer templates in `.kittify/overrides/` during upgrades.
 - **New `SUPERSEDED` disposition**: managed files that differ from the current package default are now correctly classified as `SUPERSEDED` (removed) rather than `CUSTOMIZED` (moved to overrides). Only files with no package counterpart are treated as genuine user customizations.
 - **Repair migration for already-affected users**: new `2.0.7_fix_stale_overrides` migration scans `.kittify/overrides/` for files byte-identical to current package defaults and removes them. Genuine user customizations are preserved.
+- **Constitution: resolve_doctrine_root fallback for pip-installed users (#278)**: `resolve_doctrine_root()` no longer crashes when the `doctrine` package directory is missing from pip wheels; falls back to `specify_cli` package root.
+- **Merge: worktree/branch cleanup when feature is already integrated (#271)**: `spec-kitty merge` now runs worktree removal and branch deletion when all WP branches are already merged, instead of exiting with "Nothing to merge" and leaving cleanup to the user.
+- **Post-rebase quality fixes (#273)**: resolved unmatched `)` syntax error, `gap_analysis_path` undefined name (F821), `timezone` → `UTC` reference, unused `type: ignore` comments, and `toml` import-untyped mypy errors.
+- **Test isolation**: moved misplaced test package; fixed 3 test failures and Pydantic V1 deprecation warnings.
+- **Sync offline queue**: redirect offline queue warning to stderr instead of stdout.
+- **CI branch detection**: `develop` now recognized as a 2.x branch for branch-contract guards.
+- **Tracker publish path normalization (feat #048)**: normalize provider in publish path and document auth token resolution.
+
+### 🔧 Changed
+
+- **Ruff lint compliance**: full ruff clean pass across `src/` and `tests/`; added ruff lint config to `pyproject.toml`.
+- **Documentation site updates**: 2.x docs site refresh with Contextive IDE integration guide.
 
 ## [2.0.6] - 2026-03-10
 
