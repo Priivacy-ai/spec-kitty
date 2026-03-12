@@ -20,5 +20,19 @@ def test_is_2x_context_matches_pr_base_ref() -> None:
     )
 
 
+def test_is_2x_context_matches_project_version_for_feature_branch() -> None:
+    assert _is_2x_context(
+        "fix/test-detection-remediation",
+        project_version="2.0.8",
+    )
+
+
+def test_is_2x_context_false_for_1x_project_version() -> None:
+    assert not _is_2x_context(
+        "fix/test-detection-remediation",
+        project_version="1.14.3",
+    )
+
+
 def test_is_2x_context_false_for_non_2x_branch() -> None:
     assert not _is_2x_context("main")
