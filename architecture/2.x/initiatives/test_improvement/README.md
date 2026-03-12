@@ -1,8 +1,10 @@
 # Test Improvement Initiative
 
-> **Status:** Discovery  
+> **Status:** In Progress  
 > **Branch scope:** 2.x only  
-> **Date:** 2026-03-12
+> **Branch:** `fix/test-detection-remediation`  
+> **Date:** 2026-03-12  
+> **Last updated:** 2026-03-12
 
 ---
 
@@ -176,7 +178,7 @@ pytest -m "not subprocess" tests/  # Skip anything spawning spec-kitty CLI
 
 ```bash
 # Fast feedback (development)
-pytest tests/unit tests/doctrine tests/test_template tests/docs
+pytest -m fast tests/specify_cli/
 
 # Before commit
 pytest -m "not slow and not e2e" tests/
@@ -187,3 +189,78 @@ PWHEADLESS=1 pytest tests/ -m "not legacy"
 # Async/sync module only
 pytest -m asyncio tests/sync/
 ```
+
+---
+
+## 7. Work Completed
+
+### 7.1 Pytest Marker Annotations (commit `a1ad4367`)
+
+Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirectories using `pytest_collection_modifyitems` hooks in conftest.py files. This enables `pytest -m fast` for rapid dev-loop feedback.
+
+**Marker assignment (based on measured timing):**
+
+| Directory | Tests | Time | Marker |
+|-----------|-------|------|--------|
+| `status/` | 632 | 1.25s | `fast` |
+| `glossary/` | 689 | 0.64s | `fast` |
+| `upgrade/` | 168 | 1.73s | `fast` |
+| `constitution/` | 114 | 0.62s | `fast` |
+| `cli/` | 190 | 12.88s | `slow` |
+| `core/` | 153+57skip | 16.05s | `slow` |
+| `test_cli/` | 101 | 29.42s | `slow` |
+| `test_core/` | 120 | 25.04s | `slow` |
+
+**Implementation note:** `pytestmark` in conftest.py does NOT propagate in pytest 9.0.2. Used `pytest_collection_modifyitems` hook scoped with `Path(__file__).parent` instead.
+
+**Current marker stats:**
+
+| Marker | Tests | Runtime |
+|--------|-------|---------|
+| `fast` | 1,632 | 4.52s |
+| `slow` | 583 | 73.51s |
+| unmarked | 648 | ~15s |
+| **Total** | **2,863** | **93.20s** |
+
+### 7.2 Merge Test Unit Extraction (commit `c816d247`)
+
+**Target:** `tests/specify_cli/test_cli/test_merge_workspace_per_wp.py` — the single slowest file (101 tests, 29.42s). Every test created real git repos + worktrees (1.3–1.5s fixture cost per test).
+
+**Action:** Extracted pure-logic and mock-boundary tests into `test_merge_workspace_per_wp_unit.py`. Removed 13 integration tests now covered by unit mocks.
+
+| File | Tests | Runtime | Change |
+|------|-------|---------|--------|
+| `test_merge_workspace_per_wp.py` (before) | 101 | 29.42s | — |
+| `test_merge_workspace_per_wp.py` (after) | 17 + 3 xfail | 23.64s | −6s |
+| `test_merge_workspace_per_wp_unit.py` (new) | 29 | 0.33s | — |
+| **Net** | **49** | **23.97s** | **−5.5s, +29 fast tests** |
+
+**Unit test coverage (29 tests, 0.33s):**
+
+| Function | Unit tests | Approach |
+|----------|-----------|----------|
+| `extract_feature_slug` | 3 | Pure string parsing |
+| `extract_wp_id` | 3 | Pure Path parsing |
+| `detect_worktree_structure` | 7 | Mocked `get_main_repo_root` + `_list_wp_branches` |
+| `find_wp_worktrees` | 4 | Mocked filesystem + branch listing |
+| `validate_wp_ready_for_merge` | 4 | Mocked `subprocess.run` |
+| `_build_workspace_per_wp_merge_plan` | 4 | Mocked `_branch_is_ancestor` + `_order_wp_workspaces` |
+| `merge_workspace_per_wp` (dry-run) | 2 | Fully mocked internals |
+| VCS detection | 2 | Mocked availability checks |
+
+**Integration tests kept (17 + 3 xfail):** Tests requiring real git repos — worktree detection from within worktrees, full merge workflows, ancestry chain planning, jj backend detection (xfail).
+
+### 7.3 test_core/ Profiling (next target identified)
+
+| File | Tests | Time | Priority |
+|------|-------|------|----------|
+| `test_git_ops.py` | 42 | 23.00s | **HIGH** — same pattern as merge tests |
+| `test_worktree.py` | 44 | 6.19s | MEDIUM |
+| `test_create_feature_branch.py` | 8 | 14.92s | **HIGH** — 1.9s/test |
+| `test_git_preflight.py` | 10 | 0.70s | LOW (already fast) |
+| `test_config.py` | 5 | 0.35s | LOW |
+| `test_project_resolver.py` | 3 | 0.36s | LOW |
+| `test_tool_checker.py` | 4 | 0.35s | LOW |
+| `test_utils.py` | 4 | 0.36s | LOW |
+
+**Next highest ROI:** `test_git_ops.py` (42 tests, 23s) and `test_create_feature_branch.py` (8 tests, 15s) — together 50 tests, 38s. Same git-repo fixture pattern as the merge tests.
