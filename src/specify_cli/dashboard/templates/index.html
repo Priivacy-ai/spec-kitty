@@ -41,58 +41,59 @@
     </div>
 
     <div class="container">
-        <div class="sidebar">
-            <div class="sidebar-item" data-page="constitution" onclick="switchPage('constitution')">
-                📜 Constitution
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">‹</button>
+            <div class="sidebar-item" data-page="constitution" onclick="switchPage('constitution')" title="Constitution">
+                📜 <span class="sidebar-label">Constitution</span>
             </div>
             <div class="last-update sidebar-last-update">Last updated: <span id="last-update">Loading...</span></div>
-            <div style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+            <div class="sidebar-section-header" style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Workflow
             </div>
-            <div class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')">
-                <span id="icon-overview">📊</span> Overview
+            <div class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')" title="Overview">
+                <span id="icon-overview">📊</span> <span class="sidebar-label">Overview</span>
             </div>
-            <div class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')">
-                <span id="icon-specify">⏳</span> Specify
+            <div class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')" title="Specify">
+                <span id="icon-specify">⏳</span> <span class="sidebar-label">Specify</span>
             </div>
-            <div class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')">
-                <span id="icon-plan">⏳</span> Plan
+            <div class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')" title="Plan">
+                <span id="icon-plan">⏳</span> <span class="sidebar-label">Plan</span>
             </div>
-            <div class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')">
-                <span id="icon-tasks">⏳</span> Tasks
+            <div class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')" title="Tasks">
+                <span id="icon-tasks">⏳</span> <span class="sidebar-label">Tasks</span>
             </div>
-            <div class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')">
-                <span id="icon-implement">⏳</span> Implement
+            <div class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')" title="Implement">
+                <span id="icon-implement">⏳</span> <span class="sidebar-label">Implement</span>
             </div>
-            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+            <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Artifacts
             </div>
-            <div class="sidebar-item" data-page="research" onclick="switchPage('research')">
-                🔬 Research
+            <div class="sidebar-item" data-page="research" onclick="switchPage('research')" title="Research">
+                🔬 <span class="sidebar-label">Research</span>
             </div>
-            <div class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')">
-                📜 Contracts
+            <div class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')" title="Contracts">
+                📜 <span class="sidebar-label">Contracts</span>
             </div>
-            <div class="sidebar-item" data-page="checklists" onclick="switchPage('checklists')">
-                ✅ Checklists
+            <div class="sidebar-item" data-page="checklists" onclick="switchPage('checklists')" title="Checklists">
+                ✅ <span class="sidebar-label">Checklists</span>
             </div>
-            <div class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')">
-                🚀 Quickstart
+            <div class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')" title="Quickstart">
+                🚀 <span class="sidebar-label">Quickstart</span>
             </div>
-            <div class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')">
-                💾 Data Model
+            <div class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')" title="Data Model">
+                💾 <span class="sidebar-label">Data Model</span>
             </div>
-            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+            <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 System
             </div>
-            <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')">
-                🔍 Diagnostics
+            <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')" title="Diagnostics">
+                🔍 <span class="sidebar-label">Diagnostics</span>
             </div>
-            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+            <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Dossier
             </div>
-            <div class="sidebar-item" data-page="dossier" onclick="switchPage('dossier')">
-                📦 Dossier
+            <div class="sidebar-item" data-page="dossier" onclick="switchPage('dossier')" title="Dossier">
+                📦 <span class="sidebar-label">Dossier</span>
             </div>
         </div>
 

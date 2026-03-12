@@ -141,6 +141,28 @@ function saveState(feature, page) {
     }
 }
 
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    const collapsed = sidebar.classList.toggle('collapsed');
+    toggle.textContent = collapsed ? '›' : '‹';
+    const expires = new Date();
+    expires.setFullYear(expires.getFullYear() + 1);
+    document.cookie = `sidebarCollapsed=${collapsed}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
+}
+
+function restoreSidebarState() {
+    const match = document.cookie.match(/sidebarCollapsed=(\w+)/);
+    if (match && match[1] === 'true') {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebar-toggle');
+        sidebar.classList.add('collapsed');
+        toggle.textContent = '›';
+    }
+}
+
+restoreSidebarState();
+
 function setFeatureSelectActive(isActive) {
     if (isActive) {
         featureSelectActive = true;
