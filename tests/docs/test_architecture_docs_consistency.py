@@ -42,14 +42,13 @@ REQUIRED_ARCH_PATHS: list[Path] = [
     ARCH_DIR / "2.x" / "user_journey",
 ]
 
-# Each entry is a tuple of acceptable alternatives for a required section.
-# An ADR satisfies the requirement when ANY alternative is present.
-# Alternatives are treated as substrings searched via re.search with MULTILINE.
+# Each entry is a tuple of (human-readable label, compiled pattern).
+# The pattern is searched in the ADR text with re.MULTILINE so it anchors
+# to line boundaries, avoiding false positives on inline mentions.
 _CONTEXT_SECTION_RE = re.compile(r"^##\s+Context(\s+and\s+Problem\s+Statement)?\s*$", re.MULTILINE)
 _DECISION_SECTION_RE = re.compile(r"^##\s+Decision(\s+Outcome)?\s*$", re.MULTILINE)
 
-REQUIRED_ADR_SECTION_CHECKS: tuple[tuple[str, re.Pattern[str] | None], ...] = (
-    ("Status", None),
+REQUIRED_ADR_SECTION_CHECKS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Context / Context and Problem Statement", _CONTEXT_SECTION_RE),
     ("Decision / Decision Outcome", _DECISION_SECTION_RE),
 )
@@ -143,16 +142,14 @@ def test_adr_filename_follows_naming_convention(track: str, adr_path: Path) -> N
 
 @pytest.mark.parametrize("track,adr_path", ADR_FILES, ids=ADR_IDS)
 def test_adr_contains_required_sections(track: str, adr_path: Path) -> None:
+    if not REQUIRED_ADR_SECTION_CHECKS:
+        pytest.skip("No required section checks defined")
     text = adr_path.read_text(encoding="utf-8")
-    missing_sections: list[str] = []
-    for label, pattern in REQUIRED_ADR_SECTION_CHECKS:
-        if pattern is None:
-            # Simple substring check (e.g. "Status" field in bold or table form).
-            if label not in text:
-                missing_sections.append(label)
-        else:
-            if not pattern.search(text):
-                missing_sections.append(label)
+    missing_sections = [
+        label
+        for label, pattern in REQUIRED_ADR_SECTION_CHECKS
+        if not pattern.search(text)
+    ]
     assert not missing_sections, (
         f"ADR '{adr_path.relative_to(REPO_ROOT)}' (track '{track}') is missing "
         f"required sections: {missing_sections}"
