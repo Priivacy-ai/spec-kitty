@@ -10,10 +10,8 @@ Verifies Phase 1 implementation:
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.workspace_context import (
@@ -21,7 +19,6 @@ from specify_cli.workspace_context import (
     cleanup_orphaned_contexts,
     delete_context,
     find_orphaned_contexts,
-    get_context_path,
     list_contexts,
     load_context,
     save_context,

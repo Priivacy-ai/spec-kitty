@@ -47,28 +47,23 @@ class TestDetectWorkspaceContext:
 
     def test_detect_from_git_branch(self, tmp_path):
         """Test detection from git branch name."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0,
-                    stdout="015-vcs-integration-WP03\n"
-                )
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="015-vcs-integration-WP03\n")
 
-                workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, feature_slug = _detect_workspace_context()
 
-                assert workspace_path == tmp_path
-                assert feature_slug == "015-vcs-integration"
+            assert workspace_path == tmp_path
+            assert feature_slug == "015-vcs-integration"
 
     def test_not_in_workspace(self, tmp_path):
         """Test when not in a workspace."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-                workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, feature_slug = _detect_workspace_context()
 
-                assert workspace_path == tmp_path
-                assert feature_slug is None
+            assert workspace_path == tmp_path
+            assert feature_slug is None
 
 
 class TestSyncGroupHelp:
@@ -190,10 +185,13 @@ class TestRepairFunctions:
             assert mock_run.call_count == 2
 
 
-@pytest.mark.parametrize("backend", [
-    "git",
-    pytest.param("jj", marks=pytest.mark.jj),
-])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "git",
+        pytest.param("jj", marks=pytest.mark.jj),
+    ],
+)
 class TestSyncCommand:
     """Tests for sync command."""
 
@@ -203,49 +201,53 @@ class TestSyncCommand:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend(backend)
-                mock_vcs.sync_workspace.return_value = SyncResult(
-                    status=SyncStatus.UP_TO_DATE,
-                    conflicts=[],
-                    files_updated=0,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message="Already up to date",
-                )
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.sync_workspace.return_value = SyncResult(
+                status=SyncStatus.UP_TO_DATE,
+                conflicts=[],
+                files_updated=0,
+                files_added=0,
+                files_deleted=0,
+                changes_integrated=[],
+                message="Already up to date",
+            )
+            mock_get_vcs.return_value = mock_vcs
 
-                # Run sync - should not raise (explicitly pass repair=False)
-                sync_workspace(repair=False)
+            # Run sync - should not raise (explicitly pass repair=False)
+            sync_workspace(repair=False)
 
-                mock_vcs.sync_workspace.assert_called_once()
+            mock_vcs.sync_workspace.assert_called_once()
 
     def test_sync_with_changes(self, tmp_path, backend):
         """Test sync with changes to integrate."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend(backend)
-                mock_vcs.sync_workspace.return_value = SyncResult(
-                    status=SyncStatus.SYNCED,
-                    conflicts=[],
-                    files_updated=5,
-                    files_added=2,
-                    files_deleted=1,
-                    changes_integrated=[],
-                    message="Synced successfully",
-                )
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.sync_workspace.return_value = SyncResult(
+                status=SyncStatus.SYNCED,
+                conflicts=[],
+                files_updated=5,
+                files_added=2,
+                files_deleted=1,
+                changes_integrated=[],
+                message="Synced successfully",
+            )
+            mock_get_vcs.return_value = mock_vcs
 
-                sync_workspace(repair=False)
+            sync_workspace(repair=False)
 
-                mock_vcs.sync_workspace.assert_called_once()
+            mock_vcs.sync_workspace.assert_called_once()
 
 
 class TestSyncWithConflicts:
@@ -257,124 +259,138 @@ class TestSyncWithConflicts:
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend.JUJUTSU
-                mock_vcs.sync_workspace.return_value = SyncResult(
-                    status=SyncStatus.CONFLICTS,
-                    conflicts=[
-                        ConflictInfo(
-                            file_path=Path("src/test.py"),
-                            conflict_type=ConflictType.CONTENT,
-                            line_ranges=[(10, 20)],
-                            sides=2,
-                            is_resolved=False,
-                            our_content=None,
-                            their_content=None,
-                            base_content=None,
-                        )
-                    ],
-                    files_updated=3,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message="Synced with conflicts",
-                )
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend.JUJUTSU
+            mock_vcs.sync_workspace.return_value = SyncResult(
+                status=SyncStatus.CONFLICTS,
+                conflicts=[
+                    ConflictInfo(
+                        file_path=Path("src/test.py"),
+                        conflict_type=ConflictType.CONTENT,
+                        line_ranges=[(10, 20)],
+                        sides=2,
+                        is_resolved=False,
+                        our_content=None,
+                        their_content=None,
+                        base_content=None,
+                    )
+                ],
+                files_updated=3,
+                files_added=0,
+                files_deleted=0,
+                changes_integrated=[],
+                message="Synced with conflicts",
+            )
+            mock_get_vcs.return_value = mock_vcs
 
-                # jj: sync completes without raising
-                sync_workspace(repair=False)
+            # jj: sync completes without raising
+            sync_workspace(repair=False)
 
-                mock_vcs.sync_workspace.assert_called_once()
+            mock_vcs.sync_workspace.assert_called_once()
 
     def test_sync_with_conflicts_git_reports(self, tmp_path):
         """Test git sync reports conflicts (may fail)."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend.GIT
-                mock_vcs.sync_workspace.return_value = SyncResult(
-                    status=SyncStatus.FAILED,
-                    conflicts=[
-                        ConflictInfo(
-                            file_path=Path("src/test.py"),
-                            conflict_type=ConflictType.CONTENT,
-                            line_ranges=[(10, 20)],
-                            sides=2,
-                            is_resolved=False,
-                            our_content=None,
-                            their_content=None,
-                            base_content=None,
-                        )
-                    ],
-                    files_updated=0,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message="Rebase failed due to conflicts",
-                )
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend.GIT
+            mock_vcs.sync_workspace.return_value = SyncResult(
+                status=SyncStatus.FAILED,
+                conflicts=[
+                    ConflictInfo(
+                        file_path=Path("src/test.py"),
+                        conflict_type=ConflictType.CONTENT,
+                        line_ranges=[(10, 20)],
+                        sides=2,
+                        is_resolved=False,
+                        our_content=None,
+                        their_content=None,
+                        base_content=None,
+                    )
+                ],
+                files_updated=0,
+                files_added=0,
+                files_deleted=0,
+                changes_integrated=[],
+                message="Rebase failed due to conflicts",
+            )
+            mock_get_vcs.return_value = mock_vcs
 
-                # git: sync fails with exit code
-                with pytest.raises(typer.Exit) as exc:
-                    sync_workspace(repair=False)
+            # git: sync fails with exit code
+            with pytest.raises(typer.Exit) as exc:
+                sync_workspace(repair=False)
 
-                assert exc.value.exit_code == 1
+            assert exc.value.exit_code == 1
 
 
 class TestSyncRepair:
     """Tests for --repair flag."""
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_success(self, tmp_path, backend):
         """Test successful repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend(backend)
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend(backend)
+            mock_get_vcs.return_value = mock_vcs
 
-                repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
-                with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
-                    mock_repair.return_value = True
+            repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
+            with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
+                mock_repair.return_value = True
 
-                    sync_workspace(repair=True)
+                sync_workspace(repair=True)
 
-                    mock_repair.assert_called_once()
+                mock_repair.assert_called_once()
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_repair_failure(self, tmp_path, backend):
         """Test failed repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
 
-        with patch("pathlib.Path.cwd", return_value=worktree):
-            with patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs:
-                mock_vcs = MagicMock()
-                mock_vcs.backend = VCSBackend(backend)
-                mock_get_vcs.return_value = mock_vcs
+        with (
+            patch("pathlib.Path.cwd", return_value=worktree),
+            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
+        ):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend(backend)
+            mock_get_vcs.return_value = mock_vcs
 
-                repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
-                with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
-                    mock_repair.return_value = False
+            repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
+            with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
+                mock_repair.return_value = False
 
-                    with pytest.raises(typer.Exit) as exc:
-                        sync_workspace(repair=True)
+                with pytest.raises(typer.Exit) as exc:
+                    sync_workspace(repair=True)
 
-                    assert exc.value.exit_code == 1
+                assert exc.value.exit_code == 1
 
 
 class TestSyncNotInWorkspace:
@@ -382,14 +398,13 @@ class TestSyncNotInWorkspace:
 
     def test_sync_not_in_workspace_exits(self, tmp_path):
         """Test sync exits with error when not in workspace."""
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+        with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-                with pytest.raises(typer.Exit) as exc:
-                    sync_workspace(repair=False)
+            with pytest.raises(typer.Exit) as exc:
+                sync_workspace(repair=False)
 
-                assert exc.value.exit_code == 1
+            assert exc.value.exit_code == 1
 
 
 class TestSyncServerCommand:
@@ -414,16 +429,13 @@ class TestSyncServerCommand:
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
             sync_server(url="https://spec-kitty-dev.fly.dev/")
 
-        mock_config.set_server_url.assert_called_once_with(
-            "https://spec-kitty-dev.fly.dev"
-        )
+        mock_config.set_server_url.assert_called_once_with("https://spec-kitty-dev.fly.dev")
 
     def test_set_server_url_rejects_non_https(self):
         """Non-HTTPS URL is rejected."""
         mock_config = MagicMock()
-        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
-            with pytest.raises(typer.Exit) as exc:
-                sync_server(url="http://spec-kitty-dev.fly.dev")
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config), pytest.raises(typer.Exit) as exc:
+            sync_server(url="http://spec-kitty-dev.fly.dev")
         assert exc.value.exit_code == 1
         mock_config.set_server_url.assert_not_called()
 
@@ -458,10 +470,12 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
-            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
-                with patch("specify_cli.sync.batch.write_failure_report"):
-                    res = runner.invoke(sync_app, ["now"])
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+            patch("specify_cli.sync.batch.write_failure_report"),
+        ):
+            res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1
 
     def test_now_returns_0_when_saas_feature_disabled(self, monkeypatch):
@@ -482,9 +496,11 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
-            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
-                res = runner.invoke(sync_app, ["now"])
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+        ):
+            res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 0
 
     def test_no_strict_exits_0_even_with_errors(self):
@@ -493,10 +509,12 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=3, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
-            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
-                with patch("specify_cli.sync.batch.write_failure_report"):
-                    res = runner.invoke(sync_app, ["now", "--no-strict"])
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+            patch("specify_cli.sync.batch.write_failure_report"),
+        ):
+            res = runner.invoke(sync_app, ["now", "--no-strict"])
         assert res.exit_code == 0
 
     def test_empty_queue_exits_0(self):
@@ -515,10 +533,12 @@ class TestSyncNowExitCodes:
 
         runner = CliRunner()
         report_path = tmp_path / "failures.json"
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
-            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
-                with patch("specify_cli.sync.batch.write_failure_report") as write_mock:
-                    res = runner.invoke(sync_app, ["now", "--report", str(report_path)])
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+            patch("specify_cli.sync.batch.write_failure_report") as write_mock,
+        ):
+            res = runner.invoke(sync_app, ["now", "--report", str(report_path)])
         assert res.exit_code == 1
         write_mock.assert_called_once()
 
@@ -528,8 +548,10 @@ class TestSyncNowExitCodes:
         svc = self._make_service(queue_size=5, result=result)
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
-            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
-                res = runner.invoke(sync_app, ["now"])
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+        ):
+            res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1
         assert "not authenticated" in res.output

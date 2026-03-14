@@ -16,9 +16,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.runtime.bootstrap import ensure_runtime, check_version_pin
-from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.resolver import (
-    ResolutionResult,
     ResolutionTier,
     resolve_template,
     resolve_command,

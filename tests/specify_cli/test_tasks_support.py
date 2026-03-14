@@ -1,6 +1,5 @@
 """Tests for tasks_support module, particularly git worktree handling."""
 
-from pathlib import Path
 import pytest
 from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
 
@@ -149,7 +148,7 @@ class TestActivityEntries:
 - 2026-01-26T15:00:00Z – cursor – shell_pid=12345 – lane=done – All work complete
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['timestamp'] == '2026-01-26T15:00:00Z'
         assert entries[0]['agent'] == 'cursor'
@@ -159,7 +158,7 @@ class TestActivityEntries:
 
     def test_parse_hyphenated_agent_name(self):
         """Test parsing activity log with hyphenated agent name.
-        
+
         This is the primary bug fix - agent names like 'cursor-agent',
         'claude-reviewer' should be parsed correctly.
         """
@@ -170,14 +169,14 @@ class TestActivityEntries:
 - 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=doing – Started work
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 2
-        
+
         # First entry with hyphenated agent name
         assert entries[0]['agent'] == 'claude-reviewer'
         assert entries[0]['shell_pid'] == '58988'
         assert entries[0]['lane'] == 'done'
-        
+
         # Second entry with hyphenated agent name
         assert entries[1]['agent'] == 'cursor-agent'
         assert entries[1]['shell_pid'] == '12345'
@@ -189,7 +188,7 @@ class TestActivityEntries:
 - 2026-01-26T10:00:00Z – my-custom-ai-agent – shell_pid=99999 – lane=planned – Starting task
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['agent'] == 'my-custom-ai-agent'
 
@@ -199,7 +198,7 @@ class TestActivityEntries:
 - 2026-01-26T12:00:00Z – system – lane=planned – Auto-generated task
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['agent'] == 'system'
         assert entries[0]['shell_pid'] == ''
@@ -216,7 +215,7 @@ class TestActivityEntries:
 - 2026-01-25T13:00:00Z – claude-reviewer – shell_pid=33333 – lane=done – Approved
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 4
         assert entries[0]['agent'] == 'system'
         assert entries[1]['agent'] == 'cursor-agent'
@@ -229,7 +228,7 @@ class TestActivityEntries:
 - 2026-01-26T14:00:00Z - cursor-agent - shell_pid=12345 - lane=doing - Started work
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['agent'] == 'cursor-agent'
         assert entries[0]['lane'] == 'doing'
@@ -240,7 +239,7 @@ class TestActivityEntries:
 - 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=doing – Started work
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['agent'] == 'cursor-agent'
         assert entries[0]['lane'] == 'doing'
@@ -251,7 +250,7 @@ class TestActivityEntries:
 - 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=done – Complex note with - hyphens and – dashes
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 1
         assert entries[0]['note'] == 'Complex note with - hyphens and – dashes'
 
@@ -279,7 +278,7 @@ This is not an activity log.
 - 2026-01-26T13:00:00Z – agent – shell_pid=4 – lane=done – Done
 """
         entries = activity_entries(body)
-        
+
         assert len(entries) == 4
         assert entries[0]['lane'] == 'planned'
         assert entries[1]['lane'] == 'doing'

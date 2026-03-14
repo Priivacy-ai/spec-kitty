@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.integration.test_research_workflow import research_project_root
 
 
 def test_research_mission_loads_correctly(research_project_root: Path) -> None:

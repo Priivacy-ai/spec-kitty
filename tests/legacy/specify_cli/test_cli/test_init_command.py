@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.specify_cli.test_cli.test_init_command import _invoke, cli_app
+from tests.specify_cli.test_cli.test_init_command import _invoke
 from specify_cli.cli.commands import init as init_module
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import yaml
@@ -24,9 +24,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MISSIONS_ROOT = REPO_ROOT / "src" / "specify_cli" / "missions"
 
 
-def build_valid_config(**overrides: Any) -> Dict[str, Any]:
+def build_valid_config(**overrides: Any) -> dict[str, Any]:
     """Return a baseline valid mission configuration for testing."""
-    config: Dict[str, Any] = {
+    config: dict[str, Any] = {
         "name": "Test Mission",
         "description": "Mission used for schema validation tests",
         "version": "1.0.0",
@@ -40,7 +40,7 @@ def build_valid_config(**overrides: Any) -> Dict[str, Any]:
     return config
 
 
-def _write_mission(tmp_path: Path, config: Dict[str, Any]) -> Path:
+def _write_mission(tmp_path: Path, config: dict[str, Any]) -> Path:
     """Write YAML config to temp mission directory."""
     mission_dir = tmp_path / "mission"
     mission_dir.mkdir()

@@ -255,7 +255,7 @@ class TestEventTypeCoverage:
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
         }
-        assert VALID_EVENT_TYPES == expected
+        assert expected == VALID_EVENT_TYPES
 
 
 class TestFixtureJsonFiles:

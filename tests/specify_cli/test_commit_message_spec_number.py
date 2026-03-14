@@ -1,12 +1,7 @@
 """Test that commit messages include spec numbers."""
 
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
-
-from specify_cli.cli.commands.agent.tasks import move_task
 
 
 def test_spec_number_extraction():
@@ -20,7 +15,7 @@ def test_spec_number_extraction():
     ]
 
     for feature_slug, expected_spec in test_cases:
-        spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+        spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
         assert spec_number == expected_spec, f"Failed for {feature_slug}"
 
 
@@ -71,27 +66,29 @@ Test content.
     # Monkeypatch to make the test work
     monkeypatch.chdir(tmp_path)
 
-    with patch("subprocess.run", side_effect=mock_subprocess_run):
-        with patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path):
-            with patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path):
-                with patch("specify_cli.cli.commands.agent.tasks._find_feature_slug", return_value="014-test-feature"):
-                    # This would normally call move_task, but we can't easily test the CLI
-                    # Instead, verify the logic directly
-                    feature_slug = "014-test-feature"
-                    spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
-                    task_id = "WP01"
-                    target_lane = "doing"
-                    agent_name = "test-agent"
+    with (
+        patch("subprocess.run", side_effect=mock_subprocess_run),
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_feature_slug", return_value="014-test-feature"),
+    ):
+        # This would normally call move_task, but we can't easily test the CLI
+        # Instead, verify the logic directly
+        feature_slug = "014-test-feature"
+        spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
+        task_id = "WP01"
+        target_lane = "doing"
+        agent_name = "test-agent"
 
-                    expected_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number} [{agent_name}]"
-                    assert "spec 014" in expected_msg
-                    assert expected_msg == "chore: Move WP01 to doing on spec 014 [test-agent]"
+        expected_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number} [{agent_name}]"
+        assert "spec 014" in expected_msg
+        assert expected_msg == "chore: Move WP01 to doing on spec 014 [test-agent]"
 
 
 def test_mark_status_includes_spec_number():
     """Verify mark-status commit messages include spec number."""
     feature_slug = "014-test-feature"
-    spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+    spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
 
     # Single task
     task_id = "T001"

@@ -3,7 +3,6 @@
 Simple tests for GitignoreManager that can run without pytest.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -71,7 +70,7 @@ def test_all_agents_protected():
         tmppath = Path(tmpdir)
         manager = GitignoreManager(tmppath)
 
-        result = manager.protect_all_agents()
+        manager.protect_all_agents()
 
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
@@ -127,7 +126,7 @@ def test_error_handling():
     # Test with non-existent directory
     try:
         manager = GitignoreManager(Path("/nonexistent/path"))
-        assert False, "Should have raised ValueError"
+        raise AssertionError("Should have raised ValueError")
     except ValueError as e:
         assert "does not exist" in str(e), "Wrong error message"
 
@@ -135,7 +134,7 @@ def test_error_handling():
     with tempfile.NamedTemporaryFile() as tmpfile:
         try:
             manager = GitignoreManager(Path(tmpfile.name))
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert "not a directory" in str(e), "Wrong error message"
 

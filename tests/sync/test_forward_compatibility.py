@@ -12,14 +12,13 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from specify_cli.sync.clock import LamportClock
-from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.client import WebSocketClient
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +340,7 @@ class TestClockUpdateViaMessageHandler:
 
         # Clock must be monotonically increasing
         assert clock_values == sorted(clock_values)
-        assert all(b > a for a, b in zip(clock_values, clock_values[1:]))
+        assert all(b > a for a, b in zip(clock_values, clock_values[1:], strict=False))
 
         # Verify final value: max(0,10)+1=11, max(11,15)+1=16, max(16,12)+1=17, max(17,20)+1=21
         assert clock_values == [11, 16, 17, 21]
@@ -407,4 +406,4 @@ class TestValidEventTypesOnlyGatesOutgoing:
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
         }
-        assert VALID_EVENT_TYPES == expected
+        assert expected == VALID_EVENT_TYPES

@@ -90,7 +90,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
                 "feature_slug": "",
                 "event_count": 0,
                 "work_packages": {},
-                "summary": {lane: 0 for lane in CANONICAL_LANES},
+                "summary": dict.fromkeys(CANONICAL_LANES, 0),
             },
             indent=2,
         )

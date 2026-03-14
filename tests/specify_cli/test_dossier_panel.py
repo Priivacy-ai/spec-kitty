@@ -10,10 +10,8 @@ Tests verify:
 - Media type hints and styling
 """
 
-import json
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
 
@@ -390,7 +388,7 @@ class TestByteFormatting:
             (10485760, "10.0 MB"),
         ]
 
-        for bytes_val, expected in test_cases:
+        for bytes_val, _expected in test_cases:
             result = format_bytes(bytes_val)
             assert bytes_val == 512 or "B" in result or "KB" in result or "MB" in result or "GB" in result
 
@@ -424,10 +422,7 @@ class TestErrorHandling:
             "artifacts": [],
         }
 
-        if not response["artifacts"]:
-            message = "No artifacts found"
-        else:
-            message = "Artifacts found"
+        message = "No artifacts found" if not response["artifacts"] else "Artifacts found"
 
         assert message == "No artifacts found"
 

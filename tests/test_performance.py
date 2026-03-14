@@ -65,17 +65,17 @@ def test_performance_multiple_runs():
 
         # First run
         start1 = time.perf_counter()
-        result1 = manager.protect_all_agents()
+        manager.protect_all_agents()
         elapsed1 = time.perf_counter() - start1
 
         # Second run (should be faster - just checking)
         start2 = time.perf_counter()
-        result2 = manager.protect_all_agents()
+        manager.protect_all_agents()
         elapsed2 = time.perf_counter() - start2
 
         # Third run
         start3 = time.perf_counter()
-        result3 = manager.protect_all_agents()
+        manager.protect_all_agents()
         elapsed3 = time.perf_counter() - start3
 
         assert elapsed1 < 1.0, f"First run took {elapsed1:.3f}s"

@@ -20,8 +20,7 @@ def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
         cwd=cwd,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
@@ -39,8 +38,7 @@ def run_validator(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str
         cmd,
         cwd=tmp_path,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
@@ -171,8 +169,7 @@ def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:
         ],
         cwd=tmp_path,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         env=env,
     )
 

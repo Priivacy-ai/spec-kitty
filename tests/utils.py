@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +13,7 @@ if str(TASKS_DIR) not in sys.path:
     sys.path.insert(0, str(TASKS_DIR))
 
 
-def run(cmd: list[str], *, cwd: Path, env: Optional[dict[str, str]] = None) -> subprocess.CompletedProcess:
+def run(cmd: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
@@ -23,7 +22,9 @@ def run(cmd: list[str], *, cwd: Path, env: Optional[dict[str, str]] = None) -> s
     return result
 
 
-def run_python_script(script: Path, args: list[str], *, cwd: Path, env: Optional[dict[str, str]] = None) -> subprocess.CompletedProcess:
+def run_python_script(
+    script: Path, args: list[str], *, cwd: Path, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
@@ -31,7 +32,7 @@ def run_python_script(script: Path, args: list[str], *, cwd: Path, env: Optional
     return subprocess.run(command, cwd=cwd, env=process_env, text=True, capture_output=True)
 
 
-def run_tasks_cli(args: list[str], *, cwd: Path, env: Optional[dict[str, str]] = None) -> subprocess.CompletedProcess:
+def run_tasks_cli(args: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return run_python_script(TASKS_DIR / "tasks_cli.py", args, cwd=cwd, env=env)
 
 
@@ -84,6 +85,10 @@ def write_wp(
         body,
         f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={lane} – {note}",
     )
-    updated_front = set_scalar(set_scalar(set_scalar(set_scalar(front, "lane", lane), "agent", agent), "assignee", assignee), "shell_pid", shell_pid)
+    updated_front = set_scalar(
+        set_scalar(set_scalar(set_scalar(front, "lane", lane), "agent", agent), "assignee", assignee),
+        "shell_pid",
+        shell_pid,
+    )
     path.write_text(build_document(updated_front, updated_body, padding), encoding="utf-8")
     return path

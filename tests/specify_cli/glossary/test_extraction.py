@@ -1,11 +1,8 @@
 """Tests for term extraction (WP03)."""
 
-import pytest
 import time
-from typing import List
 
 from specify_cli.glossary.extraction import (
-    ExtractedTerm,
     extract_metadata_hints,
     extract_quoted_phrases,
     extract_acronyms,
@@ -546,7 +543,7 @@ class TestExtractAllTerms:
     def test_limit_words(self):
         """Large inputs limited for performance."""
         text = " ".join(["word"] * 2000)  # 2000 words
-        terms = extract_all_terms(text, limit_words=500)
+        extract_all_terms(text, limit_words=500)
 
         # Should only scan first 500 words (no performance issue)
         # This test just ensures it doesn't crash or timeout
@@ -602,7 +599,7 @@ class TestPerformance:
         text = " ".join(["word"] * 5000)
 
         start = time.perf_counter()
-        terms = extract_all_terms(text, limit_words=1000)
+        extract_all_terms(text, limit_words=1000)
         elapsed = time.perf_counter() - start
 
         # Should still complete quickly (only processes first 1000)

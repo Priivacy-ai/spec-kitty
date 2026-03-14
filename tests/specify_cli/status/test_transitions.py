@@ -24,7 +24,7 @@ class TestConstants:
         assert len(ALLOWED_TRANSITIONS) == 24
 
     def test_terminal_lanes(self) -> None:
-        assert TERMINAL_LANES == frozenset({"done", "canceled"})
+        assert frozenset({"done", "canceled"}) == TERMINAL_LANES
 
     def test_doing_alias(self) -> None:
         assert LANE_ALIASES == {"doing": "in_progress"}

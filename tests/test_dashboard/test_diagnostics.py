@@ -7,9 +7,7 @@ import sys
 import types
 from pathlib import Path
 
-import pytest
 
-import specify_cli
 from specify_cli.dashboard import diagnostics
 
 

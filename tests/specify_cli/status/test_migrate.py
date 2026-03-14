@@ -14,9 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.status.migrate import (
-    FeatureMigrationResult,
     MigrationResult,
-    WPMigrationDetail,
     feature_requires_historical_migration,
     migrate_feature,
 )
@@ -220,7 +218,7 @@ class TestMigrateFeature:
         # which gets resolved to the custom actor param
         _write_wp(tasks_dir, "WP01", "in_progress")
 
-        result = migrate_feature(feature_dir, actor="custom-agent")
+        migrate_feature(feature_dir, actor="custom-agent")
 
         events = read_events(feature_dir)
         assert len(events) == 1
@@ -237,7 +235,7 @@ class TestMigrateFeature:
             {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "claude-dev"},
         ])
 
-        result = migrate_feature(feature_dir, actor="fallback-actor")
+        migrate_feature(feature_dir, actor="fallback-actor")
 
         events = read_events(feature_dir)
         assert len(events) == 1

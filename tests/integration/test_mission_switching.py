@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> None:
     """Mission switch command should show helpful error about per-feature missions."""

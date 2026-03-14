@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -25,7 +25,7 @@ def _slugify_heading(text: str) -> str:
     return heading
 
 
-@lru_cache(maxsize=None)
+@cache
 def _anchors_for(path: Path) -> set[str]:
     anchors: set[str] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -69,10 +69,7 @@ def test_glossary_relative_links_resolve(source_path: Path) -> None:
         link_path = parsed.path
         fragment = parsed.fragment
 
-        if link_path:
-            destination = (source_path.parent / link_path).resolve()
-        else:
-            destination = source_path.resolve()
+        destination = (source_path.parent / link_path).resolve() if link_path else source_path.resolve()
 
         try:
             destination.relative_to(REPO_ROOT.resolve())
@@ -90,11 +87,10 @@ def test_glossary_relative_links_resolve(source_path: Path) -> None:
             )
             continue
 
-        if fragment and destination.suffix.lower() == ".md":
-            if fragment not in _anchors_for(destination):
-                failures.append(
-                    f"{source_path.relative_to(REPO_ROOT)}:{line_number} "
-                    f"missing anchor '{fragment}' in {destination.relative_to(REPO_ROOT)}"
-                )
+        if fragment and destination.suffix.lower() == ".md" and fragment not in _anchors_for(destination):
+            failures.append(
+                f"{source_path.relative_to(REPO_ROOT)}:{line_number} "
+                f"missing anchor '{fragment}' in {destination.relative_to(REPO_ROOT)}"
+            )
 
     assert not failures, "\n".join(failures)

@@ -149,7 +149,7 @@ class TestFixStaleOverridesApply:
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
         overrides = project_with_stale_overrides / ".kittify" / "overrides"
-        files_before = set(str(p.relative_to(overrides)) for p in overrides.rglob("*") if p.is_file())
+        files_before = {str(p.relative_to(overrides)) for p in overrides.rglob("*") if p.is_file()}
 
         migration = FixStaleOverridesMigration()
         result = migration.apply(project_with_stale_overrides, dry_run=True)
@@ -159,7 +159,7 @@ class TestFixStaleOverridesApply:
         assert any("stale override" in c for c in result.changes_made)
 
         # Filesystem unchanged
-        files_after = set(str(p.relative_to(overrides)) for p in overrides.rglob("*") if p.is_file())
+        files_after = {str(p.relative_to(overrides)) for p in overrides.rglob("*") if p.is_file()}
         assert files_before == files_after
 
     def test_idempotent(
