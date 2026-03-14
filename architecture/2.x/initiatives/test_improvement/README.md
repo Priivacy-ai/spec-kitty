@@ -300,30 +300,35 @@ Added strict-mode type annotations to all test files authored during this initia
 
 ## 8. Remaining Opportunities
 
-### 8.1 Marker enrichment (medium effort, high CI value)
+### 8.1 Marker enrichment ✓ done (commit `git_repo marker`)
 
-Add a `subprocess` or `git_repo` marker to integration tests to allow finer exclusion without path-based `--ignore`:
+Added `git_repo` pytest marker to all tests that create real git repositories.
 
-```bash
-pytest -m "not subprocess" tests/  # Skip anything spawning spec-kitty CLI
-```
+**Implementation:**
+- Registered `git_repo` marker in `pytest.ini`
+- Added `pytest_collection_modifyitems` hook to `tests/integration/conftest.py` (covers all 17 integration tests)
+- Added file-level `pytestmark = pytest.mark.git_repo` to 29 files across `unit/`, `specify_cli/`, `adversarial/`, `release/`, and root `tests/`
 
-Currently only `fast`, `slow`, `e2e`, `jj`, `adversarial`, `asyncio` are in active use. The 2,992 unmarked tests include everything from fast async unit tests to multi-worktree integration tests — a `git_repo` marker on the latter would enable a useful mid-tier filter.
+**Result:** `pytest -m git_repo` now collects 973 tests — a useful mid-tier filter between `fast` (1,659 tests, 5s) and the full suite (~5 min).
 
-### 8.2 Root test reorganisation (cosmetic)
+### 8.2 Root test reorganisation ✓ done (commit `refactor(tests): reorganise`)
 
-25 loose files in `tests/` root cover cross-cutting concerns. Grouping into subdirectories would improve navigability:
+Moved 20 test files from the `tests/` root into `tests/cross_cutting/` subdirectories:
 
 ```
 tests/cross_cutting/
-  ├── dashboard/      (test_dashboard_*.py — 3 files)
-  ├── encoding/       (test_encoding_*.py — 3 files)
-  ├── packaging/      (test_package_bundling.py, test_packaging_safety.py)
-  └── versioning/     (test_version_*.py — 3 files)
+  dashboard/   — test_dashboard_{cli_accuracy,bug_117_lifecycle,encoding_resilience}
+  encoding/    — test_encoding_validation_{cli,functional}, test_contextive_traceability
+  packaging/   — test_package_bundling, test_packaging_safety, test_manifest_cli_filtering
+  versioning/  — test_version_{detection,fallback}, test_upgrade_version_update
+  misc/        — test_{acceptance_support,gitignore_management,gitignore_manager_simple,
+                  performance,plan_validation,task_helpers,tasks_cli_commands,template_compliance}
 ```
 
-### 8.3 Expensive fixture optimisation
+Fixed hardcoded `Path(__file__).parent.parent` path calculations in 6 files (now 4 levels deep). All 5,335 tests still collected; fast suite passes.
 
-- `conflicting_wps_repo` creates 3 git worktrees per test — consider `scope="module"` or a builder pattern
-- `git_stale_workspace` creates 1 worktree + advances main — same candidate for module-scoping
-- `dual_branch_repo` in `tests/integration/conftest.py` — same pattern
+### 8.3 Expensive fixture optimisation ✓ analysed (no action)
+
+Candidates reviewed: `conflicting_wps_repo` (3 worktrees), `git_stale_workspace` (1 worktree + advance), `dirty_worktree_repo`.
+
+**Verdict: module-scope not safe.** The tests that use these fixtures mutate the repos (e.g. `git rebase`, writing files in-place). Sharing fixtures across tests in the same module would cause inter-test interference. Builder pattern or snapshot restore would be required for any speedup — not worth the complexity given the low count (2–4 tests per fixture).
