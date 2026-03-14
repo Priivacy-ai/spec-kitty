@@ -27,6 +27,8 @@ import json
 from tests.test_isolation_helpers import get_venv_python
 import contextlib
 
+pytestmark = pytest.mark.git_repo
+
 
 def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
     """Check if dashboard is accessible on the given port.

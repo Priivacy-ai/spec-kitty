@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
 
 from specify_cli.merge.preflight import (
     WPStatus,
@@ -19,6 +20,8 @@ from specify_cli.merge.preflight import (
     check_worktree_status,
     run_preflight,
 )
+
+pytestmark = pytest.mark.git_repo
 
 
 def _configure_test_git_identity(repo: Path) -> None:

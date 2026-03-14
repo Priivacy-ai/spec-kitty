@@ -19,6 +19,8 @@ from specify_cli.core.multi_parent_merge import (
     create_multi_parent_base,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestMultiParentMerge:
     """Tests for create_multi_parent_base function."""

@@ -30,6 +30,7 @@ pytestmark = [
     pytest.mark.adversarial,
     pytest.mark.distribution,
     pytest.mark.slow,
+    pytest.mark.git_repo,
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

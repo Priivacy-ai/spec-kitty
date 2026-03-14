@@ -12,6 +12,8 @@ import pytest
 
 from specify_cli.core.git_ops import run_command
 
+pytestmark = pytest.mark.git_repo
+
 
 @pytest.fixture(name="_git_identity")
 def git_identity_fixture(monkeypatch):
@@ -52,10 +54,7 @@ def _read_meta(repo: Path, feature_slug: str) -> dict:
 def _get_feature_slugs(repo: Path) -> list[str]:
     """Get list of feature directory names from kitty-specs/."""
     kitty_specs = repo / "kitty-specs"
-    return sorted(
-        d.name for d in kitty_specs.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    )
+    return sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
 
 
 # ============================================================================

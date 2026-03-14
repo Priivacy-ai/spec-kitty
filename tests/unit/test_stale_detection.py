@@ -16,6 +16,8 @@ from specify_cli.core.stale_detection import (
     get_last_meaningful_commit_time,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:

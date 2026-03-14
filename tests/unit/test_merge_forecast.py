@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
 
 from specify_cli.merge.forecast import (
     ConflictPrediction,
@@ -19,6 +20,8 @@ from specify_cli.merge.forecast import (
     is_status_file,
     predict_conflicts,
 )
+
+pytestmark = pytest.mark.git_repo
 
 
 class TestIsStatusFile:

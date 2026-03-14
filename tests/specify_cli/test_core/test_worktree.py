@@ -17,6 +17,8 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestGetNextFeatureNumber:
     """Tests for get_next_feature_number function."""

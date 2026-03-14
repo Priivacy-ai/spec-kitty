@@ -7,10 +7,14 @@ from pathlib import Path
 import subprocess
 from unittest.mock import patch
 
+import pytest
+
 from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
     run_git_preflight,
 )
+
+pytestmark = pytest.mark.git_repo
 
 
 def _init_git_repo(path: Path) -> None:

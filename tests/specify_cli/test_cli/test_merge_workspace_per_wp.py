@@ -21,6 +21,8 @@ from specify_cli.cli.commands.merge import (
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.core.vcs.exceptions import VCSNotFoundError
 
+pytestmark = pytest.mark.git_repo
+
 
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:

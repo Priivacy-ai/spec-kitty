@@ -1,4 +1,5 @@
 """Multi-Parent Merge Tests for diamond dependencies."""
+
 from __future__ import annotations
 
 import subprocess
@@ -12,7 +13,7 @@ from specify_cli.core.multi_parent_merge import (
 )
 from tests.utils import run
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.git_repo]
 
 
 def _init_repo(repo: Path) -> None:
