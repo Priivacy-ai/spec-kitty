@@ -4,7 +4,7 @@
 > **Branch scope:** 2.x only  
 > **Branch:** `fix/test-detection-remediation`  
 > **Date:** 2026-03-12  
-> **Last updated:** 2026-03-12
+> **Last updated:** 2026-03-14
 
 ---
 
@@ -53,9 +53,9 @@ All 12 imported modules (`agent.feature`, `agent.tasks`, `agent.workflow`, `stat
 |--------|-------|
 | Test files (non-legacy) | 338 |
 | Lines of test code | ~90,000 |
-| Estimated test cases | ~800+ |
+| Total test cases | 5,335 |
 | conftest.py files | 7 |
-| Estimated full run | 20–30 min |
+| Full suite (fast+slow+unmarked) | ~5 min (local), ~20 min (CI) |
 
 ### Directory breakdown
 
@@ -131,10 +131,10 @@ Full workflow: specify → plan → tasks → implement → review → merge. Ru
 
 ## 5. Improvement Opportunities
 
-### Fixture consolidation (low-hanging fruit)
+### Fixture consolidation ✓ done
 
-- `isolated_env()` is defined identically in both `integration/conftest.py` and `e2e/conftest.py` → move to root `conftest.py`.
-- `run_cli()` is duplicated the same way → consolidate.
+- `isolated_env()` and `run_cli()` moved to root `conftest.py` (commit `969b5746`).
+- `temp_repo` fixture restored in root conftest.
 
 ### Expensive fixture optimization
 
@@ -213,14 +213,16 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 
 **Implementation note:** `pytestmark` in conftest.py does NOT propagate in pytest 9.0.2. Used `pytest_collection_modifyitems` hook scoped with `Path(__file__).parent` instead.
 
-**Current marker stats:**
+**Current marker stats (2026-03-14):**
 
-| Marker | Tests | Runtime |
-|--------|-------|---------|
-| `fast` | 1,632 | 4.52s |
-| `slow` | 583 | 73.51s |
-| unmarked | 648 | ~15s |
-| **Total** | **2,863** | **93.20s** |
+| Marker | Tests | Runtime (local) | Notes |
+|--------|-------|-----------------|-------|
+| `fast` | 1,659 | 5.2s | Pure logic, no subprocess/git |
+| `slow` | 684 | 25.9s | subprocess/git, specify_cli/test_cli + test_core |
+| unmarked | 2,992 | ~4 min | integration, sync, legacy, root, e2e |
+| **Total** | **5,335** | **~5 min** | Local machine ~3× faster than CI reference |
+
+> **Note:** The reference machine times in the original spec (73.51s for slow) were measured on a slower CI-equivalent machine. Local timings are ~3× faster. Use the reference times for CI budgeting.
 
 ### 7.2 Merge Test Unit Extraction (commit `c816d247`)
 
@@ -250,17 +252,78 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 
 **Integration tests kept (17 + 3 xfail):** Tests requiring real git repos — worktree detection from within worktrees, full merge workflows, ancestry chain planning, jj backend detection (xfail).
 
-### 7.3 test_core/ Profiling (next target identified)
+### 7.3 test_core/ Unit Extraction (commits `3ed22b5a`, `b402d17f`)
 
-| File | Tests | Time | Priority |
-|------|-------|------|----------|
-| `test_git_ops.py` | 42 | 23.00s | **HIGH** — same pattern as merge tests |
-| `test_worktree.py` | 44 | 6.19s | MEDIUM |
-| `test_create_feature_branch.py` | 8 | 14.92s | **HIGH** — 1.9s/test |
-| `test_git_preflight.py` | 10 | 0.70s | LOW (already fast) |
-| `test_config.py` | 5 | 0.35s | LOW |
-| `test_project_resolver.py` | 3 | 0.36s | LOW |
-| `test_tool_checker.py` | 4 | 0.35s | LOW |
-| `test_utils.py` | 4 | 0.36s | LOW |
+Extracted pure-logic and mock-boundary tests from the two most expensive `test_core/` files.
 
-**Next highest ROI:** `test_git_ops.py` (42 tests, 23s) and `test_create_feature_branch.py` (8 tests, 15s) — together 50 tests, 38s. Same git-repo fixture pattern as the merge tests.
+**`test_git_ops.py` → `test_git_ops_unit.py` (17 new fast tests, 0.29s):**
+
+| Function | Unit tests | Approach |
+|----------|-----------|----------|
+| `run_command` | 3 | Pure subprocess mock |
+| `resolve_target_branch` | 8 | Mocked `resolve_primary_branch` |
+| `resolve_primary_branch` | 6 | Mocked `subprocess.run` heuristics |
+
+**`test_create_feature_branch.py` → `test_create_feature_branch_unit.py` (9 new fast tests, 0.57s):**
+
+| Function | Unit tests | Approach |
+|----------|-----------|----------|
+| `create_feature` | 9 | Mocked `locate_project_root`, `is_git_repo`, `is_worktree_context`, `get_current_branch`, `get_next_feature_number`, `safe_commit` |
+
+**Discovery:** `create_feature()` calls `safe_commit()` after writing `meta.json` — mocking git I/O requires patching `specify_cli.cli.commands.agent.feature.safe_commit` in addition to the root/branch guard mocks.
+
+---
+
+### 7.4 Fixture Consolidation, Lint + Type Cleanup (2026-03-14)
+
+#### Fixture consolidation (commit `969b5746`)
+
+- Moved `isolated_env` and `run_cli` from `tests/e2e/conftest.py` and `tests/integration/conftest.py` to root `tests/conftest.py`
+- Restored accidentally-removed `temp_repo` fixture in root conftest
+- Re-added missing `import tomllib` to `tests/integration/conftest.py`
+- Removed 9 stale `@pytest.mark.xfail` markers across 4 files (`test_distribution.py`, `test_implement_multi_parent.py`, `test_merge_workflow_complete.py`, `test_multi_parent_merge.py`) — all now pass unconditionally
+
+#### Ruff lint sweep (commit `e7a3781c`)
+
+Applied `ruff check --fix` and `--unsafe-fixes` across the full `tests/` tree. **687 violations → 0.**
+
+Key rules resolved: F401 (249 unused imports), UP017/UP006/UP035 (deprecated typing), SIM117 (51 nested `with`), W293 (trailing whitespace), F841 (60 unused variables), E501 (38 long lines), E741 (ambiguous names), E402 (imports not at top), F811 (redefined names), SIM105/SIM102 (simplifications), E722 (bare except), B018/SIM115 (misc).
+
+#### Mypy type annotations (commit `a9d77b3d`)
+
+Added strict-mode type annotations to all test files authored during this initiative:
+- `test_git_ops_unit.py`, `test_create_feature_branch_unit.py`: `-> None` on all test functions, typed helper closures
+- `tests/conftest.py`: `-> None` on `ensure_imports`, corrected `git_stale_workspace` return type to `dict[str, Path | str]`
+- `tests/adversarial/test_distribution.py`: `-> None` on all test methods, typed `tmp_path_factory` parameters
+
+---
+
+## 8. Remaining Opportunities
+
+### 8.1 Marker enrichment (medium effort, high CI value)
+
+Add a `subprocess` or `git_repo` marker to integration tests to allow finer exclusion without path-based `--ignore`:
+
+```bash
+pytest -m "not subprocess" tests/  # Skip anything spawning spec-kitty CLI
+```
+
+Currently only `fast`, `slow`, `e2e`, `jj`, `adversarial`, `asyncio` are in active use. The 2,992 unmarked tests include everything from fast async unit tests to multi-worktree integration tests — a `git_repo` marker on the latter would enable a useful mid-tier filter.
+
+### 8.2 Root test reorganisation (cosmetic)
+
+25 loose files in `tests/` root cover cross-cutting concerns. Grouping into subdirectories would improve navigability:
+
+```
+tests/cross_cutting/
+  ├── dashboard/      (test_dashboard_*.py — 3 files)
+  ├── encoding/       (test_encoding_*.py — 3 files)
+  ├── packaging/      (test_package_bundling.py, test_packaging_safety.py)
+  └── versioning/     (test_version_*.py — 3 files)
+```
+
+### 8.3 Expensive fixture optimisation
+
+- `conflicting_wps_repo` creates 3 git worktrees per test — consider `scope="module"` or a builder pattern
+- `git_stale_workspace` creates 1 worktree + advances main — same candidate for module-scoping
+- `dual_branch_repo` in `tests/integration/conftest.py` — same pattern
