@@ -12,7 +12,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
 
 from specify_cli.merge.preflight import run_preflight
 from specify_cli.merge.forecast import predict_conflicts
@@ -34,7 +33,7 @@ class TestPreflightBlocking:
 
         # Create feature directory for preflight
         feature_slug = "019-dirty-test"
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        repo_root / "kitty-specs" / feature_slug
 
         wp_workspaces = [(dirty_worktree, "WP01", f"{feature_slug}-WP01")]
 
@@ -132,7 +131,6 @@ dependencies: []
         assert wp02_statuses[0].is_clean is False
         assert "Missing worktree" in wp02_statuses[0].error
 
-    @pytest.mark.xfail(reason="CI git environment does not have user configured for commits")
     def test_preflight_blocks_diverged_target(self, tmp_path: Path):
         """Test that preflight blocks merge when target branch is behind origin."""
         # Create origin repo

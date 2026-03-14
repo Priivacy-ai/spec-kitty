@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.implement import implement
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.workspace_context import load_context
 
@@ -144,7 +143,6 @@ dependencies:
     return repo
 
 
-@pytest.mark.xfail(reason="CI uses 'master' as default branch instead of 'main'")
 def test_implement_linear_dependency_chain(feature_repo: Path, monkeypatch):
     """Test implementing WP01 → WP02 → WP03 (linear chain, no auto-merge)."""
     monkeypatch.chdir(feature_repo)
