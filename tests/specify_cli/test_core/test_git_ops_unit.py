@@ -19,7 +19,6 @@ not required to exercise the behaviour under test.
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -43,7 +42,7 @@ pytestmark = pytest.mark.fast
 # ============================================================================
 
 
-def test_run_command_captures_stdout():
+def test_run_command_captures_stdout() -> None:
     code, stdout, stderr = run_command(
         [sys.executable, "-c", "print('hello world')"],
         capture=True,
@@ -53,7 +52,7 @@ def test_run_command_captures_stdout():
     assert stderr == ""
 
 
-def test_run_command_allows_nonzero_when_not_checking():
+def test_run_command_allows_nonzero_when_not_checking() -> None:
     code, stdout, stderr = run_command(
         [sys.executable, "-c", "import sys; sys.exit(3)"],
         check_return=False,
@@ -68,7 +67,7 @@ def test_run_command_allows_nonzero_when_not_checking():
 # ============================================================================
 
 
-def test_get_current_branch_not_git_repo(tmp_path):
+def test_get_current_branch_not_git_repo(tmp_path: Path) -> None:
     """get_current_branch returns None for a plain directory."""
     plain_dir = tmp_path / "not-a-repo"
     plain_dir.mkdir()
@@ -80,7 +79,7 @@ def test_get_current_branch_not_git_repo(tmp_path):
 # ============================================================================
 
 
-def test_has_remote_nonexistent_repo(tmp_path):
+def test_has_remote_nonexistent_repo(tmp_path: Path) -> None:
     """has_remote returns False for a plain (non-git) directory."""
     non_repo = tmp_path / "not-a-repo"
     non_repo.mkdir()
@@ -92,7 +91,7 @@ def test_has_remote_nonexistent_repo(tmp_path):
 # ============================================================================
 
 
-def test_exclude_from_git_index_non_git_repo(tmp_path):
+def test_exclude_from_git_index_non_git_repo(tmp_path: Path) -> None:
     """exclude_from_git_index silently skips non-git directories."""
     non_repo = tmp_path / "not-a-repo"
     non_repo.mkdir()
@@ -111,13 +110,13 @@ def test_exclude_from_git_index_non_git_repo(tmp_path):
 _PATCH_PRIMARY = "specify_cli.core.git_ops.resolve_primary_branch"
 
 
-def _write_meta(repo: Path, feature_slug: str, data: dict) -> None:
+def _write_meta(repo: Path, feature_slug: str, data: dict[str, str]) -> None:
     feature_dir = repo / "kitty-specs" / feature_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps(data), encoding="utf-8")
 
 
-def test_resolve_target_branch_matches_returns_proceed(tmp_path):
+def test_resolve_target_branch_matches_returns_proceed(tmp_path: Path) -> None:
     """When current == target, action is 'proceed' and should_notify is False."""
     _write_meta(tmp_path, "001-test", {"target_branch": "main"})
 
@@ -130,7 +129,7 @@ def test_resolve_target_branch_matches_returns_proceed(tmp_path):
     assert resolution.action == "proceed"
 
 
-def test_resolve_target_branch_differs_stays_on_current(tmp_path):
+def test_resolve_target_branch_differs_stays_on_current(tmp_path: Path) -> None:
     """When current != target with respect_current=True, action is 'stay_on_current'."""
     _write_meta(tmp_path, "002-test", {"target_branch": "main"})
 
@@ -143,7 +142,7 @@ def test_resolve_target_branch_differs_stays_on_current(tmp_path):
     assert resolution.action == "stay_on_current"
 
 
-def test_resolve_target_branch_no_respect_current_allows_checkout(tmp_path):
+def test_resolve_target_branch_no_respect_current_allows_checkout(tmp_path: Path) -> None:
     """When respect_current=False and branches differ, action is 'checkout_target'."""
     _write_meta(tmp_path, "003-test", {"target_branch": "main"})
 
@@ -154,7 +153,7 @@ def test_resolve_target_branch_no_respect_current_allows_checkout(tmp_path):
     assert resolution.should_notify is True
 
 
-def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path):
+def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path: Path) -> None:
     """When meta.json is absent, target falls back to resolve_primary_branch result."""
     # Create feature dir WITHOUT meta.json
     (tmp_path / "kitty-specs" / "004-test").mkdir(parents=True)
@@ -167,7 +166,7 @@ def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path):
     assert resolution.action == "proceed"
 
 
-def test_resolve_target_branch_invalid_meta_falls_back(tmp_path):
+def test_resolve_target_branch_invalid_meta_falls_back(tmp_path: Path) -> None:
     """When meta.json is malformed JSON, target falls back to primary branch."""
     feature_dir = tmp_path / "kitty-specs" / "005-test"
     feature_dir.mkdir(parents=True)
@@ -180,7 +179,7 @@ def test_resolve_target_branch_invalid_meta_falls_back(tmp_path):
     assert resolution.action == "proceed"
 
 
-def test_resolve_target_branch_meta_missing_field_falls_back(tmp_path):
+def test_resolve_target_branch_meta_missing_field_falls_back(tmp_path: Path) -> None:
     """When meta.json exists but lacks target_branch, fallback to primary."""
     _write_meta(tmp_path, "006-test", {"feature_id": "006-test"})
 
@@ -191,7 +190,7 @@ def test_resolve_target_branch_meta_missing_field_falls_back(tmp_path):
     assert resolution.action == "proceed"
 
 
-def test_resolve_target_branch_meta_overrides_primary(tmp_path):
+def test_resolve_target_branch_meta_overrides_primary(tmp_path: Path) -> None:
     """meta.json target_branch wins over the detected primary branch."""
     _write_meta(tmp_path, "007-test", {"target_branch": "2.x"})
 
@@ -220,7 +219,7 @@ def _make_proc(returncode: int, stdout: str = "") -> MagicMock:
     return proc
 
 
-def test_resolve_primary_branch_prefers_origin_head(tmp_path):
+def test_resolve_primary_branch_prefers_origin_head(tmp_path: Path) -> None:
     """Method 1: origin/HEAD symbolic ref is the highest-priority source."""
     origin_head_proc = _make_proc(0, "refs/remotes/origin/HEAD -> origin/my-trunk\n")
     # symbolic-ref returns the raw ref string
@@ -232,7 +231,7 @@ def test_resolve_primary_branch_prefers_origin_head(tmp_path):
     assert result == "my-trunk"
 
 
-def test_resolve_primary_branch_falls_back_to_current_branch(tmp_path):
+def test_resolve_primary_branch_falls_back_to_current_branch(tmp_path: Path) -> None:
     """Method 2: when origin/HEAD is absent, current branch wins."""
     origin_fail = _make_proc(128, "")  # git symbolic-ref fails
 
@@ -245,13 +244,13 @@ def test_resolve_primary_branch_falls_back_to_current_branch(tmp_path):
     assert result == "feature-x"
 
 
-def test_resolve_primary_branch_falls_back_to_main_from_list(tmp_path):
+def test_resolve_primary_branch_falls_back_to_main_from_list(tmp_path: Path) -> None:
     """Method 3: when no remote and no current branch, common-branch check wins."""
-    origin_fail = _make_proc(128, "")
+    _make_proc(128, "")
 
     # subprocess.run side_effect: first call = symbolic-ref (fail),
     # then rev-parse calls for main (success), master (not reached), develop (not reached)
-    def side_effect(cmd, **_kwargs):
+    def side_effect(cmd: list[str], **_kwargs: object) -> MagicMock:
         if "symbolic-ref" in cmd:
             return _make_proc(128, "")
         if "main" in cmd:
@@ -267,10 +266,10 @@ def test_resolve_primary_branch_falls_back_to_main_from_list(tmp_path):
     assert result == "main"
 
 
-def test_resolve_primary_branch_falls_back_to_master_when_main_absent(tmp_path):
+def test_resolve_primary_branch_falls_back_to_master_when_main_absent(tmp_path: Path) -> None:
     """Method 3: 'master' is returned when main doesn't exist but master does."""
 
-    def side_effect(cmd, **_kwargs):
+    def side_effect(cmd: list[str], **_kwargs: object) -> MagicMock:
         if "symbolic-ref" in cmd:
             return _make_proc(128, "")
         if "main" in cmd:
@@ -288,10 +287,10 @@ def test_resolve_primary_branch_falls_back_to_master_when_main_absent(tmp_path):
     assert result == "master"
 
 
-def test_resolve_primary_branch_final_fallback_is_main(tmp_path):
+def test_resolve_primary_branch_final_fallback_is_main(tmp_path: Path) -> None:
     """Method 4: when all detection methods fail, 'main' is returned."""
 
-    def side_effect(cmd, **_kwargs):
+    def side_effect(cmd: list[str], **_kwargs: object) -> MagicMock:
         return _make_proc(128, "")  # everything fails
 
     with (

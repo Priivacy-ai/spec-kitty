@@ -65,7 +65,7 @@ def _clean_env() -> dict[str, str]:
 
 
 @pytest.fixture(scope="session")
-def wheel_path(tmp_path_factory) -> Path:
+def wheel_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Build wheel once per session.
 
     Session-scoped to avoid rebuilding for each test.
@@ -91,7 +91,7 @@ def wheel_path(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def installed_venv(wheel_path: Path, tmp_path_factory) -> Path:
+def installed_venv(wheel_path: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Create venv with wheel installed (no SPEC_KITTY_TEMPLATE_ROOT).
 
     Session-scoped to avoid reinstalling for each test.
@@ -130,12 +130,12 @@ def installed_venv(wheel_path: Path, tmp_path_factory) -> Path:
 class TestWheelBuildAndInstall:
     """Test that wheel builds and installs correctly."""
 
-    def test_wheel_builds_successfully(self, wheel_path: Path):
+    def test_wheel_builds_successfully(self, wheel_path: Path) -> None:
         """Verify wheel builds without errors."""
         assert wheel_path.exists(), "Wheel should be built"
         assert wheel_path.suffix == ".whl", "Should be a wheel file"
 
-    def test_wheel_installs_in_fresh_venv(self, installed_venv: Path):
+    def test_wheel_installs_in_fresh_venv(self, installed_venv: Path) -> None:
         """Verify wheel installs into clean virtual environment."""
         spec_kitty = installed_venv / "bin" / "spec-kitty"
         if not spec_kitty.exists():
@@ -143,7 +143,7 @@ class TestWheelBuildAndInstall:
 
         assert spec_kitty.exists(), "spec-kitty CLI should be installed"
 
-    def test_cli_version_matches_wheel(self, installed_venv: Path):
+    def test_cli_version_matches_wheel(self, installed_venv: Path) -> None:
         """Verify installed CLI reports correct version."""
         spec_kitty = _venv_spec_kitty(installed_venv)
 
@@ -166,7 +166,7 @@ class TestWheelBuildAndInstall:
 class TestInitWithoutTemplateRoot:
     """Test spec-kitty init uses packaged templates."""
 
-    def test_init_creates_project_structure(self, installed_venv: Path, tmp_path: Path):
+    def test_init_creates_project_structure(self, installed_venv: Path, tmp_path: Path) -> None:
         """spec-kitty init should work without SPEC_KITTY_TEMPLATE_ROOT."""
         project_dir = tmp_path / "test-project"
 
@@ -204,7 +204,7 @@ class TestInitWithoutTemplateRoot:
         config = kittify / "config.yaml"
         assert config.exists(), "config.yaml should be created"
 
-    def test_init_templates_are_valid(self, installed_venv: Path, tmp_path: Path):
+    def test_init_templates_are_valid(self, installed_venv: Path, tmp_path: Path) -> None:
         """Initialized templates should contain expected content."""
         project_dir = tmp_path / "template-test"
 
@@ -244,7 +244,7 @@ class TestInitWithoutTemplateRoot:
 class TestResearchFeatureCreation:
     """Test research mission feature creation with packaged templates."""
 
-    def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path):
+    def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path) -> None:
         """Research mission templates should be available from package."""
         project_dir = tmp_path / "research-project"
 
@@ -282,7 +282,7 @@ class TestResearchFeatureCreation:
         # Verify research templates are available
         # (The specific check depends on how templates are bundled)
 
-    def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path):
+    def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path) -> None:
         """meta.json should have correct schema for research features."""
         # This test validates the ADR 7 deliverables_path field is present
         # when research features are created
@@ -301,7 +301,7 @@ class TestUpgradeWithAllMissions:
         reason="spec-kitty init still prompts for agent strategy even with --ai/--script/--mission flags (issue #TBD)",
         strict=False,
     )
-    def test_upgrade_updates_templates(self, installed_venv: Path, tmp_path: Path):
+    def test_upgrade_updates_templates(self, installed_venv: Path, tmp_path: Path) -> None:
         """spec-kitty upgrade should update templates from packaged source."""
         project_dir = tmp_path / "upgrade-project"
 

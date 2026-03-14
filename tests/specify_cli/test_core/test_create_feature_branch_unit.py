@@ -19,11 +19,13 @@ and enforces worktree/detached-HEAD guards, while stubbing all git operations.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
+from click.testing import Result
 
 from specify_cli.cli.commands.agent.feature import app
 
@@ -43,7 +45,9 @@ def _setup_kittify(repo: Path) -> None:
     (repo / "kitty-specs").mkdir(exist_ok=True)
 
 
-def _run_create_feature(repo: Path, slug: str, current_branch: str, extra_args: list[str] | None = None):
+def _run_create_feature(
+    repo: Path, slug: str, current_branch: str, extra_args: list[str] | None = None
+) -> tuple[Result, dict[str, object] | None]:
     """Invoke create-feature with mocked git layer and return (result, meta)."""
     args = ["create-feature", slug, "--json"] + (extra_args or [])
     with (
@@ -74,7 +78,7 @@ def _run_create_feature(repo: Path, slug: str, current_branch: str, extra_args: 
 # ============================================================================
 
 
-def test_create_feature_records_current_branch_2x(tmp_path):
+def test_create_feature_records_current_branch_2x(tmp_path: Path) -> None:
     """create_feature records target_branch='2.x' when current branch is '2.x'."""
     _setup_kittify(tmp_path)
     result, meta = _run_create_feature(tmp_path, "test-feature", "2.x")
@@ -83,44 +87,49 @@ def test_create_feature_records_current_branch_2x(tmp_path):
     assert meta["target_branch"] == "2.x"
 
 
-def test_create_feature_records_current_branch_main(tmp_path):
+def test_create_feature_records_current_branch_main(tmp_path: Path) -> None:
     """create_feature records target_branch='main' when current branch is 'main'."""
     _setup_kittify(tmp_path)
     result, meta = _run_create_feature(tmp_path, "test-feature", "main")
     assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert meta is not None
     assert meta["target_branch"] == "main"
 
 
-def test_create_feature_records_current_branch_master(tmp_path):
+def test_create_feature_records_current_branch_master(tmp_path: Path) -> None:
     """create_feature records target_branch='master' when current branch is 'master'."""
     _setup_kittify(tmp_path)
     result, meta = _run_create_feature(tmp_path, "test-feature", "master")
     assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert meta is not None
     assert meta["target_branch"] == "master"
 
 
-def test_create_feature_records_custom_branch(tmp_path):
+def test_create_feature_records_custom_branch(tmp_path: Path) -> None:
     """create_feature records target_branch='v3-next' when current branch is 'v3-next'."""
     _setup_kittify(tmp_path)
     result, meta = _run_create_feature(tmp_path, "test-feature", "v3-next")
     assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert meta is not None
     assert meta["target_branch"] == "v3-next"
 
 
-def test_create_feature_explicit_target_branch_flag_overrides_current(tmp_path):
+def test_create_feature_explicit_target_branch_flag_overrides_current(tmp_path: Path) -> None:
     """--target-branch flag overrides the current branch."""
     _setup_kittify(tmp_path)
     result, meta = _run_create_feature(tmp_path, "test-feature", "main", extra_args=["--target-branch", "2.x"])
     assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert meta is not None
     assert meta["target_branch"] == "2.x"
 
 
-def test_create_feature_2x_wins_even_when_main_coexists(tmp_path):
+def test_create_feature_2x_wins_even_when_main_coexists(tmp_path: Path) -> None:
     """The critical regression test: on 2.x, target_branch is '2.x' not 'main'."""
     _setup_kittify(tmp_path)
     # Simulate being on 2.x while main also exists (branch detection is mocked)
     result, meta = _run_create_feature(tmp_path, "test-feature", "2.x")
     assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert meta is not None
     assert meta["target_branch"] == "2.x"
 
 
@@ -129,7 +138,7 @@ def test_create_feature_2x_wins_even_when_main_coexists(tmp_path):
 # ============================================================================
 
 
-def test_create_feature_rejects_worktree_context(tmp_path):
+def test_create_feature_rejects_worktree_context(tmp_path: Path) -> None:
     """create_feature exits non-zero when run from inside a worktree."""
     _setup_kittify(tmp_path)
     with (
@@ -143,7 +152,7 @@ def test_create_feature_rejects_worktree_context(tmp_path):
     assert result.exit_code != 0
 
 
-def test_create_feature_rejects_detached_head(tmp_path):
+def test_create_feature_rejects_detached_head(tmp_path: Path) -> None:
     """create_feature exits non-zero when get_current_branch returns None (detached HEAD)."""
     _setup_kittify(tmp_path)
     with (
@@ -157,7 +166,7 @@ def test_create_feature_rejects_detached_head(tmp_path):
     assert result.exit_code != 0
 
 
-def test_create_feature_rejects_invalid_slug(tmp_path):
+def test_create_feature_rejects_invalid_slug(tmp_path: Path) -> None:
     """create_feature exits non-zero for non-kebab-case slugs."""
     _setup_kittify(tmp_path)
     with (
