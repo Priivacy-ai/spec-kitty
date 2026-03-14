@@ -129,9 +129,7 @@ class TestValidateWpReadyForMerge:
     def test_validates_clean_worktree(self, workspace_per_wp_repo: Path):
         """Test validating a clean worktree."""
         worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
-        is_valid, error_msg = validate_wp_ready_for_merge(
-            workspace_per_wp_repo, worktree_path, "010-test-feature-WP01"
-        )
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
         assert is_valid is True
         assert error_msg == ""
 
@@ -142,9 +140,7 @@ class TestValidateWpReadyForMerge:
         # Make uncommitted changes
         (worktree_path / "uncommitted.txt").write_text("uncommitted\n")
 
-        is_valid, error_msg = validate_wp_ready_for_merge(
-            workspace_per_wp_repo, worktree_path, "010-test-feature-WP01"
-        )
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
         assert is_valid is False
         assert "uncommitted changes" in error_msg
 
@@ -330,7 +326,10 @@ class TestWorkspacePerWpMergeIntegration:
         # Get the default branch name
         branch_result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+            cwd=workspace_per_wp_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         default_branch = branch_result.stdout.strip()
 
@@ -517,7 +516,10 @@ class TestEffectiveMergePlanning:
         # Get the default branch name
         branch_result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+            cwd=workspace_per_wp_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         default_branch = branch_result.stdout.strip()
 
@@ -585,6 +587,7 @@ class TestVCSAbstractionIntegration:
         (git_repo / ".jj").mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
 
         with patch.object(detection, "is_jj_available", return_value=True):
@@ -601,16 +604,19 @@ class TestVCSAbstractionIntegration:
         test_dir.mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
         detection.is_git_available.cache_clear()
 
-        with patch.object(detection, "is_jj_available", return_value=False):
-            with patch.object(detection, "is_git_available", return_value=False):
-                from specify_cli.core.vcs import get_vcs
+        with (
+            patch.object(detection, "is_jj_available", return_value=False),
+            patch.object(detection, "is_git_available", return_value=False),
+        ):
+            from specify_cli.core.vcs import get_vcs
 
-                # Detection should raise an error when no VCS available
-                with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
-                    get_vcs(test_dir)
+            # Detection should raise an error when no VCS available
+            with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
+                get_vcs(test_dir)
 
     @pytest.mark.xfail(reason="jj not installed in CI environment")
     def test_vcs_detection_prefers_jj_in_colocated_mode(self, git_repo: Path):
@@ -619,6 +625,7 @@ class TestVCSAbstractionIntegration:
         (git_repo / ".jj").mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
 
         with patch.object(detection, "is_jj_available", return_value=True):

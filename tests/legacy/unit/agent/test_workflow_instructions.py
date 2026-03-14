@@ -75,16 +75,16 @@ class TestWorkflowImplementInstructions:
 
         runner = CliRunner()
         result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"])
-        
+
         # Should succeed
         assert result.exit_code == 0
-        
+
         # The full prompt is written to system temp directory
         prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
         assert prompt_file.exists(), f"Prompt file not found: {prompt_file}"
-        
+
         prompt_content = prompt_file.read_text(encoding="utf-8")
-        
+
         # Check that prompt includes git commit instructions
         assert "WHEN YOU'RE DONE:" in prompt_content
         assert "1. **Commit your implementation files:**" in prompt_content
@@ -107,15 +107,15 @@ class TestWorkflowImplementInstructions:
 
         runner = CliRunner()
         result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"])
-        
+
         assert result.exit_code == 0
-        
+
         # Read the prompt file from system temp
         prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
         assert prompt_file.exists(), f"Prompt file not found: {prompt_file}"
-        
+
         prompt_content = prompt_file.read_text(encoding="utf-8")
-        
+
         # Verify commit message format guidance is present
         assert ("IMPLEMENTATION COMPLETE" in prompt_content or "WHEN YOU'RE DONE" in prompt_content)
         assert ("feat(" in prompt_content or "fix(" in prompt_content)
@@ -135,15 +135,15 @@ class TestWorkflowImplementInstructions:
 
         runner = CliRunner()
         result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"])
-        
+
         assert result.exit_code == 0
-        
+
         # Read the prompt file from system temp
         prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
         assert prompt_file.exists(), f"Prompt file not found: {prompt_file}"
-        
+
         prompt_content = prompt_file.read_text(encoding="utf-8")
-        
+
         # Verify the numbering sequence exists
         assert "1. **Commit your implementation files:**" in prompt_content
         assert "2." in prompt_content
@@ -161,14 +161,14 @@ class TestMoveTaskPreflightCheck:
         feature_slug = "001-test-feature"
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
-        
+
         # Create meta.json for software-dev mission (target_branch required for branch resolution)
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
-        
+
         # Create worktree directory
         worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
         worktree_path.mkdir(parents=True)
-        
+
         # Mock git commands
         with patch("subprocess.run") as mock_run:
             def git_command_side_effect(args, **kwargs):
@@ -205,11 +205,11 @@ class TestMoveTaskPreflightCheck:
             )
 
             # Should block
-            assert is_valid is False, f"Expected validation to fail"
+            assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
             # Check for any message about uncommitted/staged/unstaged changes
             assert any(
-                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) 
+                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"])
                 for line in guidance
             ), f"No uncommitted/staged message in: {guidance}"
             assert any(
@@ -224,14 +224,14 @@ class TestMoveTaskPreflightCheck:
         feature_slug = "001-test-feature"
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
-        
+
         # Create meta.json for software-dev mission (target_branch required for branch resolution)
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
-        
+
         # Create worktree directory
         worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
         worktree_path.mkdir(parents=True)
-        
+
         # Mock git commands
         with patch("subprocess.run") as mock_run:
             def git_command_side_effect(args, **kwargs):
@@ -266,7 +266,7 @@ class TestMoveTaskPreflightCheck:
             is_valid, guidance = _validate_ready_for_review(
                 tmp_path, feature_slug, "WP01", False
             )
-            
+
             # Should allow
             assert is_valid is True
             assert len(guidance) == 0
@@ -277,6 +277,6 @@ class TestMoveTaskPreflightCheck:
         is_valid, guidance = _validate_ready_for_review(
             tmp_path, "001-test", "WP01", True  # force=True
         )
-        
+
         assert is_valid is True
         assert len(guidance) == 0

@@ -1,6 +1,5 @@
 """Tests for PrimitiveExecutionContext (T040)."""
 
-import pytest
 
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions.primitives import PrimitiveExecutionContext
@@ -8,14 +7,14 @@ from specify_cli.missions.primitives import PrimitiveExecutionContext
 
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""
-    defaults = dict(
-        step_id="test-001",
-        mission_id="test-mission",
-        run_id="run-001",
-        inputs={"description": "test input"},
-        metadata={},
-        config={},
-    )
+    defaults = {
+        "step_id": "test-001",
+        "mission_id": "test-mission",
+        "run_id": "run-001",
+        "inputs": {"description": "test input"},
+        "metadata": {},
+        "config": {},
+    }
     defaults.update(overrides)
     return PrimitiveExecutionContext(**defaults)
 

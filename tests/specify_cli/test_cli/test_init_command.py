@@ -14,7 +14,6 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
-from specify_cli.core.vcs import VCSBackend
 
 
 @pytest.fixture()
@@ -51,6 +50,7 @@ def _invoke(cli: Typer, args: list[str]) -> CliRunner:
     if result.exit_code != 0:
         raise AssertionError(result.output)
     return runner
+
 
 def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, _ = cli_app
@@ -445,7 +445,9 @@ def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
     assert confirm_prompts
 
 
-def test_init_non_interactive_requires_force_for_nonempty_here(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_init_non_interactive_requires_force_for_nonempty_here(
+    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
     (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
@@ -574,6 +576,8 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
     assert result.exit_code == 2
     plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
+
+
 def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)

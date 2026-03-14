@@ -13,11 +13,9 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.body_upload import prepare_body_uploads
@@ -114,12 +112,12 @@ class TestSC001OnlineSync:
         hash_contract = _write_file(feature_dir, "contracts/api.yaml", "openapi: '3.0'")
 
         artifacts = [
-            _artifact("spec.md", hash_spec, len("# Spec\nContent".encode())),
-            _artifact("plan.md", hash_plan, len("# Plan\nArch".encode())),
-            _artifact("tasks.md", hash_tasks, len("# Tasks\nWP list".encode())),
-            _artifact("tasks/WP01-setup.md", hash_wp, len("# WP01".encode())),
-            _artifact("research/analysis.md", hash_research, len("# Analysis".encode())),
-            _artifact("contracts/api.yaml", hash_contract, len("openapi: '3.0'".encode())),
+            _artifact("spec.md", hash_spec, len(b"# Spec\nContent")),
+            _artifact("plan.md", hash_plan, len(b"# Plan\nArch")),
+            _artifact("tasks.md", hash_tasks, len(b"# Tasks\nWP list")),
+            _artifact("tasks/WP01-setup.md", hash_wp, len(b"# WP01")),
+            _artifact("research/analysis.md", hash_research, len(b"# Analysis")),
+            _artifact("contracts/api.yaml", hash_contract, len(b"openapi: '3.0'")),
         ]
 
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
@@ -187,8 +185,8 @@ class TestSC002NamespaceIsolation:
         ns_a = _ns(feature_slug="feat-a")
         ns_b = _ns(feature_slug="feat-b")
 
-        art_a = _artifact("spec.md", hash_a, len("# Feature A".encode()))
-        art_b = _artifact("spec.md", hash_b, len("# Feature B".encode()))
+        art_a = _artifact("spec.md", hash_a, len(b"# Feature A"))
+        art_b = _artifact("spec.md", hash_b, len(b"# Feature B"))
 
         outcomes_a = prepare_body_uploads([art_a], ns_a, queue, feature_a)
         outcomes_b = prepare_body_uploads([art_b], ns_b, queue, feature_b)
@@ -210,7 +208,7 @@ class TestSC002NamespaceIsolation:
         ns_main = _ns(target_branch="main")
         ns_dev = _ns(target_branch="develop")
 
-        art = _artifact("spec.md", content_hash, len("# Spec".encode()))
+        art = _artifact("spec.md", content_hash, len(b"# Spec"))
 
         o1 = prepare_body_uploads([art], ns_main, queue, feature_dir)
         o2 = prepare_body_uploads([art], ns_dev, queue, feature_dir)
@@ -283,7 +281,7 @@ class TestSC004Idempotent:
         content_hash = _write_file(feature_dir, "spec.md", "# Spec")
 
         ns = _ns()
-        art = _artifact("spec.md", content_hash, len("# Spec".encode()))
+        art = _artifact("spec.md", content_hash, len(b"# Spec"))
 
         o1 = prepare_body_uploads([art], ns, queue, feature_dir)
         o2 = prepare_body_uploads([art], ns, queue, feature_dir)
@@ -654,7 +652,7 @@ class TestSC006UnsupportedFilesSkip:
         (feature_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
 
         artifacts = [
-            _artifact("spec.md", hash_spec, len("# Spec".encode())),
+            _artifact("spec.md", hash_spec, len(b"# Spec")),
             _artifact("research/image.png", _DUMMY_HASH, 6),
             _artifact("meta.json", _DUMMY_HASH, 50),
         ]
@@ -694,8 +692,8 @@ class TestFullPipeline:
         hash_plan = _write_file(feature_dir, "plan.md", "# Plan content")
 
         artifacts = [
-            _artifact("spec.md", hash_spec, len("# Spec content".encode())),
-            _artifact("plan.md", hash_plan, len("# Plan content".encode())),
+            _artifact("spec.md", hash_spec, len(b"# Spec content")),
+            _artifact("plan.md", hash_plan, len(b"# Plan content")),
         ]
 
         service = _make_service(tmp_path)

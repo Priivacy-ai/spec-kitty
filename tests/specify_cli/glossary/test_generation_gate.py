@@ -2,9 +2,9 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Any
 
 from specify_cli.glossary.middleware import GenerationGateMiddleware
 from specify_cli.glossary.models import (
@@ -15,6 +15,7 @@ from specify_cli.glossary.models import (
 )
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.glossary.exceptions import BlockedByConflict
+import contextlib
 
 
 @dataclass
@@ -23,11 +24,11 @@ class MockPrimitiveContext:
 
     step_id: str = "test-step-001"
     mission_id: str = "software-dev"
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_input: Dict[str, Any] = field(default_factory=dict)
-    step_output: Dict[str, Any] = field(default_factory=dict)
-    extracted_terms: List[Any] = field(default_factory=list)
-    conflicts: List[SemanticConflict] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    step_input: dict[str, Any] = field(default_factory=dict)
+    step_output: dict[str, Any] = field(default_factory=dict)
+    extracted_terms: list[Any] = field(default_factory=list)
+    conflicts: list[SemanticConflict] = field(default_factory=list)
     mission_strictness: Strictness | None = None
     step_strictness: Strictness | None = None
     effective_strictness: Strictness | None = None
@@ -425,10 +426,8 @@ class TestEventEmission:
         mock_context.mission_id = "test-mission-456"
         mock_context.conflicts = [high_severity_conflict]
 
-        try:
+        with contextlib.suppress(BlockedByConflict):
             gate.process(mock_context)
-        except BlockedByConflict:
-            pass
 
         assert captured_args["step_id"] == "test-step-123"
         assert captured_args["mission_id"] == "test-mission-456"
@@ -449,7 +448,7 @@ class TestEventEmission:
         gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
         mock_context.conflicts = [low_severity_conflict]
 
-        result = gate.process(mock_context)
+        gate.process(mock_context)
 
         # No event should be emitted
         assert emission_count[0] == 0
@@ -616,9 +615,8 @@ class TestEdgeCases:
         gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
         mock_context.conflicts = [high_severity_conflict]
 
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(BlockedByConflict):
-                gate.process(mock_context)
+        with caplog.at_level(logging.ERROR), pytest.raises(BlockedByConflict):
+            gate.process(mock_context)
 
         assert "Failed to emit generation-blocked event" in caplog.text
         assert "Serialization error" in caplog.text

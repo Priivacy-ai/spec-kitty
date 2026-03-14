@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.frontmatter import write_frontmatter
-from specify_cli.cli.commands.agent import workflow
 
 
 def create_wp_file(

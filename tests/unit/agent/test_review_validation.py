@@ -9,8 +9,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-
 
 class TestValidateReadyForReview:
     """Tests for _validate_ready_for_review helper."""
@@ -20,9 +18,7 @@ class TestValidateReadyForReview:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         # Don't need to set up anything - force should bypass all checks
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-test", "WP01", force=True
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-test", "WP01", force=True)
 
         assert is_valid is True
         assert guidance == []
@@ -47,12 +43,10 @@ class TestValidateReadyForReview:
         # Simulate uncommitted research artifacts
         mock_run.return_value = Mock(
             returncode=0,
-            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n"
+            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n",
         )
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         assert is_valid is False
         assert len(guidance) > 0
@@ -83,9 +77,7 @@ class TestValidateReadyForReview:
         # Simulate no uncommitted changes
         mock_run.return_value = Mock(returncode=0, stdout="")
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         assert is_valid is True
         assert guidance == []
@@ -97,7 +89,14 @@ class TestValidateReadyForReview:
     @patch("specify_cli.workspace_context.load_context", return_value=None)
     @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
     def test_softwaredev_uncommitted_worktree_blocks_review(
-        self, mock_target: Mock, mock_ws: Mock, mock_branch: Mock, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+        self,
+        mock_target: Mock,
+        mock_ws: Mock,
+        mock_branch: Mock,
+        mock_run: Mock,
+        mock_mission_key: Mock,
+        mock_main_root: Mock,
+        tmp_path: Path,
     ):
         """Should detect uncommitted implementation changes in worktree."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
@@ -140,9 +139,7 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-feature", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
@@ -157,7 +154,14 @@ class TestValidateReadyForReview:
     @patch("specify_cli.workspace_context.load_context", return_value=None)
     @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
     def test_softwaredev_no_commits_blocks_review(
-        self, mock_target: Mock, mock_ws: Mock, mock_branch: Mock, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+        self,
+        mock_target: Mock,
+        mock_ws: Mock,
+        mock_branch: Mock,
+        mock_run: Mock,
+        mock_mission_key: Mock,
+        mock_main_root: Mock,
+        tmp_path: Path,
     ):
         """Should detect when worktree has no implementation commits."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
@@ -175,7 +179,7 @@ class TestValidateReadyForReview:
         # Simulate: main clean, worktree clean, but no commits beyond main
         def subprocess_side_effect(*args, **kwargs):
             cmd = args[0] if args else kwargs.get("args", [])
-            cwd = kwargs.get("cwd", tmp_path)
+            kwargs.get("cwd", tmp_path)
 
             if "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
@@ -190,9 +194,7 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-feature", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
@@ -216,14 +218,9 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
 
         # Simulate only WP status files modified (should be filtered out)
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n"
-        )
+        mock_run.return_value = Mock(returncode=0, stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n")
 
-        is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "008-research", "WP01", force=False
-        )
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
         # Should pass - WP status files are filtered out
         assert is_valid is True
@@ -236,9 +233,7 @@ class TestMoveTaskPreflightCheck:
     Extracted from test_workflow_instructions.py during test-detection-remediation.
     """
 
-    def test_validate_ready_for_review_blocks_on_uncommitted_worktree_changes(
-        self, tmp_path
-    ):
+    def test_validate_ready_for_review_blocks_on_uncommitted_worktree_changes(self, tmp_path):
         """Verify validation blocks when worktree has uncommitted changes."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
@@ -252,6 +247,7 @@ class TestMoveTaskPreflightCheck:
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
+
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
                     return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
@@ -272,20 +268,16 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(
-                tmp_path, feature_slug, "WP01", False
-            )
+            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
 
             assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
             assert any(
-                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"])
-                for line in guidance
+                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) for line in guidance
             ), f"No uncommitted/staged message in: {guidance}"
-            assert any(
-                "git add <deliverable-path-1> <deliverable-path-2>" in line
-                for line in guidance
-            ), f"No explicit staging guidance in: {guidance}"
+            assert any("git add <deliverable-path-1> <deliverable-path-2>" in line for line in guidance), (
+                f"No explicit staging guidance in: {guidance}"
+            )
             assert any("git commit" in line for line in guidance), f"No 'git commit' in: {guidance}"
 
     def test_validate_ready_for_review_allows_clean_worktree(self, tmp_path):
@@ -302,6 +294,7 @@ class TestMoveTaskPreflightCheck:
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
+
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
                     return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
@@ -322,9 +315,7 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(
-                tmp_path, feature_slug, "WP01", False
-            )
+            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
 
             assert is_valid is True
             assert len(guidance) == 0
@@ -334,7 +325,10 @@ class TestMoveTaskPreflightCheck:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         is_valid, guidance = _validate_ready_for_review(
-            tmp_path, "001-test", "WP01", True  # force=True
+            tmp_path,
+            "001-test",
+            "WP01",
+            True,  # force=True
         )
 
         assert is_valid is True

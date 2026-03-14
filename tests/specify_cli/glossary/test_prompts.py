@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import typer
 
@@ -132,7 +132,7 @@ class TestAutoDefer:
         """All conflicts get DEFER choice."""
         result = auto_defer_conflicts([ambiguous_conflict, no_candidate_conflict])
         assert len(result) == 2
-        for conflict, choice, value in result:
+        for _conflict, choice, value in result:
             assert choice == PromptChoice.DEFER
             assert value is None
 
