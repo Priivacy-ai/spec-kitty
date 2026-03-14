@@ -10,7 +10,7 @@ import pytest
 
 def test_no_bash_script_references_in_bundled_templates():
     """Ensure bundled templates don't reference deleted bash scripts."""
-    spec_kitty_root = Path(__file__).parent.parent
+    spec_kitty_root = Path(__file__).parent.parent.parent.parent
     templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
 
     if not templates_dir.exists():
@@ -31,14 +31,14 @@ def test_no_bash_script_references_in_bundled_templates():
 
 def test_sdist_bundles_templates():
     """Verify source distribution includes templates under src/specify_cli/."""
-    spec_kitty_root = Path(__file__).parent.parent
+    spec_kitty_root = Path(__file__).parent.parent.parent.parent
 
     # Build sdist
     result = subprocess.run(
         [sys.executable, "-m", "build", "--sdist", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -62,10 +62,7 @@ def test_sdist_bundles_templates():
         assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
 
         # Should have command templates
-        cmd_templates = [
-            m for m in members
-            if "command-templates" in m and m.endswith(".md")
-        ]
+        cmd_templates = [m for m in members if "command-templates" in m and m.endswith(".md")]
         assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
 
         # Git hooks are intentionally not bundled in 2.x
@@ -75,13 +72,13 @@ def test_sdist_bundles_templates():
 
 def test_wheel_bundles_templates_correctly():
     """Verify wheel includes templates at correct path for importlib.resources."""
-    spec_kitty_root = Path(__file__).parent.parent
+    spec_kitty_root = Path(__file__).parent.parent.parent.parent
 
     result = subprocess.run(
         [sys.executable, "-m", "build", "--wheel", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -99,11 +96,7 @@ def test_wheel_bundles_templates_correctly():
         venv_dir = Path(tmpdir) / "venv"
 
         # Create venv
-        result = subprocess.run(
-            [sys.executable, "-m", "venv", str(venv_dir)],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], capture_output=True, text=True)
         if result.returncode != 0:
             pytest.skip(f"Failed to create venv: {result.stderr}")
 
@@ -114,11 +107,7 @@ def test_wheel_bundles_templates_correctly():
                 pytest.skip("pip not found in venv")
 
         # Install wheel
-        result = subprocess.run(
-            [str(pip), "install", str(wheel_path)],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([str(pip), "install", str(wheel_path)], capture_output=True, text=True)
         if result.returncode != 0:
             pytest.skip(f"Failed to install wheel: {result.stderr}")
 
@@ -130,12 +119,15 @@ def test_wheel_bundles_templates_correctly():
                 pytest.skip("python not found in venv")
 
         result = subprocess.run(
-            [str(python), "-c",
-             "from importlib.resources import files; "
-             "t = files('specify_cli').joinpath('templates'); "
-             "print(list(t.iterdir()))"],
+            [
+                str(python),
+                "-c",
+                "from importlib.resources import files; "
+                "t = files('specify_cli').joinpath('templates'); "
+                "print(list(t.iterdir()))",
+            ],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0, f"Failed to check templates: {result.stderr}"

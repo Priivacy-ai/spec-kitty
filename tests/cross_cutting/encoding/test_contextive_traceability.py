@@ -10,7 +10,7 @@ import pytest
 # Import generator under test
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
 import generate_contextive_glossaries as gen
 
 
@@ -333,7 +333,7 @@ def test_check_mode_fails_when_file_stale(tmp_path: Path, monkeypatch: pytest.Mo
 
 def test_real_glossary_contexts_parse() -> None:
     """Ensure all real context files parse without error."""
-    contexts_dir = Path(__file__).resolve().parent.parent / "glossary" / "contexts"
+    contexts_dir = Path(__file__).resolve().parent.parent.parent.parent / "glossary" / "contexts"
     assert contexts_dir.exists(), f"Glossary contexts dir not found: {contexts_dir}"
 
     for md_file in sorted(contexts_dir.glob("*.md")):
@@ -346,7 +346,9 @@ def test_real_glossary_contexts_parse() -> None:
 
 def test_real_check_mode_passes() -> None:
     """Verify the real generated files are up-to-date (fails if generate was not run)."""
-    map_file = Path(__file__).resolve().parent.parent / ".kittify" / "traceability" / "contextive-map.yaml"
+    map_file = (
+        Path(__file__).resolve().parent.parent.parent.parent / ".kittify" / "traceability" / "contextive-map.yaml"
+    )
     assert map_file.exists(), "Traceability map not found"
 
     tmap = gen.load_map(map_file)
