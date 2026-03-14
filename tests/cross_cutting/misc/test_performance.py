@@ -11,9 +11,10 @@ import time
 from pathlib import Path
 
 # Add the src directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
 
 import gitignore_manager
+
 GitignoreManager = gitignore_manager.GitignoreManager
 
 
