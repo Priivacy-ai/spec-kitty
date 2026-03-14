@@ -9,10 +9,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
-from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
-
 
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
     """Test that create-feature command works in main without creating worktree."""
@@ -522,29 +518,3 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
     assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
     assert len(payload["available_features"]) >= 2
     assert "finalize-tasks --feature" in payload["example_command"]
-
-
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-def test_feature_creation_requires_main_branch(test_project: Path, run_cli) -> None:
-    """Test that create-feature fails if not on main branch."""
-    # Create a feature branch
-    subprocess.run(
-        ["git", "checkout", "-b", "not-main"],
-        cwd=test_project,
-        check=True,
-        capture_output=True,
-    )
-
-    # Try to create feature - should fail
-    result = run_cli(
-        test_project,
-        "agent",
-        "feature",
-        "create-feature",
-        "should-fail",
-        "--json",
-    )
-
-    assert result.returncode != 0, "create-feature should fail when not on main branch"
-    assert "main" in result.stdout.lower() or "main" in result.stderr.lower(), \
-        "Error message should mention main branch requirement"

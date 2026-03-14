@@ -8,7 +8,6 @@ import pytest
 
 from specify_cli.orchestrator_api.envelope import (
     CONTRACT_VERSION,
-    MIN_PROVIDER_VERSION,
     PolicyMetadata,
     make_envelope,
     parse_and_validate_policy,

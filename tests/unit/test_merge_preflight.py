@@ -11,17 +11,17 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.merge.preflight import (
-    PreflightResult,
     WPStatus,
     check_target_divergence,
     check_worktree_status,
     run_preflight,
 )
+
+pytestmark = pytest.mark.git_repo
 
 
 def _configure_test_git_identity(repo: Path) -> None:

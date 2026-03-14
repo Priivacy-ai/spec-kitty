@@ -5,12 +5,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import yaml
-
-from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 from specify_cli.mission import (
     Mission,
@@ -26,9 +24,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MISSIONS_ROOT = REPO_ROOT / "src" / "specify_cli" / "missions"
 
 
-def build_valid_config(**overrides: Any) -> Dict[str, Any]:
+def build_valid_config(**overrides: Any) -> dict[str, Any]:
     """Return a baseline valid mission configuration for testing."""
-    config: Dict[str, Any] = {
+    config: dict[str, Any] = {
         "name": "Test Mission",
         "description": "Mission used for schema validation tests",
         "version": "1.0.0",
@@ -42,36 +40,12 @@ def build_valid_config(**overrides: Any) -> Dict[str, Any]:
     return config
 
 
-def _write_mission(tmp_path: Path, config: Dict[str, Any]) -> Path:
+def _write_mission(tmp_path: Path, config: dict[str, Any]) -> Path:
     """Write YAML config to temp mission directory."""
     mission_dir = tmp_path / "mission"
     mission_dir.mkdir()
     (mission_dir / "mission.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
     return mission_dir
-
-
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-def test_loads_software_dev_mission() -> None:
-    """Existing software-dev mission.yaml remains valid."""
-    mission_dir = MISSIONS_ROOT / "software-dev"
-    mission = Mission(mission_dir)
-
-    assert mission.name == "Software Dev Kitty"
-    assert len(mission.get_workflow_phases()) >= 5
-    assert "git_clean" in mission.get_validation_checks()
-    assert mission.config.workflow.phases[0].name == "research"
-
-
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-def test_loads_research_mission() -> None:
-    """Existing research mission.yaml remains valid."""
-    mission_dir = MISSIONS_ROOT / "research"
-    mission = Mission(mission_dir)
-
-    assert mission.domain == "research"
-    assert mission.get_required_artifacts()
-    assert mission.config.validation.custom_validators is True
-
 
 def test_missing_required_field_raises_error(tmp_path: Path) -> None:
     """Missing required fields should raise MissionError with helpful message."""

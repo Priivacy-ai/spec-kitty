@@ -1,26 +1,27 @@
-"""Integration tests for workspace-per-WP merge functionality."""
+"""Integration tests for workspace-per-WP merge functionality.
+
+These tests exercise the merge subsystem with real git repos and worktrees.
+Pure-logic and mock-based tests live in test_merge_workspace_per_wp_unit.py.
+"""
 
 from __future__ import annotations
 
-import json
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-import specify_cli.cli.commands.merge as merge_module
 from specify_cli.cli.commands.merge import (
     _build_workspace_per_wp_merge_plan,
     detect_worktree_structure,
-    extract_feature_slug,
-    extract_wp_id,
     find_wp_worktrees,
-    merge_workspace_per_wp,
     validate_wp_ready_for_merge,
 )
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.core.vcs.exceptions import VCSNotFoundError
+
+pytestmark = pytest.mark.git_repo
 
 
 @pytest.fixture
@@ -90,56 +91,13 @@ def workspace_per_wp_repo(git_repo: Path) -> Path:
     return git_repo
 
 
-class TestExtractFeatureSlug:
-    """Tests for extract_feature_slug function."""
-
-    def test_extracts_from_wp_branch(self):
-        """Test extracting feature slug from WP branch name."""
-        assert extract_feature_slug("010-workspace-per-wp-WP01") == "010-workspace-per-wp"
-        assert extract_feature_slug("005-my-feature-WP12") == "005-my-feature"
-
-    def test_returns_as_is_for_legacy_branch(self):
-        """Test legacy branch names return as-is."""
-        assert extract_feature_slug("008-unified-cli") == "008-unified-cli"
-        assert extract_feature_slug("main") == "main"
-
-
-class TestExtractWpId:
-    """Tests for extract_wp_id function."""
-
-    def test_extracts_wp_id(self):
-        """Test extracting WP ID from worktree path."""
-        assert extract_wp_id(Path(".worktrees/010-feature-WP01")) == "WP01"
-        assert extract_wp_id(Path(".worktrees/010-feature-WP12")) == "WP12"
-
-    def test_returns_none_for_legacy(self):
-        """Test legacy worktree paths return None."""
-        assert extract_wp_id(Path(".worktrees/008-unified-cli")) is None
-
-
 class TestDetectWorktreeStructure:
-    """Tests for detect_worktree_structure function."""
+    """Tests for detect_worktree_structure with real git repos."""
 
     def test_detects_workspace_per_wp(self, workspace_per_wp_repo: Path):
         """Test detecting workspace-per-WP structure."""
         structure = detect_worktree_structure(workspace_per_wp_repo, "010-test-feature")
         assert structure == "workspace-per-wp"
-
-    def test_detects_legacy(self, git_repo: Path):
-        """Test detecting legacy structure."""
-        # Create legacy worktree
-        worktrees_dir = git_repo / ".worktrees"
-        worktrees_dir.mkdir()
-        legacy_path = worktrees_dir / "008-legacy-feature"
-        legacy_path.mkdir()
-
-        structure = detect_worktree_structure(git_repo, "008-legacy-feature")
-        assert structure == "legacy"
-
-    def test_detects_none(self, git_repo: Path):
-        """Test detecting no worktrees."""
-        structure = detect_worktree_structure(git_repo, "999-nonexistent")
-        assert structure == "none"
 
 
 class TestFindWpWorktrees:
@@ -173,9 +131,7 @@ class TestValidateWpReadyForMerge:
     def test_validates_clean_worktree(self, workspace_per_wp_repo: Path):
         """Test validating a clean worktree."""
         worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
-        is_valid, error_msg = validate_wp_ready_for_merge(
-            workspace_per_wp_repo, worktree_path, "010-test-feature-WP01"
-        )
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
         assert is_valid is True
         assert error_msg == ""
 
@@ -186,9 +142,7 @@ class TestValidateWpReadyForMerge:
         # Make uncommitted changes
         (worktree_path / "uncommitted.txt").write_text("uncommitted\n")
 
-        is_valid, error_msg = validate_wp_ready_for_merge(
-            workspace_per_wp_repo, worktree_path, "010-test-feature-WP01"
-        )
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
         assert is_valid is False
         assert "uncommitted changes" in error_msg
 
@@ -374,7 +328,10 @@ class TestWorkspacePerWpMergeIntegration:
         # Get the default branch name
         branch_result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+            cwd=workspace_per_wp_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         default_branch = branch_result.stdout.strip()
 
@@ -561,7 +518,10 @@ class TestEffectiveMergePlanning:
         # Get the default branch name
         branch_result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+            cwd=workspace_per_wp_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         default_branch = branch_result.stdout.strip()
 
@@ -615,130 +575,12 @@ class TestEffectiveMergePlanning:
         assert "010-test-feature-WP03" not in result.stdout
 
 
-class TestMergeWorkspacePerWpDryRun:
-    """Focused dry-run coverage for workspace-per-WP merge command paths."""
-
-    def test_json_dry_run_when_no_wp_workspaces(self, git_repo: Path, capsys):
-        from specify_cli.cli import StepTracker
-
-        tracker = StepTracker("Merge")
-        tracker.add("merge", "Merge feature branch")
-
-        merge_workspace_per_wp(
-            repo_root=git_repo,
-            merge_root=git_repo,
-            feature_slug="999-missing-feature",
-            current_branch="feature/test",
-            target_branch="main",
-            strategy="merge",
-            delete_branch=False,
-            remove_worktree=False,
-            push=False,
-            dry_run=True,
-            json_output=True,
-            tracker=tracker,
-        )
-
-        payload = capsys.readouterr().out.strip().splitlines()[-1]
-        data = json.loads(payload)
-        assert data["feature_slug"] == "999-missing-feature"
-        assert data["effective_wp_branches"] == []
-        assert "No WP branches/worktrees found" in data["reason_summary"][0]
-
-    def test_human_dry_run_includes_squash_push_and_cleanup_steps(
-        self, git_repo: Path, monkeypatch, capsys
-    ):
-        from specify_cli.cli import StepTracker
-
-        existing = git_repo / ".worktrees" / "030-dryrun-feature-WP01"
-        existing.parent.mkdir(exist_ok=True)
-        existing.mkdir()
-        missing = git_repo / ".worktrees" / "030-dryrun-feature-WP02"
-
-        wp_workspaces = [
-            (existing, "WP01", "030-dryrun-feature-WP01"),
-            (missing, "WP02", "030-dryrun-feature-WP02"),
-        ]
-        merge_plan = {
-            "all_wp_workspaces": wp_workspaces,
-            "effective_wp_workspaces": wp_workspaces,
-            "skipped_already_in_target": [],
-            "skipped_ancestor_of": {},
-            "reason_summary": ["Dry-run coverage"],
-        }
-
-        monkeypatch.setattr(
-            merge_module,
-            "validate_wp_ready_for_merge",
-            lambda *_args, **_kwargs: (True, ""),
-        )
-        monkeypatch.setattr(
-            merge_module,
-            "find_wp_worktrees",
-            lambda *_args, **_kwargs: wp_workspaces,
-        )
-        monkeypatch.setattr(
-            merge_module,
-            "_build_workspace_per_wp_merge_plan",
-            lambda *_args, **_kwargs: merge_plan,
-        )
-
-        tracker = StepTracker("Merge")
-        tracker.add("verify", "Verify merge readiness")
-        tracker.add("checkout", "Switch to main")
-        tracker.add("merge", "Merge feature branch")
-        tracker.add("worktree", "Remove worktrees")
-        tracker.add("branch", "Delete branches")
-
-        merge_workspace_per_wp(
-            repo_root=git_repo,
-            merge_root=git_repo,
-            feature_slug="030-dryrun-feature",
-            current_branch="feature/test",
-            target_branch="main",
-            strategy="squash",
-            delete_branch=True,
-            remove_worktree=True,
-            push=True,
-            dry_run=True,
-            json_output=False,
-            tracker=tracker,
-        )
-
-        output = capsys.readouterr().out
-        assert "Dry run - would execute" in output
-        assert "git merge --squash 030-dryrun-feature-WP01" in output
-        assert "git merge --squash 030-dryrun-feature-WP02" in output
-        assert "git push origin main" in output
-        normalized_output = output.replace("\n", "").replace(" ", "")
-        expected_remove = f"git worktree remove {existing}".replace(" ", "")
-        assert expected_remove in normalized_output
-        assert "# skip worktree removal for WP02 (path not present)" in output
-        assert "git branch -d 030-dryrun-feature-WP01" in output
-        assert "git branch -d 030-dryrun-feature-WP02" in output
-
-
 class TestVCSAbstractionIntegration:
-    """Tests for VCS abstraction layer integration in merge command.
+    """Tests for VCS abstraction layer integration requiring real repos.
 
-    These tests verify that the merge command correctly detects and
-    displays the VCS backend (git vs jj) being used.
-
-    Note: The is_jj_available function uses lru_cache, so we need to clear
-    the cache and patch at the detection module level.
+    Simple detection tests are in test_merge_workspace_per_wp_unit.py.
+    These tests cover jj-specific scenarios (xfail when jj not installed).
     """
-
-    def test_merge_detects_git_backend(self, workspace_per_wp_repo: Path):
-        """Test that merge command detects git backend correctly."""
-        # Clear the lru_cache and patch the function
-        from specify_cli.core.vcs import detection
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=False):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(workspace_per_wp_repo)
-            assert vcs.backend == VCSBackend.GIT
 
     @pytest.mark.xfail(reason="jj not installed in CI environment")
     def test_merge_detects_jj_backend_when_jj_present(self, git_repo: Path):
@@ -747,6 +589,7 @@ class TestVCSAbstractionIntegration:
         (git_repo / ".jj").mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
 
         with patch.object(detection, "is_jj_available", return_value=True):
@@ -754,18 +597,6 @@ class TestVCSAbstractionIntegration:
 
             vcs = get_vcs(git_repo)
             assert vcs.backend == VCSBackend.JUJUTSU
-
-    def test_merge_displays_backend_info(self, workspace_per_wp_repo: Path, capsys):
-        """Test that merge command displays VCS backend info."""
-        from specify_cli.core.vcs import detection
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=False):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(workspace_per_wp_repo)
-            backend_label = "jj" if vcs.backend == VCSBackend.JUJUTSU else "git"
-            assert backend_label == "git"
 
     @pytest.mark.xfail(reason="jj not installed in CI environment")
     def test_merge_handles_vcs_detection_failure_gracefully(self, tmp_path: Path):
@@ -775,16 +606,19 @@ class TestVCSAbstractionIntegration:
         test_dir.mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
         detection.is_git_available.cache_clear()
 
-        with patch.object(detection, "is_jj_available", return_value=False):
-            with patch.object(detection, "is_git_available", return_value=False):
-                from specify_cli.core.vcs import get_vcs
+        with (
+            patch.object(detection, "is_jj_available", return_value=False),
+            patch.object(detection, "is_git_available", return_value=False),
+        ):
+            from specify_cli.core.vcs import get_vcs
 
-                # Detection should raise an error when no VCS available
-                with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
-                    get_vcs(test_dir)
+            # Detection should raise an error when no VCS available
+            with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
+                get_vcs(test_dir)
 
     @pytest.mark.xfail(reason="jj not installed in CI environment")
     def test_vcs_detection_prefers_jj_in_colocated_mode(self, git_repo: Path):
@@ -793,6 +627,7 @@ class TestVCSAbstractionIntegration:
         (git_repo / ".jj").mkdir()
 
         from specify_cli.core.vcs import detection
+
         detection.is_jj_available.cache_clear()
 
         with patch.object(detection, "is_jj_available", return_value=True):
@@ -801,18 +636,3 @@ class TestVCSAbstractionIntegration:
             vcs = get_vcs(git_repo)
             # In colocated mode, jj should be preferred
             assert vcs.backend == VCSBackend.JUJUTSU
-
-    def test_vcs_detection_falls_back_to_git_when_jj_unavailable(self, git_repo: Path):
-        """Test fallback to git when .jj exists but jj tool is not available."""
-        # Create .jj directory
-        (git_repo / ".jj").mkdir()
-
-        from specify_cli.core.vcs import detection
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=False):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(git_repo)
-            # Should fall back to git
-            assert vcs.backend == VCSBackend.GIT

@@ -6,7 +6,6 @@ import sqlite3
 import time
 from unittest.mock import patch
 
-import pytest
 
 from specify_cli.sync.body_queue import (
     BodyQueueStats,
@@ -42,9 +41,7 @@ class TestSchema:
         db = Path(str(tmp_path)) / "test.db"
         OfflineBodyUploadQueue(db_path=db)
         conn = sqlite3.connect(db)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'")
         assert cursor.fetchone() is not None
         conn.close()
 
@@ -54,9 +51,7 @@ class TestSchema:
         db = Path(str(tmp_path)) / "test.db"
         OfflineBodyUploadQueue(db_path=db)
         conn = sqlite3.connect(db)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         index_names = {row[0] for row in cursor}
         assert "idx_body_queue_next_attempt" in index_names
         assert "idx_body_queue_namespace" in index_names
@@ -79,9 +74,7 @@ class TestSchemaInOfflineQueue:
         db = Path(str(tmp_path)) / "test.db"
         OfflineQueue(db_path=db)
         conn = sqlite3.connect(db)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'")
         assert cursor.fetchone() is not None
         conn.close()
 
@@ -259,7 +252,10 @@ class TestMarkFailedRetryable:
         tasks = q.drain()
         q.mark_failed_retryable(tasks[0].row_id, "timeout")
         conn = sqlite3.connect(db)
-        row = conn.execute("SELECT retry_count, last_error FROM body_upload_queue WHERE id = ?", (tasks[0].row_id,)).fetchone()
+        row = conn.execute(
+            "SELECT retry_count, last_error FROM body_upload_queue WHERE id = ?",
+            (tasks[0].row_id,),
+        ).fetchone()
         conn.close()
         assert row is not None
         assert row[0] == 1

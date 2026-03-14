@@ -1,13 +1,29 @@
 """Pytest fixtures for glossary tests."""
 
 import pytest
-from unittest.mock import MagicMock
 from datetime import datetime
-from typing import List
+from pathlib import Path
+from unittest.mock import MagicMock
+
 from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance, SenseStatus,
-    SemanticConflict, ConflictType, Severity, SenseRef,
+    TermSurface,
+    TermSense,
+    Provenance,
+    SenseStatus,
+    SemanticConflict,
+    ConflictType,
+    Severity,
+    SenseRef,
 )
+
+_THIS_DIR = Path(__file__).parent
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark all tests in this directory as fast."""
+    for item in items:
+        if _THIS_DIR in Path(item.fspath).parents:
+            item.add_marker(pytest.mark.fast)
 
 
 @pytest.fixture
@@ -88,7 +104,7 @@ def make_conflict(
     surface_text: str,
     conflict_type: ConflictType = ConflictType.AMBIGUOUS,
     severity: Severity = Severity.HIGH,
-    candidates: List[SenseRef] = None,
+    candidates: list[SenseRef] = None,
 ) -> SemanticConflict:
     """Helper to create SemanticConflict for testing."""
     if candidates is None and conflict_type == ConflictType.AMBIGUOUS:

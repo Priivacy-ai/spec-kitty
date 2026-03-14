@@ -13,9 +13,6 @@ import os
 import subprocess
 from pathlib import Path
 
-import pytest
-
-from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 # Get repo root for Python module invocation
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -518,33 +515,6 @@ def test_explicit_fields_in_git_history(tmp_path):
     assert "target_branch" in committed_content, "Explicit field should be in git history"
     assert "vcs" in committed_content, "Explicit field should be in git history"
     assert '"main"' in committed_content or "'main'" in committed_content
-
-
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
-def test_template_fix_applies_to_all_agents(tmp_path):
-    """Test that template fix is consistent across all agent directories.
-
-    Validates:
-    - .claude/commands/spec-kitty.specify.md has updated template
-    - .codex/prompts/spec-kitty.specify.md has updated template
-    - .opencode/command/spec-kitty.specify.md has updated template
-    - All show same meta.json schema with target_branch and vcs
-    """
-    # This test verifies the source templates in spec-kitty repo
-    source_template = REPO_ROOT / "src/specify_cli/missions/software-dev/command-templates/specify.md"
-
-    assert source_template.exists(), "Source template should exist"
-
-    content = source_template.read_text()
-
-    # Verify template includes target_branch and vcs in the meta.json example
-    assert '"target_branch":' in content, "Template should include target_branch in meta.json schema"
-    assert '"vcs":' in content, "Template should include vcs in meta.json schema"
-
-    # Verify the instructions mention these fields
-    assert "target_branch" in content, "Template should document target_branch"
-    assert "vcs" in content or "VCS" in content, "Template should document vcs"
-
 
 def test_comparison_implicit_vs_explicit(tmp_path):
     """Test demonstrating the difference between implicit and explicit defaults.

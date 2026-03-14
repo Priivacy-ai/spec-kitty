@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -27,45 +26,31 @@ class TestResolveResourceRouting:
         assert result == ("jira_project", "ACME")
 
     def test_linear_happy_path(self):
-        result = TrackerService._resolve_resource_routing(
-            "linear", {"team_id": "abc-123", "api_key": "tok"}
-        )
+        result = TrackerService._resolve_resource_routing("linear", {"team_id": "abc-123", "api_key": "tok"})
         assert result == ("linear_team", "abc-123")
 
     def test_jira_missing_project_key(self):
-        result = TrackerService._resolve_resource_routing(
-            "jira", {"base_url": "https://x.atlassian.net"}
-        )
+        result = TrackerService._resolve_resource_routing("jira", {"base_url": "https://x.atlassian.net"})
         assert result == (None, None)
 
     def test_linear_missing_team_id(self):
-        result = TrackerService._resolve_resource_routing(
-            "linear", {"api_key": "tok"}
-        )
+        result = TrackerService._resolve_resource_routing("linear", {"api_key": "tok"})
         assert result == (None, None)
 
     def test_jira_empty_string_project_key(self):
-        result = TrackerService._resolve_resource_routing(
-            "jira", {"project_key": ""}
-        )
+        result = TrackerService._resolve_resource_routing("jira", {"project_key": ""})
         assert result == (None, None)
 
     def test_jira_whitespace_only_project_key(self):
-        result = TrackerService._resolve_resource_routing(
-            "jira", {"project_key": "   "}
-        )
+        result = TrackerService._resolve_resource_routing("jira", {"project_key": "   "})
         assert result == (None, None)
 
     def test_unsupported_provider(self):
-        result = TrackerService._resolve_resource_routing(
-            "beads", {"command": "bd"}
-        )
+        result = TrackerService._resolve_resource_routing("beads", {"command": "bd"})
         assert result == (None, None)
 
     def test_unknown_provider(self):
-        result = TrackerService._resolve_resource_routing(
-            "notion", {"api_key": "tok"}
-        )
+        result = TrackerService._resolve_resource_routing("notion", {"api_key": "tok"})
         assert result == (None, None)
 
     def test_jira_creds_present_but_no_routing_key(self):
@@ -251,7 +236,11 @@ class TestSyncPublishPayload:
 
             with (
                 patch.object(TrackerService, "_load_runtime", return_value=(config, credentials, store)),
-                patch.object(TrackerService, "_project_identity", return_value={"uuid": "test-uuid", "slug": "test-proj"}),
+                patch.object(
+                    TrackerService,
+                    "_project_identity",
+                    return_value={"uuid": "test-uuid", "slug": "test-proj"},
+                ),
                 patch("specify_cli.tracker.service.httpx.Client") as mock_client_cls,
             ):
                 _make_mock_http(mock_client_cls)

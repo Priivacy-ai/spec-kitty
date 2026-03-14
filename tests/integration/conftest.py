@@ -1,70 +1,24 @@
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tomllib
+import yaml
 from pathlib import Path
-from typing import Callable
 
 import pytest
-import yaml
 
-from tests.test_isolation_helpers import get_installed_version, get_venv_python
+from tests.test_isolation_helpers import get_installed_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_THIS_DIR = Path(__file__).parent
 
 
-@pytest.fixture()
-def isolated_env() -> dict[str, str]:
-    """Create isolated environment blocking host spec-kitty installation.
-
-    Ensures tests use source code exclusively via:
-    - PYTHONPATH set to source only (no inheritance)
-    - SPEC_KITTY_CLI_VERSION from pyproject.toml
-    - SPEC_KITTY_TEST_MODE=1 to enforce test behavior
-    - SPEC_KITTY_TEMPLATE_ROOT to source templates
-
-    This fixture guarantees that tests will never accidentally use a
-    pip-installed version of spec-kitty-cli from the host system.
-    """
-    env = os.environ.copy()
-    env.pop("PYTHONPATH", None)
-
-    # Single source of truth: pyproject.toml
-    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-        pyproject = tomllib.load(f)
-    source_version = pyproject["project"]["version"]
-
-    # Isolation settings
-    src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = str(src_path)  # Source only, no existing PYTHONPATH
-    env["SPEC_KITTY_CLI_VERSION"] = source_version  # Override version detection
-    env["SPEC_KITTY_TEST_MODE"] = "1"  # Signal test mode (fail-fast on fixture bugs)
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)  # Find bundled templates
-
-    return env
-
-
-@pytest.fixture()
-def run_cli(isolated_env: dict[str, str]) -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
-    """Return a helper that executes the Spec Kitty CLI within a project.
-
-    Uses isolated_env to guarantee tests run against source code, not
-    installed packages. This prevents version mismatch errors.
-    """
-
-    def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
-        return subprocess.run(
-            command,
-            cwd=str(project_path),
-            capture_output=True,
-            text=True,
-            env=isolated_env,
-        )
-
-    return _run_cli
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark all tests in this directory as git_repo (create real git repos)."""
+    for item in items:
+        if _THIS_DIR in Path(item.fspath).parents:
+            item.add_marker(pytest.mark.git_repo)
 
 
 @pytest.fixture()
@@ -96,7 +50,7 @@ def test_project(tmp_path: Path) -> Path:
     # Update metadata.yaml to current version to avoid version mismatch errors
     metadata_file = project / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         # Align project version with the CLI version used by tests.
@@ -198,10 +152,11 @@ def dual_branch_repo(tmp_path: Path) -> Path:
     # Update metadata.yaml to current version
     metadata_file = repo / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         from tests.test_isolation_helpers import get_installed_version
+
         current_version = get_installed_version()
         if current_version is None:
             with open(REPO_ROOT / "pyproject.toml", "rb") as f:

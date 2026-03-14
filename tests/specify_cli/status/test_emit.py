@@ -23,9 +23,7 @@ from specify_cli.status.emit import (
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
-    ReviewApproval,
     StatusEvent,
-    StatusSnapshot,
 )
 from specify_cli.status.store import EVENTS_FILENAME, read_events
 
@@ -757,11 +755,10 @@ class TestSaasFanOut:
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed",
             side_effect=RuntimeError("network error"),
-        ):
-            with patch("specify_cli.status.emit.logger") as mock_logger:
-                # Should not raise
-                _saas_fan_out(event, "034-test-feature", None)
-                mock_logger.warning.assert_called_once()
+        ), patch("specify_cli.status.emit.logger") as mock_logger:
+            # Should not raise
+            _saas_fan_out(event, "034-test-feature", None)
+            mock_logger.warning.assert_called_once()
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""

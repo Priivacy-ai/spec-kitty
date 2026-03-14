@@ -1,8 +1,7 @@
-import pytest
 from datetime import datetime
 from specify_cli.glossary.store import GlossaryStore
 from specify_cli.glossary.models import (
-    TermSurface, TermSense, Provenance, SenseStatus,
+    TermSurface, TermSense, Provenance,
 )
 
 def test_glossary_store_add_lookup(sample_term_sense, tmp_path):

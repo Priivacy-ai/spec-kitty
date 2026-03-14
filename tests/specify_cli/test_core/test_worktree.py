@@ -17,6 +17,8 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 class TestGetNextFeatureNumber:
     """Tests for get_next_feature_number function."""
@@ -134,9 +136,7 @@ class TestCreateFeatureWorktree:
         )
 
         # Execute
-        worktree_path, feature_dir = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Verify
         assert worktree_path == tmp_path / ".worktrees" / "001-test-feature"
@@ -219,14 +219,10 @@ class TestCreateFeatureWorktree:
         )
 
         # Create first worktree
-        worktree_path1, feature_dir1 = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path1, feature_dir1 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Execute: Try to create same worktree again
-        worktree_path2, feature_dir2 = create_feature_worktree(
-            tmp_path, "test-feature", feature_number=1
-        )
+        worktree_path2, feature_dir2 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
         # Verify: Should return same paths
         assert worktree_path1 == worktree_path2
@@ -578,9 +574,7 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = False
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_path, feature_dir = create_feature_worktree(
-                tmp_path, "test-feature", feature_number=1
-            )
+            worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
             # Verify VCS abstraction was called
             mock_vcs.create_workspace.assert_called_once()
@@ -618,9 +612,7 @@ class TestVCSAbstraction:
             # Capture deprecation warning
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                worktree_path, feature_dir = create_feature_worktree(
-                    tmp_path, "fallback-test", feature_number=99
-                )
+                worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", feature_number=99)
 
                 # Verify deprecation warning was raised
                 assert len(w) == 1
@@ -646,9 +638,11 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = False
 
         # VCS fails, fallback fails (not a git repo), should raise
-        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            with pytest.raises(RuntimeError, match="Failed to create workspace"):
-                create_feature_worktree(tmp_path, "fail-test", feature_number=88)
+        with (
+            patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs),
+            pytest.raises(RuntimeError, match="Failed to create workspace"),
+        ):
+            create_feature_worktree(tmp_path, "fail-test", feature_number=88)
 
     def test_create_worktree_detects_existing_vcs_workspace(self, tmp_path: Path):
         """Should detect and reuse existing VCS workspace."""
@@ -662,9 +656,7 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = True
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_result, feature_dir = create_feature_worktree(
-                tmp_path, "test-feature", feature_number=1
-            )
+            worktree_result, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
             # Should return the existing path
             assert worktree_result == worktree_path

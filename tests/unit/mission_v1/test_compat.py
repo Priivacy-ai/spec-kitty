@@ -343,7 +343,7 @@ class TestEdgeCases:
         assert pm.state == "phase_0"
 
         # Advance through all phases
-        for i in range(20):
+        for _i in range(20):
             pm.advance()
 
         assert pm.state == "done"

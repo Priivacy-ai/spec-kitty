@@ -255,10 +255,7 @@ class TestConstitutionGracefulFallback:
 
         # This should not raise an error - commands should work without it
         # (In real code, commands check if file exists before reading)
-        if constitution_path.exists():
-            content = constitution_path.read_text(encoding="utf-8")
-        else:
-            content = None
+        content = constitution_path.read_text(encoding="utf-8") if constitution_path.exists() else None
 
         assert content is None
 

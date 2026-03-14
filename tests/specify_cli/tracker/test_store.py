@@ -82,7 +82,7 @@ def test_mapping_and_checkpoint_round_trip(tmp_path) -> None:
     if isinstance(checkpoint, dict):
         assert checkpoint["cursor"] == "next-page"
     else:
-        assert getattr(checkpoint, "cursor") == "next-page"
+        assert checkpoint.cursor == "next-page"
 
 
 def test_scope_hash_segregates_by_identity() -> None:

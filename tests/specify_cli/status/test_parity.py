@@ -106,10 +106,7 @@ class TestBackportReadiness:
 
         try:
             # Force reimport of the status module
-            if module_name in sys.modules:
-                saved_target = sys.modules.pop(module_name)
-            else:
-                saved_target = None
+            saved_target = sys.modules.pop(module_name) if module_name in sys.modules else None
 
             try:
                 mod = importlib.import_module(module_name)
@@ -143,54 +140,40 @@ class TestBackportReadiness:
         # Check that 'from specify_cli.sync' does NOT appear at module level
         # It should only appear inside function bodies
         lines = source.split("\n")
-        indent_depth = 0
         for line in lines:
             stripped = line.strip()
             # Track whether we're inside a function body by indentation
             if stripped.startswith("def ") and not line.startswith(" "):
                 # Top-level function definition
-                indent_depth = 0
+                pass
             elif stripped.startswith("def "):
-                indent_depth = len(line) - len(line.lstrip())
+                len(line) - len(line.lstrip())
 
             # A sync import is module-level if the line has no leading whitespace
-            if "from specify_cli.sync" in stripped:
-                if not stripped.startswith("#") and not line.startswith(" "):
-                    pytest.fail(
-                        f"Module-level sync import found in emit.py: {stripped}"
-                    )
+            if "from specify_cli.sync" in stripped and not stripped.startswith("#") and not line.startswith(" "):
+                pytest.fail(f"Module-level sync import found in emit.py: {stripped}")
 
     def test_no_status_module_directly_imports_sync_at_toplevel(self):
         """Scan all status module source for top-level sync imports."""
         import inspect
 
-        status_pkg_path = Path(inspect.getfile(
-            importlib.import_module("specify_cli.status")
-        )).parent
+        status_pkg_path = Path(inspect.getfile(importlib.import_module("specify_cli.status"))).parent
 
         for py_file in sorted(status_pkg_path.glob("*.py")):
             content = py_file.read_text(encoding="utf-8")
             lines = content.split("\n")
-            inside_function = False
-            inside_try = False
-            indent_level = 0
 
             for line_no, line in enumerate(lines, start=1):
                 stripped = line.strip()
 
                 # Track if we're inside a function (indented code)
                 if stripped.startswith("def ") or stripped.startswith("class "):
-                    inside_function = True
-                    indent_level = len(line) - len(line.lstrip())
+                    len(line) - len(line.lstrip())
 
                 # Only flag top-level imports (indent 0)
                 current_indent = len(line) - len(line.lstrip()) if line.strip() else 0
-                if current_indent == 0 and "from specify_cli.sync" in stripped:
-                    if not stripped.startswith("#"):
-                        pytest.fail(
-                            f"Top-level sync import in {py_file.name}:{line_no}: "
-                            f"{stripped}"
-                        )
+                if current_indent == 0 and "from specify_cli.sync" in stripped and not stripped.startswith("#"):
+                    pytest.fail(f"Top-level sync import in {py_file.name}:{line_no}: {stripped}")
 
 
 # =====================================================================
@@ -305,9 +288,7 @@ class TestPhaseCap:
         for valid_phase in (0, 1, 2):
             meta_dir = tmp_path / "kitty-specs" / f"feat-{valid_phase}"
             meta_dir.mkdir(parents=True, exist_ok=True)
-            (meta_dir / "meta.json").write_text(
-                json.dumps({"status_phase": valid_phase}), encoding="utf-8"
-            )
+            (meta_dir / "meta.json").write_text(json.dumps({"status_phase": valid_phase}), encoding="utf-8")
             phase, source = resolve_phase(tmp_path, f"feat-{valid_phase}")
             assert phase == valid_phase
             # Should NOT be capped since all valid phases are within range
@@ -321,9 +302,7 @@ class TestPhaseCap:
 
         meta_dir = tmp_path / "kitty-specs" / "feat"
         meta_dir.mkdir(parents=True, exist_ok=True)
-        (meta_dir / "meta.json").write_text(
-            json.dumps({"status_phase": 2}), encoding="utf-8"
-        )
+        (meta_dir / "meta.json").write_text(json.dumps({"status_phase": 2}), encoding="utf-8")
         phase, source = resolve_phase(tmp_path, "feat")
         assert phase == 2
         assert "capped" not in source
@@ -615,9 +594,7 @@ class TestReducerDeterminism:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snapshot = reduce(events)
 
         json_str = materialize_to_json(snapshot)
@@ -633,9 +610,7 @@ class TestReducerDeterminism:
     def test_empty_events_produce_stable_snapshot(self):
         """reduce([]) always produces the same structure."""
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snap_a = reduce([])
             snap_b = reduce([])
 
@@ -845,9 +820,7 @@ class TestFullEventLogParity:
         events = self._build_realistic_event_log()
 
         fixed_time = "2026-02-08T18:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snap_a = reduce(events)
             snap_b = reduce(events)
 
@@ -861,9 +834,7 @@ class TestFullEventLogParity:
         events = self._build_realistic_event_log()
 
         fixed_time = "2026-02-08T18:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snap = reduce(events)
 
         json_1 = materialize_to_json(snap)
@@ -890,33 +861,23 @@ class TestTransitionMatrixParity:
     def test_all_enum_values_in_canonical_lanes(self):
         """All Lane enum values are in CANONICAL_LANES."""
         for lane in Lane:
-            assert lane.value in CANONICAL_LANES, (
-                f"{lane.value} in Lane enum but not in CANONICAL_LANES"
-            )
+            assert lane.value in CANONICAL_LANES, f"{lane.value} in Lane enum but not in CANONICAL_LANES"
 
     def test_transition_pairs_use_canonical_lanes(self):
         """All transition pairs use canonical lane names only."""
         canonical_set = set(CANONICAL_LANES)
         for from_lane, to_lane in ALLOWED_TRANSITIONS:
-            assert from_lane in canonical_set, (
-                f"Transition has non-canonical from_lane: {from_lane}"
-            )
-            assert to_lane in canonical_set, (
-                f"Transition has non-canonical to_lane: {to_lane}"
-            )
+            assert from_lane in canonical_set, f"Transition has non-canonical from_lane: {from_lane}"
+            assert to_lane in canonical_set, f"Transition has non-canonical to_lane: {to_lane}"
 
     def test_no_self_transitions_in_matrix(self):
         """No transition goes from a lane to itself."""
         for from_lane, to_lane in ALLOWED_TRANSITIONS:
-            assert from_lane != to_lane, (
-                f"Self-transition found: {from_lane} -> {to_lane}"
-            )
+            assert from_lane != to_lane, f"Self-transition found: {from_lane} -> {to_lane}"
 
     def test_terminal_lanes_have_no_outbound_transitions(self):
         """Terminal lanes (done, canceled) have no outbound transitions in the matrix."""
         from specify_cli.status.transitions import TERMINAL_LANES
 
         for from_lane, to_lane in ALLOWED_TRANSITIONS:
-            assert from_lane not in TERMINAL_LANES, (
-                f"Terminal lane {from_lane} has outbound transition to {to_lane}"
-            )
+            assert from_lane not in TERMINAL_LANES, f"Terminal lane {from_lane} has outbound transition to {to_lane}"
