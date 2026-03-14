@@ -1184,6 +1184,13 @@ def accept_feature(
             help="Skip strict metadata validation"
         )
     ] = False,
+    actor: Annotated[
+        Optional[str],
+        typer.Option(
+            "--actor",
+            help="Name to record as the acceptance actor (agent identity)"
+        )
+    ] = None,
     no_commit: Annotated[
         bool,
         typer.Option(
@@ -1218,7 +1225,7 @@ def accept_feature(
         top_level_accept(
             feature=feature,
             mode=mode,
-            actor=None,  # Agent commands don't use --actor
+            actor=actor,
             test=[],  # Agent commands don't use --test
             json_output=json_output,
             lenient=lenient,
