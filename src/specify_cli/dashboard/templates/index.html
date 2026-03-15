@@ -89,12 +89,6 @@
             <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')" title="Diagnostics">
                 🔍 <span class="sidebar-label">Diagnostics</span>
             </div>
-            <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
-                Dossier
-            </div>
-            <div class="sidebar-item" data-page="dossier" onclick="switchPage('dossier')" title="Dossier">
-                📦 <span class="sidebar-label">Dossier</span>
-            </div>
         </div>
 
         <div class="main-content">
@@ -219,23 +213,6 @@
                 </div>
             </div>
 
-            <div id="page-dossier" class="page">
-                <div class="content-card">
-                    <h2>📦 Dossier</h2>
-                    <div id="dossier-panel-container" class="dossier-panel-container">
-                        <div class="dossier-overview"></div>
-                        <div class="dossier-filters"></div>
-                        <div class="dossier-artifact-list"></div>
-                    </div>
-                    <div id="dossier-detail-modal" class="modal" style="display: none;">
-                        <div class="modal-overlay"></div>
-                        <div class="modal-content dossier-modal">
-                            <button class="modal-close">&times;</button>
-                            <div class="artifact-detail"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div id="page-welcome" class="page">
                 <div class="content-card">
@@ -281,7 +258,6 @@
         </div>
     </div>
 
-    <script src="/static/js/dossier-panel.js"></script>
     <script src="/static/dashboard/dashboard.js"></script>
 </body>
 </html>
