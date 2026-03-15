@@ -21,7 +21,7 @@ from specify_cli.upgrade.runner import MigrationRunner
 import contextlib
 
 # Get migrations directory path
-MIGRATIONS_DIR = Path(__file__).parents[3] / "src" / "specify_cli" / "upgrade" / "migrations"
+MIGRATIONS_DIR = Path(__file__).parents[2] / "src" / "specify_cli" / "upgrade" / "migrations"
 
 pytestmark = [pytest.mark.adversarial]
 
