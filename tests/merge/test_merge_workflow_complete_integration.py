@@ -15,7 +15,6 @@ from pathlib import Path
 from specify_cli.merge.preflight import run_preflight
 from specify_cli.merge.forecast import predict_conflicts
 from specify_cli.merge.state import (
-
     MergeState,
     save_state,
     load_state,
@@ -26,6 +25,7 @@ from specify_cli.merge.state import (
 import pytest
 
 pytestmark = pytest.mark.git_repo
+
 
 class TestPreflightBlocking:
     """Tests for preflight validation blocking merge operations."""
@@ -168,6 +168,19 @@ dependencies: []
             check=True,
             capture_output=True,
         )
+        # Set identity in the clone so git commit works on CI where no global config exists
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=local,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=local,
+            check=True,
+            capture_output=True,
+        )
 
         # Add commit to origin (making local behind)
         (origin / "new.txt").write_text("ahead")
@@ -245,6 +258,7 @@ dependencies: []
         assert result.target_diverged is True
         assert result.target_divergence_msg is not None
         assert "behind origin" in result.target_divergence_msg
+
 
 class TestDryRunConflictForecasting:
     """Tests for dry-run conflict forecasting."""
@@ -364,6 +378,7 @@ class TestDryRunConflictForecasting:
         assert pred.is_status_file is True
         assert pred.auto_resolvable is True
 
+
 class TestResumeInterruption:
     """Tests for resuming interrupted merge operations."""
 
@@ -427,6 +442,7 @@ class TestResumeInterruption:
         assert loaded2.completed_wps == ["WP01", "WP02", "WP03"]
         assert loaded2.remaining_wps == ["WP04"]
         assert loaded2.current_wp is None
+
 
 class TestAbortFunctionality:
     """Tests for aborting merge operations."""

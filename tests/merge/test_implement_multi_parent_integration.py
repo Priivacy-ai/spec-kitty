@@ -21,14 +21,15 @@ import pytest
 
 pytestmark = pytest.mark.git_repo
 
+
 @pytest.fixture
 def feature_repo(tmp_path: Path) -> Path:
     """Create a repository with feature structure and multi-parent dependencies."""
     repo = tmp_path / "test-project"
     repo.mkdir()
 
-    # Initialize git
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    # Initialize git — force branch name so assertions about "main" hold on any git config
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
         cwd=repo,
@@ -143,6 +144,7 @@ dependencies:
 
     return repo
 
+
 def test_implement_linear_dependency_chain(feature_repo: Path, monkeypatch):
     """Test implementing WP01 → WP02 → WP03 (linear chain, no auto-merge)."""
     monkeypatch.chdir(feature_repo)
@@ -198,6 +200,7 @@ def test_implement_linear_dependency_chain(feature_repo: Path, monkeypatch):
     # Verify WP02 has database.sql from WP01
     wp02_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP02"
     assert (wp02_workspace / "database.sql").exists()
+
 
 def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
     """Test implementing WP04 which depends on both WP02 and WP03 (auto-merge)."""
@@ -290,6 +293,7 @@ def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
         check=False,
     )
     assert result.returncode == 0
+
 
 def test_implement_multi_parent_with_conflicts(feature_repo: Path, monkeypatch):
     """Test that auto-merge detects conflicts and reports them clearly."""
