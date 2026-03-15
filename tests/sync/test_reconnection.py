@@ -1,8 +1,11 @@
 """Tests for WebSocket client reconnection with exponential backoff"""
+
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+
+pytestmark = pytest.mark.fast
 
 
 class TestReconnectionConfiguration:
@@ -111,9 +114,11 @@ class TestReconnectMethod:
         client = WebSocketClient("ws://localhost", "token")
 
         # Mock connect to always fail
-        with patch.object(client, 'connect', side_effect=Exception("Connection failed")):
-            with patch('specify_cli.sync.client.asyncio.sleep', new_callable=AsyncMock):
-                result = await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=Exception("Connection failed")),
+            patch("specify_cli.sync.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await client.reconnect()
 
         assert result is False
         assert client.status == ConnectionStatus.BATCH_MODE
@@ -127,9 +132,11 @@ class TestReconnectMethod:
         client.reconnect_attempts = 3
 
         # Mock connect to succeed
-        with patch.object(client, 'connect', new_callable=AsyncMock):
-            with patch('specify_cli.sync.client.asyncio.sleep', new_callable=AsyncMock):
-                result = await client.reconnect()
+        with (
+            patch.object(client, "connect", new_callable=AsyncMock),
+            patch("specify_cli.sync.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await client.reconnect()
 
         assert result is True
         assert client.reconnect_attempts == 0
@@ -139,9 +146,11 @@ class TestReconnectMethod:
         """Test reconnect returns True when connection succeeds"""
         client = WebSocketClient("ws://localhost", "token")
 
-        with patch.object(client, 'connect', new_callable=AsyncMock):
-            with patch('specify_cli.sync.client.asyncio.sleep', new_callable=AsyncMock):
-                result = await client.reconnect()
+        with (
+            patch.object(client, "connect", new_callable=AsyncMock),
+            patch("specify_cli.sync.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await client.reconnect()
 
         assert result is True
 
@@ -155,9 +164,11 @@ class TestReconnectMethod:
             nonlocal connect_calls
             connect_calls += 1
 
-        with patch.object(client, 'connect', side_effect=mock_connect):
-            with patch('specify_cli.sync.client.asyncio.sleep', new_callable=AsyncMock):
-                await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=mock_connect),
+            patch("specify_cli.sync.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            await client.reconnect()
 
         assert connect_calls == 1
 
@@ -171,9 +182,11 @@ class TestReconnectMethod:
             attempts_seen.append(client.reconnect_attempts)
             raise Exception("Connection failed")
 
-        with patch.object(client, 'connect', side_effect=track_attempts):
-            with patch('specify_cli.sync.client.asyncio.sleep', new_callable=AsyncMock):
-                await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=track_attempts),
+            patch("specify_cli.sync.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            await client.reconnect()
 
         # Should have attempted 10 times (0-9)
         assert len(attempts_seen) == 10
@@ -188,10 +201,12 @@ class TestReconnectMethod:
         async def mock_sleep(delay):
             sleep_calls.append(delay)
 
-        with patch.object(client, 'connect', side_effect=Exception("Connection failed")):
-            with patch('specify_cli.sync.client.asyncio.sleep', side_effect=mock_sleep):
-                with patch('specify_cli.sync.client.random.uniform', return_value=0):
-                    await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=Exception("Connection failed")),
+            patch("specify_cli.sync.client.asyncio.sleep", side_effect=mock_sleep),
+            patch("specify_cli.sync.client.random.uniform", return_value=0),
+        ):
+            await client.reconnect()
 
         # Should have 10 sleep calls
         assert len(sleep_calls) == 10
@@ -214,16 +229,19 @@ class TestJitterBehavior:
 
         # Succeed on first attempt after capturing delay
         connect_count = [0]
+
         async def succeed_on_second():
             connect_count[0] += 1
             if connect_count[0] == 1:
                 raise Exception("fail first time")
             # Succeed on second attempt
 
-        with patch.object(client, 'connect', side_effect=succeed_on_second):
-            with patch('specify_cli.sync.client.asyncio.sleep', side_effect=capture_delay):
-                with patch('specify_cli.sync.client.random.uniform', return_value=0.5):
-                    await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=succeed_on_second),
+            patch("specify_cli.sync.client.asyncio.sleep", side_effect=capture_delay),
+            patch("specify_cli.sync.client.random.uniform", return_value=0.5),
+        ):
+            await client.reconnect()
 
         # First delay should be 0.5 (base) + 0.5 (jitter) = 1.0
         assert len(delays) >= 1
@@ -240,16 +258,19 @@ class TestJitterBehavior:
 
         # Succeed on first attempt after capturing delay
         connect_count = [0]
+
         async def succeed_on_second():
             connect_count[0] += 1
             if connect_count[0] == 1:
                 raise Exception("fail first time")
 
-        with patch.object(client, 'connect', side_effect=succeed_on_second):
-            with patch('specify_cli.sync.client.asyncio.sleep', side_effect=capture_delay):
-                # Large negative jitter that would make delay negative
-                with patch('specify_cli.sync.client.random.uniform', return_value=-1.0):
-                    await client.reconnect()
+        with (
+            patch.object(client, "connect", side_effect=succeed_on_second),
+            patch("specify_cli.sync.client.asyncio.sleep", side_effect=capture_delay),
+            patch("specify_cli.sync.client.random.uniform", return_value=-1.0),
+        ):
+            # Large negative jitter that would make delay negative
+            await client.reconnect()
 
         # First delay: max(0, 0.5 - 1.0) = max(0, -0.5) = 0
         assert len(delays) >= 1
@@ -297,7 +318,8 @@ class TestClientLifecycle:
 
             assert client._listen_task is None
             leaked_listeners = [
-                t for t in asyncio.all_tasks()
+                t
+                for t in asyncio.all_tasks()
                 if t is not asyncio.current_task()
                 and not t.done()
                 and getattr(t.get_coro(), "__qualname__", "") == "WebSocketClient._listen"

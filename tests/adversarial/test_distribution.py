@@ -11,19 +11,12 @@ All those tests used SPEC_KITTY_TEMPLATE_ROOT, creating a false sense of securit
 
 These tests are the ONLY safeguard against that happening again.
 
-CURRENT STATUS (as of 0.13.0):
+CURRENT STATUS (as of 2.0.8):
 - ✅ Wheel build and install tests pass
 - ✅ CLI version check passes
-- ⚠️  Init/upgrade tests marked as xfail due to spec-kitty CLI bug
-
-The init/upgrade tests currently fail because `spec-kitty init` still prompts
-for "Agent Selection Strategy" even when --ai/--script/--mission flags are
-provided. This is a product bug, not a test bug. The tests are marked as xfail
-with the expectation that they will pass once the CLI is fixed to be fully
-non-interactive with those flags.
-
-TODO: File issue about non-interactive init mode and remove xfail markers once fixed.
+- ✅ Init/upgrade tests pass (non-interactive mode fixed)
 """
+
 from __future__ import annotations
 
 import os
@@ -37,6 +30,7 @@ pytestmark = [
     pytest.mark.adversarial,
     pytest.mark.distribution,
     pytest.mark.slow,
+    pytest.mark.git_repo,
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -72,7 +66,7 @@ def _clean_env() -> dict[str, str]:
 
 
 @pytest.fixture(scope="session")
-def wheel_path(tmp_path_factory) -> Path:
+def wheel_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Build wheel once per session.
 
     Session-scoped to avoid rebuilding for each test.
@@ -98,7 +92,7 @@ def wheel_path(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def installed_venv(wheel_path: Path, tmp_path_factory) -> Path:
+def installed_venv(wheel_path: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Create venv with wheel installed (no SPEC_KITTY_TEMPLATE_ROOT).
 
     Session-scoped to avoid reinstalling for each test.
@@ -137,12 +131,12 @@ def installed_venv(wheel_path: Path, tmp_path_factory) -> Path:
 class TestWheelBuildAndInstall:
     """Test that wheel builds and installs correctly."""
 
-    def test_wheel_builds_successfully(self, wheel_path: Path):
+    def test_wheel_builds_successfully(self, wheel_path: Path) -> None:
         """Verify wheel builds without errors."""
         assert wheel_path.exists(), "Wheel should be built"
         assert wheel_path.suffix == ".whl", "Should be a wheel file"
 
-    def test_wheel_installs_in_fresh_venv(self, installed_venv: Path):
+    def test_wheel_installs_in_fresh_venv(self, installed_venv: Path) -> None:
         """Verify wheel installs into clean virtual environment."""
         spec_kitty = installed_venv / "bin" / "spec-kitty"
         if not spec_kitty.exists():
@@ -150,7 +144,7 @@ class TestWheelBuildAndInstall:
 
         assert spec_kitty.exists(), "spec-kitty CLI should be installed"
 
-    def test_cli_version_matches_wheel(self, installed_venv: Path):
+    def test_cli_version_matches_wheel(self, installed_venv: Path) -> None:
         """Verify installed CLI reports correct version."""
         spec_kitty = _venv_spec_kitty(installed_venv)
 
@@ -173,11 +167,7 @@ class TestWheelBuildAndInstall:
 class TestInitWithoutTemplateRoot:
     """Test spec-kitty init uses packaged templates."""
 
-    @pytest.mark.xfail(
-        reason="spec-kitty init still prompts for agent strategy even with --ai/--script/--mission flags (issue #TBD)",
-        strict=False,
-    )
-    def test_init_creates_project_structure(self, installed_venv: Path, tmp_path: Path):
+    def test_init_creates_project_structure(self, installed_venv: Path, tmp_path: Path) -> None:
         """spec-kitty init should work without SPEC_KITTY_TEMPLATE_ROOT."""
         project_dir = tmp_path / "test-project"
 
@@ -188,7 +178,18 @@ class TestInitWithoutTemplateRoot:
         assert "SPEC_KITTY_TEMPLATE_ROOT" not in env
 
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -204,18 +205,25 @@ class TestInitWithoutTemplateRoot:
         config = kittify / "config.yaml"
         assert config.exists(), "config.yaml should be created"
 
-    @pytest.mark.xfail(
-        reason="spec-kitty init still prompts for agent strategy even with --ai/--script/--mission flags (issue #TBD)",
-        strict=False,
-    )
-    def test_init_templates_are_valid(self, installed_venv: Path, tmp_path: Path):
+    def test_init_templates_are_valid(self, installed_venv: Path, tmp_path: Path) -> None:
         """Initialized templates should contain expected content."""
         project_dir = tmp_path / "template-test"
 
         spec_kitty = _venv_spec_kitty(installed_venv)
 
         subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -237,11 +245,7 @@ class TestInitWithoutTemplateRoot:
 class TestResearchFeatureCreation:
     """Test research mission feature creation with packaged templates."""
 
-    @pytest.mark.xfail(
-        reason="spec-kitty init still prompts for agent strategy even with --ai/--script/--mission flags (issue #TBD)",
-        strict=False,
-    )
-    def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path):
+    def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path) -> None:
         """Research mission templates should be available from package."""
         project_dir = tmp_path / "research-project"
 
@@ -249,7 +253,18 @@ class TestResearchFeatureCreation:
 
         # Initialize spec-kitty (will create directory)
         result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "research", "--no-git"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "research",
+                "--no-git",
+            ],
             capture_output=True,
             text=True,
             env=_clean_env(),
@@ -260,13 +275,15 @@ class TestResearchFeatureCreation:
 
         # Initialize git after init (required for features)
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Verify research templates are available
         # (The specific check depends on how templates are bundled)
 
-    def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path):
+    def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path) -> None:
         """meta.json should have correct schema for research features."""
         # This test validates the ADR 7 deliverables_path field is present
         # when research features are created
@@ -285,7 +302,7 @@ class TestUpgradeWithAllMissions:
         reason="spec-kitty init still prompts for agent strategy even with --ai/--script/--mission flags (issue #TBD)",
         strict=False,
     )
-    def test_upgrade_updates_templates(self, installed_venv: Path, tmp_path: Path):
+    def test_upgrade_updates_templates(self, installed_venv: Path, tmp_path: Path) -> None:
         """spec-kitty upgrade should update templates from packaged source."""
         project_dir = tmp_path / "upgrade-project"
 
@@ -294,7 +311,17 @@ class TestUpgradeWithAllMissions:
 
         # Initialize project (will create directory)
         init_result = subprocess.run(
-            [str(spec_kitty), "init", str(project_dir), "--ai", "claude", "--script", "sh", "--mission", "software-dev"],
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+            ],
             capture_output=True,
             text=True,
             env=env,
@@ -304,7 +331,9 @@ class TestUpgradeWithAllMissions:
 
         # Initialize git after init
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Initial commit

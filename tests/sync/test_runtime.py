@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+pytestmark = pytest.mark.fast
 
 from specify_cli.sync.runtime import (
     SyncRuntime,
@@ -207,7 +208,7 @@ class TestGetRuntime:
     @patch("specify_cli.sync.runtime.SyncRuntime.start")
     def test_auto_starts_on_first_access(self, mock_start):
         """get_runtime calls start() on first access."""
-        runtime = get_runtime()
+        get_runtime()
         mock_start.assert_called_once()
 
 
@@ -275,18 +276,18 @@ class TestUnauthenticatedBehavior:
                         mock_config_class.return_value = mock_config
 
                         # Synchronous context: no running loop, no auto-connect.
-                        with patch("asyncio.get_running_loop", side_effect=RuntimeError):
-                            with patch("asyncio.ensure_future") as mock_ensure_future:
-                                runtime = SyncRuntime()
-                                runtime.start()
+                        with (
+                            patch("asyncio.get_running_loop", side_effect=RuntimeError),
+                            patch("asyncio.ensure_future") as mock_ensure_future,
+                        ):
+                            runtime = SyncRuntime()
+                            runtime.start()
 
-                                mock_ws_class.assert_called_once()
-                                assert runtime.ws_client is mock_ws
-                                mock_ensure_future.assert_not_called()
+                            mock_ws_class.assert_called_once()
+                            assert runtime.ws_client is mock_ws
+                            mock_ensure_future.assert_not_called()
 
-    def test_websocket_connect_scheduled_with_running_loop(
-        self, tmp_path, monkeypatch
-    ):
+    def test_websocket_connect_scheduled_with_running_loop(self, tmp_path, monkeypatch):
         """When an event loop is running, runtime schedules async connect."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -307,10 +308,12 @@ class TestUnauthenticatedBehavior:
                         mock_config.get_server_url.return_value = "https://example.com"
                         mock_config_class.return_value = mock_config
 
-                        with patch("asyncio.get_running_loop", return_value=MagicMock()):
-                            with patch("asyncio.ensure_future") as mock_ensure_future:
-                                runtime = SyncRuntime()
-                                runtime.start()
+                        with (
+                            patch("asyncio.get_running_loop", return_value=MagicMock()),
+                            patch("asyncio.ensure_future") as mock_ensure_future,
+                        ):
+                            runtime = SyncRuntime()
+                            runtime.start()
 
-                                mock_ws_class.assert_called_once()
-                                mock_ensure_future.assert_called_once_with(mock_connect_coro)
+                            mock_ws_class.assert_called_once()
+                            mock_ensure_future.assert_called_once_with(mock_connect_coro)

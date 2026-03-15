@@ -6,11 +6,14 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
+import yaml
 
-from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+from tests.branch_contract import IS_2X_BRANCH
+from tests.test_isolation_helpers import get_installed_version
+from tests.utils import REPO_ROOT, run, write_wp
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -20,6 +23,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     # Block webbrowser.open() in the test process itself.
     import webbrowser
+
     webbrowser.open = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new = lambda *args, **kwargs: None  # type: ignore[assignment]
     webbrowser.open_new_tab = lambda *args, **kwargs: None  # type: ignore[assignment]
@@ -85,9 +89,7 @@ def _create_test_venv(venv_dir: Path) -> None:
         )
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -100,13 +102,12 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     rebuild = False
-    if not venv_dir.exists():
-        rebuild = True
-    elif not venv_marker.exists():
-        rebuild = True
-    elif venv_marker.read_text(encoding="utf-8").strip() != source_version:
-        rebuild = True
-    elif not _venv_has_required_runtime(venv_dir):
+    if (
+        not venv_dir.exists()
+        or not venv_marker.exists()
+        or venv_marker.read_text(encoding="utf-8").strip() != source_version
+        or not _venv_has_required_runtime(venv_dir)
+    ):
         rebuild = True
 
     if rebuild:
@@ -116,6 +117,59 @@ def test_venv() -> Path:
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
     return venv_dir
+
+
+@pytest.fixture()
+def isolated_env() -> dict[str, str]:
+    """Create isolated environment blocking host spec-kitty installation.
+
+    Ensures tests use source code exclusively via:
+    - PYTHONPATH set to source only (no inheritance)
+    - SPEC_KITTY_CLI_VERSION from pyproject.toml
+    - SPEC_KITTY_TEST_MODE=1 to enforce test behavior
+    - SPEC_KITTY_TEMPLATE_ROOT to source templates
+
+    This fixture guarantees that tests will never accidentally use a
+    pip-installed version of spec-kitty-cli from the host system.
+    """
+    from tests.test_isolation_helpers import get_venv_python  # noqa: F401 (side-effect: ensures venv exists)
+
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+
+    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+        source_version = tomllib.load(f)["project"]["version"]
+
+    src_path = REPO_ROOT / "src"
+    env["PYTHONPATH"] = str(src_path)
+    env["SPEC_KITTY_CLI_VERSION"] = source_version
+    env["SPEC_KITTY_TEST_MODE"] = "1"
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
+
+    return env
+
+
+@pytest.fixture()
+def run_cli(isolated_env: dict[str, str]) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """Return a helper that executes the Spec Kitty CLI within a project.
+
+    Uses isolated_env to guarantee tests run against source code, not
+    installed packages. This prevents version mismatch errors.
+    """
+    from tests.test_isolation_helpers import get_venv_python
+
+    def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
+        return subprocess.run(
+            command,
+            cwd=str(project_path),
+            capture_output=True,
+            text=True,
+            env=isolated_env,
+            timeout=60,
+        )
+
+    return _run_cli
 
 
 @pytest.fixture()
@@ -152,7 +206,7 @@ def feature_slug() -> str:
 
 
 @pytest.fixture()
-def ensure_imports():
+def ensure_imports() -> None:
     # Import helper modules so tests can reference them directly.
     import task_helpers  # noqa: F401
     import acceptance_support  # noqa: F401
@@ -208,11 +262,7 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     feature_dir = worktree / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    return {
-        "repo_root": repo_root,
-        "worktree_path": worktree,
-        "feature_dir": feature_dir
-    }
+    return {"repo_root": repo_root, "worktree_path": worktree, "feature_dir": feature_dir}
 
 
 @pytest.fixture
@@ -309,7 +359,7 @@ dependencies: []
 
 
 @pytest.fixture
-def git_stale_workspace(tmp_path: Path) -> dict[str, Path]:
+def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     """
     Create main repo + stale WP worktree.
 
@@ -413,3 +463,150 @@ dependencies: []
     run(["git", "checkout", "main"], cwd=repo)
 
     return repo, worktree_dir
+
+
+# ---------------------------------------------------------------------------
+# Fixtures promoted from integration/conftest.py for use in slice directories
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def test_project(tmp_path: Path) -> Path:
+    """Create a temporary Spec Kitty project with git initialized."""
+    project = tmp_path / "project"
+    project.mkdir()
+
+    shutil.copytree(
+        REPO_ROOT / ".kittify",
+        project / ".kittify",
+        symlinks=True,
+    )
+
+    # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
+    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
+    missions_dest = project / ".kittify" / "missions"
+    if missions_src.exists() and not missions_dest.exists():
+        shutil.copytree(missions_src, missions_dest)
+
+    (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+
+    subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True)
+    subprocess.run(["git", "add", "."], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-m", "Initial project"], cwd=project, check=True)
+
+    # Update metadata.yaml to current version to avoid version mismatch errors
+    metadata_file = project / ".kittify" / "metadata.yaml"
+    if metadata_file.exists():
+        with open(metadata_file, encoding="utf-8") as f:
+            metadata = yaml.safe_load(f) or {}
+
+        current_version = get_installed_version()
+        if current_version is None:
+            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+                pyproject = tomllib.load(f)
+            current_version = pyproject["project"]["version"] or "unknown"
+
+        if "spec_kitty" not in metadata:
+            metadata["spec_kitty"] = {}
+        metadata["spec_kitty"]["version"] = current_version
+
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
+
+    return project
+
+
+@pytest.fixture()
+def clean_project(test_project: Path) -> Path:
+    """Return a clean git project with no worktrees."""
+    return test_project
+
+
+@pytest.fixture()
+def dirty_project(test_project: Path) -> Path:
+    """Return a project containing uncommitted changes."""
+    dirty_file = test_project / "dirty.txt"
+    dirty_file.write_text("pending changes\n", encoding="utf-8")
+    return test_project
+
+
+@pytest.fixture()
+def project_with_worktree(test_project: Path) -> Path:
+    """Return a project with simulated active worktree directories."""
+    worktree_dir = test_project / ".worktrees" / "001-test-feature"
+    worktree_dir.mkdir(parents=True)
+    (worktree_dir / "README.md").write_text("feature placeholder\n", encoding="utf-8")
+    return test_project
+
+
+@pytest.fixture()
+def dual_branch_repo(tmp_path: Path) -> Path:
+    """Create test repo with both main and 2.x branches.
+
+    Returns a repository with:
+    - main branch (initial commit)
+    - 2.x branch (branched from main)
+    - .kittify/ structure initialized
+    - Git configured for tests
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    shutil.copytree(
+        REPO_ROOT / ".kittify",
+        repo / ".kittify",
+        symlinks=True,
+    )
+
+    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
+    missions_dest = repo / ".kittify" / "missions"
+    if missions_src.exists() and not missions_dest.exists():
+        shutil.copytree(missions_src, missions_dest)
+
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+    (repo / "README.md").write_text("# Test Repo\n", encoding="utf-8")
+    (repo / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+    subprocess.run(["git", "branch", "2.x"], cwd=repo, check=True, capture_output=True)
+
+    metadata_file = repo / ".kittify" / "metadata.yaml"
+    if metadata_file.exists():
+        with open(metadata_file, encoding="utf-8") as f:
+            metadata = yaml.safe_load(f) or {}
+
+        current_version = get_installed_version()
+        if current_version is None:
+            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+                pyproject = tomllib.load(f)
+            current_version = pyproject["project"]["version"] or "unknown"
+
+        if "spec_kitty" not in metadata:
+            metadata["spec_kitty"] = {}
+        metadata["spec_kitty"]["version"] = current_version
+
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
+
+    return repo

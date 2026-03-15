@@ -7,67 +7,17 @@ compose correctly end-to-end.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Callable
 
 import pytest
 import yaml
 
-from tests.test_isolation_helpers import get_installed_version, get_venv_python
+from tests.test_isolation_helpers import get_installed_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-@pytest.fixture()
-def isolated_env() -> dict[str, str]:
-    """Create isolated environment blocking host spec-kitty installation.
-
-    Ensures tests use source code exclusively via:
-    - PYTHONPATH set to source only (no inheritance)
-    - SPEC_KITTY_CLI_VERSION from pyproject.toml
-    - SPEC_KITTY_TEST_MODE=1 to enforce test behavior
-    - SPEC_KITTY_TEMPLATE_ROOT to source templates
-    """
-    env = os.environ.copy()
-    env.pop("PYTHONPATH", None)
-
-    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-        pyproject = tomllib.load(f)
-    source_version = pyproject["project"]["version"]
-
-    src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = str(src_path)
-    env["SPEC_KITTY_CLI_VERSION"] = source_version
-    env["SPEC_KITTY_TEST_MODE"] = "1"
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
-
-    return env
-
-
-@pytest.fixture()
-def run_cli(isolated_env: dict[str, str]) -> Callable[..., subprocess.CompletedProcess[str]]:
-    """Return a helper that executes the Spec Kitty CLI within a project.
-
-    Uses isolated_env to guarantee tests run against source code, not
-    installed packages.
-    """
-
-    def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
-        return subprocess.run(
-            command,
-            cwd=str(project_path),
-            capture_output=True,
-            text=True,
-            env=isolated_env,
-            timeout=60,
-        )
-
-    return _run_cli
 
 
 @pytest.fixture()
@@ -106,22 +56,28 @@ def e2e_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "e2e@example.com"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "E2E Test"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial project"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
 
     # Align metadata version with source to avoid version mismatch errors
     metadata_file = project / ".kittify" / "metadata.yaml"
     if metadata_file.exists():
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
         current_version = get_installed_version()
@@ -141,7 +97,9 @@ def e2e_project(tmp_path: Path) -> Path:
         subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "Align metadata version", "--allow-empty"],
-            cwd=project, check=True, capture_output=True,
+            cwd=project,
+            check=True,
+            capture_output=True,
         )
 
     # Create a minimal source directory for realism
@@ -151,7 +109,9 @@ def e2e_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Add source skeleton"],
-        cwd=project, check=True, capture_output=True,
+        cwd=project,
+        check=True,
+        capture_output=True,
     )
 
     return project

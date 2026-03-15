@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from unittest.mock import Mock, patch
 
 import httpx
@@ -10,6 +10,8 @@ import pytest
 
 from specify_cli.sync.auth import AuthClient, AuthenticationError
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+
+pytestmark = pytest.mark.fast
 
 
 @pytest.fixture
@@ -86,8 +88,8 @@ class TestRefreshTokens:
         auth_client.credential_store.save(
             access_token="old_access",
             refresh_token="old_refresh",
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -122,8 +124,8 @@ class TestRefreshTokens:
         auth_client.credential_store.save(
             access_token="old_access",
             refresh_token=sensitive_token,
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -149,8 +151,8 @@ class TestGetAccessToken:
         auth_client.credential_store.save(
             access_token="valid_access",
             refresh_token="test",
-            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -163,8 +165,8 @@ class TestGetAccessToken:
         auth_client.credential_store.save(
             access_token="expired_access",
             refresh_token="valid_refresh",
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -192,8 +194,8 @@ class TestIsAuthenticated:
         auth_client.credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -213,8 +215,8 @@ class TestClearCredentials:
         auth_client.credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )
@@ -232,8 +234,8 @@ class TestGetTeamSlug:
         auth_client.credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
             team_slug="my-team",
@@ -251,8 +253,8 @@ class TestGetTeamSlug:
         auth_client.credential_store.save(
             access_token="test",
             refresh_token="test",
-            access_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
             # team_slug not provided
@@ -302,8 +304,8 @@ class TestGetTeamSlug:
         auth_client.credential_store.save(
             access_token="old_access",
             refresh_token="old_refresh",
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
             team_slug="existing-team",
@@ -331,8 +333,8 @@ class TestGetTeamSlug:
         auth_client.credential_store.save(
             access_token="old_access",
             refresh_token="old_refresh",
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
             team_slug="old-team",
@@ -362,9 +364,11 @@ class TestSaasFeatureFlag:
         """obtain_tokens() should fail before any network call."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
 
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            with pytest.raises(AuthenticationError) as exc_info:
-                auth_client.obtain_tokens("user@example.com", "password")
+        with (
+            patch.object(auth_client, "_get_http_client") as mock_client,
+            pytest.raises(AuthenticationError) as exc_info,
+        ):
+            auth_client.obtain_tokens("user@example.com", "password")
 
         assert "disabled" in str(exc_info.value).lower()
         mock_client.assert_not_called()
@@ -374,8 +378,8 @@ class TestSaasFeatureFlag:
         auth_client.credential_store.save(
             access_token="expired_access",
             refresh_token="valid_refresh",
-            access_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
             username="user@example.com",
             server_url="https://test.example.com",
         )

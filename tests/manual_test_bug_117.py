@@ -47,9 +47,9 @@ def simulate_slow_health_check_scenario():
         mock_alive.return_value = True
 
         print("\nScenario:")
-        print("  - Dashboard process starts (PID: {})".format(mock_pid))
+        print(f"  - Dashboard process starts (PID: {mock_pid})")
         print("  - Health check times out (returns False)")
-        print("  - BUT process is actually alive on port {}".format(mock_port))
+        print(f"  - BUT process is actually alive on port {mock_port}")
 
         start_time = time.time()
 
@@ -73,7 +73,7 @@ def simulate_slow_health_check_scenario():
 
         except RuntimeError as e:
             elapsed = time.time() - start_time
-            print(f"\n❌ RESULT: FAILURE (Bug #117 still exists)")
+            print("\n❌ RESULT: FAILURE (Bug #117 still exists)")
             print(f"  - Error: {e}")
             print(f"  - Elapsed time: {elapsed:.2f}s")
             print("\nThis should NOT happen with the fix!")

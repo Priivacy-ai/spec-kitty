@@ -1,434 +1,293 @@
-# Spec Kitty Test Suite Documentation
+# Test Suite
 
-## Overview
+## Design Intent
 
-The Spec Kitty test suite ensures code quality and prevents regressions through comprehensive testing. Tests are designed to run against **source code** (not installed packages) to guarantee consistency between development and CI environments.
+The test suite is a **readable description of system capabilities**, not a mirror of
+internal module boundaries or a filing cabinet sorted by test-runner mechanics.
 
-## Test Architecture
+Four principles govern every decision about test structure:
 
-### Source-First Testing Philosophy
+### 1. Form follows function — vertical slices
 
-Tests always run against the current source code in `src/`, never against a pip-installed version of spec-kitty-cli. This prevents version mismatches that can cause spurious failures.
+Top-level directories map to system capabilities, not to source packages or test types:
 
-**Key Design Principles:**
-1. **Isolation**: Tests create isolated environments that block host package interference
-2. **Consistency**: Same test behavior locally and in CI
-3. **Fail-Fast**: Configuration errors are caught immediately with clear messages
-4. **Performance**: Fast execution (< 30s for full suite)
-
-## Test Categories
-
-### Unit Tests (`tests/unit/`)
-
-Pure Python tests with no subprocess calls or CLI invocation.
-
-```bash
-pytest tests/unit/ -v
+```
+tests/
+  missions/         — mission lifecycle, schema, loading, guards
+  merge/            — merge workflow, preflight, multi-parent, conflict resolution
+  agent/            — agent config, context, commands, workflow, review
+  tasks/            — WP management, planning, pre-commit guard, move-task
+  git_ops/          — branch ops, worktree, preflight, stale detection, safe commit
+  status/           — status model, lane management, CLI, validation
+  upgrade/          — migrations, upgrade path, version detection
+  init/             — project initialisation, constitution setup
+  sync/             — background sync, event emission, transport, offline queue
+  runtime/          — bootstrap, doctor, resolver, global convergence
+  research/         — research workflow, research plan deliverables
+  next/             — next-command loop, prompt builder, runtime bridge
+  cross_cutting/    — concerns that cut across multiple slices (encoding, packaging, versioning, dashboard)
+  doctrine/         — schema and link-integrity validation of canonical YAML/Markdown artefacts
+  adversarial/      — security and attack-surface tests
+  e2e/              — full CLI workflow smoke tests (outermost boundary)
+  docs/             — documentation consistency and integrity
+  release/          — release artefact validation
+  legacy/           — 1.x-era tests, branch-gated (see below)
 ```
 
-**Characteristics:**
-- Test individual functions and classes
-- Fast execution (< 1s total)
-- No external dependencies
-- Mock file system operations where needed
+A new contributor looking for "tests that cover merge" navigates to `tests/merge/`.
+A new test for a merge capability belongs in `tests/merge/`.
 
-### Integration Tests (`tests/integration/`)
+### 2. Test type is expressed orthogonally — markers and filename suffixes
 
-Test complete CLI workflows using subprocess execution.
+Test type (unit vs integration) is a runner-mechanics concern. It is expressed through:
 
-```bash
-pytest tests/integration/ -v
-```
+| Signal | Meaning |
+|--------|---------|
+| `pytest.mark.fast` | Pure-logic test — no subprocess, no git, sub-second |
+| `pytest.mark.git_repo` | Creates a real git repository |
+| `pytest.mark.slow` | Slow subprocess/CLI invocation (>5s) |
+| `*_unit.py` filename | Mock-boundary unit test; always carries `fast` marker |
+| `*_integration.py` filename | Real git/subprocess integration; carries `git_repo` or `slow` |
 
-**Characteristics:**
-- Test CLI commands end-to-end
-- Use git operations and file system
-- Test version checking, migrations, and workflows
-- Require git to be installed
-
-### Functional Tests (`tests/test_*.py`)
-
-End-to-end feature tests for specific functionality.
+This allows orthogonal selection:
 
 ```bash
-pytest tests/test_encoding.py -v
-pytest tests/test_version_detection.py -v
+pytest -m fast                    # dev loop — pure logic only
+pytest -m git_repo                # mid-tier — real git, no dashboard/e2e
+pytest -m "not slow and not e2e"  # pre-commit gate
+pytest tests/merge/               # everything for one capability
+pytest tests/merge/ -m fast       # unit tests for one capability
 ```
 
-**Characteristics:**
-- Test complete features (encoding, version detection, dashboard)
-- Mix of unit and integration approaches
-- Feature-focused organization
+### 3. Testing pyramid — many unit, fewer integration, few e2e
+
+Every slice should have more `*_unit.py` tests than `*_integration.py` tests.
+Unit tests mock at the responsibility boundary: stub what is outside the unit under
+test, exercise real logic inside. Integration tests use real git repos and real CLI
+invocations to verify the seams between components.
+
+End-to-end tests in `tests/e2e/` exercise full CLI workflows and are the smallest tier.
+
+### 4. Readability — tests as documentation
+
+Each test file should open with a docstring that states its **scope** in one sentence.
+Test names use plain English describing observable behaviour, not internal function
+names. The four-block structure (Arrange / Assumption check / Act / Assert) is standard.
+
+---
 
 ## Running Tests
 
-### Quick Start
-
 ```bash
-# Install test dependencies
-pip install -e .[test]
+# Dev loop — fast feedback, pure logic only (~5s)
+pytest -m fast
 
-# Run all tests
+# Mid-tier — real git repos, no dashboard/e2e (~2 min)
+pytest -m git_repo
+
+# Slow suite — subprocess CLI invocations (~30s)
+pytest -m slow
+
+# Everything for one capability
+pytest tests/merge/
+
+# Full suite
 pytest
 
-# Run with verbose output
-pytest -v
-
-# Run specific test file
-pytest tests/integration/test_mission_cli.py
-
-# Run specific test function
-pytest tests/integration/test_mission_cli.py::test_mission_list_shows_available_missions
-
-# Run tests matching pattern
-pytest -k "mission"
-
-# Run with coverage report
-pytest --cov=specify_cli --cov-report=html
+# Single file
+pytest tests/merge/test_multi_parent_merge.py -v
 ```
 
-### Test Execution Options
+---
 
-```bash
-# Stop on first failure
-pytest -x
+## Writing Tests
 
-# Show local variables on failure
-pytest -l
+### Placing a new test
 
-# Disable output capture (see print statements)
-pytest -s
+1. Identify the capability slice (see directory list above).
+2. If the test needs no real git repo: add to or create a `*_unit.py` file with
+   `pytestmark = pytest.mark.fast`.
+3. If the test needs a real git repo: add to or create a `*_integration.py` file with
+   `pytestmark = pytest.mark.git_repo`.
+4. If the concern cuts across multiple slices: use `tests/cross_cutting/`.
 
-# Run in parallel (requires pytest-xdist)
-pytest -n 4
+### Test body structure — four blocks
 
-# Run only tests that failed last time
-pytest --lf
+Every test follows four blocks in order. All four blocks are present even when trivial;
+this makes the test's intent unambiguous without reading the implementation.
 
-# Run only modified tests
-pytest --testmon
+```
+Arrange          — construct the specific inputs, objects, or state this test needs
+Assumption check — assert the preconditions the test relies on (system state sanity)
+Act              — call the single unit of behaviour under test
+Assert           — verify the observable outcome
 ```
 
-## Test Isolation System
-
-### How Isolation Works
-
-The test infrastructure uses multiple layers to ensure tests use source code:
-
-#### 1. `isolated_env` Fixture (`tests/integration/conftest.py`)
-
-Creates an environment dictionary with isolation settings:
+The **assumption check** block is the distinguishing addition over plain AAA. It makes
+implicit preconditions explicit and turns obscure failures ("why did the assert fire?")
+into clear failures ("the precondition was already wrong before act ran"). Skip it only
+when there is genuinely nothing meaningful to check.
 
 ```python
-@pytest.fixture()
-def isolated_env() -> dict[str, str]:
-    """Create isolated environment blocking host spec-kitty installation."""
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "src")  # Source only
-    env["SPEC_KITTY_CLI_VERSION"] = source_version  # Override version
-    env["SPEC_KITTY_TEST_MODE"] = "1"  # Enforce test behavior
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)  # Find templates
-    return env
-```
-
-#### 2. Test Mode Enforcement (`src/specify_cli/core/version_checker.py`)
-
-Forces CLI to use environment override in test mode:
-
-```python
-def get_cli_version() -> str:
-    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
-        override = os.environ.get("SPEC_KITTY_CLI_VERSION")
-        if not override:
-            raise RuntimeError("Test mode requires SPEC_KITTY_CLI_VERSION")
-        return override
-    # ... production fallback logic
-```
-
-#### 3. CI Verification (`.github/workflows/*.yml`)
-
-Both CI workflows verify version consistency before running tests:
-
-```yaml
-- name: Verify test isolation
-  run: python verify_isolation.py  # Checks source vs installed version
-```
-
-### Fixtures
-
-#### Core Fixtures
-
-**`isolated_env`** - Environment dictionary with isolation settings
-- Used by: All integration tests (via `run_cli`)
-- Sets: PYTHONPATH, version overrides, test mode, template root
-
-**`run_cli`** - Execute CLI commands in isolated environment
-- Used by: All integration tests that invoke CLI
-- Returns: subprocess.CompletedProcess with stdout/stderr
-
-**`test_project`** - Create temporary Spec Kitty project with git
-- Used by: Integration tests needing a project
-- Creates: .kittify/, git repo, missions, metadata
-
-**`clean_project`** - Alias for test_project (no worktrees)
-
-**`dirty_project`** - Test project with uncommitted changes
-
-**`project_with_worktree`** - Test project with .worktrees/ directory
-
-#### Helper Functions (`tests/test_isolation_helpers.py`)
-
-```python
-get_source_version()      # Read version from pyproject.toml
-get_installed_version()   # Get pip-installed version if present
-assert_test_isolation()   # Fail test if version mismatch detected
-run_cli_subprocess()      # Low-level CLI execution with isolation
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### "Version Mismatch Detected"
-
-**Symptom**: Tests fail with version comparison errors
-
-**Cause**: Installed spec-kitty-cli version doesn't match source
-
-**Solution**:
-```bash
-pip uninstall spec-kitty-cli -y
-pytest
-```
-
-#### "SPEC_KITTY_TEST_MODE=1 requires SPEC_KITTY_CLI_VERSION"
-
-**Symptom**: RuntimeError when running CLI
-
-**Cause**: Test is not using `isolated_env` or `run_cli` fixture
-
-**Solution**: Use the proper fixtures for integration tests:
-```python
-def test_my_command(run_cli, test_project):
-    result = run_cli(test_project, "my-command")
-    assert result.returncode == 0
-```
-
-#### "Template not found"
-
-**Symptom**: CLI can't find templates during tests
-
-**Cause**: `SPEC_KITTY_TEMPLATE_ROOT` not set
-
-**Solution**: Ensure you're using `run_cli` fixture (sets this automatically)
-
-#### Tests pass locally but fail in CI
-
-**Symptom**: CI shows failures that don't reproduce locally
-
-**Cause**: Local environment has cached files or different state
-
-**Solution**: Test in clean virtualenv:
-```bash
-python -m venv test-venv
-source test-venv/bin/activate  # On Windows: test-venv\Scripts\activate
-pip install -e .[test]
-pytest
-```
-
-#### Parallel test execution fails
-
-**Symptom**: Tests fail when run with `-n` flag
-
-**Cause**: Shared state or resource conflicts
-
-**Solution**: Ensure tests are independent and use temp directories
-
-### Debugging Tips
-
-**View full test output**:
-```bash
-pytest -vv --tb=long
-```
-
-**Run with print statements visible**:
-```bash
-pytest -s
-```
-
-**Debug specific test with pdb**:
-```bash
-pytest --pdb tests/integration/test_mission_cli.py::test_mission_list
-```
-
-**Check which fixtures are used**:
-```bash
-pytest --fixtures
-```
-
-**See test setup/teardown**:
-```bash
-pytest --setup-show
-```
-
-## Writing New Tests
-
-### Integration Test Template
-
-```python
-def test_my_feature(run_cli, test_project):
-    """Test description explaining what this verifies."""
-    # Arrange: Set up test data
-    (test_project / "input.txt").write_text("test data")
-
-    # Act: Run CLI command
-    result = run_cli(test_project, "my-command", "--flag")
-
-    # Assert: Verify results
-    assert result.returncode == 0
-    assert "expected output" in result.stdout
-    assert (test_project / "output.txt").exists()
-```
-
-### Unit Test Template
-
-```python
-def test_my_function():
-    """Test description explaining what this verifies."""
+def test_resolve_target_branch_uses_primary_when_no_override() -> None:
+    """Falls back to primary branch when no override is configured."""
     # Arrange
-    input_data = {"key": "value"}
+    config: dict[str, str] = {}
+
+    # Assumption check
+    assert "target_branch" not in config, "config must be empty for this test to be meaningful"
 
     # Act
-    result = my_function(input_data)
+    with patch("specify_cli.core.git_ops.resolve_primary_branch", return_value="main"):
+        result = resolve_target_branch(config)
 
     # Assert
-    assert result == expected_output
+    assert result == "main"
 ```
 
-### Best Practices
-
-1. **Use fixtures**: Always use `run_cli` and `test_project` for integration tests
-2. **Test one thing**: Each test should verify a single behavior
-3. **Clear names**: Test names should describe what they verify
-4. **Arrange-Act-Assert**: Structure tests in three clear sections
-5. **Fail messages**: Add clear assert messages for debugging
-6. **Isolation**: Tests should not depend on execution order
-7. **Cleanup**: Use fixtures and temp directories (pytest handles cleanup)
-
-### Example: Testing Version Isolation
+For integration tests where a fixture provides the pre-built state, the assumption
+check verifies that the fixture produced the expected starting point:
 
 ```python
-def test_cli_uses_source_version(run_cli, test_project):
-    """Verify CLI reports source version in tests."""
-    result = run_cli(test_project, "--version")
-    source_version = get_source_version()
+def test_merge_records_done_evidence(merge_repo: tuple[Path, Path, str]) -> None:
+    """Merge command writes done evidence to WP frontmatter."""
+    repo, worktree, slug = merge_repo
 
+    # Arrange
+    wp_file = worktree / "tasks" / "WP01.md"
+
+    # Assumption check
+    assert worktree.exists(), "fixture must have created the worktree directory"
+    assert wp_file.exists(), "WP file must exist before merge runs"
+    frontmatter = read_frontmatter(wp_file)
+    assert "done_evidence" not in frontmatter, "done_evidence must not be pre-populated"
+
+    # Act
+    result = run_merge(repo, slug)
+
+    # Assert
     assert result.returncode == 0
-    assert source_version in result.stdout, (
-        f"CLI reported '{result.stdout}' but source is {source_version}"
-    )
+    updated = read_frontmatter(wp_file)
+    assert "done_evidence" in updated
 ```
 
-## CI Behavior
+The comment labels (`# Arrange`, `# Assumption check`, `# Act`, `# Assert`) are
+**always written**, including when a block is a single line. They are load-bearing
+documentation, not clutter.
 
-### GitHub Actions Workflows
+### Unit test conventions
 
-#### Release Readiness (`.github/workflows/release-readiness.yml`)
+```python
+"""Scope: mock-boundary tests for resolve_target_branch — no real git."""
+import pytest
+from unittest.mock import patch
 
-Runs on PRs to `main`:
-1. Install dependencies (`pip install -e .[test]`)
-2. **Verify test isolation** (new step!)
-3. Run pytest
-4. Validate release metadata
-5. Test packaging
+pytestmark = pytest.mark.fast
 
-#### Release (`.github/workflows/release.yml`)
 
-Runs on git tags (`v*.*.*`):
-1. Install dependencies
-2. **Verify test isolation** (new step!)
-3. Run pytest
-4. Validate release
-5. Build distributions
-6. Verify wheel contents
-7. Publish to PyPI
-8. Create GitHub Release
+def test_resolve_target_branch_uses_primary_when_no_override() -> None:
+    """Falls back to primary branch when no override is configured."""
+    # Arrange
+    config: dict[str, str] = {}
 
-### Isolation Verification
+    # Assumption check
+    assert "target_branch" not in config
 
-Both workflows now include:
+    # Act
+    with patch("specify_cli.core.git_ops.resolve_primary_branch", return_value="main"):
+        result = resolve_target_branch(config)
 
-```yaml
-- name: Verify test isolation
-  run: python verify_isolation.py
+    # Assert
+    assert result == "main"
 ```
 
-This script checks that installed version matches source, catching version drift before tests run.
+### Integration test conventions
 
-## Test Coverage
+```python
+"""Scope: full merge workflow against a real git repo with worktrees."""
+import pytest
 
-### Current Coverage
+pytestmark = pytest.mark.git_repo
 
-Run coverage report:
-```bash
-pytest --cov=specify_cli --cov-report=html
-open htmlcov/index.html  # View in browser
+
+def test_merge_records_done_evidence(merge_repo: tuple[Path, Path, str]) -> None:
+    """Merge command writes done evidence to WP frontmatter."""
+    repo, worktree, slug = merge_repo
+
+    # Arrange
+    wp_file = worktree / "tasks" / "WP01.md"
+
+    # Assumption check
+    assert worktree.exists()
+    assert wp_file.exists()
+
+    # Act
+    result = run_merge(repo, slug)
+
+    # Assert
+    assert result.returncode == 0
+    assert "done_evidence" in read_frontmatter(wp_file)
 ```
 
-### Coverage Goals
+---
 
-- **Core modules**: > 80% coverage
-- **CLI commands**: > 70% coverage
-- **Migrations**: 100% coverage (critical for data safety)
-- **Utilities**: > 60% coverage
+## Fixtures
 
-## Regression Tests
+Core fixtures are defined in `tests/conftest.py` and available everywhere:
 
-### Version Isolation (`tests/integration/test_version_isolation.py`)
+| Fixture | Scope | Description |
+|---------|-------|-------------|
+| `isolated_env` | function | `os.environ` dict that blocks host `spec-kitty-cli`, sets `PYTHONPATH=src/` |
+| `run_cli` | function | Callable that runs `spec-kitty` via venv subprocess inside a project dir |
+| `temp_repo` | function | `tmp_path` with `git init`, user name/email configured |
+| `feature_repo` | function | `temp_repo` with a full `kitty-specs/001-demo-feature/` tree |
+| `merge_repo` | function | Two-branch repo with a WP worktree |
+| `conflicting_wps_repo` | function | Repo with 3 WP branches all touching a shared file |
+| `git_stale_workspace` | function | Repo where `main` has advanced past the WP branch |
+| `dirty_worktree_repo` | function | WP worktree with uncommitted changes |
 
-Comprehensive tests ensuring isolation system works:
-- Source version is readable
-- Installed version matches or is absent
-- CLI uses source version in tests
-- Test mode enforcement works
-- Subprocesses inherit isolation
-- Parallel execution is isolated
+Integration-specific fixtures live in the conftest.py files inside each slice
+(e.g. `tests/status/conftest.py`).
 
-Run isolation tests:
-```bash
-pytest tests/integration/test_version_isolation.py -v
-```
+---
 
-## Performance
+## Legacy Tests
 
-### Current Performance
+`tests/legacy/` is a **frozen snapshot** of 0.x/1.x contract tests. They are:
 
-Full suite: ~20-30 seconds
+- **Skipped entirely on the 2.x branch** — `pytest_ignore_collect` in
+  `tests/conftest.py` returns `True` for the entire directory when `IS_2X_BRANCH` is
+  set, so they contribute 0 items to the 2.x collection and do not affect CI.
+- **Auto-marked** `legacy` and `slow` by `tests/legacy/conftest.py`.
+- **Never modified** — the files are immutable snapshots. Any coverage or
+  refactoring of a legacy test should be done by writing a new test in the
+  appropriate vertical slice, not by touching the legacy files.
 
-Breakdown:
-- Unit tests: < 1s
-- Integration tests: ~15-20s
-- Functional tests: ~5-10s
+### What lives there
 
-### Optimization Tips
+| Subdirectory | Contents |
+|---|---|
+| `legacy/unit/` | 0.x unit contract tests (mission schema, etc.) |
+| `legacy/integration/` | 0.x integration tests (full CLI workflows, branch routing) |
+| `legacy/specify_cli/` | 0.x specify_cli-level tests |
 
-1. **Run relevant tests**: Use `-k` to filter
-2. **Parallel execution**: Use `-n auto` with pytest-xdist
-3. **Rerun failures**: Use `--lf` to run only failures
-4. **Skip slow tests**: Mark with `@pytest.mark.slow` and skip with `-m "not slow"`
+### Deprecation roadmap
 
-## Resources
+The planned lifecycle for `tests/legacy/`:
 
-- [pytest Documentation](https://docs.pytest.org/)
-- [pytest Fixtures](https://docs.pytest.org/en/stable/fixture.html)
-- [Contributing Guide](../CONTRIBUTING.md)
-- [Spec-Driven Development](../spec-driven.md)
+1. **Now (2.x branch):** directory is gated and silently skipped.
+2. **Before 2.x GA:** audit each legacy test file. If it tests behaviour
+   that still exists in 2.x, extract the relevant assertion into the
+   appropriate vertical slice. Mark extracted tests with the source in a
+   comment: `# ported from tests/legacy/integration/test_foo.py`.
+3. **After audit:** delete `tests/legacy/` entirely in a dedicated clean-up commit.
 
-## Questions?
+There is no requirement to make legacy tests pass on 2.x. They encode the
+0.x API contract and may reference modules/signatures that no longer exist.
 
-If you encounter issues not covered here:
+---
 
-1. Check existing test files for examples
-2. Review fixture implementations in `tests/integration/conftest.py`
-3. Check test helper utilities in `tests/test_isolation_helpers.py`
-4. Ask in GitHub Discussions or open an issue
+## Architecture Decision
+
+The structural design is recorded in:
+`architecture/2.x/adr/2026-03-15-1-vertical-slice-test-organisation.md`
