@@ -10,6 +10,8 @@ import toml
 
 from specify_cli.sync.auth import CredentialStore
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture
 def temp_credentials_dir(tmp_path):

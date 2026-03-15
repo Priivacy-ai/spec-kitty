@@ -11,6 +11,8 @@ from uuid import UUID
 import pytest
 from ruamel.yaml import YAML
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.sync.project_identity import (
     ProjectIdentity,
     atomic_write_config,
@@ -197,6 +199,7 @@ class TestDeriveProjectSlug:
 
         with patch("subprocess.run") as mock_run:
             import subprocess
+
             mock_run.side_effect = subprocess.CalledProcessError(1, "git")
 
             slug = derive_project_slug(project_dir)
@@ -346,13 +349,16 @@ class TestLoadIdentity:
         config_path = tmp_path / "config.yaml"
         yaml = YAML()
         with open(config_path, "w") as f:
-            yaml.dump({
-                "project": {
-                    "uuid": "12345678-1234-5678-1234-567812345678",
-                    "slug": "my-project",
-                    "node_id": "abcd12345678",
-                }
-            }, f)
+            yaml.dump(
+                {
+                    "project": {
+                        "uuid": "12345678-1234-5678-1234-567812345678",
+                        "slug": "my-project",
+                        "node_id": "abcd12345678",
+                    }
+                },
+                f,
+            )
 
         identity = load_identity(config_path)
 
@@ -400,13 +406,16 @@ class TestEnsureIdentity:
 
         yaml = YAML()
         with open(config_path, "w") as f:
-            yaml.dump({
-                "project": {
-                    "uuid": "12345678-1234-5678-1234-567812345678",
-                    "slug": "existing-project",
-                    "node_id": "abcd12345678",
-                }
-            }, f)
+            yaml.dump(
+                {
+                    "project": {
+                        "uuid": "12345678-1234-5678-1234-567812345678",
+                        "slug": "existing-project",
+                        "node_id": "abcd12345678",
+                    }
+                },
+                f,
+            )
 
         identity = ensure_identity(tmp_path)
 
@@ -463,12 +472,15 @@ class TestEnsureIdentity:
 
         yaml = YAML()
         with open(config_path, "w") as f:
-            yaml.dump({
-                "project": {
-                    "uuid": "12345678-1234-5678-1234-567812345678",
-                    # slug and node_id missing
-                }
-            }, f)
+            yaml.dump(
+                {
+                    "project": {
+                        "uuid": "12345678-1234-5678-1234-567812345678",
+                        # slug and node_id missing
+                    }
+                },
+                f,
+            )
 
         identity = ensure_identity(tmp_path)
 

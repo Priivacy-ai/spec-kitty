@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.sync.clock import LamportClock, generate_node_id
 
 

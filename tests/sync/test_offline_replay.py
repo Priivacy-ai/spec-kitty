@@ -17,6 +17,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import tempfile
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.batch import batch_sync, sync_all_queued_events
 

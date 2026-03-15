@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.sync.runtime import (
     SyncRuntime,
     get_runtime,

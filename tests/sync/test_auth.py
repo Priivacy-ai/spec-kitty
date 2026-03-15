@@ -11,6 +11,8 @@ import pytest
 from specify_cli.sync.auth import AuthClient, AuthenticationError
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture
 def auth_client(tmp_path):

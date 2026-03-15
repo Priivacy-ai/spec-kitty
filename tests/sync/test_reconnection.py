@@ -5,6 +5,8 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
+pytestmark = pytest.mark.fast
+
 
 class TestReconnectionConfiguration:
     """Test reconnection configuration constants"""

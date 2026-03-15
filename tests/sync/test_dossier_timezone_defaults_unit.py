@@ -17,6 +17,10 @@ from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossi
 from specify_cli.dossier.snapshot import compute_snapshot
 from specify_cli.sync.project_identity import ProjectIdentity
 
+import pytest
+
+pytestmark = pytest.mark.fast
+
 
 def _sample_artifact() -> ArtifactRef:
     return ArtifactRef(

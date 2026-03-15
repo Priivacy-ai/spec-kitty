@@ -14,6 +14,10 @@ import httpx
 from specify_cli.cli.commands.sync import _check_server_connection
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
+import pytest
+
+pytestmark = pytest.mark.fast
+
 
 SERVER_URL = "https://spec-kitty-dev.fly.dev"
 
@@ -163,9 +167,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_timeout(self, mock_exists, mock_get_token, MockClient):
         """When server times out, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            side_effect=httpx.TimeoutException("Connection timed out")
-        )
+        MockClient.return_value = _mock_httpx_client(side_effect=httpx.TimeoutException("Connection timed out"))
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -177,9 +179,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_refused(self, mock_exists, mock_get_token, MockClient):
         """When connection is refused, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        MockClient.return_value = _mock_httpx_client(side_effect=httpx.ConnectError("Connection refused"))
 
         status, note = _check_server_connection(SERVER_URL)
 

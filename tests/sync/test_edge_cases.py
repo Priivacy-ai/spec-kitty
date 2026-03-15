@@ -20,13 +20,15 @@ from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.clock import LamportClock
 
+import pytest
+
+pytestmark = pytest.mark.fast
+
 
 class TestNetworkFailureQueuesEvent:
     """Test that events are queued when network is unavailable (SC-006)."""
 
-    def test_websocket_failure_falls_back_to_queue(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_websocket_failure_falls_back_to_queue(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """WebSocket send failure queues the event instead."""
         mock_ws = MagicMock()
         mock_ws.connected = True
@@ -43,9 +45,7 @@ class TestNetworkFailureQueuesEvent:
         # Event should be in offline queue as fallback
         assert temp_queue.size() == 1
 
-    def test_unauthenticated_queues_directly(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_unauthenticated_queues_directly(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Unauthenticated state queues events directly."""
         emitter._auth.is_authenticated.return_value = False
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -118,21 +118,25 @@ class TestQueueOverflow:
 
         # Fill to capacity
         for i in range(OfflineQueue.MAX_QUEUE_SIZE):
-            result = queue.queue_event({
-                "event_id": f"evt{i:06d}00000000000000000000",
-                "event_type": "WPStatusChanged",
-                "payload": {},
-            })
+            result = queue.queue_event(
+                {
+                    "event_id": f"evt{i:06d}00000000000000000000",
+                    "event_type": "WPStatusChanged",
+                    "payload": {},
+                }
+            )
             assert result is True
 
         assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
         # Next event should be rejected
-        result = queue.queue_event({
-            "event_id": "overflow_event_00000000000000",
-            "event_type": "WPStatusChanged",
-            "payload": {},
-        })
+        result = queue.queue_event(
+            {
+                "event_id": "overflow_event_00000000000000",
+                "event_type": "WPStatusChanged",
+                "payload": {},
+            }
+        )
         assert result is False
         assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
