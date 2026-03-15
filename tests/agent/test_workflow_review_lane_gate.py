@@ -1,7 +1,8 @@
-"""Regression tests for workflow review lane gating."""
+"""Regression tests for workflow review lane gating and implement prompt content."""
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from specify_cli.frontmatter import write_frontmatter
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 pytestmark = pytest.mark.fast
+
 
 def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
     frontmatter = {
@@ -90,3 +92,161 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     assert result.exit_code == 0
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
     assert extract_scalar(frontmatter, "lane") == "doing"
+
+
+def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
+    """Implement command should transition a planned WP to doing lane.
+
+    Extracted from tests/legacy/specify_cli/test_workflow_auto_moves.py.
+    """
+    # Arrange
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(wp_path, "WP01", lane="planned")
+
+    # Pre-create workspace so implement skips worktree creation (which needs real git)
+    workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace.mkdir(parents=True)
+
+    # Assumption check
+    frontmatter_before, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter_before, "lane") == "planned"
+
+    # Act
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.stdout
+    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter, "lane") == "doing"
+
+
+def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
+    """Review command should write the reviewer agent name into WP frontmatter.
+
+    Extracted from tests/legacy/specify_cli/test_workflow_auto_moves.py.
+    """
+    # Arrange
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(wp_path, "WP01", lane="for_review")
+
+    # Assumption check
+    frontmatter_before, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter_before, "agent") == ""
+
+    # Act
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--feature", feature_slug, "--agent", "claude"],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.stdout
+    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter, "agent") == "claude"
+
+
+def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> tuple[Path, str]:
+    """Shared setup for implement prompt-content tests.
+
+    Returns (wp_path, feature_slug).
+    """
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(wp_path, "WP01", lane=lane)
+    # Pre-create workspace so implement skips real git worktree creation
+    workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace.mkdir(parents=True, exist_ok=True)
+    return wp_path, feature_slug
+
+
+def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -> None:
+    """Implement prompt file must include the 'WHEN YOU'RE DONE:' section header.
+
+    Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
+    """
+    # Arrange
+    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+
+    # Assumption check
+    assert not (Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md").exists() or True
+
+    # Act
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    assert prompt_file.exists(), f"Prompt file not written: {prompt_file}"
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "WHEN YOU'RE DONE:" in content
+    assert "1. **Commit your implementation files:**" in content
+    assert "git add" in content
+    assert "git commit" in content
+    assert "feat(WP01):" in content or "fix(WP01):" in content
+    assert "git log -1" in content
+
+
+def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Path) -> None:
+    """Implement prompt file must document commit message type conventions.
+
+    Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
+    """
+    # Arrange
+    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+
+    # Act
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "feat(" in content or "fix(" in content
+    assert "chore:" in content or "chore(" in content
+    assert "docs:" in content or "docs(" in content
+
+
+def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
+    """Implement prompt file must include numbered steps 1, 2, 3.
+
+    Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
+    """
+    # Arrange
+    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+
+    # Act
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+    )
+
+    # Assert
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "1. **Commit your implementation files:**" in content
+    assert "2." in content
+    assert "3." in content

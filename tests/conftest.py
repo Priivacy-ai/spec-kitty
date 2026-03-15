@@ -34,17 +34,6 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
-def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
-    """Skip legacy-only suites when collecting tests for the 2.x line."""
-    path = Path(str(collection_path))
-    try:
-        relative = path.relative_to(REPO_ROOT)
-    except ValueError:
-        return False
-
-    return IS_2X_BRANCH and relative.parts[:2] == ("tests", "legacy")
-
-
 @pytest.fixture(autouse=True)
 def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
