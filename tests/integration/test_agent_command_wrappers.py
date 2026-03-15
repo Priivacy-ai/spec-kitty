@@ -561,6 +561,7 @@ class TestAgentFeatureAccept:
         accept_feature(
             feature="001-test",
             mode="auto",
+            actor="antigravity",
             json_output=True,
             lenient=False,
             no_commit=False,
@@ -570,7 +571,7 @@ class TestAgentFeatureAccept:
         mock_accept.assert_called_once_with(
             feature="001-test",
             mode="auto",
-            actor=None,  # Agent doesn't use actor
+            actor="antigravity",
             test=[],  # Agent doesn't use test
             json_output=True,
             lenient=False,
@@ -591,6 +592,7 @@ class TestAgentFeatureAccept:
             accept_feature(
                 feature="001-test",
                 mode="auto",
+                actor=None,
                 json_output=False,
                 lenient=False,
                 no_commit=False,
