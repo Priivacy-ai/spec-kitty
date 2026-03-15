@@ -6,7 +6,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 Spec-kitty supports 12 AI agents, including Claude Code, GitHub Codex, Google Gemini, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilocode, Augment Code, Roo Cline, and Amazon Q. Each agent provides slash commands for feature specification, planning, task generation, implementation, and review workflows.
 
-This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../getting-started.md) guide.
+This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../tutorials/getting-started.md) guide.
 
 Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth - agent directories on your filesystem are derived from this configuration. This ensures migrations respect your agent selections and prevents unwanted directory recreation.
 
@@ -72,7 +72,7 @@ When you run `spec-kitty agent config add` or `remove`, this list is automatical
 
 Agent directories are created and removed automatically by CLI commands. You should never need to manually create or delete these directories.
 
-> **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](upgrade-to-0-11-0.md#upgrading-to-0120) for details.
+> **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](upgrade-to-0-11-0.md) for details.
 
 For architectural details, see [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md).
 
@@ -465,44 +465,6 @@ spec-kitty agent config sync --create-missing --remove-orphaned
 spec-kitty agent config sync
 ```
 
-## Agent Directory Mappings
-
-The following table shows the mapping between agent keys (used in commands) and their filesystem directories:
-
-| Agent Key | Directory Path | Notes |
-|-----------|----------------|-------|
-| `claude` | `.claude/commands/` | Standard mapping |
-| `codex` | `.codex/prompts/` | Standard mapping |
-| `gemini` | `.gemini/commands/` | Standard mapping |
-| `cursor` | `.cursor/commands/` | Standard mapping |
-| `qwen` | `.qwen/commands/` | Standard mapping |
-| `opencode` | `.opencode/command/` | Singular "command" subdirectory |
-| `windsurf` | `.windsurf/workflows/` | Workflows instead of commands |
-| `kilocode` | `.kilocode/workflows/` | Workflows instead of commands |
-| `roo` | `.roo/commands/` | Standard mapping |
-| `copilot` | `.github/prompts/` | **Special**: GitHub Copilot uses `.github` directory |
-| `auggie` | `.augment/commands/` | **Special**: Key `auggie` maps to `.augment` directory |
-| `q` | `.amazonq/prompts/` | **Special**: Short key `q` maps to `.amazonq` directory |
-
-**Special Cases**:
-
-- **copilot**: GitHub Copilot uses the standard `.github/prompts/` directory (not `.copilot/`)
-- **auggie**: Config key `auggie` maps to `.augment/commands/` directory (Augment Code agent)
-- **q**: Minimal key `q` maps to `.amazonq/prompts/` directory (Amazon Q agent)
-
-For all standard agents, the agent key matches the directory name (e.g., `claude` → `.claude/`).
-
-**Subdirectory Patterns**:
-
-- Most agents use `commands/` subdirectory (plural)
-- `opencode` uses `command/` (singular)
-- `codex`, `copilot`, `q` use `prompts/` subdirectory
-- `windsurf` and `kilocode` use `workflows/` subdirectory
-
-These variations are handled automatically by spec-kitty commands - you don't need to memorize them.
-
-> **When to reference this table**: Use agent keys (left column) in commands like `spec-kitty agent config add claude codex`. The directory paths (middle column) show where templates are stored, but you shouldn't need to interact with these directories directly.
-
 ## Troubleshooting
 
 This section covers common issues you may encounter when managing agents.
@@ -547,7 +509,7 @@ spec-kitty agent config remove gemini
 
 **Problem**: `.kittify/config.yaml` is missing, unreadable, or has invalid YAML syntax.
 
-**Symptoms**: Commands fail with YAML parsing errors, or all 12 agents are treated as configured (legacy fallback).
+**Symptoms**: If config.yaml is missing or has no agents section, commands report "No agents configured." If config.yaml has invalid YAML syntax, commands fail with a parsing error.
 
 **Solution**:
 
@@ -590,7 +552,7 @@ spec-kitty agent config add claude codex opencode
 spec-kitty agent config add claude  # Not "cluade"
 ```
 
-**Reference**: See [Agent Directory Mappings](#agent-directory-mappings) table for complete list.
+**Reference**: See the valid agent keys listed in the error message above, or run `spec-kitty agent config list` to see available agents.
 
 ### Still Stuck?
 
@@ -599,7 +561,7 @@ If your issue isn't covered here:
 1. Check [Supported AI Agents](../reference/supported-agents.md) for agent-specific requirements
 2. Review [Configuration Reference](../reference/configuration.md) for config.yaml schema
 3. Consult [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-agent-config) for detailed command syntax
-4. Report bugs at [spec-kitty GitHub Issues](https://github.com/yourusername/spec-kitty/issues)
+4. Report bugs at [spec-kitty GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
 
 ## See Also
 
@@ -623,7 +585,7 @@ For more information on agent management and related topics:
 
 ### Migration Guides
 
-- [Upgrading to 0.12.0](upgrade-to-0-11-0.md#upgrading-to-0120) - Migration guide for 0.11.x users transitioning to config-driven agent management
+- [Upgrading to 0.12.0](upgrade-to-0-11-0.md) - Migration guide for 0.11.x users transitioning to config-driven agent management
 
 ### Initial Setup
 

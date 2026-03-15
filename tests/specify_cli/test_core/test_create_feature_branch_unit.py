@@ -19,7 +19,6 @@ and enforces worktree/detached-HEAD guards, while stubbing all git operations.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
