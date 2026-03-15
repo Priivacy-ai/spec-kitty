@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       run_extended:
-        description: 'Run integration/smoke suite'
+        description: 'Run slow/e2e suite'
         required: false
         default: false
         type: boolean
@@ -35,42 +35,42 @@ jobs:
       mypy_has_failures: ${{ steps.mypy.outputs.has_failures }}
 
     steps:
-      - name: Check out repository
+      - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Set up Node
+      - name: "[ENFORCED] Set up Node"
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Python dependencies
+      - name: "[ENFORCED] Install Python dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test,lint]"
 
-      - name: Install Node dependencies
+      - name: "[ENFORCED] Install Node dependencies"
         run: npm ci
 
-      - name: Prepare report directories
+      - name: "[ENFORCED] Prepare report directories"
         run: |
           mkdir -p out/reports/static-analysis
           mkdir -p out/reports/security
 
-      - name: Determine commit range and cutoff date
+      - name: "[ENFORCED] Determine commit range and cutoff date"
         id: commit_range
         run: |
           # Set cutoff date for linting (when linting was introduced)
           CUTOFF_DATE="2026-02-25T00:00:00Z"
           echo "cutoff_date=$CUTOFF_DATE" >> "$GITHUB_OUTPUT"
-          
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "from=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
             echo "to=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
@@ -79,7 +79,7 @@ jobs:
             echo "to=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run commit message linting
+      - name: "[ENFORCED] Run commit message linting"
         id: commitlint
         if: always()
         continue-on-error: true
@@ -87,19 +87,19 @@ jobs:
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
           CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
-          
+
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping commitlint."
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           # Convert cutoff date to Unix timestamp for comparison
           CUTOFF_TIMESTAMP=$(date -d "$CUTOFF_DATE" +%s)
-          
+
           # Get all commits in range
           mapfile -t ALL_COMMITS < <(git rev-list "$FROM_SHA..$TO_SHA")
-          
+
           # Filter commits by cutoff date
           COMMITS_AFTER_CUTOFF=()
           for commit in "${ALL_COMMITS[@]}"; do
@@ -108,13 +108,13 @@ jobs:
               COMMITS_AFTER_CUTOFF+=("$commit")
             fi
           done
-          
+
           if [ "${#COMMITS_AFTER_CUTOFF[@]}" -eq 0 ]; then
             echo "No commits after cutoff date ($CUTOFF_DATE). Skipping commitlint."
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           # Run commitlint on filtered commits
           echo "Checking ${#COMMITS_AFTER_CUTOFF[@]} commits after cutoff date..."
           FAILED_COMMITS=""
@@ -128,7 +128,7 @@ jobs:
               FAILED_COMMITS="${FAILED_COMMITS}${commit} - ${commit_msg}\n"
             fi
           done
-          
+
           # Save failed commits for PR comment
           if [ -n "$FAILED_COMMITS" ]; then
             echo -e "$FAILED_COMMITS" > /tmp/commitlint-failures.txt
@@ -138,7 +138,7 @@ jobs:
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run markdown style linting on changed files
+      - name: "[ENFORCED] Run markdown style linting on changed files"
         id: markdownlint
         if: always()
         continue-on-error: true
@@ -146,7 +146,7 @@ jobs:
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
           TO_SHA="${{ steps.commit_range.outputs.to }}"
           CUTOFF_DATE="${{ steps.commit_range.outputs.cutoff_date }}"
-          
+
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available for this trigger. Skipping markdownlint."
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
@@ -162,7 +162,7 @@ jobs:
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           # Filter files by last modification date after cutoff
           FILES_TO_CHECK=()
           for file in "${CHANGED_MD_FILES[@]}"; do
@@ -174,15 +174,15 @@ jobs:
               fi
             fi
           done
-          
+
           if [ "${#FILES_TO_CHECK[@]}" -eq 0 ]; then
             echo "No markdown files modified after cutoff date ($CUTOFF_DATE)."
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           echo "Checking ${#FILES_TO_CHECK[@]} markdown files modified after cutoff date..."
-          
+
           # Run markdownlint and capture failures
           FAILED_FILES=""
           if ! npx --yes markdownlint-cli2@0.18.1 \
@@ -202,7 +202,7 @@ jobs:
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run architecture/docs consistency tests on changed markdown
+      - name: "[ENFORCED] Run architecture/docs consistency tests on changed markdown"
         if: always()
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
@@ -223,7 +223,7 @@ jobs:
           echo "Detected markdown changes in docs/architecture. Running consistency checks..."
           python -m pytest -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
 
-      - name: Check Contextive glossary files are up-to-date
+      - name: "[ENFORCED] Check Contextive glossary files are up-to-date"
         if: always()
         run: |
           FROM_SHA="${{ steps.commit_range.outputs.from }}"
@@ -246,7 +246,7 @@ jobs:
           echo "Detected relevant changes. Verifying Contextive glossary files are up-to-date..."
           python scripts/generate_contextive_glossaries.py check
 
-      - name: Run ruff report
+      - name: "[INFO] Run ruff report (advisory)"
         id: ruff
         if: always()
         continue-on-error: true
@@ -258,7 +258,7 @@ jobs:
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run mypy report
+      - name: "[INFO] Run mypy report (advisory)"
         id: mypy
         if: always()
         continue-on-error: true
@@ -270,7 +270,7 @@ jobs:
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Bandit security scan
+      - name: "[ENFORCED] Run Bandit security scan"
         id: bandit
         if: always()
         continue-on-error: true
@@ -280,21 +280,21 @@ jobs:
             --confidence-level medium \
             | tee out/reports/security/bandit-report.txt
 
-      - name: Run pip-audit CVE scan
+      - name: "[ENFORCED] Run pip-audit CVE scan"
         id: pip_audit
         if: always()
         continue-on-error: true
         run: |
           python -m pip_audit | tee out/reports/security/pip-audit-report.txt
 
-      - name: Upload lint artifacts
+      - name: "[ENFORCED] Upload lint artifacts"
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-reports
           path: out/reports/
 
-      - name: Persist linting failure details
+      - name: "[ENFORCED] Persist linting failure details"
         if: always() && github.event_name == 'pull_request'
         run: |
           mkdir -p out/reports/lint-failures
@@ -312,7 +312,7 @@ jobs:
             cp out/reports/static-analysis/mypy-report.txt out/reports/lint-failures/mypy-failures.txt
           fi
 
-      - name: Upload linting failure details
+      - name: "[ENFORCED] Upload linting failure details"
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
@@ -320,7 +320,7 @@ jobs:
           path: out/reports/lint-failures/
           if-no-files-found: ignore
 
-      - name: Fail job if security checks failed
+      - name: "[ENFORCED] Fail job if security checks failed"
         if: always()
         run: |
           echo "bandit outcome: ${{ steps.bandit.outcome }}"
@@ -346,14 +346,14 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Download linting failure details
+      - name: "[ENFORCED] Download linting failure details"
         uses: actions/download-artifact@v4
         with:
           name: lint-failure-details
           path: /tmp/lint-failures
         continue-on-error: true
 
-      - name: Post PR comment on linting failures
+      - name: "[ENFORCED] Post PR comment on linting failures"
         uses: actions/github-script@v7
         with:
           script: |
@@ -422,53 +422,56 @@ jobs:
               body: comment
             });
 
-  unit-tests:
+  # ---------------------------------------------------------------------------
+  # fast-tests: replaces unit-tests + cli-tests + sync-tests
+  # Runs the full -m fast suite across the vertical-slice layout.
+  # Coverage floor: 40%.
+  # ---------------------------------------------------------------------------
+  fast-tests:
     runs-on: ubuntu-latest
-    # Run unit tests independently of lint job
-    # This ensures test results are always available even if linting fails
     if: always()
 
     steps:
-      - name: Check out repository
+      - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: "[ENFORCED] Install dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
 
-      - name: Prepare report directories
+      - name: "[ENFORCED] Prepare report directories"
         run: |
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
 
-      - name: Run unit tests with coverage
+      - name: "[ENFORCED] Run fast test suite with coverage"
         run: |
           python -m pytest \
             -v \
-            tests/unit/ tests/contract/ \
-            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --ignore=tests/legacy \
+            -m fast \
             --cov=src/specify_cli \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+            --junitxml=out/reports/xunit-reports/xunit-result-fast-${{ github.run_id }}.xml
 
-      - name: Enforce coverage policy
+      - name: "[ENFORCED] Enforce coverage floor (40%)"
         run: |
           python - <<'PY'
           import xml.etree.ElementTree as ET
 
           report = ET.parse("out/reports/coverage/coverage.xml").getroot()
           pct = float(report.attrib["line-rate"]) * 100.0
-          floor = 26.0
+          floor = 40.0
           print(f"Total coverage: {pct:.2f}% (floor: {floor:.2f}%)")
           if pct < floor:
               raise SystemExit(
@@ -476,67 +479,184 @@ jobs:
               )
           PY
 
-      - name: Upload unit test artifacts
+      - name: "[ENFORCED] Upload fast-test artifacts"
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-reports
+          name: fast-test-reports
           path: out/reports/
 
-  diff-coverage:
+  # ---------------------------------------------------------------------------
+  # integration-tests: replaces the individual git_repo / integration suites.
+  # Runs all tests marked git_repo (real filesystem/git operations).
+  # ---------------------------------------------------------------------------
+  integration-tests:
     runs-on: ubuntu-latest
-    needs: [unit-tests, cli-tests, sync-tests]
-    if: always() && github.event_name == 'pull_request'
+    needs: fast-tests
+    # Run even if fast-tests failed (full picture needed)
+    if: always()
 
     steps:
-      - name: Check out repository
+      - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: "[ENFORCED] Install dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
 
-      - name: Download unit-tests coverage
-        if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: "[ENFORCED] Run git_repo integration tests with coverage"
+        run: |
+          python -m pytest \
+            -v \
+            --ignore=tests/legacy \
+            -m git_repo \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-integration.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml
+
+      - name: "[ENFORCED] Upload integration-test artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # slow-and-e2e: replaces integration-smoke + dashboard-tests.
+  # Push-only (or manual dispatch). Runs slow tests, e2e, cross_cutting.
+  # ---------------------------------------------------------------------------
+  slow-and-e2e:
+    runs-on: ubuntu-latest
+    needs: fast-tests
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    timeout-minutes: 45
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Set up Node (Playwright)"
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "[ENFORCED] Install Python dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Install Playwright browsers"
+        run: npx playwright install --with-deps chromium
+
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+          mkdir -p out/reports/slow-e2e
+
+      - name: "[ENFORCED] Run slow tests with coverage"
+        run: |
+          python -m pytest \
+            -v \
+            --ignore=tests/legacy \
+            -m slow \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-slow.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
+            | tee out/reports/slow-e2e/slow.log
+
+      - name: "[ENFORCED] Run e2e and cross_cutting tests with coverage"
+        env:
+          PWHEADLESS: '1'
+        run: |
+          python -m pytest \
+            -v \
+            tests/e2e/ tests/cross_cutting/ \
+            -m "not distribution" \
+            --cov=src/specify_cli \
+            --cov-append \
+            --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml \
+            | tee out/reports/slow-e2e/e2e.log
+
+      - name: "[ENFORCED] Upload slow-and-e2e artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slow-e2e-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # diff-coverage: PR-only diff coverage gate (80% on changed lines).
+  # Consumes fast-test-reports and integration-test-reports.
+  # ---------------------------------------------------------------------------
+  diff-coverage:
+    runs-on: ubuntu-latest
+    needs: [fast-tests, integration-tests]
+    if: always() && github.event_name == 'pull_request'
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Download fast-tests coverage"
+        if: needs.fast-tests.result == 'success' || needs.fast-tests.result == 'failure'
         uses: actions/download-artifact@v4
         with:
-          name: unit-test-reports
-          path: out/reports/unit
+          name: fast-test-reports
+          path: out/reports/fast
         continue-on-error: true
 
-      - name: Download cli-tests coverage
-        if: needs.cli-tests.result == 'success' || needs.cli-tests.result == 'failure'
+      - name: "[ENFORCED] Download integration-tests coverage"
+        if: needs.integration-tests.result == 'success' || needs.integration-tests.result == 'failure'
         uses: actions/download-artifact@v4
         with:
-          name: cli-test-reports
-          path: out/reports/cli
+          name: integration-test-reports
+          path: out/reports/integration
         continue-on-error: true
 
-      - name: Download sync-tests coverage
-        if: needs.sync-tests.result == 'success' || needs.sync-tests.result == 'failure'
-        uses: actions/download-artifact@v4
-        with:
-          name: sync-test-reports
-          path: out/reports/sync
-        continue-on-error: true
-
-      - name: Enforce diff coverage policy
+      - name: "[ENFORCED] Enforce diff coverage policy (80% on changed lines)"
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
 
           coverage_reports=()
-          [ -f out/reports/unit/coverage/coverage.xml ] && coverage_reports+=(out/reports/unit/coverage/coverage.xml)
-          [ -f out/reports/cli/coverage/coverage-cli.xml ] && coverage_reports+=(out/reports/cli/coverage/coverage-cli.xml)
-          [ -f out/reports/sync/coverage/coverage-sync.xml ] && coverage_reports+=(out/reports/sync/coverage/coverage-sync.xml)
+          [ -f out/reports/fast/coverage/coverage.xml ] && coverage_reports+=(out/reports/fast/coverage/coverage.xml)
+          [ -f out/reports/integration/coverage/coverage-integration.xml ] && coverage_reports+=(out/reports/integration/coverage/coverage-integration.xml)
 
           if [ ${#coverage_reports[@]} -eq 0 ]; then
             echo "::error::No coverage reports found for diff coverage."
@@ -547,203 +667,12 @@ jobs:
             --compare-branch=origin/${{ github.base_ref }} \
             --fail-under=80
 
-  cli-tests:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    # Run even if unit-tests failed (to get full test results)
-    if: always()
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-
-      - name: Prepare report directories
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      - name: Run CLI tests with coverage
-        run: |
-          python -m pytest \
-            -v \
-            tests/specify_cli/ tests/adversarial/ tests/test_template/ \
-            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
-            --cov=src/specify_cli \
-            --cov-report=xml:out/reports/coverage/coverage-cli.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-cli-${{ github.run_id }}.xml
-
-      - name: Upload CLI test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cli-test-reports
-          path: out/reports/
-
-  sync-tests:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    # Run even if unit-tests failed (to get full test results)
-    if: always()
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-
-      - name: Prepare report directories
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      - name: Run sync tests with coverage
-        run: |
-          python -m pytest \
-            -v \
-            tests/sync/ \
-            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
-            --cov=src/specify_cli \
-            --cov-report=xml:out/reports/coverage/coverage-sync.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-sync-${{ github.run_id }}.xml
-
-      - name: Upload sync test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sync-test-reports
-          path: out/reports/
-
-  integration-smoke:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
-    timeout-minutes: 45
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-
-      - name: Prepare report directories
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-          mkdir -p out/reports/integration
-
-      - name: Run integration and smoke tests with coverage
-        run: |
-          python -m pytest \
-            -v \
-            tests/integration \
-            tests/e2e \
-            -m "not distribution" \
-            --cov=src/specify_cli \
-            --cov-report=xml:out/reports/coverage/coverage-integration.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml \
-            | tee out/reports/integration/integration-smoke.log
-
-      - name: Upload integration artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-smoke-reports
-          path: out/reports/
-
-  dashboard-tests:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    # Only run on push or manual dispatch, but always run if triggered (even if unit-tests failed)
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Prepare report directories
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      - name: Run dashboard tests with coverage
-        env:
-          PWHEADLESS: '1'
-        run: |
-          python -m pytest \
-            -v \
-            tests/test_dashboard/ \
-            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
-            --cov=src/specify_cli \
-            --cov-report=xml:out/reports/coverage/coverage-dashboard.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-dashboard-${{ github.run_id }}.xml
-
-      - name: Upload dashboard test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-test-reports
-          path: out/reports/
-
+  # ---------------------------------------------------------------------------
+  # mutation-testing: advisory, push-only, scoped to changed files.
+  # ---------------------------------------------------------------------------
   mutation-testing:
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: fast-tests
     # Advisory job: only runs on push or manual dispatch, never on pull_request (NFR-001).
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 75
@@ -751,12 +680,12 @@ jobs:
       MUTATION_FLOOR: 70  # Advisory baseline: 70.5% (2026-03-01 full run)
 
     steps:
-      - name: Check out repository
+      - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Determine changed Python files
+      - name: "[INFO] Determine changed Python files in mutation scope"
         id: changed-files
         run: |
           # Find Python files changed vs the merge base (or HEAD~1 on main)
@@ -784,31 +713,31 @@ jobs:
             echo "$CHANGED" > /tmp/changed-paths.txt
           fi
 
-      - name: Set up Python
+      - name: "[ENFORCED] Set up Python"
         if: steps.changed-files.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: "[ENFORCED] Install dependencies"
         if: steps.changed-files.outputs.skip != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Prepare report directories
+      - name: "[ENFORCED] Prepare report directories"
         if: steps.changed-files.outputs.skip != 'true'
         run: mkdir -p out/reports/mutation
 
-      - name: Run mutation testing (scoped to changed files)
+      - name: "[INFO] Run mutation testing (scoped to changed files) (advisory)"
         if: steps.changed-files.outputs.skip != 'true'
         run: |
           PATHS=$(paste -sd ',' /tmp/changed-paths.txt)
           echo "Running mutmut on: $PATHS"
           mutmut run --paths-to-mutate "$PATHS" || true
 
-      - name: Export mutation stats (JSON)
+      - name: "[INFO] Export mutation stats (JSON) (advisory)"
         if: always() && steps.changed-files.outputs.skip != 'true'
         run: |
           # mutmut 3.5.0 writes stats to mutants/mutmut-cicd-stats.json (no --output flag)
@@ -824,24 +753,27 @@ jobs:
               > out/reports/mutation/mutation-stats.json
           fi
 
-      - name: Check mutation score (advisory)
+      - name: "[INFO] Check mutation score (advisory)"
         if: always() && steps.changed-files.outputs.skip != 'true'
         run: python scripts/check_mutation_floor.py
 
-      - name: Upload mutation artifacts
+      - name: "[ENFORCED] Upload mutation artifacts"
         if: always() && steps.changed-files.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: mutation-reports
           path: out/reports/mutation/
 
+  # ---------------------------------------------------------------------------
+  # sonarcloud: aggregates coverage from fast + integration + slow-e2e.
+  # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: [unit-tests, cli-tests, sync-tests, integration-smoke, dashboard-tests]
+    needs: [fast-tests, integration-tests, slow-and-e2e]
     if: always()
 
     steps:
-      - name: Check Sonar token availability
+      - name: "[INFO] Check Sonar token availability"
         id: sonar_token
         run: |
           if [ -n "${{ secrets.SONAR_TOKEN }}" ]; then
@@ -865,53 +797,37 @@ jobs:
             echo ""
           fi
 
-      - name: Check out repository
+      - name: "[ENFORCED] Check out repository"
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download unit-tests coverage
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure')
+      - name: "[ENFORCED] Download fast-tests coverage"
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests.result == 'success' || needs.fast-tests.result == 'failure')
         uses: actions/download-artifact@v4
         with:
-          name: unit-test-reports
-          path: out/reports/unit
+          name: fast-test-reports
+          path: out/reports/fast
         continue-on-error: true
 
-      - name: Download cli-tests coverage
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.cli-tests.result == 'success' || needs.cli-tests.result == 'failure')
+      - name: "[ENFORCED] Download integration-tests coverage"
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'failure')
         uses: actions/download-artifact@v4
         with:
-          name: cli-test-reports
-          path: out/reports/cli
-        continue-on-error: true
-
-      - name: Download sync-tests coverage
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.sync-tests.result == 'success' || needs.sync-tests.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: sync-test-reports
-          path: out/reports/sync
-        continue-on-error: true
-
-      - name: Download integration-smoke coverage
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-smoke.result == 'success' || needs.integration-smoke.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-smoke-reports
+          name: integration-test-reports
           path: out/reports/integration
         continue-on-error: true
 
-      - name: Download dashboard-tests coverage
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.dashboard-tests.result == 'success' || needs.dashboard-tests.result == 'failure')
+      - name: "[ENFORCED] Download slow-and-e2e coverage"
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.slow-and-e2e.result == 'success' || needs.slow-and-e2e.result == 'failure')
         uses: actions/download-artifact@v4
         with:
-          name: dashboard-test-reports
-          path: out/reports/dashboard
+          name: slow-e2e-reports
+          path: out/reports/slow-e2e
         continue-on-error: true
 
-      - name: Merge coverage reports
+      - name: "[ENFORCED] Merge coverage reports"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
           mkdir -p out/reports/coverage
@@ -920,13 +836,13 @@ jobs:
           # Merge all coverage files
           find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
 
-          # Create combined coverage if coverage-combiner is available, otherwise use first available
-          if [ -f "out/reports/unit/coverage/coverage.xml" ]; then
-            cp out/reports/unit/coverage/coverage.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/cli/coverage/coverage-cli.xml" ]; then
-            cp out/reports/cli/coverage/coverage-cli.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/sync/coverage/coverage-sync.xml" ]; then
-            cp out/reports/sync/coverage/coverage-sync.xml out/reports/coverage/coverage.xml
+          # Create combined coverage: prefer fast → integration → slow-e2e
+          if [ -f "out/reports/fast/coverage/coverage.xml" ]; then
+            cp out/reports/fast/coverage/coverage.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/integration/coverage/coverage-integration.xml" ]; then
+            cp out/reports/integration/coverage/coverage-integration.xml out/reports/coverage/coverage.xml
+          elif [ -f "out/reports/slow-e2e/coverage/coverage-slow.xml" ]; then
+            cp out/reports/slow-e2e/coverage/coverage-slow.xml out/reports/coverage/coverage.xml
           fi
 
           # Merge all xUnit files
@@ -943,14 +859,14 @@ jobs:
           echo "xUnit files found:"
           find out/reports/xunit-reports -name "*.xml" -type f
 
-      - name: SonarCloud Scan
+      - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: SonarCloud Quality Gate
+      - name: "[ENFORCED] SonarCloud Quality Gate"
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 5
