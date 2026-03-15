@@ -609,12 +609,84 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
+  # remaining-tests: catch-all for tests not covered by fast/git_repo/slow/e2e
+  # selectors. Prevents silent test dropout when markers are reorganised.
+  # ---------------------------------------------------------------------------
+  remaining-tests:
+    runs-on: ubuntu-latest
+    needs: fast-tests
+    if: always()
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: "[ENFORCED] Run remaining (unmarked) tests with coverage"
+        run: |
+          python -m pytest \
+            -v \
+            -m "not fast and not git_repo and not slow" \
+            --ignore=tests/e2e \
+            --ignore=tests/cross_cutting \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-remaining.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-remaining-${{ github.run_id }}.xml
+
+      - name: "[ENFORCED] Assert no orphaned tests (selector audit)"
+        if: always()
+        run: |
+          # Collect all tests
+          ALL=$(python -m pytest --collect-only -qq 2>/dev/null | grep '::' | wc -l)
+
+          # Collect each selector bucket
+          FAST=$(python -m pytest --collect-only -qq -m fast 2>/dev/null | grep '::' | wc -l)
+          GIT_REPO=$(python -m pytest --collect-only -qq -m git_repo 2>/dev/null | grep '::' | wc -l)
+          SLOW=$(python -m pytest --collect-only -qq -m slow 2>/dev/null | grep '::' | wc -l)
+          CROSS_E2E=$(python -m pytest --collect-only -qq tests/e2e/ tests/cross_cutting/ -m "not distribution" 2>/dev/null | grep '::' | wc -l)
+          REMAINING=$(python -m pytest --collect-only -qq -m "not fast and not git_repo and not slow" --ignore=tests/e2e --ignore=tests/cross_cutting 2>/dev/null | grep '::' | wc -l)
+
+          UNION=$((FAST + GIT_REPO + SLOW + CROSS_E2E + REMAINING))
+          ORPHANED=$((ALL - UNION))
+
+          echo "Total: $ALL | fast: $FAST | git_repo: $GIT_REPO | slow: $SLOW | cross/e2e: $CROSS_E2E | remaining: $REMAINING | union: $UNION | orphaned: $ORPHANED"
+
+          if [ "$ORPHANED" -gt 0 ]; then
+            echo "::error::$ORPHANED tests are not covered by any CI selector. Fix markers or job paths."
+            exit 1
+          fi
+
+      - name: "[ENFORCED] Upload remaining-test artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remaining-test-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
   # diff-coverage: PR-only diff coverage gate (80% on changed lines).
   # Consumes fast-test-reports and integration-test-reports.
   # ---------------------------------------------------------------------------
   diff-coverage:
     runs-on: ubuntu-latest
-    needs: [fast-tests, integration-tests]
+    needs: [fast-tests, integration-tests, remaining-tests]
     if: always() && github.event_name == 'pull_request'
 
     steps:
@@ -650,6 +722,14 @@ jobs:
           path: out/reports/integration
         continue-on-error: true
 
+      - name: "[ENFORCED] Download remaining-tests coverage"
+        if: needs.remaining-tests.result == 'success' || needs.remaining-tests.result == 'failure'
+        uses: actions/download-artifact@v4
+        with:
+          name: remaining-test-reports
+          path: out/reports/remaining
+        continue-on-error: true
+
       - name: "[ENFORCED] Enforce diff coverage policy (80% on changed lines)"
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
@@ -657,6 +737,7 @@ jobs:
           coverage_reports=()
           [ -f out/reports/fast/coverage/coverage.xml ] && coverage_reports+=(out/reports/fast/coverage/coverage.xml)
           [ -f out/reports/integration/coverage/coverage-integration.xml ] && coverage_reports+=(out/reports/integration/coverage/coverage-integration.xml)
+          [ -f out/reports/remaining/coverage/coverage-remaining.xml ] && coverage_reports+=(out/reports/remaining/coverage/coverage-remaining.xml)
 
           if [ ${#coverage_reports[@]} -eq 0 ]; then
             echo "::error::No coverage reports found for diff coverage."
@@ -769,7 +850,7 @@ jobs:
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: [fast-tests, integration-tests, slow-and-e2e]
+    needs: [fast-tests, integration-tests, slow-and-e2e, remaining-tests]
     if: always()
 
     steps:
@@ -825,6 +906,14 @@ jobs:
         with:
           name: slow-e2e-reports
           path: out/reports/slow-e2e
+        continue-on-error: true
+
+      - name: "[ENFORCED] Download remaining-tests coverage"
+        if: steps.sonar_token.outputs.enabled == 'true' && (needs.remaining-tests.result == 'success' || needs.remaining-tests.result == 'failure')
+        uses: actions/download-artifact@v4
+        with:
+          name: remaining-test-reports
+          path: out/reports/remaining
         continue-on-error: true
 
       - name: "[ENFORCED] Merge coverage reports"
