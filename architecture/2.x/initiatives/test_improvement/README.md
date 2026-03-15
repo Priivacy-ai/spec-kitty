@@ -1,10 +1,10 @@
 # Test Improvement Initiative
 
-> **Status:** In Progress  
-> **Branch scope:** 2.x only  
-> **Branch:** `fix/test-detection-remediation`  
-> **Date:** 2026-03-12  
-> **Last updated:** 2026-03-14
+> **Status:** Complete — pending merge to `2.x`
+> **Branch scope:** 2.x only
+> **Branch:** `fix/test-detection-remediation`
+> **Date:** 2026-03-12
+> **Last updated:** 2026-03-15
 
 ---
 
@@ -45,156 +45,61 @@ All 12 imported modules (`agent.feature`, `agent.tasks`, `agent.workflow`, `stat
 
 ---
 
-## 2. Current Test Suite Profile
+## 2. Final Test Suite Profile (post-migration)
 
 ### Metrics
 
 | Metric | Value |
 |--------|-------|
-| Test files (non-legacy) | 338 |
-| Lines of test code | ~90,000 |
-| Total test cases | 5,335 |
-| conftest.py files | 7 |
+| Test files (non-legacy) | 341 |
+| Total test cases | 5,608 |
+| conftest.py files | 8 |
 | Full suite (fast+slow+unmarked) | ~5 min (local), ~20 min (CI) |
 
-### Directory breakdown
+### Directory breakdown (vertical-slice layout)
 
-| Directory | Files | LOC | Type | Cost |
-|-----------|-------|-----|------|------|
-| `specify_cli/` | 149 | 52.1K | CLI/Core/Mixed | MODERATE |
-| `unit/` | 60 | 19.5K | Unit (mocked) | MINIMAL ✓ |
-| `integration/` | 42 | 15.6K | Integration (git) | VERY HIGH |
-| `sync/` | 23 | 8.7K | Async unit | MODERATE |
-| root `tests/` | 25 | 5.8K | System integration | MODERATE–HIGH |
-| `test_dashboard/` | 8 | 561 | Dashboard unit | MODERATE |
-| `doctrine/` | 7 | 797 | Schema compliance | MINIMAL ✓ |
-| `adversarial/` | 6 | 1.3K | Security/attack | MODERATE |
-| `test_template/` | 5 | 557 | Template unit | MINIMAL ✓ |
-| `e2e/` | 3 | 502 | CLI workflow | VERY HIGH |
-| `release/` | 2 | 245 | Release validation | LOW |
-| `concurrency/` | 2 | 184 | Concurrency | ? |
-| `cross_branch/` | 2 | 157 | Branch compat | LOW |
-| `contract/` | 2 | 352 | Handoff verify | LOW |
-| `docs/` | 1 | 103 | Doc integrity | MINIMAL ✓ |
+| Directory | Type | Notes |
+|-----------|------|-------|
+| `missions/` | Unit + integration | Mission lifecycle, guards, schema |
+| `merge/` | Unit + integration | Merge plans, preflight, multi-parent |
+| `agent/` | Unit + integration | Context, validators, review, orchestrator API |
+| `tasks/` | Unit + integration | Frontmatter, lane ops, planning workflow |
+| `git_ops/` | Unit + integration | Branch tracking, stale detection, safe commit |
+| `status/` | Unit + integration | Resolver, E2E status routing |
+| `upgrade/` | Unit + integration | Migrations, version update |
+| `init/` | Integration | Constitution runtime, init flow |
+| `sync/` | Async unit | Dual-write, staleness detection |
+| `runtime/` | Unit + integration | Bootstrap, doctor, paths, show-origin |
+| `research/` | Unit + integration | Deliverables, plan missions, workflow |
+| `next/` | Unit + integration | Decision, prompt builder, runtime bridge |
+| `cross_cutting/` | Mixed | Dashboard, encoding, packaging, versioning, misc |
+| `doctrine/` | Unit | Schema compliance |
+| `adversarial/` | Security | Attack/fuzzing tests |
+| `e2e/` | E2E | CLI workflow |
+| `docs/` | Unit | Doc integrity |
+| `release/` | Low-cost | Release validation |
+| `concurrency/` | Mixed | Concurrency tests |
+| `cross_branch/` | Integration | Branch compatibility |
+| `contract/` | Integration | Handoff verification |
+| `constitution/` | Unit | Constitution compliance |
+| `legacy/` | Gated | 0 items collected on `2.x`; immutable snapshot |
 
-### Duplication verdict
+### Marker summary
 
-**No significant duplication found.** Related tests across locations (dashboard ×3, encoding ×3, init ×3, gitignore ×2) test different aspects — unit vs CLI vs resilience. Architecture is sound.
-
----
-
-## 3. Expensive Operations (ranked)
-
-1. **subprocess.run() CLI calls** — 1–5+ sec per call, 60s timeout. Found in: `integration/`, `e2e/`, root, `test_dashboard/`.
-2. **Git worktree creation** — 100–500ms per op. `conflicting_wps_repo` creates 3 worktrees, `git_stale_workspace` creates 1 + advance.
-3. **Dashboard process spawning** — 500–1000ms per process.
-4. **Async event loops** — 100–200ms overhead per test (23 files in `sync/`).
-5. **File system scaffolding** — .kittify copying, mission dir copying. All tests using `tmp_path`.
-
----
-
-## 4. Proposed Subdivision (test tiers)
-
-### Tier 1 — Fast (target: <60s)
-
-```bash
-pytest tests/unit tests/doctrine tests/test_template tests/docs
-```
-
-Pure unit tests, schema compliance, template validation. No git, no subprocess, no network. Run on every save / pre-commit.
-
-### Tier 2 — Medium (target: 3–8 min)
-
-```bash
-pytest -m "not slow and not e2e" tests/specify_cli tests/sync tests/adversarial tests/release tests/contract
-```
-
-Core CLI logic, async unit tests, adversarial tests. Some `tmp_path` scaffolding but no subprocess CLI calls. Run before commit.
-
-### Tier 3 — Integration (target: 10–15 min)
-
-```bash
-pytest tests/integration tests/cross_branch tests/concurrency tests/test_dashboard tests/*.py
-```
-
-Real git repos, subprocess CLI invocations, dashboard spawning. Run in CI on every push.
-
-### Tier 4 — E2E / Smoke (target: 5–10 min)
-
-```bash
-pytest -m e2e tests/e2e
-```
-
-Full workflow: specify → plan → tasks → implement → review → merge. Run in CI on PR only.
+| Marker | Tests | Runtime (local) |
+|--------|-------|-----------------|
+| `fast` | ~1,658 | ~5s |
+| `git_repo` | ~898 | ~varies |
+| `slow` | ~684 | ~26s |
+| `legacy` | 0 (gated) | — |
+| unmarked | ~2,368 | ~4 min |
+| **Total** | **5,608** | **~5 min** |
 
 ---
 
-## 5. Improvement Opportunities
+## 3. Work Completed
 
-### Fixture consolidation ✓ done
-
-- `isolated_env()` and `run_cli()` moved to root `conftest.py` (commit `969b5746`).
-- `temp_repo` fixture restored in root conftest.
-
-### Expensive fixture optimization
-
-- `conflicting_wps_repo` creates 3 worktrees but is only used in a few tests → consider session-scoping or lazy creation.
-- `git_stale_workspace` could use a builder pattern for reuse across test modules.
-
-### Root test organization
-
-25 loose files in `tests/` root test cross-cutting concerns (dashboard, encoding, gitignore, packaging, versioning). They could be grouped into:
-
-```
-tests/cross_cutting/
-  ├── dashboard/      (3 files)
-  ├── encoding/       (3 files)
-  ├── packaging/      (2 files)
-  └── versioning/     (3 files)
-```
-
-This is cosmetic but would improve navigability.
-
-### Marker enrichment
-
-Currently only `e2e`, `slow`, `jj`, `adversarial`, `asyncio` are used as markers. Adding a `subprocess` or `git_repo` marker to integration tests would allow finer exclusion:
-
-```bash
-pytest -m "not subprocess" tests/  # Skip anything spawning spec-kitty CLI
-```
-
----
-
-## 6. Execution Strategy Summary
-
-| Context | What to run | Time |
-|---------|-------------|------|
-| Dev loop (on save) | Tier 1 | <60s |
-| Pre-commit | Tier 1 + 2 | 3–8 min |
-| CI push | Tier 1 + 2 + 3 | 10–15 min |
-| CI PR gate | All tiers | 20–30 min |
-
-### Key pytest invocations
-
-```bash
-# Fast feedback (development)
-pytest -m fast tests/specify_cli/
-
-# Before commit
-pytest -m "not slow and not e2e" tests/
-
-# Full CI run
-PWHEADLESS=1 pytest tests/ -m "not legacy"
-
-# Async/sync module only
-pytest -m asyncio tests/sync/
-```
-
----
-
-## 7. Work Completed
-
-### 7.1 Pytest Marker Annotations (commit `a1ad4367`)
+### 3.1 Pytest Marker Annotations (commit `a1ad4367`)
 
 Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirectories using `pytest_collection_modifyitems` hooks in conftest.py files. This enables `pytest -m fast` for rapid dev-loop feedback.
 
@@ -224,7 +129,7 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 
 > **Note:** The reference machine times in the original spec (73.51s for slow) were measured on a slower CI-equivalent machine. Local timings are ~3× faster. Use the reference times for CI budgeting.
 
-### 7.2 Merge Test Unit Extraction (commit `c816d247`)
+### 3.2 Merge Test Unit Extraction (commit `c816d247`)
 
 **Target:** `tests/specify_cli/test_cli/test_merge_workspace_per_wp.py` — the single slowest file (101 tests, 29.42s). Every test created real git repos + worktrees (1.3–1.5s fixture cost per test).
 
@@ -252,7 +157,7 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 
 **Integration tests kept (17 + 3 xfail):** Tests requiring real git repos — worktree detection from within worktrees, full merge workflows, ancestry chain planning, jj backend detection (xfail).
 
-### 7.3 test_core/ Unit Extraction (commits `3ed22b5a`, `b402d17f`)
+### 3.3 test_core/ Unit Extraction (commits `3ed22b5a`, `b402d17f`)
 
 Extracted pure-logic and mock-boundary tests from the two most expensive `test_core/` files.
 
@@ -274,7 +179,7 @@ Extracted pure-logic and mock-boundary tests from the two most expensive `test_c
 
 ---
 
-### 7.4 Fixture Consolidation, Lint + Type Cleanup (2026-03-14)
+### 3.4 Fixture Consolidation, Lint + Type Cleanup (2026-03-14)
 
 #### Fixture consolidation (commit `969b5746`)
 
@@ -298,46 +203,9 @@ Added strict-mode type annotations to all test files authored during this initia
 
 ---
 
-## 8. Remaining Opportunities
+## 4. Test Structure Redesign — Vertical Slices
 
-### 8.1 Marker enrichment ✓ done (commit `git_repo marker`)
-
-Added `git_repo` pytest marker to all tests that create real git repositories.
-
-**Implementation:**
-- Registered `git_repo` marker in `pytest.ini`
-- Added `pytest_collection_modifyitems` hook to `tests/integration/conftest.py` (covers all 17 integration tests)
-- Added file-level `pytestmark = pytest.mark.git_repo` to 29 files across `unit/`, `specify_cli/`, `adversarial/`, `release/`, and root `tests/`
-
-**Result:** `pytest -m git_repo` now collects 973 tests — a useful mid-tier filter between `fast` (1,659 tests, 5s) and the full suite (~5 min).
-
-### 8.2 Root test reorganisation ✓ done (commit `refactor(tests): reorganise`)
-
-Moved 20 test files from the `tests/` root into `tests/cross_cutting/` subdirectories:
-
-```
-tests/cross_cutting/
-  dashboard/   — test_dashboard_{cli_accuracy,bug_117_lifecycle,encoding_resilience}
-  encoding/    — test_encoding_validation_{cli,functional}, test_contextive_traceability
-  packaging/   — test_package_bundling, test_packaging_safety, test_manifest_cli_filtering
-  versioning/  — test_version_{detection,fallback}, test_upgrade_version_update
-  misc/        — test_{acceptance_support,gitignore_management,gitignore_manager_simple,
-                  performance,plan_validation,task_helpers,tasks_cli_commands,template_compliance}
-```
-
-Fixed hardcoded `Path(__file__).parent.parent` path calculations in 6 files (now 4 levels deep). All 5,335 tests still collected; fast suite passes.
-
-### 8.3 Expensive fixture optimisation ✓ analysed (no action)
-
-Candidates reviewed: `conflicting_wps_repo` (3 worktrees), `git_stale_workspace` (1 worktree + advance), `dirty_worktree_repo`.
-
-**Verdict: module-scope not safe.** The tests that use these fixtures mutate the repos (e.g. `git rebase`, writing files in-place). Sharing fixtures across tests in the same module would cause inter-test interference. Builder pattern or snapshot restore would be required for any speedup — not worth the complexity given the low count (2–4 tests per fixture).
-
----
-
-## 9. Test Structure Redesign — Vertical Slices
-
-**Status:** Complete (`unit/` and `integration/` migrated) ✓  
+**Status:** Complete (all directories migrated) ✓  
 **ADR:** `architecture/2.x/adr/2026-03-15-1-vertical-slice-test-organisation.md`
 
 ### Problem
@@ -376,24 +244,27 @@ work that is now complete or superseded. They have been moved here for archival:
 - `TESTING_PROGRESS.md` — per-suite progress tracker for the same sprint
 - `TESTING_REQUIREMENTS_ENCODING_AND_PLAN_VALIDATION.md` — original requirements spec for that sprint
 
-### Migration plan (completed 2026-03-15)
-
-The following directories were migrated to the slice layout:
+### Migration completed (2026-03-15)
 
 | Source | Target slice(s) | Status |
 |--------|----------------|--------|
 | `unit/` (54 files) | Various slices | ✓ Done — `_unit` suffix, git mv |
 | `integration/` (39 files) | Various slices | ✓ Done — `_integration` suffix, `pytestmark` added |
-| `specify_cli/` (141 files) | Various slices | Follow-up — not part of this phase |
+| `specify_cli/` (141 files) | Various slices | ✓ Done — migrated in final phase |
+| Empty shell dirs (`unit/`, `integration/`, `specify_cli/`) | — | ✓ Removed |
 
 Fixtures `test_project`, `clean_project`, `dirty_project`, `project_with_worktree`,
 `dual_branch_repo` were promoted from `integration/conftest.py` to the root
 `tests/conftest.py` so they are visible across all slice directories.
 
 **Final state (2026-03-15):**
-- Collection: 5582 tests, 0 errors
-- `fast` suite: 1658 passed, 1 skipped
-- `git_repo` suite: 898 passed — 10 pre-existing failures unchanged
+- Collection: **5,608 tests**, 0 errors (up from 5,335 before this initiative)
+- `fast` suite: ~1,658 passed, 1 skipped
+- `git_repo` suite: ~898 passed — 10 pre-existing failures unchanged
+- All three legacy top-level directories (`unit/`, `integration/`, `specify_cli/`) removed
+- `tests/legacy/` formalised: `conftest.py` added, `legacy` marker registered, `IS_2X_BRANCH` gating confirmed working
+- 26 new unit tests added across 3 new files (easy-wins coverage pass)
+- CI redesigned: fast-tests / integration-tests / slow-and-e2e job topology
 
 **Per-file slice classification for `unit/` and `integration/`:**
 
@@ -493,9 +364,11 @@ Fixtures `test_project`, `clean_project`, `dirty_project`, `project_with_worktre
 | `integration/orchestrator_api/test_json_envelope_contract.py` | `agent/` |
 | `integration/test_agent_command_wrappers.py` | `agent/` |
 
-### Legacy directory (follow-up, not part of this migration)
+### Legacy directory (complete)
 
-`tests/legacy/` will be addressed separately:
-1. Audit each file for knowledge that is still valid in 2.x but not covered by current tests.
-2. Extract any such tests into the appropriate slice.
-3. Delete `tests/legacy/` entirely.
+`tests/legacy/` is formalised as an immutable frozen snapshot:
+- `tests/legacy/conftest.py` added: auto-applies `legacy` + `slow` markers to all files; documents deprecation roadmap
+- `legacy` marker registered in `pyproject.toml`
+- `pytest_ignore_collect` in root `conftest.py` ensures 0 items collected on `2.x`
+- Files are branch-gated with `IS_2X_BRANCH` skip markers (unchanged)
+- No test files in `legacy/` were modified — purely additive infrastructure
