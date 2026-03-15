@@ -72,7 +72,7 @@ End-to-end tests in `tests/e2e/` exercise full CLI workflows and are the smalles
 
 Each test file should open with a docstring that states its **scope** in one sentence.
 Test names use plain English describing observable behaviour, not internal function
-names. The three-block structure (Arrange / Act / Assert) is standard.
+names. The four-block structure (Arrange / Assumption check / Act / Assert) is standard.
 
 ---
 
@@ -246,17 +246,44 @@ Core fixtures are defined in `tests/conftest.py` and available everywhere:
 | `git_stale_workspace` | function | Repo where `main` has advanced past the WP branch |
 | `dirty_worktree_repo` | function | WP worktree with uncommitted changes |
 
-Integration-specific fixtures (requiring `test_project`, `dual_branch_repo`, etc.) live
-in `tests/integration/conftest.py`.
+Integration-specific fixtures live in the conftest.py files inside each slice
+(e.g. `tests/status/conftest.py`).
 
 ---
 
 ## Legacy Tests
 
-`tests/legacy/` contains 1.x-era tests that are skipped entirely on the 2.x branch
-(enforced by `IS_2X_BRANCH` in `tests/branch_contract.py`). They are preserved as a
-knowledge archive. The plan is to audit them for 2.x-relevant knowledge before
-deleting the directory.
+`tests/legacy/` is a **frozen snapshot** of 0.x/1.x contract tests. They are:
+
+- **Skipped entirely on the 2.x branch** — `pytest_ignore_collect` in
+  `tests/conftest.py` returns `True` for the entire directory when `IS_2X_BRANCH` is
+  set, so they contribute 0 items to the 2.x collection and do not affect CI.
+- **Auto-marked** `legacy` and `slow` by `tests/legacy/conftest.py`.
+- **Never modified** — the files are immutable snapshots. Any coverage or
+  refactoring of a legacy test should be done by writing a new test in the
+  appropriate vertical slice, not by touching the legacy files.
+
+### What lives there
+
+| Subdirectory | Contents |
+|---|---|
+| `legacy/unit/` | 0.x unit contract tests (mission schema, etc.) |
+| `legacy/integration/` | 0.x integration tests (full CLI workflows, branch routing) |
+| `legacy/specify_cli/` | 0.x specify_cli-level tests |
+
+### Deprecation roadmap
+
+The planned lifecycle for `tests/legacy/`:
+
+1. **Now (2.x branch):** directory is gated and silently skipped.
+2. **Before 2.x GA:** audit each legacy test file. If it tests behaviour
+   that still exists in 2.x, extract the relevant assertion into the
+   appropriate vertical slice. Mark extracted tests with the source in a
+   comment: `# ported from tests/legacy/integration/test_foo.py`.
+3. **After audit:** delete `tests/legacy/` entirely in a dedicated clean-up commit.
+
+There is no requirement to make legacy tests pass on 2.x. They encode the
+0.x API contract and may reference modules/signatures that no longer exist.
 
 ---
 
