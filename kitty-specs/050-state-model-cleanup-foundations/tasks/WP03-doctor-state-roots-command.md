@@ -15,7 +15,7 @@ subtasks:
 - T014
 phase: Phase 2 - Diagnostics
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "21718"
 review_status: ''
 reviewed_by: ''
@@ -550,3 +550,4 @@ Most tests use `tmp_path` fixture and mock `_is_gitignore_covered` to avoid git 
 ## Activity Log
 
 - 2026-03-18T18:52:42Z – system – lane=planned – Prompt created.
+- 2026-03-18T19:21:19Z – coordinator – shell_pid=21718 – lane=doing – Assigned agent via workflow command
