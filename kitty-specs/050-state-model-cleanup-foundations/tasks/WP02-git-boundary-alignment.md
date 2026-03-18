@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Git Boundary Alignment
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -14,8 +14,8 @@ subtasks:
 - T009
 phase: Phase 2 - Alignment
 assignee: ''
-agent: coordinator
-shell_pid: '21643'
+agent: "codex"
+shell_pid: "26925"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -289,3 +289,4 @@ pytest tests/specify_cli/test_gitignore_contract.py tests/specify_cli/test_state
 - 2026-03-18T18:52:42Z – system – lane=planned – Prompt created.
 - 2026-03-18T19:21:17Z – coordinator – shell_pid=21643 – lane=doing – Assigned agent via workflow command
 - 2026-03-18T19:29:11Z – coordinator – shell_pid=21643 – lane=for_review – Git boundary alignment complete: derived RUNTIME_PROTECTED_ENTRIES from contract, added mission_pycache surface, created m_2_0_9 migration, 83 tests passing
+- 2026-03-18T19:29:38Z – codex – shell_pid=26925 – lane=doing – Started review via workflow command
