@@ -300,15 +300,66 @@ class TestDocStatePreservesUnknownFields:
         assert parsed["my_tag"] == "keep"
 
 
-class TestNoDirectJsonDumpRemains:
-    """Smoke test: verify doc_state module has no direct json.dump calls."""
+class TestTolerantWriteWithMinimalMeta:
+    """doc_state writes must tolerate meta.json missing required top-level fields.
 
-    def test_no_json_import(self) -> None:
-        """doc_state.py should not import json directly (uses feature_metadata)."""
+    During documentation mission setup, meta.json may only contain
+    ``{"mission": "documentation"}`` without feature_number, slug, etc.
+    The old code was tolerant of this; the new code must remain so.
+    """
+
+    def test_set_iteration_mode_minimal_meta(self, tmp_path: Path) -> None:
+        """set_iteration_mode works with a meta.json lacking required top-level fields."""
+        meta_file = tmp_path / "meta.json"
+        meta_file.write_text(
+            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+        )
+        set_iteration_mode(meta_file, "initial")
+        parsed = json.loads(meta_file.read_text())
+        assert parsed["documentation_state"]["iteration_mode"] == "initial"
+
+    def test_write_documentation_state_minimal_meta(self, tmp_path: Path) -> None:
+        """write_documentation_state works with a meta.json lacking top-level fields."""
+        meta_file = tmp_path / "meta.json"
+        meta_file.write_text(
+            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+        )
+        state = {
+            "iteration_mode": "initial",
+            "divio_types_selected": [],
+            "generators_configured": [],
+            "target_audience": "developers",
+            "last_audit_date": None,
+            "coverage_percentage": 0.0,
+        }
+        write_documentation_state(meta_file, state)
+        parsed = json.loads(meta_file.read_text())
+        assert parsed["documentation_state"]["iteration_mode"] == "initial"
+
+    def test_ensure_documentation_state_minimal_meta(self, tmp_path: Path) -> None:
+        """ensure_documentation_state works with a meta.json lacking top-level fields."""
+        meta_file = tmp_path / "meta.json"
+        meta_file.write_text(
+            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+        )
+        ensure_documentation_state(meta_file)
+        parsed = json.loads(meta_file.read_text())
+        assert "documentation_state" in parsed
+        assert parsed["documentation_state"]["iteration_mode"] == "initial"
+
+
+class TestNoDirectJsonDumpRemains:
+    """Smoke test: verify doc_state module has no direct json.dump write calls."""
+
+    def test_no_json_dump_calls(self) -> None:
+        """doc_state.py should not use json.dump() for writes (uses _write_meta_tolerant).
+
+        Note: json.load() is still used in read_documentation_state() — that is
+        intentional.  This WP only migrates the *write* path.
+        """
         import inspect
         import specify_cli.doc_state as mod
 
         source = inspect.getsource(mod)
-        # Should not have json.dump( or json.load( calls
+        # Write calls should go through _write_meta_tolerant, not json.dump
         assert "json.dump(" not in source, "Found json.dump() call in doc_state.py"
-        assert "json.load(" not in source, "Found json.load() call in doc_state.py"

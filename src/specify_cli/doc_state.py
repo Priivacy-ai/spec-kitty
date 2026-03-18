@@ -38,11 +38,24 @@ Fields:
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Literal, Optional, TypedDict
 
-from specify_cli.feature_metadata import load_meta, write_meta
+from specify_cli.feature_metadata import _atomic_write, load_meta
+
+
+def _write_meta_tolerant(meta_file: Path, meta: dict) -> None:
+    """Write meta.json with standard formatting but no top-level validation.
+
+    doc_state operates on meta.json files that may lack required top-level
+    fields (e.g., during documentation mission setup where only
+    ``{"mission": "documentation"}`` exists). Validation of those fields is
+    the responsibility of the feature creation path, not doc_state.
+    """
+    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    _atomic_write(meta_file, content)
 
 
 class GeneratorConfig(TypedDict):
@@ -101,8 +114,8 @@ def set_iteration_mode(
     # Set iteration mode
     meta["documentation_state"]["iteration_mode"] = iteration_mode
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
@@ -136,8 +149,8 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
     # Set Divio types
     meta["documentation_state"]["divio_types_selected"] = divio_types
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]) -> None:
@@ -181,8 +194,8 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
     # Set generators
     meta["documentation_state"]["generators_configured"] = generators
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 def set_audit_metadata(
@@ -220,8 +233,8 @@ def set_audit_metadata(
     )
     meta["documentation_state"]["coverage_percentage"] = coverage_percentage
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 # ============================================================================
@@ -243,11 +256,8 @@ def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
         FileNotFoundError: If meta.json doesn't exist
         json.JSONDecodeError: If meta.json is invalid JSON
     """
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
+    with open(meta_file, "r") as f:
+        meta = json.load(f)
 
     # Check if this is a documentation mission
     if meta.get("mission") != "documentation":
@@ -290,8 +300,8 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     # Update documentation_state
     meta["documentation_state"] = state
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 def initialize_documentation_state(
@@ -401,8 +411,8 @@ def ensure_documentation_state(meta_file: Path) -> None:
         "coverage_percentage": 0.0,
     }
 
-    # Write back via canonical writer
-    write_meta(feature_dir, meta)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    _write_meta_tolerant(meta_file, meta)
 
 
 def get_state_version(state: DocumentationState) -> int:
