@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Git Boundary Alignment
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -14,11 +14,11 @@ subtasks:
 - T009
 phase: Phase 2 - Alignment
 assignee: ''
-agent: "coordinator"
-shell_pid: "29854"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://050-state-model-cleanup-foundations/WP02/20260318T193659Z-ce03e9fa.md"
+agent: coordinator
+shell_pid: '29854'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://050-state-model-cleanup-foundations/WP02/20260318T193659Z-ce03e9fa.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
@@ -292,3 +292,4 @@ pytest tests/specify_cli/test_gitignore_contract.py tests/specify_cli/test_state
 - 2026-03-18T19:29:38Z – codex – shell_pid=26925 – lane=doing – Started review via workflow command
 - 2026-03-18T19:36:59Z – codex – shell_pid=26925 – lane=planned – Codex review: missions/ collapse too broad, constitution entries in migration
 - 2026-03-18T19:37:07Z – coordinator – shell_pid=29854 – lane=doing – Started implementation via workflow command
+- 2026-03-18T19:42:21Z – coordinator – shell_pid=29854 – lane=for_review – Fixed both Codex findings: (1) missions/__pycache__/ no longer collapsed to missions/, (2) migration scoped to 4 new entries only
