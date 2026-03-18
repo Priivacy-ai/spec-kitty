@@ -649,3 +649,173 @@ class TestUnicodeHandling:
         loaded = load_meta(tmp_path)
         assert loaded is not None
         assert loaded["friendly_name"] == "Feature with emojis and accents: cafe"
+
+
+# ===================================================================
+# WP03: Write-site migration verification tests
+# ===================================================================
+
+
+class TestVcsLockStandardFormat:
+    """T018: Verify set_vcs_lock() produces correctly formatted meta.json."""
+
+    def test_vcs_lock_produces_standard_format(self, tmp_path: Path) -> None:
+        """set_vcs_lock() writes meta.json with standard formatting."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        set_vcs_lock(tmp_path, vcs_type="git", locked_at="2026-03-18T12:00:00+00:00")
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        # Trailing newline
+        assert content.endswith("\n")
+        # Valid JSON
+        data = json.loads(content)
+        # Sorted keys
+        keys = list(data.keys())
+        assert keys == sorted(keys)
+        # Fields present
+        assert data["vcs"] == "git"
+        assert data["vcs_locked_at"] == "2026-03-18T12:00:00+00:00"
+
+    def test_vcs_lock_without_locked_at(self, tmp_path: Path) -> None:
+        """set_vcs_lock() without locked_at omits the field."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        set_vcs_lock(tmp_path, vcs_type="git")
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        data = json.loads(content)
+        assert data["vcs"] == "git"
+        assert "vcs_locked_at" not in data
+
+    def test_vcs_lock_preserves_existing_fields(self, tmp_path: Path) -> None:
+        """set_vcs_lock() preserves all existing meta fields."""
+        meta = _minimal_meta()
+        meta["custom_field"] = "should survive"
+        _write_meta_file(tmp_path, meta)
+
+        set_vcs_lock(tmp_path, vcs_type="git", locked_at="2026-03-18T12:00:00+00:00")
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert data["custom_field"] == "should survive"
+        assert data["feature_number"] == "051"
+
+
+class TestRecordMergeBoundedHistory:
+    """T018: Verify record_merge() caps merge_history at 20 entries."""
+
+    def test_record_merge_bounded_history(self, tmp_path: Path) -> None:
+        """record_merge() caps merge_history at 20 entries."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        # Call record_merge() 25 times
+        for i in range(25):
+            record_merge(
+                tmp_path,
+                merged_by=f"agent{i}",
+                merged_into="main",
+                strategy="merge",
+                push=False,
+            )
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert len(data["merge_history"]) == HISTORY_CAP
+        # Most recent entry is the last one we added
+        assert data["merge_history"][-1]["merged_by"] == "agent24"
+        # Oldest surviving is agent5 (agents 0-4 dropped)
+        assert data["merge_history"][0]["merged_by"] == "agent5"
+
+    def test_record_merge_standard_format(self, tmp_path: Path) -> None:
+        """record_merge() writes meta.json with standard formatting."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        record_merge(
+            tmp_path,
+            merged_by="claude",
+            merged_into="main",
+            strategy="squash",
+            push=True,
+        )
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        data = json.loads(content)
+        keys = list(data.keys())
+        assert keys == sorted(keys)
+        assert data["merged_by"] == "claude"
+        assert data["merged_into"] == "main"
+        assert data["merged_strategy"] == "squash"
+        assert data["merged_push"] is True
+
+
+class TestFinalizeMergeUpdatesHistory:
+    """T018: Verify finalize_merge() sets merged_commit on latest history entry."""
+
+    def test_finalize_merge_updates_latest_history(self, tmp_path: Path) -> None:
+        """finalize_merge() sets merged_commit on latest history entry."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        record_merge(
+            tmp_path,
+            merged_by="agent",
+            merged_into="main",
+            strategy="merge",
+            push=False,
+        )
+
+        finalize_merge(tmp_path, merged_commit="abc123def456")
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert data["merged_commit"] == "abc123def456"
+        assert data["merge_history"][-1]["merged_commit"] == "abc123def456"
+
+        # Standard format
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        keys = list(json.loads(content).keys())
+        assert keys == sorted(keys)
+
+
+class TestFeatureCreationTrailingNewline:
+    """T018: Verify write_meta() on fresh creation includes trailing newline."""
+
+    def test_feature_creation_has_trailing_newline(self, tmp_path: Path) -> None:
+        """write_meta() on fresh creation includes trailing newline."""
+        meta = _minimal_meta()
+        write_meta(tmp_path, meta)
+
+        content = (tmp_path / "meta.json").read_bytes()
+        # Must end with newline byte
+        assert content.endswith(b"\n")
+        # Must be valid JSON
+        parsed = json.loads(content)
+        assert parsed["feature_number"] == "051"
+
+    def test_feature_creation_with_documentation_state(self, tmp_path: Path) -> None:
+        """set_documentation_state() after write_meta() keeps trailing newline."""
+        meta = _minimal_meta()
+        write_meta(tmp_path, meta)
+
+        doc_state = {
+            "iteration_mode": "initial",
+            "divio_types_selected": [],
+            "generators_configured": [],
+            "target_audience": "developers",
+            "last_audit_date": None,
+            "coverage_percentage": 0.0,
+        }
+        set_documentation_state(tmp_path, doc_state)
+
+        content = (tmp_path / "meta.json").read_bytes()
+        # Must end with newline byte
+        assert content.endswith(b"\n")
+        # Must be valid JSON with documentation_state
+        parsed = json.loads(content)
+        assert parsed["documentation_state"] == doc_state
+        # Keys should be sorted
+        keys = list(parsed.keys())
+        assert keys == sorted(keys)
