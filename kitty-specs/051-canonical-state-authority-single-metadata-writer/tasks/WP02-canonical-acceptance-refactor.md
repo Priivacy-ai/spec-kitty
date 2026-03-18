@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Canonical Acceptance Refactor
-lane: "doing"
+lane: in_progress
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -15,8 +15,8 @@ subtasks:
 - T013
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "codex"
-shell_pid: "74384"
+agent: codex
+shell_pid: '74384'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
