@@ -1,35 +1,38 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Canonical Acceptance Refactor
+lane: "doing"
+dependencies: [WP01]
+base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
+base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
+created_at: '2026-03-18T21:03:21.651733+00:00'
 subtasks:
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
-  - "T013"
-title: "Canonical Acceptance Refactor"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
-dependencies: ["WP01"]
-requirement_refs:
-  - "FR-001"
-  - "FR-009"
-  - "FR-011"
-  - "NFR-002"
-  - "C-001"
-  - "C-004"
+- T008
+- T009
+- T010
+- T011
+- T012
+- T013
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "51422"
+review_status: ''
+reviewed_by: ''
+review_feedback: ''
 history:
-  - timestamp: "2026-03-18T20:21:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-18T20:21:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs:
+- FR-001
+- FR-009
+- FR-011
+- NFR-002
+- C-001
+- C-004
 ---
 
 # Work Package Prompt: WP02 – Canonical Acceptance Refactor
