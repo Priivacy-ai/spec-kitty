@@ -49,6 +49,10 @@ env/
 .kittify/workspaces/
 .kittify/missions/
 .kittify/scripts/
+.kittify/runtime/
+.kittify/merge-state.json
+.kittify/events/
+.kittify/dossiers/
 .kittify/constitution/context-state.json
 .kittify/constitution/directives.yaml
 .kittify/constitution/governance.yaml

@@ -17,6 +17,9 @@ import gitignore_manager
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 
+# Total entries: agents + runtime (derived from state contract)
+_TOTAL_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
+
 
 def test_gitignore_manager_creates_new_file():
     """Test that GitignoreManager creates a new .gitignore file with entries."""
@@ -127,8 +130,8 @@ def test_protect_all_agents_adds_all_directories():
         assert result.success
         assert result.modified
 
-        # Check that all 15 entries were added (13 agents + 2 runtime paths)
-        assert len(result.entries_added) == 15
+        # Check that all entries were added (agents + contract-derived runtime paths)
+        assert len(result.entries_added) == _TOTAL_ENTRIES
 
         # Check that .gitignore was updated
         gitignore_path = project_path / ".gitignore"
@@ -179,8 +182,8 @@ def test_protect_all_agents_with_existing_directory():
         assert ".codex/" in result.entries_skipped
         assert ".claude/" in result.entries_skipped
 
-        # Check that new entries were added (15 total - 2 existing = 13)
-        assert len(result.entries_added) == 13
+        # Check that new entries were added (total - 2 existing)
+        assert len(result.entries_added) == _TOTAL_ENTRIES - 2
 
 
 def test_protect_selected_agents():
