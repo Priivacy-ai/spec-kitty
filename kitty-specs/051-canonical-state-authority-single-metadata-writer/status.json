@@ -1,8 +1,8 @@
 {
-  "event_count": 30,
+  "event_count": 31,
   "feature_slug": "051-canonical-state-authority-single-metadata-writer",
-  "last_event_id": "01KM1DC2ZBPW2Z7JPQ2XTP0SHQ",
-  "materialized_at": "2026-03-18T21:24:35.435616+00:00",
+  "last_event_id": "01KM1DSRW3MQ87BDMY08G8R4T2",
+  "materialized_at": "2026-03-18T21:32:03.844182+00:00",
   "summary": {
     "approved": 2,
     "blocked": 0,
@@ -10,8 +10,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
-    "planned": 0
+    "in_progress": 1,
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -36,11 +36,11 @@
       "last_transition_at": "2026-03-18T21:24:35.435264+00:00"
     },
     "WP04": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 4,
-      "lane": "in_progress",
-      "last_event_id": "01KM1D9FYJN8BH3HVBPYZCH2J0",
-      "last_transition_at": "2026-03-18T21:23:10.419002+00:00"
+      "lane": "planned",
+      "last_event_id": "01KM1DSRW3MQ87BDMY08G8R4T2",
+      "last_transition_at": "2026-03-18T21:32:03.843786+00:00"
     }
   }
 }

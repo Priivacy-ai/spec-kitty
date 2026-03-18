@@ -259,5 +259,5 @@ WP01 (foundation) ────────────────────�
 - WP01: approved
 - WP02: in_progress
 - WP03: approved
-- WP04: in_progress
+- WP04: planned
 <!-- status-model:end -->

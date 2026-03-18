@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migrate doc_state.py Write Sites
-lane: in_progress
+lane: "planned"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -15,9 +15,9 @@ phase: Phase 1 - Core Implementation
 assignee: ''
 agent: codex
 shell_pid: '75463'
-review_status: has_feedback
-reviewed_by: Robert Douglass
-review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T211849Z-91fd956d.md
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T213203Z-b514c0eb.md"
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
@@ -234,3 +234,4 @@ spec-kitty implement WP04 --base WP01
 - 2026-03-18T21:19:03Z – coordinator – shell_pid=70918 – lane=doing – Started implementation via workflow command
 - 2026-03-18T21:22:52Z – coordinator – shell_pid=70918 – lane=for_review – Fixed validation tolerance + reverted read scope creep (cycle 2/3)
 - 2026-03-18T21:23:10Z – codex – shell_pid=75463 – lane=doing – Started review via workflow command
+- 2026-03-18T21:32:04Z – codex – shell_pid=75463 – lane=planned – Moved to planned
