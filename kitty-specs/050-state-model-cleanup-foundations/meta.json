@@ -2,8 +2,10 @@
   "feature_number": "050",
   "slug": "050-state-model-cleanup-foundations",
   "feature_slug": "050-state-model-cleanup-foundations",
-  "friendly_name": "state model cleanup foundations",
+  "friendly_name": "State Model Cleanup Foundations",
   "mission": "software-dev",
+  "source_description": "Short, high-leverage sprint focused on state-model cleanup foundations: state contract, root-path clarity, Git boundary alignment, and doctor checks. Based on the 007 state architecture audit.",
+  "created_at": "2026-03-18T18:17:05.807858+00:00",
   "target_branch": "2.x",
-  "created_at": "2026-03-18T18:17:05.807858+00:00"
+  "vcs": "git"
 }
