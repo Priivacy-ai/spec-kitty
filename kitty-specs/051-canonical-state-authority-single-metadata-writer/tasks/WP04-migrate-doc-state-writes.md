@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migrate doc_state.py Write Sites
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -13,8 +13,8 @@ subtasks:
 - T022
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "51576"
+agent: coordinator
+shell_pid: '51576'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -228,3 +228,4 @@ spec-kitty implement WP04 --base WP01
 
 - 2026-03-18T20:21:07Z – system – lane=planned – Prompt created.
 - 2026-03-18T21:03:26Z – coordinator – shell_pid=51576 – lane=doing – Assigned agent via workflow command
+- 2026-03-18T21:12:07Z – coordinator – shell_pid=51576 – lane=for_review – Ready for review: All 8 doc_state write functions migrated to feature_metadata I/O, 47 tests passing (31 existing + 16 new formatting tests)
