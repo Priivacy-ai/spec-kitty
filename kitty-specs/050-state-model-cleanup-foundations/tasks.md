@@ -170,5 +170,5 @@ WP01 (State Contract)
 ## Canonical Status (Generated)
 - WP01: approved
 - WP02: in_progress
-- WP03: in_progress
+- WP03: planned
 <!-- status-model:end -->

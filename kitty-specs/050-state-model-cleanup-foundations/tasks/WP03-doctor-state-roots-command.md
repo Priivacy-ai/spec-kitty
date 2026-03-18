@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: "doing"
+lane: "planned"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -15,11 +15,11 @@ subtasks:
 - T014
 phase: Phase 2 - Diagnostics
 assignee: ''
-agent: "codex"
-shell_pid: "24774"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
+agent: codex
+shell_pid: '24774'
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://050-state-model-cleanup-foundations/WP03/20260318T193454Z-1e796431.md"
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
@@ -553,3 +553,4 @@ Most tests use `tmp_path` fixture and mock `_is_gitignore_covered` to avoid git 
 - 2026-03-18T19:21:19Z – coordinator – shell_pid=21718 – lane=doing – Assigned agent via workflow command
 - 2026-03-18T19:25:50Z – coordinator – shell_pid=21718 – lane=for_review – Doctor state-roots command complete: state/ package, check_state_roots() logic, CLI command with --json flag, registered in CLI, 11 tests passing
 - 2026-03-18T19:26:11Z – codex – shell_pid=24774 – lane=doing – Started review via workflow command
+- 2026-03-18T19:34:55Z – codex – shell_pid=24774 – lane=planned – Codex review: 2 findings - feature surfaces always absent, staging dirs path resolution
