@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migrate doc_state.py Write Sites
-lane: "doing"
+lane: planned
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -13,11 +13,11 @@ subtasks:
 - T022
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "70918"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T211849Z-91fd956d.md"
+agent: coordinator
+shell_pid: '70918'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T211849Z-91fd956d.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
