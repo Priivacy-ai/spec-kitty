@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: State Contract Module
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 72ed47b6df33996bab220f03079dfe414774d713
+created_at: '2026-03-18T18:59:29.551952+00:00'
 subtasks:
 - T001
 - T002
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "9963"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
