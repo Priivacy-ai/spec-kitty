@@ -199,9 +199,29 @@ def test_runtime_staging_dirs_detected_when_present(tmp_path, monkeypatch):
         None,
     )
     assert staging is not None
-    # The parent-walk logic should find tmp_path (home) which contains
-    # .kittify_update_* entries, so parent.is_dir() returns True
+    # The glob logic should find .kittify_update_abc123 in tmp_path (home)
     assert staging.present is True
+
+
+def test_runtime_staging_dirs_absent_when_no_match(tmp_path, monkeypatch):
+    """Staging dirs should be absent when no .kittify_update_* exists.
+
+    Regression for Codex review finding: wildcard surface presence check
+    used parent-walk (parent.is_dir()) which gave false positives whenever
+    the home directory existed. The fix uses glob to check for actual matches.
+    """
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / ".kittify"))
+    (tmp_path / ".kittify").mkdir()
+    # Do NOT create any .kittify_update_* dirs
+
+    report = check_state_roots(tmp_path)
+    staging = next(
+        (s for s in report.surfaces if s.surface.name == "runtime_staging_dirs"),
+        None,
+    )
+    assert staging is not None
+    assert staging.present is False  # No matching dirs exist
 
 
 def test_global_sync_surfaces_resolve_from_home(tmp_path, monkeypatch):

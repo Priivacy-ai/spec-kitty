@@ -145,11 +145,20 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
     else:
         return False
 
-    # Handle wildcard patterns -- check if parent dir exists
-    if "<" in str(path) or "*" in str(path):
-        # Can't check parameterized paths; check parent dir instead
+    # Handle wildcard and placeholder patterns
+    if "*" in str(path):
+        # Use glob to check for actual matches
         parent = path.parent
+        pattern = path.name  # e.g., ".kittify_update_*"
+        # Walk up past any placeholder parents
         while "<" in str(parent) or "*" in str(parent):
+            pattern = parent.name + "/" + pattern
+            parent = parent.parent
+        return any(True for _ in parent.glob(pattern))
+    elif "<" in str(path):
+        # Placeholder paths (like <feature>) -- check parent dir existence
+        parent = path.parent
+        while "<" in str(parent):
             parent = parent.parent
         return parent.is_dir()
 
