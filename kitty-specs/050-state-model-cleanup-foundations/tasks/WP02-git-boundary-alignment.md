@@ -14,7 +14,7 @@ subtasks:
 - T009
 phase: Phase 2 - Alignment
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "21643"
 review_status: ''
 reviewed_by: ''
@@ -287,3 +287,4 @@ pytest tests/specify_cli/test_gitignore_contract.py tests/specify_cli/test_state
 ## Activity Log
 
 - 2026-03-18T18:52:42Z – system – lane=planned – Prompt created.
+- 2026-03-18T19:21:17Z – coordinator – shell_pid=21643 – lane=doing – Assigned agent via workflow command
