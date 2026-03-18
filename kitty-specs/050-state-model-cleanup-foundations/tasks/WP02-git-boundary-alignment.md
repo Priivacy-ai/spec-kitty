@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Git Boundary Alignment
-lane: "doing"
+lane: in_progress
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -14,8 +14,8 @@ subtasks:
 - T009
 phase: Phase 2 - Alignment
 assignee: ''
-agent: "codex"
-shell_pid: "26925"
+agent: codex
+shell_pid: '26925'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
