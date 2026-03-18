@@ -123,11 +123,16 @@ def load_meta(feature_dir: Path) -> dict[str, Any] | None:
         return None
     text = meta_path.read_text(encoding="utf-8")
     try:
-        return json.loads(text)  # type: ignore[no-any-return]
+        data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(
             f"Malformed JSON in {meta_path}: {exc}"
         ) from exc
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expected JSON object in {meta_path}, got {type(data).__name__}"
+        )
+    return data  # type: ignore[no-any-return]
 
 
 def validate_meta(meta: dict[str, Any]) -> list[str]:
@@ -190,10 +195,12 @@ def record_acceptance(
     if accept_commit is not None:
         entry["accept_commit"] = accept_commit
 
-    # Set top-level fields
+    # Set top-level fields — always clear stale commit fields first
     meta["accepted_at"] = now
     meta["accepted_by"] = accepted_by
     meta["acceptance_mode"] = mode
+    meta.pop("accepted_from_commit", None)
+    meta.pop("accept_commit", None)
     if from_commit is not None:
         meta["accepted_from_commit"] = from_commit
     if accept_commit is not None:
@@ -229,6 +236,8 @@ def record_merge(
     meta["merged_into"] = merged_into
     meta["merged_strategy"] = strategy
     meta["merged_push"] = push
+    # Clear merged_commit since this is a new merge (not yet finalized)
+    meta.pop("merged_commit", None)
 
     entry: dict[str, Any] = {
         "merged_at": now,

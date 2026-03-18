@@ -76,6 +76,13 @@ class TestLoadMeta:
         with pytest.raises(ValueError, match="Malformed JSON"):
             load_meta(tmp_path)
 
+    def test_load_meta_non_dict_json(self, tmp_path: Path) -> None:
+        """Regression: load_meta() must reject non-dict JSON (e.g. arrays)."""
+        meta_path = tmp_path / "meta.json"
+        meta_path.write_text("[]", encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected JSON object.*got list"):
+            load_meta(tmp_path)
+
 
 # ===================================================================
 # validate_meta tests
@@ -341,6 +348,37 @@ class TestRecordAcceptance:
         assert history[-1]["accepted_by"] == "final_agent"
         assert history[0]["accepted_by"] == "agent2"  # agent1 dropped
 
+    def test_record_acceptance_clears_stale_commit_fields(self, tmp_path: Path) -> None:
+        """Regression: a second acceptance without commit args must not retain stale values."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        # First acceptance WITH commit fields
+        result1 = record_acceptance(
+            tmp_path,
+            accepted_by="agent1",
+            mode="auto",
+            from_commit="commit_aaa",
+            accept_commit="commit_bbb",
+        )
+        assert result1["accepted_from_commit"] == "commit_aaa"
+        assert result1["accept_commit"] == "commit_bbb"
+
+        # Second acceptance WITHOUT commit fields — stale values must be gone
+        result2 = record_acceptance(
+            tmp_path,
+            accepted_by="agent2",
+            mode="manual",
+        )
+        assert "accepted_from_commit" not in result2
+        assert "accept_commit" not in result2
+        assert result2["accepted_by"] == "agent2"
+
+        # Also verify on disk
+        on_disk = load_meta(tmp_path)
+        assert on_disk is not None
+        assert "accepted_from_commit" not in on_disk
+        assert "accept_commit" not in on_disk
+
     def test_missing_meta_raises_filenotfound(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
             record_acceptance(tmp_path, accepted_by="claude", mode="auto")
@@ -389,6 +427,39 @@ class TestRecordMerge:
 
         assert len(result["merge_history"]) == HISTORY_CAP
         assert result["merge_history"][-1]["merged_by"] == "final"
+
+    def test_record_merge_clears_stale_merged_commit(self, tmp_path: Path) -> None:
+        """Regression: record_merge() after finalize_merge() must clear merged_commit."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        # First merge + finalize
+        record_merge(
+            tmp_path,
+            merged_by="agent1",
+            merged_into="main",
+            strategy="merge",
+            push=True,
+        )
+        finalize_merge(tmp_path, merged_commit="sha_first")
+        mid = load_meta(tmp_path)
+        assert mid is not None
+        assert mid["merged_commit"] == "sha_first"
+
+        # Second merge (not yet finalized) — merged_commit must be gone
+        result = record_merge(
+            tmp_path,
+            merged_by="agent2",
+            merged_into="develop",
+            strategy="squash",
+            push=False,
+        )
+        assert "merged_commit" not in result
+        assert result["merged_by"] == "agent2"
+
+        # Verify on disk
+        on_disk = load_meta(tmp_path)
+        assert on_disk is not None
+        assert "merged_commit" not in on_disk
 
     def test_missing_meta_raises_filenotfound(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
