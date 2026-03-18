@@ -51,10 +51,10 @@
 **Requirement Refs**: FR-006, FR-007, FR-010, C-005
 
 ### Included Subtasks
-- [ ] T006 Update `GitignoreManager.RUNTIME_PROTECTED_ENTRIES` to derive from `state_contract.get_runtime_gitignore_entries()`
-- [ ] T007 [P] Write integration tests in `tests/specify_cli/test_gitignore_contract.py` (both contract↔manager and contract↔repo `.gitignore`)
-- [ ] T008 Create migration `src/specify_cli/upgrade/migrations/m_2_0_9_state_gitignore.py`
-- [ ] T009 [P] Write migration tests in `tests/specify_cli/test_state_gitignore_migration.py`
+- [x] T006 Update `GitignoreManager.RUNTIME_PROTECTED_ENTRIES` to derive from `state_contract.get_runtime_gitignore_entries()`
+- [x] T007 [P] Write integration tests in `tests/specify_cli/test_gitignore_contract.py` (both contract↔manager and contract↔repo `.gitignore`)
+- [x] T008 Create migration `src/specify_cli/upgrade/migrations/m_2_0_9_state_gitignore.py`
+- [x] T009 [P] Write migration tests in `tests/specify_cli/test_state_gitignore_migration.py`
 
 ### Implementation Notes
 - `RUNTIME_PROTECTED_ENTRIES` constant replaced with a module-level list derived from `get_runtime_gitignore_entries()` at import time.
