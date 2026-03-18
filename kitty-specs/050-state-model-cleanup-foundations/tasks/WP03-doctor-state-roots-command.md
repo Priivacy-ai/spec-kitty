@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: "approved"
+lane: done
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -17,8 +17,8 @@ phase: Phase 2 - Diagnostics
 assignee: ''
 agent: codex
 shell_pid: '34420'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+review_status: approved
+reviewed_by: Robert Douglass
 review_feedback: feedback://050-state-model-cleanup-foundations/WP03/20260318T194448Z-78c1dc40.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'

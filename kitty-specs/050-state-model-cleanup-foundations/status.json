@@ -1,14 +1,14 @@
 {
-  "event_count": 28,
+  "event_count": 30,
   "feature_slug": "050-state-model-cleanup-foundations",
-  "last_event_id": "01KM1863F83FAR9QGZ9KKBR45P",
-  "materialized_at": "2026-03-18T19:53:56.456736+00:00",
+  "last_event_id": "01KM18DAKY30GZ72ANHCKRG8A2",
+  "materialized_at": "2026-03-18T19:57:53.150482+00:00",
   "summary": {
-    "approved": 3,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -22,18 +22,18 @@
       "last_transition_at": "2026-03-18T19:20:11.530976+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 5,
-      "lane": "approved",
-      "last_event_id": "01KM17SVJAD2XD2RHVWXNE2ZKF",
-      "last_transition_at": "2026-03-18T19:47:15.146970+00:00"
+      "lane": "done",
+      "last_event_id": "01KM18DA8GAVQCG1K7YQS3BBZZ",
+      "last_transition_at": "2026-03-18T19:57:52.784368+00:00"
     },
     "WP03": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 10,
-      "lane": "approved",
-      "last_event_id": "01KM1863F83FAR9QGZ9KKBR45P",
-      "last_transition_at": "2026-03-18T19:53:56.456294+00:00"
+      "lane": "done",
+      "last_event_id": "01KM18DAKY30GZ72ANHCKRG8A2",
+      "last_transition_at": "2026-03-18T19:57:53.150058+00:00"
     }
   }
 }
