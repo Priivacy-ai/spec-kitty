@@ -23,13 +23,13 @@ description: "Work package task list for canonical state authority & single meta
 **Requirement Refs**: FR-002, FR-003, FR-004, FR-005, FR-007, FR-008, FR-010, NFR-001, NFR-002, NFR-003
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/feature_metadata.py` with TypedDict definitions
-- [ ] T002 Implement `load_meta()` — relocate from `upgrade/feature_meta.py`, add error handling
-- [ ] T003 Implement `validate_meta()` — check required fields, return error list
-- [ ] T004 Implement `_atomic_write()` — temp file + `os.replace()`, cleanup on failure
-- [ ] T005 Implement `write_meta()` — validate, serialize with standard format, atomic write
-- [ ] T006 Implement mutation helpers — `record_acceptance()`, `record_merge()`, `finalize_merge()`, `set_vcs_lock()`, `set_documentation_state()`, `set_target_branch()` with bounded history
-- [ ] T007 Unit tests in `tests/specify_cli/test_feature_metadata.py`
+- [x] T001 Create `src/specify_cli/feature_metadata.py` with TypedDict definitions
+- [x] T002 Implement `load_meta()` — relocate from `upgrade/feature_meta.py`, add error handling
+- [x] T003 Implement `validate_meta()` — check required fields, return error list
+- [x] T004 Implement `_atomic_write()` — temp file + `os.replace()`, cleanup on failure
+- [x] T005 Implement `write_meta()` — validate, serialize with standard format, atomic write
+- [x] T006 Implement mutation helpers — `record_acceptance()`, `record_merge()`, `finalize_merge()`, `set_vcs_lock()`, `set_documentation_state()`, `set_target_branch()` with bounded history
+- [x] T007 Unit tests in `tests/specify_cli/test_feature_metadata.py`
 
 ### Implementation Notes
 - Standard format: `json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"`
