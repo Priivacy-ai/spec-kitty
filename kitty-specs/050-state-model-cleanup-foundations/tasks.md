@@ -19,11 +19,11 @@
 **Requirement Refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-011, NFR-001, NFR-003
 
 ### Included Subtasks
-- [ ] T001 Create enums: `StateRoot`, `AuthorityClass`, `GitClass`, `StateFormat`
-- [ ] T002 Create frozen `StateSurface` dataclass with `to_dict()`
-- [ ] T003 Populate `STATE_SURFACES` registry with all surfaces from audit sections A–G
-- [ ] T004 Implement helper functions: `get_surfaces_by_root()`, `get_surfaces_by_git_class()`, `get_surfaces_by_authority()`, `get_runtime_gitignore_entries()`
-- [ ] T005 Write unit tests in `tests/specify_cli/test_state_contract.py`
+- [x] T001 Create enums: `StateRoot`, `AuthorityClass`, `GitClass`, `StateFormat`
+- [x] T002 Create frozen `StateSurface` dataclass with `to_dict()`
+- [x] T003 Populate `STATE_SURFACES` registry with all surfaces from audit sections A–G
+- [x] T004 Implement helper functions: `get_surfaces_by_root()`, `get_surfaces_by_git_class()`, `get_surfaces_by_authority()`, `get_runtime_gitignore_entries()`
+- [x] T005 Write unit tests in `tests/specify_cli/test_state_contract.py`
 
 ### Implementation Notes
 - Module is data-first: enums at top, dataclass definition, then registry tuple, then helpers.
