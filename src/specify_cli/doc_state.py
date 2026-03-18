@@ -43,19 +43,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Literal, Optional, TypedDict
 
-from specify_cli.feature_metadata import _atomic_write, load_meta
-
-
-def _write_meta_tolerant(meta_file: Path, meta: dict) -> None:
-    """Write meta.json with standard formatting but no top-level validation.
-
-    doc_state operates on meta.json files that may lack required top-level
-    fields (e.g., during documentation mission setup where only
-    ``{"mission": "documentation"}`` exists). Validation of those fields is
-    the responsibility of the feature creation path, not doc_state.
-    """
-    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    _atomic_write(meta_file, content)
+from specify_cli.feature_metadata import load_meta, write_meta
 
 
 class GeneratorConfig(TypedDict):
@@ -115,7 +103,7 @@ def set_iteration_mode(
     meta["documentation_state"]["iteration_mode"] = iteration_mode
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
@@ -150,7 +138,7 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
     meta["documentation_state"]["divio_types_selected"] = divio_types
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]) -> None:
@@ -195,7 +183,7 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
     meta["documentation_state"]["generators_configured"] = generators
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_audit_metadata(
@@ -234,7 +222,7 @@ def set_audit_metadata(
     meta["documentation_state"]["coverage_percentage"] = coverage_percentage
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 # ============================================================================
@@ -301,7 +289,7 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     meta["documentation_state"] = state
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def initialize_documentation_state(
@@ -412,7 +400,7 @@ def ensure_documentation_state(meta_file: Path) -> None:
     }
 
     # Write back with standard formatting (tolerant — no top-level validation)
-    _write_meta_tolerant(meta_file, meta)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def get_state_version(state: DocumentationState) -> int:

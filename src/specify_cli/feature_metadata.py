@@ -148,19 +148,32 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
     return errors
 
 
-def write_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
-    """Write ``meta.json`` with validation, standard formatting, and atomic write.
+def write_meta(
+    feature_dir: Path,
+    meta: dict[str, Any],
+    *,
+    validate: bool = True,
+) -> None:
+    """Write ``meta.json`` with standard formatting and atomic write.
 
     Standard format: sorted keys, 2-space indent, Unicode preserved,
     trailing newline.
 
-    Raises :class:`ValueError` if validation fails.
+    Args:
+        feature_dir: Directory containing meta.json.
+        meta: Metadata dict to write.
+        validate: If True (default), validate required fields before writing.
+            Set to False for tolerant writes (e.g., doc_state writes to
+            meta.json files that may lack required top-level fields).
+
+    Raises :class:`ValueError` if *validate* is True and validation fails.
     """
-    errors = validate_meta(meta)
-    if errors:
-        raise ValueError(
-            f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}"
-        )
+    if validate:
+        errors = validate_meta(meta)
+        if errors:
+            raise ValueError(
+                f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}"
+            )
     content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     meta_path = feature_dir / "meta.json"
     _atomic_write(meta_path, content)

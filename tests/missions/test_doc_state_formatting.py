@@ -352,14 +352,25 @@ class TestNoDirectJsonDumpRemains:
     """Smoke test: verify doc_state module has no direct json.dump write calls."""
 
     def test_no_json_dump_calls(self) -> None:
-        """doc_state.py should not use json.dump() for writes (uses _write_meta_tolerant).
+        """doc_state.py should not use json.dump() for writes (uses write_meta).
 
-        Note: json.load() is still used in read_documentation_state() — that is
+        Note: json.load() is still used in read_documentation_state() -- that is
         intentional.  This WP only migrates the *write* path.
         """
         import inspect
         import specify_cli.doc_state as mod
 
         source = inspect.getsource(mod)
-        # Write calls should go through _write_meta_tolerant, not json.dump
+        # Write calls should go through write_meta(validate=False), not json.dump
         assert "json.dump(" not in source, "Found json.dump() call in doc_state.py"
+
+    def test_no_private_atomic_write_import(self) -> None:
+        """doc_state.py must not import private _atomic_write from feature_metadata."""
+        import inspect
+        import specify_cli.doc_state as mod
+
+        source = inspect.getsource(mod)
+        assert "_atomic_write" not in source, (
+            "Found _atomic_write reference in doc_state.py; "
+            "use write_meta(validate=False) instead"
+        )
