@@ -169,4 +169,5 @@ WP01 (State Contract)
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
+- WP03: for_review
 <!-- status-model:end -->
