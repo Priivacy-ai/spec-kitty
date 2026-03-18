@@ -165,3 +165,8 @@ WP01 (State Contract)
 | T012 | Create doctor CLI command | WP03 | P0 | Yes |
 | T013 | Register doctor command | WP03 | P0 | No |
 | T014 | Write doctor tests | WP03 | P0 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
