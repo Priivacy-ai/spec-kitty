@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Canonical Acceptance Refactor
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -15,11 +15,11 @@ subtasks:
 - T013
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "82037"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP02/20260318T215527Z-310aa000.md"
+agent: coordinator
+shell_pid: '82037'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP02/20260318T215527Z-310aa000.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
@@ -277,3 +277,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-03-18T21:46:19Z – codex – shell_pid=80590 – lane=doing – Started review via workflow command
 - 2026-03-18T21:55:28Z – codex – shell_pid=80590 – lane=planned – Moved to planned
 - 2026-03-18T21:55:37Z – coordinator – shell_pid=82037 – lane=doing – Started implementation via workflow command
+- 2026-03-18T21:57:48Z – coordinator – shell_pid=82037 – lane=for_review – Fixed empty events edge case per Codex feedback (cycle 3/3)
