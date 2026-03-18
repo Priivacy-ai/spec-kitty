@@ -1,32 +1,35 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: Migrate VCS, Merge, and Feature Creation Writes
+lane: "doing"
+dependencies: [WP01]
+base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
+base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
+created_at: '2026-03-18T21:03:24.173978+00:00'
 subtasks:
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "Migrate VCS, Merge, and Feature Creation Writes"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
-dependencies: ["WP01"]
-requirement_refs:
-  - "FR-002"
-  - "FR-004"
-  - "FR-009"
-  - "NFR-004"
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "51500"
+review_status: ''
+reviewed_by: ''
+review_feedback: ''
 history:
-  - timestamp: "2026-03-18T20:21:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-18T20:21:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs:
+- FR-002
+- FR-004
+- FR-009
+- NFR-004
 ---
 
 # Work Package Prompt: WP03 – Migrate VCS, Merge, and Feature Creation Writes
