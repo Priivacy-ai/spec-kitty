@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: State Contract Module
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 72ed47b6df33996bab220f03079dfe414774d713
@@ -14,11 +14,11 @@ subtasks:
 - T005
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "codex"
-shell_pid: "11803"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
+agent: codex
+shell_pid: '11803'
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://050-state-model-cleanup-foundations/WP01/20260318T191021Z-4d79aed0.md"
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
@@ -326,3 +326,4 @@ All tests are unit tests — no filesystem I/O, no subprocess calls, no external
 - 2026-03-18T18:59:29Z – coordinator – shell_pid=9963 – lane=doing – Assigned agent via workflow command
 - 2026-03-18T19:03:58Z – coordinator – shell_pid=9963 – lane=for_review – State contract module complete: 4 StrEnum classes, frozen StateSurface dataclass, 39-surface registry covering audit sections A-G, 4 helper functions, 36 passing unit tests, ruff clean
 - 2026-03-18T19:04:21Z – codex – shell_pid=11803 – lane=doing – Started review via workflow command
+- 2026-03-18T19:10:21Z – codex – shell_pid=11803 – lane=planned – Codex review: 2 high findings - incomplete registry and unusable gitignore patterns
