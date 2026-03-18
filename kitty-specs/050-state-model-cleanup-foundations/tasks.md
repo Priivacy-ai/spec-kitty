@@ -83,11 +83,11 @@
 **Requirement Refs**: FR-008, FR-009, NFR-002
 
 ### Included Subtasks
-- [ ] T010 Create `src/specify_cli/state/` package with `__init__.py`
-- [ ] T011 Implement `check_state_roots()` in `src/specify_cli/state/doctor.py`
-- [ ] T012 Create CLI command in `src/specify_cli/cli/commands/doctor.py` with `state-roots` subcommand
-- [ ] T013 Register doctor command group in `src/specify_cli/cli/commands/__init__.py`
-- [ ] T014 Write tests in `tests/specify_cli/test_state_doctor.py`
+- [x] T010 Create `src/specify_cli/state/` package with `__init__.py`
+- [x] T011 Implement `check_state_roots()` in `src/specify_cli/state/doctor.py`
+- [x] T012 Create CLI command in `src/specify_cli/cli/commands/doctor.py` with `state-roots` subcommand
+- [x] T013 Register doctor command group in `src/specify_cli/cli/commands/__init__.py`
+- [x] T014 Write tests in `tests/specify_cli/test_state_doctor.py`
 
 ### Implementation Notes
 - `check_state_roots()` resolves three roots (project via `locate_project_root()`, global_runtime via `get_kittify_home()`, global_sync via `Path.home() / '.spec-kitty'`).
