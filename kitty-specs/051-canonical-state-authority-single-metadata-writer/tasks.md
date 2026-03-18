@@ -92,11 +92,11 @@ description: "Work package task list for canonical state authority & single meta
 **Requirement Refs**: FR-002, FR-004, FR-009, NFR-004
 
 ### Included Subtasks
-- [ ] T014 [P] Migrate `implement.py:591,601` VCS lock writes to `set_vcs_lock()`
-- [ ] T015 [P] Migrate `tasks_cli.py:573` merge metadata write to `record_merge()`
-- [ ] T016 [P] Migrate `tasks_cli.py:592` finalize merge write to `finalize_merge()`
-- [ ] T017 [P] Migrate `feature.py:632,658` feature creation writes to `write_meta()` (fixes missing newline bugs)
-- [ ] T018 Tests for each migrated write site
+- [x] T014 [P] Migrate `implement.py:591,601` VCS lock writes to `set_vcs_lock()`
+- [x] T015 [P] Migrate `tasks_cli.py:573` merge metadata write to `record_merge()`
+- [x] T016 [P] Migrate `tasks_cli.py:592` finalize merge write to `finalize_merge()`
+- [x] T017 [P] Migrate `feature.py:632,658` feature creation writes to `write_meta()` (fixes missing newline bugs)
+- [x] T018 Tests for each migrated write site
 
 ### Implementation Notes
 - Each migration is a mechanical replacement: replace `json.dumps()` + `write_text()` with the appropriate `feature_metadata.py` function call.
