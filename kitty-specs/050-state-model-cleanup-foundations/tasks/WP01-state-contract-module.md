@@ -14,7 +14,7 @@ subtasks:
 - T005
 phase: Phase 1 - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "9963"
 review_status: ''
 reviewed_by: ''
@@ -323,3 +323,4 @@ All tests are unit tests — no filesystem I/O, no subprocess calls, no external
 ## Activity Log
 
 - 2026-03-18T18:52:42Z – system – lane=planned – Prompt created.
+- 2026-03-18T18:59:29Z – coordinator – shell_pid=9963 – lane=doing – Assigned agent via workflow command
