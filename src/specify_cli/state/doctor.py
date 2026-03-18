@@ -1,0 +1,253 @@
+"""State-roots diagnostic for spec-kitty CLI.
+
+Resolves the three state roots (project, global_runtime, global_sync),
+checks on-disk presence of every registered state surface, validates
+gitignore coverage for repo-local runtime surfaces, and returns a
+structured report.
+"""
+
+from __future__ import annotations
+
+import logging
+import subprocess
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from specify_cli.state_contract import (
+    STATE_SURFACES,
+    AuthorityClass,
+    GitClass,
+    StateRoot,
+    StateSurface,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Dataclasses
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class StateRootInfo:
+    """Resolved state root with existence status."""
+
+    name: str
+    label: str
+    resolved_path: Path
+    exists: bool
+
+
+@dataclass
+class SurfaceCheckResult:
+    """Result of checking a single state surface."""
+
+    surface: StateSurface
+    present: bool
+    gitignore_covered: bool
+    warning: str | None = None
+
+
+@dataclass
+class StateRootsReport:
+    """Aggregated report from check_state_roots()."""
+
+    roots: list[StateRootInfo] = field(default_factory=list)
+    surfaces: list[SurfaceCheckResult] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def healthy(self) -> bool:
+        """True when no warnings were generated."""
+        return len(self.warnings) == 0
+
+    def to_dict(self) -> dict:
+        """Return a JSON-serializable dictionary representation."""
+        return {
+            "healthy": self.healthy,
+            "roots": [
+                {
+                    "name": r.name,
+                    "label": r.label,
+                    "resolved_path": str(r.resolved_path),
+                    "exists": r.exists,
+                }
+                for r in self.roots
+            ],
+            "surfaces": [
+                {
+                    "name": s.surface.name,
+                    "path_pattern": s.surface.path_pattern,
+                    "root": s.surface.root.value,
+                    "authority": s.surface.authority.value,
+                    "git_class": s.surface.git_class.value,
+                    "present": s.present,
+                    "gitignore_covered": s.gitignore_covered,
+                    "warning": s.warning,
+                }
+                for s in self.surfaces
+            ],
+            "warnings": self.warnings,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _is_gitignore_covered(repo_root: Path, path: str) -> bool | None:
+    """Check if a path is covered by .gitignore rules.
+
+    Returns True if ignored, False if not ignored, None if git is unavailable.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", path],
+            cwd=str(repo_root),
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+
+
+def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
+    """Check if a surface exists on disk."""
+    if surface.root == StateRoot.PROJECT:
+        path = repo_root / surface.path_pattern
+    elif surface.root == StateRoot.FEATURE:
+        # Feature surfaces use wildcards -- check if any match exists
+        # For now, skip presence check for wildcard paths
+        return False  # Can't check without a specific feature
+    elif surface.root == StateRoot.GLOBAL_RUNTIME:
+        from specify_cli.runtime.home import get_kittify_home
+
+        # Strip leading ~/ prefix for resolution
+        relative = surface.path_pattern.replace("~/.kittify/", "")
+        path = get_kittify_home() / relative
+    elif surface.root == StateRoot.GLOBAL_SYNC:
+        relative = surface.path_pattern.replace("~/.spec-kitty/", "")
+        path = Path.home() / ".spec-kitty" / relative
+    elif surface.root == StateRoot.GIT_INTERNAL:
+        # Check under .git/
+        relative = surface.path_pattern.replace(".git/", "")
+        path = repo_root / ".git" / relative
+    else:
+        return False
+
+    # Handle wildcard patterns -- check if parent dir exists
+    if "<" in str(path) or "*" in str(path):
+        # Can't check parameterized paths; check parent dir instead
+        parent = path.parent
+        while "<" in str(parent) or "*" in str(parent):
+            parent = parent.parent
+        return parent.is_dir()
+
+    return path.exists()
+
+
+def _check_gitignore(repo_root: Path, surface: StateSurface) -> bool:
+    """Check gitignore coverage for repo-local surfaces."""
+    if surface.root not in (StateRoot.PROJECT,):
+        return True  # Non-repo surfaces don't need gitignore
+    if surface.git_class in (
+        GitClass.TRACKED,
+        GitClass.OUTSIDE_REPO,
+        GitClass.GIT_INTERNAL,
+    ):
+        return True  # Tracked or external surfaces don't need gitignore
+
+    result = _is_gitignore_covered(repo_root, surface.path_pattern)
+    if result is None:
+        return True  # Can't verify, don't warn
+    return result
+
+
+def _generate_warning(
+    surface: StateSurface, present: bool, gitignore_covered: bool
+) -> str | None:
+    """Generate a warning if a runtime surface is present but not ignored."""
+    if surface.root != StateRoot.PROJECT:
+        return None
+    if surface.git_class in (
+        GitClass.TRACKED,
+        GitClass.OUTSIDE_REPO,
+        GitClass.GIT_INTERNAL,
+    ):
+        return None
+    if surface.authority not in (AuthorityClass.LOCAL_RUNTIME, AuthorityClass.DERIVED):
+        return None
+    if not present:
+        return None
+    if gitignore_covered:
+        return None
+
+    return (
+        f"{surface.name} ({surface.path_pattern}) is present but not gitignored. "
+        f"Authority: {surface.authority.value}. Risk: accidental commit."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def check_state_roots(repo_root: Path) -> StateRootsReport:
+    """Run state-roots diagnostic and return a structured report.
+
+    Resolves the three state roots, checks surface presence on disk,
+    validates gitignore coverage for repo-local runtime surfaces, and
+    collects warnings.
+
+    Args:
+        repo_root: Path to the project repository root.
+
+    Returns:
+        A StateRootsReport with roots, surfaces, and any warnings.
+    """
+    from specify_cli.runtime.home import get_kittify_home
+
+    report = StateRootsReport()
+
+    # Resolve roots
+    project_root = repo_root / ".kittify"
+    global_runtime = get_kittify_home()
+    global_sync = Path.home() / ".spec-kitty"
+
+    report.roots = [
+        StateRootInfo(
+            "project", "Project-local state", project_root, project_root.is_dir()
+        ),
+        StateRootInfo(
+            "global_runtime",
+            "Global runtime home",
+            global_runtime,
+            global_runtime.is_dir(),
+        ),
+        StateRootInfo(
+            "global_sync", "Global sync/auth home", global_sync, global_sync.is_dir()
+        ),
+    ]
+
+    # Check each surface
+    for surface in STATE_SURFACES:
+        present = _check_surface_present(repo_root, surface)
+        gitignore_covered = _check_gitignore(repo_root, surface)
+        warning = _generate_warning(surface, present, gitignore_covered)
+
+        result = SurfaceCheckResult(
+            surface=surface,
+            present=present,
+            gitignore_covered=gitignore_covered,
+            warning=warning,
+        )
+        report.surfaces.append(result)
+
+        if warning:
+            report.warnings.append(warning)
+
+    return report
