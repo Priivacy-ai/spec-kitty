@@ -253,3 +253,8 @@ WP01 (foundation) ────────────────────�
 | T025 | Codebase sweep test for direct meta.json writes | WP05 | P2 | Yes |
 | T026 | End-to-end acceptance integration test | WP05 | P2 | No |
 | T027 | Corrupted compatibility views integration test | WP05 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
