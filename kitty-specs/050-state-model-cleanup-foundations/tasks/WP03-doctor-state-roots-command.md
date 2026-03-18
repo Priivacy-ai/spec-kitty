@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: planned
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -555,3 +555,4 @@ Most tests use `tmp_path` fixture and mock `_is_gitignore_covered` to avoid git 
 - 2026-03-18T19:26:11Z – codex – shell_pid=24774 – lane=doing – Started review via workflow command
 - 2026-03-18T19:34:55Z – codex – shell_pid=24774 – lane=planned – Codex review: 2 findings - feature surfaces always absent, staging dirs path resolution
 - 2026-03-18T19:35:03Z – coordinator – shell_pid=28963 – lane=doing – Started implementation via workflow command
+- 2026-03-18T19:37:30Z – coordinator – shell_pid=28963 – lane=for_review – Fixed both Codex findings: feature surface detection and staging dir path resolution
