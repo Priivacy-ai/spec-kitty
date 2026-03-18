@@ -132,7 +132,7 @@ def load_meta(feature_dir: Path) -> dict[str, Any] | None:
         raise ValueError(
             f"Expected JSON object in {meta_path}, got {type(data).__name__}"
         )
-    return data  # type: ignore[no-any-return]
+    return data
 
 
 def validate_meta(meta: dict[str, Any]) -> list[str]:

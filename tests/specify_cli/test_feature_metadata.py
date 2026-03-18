@@ -172,12 +172,14 @@ class TestWriteMeta:
         created_pos = content.index('"created_at"')
         assert aaa_pos < created_pos
 
-        # ensure_ascii=False: Unicode preserved
+        # ensure_ascii=False: Unicode preserved (actual non-ASCII chars)
         meta2 = _minimal_meta()
-        meta2["friendly_name"] = "Ubersicht"
+        meta2["friendly_name"] = "\u00dcberblick caf\u00e9"
         write_meta(tmp_path, meta2)
         content2 = (tmp_path / "meta.json").read_text(encoding="utf-8")
-        assert "Ubersicht" in content2
+        # Raw Unicode chars must appear, not \\uXXXX escapes
+        assert "\u00dcberblick caf\u00e9" in content2
+        assert "\\u00dc" not in content2
 
     def test_invalid_meta_raises_valueerror(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
@@ -630,13 +632,14 @@ class TestUnicodeHandling:
 
     def test_unicode_in_friendly_name(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
-        meta["friendly_name"] = "Ubersicht der Anderungen"
+        meta["friendly_name"] = "\u00dcbersicht der \u00c4nderungen"
         write_meta(tmp_path, meta)
 
         content = (tmp_path / "meta.json").read_text(encoding="utf-8")
-        assert "Ubersicht" in content
-        # Not escaped
-        assert "\\u" not in content
+        # Raw Unicode chars must appear, not \uXXXX escapes
+        assert "\u00dcbersicht" in content
+        assert "\u00c4nderungen" in content
+        assert "\\u00dc" not in content
 
     def test_unicode_round_trip(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
