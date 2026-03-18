@@ -194,34 +194,32 @@ def test_get_surfaces_by_authority_derived():
 # ---------------------------------------------------------------------------
 
 
-def test_runtime_gitignore_entries_contains_dashboard():
-    """.kittify/.dashboard must be in gitignore entries."""
+def test_runtime_gitignore_entries_exact():
+    """Gitignore entries must contain all expected canonical patterns."""
     entries = get_runtime_gitignore_entries()
-    assert ".kittify/.dashboard" in entries
+    expected = [
+        ".kittify/.dashboard",
+        ".kittify/constitution/context-state.json",
+        ".kittify/constitution/directives.yaml",
+        ".kittify/constitution/governance.yaml",
+        ".kittify/constitution/metadata.yaml",
+        ".kittify/dossiers/",
+        ".kittify/events/",
+        ".kittify/merge-state.json",
+        ".kittify/runtime/",
+        ".kittify/workspaces/",
+    ]
+    assert entries == expected
 
 
-def test_runtime_gitignore_entries_contains_merge_state():
-    """.kittify/merge-state.json must be in gitignore entries."""
+def test_runtime_gitignore_entries_no_placeholders():
+    """Gitignore entries must not contain placeholder tokens."""
     entries = get_runtime_gitignore_entries()
-    assert ".kittify/merge-state.json" in entries
-
-
-def test_runtime_gitignore_entries_contains_runtime():
-    """Runtime paths must be in gitignore entries."""
-    entries = get_runtime_gitignore_entries()
-    assert any("runtime" in e for e in entries)
-
-
-def test_runtime_gitignore_entries_contains_dossiers():
-    """Dossier paths must be in gitignore entries."""
-    entries = get_runtime_gitignore_entries()
-    assert any("dossiers" in e for e in entries)
-
-
-def test_runtime_gitignore_entries_contains_events():
-    """Glossary event paths must be in gitignore entries."""
-    entries = get_runtime_gitignore_entries()
-    assert any("events" in e for e in entries)
+    for entry in entries:
+        assert "<" not in entry, f"Placeholder in gitignore entry: {entry}"
+        assert "*" not in entry or entry.endswith("__pycache__/"), (
+            f"Wildcard in gitignore entry: {entry}"
+        )
 
 
 def test_runtime_gitignore_entries_sorted():
@@ -230,15 +228,30 @@ def test_runtime_gitignore_entries_sorted():
     assert entries == sorted(entries)
 
 
-def test_runtime_gitignore_entries_only_project_root():
-    """Gitignore entries must only include PROJECT-rooted, IGNORED surfaces."""
+def test_runtime_gitignore_entries_only_project_ignored():
+    """Every gitignore entry must trace back to a PROJECT/IGNORED surface."""
     entries = get_runtime_gitignore_entries()
     for entry in entries:
-        matching = [s for s in STATE_SURFACES if s.path_pattern == entry]
-        assert len(matching) == 1, f"Pattern {entry} not found in registry"
-        s = matching[0]
-        assert s.root == StateRoot.PROJECT
-        assert s.git_class == GitClass.IGNORED
+        # Entry is either a concrete path or a directory-level collapse
+        # Either way, at least one registry surface must match
+        if entry.endswith("/"):
+            # Directory pattern: at least one surface path_pattern must start with this prefix
+            matching = [
+                s
+                for s in STATE_SURFACES
+                if s.root == StateRoot.PROJECT
+                and s.git_class == GitClass.IGNORED
+                and s.path_pattern.startswith(entry.rstrip("/"))
+            ]
+        else:
+            matching = [
+                s
+                for s in STATE_SURFACES
+                if s.root == StateRoot.PROJECT
+                and s.git_class == GitClass.IGNORED
+                and s.path_pattern == entry
+            ]
+        assert len(matching) >= 1, f"Gitignore entry {entry!r} has no backing surface"
 
 
 # ---------------------------------------------------------------------------
@@ -380,12 +393,21 @@ def test_section_f_global_runtime_present():
     expected = {
         "runtime_version_stamp",
         "runtime_update_lock",
+        "runtime_staging_dirs",
     }
     missing = expected - names
     assert not missing, f"Missing Section F surfaces: {missing}"
 
 
 def test_section_g_legacy_present():
-    """Section G legacy surface exists."""
+    """All Section G legacy surfaces exist."""
     names = {s.name for s in STATE_SURFACES}
-    assert "active_mission_marker" in names
+    expected = {
+        "active_mission_marker",
+        "legacy_session_json",
+        "legacy_lamport_clock",
+        "legacy_mission_sessions",
+        "legacy_reset_backups",
+    }
+    missing = expected - names
+    assert not missing, f"Missing Section G surfaces: {missing}"

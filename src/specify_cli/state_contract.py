@@ -490,6 +490,17 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="runtime/bootstrap",
         creation_trigger="runtime asset update",
     ),
+    StateSurface(
+        name="runtime_staging_dirs",
+        path_pattern="~/.kittify_update_*",
+        root=StateRoot.GLOBAL_RUNTIME,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="runtime/bootstrap",
+        creation_trigger="runtime asset update",
+        notes="Transient staging area, removed after update completes",
+    ),
     # -----------------------------------------------------------------------
     # Section G -- Legacy
     # -----------------------------------------------------------------------
@@ -504,6 +515,54 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="legacy mission selection",
         deprecated=True,
         notes="Deprecated but still read as fallback",
+    ),
+    StateSurface(
+        name="legacy_session_json",
+        path_pattern="~/.spec-kitty/session.json",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DEPRECATED,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue, not referenced by current 2.x source",
+    ),
+    StateSurface(
+        name="legacy_lamport_clock",
+        path_pattern="~/.spec-kitty/events/lamport_clock.json",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DEPRECATED,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue, not referenced by current 2.x source",
+    ),
+    StateSurface(
+        name="legacy_mission_sessions",
+        path_pattern="~/.spec-kitty/missions/*/session.json",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DEPRECATED,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue, not referenced by current 2.x source",
+    ),
+    StateSurface(
+        name="legacy_reset_backups",
+        path_pattern="~/.spec-kitty/reset-backup-*",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.DEPRECATED,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="legacy",
+        creation_trigger="historical",
+        deprecated=True,
+        notes="Historical residue, not referenced by current 2.x source",
     ),
 )
 
@@ -528,13 +587,88 @@ def get_surfaces_by_authority(authority: AuthorityClass) -> list[StateSurface]:
     return [s for s in STATE_SURFACES if s.authority == authority]
 
 
+def _fully_ignored_top_dirs() -> set[str]:
+    """Return top-level subdirectory patterns where ALL project surfaces are IGNORED.
+
+    For example, if every surface under ``.kittify/runtime/`` is IGNORED,
+    ``".kittify/runtime/"`` is returned. Directories with mixed git classes
+    (some TRACKED, some IGNORED) are excluded.
+    """
+    project_surfaces = [s for s in STATE_SURFACES if s.root == StateRoot.PROJECT]
+    top_dir_git_classes: dict[str, list[GitClass]] = {}
+    for s in project_surfaces:
+        parts = s.path_pattern.split("/")
+        if len(parts) >= 3:  # noqa: PLR2004
+            top_dir = "/".join(parts[:2])
+            top_dir_git_classes.setdefault(top_dir, []).append(s.git_class)
+    return {
+        d + "/"
+        for d, classes in top_dir_git_classes.items()
+        if all(gc == GitClass.IGNORED for gc in classes)
+    }
+
+
+def _collapse_placeholder_pattern(pattern: str) -> str | None:
+    """Collapse a path pattern with placeholders to its clean parent directory.
+
+    Returns ``None`` if no clean prefix exists.
+    """
+    parts = pattern.split("/")
+    clean_parts: list[str] = []
+    for part in parts:
+        if "<" in part or "*" in part:
+            break
+        clean_parts.append(part)
+    return "/".join(clean_parts) + "/" if clean_parts else None
+
+
+def _remove_subsumed(entries: set[str]) -> set[str]:
+    """Remove entries that are subsumed by a parent directory entry."""
+    return {
+        entry
+        for entry in entries
+        if not any(
+            other != entry and other.endswith("/") and entry.startswith(other)
+            for other in entries
+        )
+    }
+
+
 def get_runtime_gitignore_entries() -> list[str]:
-    """Return path patterns for project-root surfaces that should be in .gitignore.
+    """Return deduplicated gitignore patterns for project-root runtime surfaces.
 
     Includes all PROJECT-rooted surfaces with git_class=IGNORED.
+    Patterns containing placeholder tokens (``<...>``) or wildcards are
+    collapsed to their parent directory (with trailing ``/``), then
+    deduplicated so the result is directly consumable by ``.gitignore``.
+
+    When ALL project surfaces under a top-level subdirectory (e.g.
+    ``.kittify/runtime/``) are IGNORED, the entire subdirectory is emitted
+    as a single entry rather than listing individual files/subdirs.
     """
-    patterns = []
+    fully_ignored = _fully_ignored_top_dirs()
+    raw: set[str] = set()
+
     for s in STATE_SURFACES:
-        if s.root == StateRoot.PROJECT and s.git_class == GitClass.IGNORED:
-            patterns.append(s.path_pattern)
-    return sorted(patterns)
+        if s.root != StateRoot.PROJECT or s.git_class != GitClass.IGNORED:
+            continue
+        pattern = s.path_pattern
+
+        # Check if this surface falls under a fully-ignored top dir
+        parts = pattern.split("/")
+        if len(parts) >= 3:  # noqa: PLR2004
+            top_dir_pattern = "/".join(parts[:2]) + "/"
+            if top_dir_pattern in fully_ignored:
+                raw.add(top_dir_pattern)
+                continue
+
+        # Collapse placeholders to parent directory
+        if "<" in pattern or "*" in pattern:
+            collapsed = _collapse_placeholder_pattern(pattern)
+            if collapsed:
+                raw.add(collapsed)
+            continue
+
+        raw.add(pattern)
+
+    return sorted(_remove_subsumed(raw))
