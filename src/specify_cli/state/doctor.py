@@ -119,18 +119,25 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
     if surface.root == StateRoot.PROJECT:
         path = repo_root / surface.path_pattern
     elif surface.root == StateRoot.FEATURE:
-        # Feature surfaces use wildcards -- check if any match exists
-        # For now, skip presence check for wildcard paths
-        return False  # Can't check without a specific feature
+        # Feature surfaces live under repo_root (e.g. kitty-specs/<feature>/...)
+        path = repo_root / surface.path_pattern
     elif surface.root == StateRoot.GLOBAL_RUNTIME:
-        from specify_cli.runtime.home import get_kittify_home
+        if surface.path_pattern.startswith("~/"):
+            # Resolve from home directory (handles both ~/.kittify/...
+            # and siblings like ~/.kittify_update_*)
+            relative = surface.path_pattern[2:]  # Strip ~/
+            path = Path.home() / relative
+        else:
+            from specify_cli.runtime.home import get_kittify_home
 
-        # Strip leading ~/ prefix for resolution
-        relative = surface.path_pattern.replace("~/.kittify/", "")
-        path = get_kittify_home() / relative
+            path = get_kittify_home() / surface.path_pattern
     elif surface.root == StateRoot.GLOBAL_SYNC:
-        relative = surface.path_pattern.replace("~/.spec-kitty/", "")
-        path = Path.home() / ".spec-kitty" / relative
+        if surface.path_pattern.startswith("~/"):
+            # Resolve from home directory (e.g. ~/.spec-kitty/...)
+            relative = surface.path_pattern[2:]  # Strip ~/
+            path = Path.home() / relative
+        else:
+            path = Path.home() / ".spec-kitty" / surface.path_pattern
     elif surface.root == StateRoot.GIT_INTERNAL:
         # Check under .git/
         relative = surface.path_pattern.replace(".git/", "")
