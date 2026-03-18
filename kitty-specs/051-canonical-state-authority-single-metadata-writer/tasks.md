@@ -124,10 +124,10 @@ description: "Work package task list for canonical state authority & single meta
 **Requirement Refs**: FR-002, FR-009, NFR-004
 
 ### Included Subtasks
-- [ ] T019 Refactor doc_state.py read/write pattern to use `load_meta()` and `write_meta()` from `feature_metadata.py`
-- [ ] T020 [P] Update individual field setters: `set_iteration_mode()`, `set_divio_types_selected()`, `set_generators_configured()`, `set_audit_metadata()`
-- [ ] T021 [P] Update composite writers: `write_documentation_state()`, `initialize_documentation_state()`, `update_documentation_state()`, `ensure_documentation_state()`
-- [ ] T022 Tests verifying consistent formatting across all doc_state write paths
+- [x] T019 Refactor doc_state.py read/write pattern to use `load_meta()` and `write_meta()` from `feature_metadata.py`
+- [x] T020 [P] Update individual field setters: `set_iteration_mode()`, `set_divio_types_selected()`, `set_generators_configured()`, `set_audit_metadata()`
+- [x] T021 [P] Update composite writers: `write_documentation_state()`, `initialize_documentation_state()`, `update_documentation_state()`, `ensure_documentation_state()`
+- [x] T022 Tests verifying consistent formatting across all doc_state write paths
 
 ### Implementation Notes
 - `doc_state.py` currently uses `json.dump(meta, f, indent=2)` via file handle — replace with `load_meta()` for reads and `write_meta()` for writes.
