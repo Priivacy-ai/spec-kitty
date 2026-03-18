@@ -819,3 +819,122 @@ class TestFeatureCreationTrailingNewline:
         # Keys should be sorted
         keys = list(parsed.keys())
         assert keys == sorted(keys)
+
+
+# ===================================================================
+# WP03 cycle 2: Merge tolerance for malformed meta.json
+# ===================================================================
+
+
+class TestMergeToleranceMalformedMeta:
+    """Verify _prepare_merge_metadata and _finalize_merge_metadata tolerate
+    malformed meta.json without raising, preserving the old error-tolerance
+    that existed before the migration to feature_metadata.py.
+
+    The merge operation itself must not fail due to metadata issues -- these
+    functions are called AFTER git merge has already succeeded.
+    """
+
+    def test_prepare_merge_metadata_tolerates_malformed_json(self, tmp_path: Path) -> None:
+        """_prepare_merge_metadata returns None (no crash) when meta.json is malformed."""
+        import sys
+        import os
+
+        # Add the tasks scripts dir to sys.path so we can import tasks_cli
+        tasks_dir = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "src",
+            "specify_cli",
+            "scripts",
+            "tasks",
+        )
+        tasks_dir = os.path.normpath(tasks_dir)
+        if tasks_dir not in sys.path:
+            sys.path.insert(0, tasks_dir)
+
+        from specify_cli.scripts.tasks.tasks_cli import _prepare_merge_metadata
+
+        # Create feature dir with malformed meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text("{invalid json content", encoding="utf-8")
+
+        # Should return None (not raise) because record_merge fails on malformed JSON
+        result = _prepare_merge_metadata(
+            repo_root=tmp_path,
+            feature="test-feature",
+            target="main",
+            strategy="merge",
+            pushed=False,
+        )
+        assert result is None
+
+    def test_finalize_merge_metadata_tolerates_malformed_json(self, tmp_path: Path) -> None:
+        """_finalize_merge_metadata does not raise when meta.json is malformed."""
+        from specify_cli.scripts.tasks.tasks_cli import _finalize_merge_metadata
+
+        # Create malformed meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text("{invalid json content", encoding="utf-8")
+
+        # Should not raise -- just log a warning
+        _finalize_merge_metadata(meta_path, merge_commit="abc123")
+
+    def test_prepare_merge_metadata_works_with_valid_meta(self, tmp_path: Path) -> None:
+        """_prepare_merge_metadata succeeds normally with valid meta.json."""
+        from specify_cli.scripts.tasks.tasks_cli import _prepare_merge_metadata
+        from unittest.mock import patch
+
+        # Create valid meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta = _minimal_meta()
+        _write_meta_file(feature_dir, meta)
+
+        # Mock _merge_actor to avoid git dependency
+        with patch(
+            "specify_cli.scripts.tasks.tasks_cli._merge_actor",
+            return_value="test-user",
+        ):
+            result = _prepare_merge_metadata(
+                repo_root=tmp_path,
+                feature="test-feature",
+                target="main",
+                strategy="merge",
+                pushed=False,
+            )
+
+        assert result is not None
+        assert result == feature_dir / "meta.json"
+
+        # Verify the metadata was written correctly
+        data = load_meta(feature_dir)
+        assert data is not None
+        assert data["merged_by"] == "test-user"
+        assert data["merged_into"] == "main"
+
+    def test_finalize_merge_metadata_works_with_valid_meta(self, tmp_path: Path) -> None:
+        """_finalize_merge_metadata succeeds normally with valid meta.json."""
+        from specify_cli.scripts.tasks.tasks_cli import _finalize_merge_metadata
+
+        # Create valid meta.json with merge history
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta = _minimal_meta()
+        meta["merge_history"] = [
+            {"merged_at": "2026-03-18T00:00:00+00:00", "merged_commit": None}
+        ]
+        _write_meta_file(feature_dir, meta)
+
+        meta_path = feature_dir / "meta.json"
+        _finalize_merge_metadata(meta_path, merge_commit="sha256abc")
+
+        data = load_meta(feature_dir)
+        assert data is not None
+        assert data["merged_commit"] == "sha256abc"
+        assert data["merge_history"][-1]["merged_commit"] == "sha256abc"

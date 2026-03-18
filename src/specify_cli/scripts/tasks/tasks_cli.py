@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -544,13 +547,17 @@ def _prepare_merge_metadata(
 
     merged_by = _merge_actor(repo_root)
 
-    record_merge(
-        feature_dir,
-        merged_by=merged_by,
-        merged_into=target,
-        strategy=strategy,
-        push=pushed,
-    )
+    try:
+        record_merge(
+            feature_dir,
+            merged_by=merged_by,
+            merged_into=target,
+            strategy=strategy,
+            push=pushed,
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        logger.warning("Could not record merge metadata: %s", exc)
+        return None
     return meta_path
 
 
@@ -561,7 +568,10 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     from specify_cli.feature_metadata import finalize_merge
 
     feature_dir = meta_path.parent
-    finalize_merge(feature_dir, merged_commit=merge_commit)
+    try:
+        finalize_merge(feature_dir, merged_commit=merge_commit)
+    except (ValueError, FileNotFoundError) as exc:
+        logger.warning("Could not finalize merge metadata: %s", exc)
 
 def merge_command(args: argparse.Namespace) -> None:
     # merge_command needs the LOCAL git root (may be a worktree), not the main
