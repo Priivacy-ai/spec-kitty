@@ -58,12 +58,12 @@ description: "Work package task list for canonical state authority & single meta
 **Requirement Refs**: FR-001, FR-009, FR-011, NFR-002, C-001, C-004
 
 ### Included Subtasks
-- [ ] T008 Replace Activity Log parsing in `acceptance.py` (~lines 355-392) with `materialize()` call
-- [ ] T009 Replace Activity Log parsing in `acceptance_support.py` (~lines 457-492) with same logic
-- [ ] T010 Migrate `acceptance.py:538` meta.json write to `record_acceptance()`
-- [ ] T011 Migrate `acceptance_support.py:620` meta.json write to `record_acceptance()`
-- [ ] T012 Migrate `orchestrator_api/commands.py:787` meta.json write to `record_acceptance()` (fixes missing newline)
-- [ ] T013 Integration tests proving canonical state authority and orchestrator parity
+- [x] T008 Replace Activity Log parsing in `acceptance.py` (~lines 355-392) with `materialize()` call
+- [x] T009 Replace Activity Log parsing in `acceptance_support.py` (~lines 457-492) with same logic
+- [x] T010 Migrate `acceptance.py:538` meta.json write to `record_acceptance()`
+- [x] T011 Migrate `acceptance_support.py:620` meta.json write to `record_acceptance()`
+- [x] T012 Migrate `orchestrator_api/commands.py:787` meta.json write to `record_acceptance()` (fixes missing newline)
+- [x] T013 Integration tests proving canonical state authority and orchestrator parity
 
 ### Implementation Notes
 - The acceptance validation currently checks 3 rules against Activity Log entries. Replace with one check: is `snapshot[wp_id].lane == "done"` for all WPs.
