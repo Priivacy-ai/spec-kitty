@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migrate doc_state.py Write Sites
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -13,11 +13,11 @@ subtasks:
 - T022
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "76970"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T213203Z-b514c0eb.md"
+agent: coordinator
+shell_pid: '76970'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP04/20260318T213203Z-b514c0eb.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
@@ -236,3 +236,4 @@ spec-kitty implement WP04 --base WP01
 - 2026-03-18T21:23:10Z – codex – shell_pid=75463 – lane=doing – Started review via workflow command
 - 2026-03-18T21:32:04Z – codex – shell_pid=75463 – lane=planned – Moved to planned
 - 2026-03-18T21:32:15Z – coordinator – shell_pid=76970 – lane=doing – Started implementation via workflow command
+- 2026-03-18T21:34:51Z – coordinator – shell_pid=76970 – lane=for_review – Uses public API per Codex feedback (cycle 3/3)
