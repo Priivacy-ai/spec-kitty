@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Canonical Acceptance Refactor
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -15,8 +15,8 @@ subtasks:
 - T013
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: coordinator
-shell_pid: '79664'
+agent: "codex"
+shell_pid: "80590"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP02/20260318T214242Z-bbed1bd3.md
@@ -274,3 +274,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-03-18T21:42:42Z – codex – shell_pid=74384 – lane=planned – Moved to planned
 - 2026-03-18T21:42:54Z – coordinator – shell_pid=79664 – lane=doing – Started implementation via workflow command
 - 2026-03-18T21:46:00Z – coordinator – shell_pid=79664 – lane=for_review – Fixed frontmatter lane gate per Codex feedback (cycle 2/3)
+- 2026-03-18T21:46:19Z – codex – shell_pid=80590 – lane=doing – Started review via workflow command
