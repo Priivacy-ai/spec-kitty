@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Migrate VCS, Merge, and Feature Creation Writes
-lane: "doing"
+lane: planned
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -14,11 +14,11 @@ subtasks:
 - T018
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "69719"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP03/20260318T211746Z-58c47bd5.md"
+agent: coordinator
+shell_pid: '69719'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP03/20260318T211746Z-58c47bd5.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
