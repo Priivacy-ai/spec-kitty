@@ -225,6 +225,60 @@ class TestCanonicalStateAuthority:
         )
         assert summary.all_done
 
+    def test_all_done_uses_canonical_lane_not_frontmatter(self, tmp_path: Path) -> None:
+        """Canonical state is 'done' for all WPs but frontmatter lane is 'for_review'.
+
+        This is the exact regression from the Codex review: the lanes dict
+        bucketing used wp.current_lane (frontmatter) so all_done returned False
+        even though canonical state said done. After the fix, canonical lane
+        drives the lanes dict, so all_done returns True.
+        """
+        # Frontmatter says for_review, but canonical events say done
+        _setup_feature(
+            tmp_path,
+            wp_ids=["WP01", "WP02"],
+            include_events=True,
+            include_activity_log=True,
+            wp_lanes={
+                "WP01": "done",
+                "WP02": "done",
+            },
+        )
+
+        # Overwrite WP files to have frontmatter lane=for_review
+        tasks_dir = tmp_path / "kitty-specs" / "099-test-feature" / "tasks"
+        for wp_id in ["WP01", "WP02"]:
+            _write_wp_file(
+                tasks_dir,
+                wp_id,
+                lane="for_review",  # Frontmatter says for_review
+                include_activity_log=True,
+                activity_log_lane="for_review",
+            )
+
+        with patch("specify_cli.acceptance.run_git") as mock_git, \
+             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+            mock_git.return_value.stdout = "main\n"
+            summary = collect_feature_summary(
+                tmp_path,
+                "099-test-feature",
+                strict_metadata=False,
+            )
+
+        # Canonical state says done => lanes["done"] should have both WPs
+        assert summary.all_done, (
+            f"all_done should be True when canonical state is done. "
+            f"lanes={summary.lanes}, activity_issues={summary.activity_issues}"
+        )
+        assert "WP01" in summary.lanes.get("done", [])
+        assert "WP02" in summary.lanes.get("done", [])
+        assert summary.lanes.get("for_review", []) == [], (
+            f"for_review lane should be empty, got: {summary.lanes.get('for_review')}"
+        )
+        assert summary.activity_issues == [], (
+            f"Expected no activity issues, got: {summary.activity_issues}"
+        )
+
     def test_acceptance_fails_despite_falsified_activity_log(self, tmp_path: Path) -> None:
         """Activity Log says 'done' but canonical state says 'for_review'.
 

@@ -468,7 +468,6 @@ def collect_feature_summary(
     for wp in _iter_work_packages(repo_root, feature):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
-        lanes[wp.current_lane].append(wp_id)
         expected_wp_ids.append(wp_id)
 
         # Check canonical state for this WP
@@ -476,6 +475,15 @@ def collect_feature_summary(
         canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
         has_lane_entry = canonical_lane is not None
         latest_lane = canonical_lane
+
+        # Use canonical lane for bucketing (authoritative), fall back to
+        # frontmatter only when no canonical state exists (missing event log).
+        bucket_lane = canonical_lane if canonical_lane is not None else wp.current_lane
+        if bucket_lane in lanes:
+            lanes[bucket_lane].append(wp_id)
+        else:
+            # Unknown lane value — bucket under frontmatter lane as safety net
+            lanes[wp.current_lane].append(wp_id)
 
         metadata: Dict[str, Optional[str]] = {
             "lane": wp.lane,
@@ -503,7 +511,7 @@ def collect_feature_summary(
         work_packages.append(
             WorkPackageState(
                 work_package_id=wp_id,
-                lane=wp.current_lane,
+                lane=bucket_lane,
                 title=title,
                 path=str(wp.path.relative_to(repo_root)),
                 has_lane_entry=has_lane_entry,
