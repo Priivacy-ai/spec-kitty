@@ -35,6 +35,7 @@ from .models import (
     StatusEvent,
     VerificationResult,
 )
+from .locking import feature_status_lock
 from .transitions import resolve_lane_alias, validate_transition
 from . import store as _store
 from . import reducer as _reducer
@@ -212,93 +213,95 @@ def emit_status_transition(
     # Step 1: Resolve alias
     resolved_lane = resolve_lane_alias(to_lane)
 
-    # Step 2: Derive from_lane from last event for this WP
-    from_lane = _derive_from_lane(feature_dir, wp_id)
+    lock_repo_root = repo_root if repo_root is not None else feature_dir.parent.parent
+    with feature_status_lock(lock_repo_root, feature_slug):
+        # Step 2: Derive from_lane from last event for this WP
+        from_lane = _derive_from_lane(feature_dir, wp_id)
 
-    if workspace_context is None:
-        context_root = repo_root if repo_root is not None else feature_dir
-        workspace_context = f"{execution_mode}:{context_root}"
-    if (
-        subtasks_complete is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if (
-        implementation_evidence_present is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        implementation_evidence_present = _infer_implementation_evidence(
-            feature_dir, wp_id
+        if workspace_context is None:
+            context_root = repo_root if repo_root is not None else feature_dir
+            workspace_context = f"{execution_mode}:{context_root}"
+        if (
+            subtasks_complete is None
+            and from_lane == "in_progress"
+            and resolved_lane == "for_review"
+        ):
+            subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+        if (
+            implementation_evidence_present is None
+            and from_lane == "in_progress"
+            and resolved_lane == "for_review"
+        ):
+            implementation_evidence_present = _infer_implementation_evidence(
+                feature_dir, wp_id
+            )
+
+        # Step 3: Validate the transition
+        # Build DoneEvidence early so we can pass it to validate_transition
+        done_evidence: DoneEvidence | None = None
+        if evidence is not None:
+            done_evidence = _build_done_evidence(evidence)
+
+        ok, error_msg = validate_transition(
+            from_lane,
+            resolved_lane,
+            force=force,
+            actor=actor,
+            workspace_context=workspace_context,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
+            reason=reason,
+            review_ref=review_ref,
+            evidence=done_evidence,
+        )
+        if not ok:
+            raise TransitionError(error_msg)
+
+        # Step 4: Create StatusEvent with ULID event_id
+        event = StatusEvent(
+            event_id=_generate_ulid(),
+            feature_slug=feature_slug,
+            wp_id=wp_id,
+            from_lane=Lane(from_lane),
+            to_lane=Lane(resolved_lane),
+            at=_now_utc(),
+            actor=actor,
+            force=force,
+            execution_mode=execution_mode,
+            reason=reason,
+            review_ref=review_ref,
+            evidence=done_evidence,
+            policy_metadata=policy_metadata,
         )
 
-    # Step 3: Validate the transition
-    # Build DoneEvidence early so we can pass it to validate_transition
-    done_evidence: DoneEvidence | None = None
-    if evidence is not None:
-        done_evidence = _build_done_evidence(evidence)
+        # Step 5: Persist event to JSONL log
+        _store.append_event(feature_dir, event)
 
-    ok, error_msg = validate_transition(
-        from_lane,
-        resolved_lane,
-        force=force,
-        actor=actor,
-        workspace_context=workspace_context,
-        subtasks_complete=subtasks_complete,
-        implementation_evidence_present=implementation_evidence_present,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=done_evidence,
-    )
-    if not ok:
-        raise TransitionError(error_msg)
-
-    # Step 4: Create StatusEvent with ULID event_id
-    event = StatusEvent(
-        event_id=_generate_ulid(),
-        feature_slug=feature_slug,
-        wp_id=wp_id,
-        from_lane=Lane(from_lane),
-        to_lane=Lane(resolved_lane),
-        at=_now_utc(),
-        actor=actor,
-        force=force,
-        execution_mode=execution_mode,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=done_evidence,
-        policy_metadata=policy_metadata,
-    )
-
-    # Step 5: Persist event to JSONL log
-    _store.append_event(feature_dir, event)
-
-    # Step 6: Materialize snapshot from event log
-    try:
-        snapshot = _reducer.materialize(feature_dir)
-    except Exception:
-        logger.warning(
-            "Materialization failed after event %s was persisted; "
-            "run 'status materialize' to recover",
-            event.event_id,
-        )
-        snapshot = None
-
-    # Step 7: Update legacy bridge views (WP06 may not be merged yet)
-    if snapshot is not None:
+        # Step 6: Materialize snapshot from event log
         try:
-            from specify_cli.status.legacy_bridge import update_all_views
-
-            update_all_views(feature_dir, snapshot)
-        except ImportError:
-            pass  # WP06 not yet available
+            snapshot = _reducer.materialize(feature_dir)
         except Exception:
             logger.warning(
-                "Legacy bridge update failed for event %s; "
-                "canonical log and snapshot are unaffected",
+                "Materialization failed after event %s was persisted; "
+                "run 'status materialize' to recover",
                 event.event_id,
             )
+            snapshot = None
+
+        # Step 7: Update legacy bridge views (WP06 may not be merged yet)
+        if snapshot is not None:
+            try:
+                from specify_cli.status.legacy_bridge import update_all_views
+
+                update_all_views(feature_dir, snapshot)
+            except ImportError:
+                pass  # WP06 not yet available
+            except Exception:
+                logger.warning(
+                    "Legacy bridge update failed for event %s; "
+                    "canonical log and snapshot are unaffected",
+                    event.event_id,
+                )
 
     # Step 8: SaaS fan-out (never blocks canonical persistence)
     _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)

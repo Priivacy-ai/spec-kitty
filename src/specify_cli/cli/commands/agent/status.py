@@ -22,6 +22,7 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.status.locking import feature_status_lock
 
 logger = logging.getLogger(__name__)
 
@@ -268,20 +269,21 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        # Materialize snapshot
-        snapshot = do_materialize(feature_dir)
+        with feature_status_lock(main_repo_root, feature_slug):
+            # Materialize snapshot
+            snapshot = do_materialize(feature_dir)
 
-        # Update legacy views (try/except -- don't block on legacy bridge)
-        try:
-            from specify_cli.status.legacy_bridge import update_all_views
-            update_all_views(feature_dir, snapshot)
-        except ImportError:
-            pass  # Legacy bridge not yet available (WP06 not merged)
-        except Exception as exc:
-            if not json_output:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}"
-                )
+            # Update legacy views (try/except -- don't block on legacy bridge)
+            try:
+                from specify_cli.status.legacy_bridge import update_all_views
+                update_all_views(feature_dir, snapshot)
+            except ImportError:
+                pass  # Legacy bridge not yet available (WP06 not merged)
+            except Exception as exc:
+                if not json_output:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}"
+                    )
 
         # Build output
         if json_output:

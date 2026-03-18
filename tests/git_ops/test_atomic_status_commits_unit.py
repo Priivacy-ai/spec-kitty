@@ -10,23 +10,42 @@ Verifies that:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
+from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.agent.tasks import (
     _collect_status_artifacts,
     _validate_ready_for_review,
     app,
 )
+from specify_cli.status.locking import feature_status_lock_path
 
 from typer.testing import CliRunner
 
 pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
+
+
+@pytest.fixture()
+def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Create a minimal repo root for workflow review command tests."""
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
+        lambda repo_root, feature_slug: (repo_root, "main"),
+    )
+    return repo_root
 
 
 class TestCollectStatusArtifacts:
@@ -87,6 +106,83 @@ class TestCollectStatusArtifacts:
         result = _collect_status_artifacts(feature_dir)
         assert len(result) == 1
         assert result[0].name == "status.events.jsonl"
+
+
+class TestFeatureStatusLock:
+    """Tests for per-feature status locking on shared planning artifacts."""
+
+    def test_lock_uses_git_common_dir(self, tmp_path: Path) -> None:
+        """Lock files should live under the git common dir, not kitty-specs."""
+        repo = tmp_path / "test-repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+
+        lock_path = feature_status_lock_path(repo, "017-test-feature")
+
+        assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
+
+    def test_lock_serializes_parallel_processes(self, tmp_path: Path) -> None:
+        """Separate processes should enter the feature lock one at a time."""
+        repo = tmp_path / "test-repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+
+        log_path = tmp_path / "lock-order.log"
+        worker = r"""
+import os
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, os.environ["SRC_ROOT"])
+
+from specify_cli.status.locking import feature_status_lock
+
+repo = Path(os.environ["REPO_ROOT"])
+log_path = Path(os.environ["LOG_PATH"])
+name = os.environ["WORKER_NAME"]
+hold_seconds = float(os.environ["HOLD_SECONDS"])
+
+with feature_status_lock(repo, "017-test-feature"):
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{name}:enter\n")
+    time.sleep(hold_seconds)
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{name}:exit\n")
+"""
+
+        env = os.environ.copy()
+        env["SRC_ROOT"] = str(Path(__file__).resolve().parents[2] / "src")
+        env["REPO_ROOT"] = str(repo)
+        env["LOG_PATH"] = str(log_path)
+
+        p1 = subprocess.Popen(
+            ["python3", "-c", worker],
+            env=env | {"WORKER_NAME": "A", "HOLD_SECONDS": "0.3"},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        time.sleep(0.05)
+        p2 = subprocess.Popen(
+            ["python3", "-c", worker],
+            env=env | {"WORKER_NAME": "B", "HOLD_SECONDS": "0.0"},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        out1, err1 = p1.communicate()
+        out2, err2 = p2.communicate()
+
+        assert p1.returncode == 0, err1 or out1
+        assert p2.returncode == 0, err2 or out2
+        assert log_path.read_text(encoding="utf-8").splitlines() == [
+            "A:enter",
+            "A:exit",
+            "B:enter",
+            "B:exit",
+        ]
 
 
 class TestValidateReadyForReviewTasksMdFilter:
@@ -388,3 +484,96 @@ Test content.
             ).stdout.strip()
             # The commit should include both the WP file and status artifacts
             assert "WP01" in committed_files, f"WP file should be in commit. Files: {committed_files}"
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_holds_feature_lock_through_safe_commit(
+        self,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_feature: Path,
+    ) -> None:
+        """move_task should still hold the feature lock when safe_commit runs."""
+        repo = git_repo_with_feature
+        mock_root.return_value = repo
+        mock_slug.return_value = "017-test-feature"
+
+        lock_state = {"held": False}
+
+        @contextmanager
+        def tracking_lock(repo_root: Path, feature_slug: str):  # type: ignore[no-untyped-def]
+            del repo_root, feature_slug
+            lock_state["held"] = True
+            try:
+                yield
+            finally:
+                lock_state["held"] = False
+
+        def fake_safe_commit(**kwargs: object) -> bool:
+            del kwargs
+            assert lock_state["held"] is True
+            return True
+
+        with patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", tracking_lock):
+            with patch("specify_cli.cli.commands.agent.tasks.safe_commit", side_effect=fake_safe_commit):
+                result = runner.invoke(
+                    app,
+                    ["move-task", "WP01", "--to", "for_review", "--json"],
+                )
+
+        assert result.exit_code == 0, result.stdout
+
+
+def test_workflow_review_holds_feature_lock_through_safe_commit(
+    workflow_repo: Path,
+) -> None:
+    """workflow review should hold the feature lock across WP write and commit."""
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+
+    task_content = """---
+work_package_id: "WP01"
+title: "Test Task"
+lane: "for_review"
+agent: ""
+shell_pid: ""
+---
+
+# WP01
+
+Test content.
+
+## Activity Log
+
+- 2025-01-01T00:00:00Z - system - lane=for_review - Initial
+"""
+    wp_path.write_text(task_content, encoding="utf-8")
+
+    lock_state = {"held": False}
+
+    @contextmanager
+    def tracking_lock(repo_root: Path, locked_feature_slug: str):  # type: ignore[no-untyped-def]
+        del repo_root, locked_feature_slug
+        lock_state["held"] = True
+        try:
+            yield
+        finally:
+            lock_state["held"] = False
+
+    def fake_safe_commit(**kwargs: object) -> bool:
+        del kwargs
+        assert lock_state["held"] is True
+        return True
+
+    with patch("specify_cli.cli.commands.agent.workflow.feature_status_lock", tracking_lock):
+        with patch("specify_cli.cli.commands.agent.workflow.safe_commit", side_effect=fake_safe_commit):
+            result = CliRunner().invoke(
+                workflow.app,
+                ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+            )
+
+    assert result.exit_code == 0, result.stdout
