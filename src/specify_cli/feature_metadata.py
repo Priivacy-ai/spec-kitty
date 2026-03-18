@@ -82,19 +82,25 @@ def _now_iso() -> str:
 
 
 def _atomic_write(path: Path, content: str) -> None:
-    """Write *content* atomically.  File is either old or new, never partial."""
+    """Write *content* atomically.  File is either old or new, never partial.
+
+    Uses :func:`os.fdopen` to wrap the raw file descriptor in a Python file
+    object whose ``.write()`` method handles short writes internally, so the
+    full payload is always flushed before the atomic rename.
+    """
     fd, tmp_path = tempfile.mkstemp(
         dir=path.parent,
         prefix=".meta-",
         suffix=".tmp",
     )
     try:
-        os.write(fd, content.encode("utf-8"))
-        os.close(fd)
-        fd = -1  # Mark as closed
+        with os.fdopen(fd, "wb") as f:
+            f.write(content.encode("utf-8"))
+        # fd is now closed by the context manager
         os.replace(tmp_path, str(path))
     except BaseException:
-        if fd >= 0:
+        # fd may already be closed by the context manager; suppress errors
+        with contextlib.suppress(OSError):
             os.close(fd)
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)

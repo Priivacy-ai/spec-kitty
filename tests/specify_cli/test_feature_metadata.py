@@ -244,6 +244,34 @@ class TestAtomicWrite:
         temp_files = list(tmp_path.glob(".meta-*.tmp"))
         assert temp_files == []
 
+    def test_write_is_complete_not_truncated(self, tmp_path: Path) -> None:
+        """Verify the output file byte length matches the encoded input.
+
+        This guards against short-write bugs where os.write() returns fewer
+        bytes than requested and the caller ignores the return value.
+        """
+        # Use a payload large enough that a short write would be detectable
+        content = '{"data": "' + "x" * 100_000 + '"}\n'
+        target = tmp_path / "big.json"
+        _atomic_write(target, content)
+
+        expected_bytes = content.encode("utf-8")
+        actual_bytes = target.read_bytes()
+        assert len(actual_bytes) == len(expected_bytes)
+        assert actual_bytes == expected_bytes
+
+    def test_write_complete_with_unicode(self, tmp_path: Path) -> None:
+        """Verify multi-byte Unicode content is fully written (not truncated)."""
+        # Multi-byte characters: each is 3+ bytes in UTF-8
+        content = '{"name": "' + "\u00fc\u00e4\u00f6\u00df" * 5000 + '"}\n'
+        target = tmp_path / "unicode.json"
+        _atomic_write(target, content)
+
+        expected_bytes = content.encode("utf-8")
+        actual_bytes = target.read_bytes()
+        assert len(actual_bytes) == len(expected_bytes)
+        assert actual_bytes == expected_bytes
+
 
 # ===================================================================
 # Mutation helper tests
