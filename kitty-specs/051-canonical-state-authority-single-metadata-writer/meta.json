@@ -1,0 +1,9 @@
+{
+  "feature_number": "051",
+  "slug": "051-canonical-state-authority-single-metadata-writer",
+  "feature_slug": "051-canonical-state-authority-single-metadata-writer",
+  "friendly_name": "canonical state authority single metadata writer",
+  "mission": "software-dev",
+  "target_branch": "2.x",
+  "created_at": "2026-03-18T20:07:06.167917+00:00"
+}
