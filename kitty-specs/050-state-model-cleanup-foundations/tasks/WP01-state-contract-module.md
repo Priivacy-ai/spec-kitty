@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: State Contract Module
-lane: "doing"
+lane: "approved"
 dependencies: []
 base_branch: 2.x
 base_commit: 72ed47b6df33996bab220f03079dfe414774d713
@@ -14,10 +14,10 @@ subtasks:
 - T005
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "codex"
-shell_pid: "18064"
-review_status: has_feedback
-reviewed_by: Robert Douglass
+agent: codex
+shell_pid: '18064'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: feedback://050-state-model-cleanup-foundations/WP01/20260318T191021Z-4d79aed0.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
@@ -331,3 +331,4 @@ All tests are unit tests — no filesystem I/O, no subprocess calls, no external
 - 2026-03-18T19:11:31Z – coordinator – shell_pid=13454 – lane=doing – Acknowledged review feedback: fixing both HIGH findings (incomplete registry + unusable gitignore patterns)
 - 2026-03-18T19:15:59Z – coordinator – shell_pid=13454 – lane=for_review – Fixed both Codex findings: added missing audit surfaces (runtime staging dirs + 4 legacy user-home files), normalized gitignore patterns to deduplicated directory-level entries. All 33 tests pass, ruff clean.
 - 2026-03-18T19:16:22Z – codex – shell_pid=18064 – lane=doing – Started review via workflow command
+- 2026-03-18T19:20:11Z – codex – shell_pid=18064 – lane=approved – Review passed: state contract registry is complete, helper outputs are normalized, and targeted tests/ruff passed
