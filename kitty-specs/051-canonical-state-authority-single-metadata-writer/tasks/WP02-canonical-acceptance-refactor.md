@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Canonical Acceptance Refactor
-lane: in_progress
+lane: "planned"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -17,9 +17,9 @@ phase: Phase 1 - Core Implementation
 assignee: ''
 agent: codex
 shell_pid: '74384'
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://051-canonical-state-authority-single-metadata-writer/WP02/20260318T214242Z-bbed1bd3.md"
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
@@ -271,3 +271,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-03-18T21:03:21Z – coordinator – shell_pid=51422 – lane=doing – Assigned agent via workflow command
 - 2026-03-18T21:21:06Z – coordinator – shell_pid=51422 – lane=for_review – Ready for review: canonical acceptance reads materialize() instead of Activity Log; all meta.json writes via record_acceptance(); 10 integration tests; 133 related tests passing
 - 2026-03-18T21:21:31Z – codex – shell_pid=74384 – lane=doing – Started review via workflow command
+- 2026-03-18T21:42:42Z – codex – shell_pid=74384 – lane=planned – Moved to planned
