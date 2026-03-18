@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Migrate VCS, Merge, and Feature Creation Writes
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -14,8 +14,8 @@ subtasks:
 - T018
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "coordinator"
-shell_pid: "51500"
+agent: coordinator
+shell_pid: '51500'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -256,3 +256,4 @@ spec-kitty implement WP03 --base WP01
 
 - 2026-03-18T20:21:07Z – system – lane=planned – Prompt created.
 - 2026-03-18T21:03:24Z – coordinator – shell_pid=51500 – lane=doing – Assigned agent via workflow command
+- 2026-03-18T21:10:53Z – coordinator – shell_pid=51500 – lane=for_review – Ready for review: Migrated 4 write sites to feature_metadata.py API. Fixed 2 trailing-newline bugs. 10 new tests. All 54 tests pass.
