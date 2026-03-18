@@ -384,6 +384,48 @@ class TestCanonicalStateAuthority:
             for issue in summary.activity_issues
         ), f"WP01 should not have issues, got: {summary.activity_issues}"
 
+    def test_acceptance_fails_with_empty_event_log(self, tmp_path: Path) -> None:
+        """Empty status.events.jsonl triggers feature-level error.
+
+        If the file exists but is empty, materialize() returns a snapshot with
+        no work_packages. This must produce the same feature-level error as a
+        missing file, not fall through to per-WP messages.
+        """
+        feature_dir = _setup_feature(
+            tmp_path,
+            wp_ids=["WP01", "WP02"],
+            include_events=False,  # Don't auto-create events
+            include_activity_log=True,
+        )
+
+        # Create an empty status.events.jsonl (file exists but no events)
+        events_file = feature_dir / "status.events.jsonl"
+        events_file.write_text("", encoding="utf-8")
+
+        with patch("specify_cli.acceptance.run_git") as mock_git, \
+             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+            mock_git.return_value.stdout = "main\n"
+            summary = collect_feature_summary(
+                tmp_path,
+                "099-test-feature",
+                strict_metadata=False,
+            )
+
+        # Should have the feature-level error, not per-WP messages
+        assert any(
+            "No canonical state found" in issue
+            for issue in summary.activity_issues
+        ), f"Expected feature-level 'No canonical state found' error, got: {summary.activity_issues}"
+
+        # Verify it's the feature-level message (mentions feature name), not per-WP
+        feature_level_errors = [
+            issue for issue in summary.activity_issues
+            if "No canonical state found for feature" in issue
+        ]
+        assert len(feature_level_errors) >= 1, (
+            f"Expected at least one feature-level error, got: {summary.activity_issues}"
+        )
+
 
 class TestOrchestratorParity:
     """Standard and orchestrator acceptance produce identical metadata structure."""

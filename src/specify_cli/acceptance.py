@@ -360,6 +360,12 @@ def collect_feature_summary(
     else:
         snapshot = materialize(feature_dir)
         snapshot_wps = snapshot.work_packages
+        if not snapshot_wps:
+            activity_issues.append(
+                f"No canonical state found for feature '{feature}'. "
+                "Cannot validate acceptance without status.events.jsonl. "
+                "Run status migration to bootstrap the event log."
+            )
 
     # Collect WP IDs from task files
     expected_wp_ids: List[str] = []
