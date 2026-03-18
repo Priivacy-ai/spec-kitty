@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Create feature_metadata.py Module
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: f48b32383ceac06813581229982d5d14984f5c10
@@ -16,8 +16,8 @@ subtasks:
 - T007
 phase: Phase 0 - Foundation
 assignee: ''
-agent: coordinator
-shell_pid: '47655'
+agent: "codex"
+shell_pid: "48205"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP01/20260318T204319Z-19617ea1.md
@@ -473,3 +473,4 @@ HISTORY_CAP: int = 20
 - 2026-03-18T20:43:19Z – codex – shell_pid=46484 – lane=planned – Moved to planned
 - 2026-03-18T20:43:31Z – coordinator – shell_pid=47655 – lane=doing – Started implementation via workflow command
 - 2026-03-18T20:45:21Z – coordinator – shell_pid=47655 – lane=for_review – Fixed short write bug per Codex feedback (cycle 2/3): replaced os.write() with os.fdopen() context manager, added 2 completeness tests
+- 2026-03-18T20:45:40Z – codex – shell_pid=48205 – lane=doing – Started review via workflow command
