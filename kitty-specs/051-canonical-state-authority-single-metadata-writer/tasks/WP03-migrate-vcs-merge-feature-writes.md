@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Migrate VCS, Merge, and Feature Creation Writes
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -14,8 +14,8 @@ subtasks:
 - T018
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: coordinator
-shell_pid: '69719'
+agent: "codex"
+shell_pid: "73586"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP03/20260318T211746Z-58c47bd5.md
@@ -261,3 +261,4 @@ spec-kitty implement WP03 --base WP01
 - 2026-03-18T21:17:46Z – codex – shell_pid=56111 – lane=planned – Moved to planned
 - 2026-03-18T21:18:03Z – coordinator – shell_pid=69719 – lane=doing – Started implementation via workflow command
 - 2026-03-18T21:20:12Z – coordinator – shell_pid=69719 – lane=for_review – Fixed merge tolerance per Codex feedback (cycle 2/3): wrapped record_merge/finalize_merge in try/except, 4 new tests, all 58 tests pass
+- 2026-03-18T21:20:32Z – codex – shell_pid=73586 – lane=doing – Started review via workflow command
