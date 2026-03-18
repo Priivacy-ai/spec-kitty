@@ -1,40 +1,43 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-title: "Create feature_metadata.py Module"
-phase: "Phase 0 - Foundation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
+work_package_id: WP01
+title: Create feature_metadata.py Module
+lane: "doing"
 dependencies: []
-requirement_refs:
-  - "FR-002"
-  - "FR-003"
-  - "FR-004"
-  - "FR-005"
-  - "FR-007"
-  - "FR-008"
-  - "FR-010"
-  - "NFR-001"
-  - "NFR-002"
-  - "NFR-003"
+base_branch: 2.x
+base_commit: f48b32383ceac06813581229982d5d14984f5c10
+created_at: '2026-03-18T20:31:36.756124+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+phase: Phase 0 - Foundation
+assignee: ''
+agent: ''
+shell_pid: "45023"
+review_status: ''
+reviewed_by: ''
+review_feedback: ''
 history:
-  - timestamp: "2026-03-18T20:21:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-18T20:21:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-007
+- FR-008
+- FR-010
+- NFR-001
+- NFR-002
+- NFR-003
 ---
 
 # Work Package Prompt: WP01 – Create feature_metadata.py Module
