@@ -206,11 +206,26 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/dossiers/",
         ".kittify/events/",
         ".kittify/merge-state.json",
-        ".kittify/missions/",
+        ".kittify/missions/__pycache__/",
         ".kittify/runtime/",
         ".kittify/workspaces/",
     ]
     assert entries == expected
+
+
+def test_missions_pycache_not_collapsed():
+    """Regression: missions/__pycache__/ must NOT be collapsed to missions/.
+
+    The missions/ directory contains mission configs and templates that are
+    resolved at runtime. Only the __pycache__/ subdirectory is disposable.
+    """
+    entries = get_runtime_gitignore_entries()
+    assert ".kittify/missions/__pycache__/" in entries, (
+        "missions/__pycache__/ must appear as a specific entry"
+    )
+    assert ".kittify/missions/" not in entries, (
+        "missions/ is too broad -- only missions/__pycache__/ should be ignored"
+    )
 
 
 def test_runtime_gitignore_entries_no_placeholders():

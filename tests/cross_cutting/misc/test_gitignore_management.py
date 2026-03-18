@@ -157,7 +157,7 @@ def test_protect_all_agents_adds_all_directories():
         for dir_name in expected_dirs:
             assert dir_name in content
         assert ".kittify/.dashboard" in content
-        assert ".kittify/missions/" in content
+        assert ".kittify/missions/__pycache__/" in content
 
 
 def test_protect_all_agents_with_existing_directory():

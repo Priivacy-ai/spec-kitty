@@ -604,10 +604,18 @@ def _fully_ignored_top_dirs() -> set[str]:
     For example, if every surface under ``.kittify/runtime/`` is IGNORED,
     ``".kittify/runtime/"`` is returned. Directories with mixed git classes
     (some TRACKED, some IGNORED) are excluded.
+
+    Surfaces whose path ends with ``__pycache__/`` are excluded from collapse
+    consideration because they are Python cache artifacts, not representative
+    of the parent directory's actual contents.
     """
     project_surfaces = [s for s in STATE_SURFACES if s.root == StateRoot.PROJECT]
     top_dir_git_classes: dict[str, list[GitClass]] = {}
     for s in project_surfaces:
+        # Skip __pycache__ entries — they are cache artifacts and should not
+        # cause their parent directory to be collapsed.
+        if s.path_pattern.rstrip("/").endswith("__pycache__"):
+            continue
         parts = s.path_pattern.split("/")
         if len(parts) >= 3:  # noqa: PLR2004
             top_dir = "/".join(parts[:2])
