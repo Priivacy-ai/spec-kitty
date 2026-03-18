@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: "planned"
+lane: "doing"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -15,8 +15,8 @@ subtasks:
 - T014
 phase: Phase 2 - Diagnostics
 assignee: ''
-agent: codex
-shell_pid: '30295'
+agent: "coordinator"
+shell_pid: "33612"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 review_feedback: "feedback://050-state-model-cleanup-foundations/WP03/20260318T194448Z-78c1dc40.md"
@@ -558,3 +558,4 @@ Most tests use `tmp_path` fixture and mock `_is_gitignore_covered` to avoid git 
 - 2026-03-18T19:37:30Z – coordinator – shell_pid=28963 – lane=for_review – Fixed both Codex findings: feature surface detection and staging dir path resolution
 - 2026-03-18T19:38:01Z – codex – shell_pid=30295 – lane=doing – Started review via workflow command
 - 2026-03-18T19:44:48Z – codex – shell_pid=30295 – lane=planned – Codex cycle 2: wildcard presence check gives false positives
+- 2026-03-18T19:44:57Z – coordinator – shell_pid=33612 – lane=doing – Started implementation via workflow command
