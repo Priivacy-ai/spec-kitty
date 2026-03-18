@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Create feature_metadata.py Module
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: f48b32383ceac06813581229982d5d14984f5c10
@@ -16,8 +16,8 @@ subtasks:
 - T007
 phase: Phase 0 - Foundation
 assignee: ''
-agent: coordinator
-shell_pid: '49328'
+agent: "codex"
+shell_pid: "49948"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP01/20260318T205259Z-585e2ebd.md
@@ -477,3 +477,4 @@ HISTORY_CAP: int = 20
 - 2026-03-18T20:52:59Z – codex – shell_pid=48205 – lane=planned – Moved to planned
 - 2026-03-18T20:53:10Z – coordinator – shell_pid=49328 – lane=doing – Started implementation via workflow command
 - 2026-03-18T20:55:36Z – coordinator – shell_pid=49328 – lane=for_review – Fixed stale metadata + dict validation per Codex feedback (cycle 3/3)
+- 2026-03-18T20:55:54Z – codex – shell_pid=49948 – lane=doing – Started review via workflow command
