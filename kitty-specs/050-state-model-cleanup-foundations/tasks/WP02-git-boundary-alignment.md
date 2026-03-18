@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Git Boundary Alignment
-lane: "planned"
+lane: "doing"
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -14,8 +14,8 @@ subtasks:
 - T009
 phase: Phase 2 - Alignment
 assignee: ''
-agent: codex
-shell_pid: '26925'
+agent: "coordinator"
+shell_pid: "29854"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 review_feedback: "feedback://050-state-model-cleanup-foundations/WP02/20260318T193659Z-ce03e9fa.md"
@@ -291,3 +291,4 @@ pytest tests/specify_cli/test_gitignore_contract.py tests/specify_cli/test_state
 - 2026-03-18T19:29:11Z – coordinator – shell_pid=21643 – lane=for_review – Git boundary alignment complete: derived RUNTIME_PROTECTED_ENTRIES from contract, added mission_pycache surface, created m_2_0_9 migration, 83 tests passing
 - 2026-03-18T19:29:38Z – codex – shell_pid=26925 – lane=doing – Started review via workflow command
 - 2026-03-18T19:36:59Z – codex – shell_pid=26925 – lane=planned – Codex review: missions/ collapse too broad, constitution entries in migration
+- 2026-03-18T19:37:07Z – coordinator – shell_pid=29854 – lane=doing – Started implementation via workflow command
