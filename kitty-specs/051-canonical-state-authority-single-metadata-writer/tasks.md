@@ -257,7 +257,7 @@ WP01 (foundation) ────────────────────�
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
-- WP02: in_progress
+- WP02: planned
 - WP03: approved
 - WP04: approved
 <!-- status-model:end -->
