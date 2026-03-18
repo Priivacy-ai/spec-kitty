@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: "doing"
+lane: planned
 dependencies:
 - WP01
 base_branch: 050-state-model-cleanup-foundations-WP01
@@ -15,11 +15,11 @@ subtasks:
 - T014
 phase: Phase 2 - Diagnostics
 assignee: ''
-agent: "coordinator"
-shell_pid: "28963"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://050-state-model-cleanup-foundations/WP03/20260318T193454Z-1e796431.md"
+agent: coordinator
+shell_pid: '28963'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://050-state-model-cleanup-foundations/WP03/20260318T193454Z-1e796431.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
