@@ -1,30 +1,33 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Migrate doc_state.py Write Sites
+lane: "doing"
+dependencies: [WP01]
+base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
+base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
+created_at: '2026-03-18T21:03:26.581676+00:00'
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-title: "Migrate doc_state.py Write Sites"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
-dependencies: ["WP01"]
-requirement_refs:
-  - "FR-002"
-  - "FR-009"
-  - "NFR-004"
+- T019
+- T020
+- T021
+- T022
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "51576"
+review_status: ''
+reviewed_by: ''
+review_feedback: ''
 history:
-  - timestamp: "2026-03-18T20:21:07Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-03-18T20:21:07Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+requirement_refs:
+- FR-002
+- FR-009
+- NFR-004
 ---
 
 # Work Package Prompt: WP04 – Migrate doc_state.py Write Sites
