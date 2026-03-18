@@ -211,6 +211,17 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="dossier snapshot",
     ),
     StateSurface(
+        name="mission_pycache",
+        path_pattern=".kittify/missions/__pycache__/",
+        root=StateRoot.PROJECT,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="python runtime",
+        creation_trigger="Python bytecode compilation",
+        notes="Python cache artifact, not architectural state",
+    ),
+    StateSurface(
         name="dossier_parity_baseline",
         path_pattern=".kittify/dossiers/<feature>/parity-baseline.json",
         root=StateRoot.PROJECT,

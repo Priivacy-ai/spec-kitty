@@ -206,6 +206,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/dossiers/",
         ".kittify/events/",
         ".kittify/merge-state.json",
+        ".kittify/missions/",
         ".kittify/runtime/",
         ".kittify/workspaces/",
     ]
