@@ -113,3 +113,4 @@ out
 tmp/**
 !tmp/.gitkeep
 .kittify/missions/__pycache__/
+.spec-kitty/
