@@ -132,11 +132,11 @@
 **Requirement Refs**: NFR-002, NFR-003, C-001, C-003
 
 ### Included Subtasks
-- [ ] T012 Test: `collect_feature_summary()` does not dirty the repo via `materialize()` (P0 regression)
-- [ ] T013 Test: `perform_acceptance()` persists `accept_commit` to `meta.json` (P1 regression)
-- [ ] T014 Test: standalone `tasks_cli.py --help` succeeds via `subprocess.run()` (P1 regression)
-- [ ] T015 Test: malformed `status.events.jsonl` raises `AcceptanceError` not `StoreError` (P2 regression)
-- [ ] T016 Copy-parity assertions between `acceptance.py` and `acceptance_support.py`
+- [x] T012 Test: `collect_feature_summary()` does not dirty the repo via `materialize()` (P0 regression)
+- [x] T013 Test: `perform_acceptance()` persists `accept_commit` to `meta.json` (P1 regression)
+- [x] T014 Test: standalone `tasks_cli.py --help` succeeds via `subprocess.run()` (P1 regression)
+- [x] T015 Test: malformed `status.events.jsonl` raises `AcceptanceError` not `StoreError` (P2 regression)
+- [x] T016 Copy-parity assertions between `acceptance.py` and `acceptance_support.py`
 
 ### Implementation Notes
 - Create `tests/specify_cli/test_acceptance_regressions.py` with all 5 tests.
