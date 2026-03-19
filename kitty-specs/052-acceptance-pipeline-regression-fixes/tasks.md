@@ -49,9 +49,9 @@
 **Requirement Refs**: FR-002, FR-005
 
 ### Included Subtasks
-- [ ] T005 Add post-commit SHA write-back in `src/specify_cli/acceptance.py` `perform_acceptance()`
-- [ ] T006 Mirror T005 in `src/specify_cli/scripts/tasks/acceptance_support.py`
-- [ ] T007 Sync to `scripts/tasks/acceptance_support.py` and `.kittify/scripts/tasks/acceptance_support.py`
+- [x] T005 Add post-commit SHA write-back in `src/specify_cli/acceptance.py` `perform_acceptance()`
+- [x] T006 Mirror T005 in `src/specify_cli/scripts/tasks/acceptance_support.py`
+- [x] T007 Sync to `scripts/tasks/acceptance_support.py` and `.kittify/scripts/tasks/acceptance_support.py`
 
 ### Implementation Notes
 - After the commit is created and `accept_commit` is captured (after the `run_git(["rev-parse", "HEAD"], ...)` block), add a targeted meta.json update:
