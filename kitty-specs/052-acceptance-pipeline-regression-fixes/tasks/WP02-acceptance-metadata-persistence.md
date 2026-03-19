@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Acceptance Metadata Persistence
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 052-acceptance-pipeline-regression-fixes-WP01
 base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
@@ -12,8 +12,8 @@ subtasks:
 - T007
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
-agent: "coordinator"
-shell_pid: "10668"
+agent: coordinator
+shell_pid: '10668'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -149,3 +149,4 @@ spec-kitty implement WP02 --base WP01
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
 - 2026-03-19T17:11:27Z – coordinator – shell_pid=10668 – lane=doing – Assigned agent via workflow command
+- 2026-03-19T17:14:09Z – coordinator – shell_pid=10668 – lane=for_review – Ready for review: SHA write-back added to all 3 acceptance_support copies, 50 tests pass
