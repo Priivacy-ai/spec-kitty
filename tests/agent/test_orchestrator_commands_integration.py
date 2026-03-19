@@ -41,8 +41,18 @@ def _make_feature(tmp_path: Path, feature_slug: str = "099-test-feature") -> tup
             encoding="utf-8",
         )
 
+    meta = {
+        "feature_number": feature_slug.split("-")[0],
+        "slug": feature_slug,
+        "feature_slug": feature_slug,
+        "friendly_name": "Test Feature",
+        "mission": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-03-18T00:00:00+00:00",
+        "status_phase": 1,
+    }
     (feature_dir / "meta.json").write_text(
-        json.dumps({"status_phase": 1}), encoding="utf-8"
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return repo_root, feature_dir
 

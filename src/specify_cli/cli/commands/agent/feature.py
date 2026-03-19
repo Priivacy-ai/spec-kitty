@@ -629,7 +629,9 @@ spec-kitty agent tasks move-task WP01 --to doing
         meta.setdefault("target_branch", planning_branch)
         meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
 
-        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        from specify_cli.feature_metadata import write_meta, set_documentation_state
+
+        write_meta(feature_dir, meta)
         try:
             _commit_to_branch(
                 meta_file,
@@ -647,7 +649,7 @@ spec-kitty agent tasks move-task WP01 --to doing
         if mission == "documentation":
             meta.setdefault("mission", "documentation")
             if "documentation_state" not in meta:
-                meta["documentation_state"] = {
+                doc_state = {
                     "iteration_mode": "initial",
                     "divio_types_selected": [],
                     "generators_configured": [],
@@ -655,7 +657,10 @@ spec-kitty agent tasks move-task WP01 --to doing
                     "last_audit_date": None,
                     "coverage_percentage": 0.0,
                 }
-            meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+                set_documentation_state(feature_dir, doc_state)
+            else:
+                # documentation_state already present, re-read for consistency
+                pass
             try:
                 _commit_to_branch(
                     meta_file,
