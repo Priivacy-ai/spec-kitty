@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Compatibility Wrapper & Codebase Sweep
-lane: "approved"
+lane: "done"
 dependencies:
 - WP02
 - WP03
@@ -314,3 +314,4 @@ git merge 051-...-WP03
 - 2026-03-19T07:37:07Z – coordinator – shell_pid=9737 – lane=for_review – Ready for review: compatibility wrappers, codebase sweep (zero violations), and integration tests (86 tests passing)
 - 2026-03-19T07:37:35Z – codex – shell_pid=11885 – lane=doing – Started review via workflow command
 - 2026-03-19T07:44:09Z – codex – shell_pid=11885 – lane=approved – Codex cycle 1 finding fixed (load_feature_meta ValueError compat). 86/86 tests pass. Arbiter-approved with fix applied.
+- 2026-03-19T08:47:00Z – codex – shell_pid=11885 – lane=done – Moved to done
