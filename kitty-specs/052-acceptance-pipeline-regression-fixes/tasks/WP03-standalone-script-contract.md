@@ -1,8 +1,11 @@
 ---
 work_package_id: WP03
 title: Standalone Script Contract
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 052-acceptance-pipeline-regression-fixes-WP01
+base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
+created_at: '2026-03-19T17:17:38.328509+00:00'
 subtasks:
 - T008
 - T009
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 2 - Runtime Contract
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "12729"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
