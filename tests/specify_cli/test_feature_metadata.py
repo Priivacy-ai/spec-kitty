@@ -972,3 +972,105 @@ class TestMergeToleranceMalformedMeta:
         assert data is not None
         assert data["merged_commit"] == "sha256abc"
         assert data["merge_history"][-1]["merged_commit"] == "sha256abc"
+
+
+# ===================================================================
+# WP05 T024: Compatibility wrapper tests
+# ===================================================================
+
+
+class TestCompatibilityWrappers:
+    """Verify upgrade/feature_meta.py wrappers delegate to feature_metadata."""
+
+    def test_write_feature_meta_delegates_to_write_meta(self, tmp_path: Path) -> None:
+        """write_feature_meta() wrapper delegates to feature_metadata.write_meta()."""
+        from specify_cli.upgrade.feature_meta import write_feature_meta
+
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        meta = {
+            "feature_number": "001",
+            "slug": "001-test",
+            "feature_slug": "001-test",
+            "friendly_name": "Test",
+            "mission": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+        write_feature_meta(feature_dir, meta)
+
+        content = (feature_dir / "meta.json").read_text(encoding="utf-8")
+        # Trailing newline (standard format)
+        assert content.endswith("\n")
+        # Sorted keys (new behaviour from write_meta)
+        parsed = json.loads(content)
+        assert list(parsed.keys()) == sorted(parsed.keys())
+        # All fields present
+        assert parsed["feature_number"] == "001"
+
+    def test_load_feature_meta_delegates_to_load_meta(self, tmp_path: Path) -> None:
+        """load_feature_meta() wrapper delegates to feature_metadata.load_meta()."""
+        from specify_cli.upgrade.feature_meta import load_feature_meta
+
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        (feature_dir / "meta.json").write_text(
+            '{"feature_number": "001"}', encoding="utf-8"
+        )
+
+        result = load_feature_meta(feature_dir)
+        assert result == {"feature_number": "001"}
+
+    def test_load_feature_meta_returns_none_when_missing(self, tmp_path: Path) -> None:
+        """load_feature_meta() returns None when meta.json does not exist."""
+        from specify_cli.upgrade.feature_meta import load_feature_meta
+
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+
+        result = load_feature_meta(feature_dir)
+        assert result is None
+
+    def test_write_feature_meta_skips_validation(self, tmp_path: Path) -> None:
+        """write_feature_meta() passes validate=False (matches old behaviour).
+
+        Old code never validated required fields. The wrapper must not
+        introduce validation failures for partial meta dicts used during
+        upgrades.
+        """
+        from specify_cli.upgrade.feature_meta import write_feature_meta
+
+        feature_dir = tmp_path / "partial"
+        feature_dir.mkdir()
+        # Partial meta missing many required fields -- old code accepted this
+        partial_meta = {"mission": "software-dev"}
+        write_feature_meta(feature_dir, partial_meta)
+
+        content = (feature_dir / "meta.json").read_text(encoding="utf-8")
+        parsed = json.loads(content)
+        assert parsed == {"mission": "software-dev"}
+
+    def test_migration_import_path_still_works(self) -> None:
+        """The import path used by m_2_0_6_consistency_sweep.py still resolves."""
+        from specify_cli.upgrade.feature_meta import (
+            build_baseline_feature_meta,
+            load_feature_meta,
+            write_feature_meta,
+        )
+
+        # Just verify the symbols are importable -- migrations depend on this
+        assert callable(load_feature_meta)
+        assert callable(write_feature_meta)
+        assert callable(build_baseline_feature_meta)
+
+    def test_wrapper_round_trip_matches_canonical(self, tmp_path: Path) -> None:
+        """Write via wrapper, read via canonical load_meta -- same data."""
+        from specify_cli.upgrade.feature_meta import write_feature_meta
+
+        feature_dir = tmp_path / "roundtrip"
+        feature_dir.mkdir()
+        meta = _minimal_meta()
+        write_feature_meta(feature_dir, meta)
+
+        canonical_result = load_meta(feature_dir)
+        assert canonical_result == meta

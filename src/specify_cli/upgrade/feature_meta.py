@@ -1,14 +1,21 @@
-"""Helpers for feature metadata repair during upgrades."""
+"""Helpers for feature metadata repair during upgrades.
+
+``load_feature_meta`` and ``write_feature_meta`` are thin compatibility
+wrappers that delegate to the canonical single-writer module
+:mod:`specify_cli.feature_metadata`.  All other functions in this module
+(``infer_*``, ``build_baseline_feature_meta``, private helpers) are
+upgrade-specific logic and remain implemented here.
+"""
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.git_ops import resolve_primary_branch
+from specify_cli.feature_metadata import load_meta, write_meta
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -23,20 +30,24 @@ _BRANCH_PATTERNS = (
 
 
 def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json`` for a feature if it exists and is valid."""
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return None
-    return json.loads(meta_path.read_text(encoding="utf-8"))
+    """Load ``meta.json``.  Delegates to :func:`feature_metadata.load_meta`.
+
+    Kept for backward compatibility with migration code.
+    """
+    return load_meta(feature_dir)
 
 
 def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
-    """Write ``meta.json`` with stable formatting."""
-    meta_path = feature_dir / "meta.json"
-    meta_path.write_text(
-        json.dumps(meta, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    """Write ``meta.json``.  Delegates to :func:`feature_metadata.write_meta`.
+
+    Kept for backward compatibility with migration code.
+    Note: ``write_meta()`` adds ``sort_keys=True`` which the original
+    did not have.  This is a deliberate format improvement.
+
+    Validation is disabled (``validate=False``) to match the original
+    behaviour, which did not enforce required-field checks.
+    """
+    write_meta(feature_dir, meta, validate=False)
 
 
 def infer_target_branch(
