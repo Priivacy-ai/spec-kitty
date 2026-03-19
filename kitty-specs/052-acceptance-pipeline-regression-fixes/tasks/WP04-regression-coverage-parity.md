@@ -14,7 +14,7 @@ subtasks:
 - T016
 phase: Phase 3 - Verification
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "16978"
 review_status: ''
 reviewed_by: ''
@@ -204,3 +204,4 @@ spec-kitty implement WP04 --base WP03
 ## Activity Log
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
+- 2026-03-19T17:24:07Z – coordinator – shell_pid=16978 – lane=doing – Assigned agent via workflow command
