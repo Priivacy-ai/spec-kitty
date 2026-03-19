@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Standalone Script Contract
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 052-acceptance-pipeline-regression-fixes-WP01
 base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
@@ -13,8 +13,8 @@ subtasks:
 - T011
 phase: Phase 2 - Runtime Contract
 assignee: ''
-agent: "coordinator"
-shell_pid: "12729"
+agent: coordinator
+shell_pid: '12729'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -217,3 +217,4 @@ spec-kitty implement WP03 --base WP01
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
 - 2026-03-19T17:17:38Z – coordinator – shell_pid=12729 – lane=doing – Assigned agent via workflow command
+- 2026-03-19T17:20:40Z – coordinator – shell_pid=12729 – lane=for_review – Ready for review: Added bounded sys.path walk to all 4 script files (src/ and scripts/ copies of tasks_cli.py and acceptance_support.py). Both tasks_cli.py --help calls exit 0. All 50 acceptance tests pass.
