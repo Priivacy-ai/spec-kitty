@@ -74,6 +74,7 @@ class StateSurface:
     owner_module: str
     creation_trigger: str
     deprecated: bool = False
+    atomic_write: bool = False
     notes: str = ""
 
     def to_dict(self) -> dict:
@@ -88,6 +89,7 @@ class StateSurface:
             "owner_module": self.owner_module,
             "creation_trigger": self.creation_trigger,
             "deprecated": self.deprecated,
+            "atomic_write": self.atomic_write,
             "notes": self.notes,
         }
 
@@ -329,6 +331,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="feature creation/acceptance",
         creation_trigger="spec-kitty specify",
+        atomic_write=True,
     ),
     StateSurface(
         name="canonical_status_log",
@@ -339,6 +342,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="status emit",
         creation_trigger="first status transition",
+        atomic_write=True,
     ),
     StateSurface(
         name="canonical_status_snapshot",
@@ -349,6 +353,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="status reducer",
         creation_trigger="status materialize",
+        atomic_write=True,
     ),
     StateSurface(
         name="wp_prompt_frontmatter",

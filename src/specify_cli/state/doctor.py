@@ -139,9 +139,26 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
         else:
             path = Path.home() / ".spec-kitty" / surface.path_pattern
     elif surface.root == StateRoot.GIT_INTERNAL:
-        # Check under .git/
+        # Resolve git common-dir (worktree-aware — .git may be a file, not a dir)
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--git-common-dir"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=True,
+            )
+            git_common = Path(result.stdout.strip())
+            if not git_common.is_absolute():
+                git_common = (repo_root / git_common).resolve()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            git_common = repo_root / ".git"
         relative = surface.path_pattern.replace(".git/", "")
-        path = repo_root / ".git" / relative
+        path = git_common / relative
     else:
         return False
 
