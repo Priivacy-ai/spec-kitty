@@ -1,20 +1,22 @@
 {
   "feature_slug": "052-acceptance-pipeline-regression-fixes",
-  "snapshot_id": "1b5b678d-e226-4539-bc6d-9958a0c8be2d",
-  "total_artifacts": 10,
+  "snapshot_id": "f16720c1-ee56-41dd-83da-145fb6de44d0",
+  "total_artifacts": 12,
   "required_artifacts": 3,
   "required_present": 3,
   "required_missing": 0,
-  "optional_artifacts": 7,
-  "optional_present": 7,
+  "optional_artifacts": 9,
+  "optional_present": 9,
   "completeness_status": "complete",
-  "parity_hash_sha256": "4779f6b21a0f6d3a7782a2903f3793371343d64e91260d1159a74b1b9307372c",
+  "parity_hash_sha256": "abfee8851d6a677530cdeae06c845dc3f3991e8bee0683c42b32bde98ca66526",
   "parity_hash_components": [
-    "06d35c453a30da103a94a88b63622d31e870805353dfa83cf97f1acc0bb2077d",
+    "0bf2306d26a09d1cc655673c801f5ce43a73461411c955e617afc094997d470c",
+    "447cc37267df76ba90a7cb203203d77ff090d76b8d1213233b4c3de0b8e774f2",
     "66cb3ceb382ccc8fff5612000c0157d00255d62b2953ffd8e796b5f2c10f440c",
-    "72337e2592f41c2a45fc0066de4f5ec626b540340ebab7c64c614a34116bbac2",
     "83287e0006fcd8dc8c8cbad9442082d283fa40a91cf4d069178637da82a36f90",
     "8385fe4c2ff891f675cfd74b07dabdcbde5af7f8f6345875ffc796269a114408",
+    "b3b91c48e9d53003f2e4ebb0dd9a938a841a59e0faefca9869b3dcb81275a11a",
+    "c2c055b74f2291c6c7d33d06a9cbdb5700d21e8de05925dee96077159be8fe7c",
     "ceeba683c70d9f7b3449ad37b530ddf348fc38356b514251a7769b91c53a9196",
     "d7dfa6f7df8776e2c787d29586ed59649d1b5ae8f47b758e80ca1c2ea3d1bbaa",
     "eac4286cd28d3c8d1fc093f49634b6c630cc421d157fff85563da9b576d59308",
@@ -33,7 +35,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.156426+00:00",
+      "indexed_at": "2026-03-19T17:05:44.415925+00:00",
       "provenance": null
     },
     {
@@ -47,7 +49,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.157075+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416444+00:00",
       "provenance": null
     },
     {
@@ -61,21 +63,49 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.157726+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416799+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.status",
+      "artifact_class": "output",
+      "relative_path": "status.json",
+      "content_hash_sha256": "b3b91c48e9d53003f2e4ebb0dd9a938a841a59e0faefca9869b3dcb81275a11a",
+      "size_bytes": 594,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-03-19T17:05:44.415852+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.status.events",
+      "artifact_class": "output",
+      "relative_path": "status.events.jsonl",
+      "content_hash_sha256": "447cc37267df76ba90a7cb203203d77ff090d76b8d1213233b4c3de0b8e774f2",
+      "size_bytes": 1845,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-03-19T17:05:44.415512+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp01-verification-path-hardening",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP01-verification-path-hardening.md",
-      "content_hash_sha256": "72337e2592f41c2a45fc0066de4f5ec626b540340ebab7c64c614a34116bbac2",
-      "size_bytes": 8253,
+      "content_hash_sha256": "c2c055b74f2291c6c7d33d06a9cbdb5700d21e8de05925dee96077159be8fe7c",
+      "size_bytes": 9222,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.156720+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416170+00:00",
       "provenance": null
     },
     {
@@ -89,7 +119,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.157391+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416658+00:00",
       "provenance": null
     },
     {
@@ -103,7 +133,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.157290+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416569+00:00",
       "provenance": null
     },
     {
@@ -117,7 +147,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.156638+00:00",
+      "indexed_at": "2026-03-19T17:05:44.416088+00:00",
       "provenance": null
     },
     {
@@ -131,7 +161,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.156147+00:00",
+      "indexed_at": "2026-03-19T17:05:44.415763+00:00",
       "provenance": null
     },
     {
@@ -145,23 +175,23 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.156039+00:00",
+      "indexed_at": "2026-03-19T17:05:44.415698+00:00",
       "provenance": null
     },
     {
       "artifact_key": "output.tasks.list",
       "artifact_class": "output",
       "relative_path": "tasks.md",
-      "content_hash_sha256": "06d35c453a30da103a94a88b63622d31e870805353dfa83cf97f1acc0bb2077d",
-      "size_bytes": 10788,
+      "content_hash_sha256": "0bf2306d26a09d1cc655673c801f5ce43a73461411c955e617afc094997d470c",
+      "size_bytes": 10891,
       "wp_id": null,
       "step_id": null,
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-19T16:44:13.155485+00:00",
+      "indexed_at": "2026-03-19T17:05:44.415624+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-03-19 16:44:13.193680+00:00"
+  "computed_at": "2026-03-19 17:05:44.499940+00:00"
 }

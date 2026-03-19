@@ -15,7 +15,7 @@ phase: Phase 1 - Core Bug Fixes
 assignee: ''
 agent: "coordinator"
 shell_pid: "8308"
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 review_feedback: "feedback://052-acceptance-pipeline-regression-fixes/WP01/20260319T170538Z-cdbc37a6.md"
 history:
