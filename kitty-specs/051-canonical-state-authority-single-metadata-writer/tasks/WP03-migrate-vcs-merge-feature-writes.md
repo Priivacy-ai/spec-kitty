@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Migrate VCS, Merge, and Feature Creation Writes
-lane: "approved"
+lane: "done"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -263,3 +263,4 @@ spec-kitty implement WP03 --base WP01
 - 2026-03-18T21:20:12Z – coordinator – shell_pid=69719 – lane=for_review – Fixed merge tolerance per Codex feedback (cycle 2/3): wrapped record_merge/finalize_merge in try/except, 4 new tests, all 58 tests pass
 - 2026-03-18T21:20:32Z – codex – shell_pid=73586 – lane=doing – Started review via workflow command
 - 2026-03-18T21:24:35Z – codex – shell_pid=73586 – lane=approved – Review passed: migrated write sites use feature_metadata helpers, no direct meta.json writes remain, focused tests passed
+- 2026-03-19T08:46:57Z – codex – shell_pid=73586 – lane=done – Moved to done
