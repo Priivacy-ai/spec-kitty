@@ -1,8 +1,11 @@
 ---
 work_package_id: WP04
 title: Regression Coverage and Copy-Parity Sweep
-lane: planned
+lane: "doing"
 dependencies: [WP03]
+base_branch: 052-acceptance-pipeline-regression-fixes-WP03
+base_commit: 80e1da9f381882629d974cbf25af003791cd3b39
+created_at: '2026-03-19T17:24:07.240529+00:00'
 subtasks:
 - T012
 - T013
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 3 - Verification
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "16978"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
