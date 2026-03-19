@@ -19,14 +19,35 @@ from specify_cli.doc_state import (
 
 pytestmark = pytest.mark.fast
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_VALID_META_BASE = {
+    "feature_number": "001",
+    "slug": "001-test",
+    "feature_slug": "001-test",
+    "friendly_name": "Test",
+    "mission": "documentation",
+    "target_branch": "main",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+
+
+def _write_meta(path, extra=None):
+    """Write a valid meta.json with all required fields and optional extras."""
+    data = {**_VALID_META_BASE}
+    if extra:
+        data.update(extra)
+    meta_file = path / "meta.json" if path.name != "meta.json" else path
+    meta_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    return meta_file
+
 # Test state initialization
 def test_initialize_documentation_state(tmp_path):
     """Test initialization creates valid state."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation"
-    }))
+    meta_file = _write_meta(tmp_path)
 
     state = initialize_documentation_state(
         meta_file,
@@ -52,18 +73,16 @@ def test_initialize_documentation_state(tmp_path):
 # Test state reading
 def test_read_documentation_state(tmp_path):
     """Test reading state from meta.json."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "documentation",
+    meta_file = _write_meta(tmp_path, extra={
         "documentation_state": {
             "iteration_mode": "gap_filling",
             "divio_types_selected": ["tutorial"],
             "generators_configured": [],
             "target_audience": "end-users",
             "last_audit_date": "2026-01-12T00:00:00Z",
-            "coverage_percentage": 0.5
+            "coverage_percentage": 0.5,
         }
-    }))
+    })
 
     state = read_documentation_state(meta_file)
     assert state is not None
@@ -74,11 +93,7 @@ def test_read_documentation_state(tmp_path):
 # Test state updates
 def test_update_documentation_state(tmp_path):
     """Test partial state updates."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation"
-    }))
+    meta_file = _write_meta(tmp_path)
 
     # Initialize
     initialize_documentation_state(
@@ -105,12 +120,7 @@ def test_update_documentation_state(tmp_path):
 def test_ensure_state_for_old_feature(tmp_path):
     """Test migration adds state to old features."""
     # Old feature without documentation_state
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "feature_number": "001",
-        "mission": "documentation",
-        "created_at": "2025-01-01T00:00:00Z"
-    }))
+    meta_file = _write_meta(tmp_path)
 
     ensure_documentation_state(meta_file)
 
@@ -124,10 +134,7 @@ def test_ensure_state_for_old_feature(tmp_path):
 # Test non-documentation missions unaffected
 def test_read_state_for_non_doc_mission(tmp_path):
     """Test returns None for non-documentation missions."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "software-dev"
-    }))
+    meta_file = _write_meta(tmp_path, extra={"mission": "software-dev"})
 
     state = read_documentation_state(meta_file)
     assert state is None
@@ -135,10 +142,7 @@ def test_read_state_for_non_doc_mission(tmp_path):
 
 def test_ensure_state_ignores_non_doc_mission(tmp_path):
     """Test ensure_state ignores non-documentation missions."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
-        "mission": "software-dev"
-    }))
+    meta_file = _write_meta(tmp_path, extra={"mission": "software-dev"})
 
     ensure_documentation_state(meta_file)
 
@@ -150,8 +154,7 @@ def test_ensure_state_ignores_non_doc_mission(tmp_path):
 # Test individual setters
 def test_set_iteration_mode(tmp_path):
     """Test set_iteration_mode updates state."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     set_iteration_mode(meta_file, "gap_filling")
 
@@ -162,8 +165,7 @@ def test_set_iteration_mode(tmp_path):
 
 def test_set_divio_types_selected(tmp_path):
     """Test set_divio_types_selected updates state."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     set_divio_types_selected(meta_file, ["tutorial", "how-to"])
 
@@ -174,8 +176,7 @@ def test_set_divio_types_selected(tmp_path):
 
 def test_set_generators_configured(tmp_path):
     """Test set_generators_configured updates state."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     generators = [{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}]
     set_generators_configured(meta_file, generators)
@@ -188,8 +189,7 @@ def test_set_generators_configured(tmp_path):
 
 def test_set_audit_metadata(tmp_path):
     """Test set_audit_metadata updates state."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     audit_date = datetime(2026, 1, 12, 10, 30, 0)
     set_audit_metadata(meta_file, audit_date, 0.75)
@@ -203,8 +203,7 @@ def test_set_audit_metadata(tmp_path):
 # Test validation
 def test_invalid_iteration_mode_rejected(tmp_path):
     """Test invalid iteration_mode raises ValueError."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     with pytest.raises(ValueError, match="Invalid iteration_mode"):
         set_iteration_mode(meta_file, "invalid_mode")
@@ -212,8 +211,7 @@ def test_invalid_iteration_mode_rejected(tmp_path):
 
 def test_invalid_divio_type_rejected(tmp_path):
     """Test invalid Divio type raises ValueError."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     with pytest.raises(ValueError, match="Invalid Divio types"):
         set_divio_types_selected(meta_file, ["tutorial", "invalid-type"])
@@ -221,8 +219,7 @@ def test_invalid_divio_type_rejected(tmp_path):
 
 def test_invalid_generator_config_rejected(tmp_path):
     """Test invalid generator config raises ValueError."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     # Missing 'name' field
     with pytest.raises(ValueError, match="missing 'name' field"):
@@ -237,8 +234,7 @@ def test_invalid_generator_config_rejected(tmp_path):
 
 def test_invalid_coverage_percentage_rejected(tmp_path):
     """Test invalid coverage_percentage raises ValueError."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     # Too high
     with pytest.raises(ValueError, match="must be 0.0-1.0"):
@@ -252,8 +248,7 @@ def test_invalid_coverage_percentage_rejected(tmp_path):
 # Test empty lists allowed
 def test_empty_divio_types_allowed(tmp_path):
     """Test empty divio_types list is allowed."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     # Should not raise
     initialize_documentation_state(
@@ -270,8 +265,7 @@ def test_empty_divio_types_allowed(tmp_path):
 
 def test_empty_generators_allowed(tmp_path):
     """Test empty generators list is allowed."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     # Should not raise
     initialize_documentation_state(
@@ -289,8 +283,7 @@ def test_empty_generators_allowed(tmp_path):
 # Test update without initialization fails
 def test_update_without_initialization_raises(tmp_path):
     """Test update raises error if state doesn't exist."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation"}))
+    meta_file = _write_meta(tmp_path)
 
     with pytest.raises(ValueError, match="No documentation state found"):
         update_documentation_state(meta_file, coverage_percentage=0.5)
@@ -315,8 +308,7 @@ def test_get_state_version():
 # Test JSON formatting
 def test_state_persists_with_proper_json_formatting(tmp_path):
     """Test state is written with proper JSON formatting."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "documentation", "feature_number": "001"}))
+    meta_file = _write_meta(tmp_path)
 
     initialize_documentation_state(
         meta_file,
@@ -340,13 +332,10 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
 # Test original fields preserved
 def test_original_fields_preserved_after_state_update(tmp_path):
     """Test original meta.json fields are preserved."""
-    meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({
+    meta_file = _write_meta(tmp_path, extra={
         "feature_number": "012",
-        "mission": "documentation",
-        "created_at": "2026-01-13T00:00:00Z",
-        "custom_field": "custom_value"
-    }))
+        "custom_field": "custom_value",
+    })
 
     initialize_documentation_state(
         meta_file,
@@ -362,5 +351,5 @@ def test_original_fields_preserved_after_state_update(tmp_path):
     # Original fields should still exist
     assert meta["feature_number"] == "012"
     assert meta["mission"] == "documentation"
-    assert meta["created_at"] == "2026-01-13T00:00:00Z"
+    assert meta["created_at"] == "2026-01-01T00:00:00+00:00"
     assert meta["custom_field"] == "custom_value"

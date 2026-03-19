@@ -195,6 +195,40 @@ class TestWriteMeta:
         original = json.loads((tmp_path / "meta.json").read_text(encoding="utf-8"))
         assert original["feature_number"] == "051"
 
+    def test_write_meta_validate_false_skips_validation(self, tmp_path: Path) -> None:
+        """write_meta(validate=False) succeeds with minimal meta lacking required fields."""
+        minimal = {"mission": "documentation"}
+        write_meta(tmp_path, minimal, validate=False)
+
+        meta_path = tmp_path / "meta.json"
+        assert meta_path.exists()
+
+        content = meta_path.read_text(encoding="utf-8")
+        assert content.endswith("\n")
+
+        loaded = json.loads(content)
+        assert loaded == minimal
+
+        # Sorted keys and standard format
+        expected = json.dumps(minimal, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+        assert content == expected
+
+    def test_write_meta_validate_false_still_formats_correctly(self, tmp_path: Path) -> None:
+        """write_meta(validate=False) produces sorted keys and trailing newline."""
+        meta = {"zzz": "last", "aaa": "first", "mission": "documentation"}
+        write_meta(tmp_path, meta, validate=False)
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        keys = list(json.loads(content).keys())
+        assert keys == sorted(keys)
+        assert content.endswith("\n")
+
+    def test_write_meta_validate_true_rejects_minimal(self, tmp_path: Path) -> None:
+        """write_meta(validate=True) (default) rejects meta missing required fields."""
+        minimal = {"mission": "documentation"}
+        with pytest.raises(ValueError, match="Invalid meta.json"):
+            write_meta(tmp_path, minimal)
+
     def test_atomic_write_cleanup_on_failure(self, tmp_path: Path) -> None:
         """If os.replace raises, no temp file is left and original is preserved."""
         _write_meta_file(tmp_path, _minimal_meta())

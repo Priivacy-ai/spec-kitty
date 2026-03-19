@@ -22,13 +22,26 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
+_VALID_META_BASE: dict = {
+    "feature_number": "001",
+    "slug": "001-test",
+    "feature_slug": "001-test",
+    "friendly_name": "Test Feature",
+    "mission": "documentation",
+    "target_branch": "main",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+
+
 def _make_meta(path: Path, extra: dict | None = None) -> Path:
-    """Write a minimal meta.json to *path* and return the Path."""
-    data: dict = {"feature_id": "001-test", "title": "Test Feature"}
+    """Write a valid meta.json to *path* and return the Path."""
+    data: dict = {**_VALID_META_BASE}
     if extra:
         data.update(extra)
     meta = path / "meta.json"
-    meta.write_text(json.dumps(data), encoding="utf-8")
+    meta.write_text(
+        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return meta
 
 
@@ -195,15 +208,15 @@ class TestSetDivioTypesSelected:
     def test_preserves_existing_meta_fields(self, tmp_path: Path) -> None:
         """Other meta.json fields are not clobbered when writing Divio types."""
         # Arrange
-        meta = _make_meta(tmp_path, extra={"feature_id": "001-preserve"})
+        meta = _make_meta(tmp_path, extra={"custom_field": "preserve-me"})
 
         # Assumption check
-        assert json.loads(meta.read_text())["feature_id"] == "001-preserve"
+        assert json.loads(meta.read_text())["custom_field"] == "preserve-me"
 
         # Act
         set_divio_types_selected(meta, ["how-to"])
 
         # Assert
         stored = json.loads(meta.read_text())
-        assert stored["feature_id"] == "001-preserve"
+        assert stored["custom_field"] == "preserve-me"
         assert stored["documentation_state"]["divio_types_selected"] == ["how-to"]
