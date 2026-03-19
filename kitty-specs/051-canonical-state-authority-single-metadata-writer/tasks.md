@@ -155,11 +155,11 @@ description: "Work package task list for canonical state authority & single meta
 **Requirement Refs**: FR-002, FR-006, FR-009, NFR-002, C-001
 
 ### Included Subtasks
-- [ ] T023 Update `upgrade/feature_meta.py` — thin re-exports for `load_feature_meta()` and `write_feature_meta()`
-- [ ] T024 Verify migration callers (`m_2_0_6_consistency_sweep.py`) work through wrapper
-- [ ] T025 Codebase sweep — test that greps for direct meta.json writes outside `feature_metadata.py` and fails on violations
-- [ ] T026 Integration test: end-to-end acceptance flow reads canonical state, writes through single API
-- [ ] T027 Integration test: corrupt compatibility views (Activity Log + frontmatter lane), verify correctness preserved
+- [x] T023 Update `upgrade/feature_meta.py` — thin re-exports for `load_feature_meta()` and `write_feature_meta()`
+- [x] T024 Verify migration callers (`m_2_0_6_consistency_sweep.py`) work through wrapper
+- [x] T025 Codebase sweep — test that greps for direct meta.json writes outside `feature_metadata.py` and fails on violations
+- [x] T026 Integration test: end-to-end acceptance flow reads canonical state, writes through single API
+- [x] T027 Integration test: corrupt compatibility views (Activity Log + frontmatter lane), verify correctness preserved
 
 ### Implementation Notes
 - `upgrade/feature_meta.py` keeps its inference functions (`infer_target_branch`, `infer_mission`, `infer_created_at`, `build_baseline_feature_meta`) — these are upgrade-specific, not metadata writer concerns.
