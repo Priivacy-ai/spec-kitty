@@ -16,7 +16,7 @@ subtasks:
 - T027
 phase: Phase 2 - Integration & Validation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "9737"
 review_status: ''
 reviewed_by: ''
@@ -310,3 +310,4 @@ git merge 051-...-WP03
 ## Activity Log
 
 - 2026-03-18T20:21:07Z – system – lane=planned – Prompt created.
+- 2026-03-19T07:31:03Z – coordinator – shell_pid=9737 – lane=doing – Assigned agent via workflow command
