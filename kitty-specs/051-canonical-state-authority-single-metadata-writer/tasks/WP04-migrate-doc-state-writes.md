@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migrate doc_state.py Write Sites
-lane: "approved"
+lane: "done"
 dependencies: [WP01]
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
@@ -239,3 +239,4 @@ spec-kitty implement WP04 --base WP01
 - 2026-03-18T21:34:51Z – coordinator – shell_pid=76970 – lane=for_review – Uses public API per Codex feedback (cycle 3/3)
 - 2026-03-18T21:35:15Z – codex – shell_pid=77527 – lane=doing – Started review via workflow command
 - 2026-03-18T21:41:16Z – codex – shell_pid=77527 – lane=approved – Arbiter-approved after 3 Codex cycles. Cycle 1 said 'don't change reads'; cycle 3 complains reads are inconsistent with writes. Contradictory feedback. Implementation correctly follows cycle 1 guidance. 100/100 tests pass.
+- 2026-03-19T08:46:58Z – codex – shell_pid=77527 – lane=done – Moved to done

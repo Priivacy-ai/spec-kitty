@@ -259,6 +259,6 @@ WP01 (foundation) ────────────────────�
 - WP01: done
 - WP02: done
 - WP03: done
-- WP04: approved
+- WP04: done
 - WP05: approved
 <!-- status-model:end -->

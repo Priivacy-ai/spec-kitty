@@ -1,14 +1,14 @@
 {
-  "event_count": 51,
+  "event_count": 52,
   "feature_slug": "051-canonical-state-authority-single-metadata-writer",
-  "last_event_id": "01KM2MDHAEZEQ3DX33BRCKBGBH",
-  "materialized_at": "2026-03-19T08:46:57.358739+00:00",
+  "last_event_id": "01KM2MDJJ6JE4S34CVGA8NJXZ1",
+  "materialized_at": "2026-03-19T08:46:58.631383+00:00",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 3,
+    "done": 4,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -37,10 +37,10 @@
     },
     "WP04": {
       "actor": "user",
-      "force_count": 8,
-      "lane": "approved",
-      "last_event_id": "01KM1EAMH5XT04610J07AZ09NQ",
-      "last_transition_at": "2026-03-18T21:41:16.453626+00:00"
+      "force_count": 9,
+      "lane": "done",
+      "last_event_id": "01KM2MDJJ6JE4S34CVGA8NJXZ1",
+      "last_transition_at": "2026-03-19T08:46:58.630848+00:00"
     },
     "WP05": {
       "actor": "user",
