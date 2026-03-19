@@ -649,3 +649,292 @@ class TestUnicodeHandling:
         loaded = load_meta(tmp_path)
         assert loaded is not None
         assert loaded["friendly_name"] == "Feature with emojis and accents: cafe"
+
+
+# ===================================================================
+# WP03: Write-site migration verification tests
+# ===================================================================
+
+
+class TestVcsLockStandardFormat:
+    """T018: Verify set_vcs_lock() produces correctly formatted meta.json."""
+
+    def test_vcs_lock_produces_standard_format(self, tmp_path: Path) -> None:
+        """set_vcs_lock() writes meta.json with standard formatting."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        set_vcs_lock(tmp_path, vcs_type="git", locked_at="2026-03-18T12:00:00+00:00")
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        # Trailing newline
+        assert content.endswith("\n")
+        # Valid JSON
+        data = json.loads(content)
+        # Sorted keys
+        keys = list(data.keys())
+        assert keys == sorted(keys)
+        # Fields present
+        assert data["vcs"] == "git"
+        assert data["vcs_locked_at"] == "2026-03-18T12:00:00+00:00"
+
+    def test_vcs_lock_without_locked_at(self, tmp_path: Path) -> None:
+        """set_vcs_lock() without locked_at omits the field."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        set_vcs_lock(tmp_path, vcs_type="git")
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        data = json.loads(content)
+        assert data["vcs"] == "git"
+        assert "vcs_locked_at" not in data
+
+    def test_vcs_lock_preserves_existing_fields(self, tmp_path: Path) -> None:
+        """set_vcs_lock() preserves all existing meta fields."""
+        meta = _minimal_meta()
+        meta["custom_field"] = "should survive"
+        _write_meta_file(tmp_path, meta)
+
+        set_vcs_lock(tmp_path, vcs_type="git", locked_at="2026-03-18T12:00:00+00:00")
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert data["custom_field"] == "should survive"
+        assert data["feature_number"] == "051"
+
+
+class TestRecordMergeBoundedHistory:
+    """T018: Verify record_merge() caps merge_history at 20 entries."""
+
+    def test_record_merge_bounded_history(self, tmp_path: Path) -> None:
+        """record_merge() caps merge_history at 20 entries."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        # Call record_merge() 25 times
+        for i in range(25):
+            record_merge(
+                tmp_path,
+                merged_by=f"agent{i}",
+                merged_into="main",
+                strategy="merge",
+                push=False,
+            )
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert len(data["merge_history"]) == HISTORY_CAP
+        # Most recent entry is the last one we added
+        assert data["merge_history"][-1]["merged_by"] == "agent24"
+        # Oldest surviving is agent5 (agents 0-4 dropped)
+        assert data["merge_history"][0]["merged_by"] == "agent5"
+
+    def test_record_merge_standard_format(self, tmp_path: Path) -> None:
+        """record_merge() writes meta.json with standard formatting."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        record_merge(
+            tmp_path,
+            merged_by="claude",
+            merged_into="main",
+            strategy="squash",
+            push=True,
+        )
+
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        data = json.loads(content)
+        keys = list(data.keys())
+        assert keys == sorted(keys)
+        assert data["merged_by"] == "claude"
+        assert data["merged_into"] == "main"
+        assert data["merged_strategy"] == "squash"
+        assert data["merged_push"] is True
+
+
+class TestFinalizeMergeUpdatesHistory:
+    """T018: Verify finalize_merge() sets merged_commit on latest history entry."""
+
+    def test_finalize_merge_updates_latest_history(self, tmp_path: Path) -> None:
+        """finalize_merge() sets merged_commit on latest history entry."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        record_merge(
+            tmp_path,
+            merged_by="agent",
+            merged_into="main",
+            strategy="merge",
+            push=False,
+        )
+
+        finalize_merge(tmp_path, merged_commit="abc123def456")
+
+        data = load_meta(tmp_path)
+        assert data is not None
+        assert data["merged_commit"] == "abc123def456"
+        assert data["merge_history"][-1]["merged_commit"] == "abc123def456"
+
+        # Standard format
+        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
+        assert content.endswith("\n")
+        keys = list(json.loads(content).keys())
+        assert keys == sorted(keys)
+
+
+class TestFeatureCreationTrailingNewline:
+    """T018: Verify write_meta() on fresh creation includes trailing newline."""
+
+    def test_feature_creation_has_trailing_newline(self, tmp_path: Path) -> None:
+        """write_meta() on fresh creation includes trailing newline."""
+        meta = _minimal_meta()
+        write_meta(tmp_path, meta)
+
+        content = (tmp_path / "meta.json").read_bytes()
+        # Must end with newline byte
+        assert content.endswith(b"\n")
+        # Must be valid JSON
+        parsed = json.loads(content)
+        assert parsed["feature_number"] == "051"
+
+    def test_feature_creation_with_documentation_state(self, tmp_path: Path) -> None:
+        """set_documentation_state() after write_meta() keeps trailing newline."""
+        meta = _minimal_meta()
+        write_meta(tmp_path, meta)
+
+        doc_state = {
+            "iteration_mode": "initial",
+            "divio_types_selected": [],
+            "generators_configured": [],
+            "target_audience": "developers",
+            "last_audit_date": None,
+            "coverage_percentage": 0.0,
+        }
+        set_documentation_state(tmp_path, doc_state)
+
+        content = (tmp_path / "meta.json").read_bytes()
+        # Must end with newline byte
+        assert content.endswith(b"\n")
+        # Must be valid JSON with documentation_state
+        parsed = json.loads(content)
+        assert parsed["documentation_state"] == doc_state
+        # Keys should be sorted
+        keys = list(parsed.keys())
+        assert keys == sorted(keys)
+
+
+# ===================================================================
+# WP03 cycle 2: Merge tolerance for malformed meta.json
+# ===================================================================
+
+
+class TestMergeToleranceMalformedMeta:
+    """Verify _prepare_merge_metadata and _finalize_merge_metadata tolerate
+    malformed meta.json without raising, preserving the old error-tolerance
+    that existed before the migration to feature_metadata.py.
+
+    The merge operation itself must not fail due to metadata issues -- these
+    functions are called AFTER git merge has already succeeded.
+    """
+
+    def test_prepare_merge_metadata_tolerates_malformed_json(self, tmp_path: Path) -> None:
+        """_prepare_merge_metadata returns None (no crash) when meta.json is malformed."""
+        import sys
+        import os
+
+        # Add the tasks scripts dir to sys.path so we can import tasks_cli
+        tasks_dir = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "src",
+            "specify_cli",
+            "scripts",
+            "tasks",
+        )
+        tasks_dir = os.path.normpath(tasks_dir)
+        if tasks_dir not in sys.path:
+            sys.path.insert(0, tasks_dir)
+
+        from specify_cli.scripts.tasks.tasks_cli import _prepare_merge_metadata
+
+        # Create feature dir with malformed meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text("{invalid json content", encoding="utf-8")
+
+        # Should return None (not raise) because record_merge fails on malformed JSON
+        result = _prepare_merge_metadata(
+            repo_root=tmp_path,
+            feature="test-feature",
+            target="main",
+            strategy="merge",
+            pushed=False,
+        )
+        assert result is None
+
+    def test_finalize_merge_metadata_tolerates_malformed_json(self, tmp_path: Path) -> None:
+        """_finalize_merge_metadata does not raise when meta.json is malformed."""
+        from specify_cli.scripts.tasks.tasks_cli import _finalize_merge_metadata
+
+        # Create malformed meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text("{invalid json content", encoding="utf-8")
+
+        # Should not raise -- just log a warning
+        _finalize_merge_metadata(meta_path, merge_commit="abc123")
+
+    def test_prepare_merge_metadata_works_with_valid_meta(self, tmp_path: Path) -> None:
+        """_prepare_merge_metadata succeeds normally with valid meta.json."""
+        from specify_cli.scripts.tasks.tasks_cli import _prepare_merge_metadata
+        from unittest.mock import patch
+
+        # Create valid meta.json
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta = _minimal_meta()
+        _write_meta_file(feature_dir, meta)
+
+        # Mock _merge_actor to avoid git dependency
+        with patch(
+            "specify_cli.scripts.tasks.tasks_cli._merge_actor",
+            return_value="test-user",
+        ):
+            result = _prepare_merge_metadata(
+                repo_root=tmp_path,
+                feature="test-feature",
+                target="main",
+                strategy="merge",
+                pushed=False,
+            )
+
+        assert result is not None
+        assert result == feature_dir / "meta.json"
+
+        # Verify the metadata was written correctly
+        data = load_meta(feature_dir)
+        assert data is not None
+        assert data["merged_by"] == "test-user"
+        assert data["merged_into"] == "main"
+
+    def test_finalize_merge_metadata_works_with_valid_meta(self, tmp_path: Path) -> None:
+        """_finalize_merge_metadata succeeds normally with valid meta.json."""
+        from specify_cli.scripts.tasks.tasks_cli import _finalize_merge_metadata
+
+        # Create valid meta.json with merge history
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        feature_dir.mkdir(parents=True)
+        meta = _minimal_meta()
+        meta["merge_history"] = [
+            {"merged_at": "2026-03-18T00:00:00+00:00", "merged_commit": None}
+        ]
+        _write_meta_file(feature_dir, meta)
+
+        meta_path = feature_dir / "meta.json"
+        _finalize_merge_metadata(meta_path, merge_commit="sha256abc")
+
+        data = load_meta(feature_dir)
+        assert data is not None
+        assert data["merged_commit"] == "sha256abc"
+        assert data["merge_history"][-1]["merged_commit"] == "sha256abc"
