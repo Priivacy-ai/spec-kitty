@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Regression Coverage and Copy-Parity Sweep
-lane: "doing"
+lane: "for_review"
 dependencies: [WP03]
 base_branch: 052-acceptance-pipeline-regression-fixes-WP03
 base_commit: 80e1da9f381882629d974cbf25af003791cd3b39
@@ -14,8 +14,8 @@ subtasks:
 - T016
 phase: Phase 3 - Verification
 assignee: ''
-agent: "coordinator"
-shell_pid: "16978"
+agent: coordinator
+shell_pid: '16978'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -205,3 +205,4 @@ spec-kitty implement WP04 --base WP03
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
 - 2026-03-19T17:24:07Z – coordinator – shell_pid=16978 – lane=doing – Assigned agent via workflow command
+- 2026-03-19T17:31:24Z – coordinator – shell_pid=16978 – lane=for_review – Ready for review: 7 tests (5 regression + 2 edge case) all passing
