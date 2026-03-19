@@ -1508,41 +1508,22 @@ def finalize_tasks(
         all_spec_requirement_ids = set(spec_requirement_ids["all"])
         functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
-        # Parse dependencies and requirement refs using 3-tier priority:
-        # 1. requirement-mapping.json (structured API store — deterministic)
-        # 2. tasks.md text parsing (backward compat for pre-API projects)
-        # 3. WP frontmatter (existing fallback)
-        from specify_cli.requirement_mapping import load_requirement_mapping
-
+        # Parse dependencies and requirement refs from tasks.md (if it exists)
         tasks_md = feature_dir / "tasks.md"
         wp_dependencies = {}
         wp_requirement_refs = {}
-        mapping_source = "none"
-
-        # PRIMARY: Read from requirement-mapping.json (structured API store)
-        api_mappings = load_requirement_mapping(feature_dir)
-        if api_mappings:
-            wp_requirement_refs = api_mappings
-            mapping_source = "api"
-
         if tasks_md.exists():
-            # Read tasks.md and parse dependency mapping (always needed)
+            # Read tasks.md and parse dependency + requirement mapping
             tasks_content = tasks_md.read_text(encoding="utf-8")
             wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
+            wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
 
-            # FALLBACK 1: Parse requirement refs from tasks.md text
-            if not wp_requirement_refs:
-                wp_requirement_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
-                if any(refs for refs in wp_requirement_refs.values()):
-                    mapping_source = "tasks_md"
-
-        # FALLBACK 2: WP frontmatter (existing)
+        # Fallback: if tasks.md lacks requirement refs, recover from WP frontmatter.
+        # This keeps finalize-tasks deterministic even when an agent edits WP files first.
         wp_requirement_refs_from_frontmatter = _parse_requirement_refs_from_wp_files(wp_files)
         for wp_id, refs in wp_requirement_refs_from_frontmatter.items():
             if refs and not wp_requirement_refs.get(wp_id):
                 wp_requirement_refs[wp_id] = refs
-                if mapping_source == "none":
-                    mapping_source = "frontmatter"
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
@@ -1839,7 +1820,6 @@ def finalize_tasks(
                     "files_committed": files_committed,
                     "dependencies_parsed": wp_dependencies,
                     "requirement_refs_parsed": wp_requirement_refs,
-                    "mapping_source": mapping_source,
                 }
             )
 
@@ -1961,9 +1941,14 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
 
 
 def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
-    """Parse requirement IDs from spec.md content.
+    """Parse requirement IDs from spec.md content."""
+    all_ids = {
+        req_id.upper()
+        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
+    }
+    functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
 
-    Delegates to the shared implementation in requirement_mapping module.
-    """
-    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
-    return parse_requirement_ids_from_spec_md(spec_content)
+    return {
+        "all": sorted(all_ids),
+        "functional": sorted(functional_ids),
+    }
