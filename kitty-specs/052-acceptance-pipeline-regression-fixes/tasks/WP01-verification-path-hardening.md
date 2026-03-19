@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Verification Path Hardening
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: a7995b280e1a76cdf3f6dc201d56233d8c028032
@@ -13,8 +13,8 @@ subtasks:
 - T004
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
-agent: "coordinator"
-shell_pid: "4874"
+agent: coordinator
+shell_pid: '4874'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -161,3 +161,4 @@ No `--base` needed — this is the first WP.
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
 - 2026-03-19T16:52:08Z – coordinator – shell_pid=4874 – lane=doing – Assigned agent via workflow command
+- 2026-03-19T17:02:12Z – coordinator – shell_pid=4874 – lane=for_review – Ready for review: git_status_lines moved before materialize (P0), StoreError wrapped to AcceptanceError (P2), all 3 copies fixed, 50 acceptance tests pass

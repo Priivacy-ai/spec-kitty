@@ -205,3 +205,8 @@
 | T014 | Test: standalone tasks_cli.py --help works | WP04 | P2 | No |
 | T015 | Test: malformed JSONL raises AcceptanceError | WP04 | P2 | No |
 | T016 | Copy-parity assertions | WP04 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
