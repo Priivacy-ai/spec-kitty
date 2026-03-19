@@ -88,10 +88,10 @@
 **Requirement Refs**: FR-003, C-002
 
 ### Included Subtasks
-- [ ] T008 Add repo `src/` root to `sys.path` in `src/specify_cli/scripts/tasks/tasks_cli.py`
-- [ ] T009 Add repo `src/` root to `sys.path` in `src/specify_cli/scripts/tasks/acceptance_support.py`
-- [ ] T010 Add repo `src/` root to `sys.path` in `scripts/tasks/tasks_cli.py` and `scripts/tasks/acceptance_support.py`
-- [ ] T011 Sync `.kittify/scripts/tasks/` copies from `scripts/tasks/`
+- [x] T008 Add repo `src/` root to `sys.path` in `src/specify_cli/scripts/tasks/tasks_cli.py`
+- [x] T009 Add repo `src/` root to `sys.path` in `src/specify_cli/scripts/tasks/acceptance_support.py`
+- [x] T010 Add repo `src/` root to `sys.path` in `scripts/tasks/tasks_cli.py` and `scripts/tasks/acceptance_support.py`
+- [x] T011 Sync `.kittify/scripts/tasks/` copies from `scripts/tasks/`
 
 ### Implementation Notes
 - For `src/specify_cli/scripts/tasks/` scripts: The script is at `src/specify_cli/scripts/tasks/foo.py`. Walking up 4 parents reaches `src/`. Add after existing `sys.path.insert(0, str(SCRIPT_DIR))`:
