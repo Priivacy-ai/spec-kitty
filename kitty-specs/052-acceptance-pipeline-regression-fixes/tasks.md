@@ -208,5 +208,5 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: in_progress
+- WP01: planned
 <!-- status-model:end -->

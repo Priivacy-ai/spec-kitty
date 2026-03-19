@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Verification Path Hardening
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: a7995b280e1a76cdf3f6dc201d56233d8c028032
@@ -13,11 +13,11 @@ subtasks:
 - T004
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
-agent: "codex"
-shell_pid: "7256"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
+agent: codex
+shell_pid: '7256'
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://052-acceptance-pipeline-regression-fixes/WP01/20260319T170538Z-cdbc37a6.md"
 history:
 - timestamp: '2026-03-19T16:39:32Z'
   lane: planned
@@ -163,3 +163,4 @@ No `--base` needed — this is the first WP.
 - 2026-03-19T16:52:08Z – coordinator – shell_pid=4874 – lane=doing – Assigned agent via workflow command
 - 2026-03-19T17:02:12Z – coordinator – shell_pid=4874 – lane=for_review – Ready for review: git_status_lines moved before materialize (P0), StoreError wrapped to AcceptanceError (P2), all 3 copies fixed, 50 acceptance tests pass
 - 2026-03-19T17:02:36Z – codex – shell_pid=7256 – lane=doing – Started review via workflow command
+- 2026-03-19T17:05:38Z – codex – shell_pid=7256 – lane=planned – Codex review: T004 incomplete - scripts/ and .kittify/ copies not synced
