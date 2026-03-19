@@ -57,7 +57,7 @@ For each work package defined in `tasks.md`:
 4. Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`)
 5. Include frontmatter with:
    - `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
-   - `requirement_refs` array from the WP's `Requirement Refs` line in `tasks.md`
+   - `requirement_refs`: leave as empty array `[]` — `finalize-tasks` populates this from `requirement-mapping.json`
 6. Include in body:
    - Objective, context, detailed guidance per subtask
    - Test strategy (only if requested)

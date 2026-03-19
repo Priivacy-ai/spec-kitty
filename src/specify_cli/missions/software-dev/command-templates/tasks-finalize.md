@@ -35,7 +35,9 @@ spec-kitty agent context resolve --action tasks_finalize --json
 
 Then run the returned `finalize_tasks` command from repo root. It will:
 - Parse dependencies from tasks.md
-- Parse `Requirement Refs` from tasks.md
+- Read requirement mappings from `requirement-mapping.json` (primary source, written by `map-requirements`)
+- Fallback: parse `Requirement Refs` from tasks.md text (backward compat for pre-API projects)
+- Fallback: read `requirement_refs` from WP frontmatter
 - Update WP frontmatter with `dependencies` and `requirement_refs` fields
 - Validate dependencies (check for cycles, invalid references)
 - Validate requirement mapping:
@@ -52,6 +54,7 @@ The JSON output includes:
 - `"wp_count"` — number of WP files processed
 - `"dependencies_parsed"` — dependency relationships found
 - `"requirement_refs_parsed"` — requirement reference mapping found
+- `"mapping_source"` — which source was used: `"api"` (requirement-mapping.json), `"tasks_md"`, or `"frontmatter"`
 - Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`)
 
 ### 3. Verify
