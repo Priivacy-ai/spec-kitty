@@ -23,8 +23,8 @@ from .tasks_support import (
     split_frontmatter,
 )
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import EVENTS_FILENAME
-from specify_cli.feature_metadata import record_acceptance
+from specify_cli.status.store import EVENTS_FILENAME, StoreError
+from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 from specify_cli.core.feature_detection import (
@@ -341,6 +341,12 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
+    # Capture git cleanliness BEFORE materialize() writes status.json
+    try:
+        git_dirty = git_status_lines(repo_root)
+    except TaskCliError:
+        git_dirty = []
+
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
     metadata_issues: List[str] = []
@@ -358,7 +364,12 @@ def collect_feature_summary(
         )
         snapshot_wps: Dict[str, dict] = {}
     else:
-        snapshot = materialize(feature_dir)
+        try:
+            snapshot = materialize(feature_dir)
+        except StoreError as exc:
+            raise AcceptanceError(
+                f"Status event log is corrupted for feature '{feature}': {exc}"
+            ) from exc
         snapshot_wps = snapshot.work_packages
         if not snapshot_wps:
             activity_issues.append(
@@ -450,11 +461,6 @@ def collect_feature_summary(
         ]
     )
     missing_required, missing_optional = _missing_artifacts(feature_dir)
-
-    try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
 
     path_violations: List[str] = []
     try:
@@ -571,6 +577,15 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
+            # Persist commit SHA to meta.json
+            if accept_commit:
+                _meta = load_meta(summary.feature_dir)
+                if _meta is not None:
+                    _meta["accept_commit"] = accept_commit
+                    _history = _meta.get("acceptance_history", [])
+                    if _history:
+                        _history[-1]["accept_commit"] = accept_commit
+                    write_meta(summary.feature_dir, _meta)
         else:
             commit_created = False
     else:

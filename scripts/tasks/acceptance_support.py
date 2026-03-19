@@ -8,8 +8,22 @@ from datetime import datetime, timezone
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+# Add repo src/ root so specify_cli.* is importable from checkout
+_candidate = SCRIPT_DIR
+for _ in range(6):
+    _candidate = _candidate.parent
+    _src = _candidate / "src"
+    if (_src / "specify_cli").is_dir() and str(_src) not in sys.path:
+        sys.path.insert(0, str(_src))
+        break
 
 from task_helpers import (
     LANES,
@@ -427,6 +441,12 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
+    # Capture git cleanliness BEFORE any file-writing operations
+    try:
+        git_dirty = git_status_lines(repo_root)
+    except TaskCliError:
+        git_dirty = []
+
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
     metadata_issues: List[str] = []
@@ -499,11 +519,6 @@ def collect_feature_summary(
         ]
     )
     missing_required, missing_optional = _missing_artifacts(feature_dir)
-
-    try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
 
     warnings: List[str] = []
     if missing_optional:
@@ -634,6 +649,19 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
+            # Persist commit SHA to meta.json
+            if accept_commit:
+                _meta_path = summary.feature_dir / "meta.json"
+                if _meta_path.exists():
+                    _meta = json.loads(_read_text_strict(_meta_path))
+                    _meta["accept_commit"] = accept_commit
+                    _history = _meta.get("acceptance_history", [])
+                    if _history:
+                        _history[-1]["accept_commit"] = accept_commit
+                    _meta_path.write_text(
+                        json.dumps(_meta, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
         else:
             commit_created = False
     else:

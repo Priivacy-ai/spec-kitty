@@ -7,8 +7,22 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+# Add repo src/ root so specify_cli.* is importable from checkout
+_candidate = SCRIPT_DIR
+for _ in range(6):
+    _candidate = _candidate.parent
+    _src = _candidate / "src"
+    if (_src / "specify_cli").is_dir() and str(_src) not in sys.path:
+        sys.path.insert(0, str(_src))
+        break
 
 from task_helpers import (
     LANES,
@@ -23,8 +37,8 @@ from task_helpers import (
     split_frontmatter,
 )
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import EVENTS_FILENAME
-from specify_cli.feature_metadata import record_acceptance
+from specify_cli.status.store import EVENTS_FILENAME, StoreError
+from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -445,6 +459,12 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
+    # Capture git cleanliness BEFORE materialize() writes status.json
+    try:
+        git_dirty = git_status_lines(repo_root)
+    except TaskCliError:
+        git_dirty = []
+
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
     metadata_issues: List[str] = []
@@ -460,7 +480,12 @@ def collect_feature_summary(
         )
         snapshot_wps: Dict[str, dict] = {}
     else:
-        snapshot = materialize(feature_dir)
+        try:
+            snapshot = materialize(feature_dir)
+        except StoreError as exc:
+            raise AcceptanceError(
+                f"Status event log is corrupted for feature '{feature}': {exc}"
+            ) from exc
         snapshot_wps = snapshot.work_packages
         if not snapshot_wps:
             activity_issues.append(
@@ -551,11 +576,6 @@ def collect_feature_summary(
         ]
     )
     missing_required, missing_optional = _missing_artifacts(feature_dir)
-
-    try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
 
     warnings: List[str] = []
     if missing_optional:
@@ -654,6 +674,15 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
+            # Persist commit SHA to meta.json
+            if accept_commit:
+                _meta = load_meta(summary.feature_dir)
+                if _meta is not None:
+                    _meta["accept_commit"] = accept_commit
+                    _history = _meta.get("acceptance_history", [])
+                    if _history:
+                        _history[-1]["accept_commit"] = accept_commit
+                    write_meta(summary.feature_dir, _meta)
         else:
             commit_created = False
     else:
