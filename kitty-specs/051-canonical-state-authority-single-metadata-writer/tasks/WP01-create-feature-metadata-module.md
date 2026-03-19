@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Create feature_metadata.py Module
-lane: "approved"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: f48b32383ceac06813581229982d5d14984f5c10
@@ -479,3 +479,4 @@ HISTORY_CAP: int = 20
 - 2026-03-18T20:55:36Z – coordinator – shell_pid=49328 – lane=for_review – Fixed stale metadata + dict validation per Codex feedback (cycle 3/3)
 - 2026-03-18T20:55:54Z – codex – shell_pid=49948 – lane=doing – Started review via workflow command
 - 2026-03-18T21:03:08Z – codex – shell_pid=49948 – lane=approved – Arbiter-approved after 3 Codex cycles. All functional issues fixed. Cosmetic issues fixed by arbiter. 46/46 tests, mypy --strict clean.
+- 2026-03-19T08:46:55Z – codex – shell_pid=49948 – lane=done – Moved to done
