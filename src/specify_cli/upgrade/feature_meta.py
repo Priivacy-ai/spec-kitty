@@ -33,8 +33,15 @@ def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
     """Load ``meta.json``.  Delegates to :func:`feature_metadata.load_meta`.
 
     Kept for backward compatibility with migration code.
+    ``load_meta()`` raises ``ValueError`` for malformed JSON, but frozen
+    migrations catch ``json.JSONDecodeError``.  This wrapper converts
+    ``ValueError`` to ``None`` so callers that treat missing/unreadable
+    meta as "needs repair" continue to work.
     """
-    return load_meta(feature_dir)
+    try:
+        return load_meta(feature_dir)
+    except ValueError:
+        return None
 
 
 def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
