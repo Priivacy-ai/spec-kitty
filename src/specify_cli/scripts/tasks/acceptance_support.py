@@ -23,7 +23,7 @@ from task_helpers import (
     split_frontmatter,
 )
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import EVENTS_FILENAME
+from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.feature_metadata import record_acceptance
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
@@ -445,6 +445,12 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
+    # Capture git cleanliness BEFORE materialize() writes status.json
+    try:
+        git_dirty = git_status_lines(repo_root)
+    except TaskCliError:
+        git_dirty = []
+
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
     metadata_issues: List[str] = []
@@ -460,7 +466,12 @@ def collect_feature_summary(
         )
         snapshot_wps: Dict[str, dict] = {}
     else:
-        snapshot = materialize(feature_dir)
+        try:
+            snapshot = materialize(feature_dir)
+        except StoreError as exc:
+            raise AcceptanceError(
+                f"Status event log is corrupted for feature '{feature}': {exc}"
+            ) from exc
         snapshot_wps = snapshot.work_packages
         if not snapshot_wps:
             activity_issues.append(
@@ -551,11 +562,6 @@ def collect_feature_summary(
         ]
     )
     missing_required, missing_optional = _missing_artifacts(feature_dir)
-
-    try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
 
     warnings: List[str] = []
     if missing_optional:

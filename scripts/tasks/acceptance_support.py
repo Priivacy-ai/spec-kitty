@@ -427,6 +427,12 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
+    # Capture git cleanliness BEFORE any file-writing operations
+    try:
+        git_dirty = git_status_lines(repo_root)
+    except TaskCliError:
+        git_dirty = []
+
     lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
     work_packages: List[WorkPackageState] = []
     metadata_issues: List[str] = []
@@ -499,11 +505,6 @@ def collect_feature_summary(
         ]
     )
     missing_required, missing_optional = _missing_artifacts(feature_dir)
-
-    try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
 
     warnings: List[str] = []
     if missing_optional:
