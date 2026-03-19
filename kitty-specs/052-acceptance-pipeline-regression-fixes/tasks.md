@@ -19,10 +19,10 @@
 **Requirement Refs**: FR-001, FR-004, FR-005
 
 ### Included Subtasks
-- [ ] T001 Move `git_status_lines()` before `materialize()` in `src/specify_cli/acceptance.py`
-- [ ] T002 Import `StoreError` and wrap `materialize()` in try/except converting to `AcceptanceError` in `src/specify_cli/acceptance.py`
-- [ ] T003 Mirror T001+T002 in `src/specify_cli/scripts/tasks/acceptance_support.py`
-- [ ] T004 Sync fixes to `scripts/tasks/acceptance_support.py` and `.kittify/scripts/tasks/acceptance_support.py`
+- [x] T001 Move `git_status_lines()` before `materialize()` in `src/specify_cli/acceptance.py`
+- [x] T002 Import `StoreError` and wrap `materialize()` in try/except converting to `AcceptanceError` in `src/specify_cli/acceptance.py`
+- [x] T003 Mirror T001+T002 in `src/specify_cli/scripts/tasks/acceptance_support.py`
+- [x] T004 Sync fixes to `scripts/tasks/acceptance_support.py` and `.kittify/scripts/tasks/acceptance_support.py`
 
 ### Implementation Notes
 - In `collect_feature_summary()`: move the `git_dirty = git_status_lines(repo_root)` block (currently after the materialize/WP-iteration section) to just before the `# ── Canonical state validation via materialize()` comment.
