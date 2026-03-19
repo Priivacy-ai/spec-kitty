@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Regression Coverage and Copy-Parity Sweep
-lane: "doing"
+lane: "done"
 dependencies: [WP03]
 base_branch: 052-acceptance-pipeline-regression-fixes-WP03
 base_commit: 80e1da9f381882629d974cbf25af003791cd3b39
@@ -14,10 +14,10 @@ subtasks:
 - T016
 phase: Phase 3 - Verification
 assignee: ''
-agent: "codex"
-shell_pid: "19436"
-review_status: ''
-reviewed_by: ''
+agent: codex
+shell_pid: '19436'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-19T16:39:32Z'
@@ -207,3 +207,5 @@ spec-kitty implement WP04 --base WP03
 - 2026-03-19T17:24:07Z – coordinator – shell_pid=16978 – lane=doing – Assigned agent via workflow command
 - 2026-03-19T17:31:24Z – coordinator – shell_pid=16978 – lane=for_review – Ready for review: 7 tests (5 regression + 2 edge case) all passing
 - 2026-03-19T17:31:51Z – codex – shell_pid=19436 – lane=doing – Started review via workflow command
+- 2026-03-19T17:32:51Z – codex – shell_pid=19436 – lane=approved – Review passed: regression coverage added for acceptance summary cleanliness, accept_commit persistence, standalone tasks_cli help, malformed status event handling, and acceptance/acceptance_support API parity; targeted pytest passed (7 tests via python3)
+- 2026-03-19T17:33:13Z – codex – shell_pid=19436 – lane=done – Codex approved: 7/7 regression tests pass | Done override: Codex approved, branch not yet merged to 2.x
