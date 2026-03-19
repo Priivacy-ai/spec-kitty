@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import json
 import os
 import re
 from pathlib import Path
@@ -14,6 +15,7 @@ from task_helpers import (
     LANES,
     TaskCliError,
     WorkPackage,
+    activity_entries,
     extract_scalar,
     find_repo_root,
     get_lane_from_frontmatter,
@@ -22,9 +24,6 @@ from task_helpers import (
     run_git,
     split_frontmatter,
 )
-from specify_cli.status.reducer import materialize
-from specify_cli.status.store import EVENTS_FILENAME, StoreError
-from specify_cli.feature_metadata import record_acceptance
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -234,23 +233,6 @@ def detect_feature_slug(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
 ) -> str:
-    """Detect feature slug from environment, git branch, or current directory.
-
-    This is a backward-compatible wrapper that delegates to the centralized
-    feature detection module (specify_cli.core.feature_detection).
-
-    Priority:
-    1. SPECIFY_FEATURE environment variable
-    2. Git branch name (if starts with ###-)
-    3. Current directory path (walks up looking for .worktrees or ###- pattern)
-
-    Raises:
-        AcceptanceError: If feature cannot be auto-detected
-    """
-    # Note: We can't import centralized_detect_feature_slug here because
-    # this file must remain standalone (used in packaged scripts).
-    # So we maintain the original implementation for backward compatibility.
-
     env = env or os.environ
     if "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
         return env["SPECIFY_FEATURE"].strip()
@@ -445,7 +427,7 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
-    # Capture git cleanliness BEFORE materialize() writes status.json
+    # Capture git cleanliness BEFORE any file-writing operations
     try:
         git_dirty = git_status_lines(repo_root)
     except TaskCliError:
@@ -456,51 +438,15 @@ def collect_feature_summary(
     metadata_issues: List[str] = []
     activity_issues: List[str] = []
 
-    # ── Canonical state validation via materialize() ──────────────────────
-    events_path = feature_dir / EVENTS_FILENAME
-    if not events_path.exists():
-        activity_issues.append(
-            f"No canonical state found for feature '{feature}'. "
-            "Cannot validate acceptance without status.events.jsonl. "
-            "Run status migration to bootstrap the event log."
-        )
-        snapshot_wps: Dict[str, dict] = {}
-    else:
-        try:
-            snapshot = materialize(feature_dir)
-        except StoreError as exc:
-            raise AcceptanceError(
-                f"Status event log is corrupted for feature '{feature}': {exc}"
-            ) from exc
-        snapshot_wps = snapshot.work_packages
-        if not snapshot_wps:
-            activity_issues.append(
-                f"No canonical state found for feature '{feature}'. "
-                "Cannot validate acceptance without status.events.jsonl. "
-                "Run status migration to bootstrap the event log."
-            )
-
-    # Collect WP IDs from task files
-    expected_wp_ids: List[str] = []
     for wp in _iter_work_packages(repo_root, feature):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
-        expected_wp_ids.append(wp_id)
+        lanes[wp.current_lane].append(wp_id)
 
-        # Check canonical state for this WP
-        wp_snapshot = snapshot_wps.get(wp_id)
-        canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
-        has_lane_entry = canonical_lane is not None
-        latest_lane = canonical_lane
-
-        # Use canonical lane for bucketing (authoritative), fall back to
-        # frontmatter only when no canonical state exists (missing event log).
-        bucket_lane = canonical_lane if canonical_lane is not None else wp.current_lane
-        if bucket_lane in lanes:
-            lanes[bucket_lane].append(wp_id)
-        else:
-            # Unknown lane value — bucket under frontmatter lane as safety net
-            lanes[wp.current_lane].append(wp_id)
+        entries = activity_entries(wp.body)
+        lanes_logged = {entry["lane"] for entry in entries}
+        latest_lane = entries[-1]["lane"] if entries else None
+        has_lane_entry = wp.current_lane in lanes_logged
 
         metadata: Dict[str, Optional[str]] = {
             "lane": wp.lane,
@@ -525,10 +471,20 @@ def collect_feature_summary(
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
 
+        if not entries:
+            activity_issues.append(f"{wp_id}: Activity Log missing entries")
+        else:
+            if wp.current_lane not in lanes_logged:
+                activity_issues.append(
+                    f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}"
+                )
+            if wp.current_lane == "done" and entries[-1]["lane"] != "done":
+                activity_issues.append(f"{wp_id}: latest Activity Log entry not lane=done")
+
         work_packages.append(
             WorkPackageState(
                 work_package_id=wp_id,
-                lane=bucket_lane,
+                lane=wp.current_lane,
                 title=title,
                 path=str(wp.path.relative_to(repo_root)),
                 has_lane_entry=has_lane_entry,
@@ -536,19 +492,6 @@ def collect_feature_summary(
                 metadata=metadata,
             )
         )
-
-    # Validate canonical state for all WPs (only if event log exists and has events)
-    if events_path.exists() and snapshot_wps:
-        for wp_id in expected_wp_ids:
-            wp_snapshot = snapshot_wps.get(wp_id)
-            if wp_snapshot is None:
-                activity_issues.append(
-                    f"{wp_id}: no canonical state found in status.events.jsonl"
-                )
-            elif wp_snapshot.get("lane") != "done":
-                activity_issues.append(
-                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'"
-                )
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
@@ -602,6 +545,19 @@ def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
     return "local"
 
 
+def _resolve_feature_branch_name(summary: AcceptanceSummary) -> str:
+    """Resolve the branch name to use in merge/cleanup guidance.
+
+    Acceptance may be executed from the target branch (e.g., main). In that case,
+    instructions must still refer to the feature branch instead of suggesting
+    deletion of the target branch.
+    """
+    branch = (summary.branch or "").strip()
+    if branch and branch not in {"HEAD", "main", "master"}:
+        return branch
+    return summary.feature
+
+
 def perform_acceptance(
     summary: AcceptanceSummary,
     *,
@@ -631,15 +587,34 @@ def perform_acceptance(
         except TaskCliError:
             parent_commit = None
 
-        record_acceptance(
-            summary.feature_dir,
-            accepted_by=actor_name,
-            mode=mode,
-            from_commit=parent_commit,
-            accept_commit=None,
-        )
-
         meta_path = summary.feature_dir / "meta.json"
+        if meta_path.exists():
+            meta = json.loads(_read_text_strict(meta_path))
+        else:
+            meta = {}
+
+        acceptance_record: Dict[str, object] = {
+            "accepted_at": timestamp,
+            "accepted_by": actor_name,
+            "mode": mode,
+            "branch": summary.branch,
+            "accepted_from_commit": parent_commit,
+        }
+        if tests:
+            acceptance_record["validation_commands"] = list(tests)
+
+        meta["accepted_at"] = timestamp
+        meta["accepted_by"] = actor_name
+        meta["acceptance_mode"] = mode
+        meta["accepted_from_commit"] = parent_commit
+        meta["accept_commit"] = None
+
+        history: List[Dict[str, object]] = meta.setdefault("acceptance_history", [])
+        history.append(acceptance_record)
+        if len(history) > 20:
+            meta["acceptance_history"] = history[-20:]
+
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         run_git(
             ["add", str(meta_path.relative_to(summary.repo_root))],
             cwd=summary.repo_root,
@@ -668,12 +643,12 @@ def perform_acceptance(
     instructions: List[str] = []
     cleanup_instructions: List[str] = []
 
-    branch = summary.branch or summary.feature
+    feature_branch = _resolve_feature_branch_name(summary)
     if mode == "pr":
         instructions.extend(
             [
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
+                f"Review the acceptance commit on branch `{feature_branch}`.",
+                f"Push your branch: `git push origin {feature_branch}`",
                 "Open a pull request referencing spec/plan/tasks artifacts.",
                 "Include acceptance summary and test evidence in the PR description.",
             ]
@@ -683,7 +658,7 @@ def perform_acceptance(
             [
                 "Switch to your integration branch (e.g., `git checkout main`).",
                 "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
+                f"Merge the feature: `git merge {feature_branch}`",
             ]
         )
     else:  # checklist
@@ -695,7 +670,9 @@ def perform_acceptance(
         cleanup_instructions.append(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
         )
-    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    cleanup_instructions.append(
+        f"Delete the feature branch when done: `git branch -d {feature_branch}`"
+    )
 
     notes: List[str] = []
     if accept_commit:
