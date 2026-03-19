@@ -1,8 +1,11 @@
 ---
 work_package_id: WP02
 title: Acceptance Metadata Persistence
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 052-acceptance-pipeline-regression-fixes-WP01
+base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
+created_at: '2026-03-19T17:11:27.090604+00:00'
 subtasks:
 - T005
 - T006
@@ -10,7 +13,7 @@ subtasks:
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "10668"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
