@@ -1,25 +1,25 @@
 {
-  "event_count": 2,
+  "event_count": 3,
   "feature_slug": "052-acceptance-pipeline-regression-fixes",
-  "last_event_id": "01KM3GRBXAZZ0KDH877YQSFJWW",
-  "materialized_at": "2026-03-19T17:02:12.394719+00:00",
+  "last_event_id": "01KM3GS3DN2Y6GMXFFQ5PJQMF9",
+  "materialized_at": "2026-03-19T17:02:36.469765+00:00",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 0,
+    "for_review": 0,
+    "in_progress": 1,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
-      "force_count": 2,
-      "lane": "for_review",
-      "last_event_id": "01KM3GRBXAZZ0KDH877YQSFJWW",
-      "last_transition_at": "2026-03-19T17:02:12.394580+00:00"
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "in_progress",
+      "last_event_id": "01KM3GS3DN2Y6GMXFFQ5PJQMF9",
+      "last_transition_at": "2026-03-19T17:02:36.469417+00:00"
     }
   }
 }
