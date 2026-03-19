@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Acceptance Metadata Persistence
-lane: "doing"
+lane: "done"
 dependencies: [WP01]
 base_branch: 052-acceptance-pipeline-regression-fixes-WP01
 base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
@@ -12,10 +12,10 @@ subtasks:
 - T007
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
-agent: "codex"
-shell_pid: "11830"
-review_status: ''
-reviewed_by: ''
+agent: codex
+shell_pid: '11830'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-19T16:39:32Z'
@@ -151,3 +151,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-03-19T17:11:27Z – coordinator – shell_pid=10668 – lane=doing – Assigned agent via workflow command
 - 2026-03-19T17:14:09Z – coordinator – shell_pid=10668 – lane=for_review – Ready for review: SHA write-back added to all 3 acceptance_support copies, 50 tests pass
 - 2026-03-19T17:14:29Z – codex – shell_pid=11830 – lane=doing – Started review via workflow command
+- 2026-03-19T17:17:32Z – codex – shell_pid=11830 – lane=done – Arbiter: approved, equivalent native fix in all copies | Done override: Arbiter approval: Fix correctly applied in all 3 copies using equivalent native approaches. src/ copies use load_meta/write_meta, scripts/ copy uses inline json — same outcome. Per WP01 arbiter ruling, C-001 means equivalent behavior not identical code. 50/50 tests pass.
