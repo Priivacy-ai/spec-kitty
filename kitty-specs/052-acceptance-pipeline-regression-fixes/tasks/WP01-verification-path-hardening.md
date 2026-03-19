@@ -13,7 +13,7 @@ subtasks:
 - T004
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "4874"
 review_status: ''
 reviewed_by: ''
@@ -160,3 +160,4 @@ No `--base` needed — this is the first WP.
 ## Activity Log
 
 - 2026-03-19T16:39:32Z – system – lane=planned – Prompt created.
+- 2026-03-19T16:52:08Z – coordinator – shell_pid=4874 – lane=doing – Assigned agent via workflow command
