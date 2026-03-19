@@ -1,10 +1,13 @@
 ---
 work_package_id: WP05
 title: Compatibility Wrapper & Codebase Sweep
-lane: planned
+lane: "doing"
 dependencies:
 - WP02
 - WP03
+base_branch: 051-canonical-state-authority-single-metadata-writer-WP02
+base_commit: fe74fed3b1aebb64aebc0800abf835bb85b0ae95
+created_at: '2026-03-19T07:31:03.295456+00:00'
 subtasks:
 - T023
 - T024
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 2 - Integration & Validation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "9737"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
