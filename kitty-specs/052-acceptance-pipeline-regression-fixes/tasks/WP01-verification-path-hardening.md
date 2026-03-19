@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Verification Path Hardening
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: a7995b280e1a76cdf3f6dc201d56233d8c028032
+created_at: '2026-03-19T16:52:08.174473+00:00'
 subtasks:
 - T001
 - T002
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 1 - Core Bug Fixes
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "4874"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
