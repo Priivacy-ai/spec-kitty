@@ -24,7 +24,7 @@ from .tasks_support import (
 )
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
-from specify_cli.feature_metadata import record_acceptance
+from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 from specify_cli.core.feature_detection import (
@@ -577,6 +577,15 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
+            # Persist commit SHA to meta.json
+            if accept_commit:
+                _meta = load_meta(summary.feature_dir)
+                if _meta is not None:
+                    _meta["accept_commit"] = accept_commit
+                    _history = _meta.get("acceptance_history", [])
+                    if _history:
+                        _history[-1]["accept_commit"] = accept_commit
+                    write_meta(summary.feature_dir, _meta)
         else:
             commit_created = False
     else:

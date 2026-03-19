@@ -649,6 +649,19 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
+            # Persist commit SHA to meta.json
+            if accept_commit:
+                _meta_path = summary.feature_dir / "meta.json"
+                if _meta_path.exists():
+                    _meta = json.loads(_read_text_strict(_meta_path))
+                    _meta["accept_commit"] = accept_commit
+                    _history = _meta.get("acceptance_history", [])
+                    if _history:
+                        _history[-1]["accept_commit"] = accept_commit
+                    _meta_path.write_text(
+                        json.dumps(_meta, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
         else:
             commit_created = False
     else:
