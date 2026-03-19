@@ -425,8 +425,8 @@ def collect_feature_summary(
             )
         )
 
-    # Validate canonical state for all WPs (only if event log exists)
-    if events_path.exists():
+    # Validate canonical state for all WPs (only if event log exists and has events)
+    if events_path.exists() and snapshot_wps:
         for wp_id in expected_wp_ids:
             wp_snapshot = snapshot_wps.get(wp_id)
             if wp_snapshot is None:
