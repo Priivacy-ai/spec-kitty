@@ -12,7 +12,7 @@ subtasks:
 - T003
 phase: Phase 0 - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "73280"
 review_status: ''
 reviewed_by: ''
@@ -186,3 +186,4 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T13:51:54Z – coordinator – shell_pid=73280 – lane=doing – Assigned agent via workflow command
