@@ -1031,6 +1031,14 @@ function updateWorkflowIcons(workflow) {
     document.getElementById('icon-implement').textContent = iconMap[workflow.implement] || '⏳';
 }
 
+function getFeatureDisplayName(feature) {
+    if (!feature) {
+        return 'Unknown feature';
+    }
+
+    return feature.display_name || feature.name || feature.id || 'Unknown feature';
+}
+
 function updateFeatureList(features, activeFeatureId = null) {
     allFeatures = features;
     const selectContainer = document.getElementById('feature-selector-container');
@@ -1085,7 +1093,7 @@ function updateFeatureList(features, activeFeatureId = null) {
     if (features.length === 1) {
         selectContainer.style.display = 'none';
         singleFeatureName.style.display = 'block';
-        singleFeatureName.textContent = `Feature: ${features[0].name}`;
+        singleFeatureName.textContent = `Feature: ${getFeatureDisplayName(features[0])}`;
         currentFeature = activeFeatureId || features[0].id;
         setFeatureSelectActive(false);
     } else {
@@ -1103,7 +1111,7 @@ function updateFeatureList(features, activeFeatureId = null) {
         }
 
         select.innerHTML = features.map(f =>
-            `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${f.name}</option>`
+            `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${escapeHtml(getFeatureDisplayName(f))}</option>`
         ).join('');
         select.value = currentFeature;
     }
