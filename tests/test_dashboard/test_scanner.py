@@ -82,7 +82,7 @@ def test_resolve_active_feature_uses_core_detector(tmp_path, monkeypatch):
             number="010",
             name="new-feature",
             directory=tmp_path / "kitty-specs" / "010-new-feature",
-            detection_method="fallback_latest_incomplete",
+            detection_method="single_auto",
         )
 
     monkeypatch.setattr(scanner, "detect_feature", _fake_detect_feature)

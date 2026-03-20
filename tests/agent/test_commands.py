@@ -192,12 +192,7 @@ def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Pat
         def to_dict(self) -> dict[str, object]:
             return {"feature": self.feature, "lanes": self.lanes}
 
-    captured: dict[str, object] = {}
-
-    def fake_detect(_repo_root, *, announce_fallback=True):
-        captured["announce_fallback"] = announce_fallback
-        if announce_fallback:
-            print("ℹ️  Auto-selected latest incomplete: 002-auto-feature")
+    def fake_detect(_repo_root):
         return "002-auto-feature"
 
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
@@ -211,7 +206,6 @@ def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Pat
     )
 
     assert result.exit_code == 0
-    assert captured["announce_fallback"] is False
     assert result.stdout.lstrip().startswith("{")
     data = json.loads(result.stdout)
     assert data["feature"] == "002-auto-feature"

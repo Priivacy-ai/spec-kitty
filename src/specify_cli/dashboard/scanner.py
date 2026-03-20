@@ -286,7 +286,6 @@ def resolve_active_feature(
         project_dir,
         cwd=project_dir,
         mode="lenient",
-        announce_fallback=False,
     )
     if context:
         for feature in features:

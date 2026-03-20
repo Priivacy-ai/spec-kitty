@@ -299,8 +299,6 @@ def _find_feature_directory(
     repo_root: Path,
     cwd: Path,
     explicit_feature: str | None = None,
-    *,
-    allow_latest_incomplete_fallback: bool = True,
 ) -> Path:
     """Find the current feature directory using centralized detection.
 
@@ -324,8 +322,7 @@ def _find_feature_directory(
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict",  # Raise error if ambiguous
-            allow_latest_incomplete_fallback=allow_latest_incomplete_fallback,
+            mode="strict",
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
@@ -771,7 +768,6 @@ def check_prerequisites(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             command_args: list[str] = []
@@ -885,7 +881,6 @@ def setup_plan(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
@@ -1455,7 +1450,6 @@ def finalize_tasks(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             payload = _build_setup_plan_detection_error(
