@@ -7,7 +7,6 @@ alias resolution, and pipeline ordering guarantees.
 
 from __future__ import annotations
 
-import builtins
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -823,43 +822,59 @@ class TestPipelineOrder:
         assert len(events) == 1
         assert events[0].event_id == event.event_id
 
-    def test_legacy_bridge_import_error_handled(self, feature_dir: Path):
-        """ImportError from legacy_bridge does not block emit."""
-        real_import = builtins.__import__
+    def test_legacy_bridge_is_top_level_import(self):
+        """Verify legacy_bridge is imported at module level, not inside try/except.
 
-        def raising_import(name: str, *args: object, **kwargs: object):
-            if name == "specify_cli.status.legacy_bridge":
-                raise ImportError("legacy bridge unavailable")
-            return real_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=raising_import):
-            event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        assert event.to_lane == Lane.CLAIMED
-
-    def test_legacy_bridge_exception_handled(self, feature_dir: Path):
-        """Exception from legacy_bridge does not block emit.
-
-        We simulate this by creating a mock module that raises when
-        update_all_views is called, then inject it into sys.modules.
+        On 2.x, legacy_bridge is in-tree and required. A missing module is a
+        packaging regression that must fail at import time, not silently at
+        runtime.
         """
-        import sys
-        import types
+        import ast
+        import inspect
 
+        import specify_cli.status.emit as emit_mod
 
-        mock_bridge = types.ModuleType("specify_cli.status.legacy_bridge")
-        mock_bridge.update_all_views = MagicMock(  # type: ignore[attr-defined]
-            side_effect=RuntimeError("bridge broken"),
+        source = inspect.getsource(emit_mod)
+        tree = ast.parse(source)
+
+        # Collect top-level ImportFrom nodes that reference legacy_bridge
+        top_level_legacy_imports = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            and node.module is not None
+            and "legacy_bridge" in node.module
+        ]
+        assert len(top_level_legacy_imports) >= 1, (
+            "legacy_bridge must be a top-level import in emit.py, "
+            "not hidden inside a try/except"
         )
 
-        saved = sys.modules.get("specify_cli.status.legacy_bridge")
-        sys.modules["specify_cli.status.legacy_bridge"] = mock_bridge
-        try:
+        # Also confirm no ImportFrom for legacy_bridge exists inside
+        # any Try block (i.e., no silent swallow)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Try):
+                for child in ast.walk(node):
+                    if (
+                        isinstance(child, ast.ImportFrom)
+                        and child.module is not None
+                        and "legacy_bridge" in child.module
+                    ):
+                        pytest.fail(
+                            "legacy_bridge import found inside a try/except "
+                            "block — must be at module top level"
+                        )
+
+    def test_legacy_bridge_exception_handled(self, feature_dir: Path):
+        """Exception from legacy_bridge update does not block emit.
+
+        Bridge UPDATE failures are non-critical because canonical state
+        (event log + snapshot) is already persisted before Step 7.
+        """
+        with patch(
+            "specify_cli.status.emit._update_all_views",
+            side_effect=RuntimeError("bridge broken"),
+        ):
             event = emit_status_transition(
                 feature_dir=feature_dir,
                 feature_slug="034-test-feature",
@@ -868,11 +883,10 @@ class TestPipelineOrder:
                 actor="agent-1",
             )
             assert event.to_lane == Lane.CLAIMED
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.status.legacy_bridge"] = saved
-            else:
-                sys.modules.pop("specify_cli.status.legacy_bridge", None)
+            # Event was still persisted despite bridge failure
+            events = read_events(feature_dir)
+            assert len(events) == 1
+            assert events[0].event_id == event.event_id
 
 
 # ── Review-Ref Guard Tests ───────────────────────────────────

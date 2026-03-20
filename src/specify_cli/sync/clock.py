@@ -5,13 +5,12 @@ from __future__ import annotations
 import getpass
 import hashlib
 import json
-import os
 import socket
-import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pathlib import Path
-import contextlib
+
+from specify_cli.core.atomic import atomic_write
 
 
 def generate_node_id() -> str:
@@ -62,28 +61,14 @@ class LamportClock:
 
     def save(self) -> None:
         """Persist clock state to JSON file using atomic write."""
-        self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-
         data = {
             "value": self.value,
             "node_id": self.node_id,
-            "updated_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Atomic write: write to temp file in same directory, then rename
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self._storage_path.parent,
-            suffix=".tmp",
-        )
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(data, f, indent=2)
-            os.replace(tmp_path, self._storage_path)
-        except Exception:
-            # Clean up temp file on failure
-            with contextlib.suppress(OSError):
-                os.unlink(tmp_path)
-            raise
+        content = json.dumps(data, indent=2)
+        atomic_write(self._storage_path, content, mkdir=True)
 
     @classmethod
     def load(cls, storage_path: Path | None = None) -> LamportClock:

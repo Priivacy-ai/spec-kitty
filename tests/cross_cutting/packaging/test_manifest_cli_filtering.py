@@ -3,6 +3,9 @@
 TDD test to verify the issue described in PR #82:
 When command templates have frontmatter like 'ps: spec-kitty agent --json',
 the system should NOT treat 'spec-kitty' as a missing script file.
+
+Also validates that FileManifest no longer exposes an ``active_mission``
+attribute (feature 054 – state architecture cleanup phase 2, WP02).
 """
 
 import platform
@@ -23,9 +26,6 @@ def test_cli_commands_not_treated_as_scripts(tmp_path: Path):
     commands_dir = missions_dir / "command-templates"
     commands_dir.mkdir(parents=True)
 
-    # Create active-mission indicator
-    (kittify_dir / "active-mission").write_text("software-dev")
-
     # Create mission.yaml
     (missions_dir / "mission.yaml").write_text("name: software-dev\n")
 
@@ -43,8 +43,8 @@ This command uses spec-kitty CLI.
 """
     (commands_dir / "test-command.md").write_text(command_content)
 
-    # Test: Get referenced scripts
-    manifest = FileManifest(kittify_dir)
+    # Test: Get referenced scripts — pass mission_key explicitly
+    manifest = FileManifest(kittify_dir, mission_key="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     # Assert: CLI commands should NOT be treated as scripts
@@ -64,7 +64,6 @@ def test_actual_kittify_scripts_are_included(tmp_path: Path):
     commands_dir = missions_dir / "command-templates"
     commands_dir.mkdir(parents=True)
 
-    (kittify_dir / "active-mission").write_text("software-dev")
     (missions_dir / "mission.yaml").write_text("name: software-dev\n")
 
     # Create actual script file
@@ -84,8 +83,8 @@ sh: .kittify/scripts/helper.sh
 """
     (commands_dir / "test-command.md").write_text(command_content)
 
-    # Test
-    manifest = FileManifest(kittify_dir)
+    # Test — pass mission_key explicitly
+    manifest = FileManifest(kittify_dir, mission_key="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     # Assert: Actual scripts SHOULD be included (platform-specific)
@@ -106,7 +105,6 @@ def test_other_system_commands_filtered(tmp_path: Path):
     commands_dir = missions_dir / "command-templates"
     commands_dir.mkdir(parents=True)
 
-    (kittify_dir / "active-mission").write_text("software-dev")
     (missions_dir / "mission.yaml").write_text("name: software-dev\n")
 
     # Test various CLI commands that might appear in frontmatter
@@ -128,10 +126,43 @@ ps: python -c "print('test')"
 """
     (commands_dir / "python-cmd.md").write_text(command_content2)
 
-    manifest = FileManifest(kittify_dir)
+    manifest = FileManifest(kittify_dir, mission_key="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     assert "git" not in scripts
     assert "python" not in scripts
     assert "python3" not in scripts
     assert len(scripts) == 0
+
+
+# --------------------------------------------------------------------------- #
+# WP02 – Active-mission fallback removal tests
+# --------------------------------------------------------------------------- #
+
+def test_manifest_no_active_mission_attribute(tmp_path: Path):
+    """FileManifest must not expose an ``active_mission`` attribute."""
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+
+    manifest = FileManifest(kittify_dir)
+    assert not hasattr(manifest, "active_mission"), (
+        "FileManifest should no longer have an active_mission attribute"
+    )
+
+
+def test_manifest_without_mission_key_has_no_mission_dir(tmp_path: Path):
+    """When no mission_key is provided, mission_dir should be None."""
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+
+    manifest = FileManifest(kittify_dir)
+    assert manifest.mission_dir is None
+
+
+def test_manifest_with_explicit_mission_key(tmp_path: Path):
+    """When mission_key is provided, mission_dir should point to that mission."""
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+
+    manifest = FileManifest(kittify_dir, mission_key="research")
+    assert manifest.mission_dir == kittify_dir / "missions" / "research"

@@ -10,6 +10,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
+from specify_cli.core.atomic import atomic_write
 
 
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
@@ -213,5 +214,5 @@ def _load_state(path: Path) -> dict[str, object]:
 
 
 def _write_state(path: Path, state: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+    content = json.dumps(state, indent=2, sort_keys=True)
+    atomic_write(path, content, mkdir=True)

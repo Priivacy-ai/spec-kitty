@@ -49,6 +49,7 @@ env/
 *.lock
 .worktrees/
 .kittify/.dashboard
+.kittify/active-mission
 .kittify/workspaces/
 .kittify/missions/
 .kittify/scripts/
@@ -61,6 +62,7 @@ kitty-specs/**/.kittify/dossiers/
 .kittify/constitution/directives.yaml
 .kittify/constitution/governance.yaml
 .kittify/constitution/metadata.yaml
+.kittify/constitution/references.yaml
 node_modules/
 
 # Spec Kit-specific files

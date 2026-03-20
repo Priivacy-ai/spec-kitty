@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import types
@@ -15,9 +16,11 @@ def _install_manifest_stubs(monkeypatch, worktree_path: Path) -> None:
     """Provide lightweight manifest + worktree stubs for diagnostics tests."""
 
     class FakeManifest:
-        def __init__(self, kittify_dir: Path) -> None:
+        def __init__(self, kittify_dir: Path, *, mission_key: str | None = None) -> None:
             self.kittify_dir = kittify_dir
-            self.active_mission = "software-dev"
+            self.mission_dir = (
+                kittify_dir / "missions" / mission_key if mission_key else None
+            )
 
         def get_expected_files(self) -> dict[str, list[str]]:
             return {
@@ -133,3 +136,51 @@ def test_run_diagnostics_records_git_branch_errors(monkeypatch, tmp_path: Path) 
     assert result["git_branch"] is None
     assert "Could not detect git branch" in result["issues"]
     assert result["current_feature"]["detected"] is True
+
+
+def test_run_diagnostics_without_feature_dir_shows_no_context(monkeypatch, tmp_path: Path) -> None:
+    """When no feature_dir is passed, active_mission should be 'no feature context'."""
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".kittify").mkdir()
+    worktree_dir = project_dir / ".worktrees"
+    worktree_dir.mkdir()
+
+    _configure_common_patches(monkeypatch, worktree_dir)
+
+    def fake_run(args, cwd=None, capture_output=False, text=False, check=False, **kwargs):
+        return types.SimpleNamespace(stdout='main\n', returncode=0)
+
+    monkeypatch.setattr(diagnostics.subprocess, "run", fake_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
+
+    result = diagnostics.run_diagnostics(project_dir)
+
+    assert result["active_mission"] == "no feature context"
+
+
+def test_run_diagnostics_with_feature_dir_resolves_mission(monkeypatch, tmp_path: Path) -> None:
+    """When feature_dir is passed and has meta.json with mission, it should resolve correctly."""
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".kittify").mkdir()
+    worktree_dir = project_dir / ".worktrees"
+    worktree_dir.mkdir()
+
+    # Create a feature dir with meta.json specifying 'research' mission
+    feature_dir = tmp_path / "feature-dir"
+    feature_dir.mkdir()
+    meta = {"mission": "research", "feature_slug": "099-test", "created_at": "2026-01-01"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    _configure_common_patches(monkeypatch, worktree_dir)
+
+    def fake_run(args, cwd=None, capture_output=False, text=False, check=False, **kwargs):
+        return types.SimpleNamespace(stdout='main\n', returncode=0)
+
+    monkeypatch.setattr(diagnostics.subprocess, "run", fake_run)
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
+
+    result = diagnostics.run_diagnostics(project_dir, feature_dir=feature_dir)
+
+    assert result["active_mission"] == "research"

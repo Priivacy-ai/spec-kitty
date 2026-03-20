@@ -1,0 +1,81 @@
+{
+  "event_count": 66,
+  "feature_slug": "054-state-architecture-cleanup-phase-2",
+  "last_event_id": "01KM5XXRYM8EKNKE3Y8MD5CRD9",
+  "materialized_at": "2026-03-20T15:30:49.941308+00:00",
+  "summary": {
+    "approved": 9,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KM5RPP5R87TYE5Y4RS68ZY5C",
+      "last_transition_at": "2026-03-20T13:59:34.840341+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KM5V4SD08J2A8C3NBPHJ060S",
+      "last_transition_at": "2026-03-20T14:42:14.048831+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KM5VGHSTJ6WKTW1MH8PN1JGV",
+      "last_transition_at": "2026-03-20T14:48:39.482107+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KM5SR4CJQBTXVM1Q8KKEZH22",
+      "last_transition_at": "2026-03-20T14:17:50.738258+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KM5S4710GHH1KCE6NEZVMFXZ",
+      "last_transition_at": "2026-03-20T14:06:58.080641+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KM5RPWYXMKSYYDPN2RVAX5WN",
+      "last_transition_at": "2026-03-20T13:59:41.789358+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KM5TW0QY3NFE8NS2NQ5V7HYW",
+      "last_transition_at": "2026-03-20T14:37:26.654785+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KM5RNR2K5J9P2RB9FRKDXMMS",
+      "last_transition_at": "2026-03-20T13:59:04.019317+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KM5XXRYM8EKNKE3Y8MD5CRD9",
+      "last_transition_at": "2026-03-20T15:30:49.940392+00:00"
+    }
+  }
+}

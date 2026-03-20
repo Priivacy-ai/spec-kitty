@@ -34,6 +34,7 @@ from spec_kitty_runtime import (
 )
 from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 
+from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 from specify_cli.status.transitions import resolve_lane_alias
@@ -72,8 +73,8 @@ def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
 
 def _save_feature_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> None:
     path = _feature_runs_path(repo_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(index, indent=2, sort_keys=True), encoding="utf-8")
+    content = json.dumps(index, indent=2, sort_keys=True)
+    atomic_write(path, content, mkdir=True)
 
 
 # ---------------------------------------------------------------------------

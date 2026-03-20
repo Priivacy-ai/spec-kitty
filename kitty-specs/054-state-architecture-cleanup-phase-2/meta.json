@@ -1,0 +1,11 @@
+{
+  "feature_number": "054",
+  "slug": "054-state-architecture-cleanup-phase-2",
+  "feature_slug": "054-state-architecture-cleanup-phase-2",
+  "friendly_name": "State Architecture Cleanup Phase 2",
+  "mission": "software-dev",
+  "target_branch": "2.x",
+  "created_at": "2026-03-20T13:20:31.673605+00:00",
+  "source_description": "Implement remaining state-architecture cleanup identified by the 007 Obsidian evidence vault audit refresh (2026-03-20). Covers active-mission fallback removal, dead code deletion, atomic write extension, constitution Git policy enforcement, acceptance deduplication, legacy_bridge hardening, and vault note updates.",
+  "vcs": "git"
+}

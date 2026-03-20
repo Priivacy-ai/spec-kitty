@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from rich.console import Console
-
-from specify_cli.core.config import DEFAULT_MISSION_KEY
 
 ConsoleType = Console | None
 
@@ -103,37 +100,7 @@ def resolve_worktree_aware_feature_dir(
     return feature_dir
 
 
-def get_active_mission_key(project_path: Path) -> str:
-    """Return the mission key stored in .kittify/active-mission, falling back to default."""
-    active_path = project_path / ".kittify" / "active-mission"
-    if not active_path.exists():
-        return DEFAULT_MISSION_KEY
-
-    if active_path.is_symlink():
-        try:
-            target = Path(os.readlink(active_path))
-            key = target.name
-            if key:
-                return key
-        except OSError:
-            pass
-        resolved = active_path.resolve()
-        if resolved.parent.name == "missions":
-            return resolved.name
-
-    if active_path.is_file():
-        try:
-            key = active_path.read_text(encoding="utf-8-sig").strip()
-            if key:
-                return key
-        except OSError:
-            pass
-
-    return DEFAULT_MISSION_KEY
-
-
 __all__ = [
-    "get_active_mission_key",
     "locate_project_root",
     "resolve_template_path",
     "resolve_worktree_aware_feature_dir",

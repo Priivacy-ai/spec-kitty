@@ -129,8 +129,12 @@ def _run_upgrade_concurrent(
 
 
 class TestAtomicWrites:
-    def test_metadata_save_interruption_leaves_partial_file(self, tmp_path: Path, monkeypatch):
-        """Simulated crash during yaml.dump leaves a partial (non-empty) metadata file."""
+    def test_metadata_save_interruption_preserves_original(self, tmp_path: Path, monkeypatch):
+        """Atomic writes preserve the original file when serialization crashes.
+
+        With atomic_write(), the crash occurs during StringIO serialization
+        (before os.replace), so the on-disk file remains intact.
+        """
         # Arrange
         kittify_dir = tmp_path / ".kittify"
         kittify_dir.mkdir(parents=True)
@@ -158,9 +162,8 @@ class TestAtomicWrites:
             metadata.save(kittify_dir)
 
         after = metadata_path.read_text(encoding="utf-8")
-        assert after != before
-        assert "Spec Kitty Project Metadata" in after
-        assert "spec_kitty:" not in after
+        # Atomic writes guarantee: crash during serialization preserves original
+        assert after == before
 
 
 @pytest.mark.slow

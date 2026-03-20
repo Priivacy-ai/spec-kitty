@@ -1,5 +1,6 @@
 """Core utilities and configuration exports."""
 
+from .atomic import atomic_write
 from .config import (
     AGENT_COMMAND_CONFIG,
     AGENT_TOOL_REQUIREMENTS,
@@ -16,7 +17,6 @@ from .project_resolver import (
     locate_project_root,
     resolve_template_path,
     resolve_worktree_aware_feature_dir,
-    get_active_mission_key,
 )
 from .tool_checker import (
     check_tool,
@@ -26,6 +26,7 @@ from .tool_checker import (
 )
 
 __all__ = [
+    "atomic_write",
     "AGENT_COMMAND_CONFIG",
     "AGENT_TOOL_REQUIREMENTS",
     "AI_CHOICES",
@@ -46,7 +47,6 @@ __all__ = [
     "locate_project_root",
     "resolve_template_path",
     "resolve_worktree_aware_feature_dir",
-    "get_active_mission_key",
     "check_tool",
     "check_tool_for_tracker",
     "check_all_tools",
