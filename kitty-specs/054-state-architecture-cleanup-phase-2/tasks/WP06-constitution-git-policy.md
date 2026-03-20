@@ -13,7 +13,7 @@ subtasks:
 - T026
 phase: Phase 2 - Policy
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "73698"
 review_status: ''
 reviewed_by: ''
@@ -166,3 +166,4 @@ pytest tests/specify_cli/test_state_contract.py -v
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T13:52:00Z – coordinator – shell_pid=73698 – lane=doing – Assigned agent via workflow command
