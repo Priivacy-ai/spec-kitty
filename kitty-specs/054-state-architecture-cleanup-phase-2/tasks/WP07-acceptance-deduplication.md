@@ -1,8 +1,11 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
+created_at: '2026-03-20T13:52:02.220960+00:00'
 subtasks:
 - T027
 - T028
@@ -12,8 +15,8 @@ subtasks:
 - T032
 phase: Phase 2 - Consolidation
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "coordinator"
+shell_pid: "73852"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -239,3 +242,4 @@ pytest tests/specify_cli/test_acceptance_regressions.py tests/specify_cli/test_c
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T13:52:02Z – coordinator – shell_pid=73852 – lane=doing – Assigned agent via workflow command
