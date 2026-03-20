@@ -228,7 +228,7 @@ class OfflineQueue:
     Features:
     - Persistent storage across CLI restarts
     - FIFO ordering by timestamp
-    - Configurable capacity limit (default 10,000) with actionable warnings
+    - Configurable capacity limit (default 100,000) with FIFO eviction
     - Event coalescing for high-volume event types
     - Indexes for efficient retrieval
     """
@@ -245,7 +245,7 @@ class OfflineQueue:
                 - authenticated: ~/.spec-kitty/queues/queue-<scope-hash>.db
             max_queue_size: Override maximum queue capacity.  When None the
                 value is read from ``~/.spec-kitty/config.toml`` (key
-                ``[sync] max_queue_size``) or falls back to 10,000.
+                ``[sync] max_queue_size``) or falls back to 100,000.
         """
         if db_path is None:
             db_path = default_queue_db_path()
@@ -312,7 +312,7 @@ class OfflineQueue:
             event: Event dict with event_id, event_type, and payload
 
         Returns:
-            True if queued successfully, False if queue is full
+            True if queued successfully, False on database error
         """
         c_key = _coalesce_key(event)
 
@@ -325,7 +325,9 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            current_size = self.size()
+            cursor = conn.execute("SELECT COUNT(*) FROM queue")
+            count_row = cursor.fetchone()
+            current_size = int(count_row[0]) if count_row else 0
             if current_size >= self._max_queue_size:
                 # FIFO eviction: delete the oldest events to make room
                 overflow = current_size - self._max_queue_size + 1
