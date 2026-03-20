@@ -3,13 +3,13 @@
 Provides per-event error parsing, categorization, actionable summaries,
 and JSON failure report export.
 """
+
 import gzip
 import json
 from collections import Counter
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -54,6 +54,7 @@ def categorize_error(error_string: str) -> str:
 # Per-event result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BatchEventResult:
     """Result of a single event within a batch response.
@@ -64,15 +65,17 @@ class BatchEventResult:
         error: Human-readable error message (only for rejected events).
         error_category: Categorised reason (only for rejected events).
     """
+
     event_id: str
     status: str  # "success", "duplicate", "rejected"
-    error: Optional[str] = None
-    error_category: Optional[str] = None
+    error: str | None = None
+    error_category: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # Aggregate result
 # ---------------------------------------------------------------------------
+
 
 class BatchSyncResult:
     """Result of a batch sync operation.
@@ -114,6 +117,7 @@ class BatchSyncResult:
 # Actionable summary
 # ---------------------------------------------------------------------------
 
+
 def format_sync_summary(result: BatchSyncResult) -> str:
     """Build a human-readable, actionable summary string.
 
@@ -125,11 +129,7 @@ def format_sync_summary(result: BatchSyncResult) -> str:
           unknown: 5  -- Inspect the failure report for details: --report <file.json>
     """
     lines: list[str] = []
-    lines.append(
-        f"Synced: {result.synced_count}, "
-        f"Duplicates: {result.duplicate_count}, "
-        f"Failed: {result.error_count}"
-    )
+    lines.append(f"Synced: {result.synced_count}, Duplicates: {result.duplicate_count}, Failed: {result.error_count}")
 
     category_counts = result.category_counts
     if category_counts:
@@ -147,6 +147,7 @@ def format_sync_summary(result: BatchSyncResult) -> str:
 # Report generation
 # ---------------------------------------------------------------------------
 
+
 def generate_failure_report(result: BatchSyncResult) -> dict:
     """Build a JSON-serialisable failure report dictionary.
 
@@ -154,7 +155,7 @@ def generate_failure_report(result: BatchSyncResult) -> dict:
     """
     failed = result.failed_results
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "summary": {
             "total_events": result.total_events,
             "synced": result.synced_count,
@@ -183,6 +184,7 @@ def write_failure_report(report_path: Path, result: BatchSyncResult) -> None:
 # Core sync
 # ---------------------------------------------------------------------------
 
+
 def _parse_event_results(
     raw_results: list[dict],
     result: BatchSyncResult,
@@ -200,15 +202,11 @@ def _parse_event_results(
         if status == "success":
             result.synced_count += 1
             result.synced_ids.append(event_id)
-            result.event_results.append(
-                BatchEventResult(event_id=event_id, status="success")
-            )
+            result.event_results.append(BatchEventResult(event_id=event_id, status="success"))
         elif status == "duplicate":
             result.duplicate_count += 1
             result.synced_ids.append(event_id)
-            result.event_results.append(
-                BatchEventResult(event_id=event_id, status="duplicate")
-            )
+            result.event_results.append(BatchEventResult(event_id=event_id, status="duplicate"))
         else:
             # Treat any non-success/non-duplicate status as rejected
             error_text = error_msg or "Unknown error"
@@ -307,7 +305,7 @@ def _parse_error_response(
             )
 
 
-def batch_sync(
+def batch_sync(  # noqa: C901
     queue: OfflineQueue,
     auth_token: str,
     server_url: str,
@@ -537,7 +535,7 @@ def sync_all_queued_events(
             break
 
     if show_progress:
-        print(f"\n=== Sync Complete ===")
+        print("\n=== Sync Complete ===")
         print(format_sync_summary(total_result))
         if queue.size() > 0:
             print(f"Remaining in queue: {queue.size()} events")

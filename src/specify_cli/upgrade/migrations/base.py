@@ -5,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
@@ -13,9 +12,9 @@ class MigrationResult:
     """Result of a migration operation."""
 
     success: bool
-    changes_made: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    changes_made: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class BaseMigration(ABC):
@@ -40,7 +39,7 @@ class BaseMigration(ABC):
 
     # Minimum version this migration can be applied from (optional)
     # If None, detection is used
-    min_version: Optional[str] = None
+    min_version: str | None = None
 
     @abstractmethod
     def detect(self, project_path: Path) -> bool:

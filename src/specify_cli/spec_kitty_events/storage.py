@@ -1,6 +1,6 @@
 """Storage adapters for events and errors."""
+
 from abc import ABC, abstractmethod
-from typing import List, Dict
 from .models import Event, ErrorEntry
 
 
@@ -27,7 +27,7 @@ class EventStore(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def load_events(self, aggregate_id: str) -> List[Event]:
+    def load_events(self, aggregate_id: str) -> list[Event]:
         """Load all events for a specific aggregate.
 
         Args:
@@ -42,7 +42,7 @@ class EventStore(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def load_all_events(self) -> List[Event]:
+    def load_all_events(self) -> list[Event]:
         """Load all events across all aggregates.
 
         Returns:
@@ -118,7 +118,7 @@ class ErrorStorage(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def load_recent(self, limit: int = 10) -> List[ErrorEntry]:
+    def load_recent(self, limit: int = 10) -> list[ErrorEntry]:
         """Load most recent error entries.
 
         Args:
@@ -143,18 +143,18 @@ class InMemoryEventStore(EventStore):
 
     def __init__(self) -> None:
         """Initialize empty event store."""
-        self._events: Dict[str, Event] = {}  # event_id -> Event
+        self._events: dict[str, Event] = {}  # event_id -> Event
 
     def save_event(self, event: Event) -> None:
         """Save event (overwrites if event_id already exists)."""
         self._events[event.event_id] = event
 
-    def load_events(self, aggregate_id: str) -> List[Event]:
+    def load_events(self, aggregate_id: str) -> list[Event]:
         """Load events for aggregate, sorted by (lamport_clock, node_id)."""
         events = [e for e in self._events.values() if e.aggregate_id == aggregate_id]
         return sorted(events, key=lambda e: (e.lamport_clock, e.node_id))
 
-    def load_all_events(self) -> List[Event]:
+    def load_all_events(self) -> list[Event]:
         """Load all events, sorted by (lamport_clock, node_id)."""
         return sorted(self._events.values(), key=lambda e: (e.lamport_clock, e.node_id))
 
@@ -168,7 +168,7 @@ class InMemoryClockStorage(ClockStorage):
 
     def __init__(self) -> None:
         """Initialize empty clock storage."""
-        self._clocks: Dict[str, int] = {}  # node_id -> clock_value
+        self._clocks: dict[str, int] = {}  # node_id -> clock_value
 
     def load(self, node_id: str) -> int:
         """Load clock value (returns 0 if never saved)."""
@@ -194,7 +194,7 @@ class InMemoryErrorStorage(ErrorStorage):
         Args:
             max_entries: Maximum number of errors to retain (default 100)
         """
-        self._entries: List[ErrorEntry] = []
+        self._entries: list[ErrorEntry] = []
         self._max_entries = max_entries
 
     def append(self, entry: ErrorEntry) -> None:
@@ -204,7 +204,7 @@ class InMemoryErrorStorage(ErrorStorage):
         if len(self._entries) > self._max_entries:
             self._entries.pop(0)  # Remove oldest (FIFO)
 
-    def load_recent(self, limit: int = 10) -> List[ErrorEntry]:
+    def load_recent(self, limit: int = 10) -> list[ErrorEntry]:
         """Load most recent errors (reverse chronological order)."""
         if limit < 1:
             raise ValueError(f"Limit must be ≥ 1, got {limit}")

@@ -7,9 +7,9 @@ including ArtifactRef (individual artifact metadata) and MissionDossier
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from datetime import datetime, UTC
+from typing import Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import uuid
 
 
@@ -65,11 +65,11 @@ class ArtifactRef(BaseModel):
     )
 
     # Metadata
-    wp_id: Optional[str] = Field(
+    wp_id: str | None = Field(
         None,
         description="Work package ID if linked (e.g., 'WP01', None if not WP-specific)",
     )
-    step_id: Optional[str] = Field(
+    step_id: str | None = Field(
         None,
         description="Mission step (e.g., 'planning', 'implementation', None if not step-specific)",
     )
@@ -79,7 +79,7 @@ class ArtifactRef(BaseModel):
     )
 
     # Provenance
-    provenance: Optional[dict] = Field(
+    provenance: dict | None = Field(
         default=None,
         description="Source info: {source_kind: 'git'|'runtime'|'generated'|'manual', actor_id, captured_at}",
     )
@@ -89,31 +89,35 @@ class ArtifactRef(BaseModel):
         default=True,
         description="True if file currently exists and readable",
     )
-    error_reason: Optional[str] = Field(
+    error_reason: str | None = Field(
         None,
         description="If not present: 'not_found' | 'unreadable' | 'invalid_format' | 'deleted_after_scan'",
     )
 
     # Timestamps
     indexed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When this artifact was indexed",
     )
 
-    @validator("artifact_key")
+    model_config = ConfigDict()
+
+    @field_validator("artifact_key")
+    @classmethod
     def validate_artifact_key(cls, v):
         """Validate artifact_key format (alphanumeric + dots/underscores)."""
         if not v:
             raise ValueError("artifact_key cannot be empty")
-        # Allow alphanumeric, dots, underscores, hyphens
         import re
+
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
             raise ValueError(
                 f"artifact_key must contain only alphanumeric characters, dots, underscores, and hyphens; got '{v}'"
             )
         return v
 
-    @validator("artifact_class")
+    @field_validator("artifact_class")
+    @classmethod
     def validate_artifact_class(cls, v):
         """Validate artifact_class is one of the allowed types."""
         allowed_classes = {
@@ -126,41 +130,30 @@ class ArtifactRef(BaseModel):
             "other",
         }
         if v not in allowed_classes:
-            raise ValueError(
-                f"artifact_class must be one of {allowed_classes}; got '{v}'"
-            )
+            raise ValueError(f"artifact_class must be one of {allowed_classes}; got '{v}'")
         return v
 
-    @validator("required_status")
+    @field_validator("required_status")
+    @classmethod
     def validate_required_status(cls, v):
         """Validate required_status is 'required' or 'optional'."""
         allowed_values = {"required", "optional"}
         if v not in allowed_values:
-            raise ValueError(
-                f"required_status must be one of {allowed_values}; got '{v}'"
-            )
+            raise ValueError(f"required_status must be one of {allowed_values}; got '{v}'")
         return v
 
-    @validator("content_hash_sha256")
+    @field_validator("content_hash_sha256")
+    @classmethod
     def validate_content_hash_sha256(cls, v):
         """Validate content_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
             if len(v) != 64:
-                raise ValueError(
-                    f"content_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
-                )
+                raise ValueError(f"content_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters")
             try:
                 int(v, 16)
-            except ValueError:
-                raise ValueError(
-                    f"content_hash_sha256 must be valid hexadecimal; got '{v}'"
-                )
+            except ValueError as e:
+                raise ValueError(f"content_hash_sha256 must be valid hexadecimal; got '{v}'") from e
         return v
-
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class MissionDossier(BaseModel):
@@ -200,34 +193,34 @@ class MissionDossier(BaseModel):
     )
 
     # Artifacts
-    artifacts: List[ArtifactRef] = Field(
+    artifacts: list[ArtifactRef] = Field(
         default_factory=list,
         description="All indexed artifacts",
     )
 
     # Completeness (manifest from WP02)
-    manifest: Optional[dict] = Field(
+    manifest: dict | None = Field(
         None,
         description="Loaded manifest for this mission type (None if not found)",
     )
 
     # Snapshot (from WP05)
-    latest_snapshot: Optional[dict] = Field(
+    latest_snapshot: dict | None = Field(
         None,
         description="Most recent snapshot (after all artifacts indexed)",
     )
 
     # Timestamps
     dossier_created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When dossier was created",
     )
     dossier_updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When dossier was last updated",
     )
 
-    def get_required_artifacts(self, step_id: Optional[str] = None) -> List[ArtifactRef]:
+    def get_required_artifacts(self, step_id: str | None = None) -> list[ArtifactRef]:
         """Return required artifacts for step (or all required if step_id=None).
 
         Args:
@@ -241,9 +234,7 @@ class MissionDossier(BaseModel):
             required = [a for a in required if a.step_id == step_id]
         return required
 
-    def get_missing_required_artifacts(
-        self, step_id: Optional[str] = None
-    ) -> List[ArtifactRef]:
+    def get_missing_required_artifacts(self, step_id: str | None = None) -> list[ArtifactRef]:
         """Return required artifacts that are not present.
 
         Args:
@@ -269,10 +260,7 @@ class MissionDossier(BaseModel):
         missing = self.get_missing_required_artifacts()
         return "complete" if not missing else "incomplete"
 
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict()
 
 
 class MissionDossierSnapshot(BaseModel):
@@ -349,47 +337,45 @@ class MissionDossierSnapshot(BaseModel):
         ...,
         description="SHA256 hash of sorted artifact content hashes (order-independent)",
     )
-    parity_hash_components: List[str] = Field(
+    parity_hash_components: list[str] = Field(
         default_factory=list,
         description="Sorted list of artifact hashes (audit trail)",
     )
 
     # Artifact details
-    artifact_summaries: List[Dict[str, Any]] = Field(
+    artifact_summaries: list[dict[str, Any]] = Field(
         default_factory=list,
         description="List of artifact metadata summaries for audit",
     )
 
     # Timestamp
     computed_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When snapshot was computed (UTC)",
     )
 
-    @validator("completeness_status")
+    model_config = ConfigDict()
+
+    @field_validator("completeness_status")
+    @classmethod
     def validate_completeness_status(cls, v):
         """Validate completeness_status is one of the allowed values."""
         allowed_values = {"complete", "incomplete", "unknown"}
         if v not in allowed_values:
-            raise ValueError(
-                f"completeness_status must be one of {allowed_values}; got '{v}'"
-            )
+            raise ValueError(f"completeness_status must be one of {allowed_values}; got '{v}'")
         return v
 
-    @validator("parity_hash_sha256")
+    @field_validator("parity_hash_sha256")
+    @classmethod
     def validate_parity_hash_sha256(cls, v):
         """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
         if v is not None and v != "":
             if len(v) != 64:
-                raise ValueError(
-                    f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
-                )
+                raise ValueError(f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters")
             try:
                 int(v, 16)
-            except ValueError:
-                raise ValueError(
-                    f"parity_hash_sha256 must be valid hexadecimal; got '{v}'"
-                )
+            except ValueError as e:
+                raise ValueError(f"parity_hash_sha256 must be valid hexadecimal; got '{v}'") from e
         return v
 
     def has_parity_diff(self, other: "MissionDossierSnapshot") -> bool:
@@ -428,8 +414,3 @@ class MissionDossierSnapshot(BaseModel):
             Hash of parity_hash_sha256
         """
         return hash(self.parity_hash_sha256)
-
-    class Config:
-        """Pydantic configuration for JSON serialization."""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}

@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
@@ -20,6 +20,7 @@ from ruamel.yaml.comments import CommentedMap
 
 class FrontmatterError(Exception):
     """Error in frontmatter operations."""
+
     pass
 
 
@@ -62,7 +63,7 @@ class FrontmatterManager:
         self.yaml.width = 4096  # Prevent line wrapping
         self.yaml.indent(mapping=2, sequence=2, offset=0)
 
-    def read(self, file_path: Path) -> tuple[Dict[str, Any], str]:
+    def read(self, file_path: Path) -> tuple[dict[str, Any], str]:
         """Read frontmatter and body from a markdown file.
 
         Args:
@@ -100,18 +101,18 @@ class FrontmatterManager:
             if frontmatter is None:
                 frontmatter = {}
         except Exception as e:
-            raise FrontmatterError(f"Invalid YAML in {file_path}: {e}")
+            raise FrontmatterError(f"Invalid YAML in {file_path}: {e}") from e
 
         # Ensure dependencies field exists for WP files only (backward compatibility with pre-0.11.0)
         if file_path.name.startswith("WP") and "dependencies" not in frontmatter:
             frontmatter["dependencies"] = []
 
         # Get body (everything after closing ---)
-        body = "\n".join(lines[closing_idx + 1:])
+        body = "\n".join(lines[closing_idx + 1 :])
 
         return frontmatter, body
 
-    def write(self, file_path: Path, frontmatter: Dict[str, Any], body: str) -> None:
+    def write(self, file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
         """Write frontmatter and body to a markdown file.
 
         Args:
@@ -124,6 +125,7 @@ class FrontmatterManager:
 
         # Write to string buffer first
         import io
+
         buffer = io.StringIO()
         buffer.write("---\n")
         self.yaml.dump(normalized, buffer)
@@ -145,7 +147,7 @@ class FrontmatterManager:
         frontmatter[field] = value
         self.write(file_path, frontmatter, body)
 
-    def update_fields(self, file_path: Path, updates: Dict[str, Any]) -> None:
+    def update_fields(self, file_path: Path, updates: dict[str, Any]) -> None:
         """Update multiple fields in frontmatter.
 
         Args:
@@ -171,11 +173,7 @@ class FrontmatterManager:
         return frontmatter.get(field, default)
 
     def add_history_entry(
-        self,
-        file_path: Path,
-        action: str,
-        agent: Optional[str] = None,
-        note: Optional[str] = None
+        self, file_path: Path, action: str, agent: str | None = None, note: str | None = None
     ) -> None:
         """Add an entry to the history field.
 
@@ -207,7 +205,7 @@ class FrontmatterManager:
 
         self.write(file_path, frontmatter, body)
 
-    def _normalize_frontmatter(self, frontmatter: Dict[str, Any]) -> CommentedMap:
+    def _normalize_frontmatter(self, frontmatter: dict[str, Any]) -> CommentedMap:
         """Normalize frontmatter for consistent output.
 
         Args:
@@ -246,7 +244,7 @@ class FrontmatterManager:
             errors.append(f"dependencies must be a list, got {type(dependencies).__name__}")
             return errors
 
-        wp_pattern = re.compile(r'^WP\d{2}$')
+        wp_pattern = re.compile(r"^WP\d{2}$")
         seen = set()
 
         for dep in dependencies:
@@ -287,14 +285,18 @@ class FrontmatterManager:
             # Validate lane value
             if "lane" in frontmatter:
                 valid_lanes = [
-                    "planned", "claimed", "in_progress", "for_review", "approved",
-                    "done", "blocked", "canceled",
+                    "planned",
+                    "claimed",
+                    "in_progress",
+                    "for_review",
+                    "done",
+                    "blocked",
+                    "canceled",
                     "doing",  # Accepted alias for in_progress
                 ]
                 if frontmatter["lane"] not in valid_lanes:
                     errors.append(
-                        f"Invalid lane value: {frontmatter['lane']} "
-                        f"(must be one of: {', '.join(valid_lanes)})"
+                        f"Invalid lane value: {frontmatter['lane']} (must be one of: {', '.join(valid_lanes)})"
                     )
 
             # Validate dependencies field (if present)
@@ -310,12 +312,12 @@ _manager = FrontmatterManager()
 
 
 # Convenience functions that use the global manager
-def read_frontmatter(file_path: Path) -> tuple[Dict[str, Any], str]:
+def read_frontmatter(file_path: Path) -> tuple[dict[str, Any], str]:
     """Read frontmatter and body from a markdown file."""
     return _manager.read(file_path)
 
 
-def write_frontmatter(file_path: Path, frontmatter: Dict[str, Any], body: str) -> None:
+def write_frontmatter(file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
     """Write frontmatter and body to a markdown file."""
     _manager.write(file_path, frontmatter, body)
 
@@ -325,7 +327,7 @@ def update_field(file_path: Path, field: str, value: Any) -> None:
     _manager.update_field(file_path, field, value)
 
 
-def update_fields(file_path: Path, updates: Dict[str, Any]) -> None:
+def update_fields(file_path: Path, updates: dict[str, Any]) -> None:
     """Update multiple fields in frontmatter."""
     _manager.update_fields(file_path, updates)
 
@@ -335,12 +337,7 @@ def get_field(file_path: Path, field: str, default: Any = None) -> Any:
     return _manager.get_field(file_path, field, default)
 
 
-def add_history_entry(
-    file_path: Path,
-    action: str,
-    agent: Optional[str] = None,
-    note: Optional[str] = None
-) -> None:
+def add_history_entry(file_path: Path, action: str, agent: str | None = None, note: str | None = None) -> None:
     """Add an entry to the history field."""
     _manager.add_history_entry(file_path, action, agent, note)
 

@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 import re
 
 
@@ -20,11 +19,10 @@ AGENT_CONFIGS = {
     "auggie": ".augment/rules/specify-rules.md",
     "roo": ".roo/rules/specify-rules.md",
     "q": "AGENTS.md",
-    "antigravity": ".agent/rules/specify-rules.md",
 }
 
 
-def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
+def parse_plan_for_tech_stack(plan_path: Path) -> dict[str, str | None]:
     """
     Extract tech stack information from plan.md Technical Context section.
 
@@ -49,7 +47,7 @@ def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
     content = plan_path.read_text()
 
     # Extract fields from Technical Context section using markdown patterns
-    def extract_field(pattern: str) -> Optional[str]:
+    def extract_field(pattern: str) -> str | None:
         # Match pattern like "**Language/Version**: Python 3.11+"
         match = re.search(rf"\*\*{pattern}\*\*:\s*(.+?)(?:\n|$)", content, re.MULTILINE)
         if match:
@@ -68,7 +66,7 @@ def parse_plan_for_tech_stack(plan_path: Path) -> Dict[str, Optional[str]]:
     }
 
 
-def format_technology_stack(tech_stack: Dict[str, Optional[str]], feature_slug: str) -> List[str]:
+def format_technology_stack(tech_stack: dict[str, str | None], feature_slug: str) -> list[str]:
     """
     Format tech stack data into markdown bullet points for Active Technologies section.
 
@@ -86,11 +84,13 @@ def format_technology_stack(tech_stack: Dict[str, Optional[str]], feature_slug: 
     entries = []
 
     # Add language + dependencies as one line
-    parts = []
-    if tech_stack.get("language"):
-        parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        parts.append(tech_stack["dependencies"])
+    parts: list[str] = []
+    lang = tech_stack.get("language")
+    if lang:
+        parts.append(lang)
+    deps = tech_stack.get("dependencies")
+    if deps:
+        parts.append(deps)
 
     if parts:
         tech_line = " + ".join(parts)
@@ -131,7 +131,7 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
         return new_content
 
     # Extract the manual section (including markers)
-    manual_section = old_content[start_idx:end_idx + len(end_marker)]
+    manual_section = old_content[start_idx : end_idx + len(end_marker)]
 
     # Find where to inject in new content
     new_start_idx = new_content.find(start_marker)
@@ -143,17 +143,17 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 
     # Replace the section in new content with the preserved manual section
     before = new_content[:new_start_idx]
-    after = new_content[new_end_idx + len(end_marker):]
+    after = new_content[new_end_idx + len(end_marker) :]
 
     return before + manual_section + after
 
 
-def update_agent_context(
+def update_agent_context(  # noqa: C901
     agent_type: str,
-    tech_stack: Dict[str, Optional[str]],
+    tech_stack: dict[str, str | None],
     feature_slug: str,
     repo_root: Path,
-    feature_dir: Optional[Path] = None,
+    feature_dir: Path | None = None,
 ) -> None:
     """
     Update agent context file with tech stack from plan.md.
@@ -170,10 +170,7 @@ def update_agent_context(
         FileNotFoundError: If agent file doesn't exist
     """
     if agent_type not in AGENT_CONFIGS:
-        raise ValueError(
-            f"Unsupported agent type: {agent_type}. "
-            f"Supported types: {', '.join(AGENT_CONFIGS.keys())}"
-        )
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported types: {', '.join(AGENT_CONFIGS.keys())}")
 
     agent_file_path = repo_root / AGENT_CONFIGS[agent_type]
 
@@ -193,13 +190,15 @@ def update_agent_context(
     new_tech_entries = format_technology_stack(tech_stack, feature_slug)
 
     # Prepare change entry for Recent Changes section
-    tech_parts = []
-    if tech_stack.get("language"):
-        tech_parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        tech_parts.append(tech_stack["dependencies"])
+    tech_parts: list[str] = []
+    t_lang = tech_stack.get("language")
+    if t_lang:
+        tech_parts.append(t_lang)
+    t_deps = tech_stack.get("dependencies")
+    if t_deps:
+        tech_parts.append(t_deps)
 
-    tech_description = " + ".join(tech_parts) if tech_parts else tech_stack.get("storage", "")
+    tech_description: str = " + ".join(tech_parts) if tech_parts else (tech_stack.get("storage") or "")
     new_change_entry = f"- {feature_slug}: Added {tech_description}" if tech_description else ""
 
     # Process file line by line to update sections
@@ -266,7 +265,7 @@ def update_agent_context(
         # Update last updated timestamp
         if "**Last updated**:" in line or "*Last updated*:" in line:
             # Replace date in format YYYY-MM-DD
-            line = re.sub(r'\d{4}-\d{2}-\d{2}', current_date, line)
+            line = re.sub(r"\d{4}-\d{2}-\d{2}", current_date, line)
 
         new_lines.append(line)
 
@@ -281,10 +280,10 @@ def update_agent_context(
     final_content = preserve_manual_additions(old_content, new_content)
 
     # Write updated content
-    agent_file_path.write_text(final_content, encoding='utf-8')
+    agent_file_path.write_text(final_content, encoding="utf-8")
 
 
-def get_supported_agent_types() -> List[str]:
+def get_supported_agent_types() -> list[str]:
     """Return list of supported agent types."""
     return list(AGENT_CONFIGS.keys())
 
@@ -304,9 +303,6 @@ def get_agent_file_path(agent_type: str, repo_root: Path) -> Path:
         ValueError: If agent_type is not supported
     """
     if agent_type not in AGENT_CONFIGS:
-        raise ValueError(
-            f"Unsupported agent type: {agent_type}. "
-            f"Supported types: {', '.join(AGENT_CONFIGS.keys())}"
-        )
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported types: {', '.join(AGENT_CONFIGS.keys())}")
 
     return repo_root / AGENT_CONFIGS[agent_type]

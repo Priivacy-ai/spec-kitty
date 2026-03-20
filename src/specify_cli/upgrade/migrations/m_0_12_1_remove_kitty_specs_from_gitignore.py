@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -27,14 +26,14 @@ MIGRATION_DESCRIPTION = "Remove kitty-specs/ from main repo .gitignore to allow 
 
 # Patterns to REMOVE (block entire kitty-specs directory)
 PATTERNS_TO_REMOVE = [
-    r"^kitty-specs/?$",          # kitty-specs or kitty-specs/
-    r"^/kitty-specs/?$",         # /kitty-specs or /kitty-specs/
+    r"^kitty-specs/?$",  # kitty-specs or kitty-specs/
+    r"^/kitty-specs/?$",  # /kitty-specs or /kitty-specs/
 ]
 
 # Patterns to KEEP (worktree-specific, prevent merge conflicts)
 PATTERNS_TO_KEEP = [
     r"kitty-specs/\*\*/tasks/",  # kitty-specs/**/tasks/*.md
-    r"kitty-specs/.*/tasks/",    # kitty-specs/*/tasks/*.md
+    r"kitty-specs/.*/tasks/",  # kitty-specs/*/tasks/*.md
 ]
 
 
@@ -62,14 +61,10 @@ def is_blocking_pattern(line: str) -> bool:
             return False
 
     # Check if it blocks the entire directory (REMOVE these)
-    for remove_pattern in PATTERNS_TO_REMOVE:
-        if re.match(remove_pattern, stripped):
-            return True
-
-    return False
+    return any(re.match(remove_pattern, stripped) for remove_pattern in PATTERNS_TO_REMOVE)
 
 
-def find_blocking_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
+def find_blocking_entries(gitignore_path: Path) -> list[tuple[int, str]]:
     """Find all lines that block kitty-specs/ entirely.
 
     Returns list of (line_number, line_content) tuples.
@@ -88,13 +83,13 @@ def find_blocking_entries(gitignore_path: Path) -> List[Tuple[int, str]]:
     return blocking_entries
 
 
-def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> Tuple[List[str], List[str]]:
+def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> tuple[list[str], list[str]]:
     """Remove entries that block kitty-specs/ from .gitignore.
 
     Returns (changes, errors) tuple.
     """
-    changes: List[str] = []
-    errors: List[str] = []
+    changes: list[str] = []
+    errors: list[str] = []
 
     if not gitignore_path.exists():
         changes.append("No .gitignore file found")

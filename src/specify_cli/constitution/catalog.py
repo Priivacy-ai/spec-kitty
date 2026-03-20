@@ -41,15 +41,7 @@ def load_doctrine_catalog() -> DoctrineCatalog:
 
 
 def resolve_doctrine_root() -> Path:
-    """Resolve the doctrine package root in installed and development layouts.
-
-    Resolution order:
-    1. ``doctrine`` Python package (importlib.resources)
-    2. ``src/doctrine/`` sibling directory (development layout)
-    3. ``specify_cli/`` package root (installed layout — paradigms/directives
-       won't exist but missions/ will, and callers handle empty sets gracefully)
-    """
-    # 1. Installed doctrine package
+    """Resolve the doctrine package root in installed and development layouts."""
     try:
         doctrine_pkg = importlib.resources.files("doctrine")
         doctrine_root = Path(str(doctrine_pkg))
@@ -58,21 +50,16 @@ def resolve_doctrine_root() -> Path:
     except (ModuleNotFoundError, TypeError):
         pass
 
-    # 2. Development layout: src/doctrine/ next to src/specify_cli/
     dev_root = Path(__file__).parent.parent.parent / "doctrine"
     if dev_root.is_dir():
         return dev_root
 
-    # 3. Installed layout: doctrine is not a separate package on PyPI.
-    #    Fall back to the specify_cli package root so that callers can still
-    #    discover missions/ (via get_package_asset_root) and receive empty
-    #    sets for paradigms/directives which don't ship in the wheel.
-    try:
-        return get_package_asset_root().parent
-    except FileNotFoundError:
-        pass
-
-    raise FileNotFoundError("Cannot locate doctrine root. Ensure doctrine assets are packaged.")
+    raise FileNotFoundError(
+        "Cannot locate doctrine root. "
+        "Checked importlib.resources('doctrine') and development layout at "
+        f"{dev_root}. "
+        "Ensure the 'doctrine' package is installed or run from the repository root."
+    )
 
 
 # Backward-compatible alias for existing private callers.
@@ -90,7 +77,7 @@ def _load_yaml_id_catalog(directory: Path, pattern: str) -> set[str]:
     for path in sorted(directory.glob(pattern)):
         try:
             data = yaml.load(path.read_text(encoding="utf-8")) or {}
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
         if isinstance(data, dict):

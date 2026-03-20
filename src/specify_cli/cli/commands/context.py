@@ -24,7 +24,7 @@ console = Console()
 app = typer.Typer(help="Query workspace context information")
 
 
-def detect_current_workspace(cwd: Path, repo_root: Path) -> str | None:
+def detect_current_workspace(cwd: Path, _repo_root: Path) -> str | None:
     """Detect if current directory is inside a worktree.
 
     Args:
@@ -67,7 +67,7 @@ def info_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Auto-detect workspace if not provided
     if workspace is None:
@@ -133,15 +133,12 @@ def list_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if show_orphaned:
         orphaned = find_orphaned_contexts(repo_root)
         if json_output:
-            print(json.dumps([
-                {"workspace": name, "context": ctx.to_dict()}
-                for name, ctx in orphaned
-            ], indent=2))
+            print(json.dumps([{"workspace": name, "context": ctx.to_dict()} for name, ctx in orphaned], indent=2))
         else:
             if not orphaned:
                 console.print("[green]✓[/green] No orphaned contexts found")
@@ -211,7 +208,7 @@ def cleanup_command(
         repo_root = find_repo_root()
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     orphaned = find_orphaned_contexts(repo_root)
 
@@ -236,7 +233,7 @@ def cleanup_command(
 
 # Default command when no subcommand specified
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(ctx: typer.Context) -> None:
     """Query workspace context information."""
     if ctx.invoked_subcommand is None:
         # No subcommand - default to "info"

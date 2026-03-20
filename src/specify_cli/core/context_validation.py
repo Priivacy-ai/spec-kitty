@@ -27,9 +27,10 @@ from __future__ import annotations
 import functools
 import os
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import TypeVar
+from collections.abc import Callable
 
 import typer
 from rich.console import Console
@@ -37,7 +38,7 @@ from rich.console import Console
 console = Console()
 
 
-class ExecutionContext(str, Enum):
+class ExecutionContext(StrEnum):
     """Execution context for a command."""
 
     MAIN_REPO = "main"  # Command runs in main repository
@@ -70,10 +71,7 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
         >>> if ctx.location == ExecutionContext.WORKTREE:
         ...     print(f"In worktree: {ctx.worktree_name}")
     """
-    if cwd is None:
-        cwd = Path.cwd().resolve()
-    else:
-        cwd = cwd.resolve()
+    cwd = Path.cwd().resolve() if cwd is None else cwd.resolve()
 
     # Check if .worktrees is in path
     if ".worktrees" in cwd.parts:

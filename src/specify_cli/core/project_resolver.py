@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 
@@ -17,7 +16,7 @@ def _resolve_console(console: ConsoleType) -> Console:
     return console if console is not None else Console()
 
 
-def locate_project_root(start: Path | None = None) -> Optional[Path]:
+def locate_project_root(start: Path | None = None) -> Path | None:
     """Walk upwards from *start* (or CWD) to find the directory that owns .kittify."""
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
@@ -26,7 +25,7 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
     return None
 
 
-def resolve_template_path(project_root: Path, mission_key: str, template_subpath: str | Path) -> Optional[Path]:
+def resolve_template_path(project_root: Path, mission_key: str, template_subpath: str | Path) -> Path | None:
     """Resolve a template path through a 5-tier precedence chain.
 
     Resolution order:
@@ -99,7 +98,7 @@ def resolve_worktree_aware_feature_dir(
     feature_dir = repo_root / "kitty-specs" / feature_slug
     resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
     resolved_console.print(
-        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"
+        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"  # noqa: E501
     )
     return feature_dir
 

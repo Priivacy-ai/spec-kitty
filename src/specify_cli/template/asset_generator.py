@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Mapping
+from collections.abc import Mapping
 
 import yaml
 
@@ -107,7 +107,7 @@ def render_command_template(
     template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
     requires_script = "{SCRIPT}" in template_text
 
-    def build_variables(metadata: Dict[str, object]) -> Mapping[str, str]:
+    def build_variables(metadata: dict[str, object]) -> Mapping[str, str]:
         scripts = metadata.get("scripts") or {}
         agent_scripts = metadata.get("agent_scripts") or {}
         if not isinstance(scripts, dict):
@@ -116,9 +116,7 @@ def render_command_template(
             agent_scripts = {}
         script_command = scripts.get(script_type)
         if requires_script and not script_command:
-            raise ValueError(
-                f"Template {template_path} requires scripts.{script_type} but none was provided."
-            )
+            raise ValueError(f"Template {template_path} requires scripts.{script_type} but none was provided.")
         agent_script_command = agent_scripts.get(script_type)
         return {
             "{SCRIPT}": script_command or "",
@@ -127,9 +125,7 @@ def render_command_template(
             "__AGENT__": agent_key,
         }
 
-    metadata, rendered_body, raw_frontmatter = render_template(
-        template_path, variables=build_variables
-    )
+    metadata, rendered_body, raw_frontmatter = render_template(template_path, variables=build_variables)
     description = str(metadata.get("description", "")).strip()
 
     frontmatter_clean = _filter_frontmatter(raw_frontmatter)
@@ -151,10 +147,7 @@ def render_command_template(
             body_text += "\n"
         return f'description = "{description_value}"\n\nprompt = """\n{body_text}"""\n'
 
-    if frontmatter_clean:
-        result = f"---\n{frontmatter_clean}\n---\n\n{rendered_body}"
-    else:
-        result = rendered_body
+    result = f"---\n{frontmatter_clean}\n---\n\n{rendered_body}" if frontmatter_clean else rendered_body
     return result if result.endswith("\n") else result + "\n"
 
 
@@ -198,7 +191,7 @@ def _filter_frontmatter(frontmatter_text: str) -> str:
     return "\n".join(filtered_lines)
 
 
-def _raise_template_discovery_error(commands_dir: Path) -> None:
+def _raise_template_discovery_error(commands_dir: Path) -> None:  # noqa: ARG001
     """Raise an informative error about template discovery failure."""
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     remote_repo = os.environ.get("SPECIFY_TEMPLATE_REPO")
@@ -206,11 +199,13 @@ def _raise_template_discovery_error(commands_dir: Path) -> None:
     error_msg = (
         "Templates could not be found in any of the expected locations:\n\n"
         "Checked paths (in order):\n"
-        f"  ✗ Packaged resources (bundled with CLI)\n"
-        f"  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT" +
-        (f" = {env_root}" if env_root else " (not set)") + "\n" +
-        f"  ✗ Remote repository SPECIFY_TEMPLATE_REPO" +
-        (f" = {remote_repo}" if remote_repo else " (not configured)") + "\n\n"
+        "  ✗ Packaged resources (bundled with CLI)\n"
+        "  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT"
+        + (f" = {env_root}" if env_root else " (not set)")
+        + "\n"
+        + "  ✗ Remote repository SPECIFY_TEMPLATE_REPO"
+        + (f" = {remote_repo}" if remote_repo else " (not configured)")
+        + "\n\n"
         "To fix this, try one of these approaches:\n\n"
         "1. Reinstall from PyPI (recommended for end users):\n"
         "   pip install --upgrade spec-kitty-cli\n\n"

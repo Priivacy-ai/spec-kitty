@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -57,19 +56,21 @@ class CompleteLaneMigration(BaseMigration):
     # All known agent command directories (imported from agent_utils)
     AGENT_DIRS = _AGENT_DIRS
 
-    LANE_DIRS: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+    LANE_DIRS: tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
     # System files to ignore when determining if a directory is empty
     # These files are created automatically by operating systems and should not
     # prevent lane directory cleanup
-    IGNORE_FILES = frozenset({
-        ".gitkeep",      # Git placeholder
-        ".DS_Store",     # macOS Finder metadata
-        "Thumbs.db",     # Windows thumbnail cache
-        "desktop.ini",   # Windows folder settings
-        ".directory",    # KDE folder settings
-        "._*",           # macOS resource fork prefix (pattern)
-    })
+    IGNORE_FILES = frozenset(
+        {
+            ".gitkeep",  # Git placeholder
+            ".DS_Store",  # macOS Finder metadata
+            "Thumbs.db",  # Windows thumbnail cache
+            "desktop.ini",  # Windows folder settings
+            ".directory",  # KDE folder settings
+            "._*",  # macOS resource fork prefix (pattern)
+        }
+    )
 
     @classmethod
     def _should_ignore_file(cls, filename: str) -> bool:
@@ -87,13 +88,10 @@ class CompleteLaneMigration(BaseMigration):
 
         # Check pattern matches (e.g., ._* for macOS resource forks)
         # Check for macOS resource fork files (._filename)
-        if filename.startswith("._"):
-            return True
-
-        return False
+        return bool(filename.startswith("._"))
 
     @classmethod
-    def _get_real_contents(cls, directory: Path) -> List[Path]:
+    def _get_real_contents(cls, directory: Path) -> list[Path]:
         """Get directory contents, excluding system files.
 
         Args:
@@ -105,11 +103,7 @@ class CompleteLaneMigration(BaseMigration):
         if not directory.exists() or not directory.is_dir():
             return []
 
-        return [
-            item
-            for item in directory.iterdir()
-            if not cls._should_ignore_file(item.name)
-        ]
+        return [item for item in directory.iterdir() if not cls._should_ignore_file(item.name)]
 
     def detect(self, project_path: Path) -> bool:
         """Check if lane subdirectories exist OR worktrees have agent dirs/scripts."""
@@ -157,24 +151,20 @@ class CompleteLaneMigration(BaseMigration):
             if lane_path.is_dir():
                 # Check for real contents (ignoring system files)
                 real_contents = self._get_real_contents(lane_path)
-                if real_contents:
-                    return True
-                # Even if only system files, still need migration to remove the directory
-                # (The directory itself shouldn't exist in new format)
-                elif any(lane_path.iterdir()):
+                if real_contents or any(lane_path.iterdir()):
                     return True
 
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Migration can always be applied if lane directories exist."""
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Apply both lane migration and worktree cleanup."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Part 1: Complete lane migration
         changes.append("=== Part 1: Complete Lane Migration ===")
@@ -195,13 +185,9 @@ class CompleteLaneMigration(BaseMigration):
                 total_dirs_removed += dirs_removed
 
             if dry_run:
-                changes.append(
-                    f"Would migrate {total_migrated} files and remove {total_dirs_removed} lane directories"
-                )
+                changes.append(f"Would migrate {total_migrated} files and remove {total_dirs_removed} lane directories")
             else:
-                changes.append(
-                    f"Migrated {total_migrated} files and removed {total_dirs_removed} lane directories"
-                )
+                changes.append(f"Migrated {total_migrated} files and removed {total_dirs_removed} lane directories")
         else:
             changes.append("No lane subdirectories found")
 
@@ -228,9 +214,9 @@ class CompleteLaneMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _find_features_with_lanes(self, project_path: Path) -> List[Tuple[Path, str]]:
+    def _find_features_with_lanes(self, project_path: Path) -> list[tuple[Path, str]]:
         """Find all features with remaining lane subdirectories."""
-        features: List[Tuple[Path, str]] = []
+        features: list[tuple[Path, str]] = []
 
         # Scan main kitty-specs/
         main_specs = project_path / "kitty-specs"
@@ -252,16 +238,16 @@ class CompleteLaneMigration(BaseMigration):
 
         return features
 
-    def _migrate_remaining_files(
+    def _migrate_remaining_files(  # noqa: C901
         self,
         feature_dir: Path,
         location_label: str,
         dry_run: bool,
-    ) -> Tuple[List[str], List[str], List[str], int, int]:
+    ) -> tuple[list[str], list[str], list[str], int, int]:
         """Migrate all remaining files from a feature's lane subdirectories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
         migrated = 0
         dirs_removed = 0
 
@@ -316,9 +302,7 @@ class CompleteLaneMigration(BaseMigration):
 
                 elif item.is_dir():
                     # Handle nested directories (shouldn't exist but might)
-                    warnings.append(
-                        f"  Warning: Nested directory {lane}/{item.name}/ found - please check manually"
-                    )
+                    warnings.append(f"  Warning: Nested directory {lane}/{item.name}/ found - please check manually")
 
             # Clean up empty lane directory
             if not dry_run:
@@ -364,10 +348,10 @@ class CompleteLaneMigration(BaseMigration):
             return f'---\nlane: "{expected_lane}"\n---\n{content}'
 
         frontmatter_lines = lines[1:closing_idx]
-        body_lines = lines[closing_idx + 1:]
+        body_lines = lines[closing_idx + 1 :]
 
         # Check if lane field exists
-        lane_pattern = re.compile(r'^lane:\s*(.*)$')
+        lane_pattern = re.compile(r"^lane:\s*(.*)$")
         lane_found = False
         updated_lines = []
 
@@ -375,7 +359,7 @@ class CompleteLaneMigration(BaseMigration):
             match = lane_pattern.match(line)
             if match:
                 lane_found = True
-                current_value = match.group(1).strip().strip('"\'')
+                current_value = match.group(1).strip().strip("\"'")
                 if current_value != expected_lane:
                     # Replace with expected lane from directory
                     updated_lines.append(f'lane: "{expected_lane}"')
@@ -397,10 +381,10 @@ class CompleteLaneMigration(BaseMigration):
         result_lines = ["---"] + updated_lines + ["---"] + body_lines
         return "\n".join(result_lines)
 
-    def _cleanup_worktrees(self, project_path: Path, dry_run: bool) -> Tuple[List[str], List[str]]:
+    def _cleanup_worktrees(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:  # noqa: C901
         """Clean up agent command directories and scripts from all worktrees."""
-        changes: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        errors: list[str] = []
 
         worktrees_dir = project_path / ".worktrees"
         if not worktrees_dir.exists():
@@ -423,9 +407,7 @@ class CompleteLaneMigration(BaseMigration):
                     if dry_run:
                         is_symlink = commands_dir.is_symlink()
                         type_str = "symlink" if is_symlink else "directory"
-                        changes.append(
-                            f"[{worktree_name}] Would remove {agent_dir}/{subdir}/ ({type_str})"
-                        )
+                        changes.append(f"[{worktree_name}] Would remove {agent_dir}/{subdir}/ ({type_str})")
                     else:
                         try:
                             # Check if it's a symlink - handle differently
@@ -436,9 +418,7 @@ class CompleteLaneMigration(BaseMigration):
                                 )
                             elif commands_dir.is_dir():
                                 shutil.rmtree(commands_dir)
-                                changes.append(
-                                    f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)"
-                                )
+                                changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)")
 
                             # Clean up parent directory if now empty
                             parent = commands_dir.parent
@@ -448,9 +428,7 @@ class CompleteLaneMigration(BaseMigration):
                             cleaned_this_worktree = True
 
                         except OSError as e:
-                            errors.append(
-                                f"[{worktree_name}] Failed to remove {agent_dir}/{subdir}/: {e}"
-                            )
+                            errors.append(f"[{worktree_name}] Failed to remove {agent_dir}/{subdir}/: {e}")
 
             # Remove .kittify/scripts/
             scripts_dir = worktree / ".kittify" / "scripts"
@@ -459,27 +437,19 @@ class CompleteLaneMigration(BaseMigration):
                 if dry_run:
                     is_symlink = scripts_dir.is_symlink()
                     type_str = "symlink" if is_symlink else "directory"
-                    changes.append(
-                        f"[{worktree_name}] Would remove .kittify/scripts/ ({type_str})"
-                    )
+                    changes.append(f"[{worktree_name}] Would remove .kittify/scripts/ ({type_str})")
                 else:
                     try:
                         # Check if it's a symlink - handle differently
                         if scripts_dir.is_symlink():
                             scripts_dir.unlink()
-                            changes.append(
-                                f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)"
-                            )
+                            changes.append(f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)")
                         elif scripts_dir.is_dir():
                             shutil.rmtree(scripts_dir)
-                            changes.append(
-                                f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)"
-                            )
+                            changes.append(f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)")
                         cleaned_this_worktree = True
                     except OSError as e:
-                        errors.append(
-                            f"[{worktree_name}] Failed to remove .kittify/scripts/: {e}"
-                        )
+                        errors.append(f"[{worktree_name}] Failed to remove .kittify/scripts/: {e}")
 
             if cleaned_this_worktree:
                 worktrees_cleaned += 1
@@ -494,9 +464,7 @@ class CompleteLaneMigration(BaseMigration):
 
         return changes, errors
 
-    def _normalize_all_frontmatter(
-        self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str], List[str]]:
+    def _normalize_all_frontmatter(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str], list[str]]:  # noqa: C901
         """Normalize frontmatter in all markdown files for consistency.
 
         This ensures:
@@ -504,12 +472,12 @@ class CompleteLaneMigration(BaseMigration):
         - Consistent field ordering
         - Proper ruamel.yaml formatting
         """
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Find all markdown files in kitty-specs/
-        md_files: List[Path] = []
+        md_files: list[Path] = []
 
         # Main kitty-specs/
         main_specs = project_path / "kitty-specs"
@@ -543,12 +511,14 @@ class CompleteLaneMigration(BaseMigration):
                     # Just check if it would change
                     try:
                         from specify_cli.frontmatter import FrontmatterManager
+
                         manager = FrontmatterManager()
                         original = md_file.read_text(encoding="utf-8-sig")
                         frontmatter, body = manager.read(md_file)
 
                         # Write to temp buffer
                         import io
+
                         buffer = io.StringIO()
                         buffer.write("---\n")
                         manager.yaml.dump(manager._normalize_frontmatter(frontmatter), buffer)

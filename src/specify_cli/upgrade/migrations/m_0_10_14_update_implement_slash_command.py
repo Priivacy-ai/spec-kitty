@@ -19,9 +19,7 @@ agent directories.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
-from typing import List, Tuple
 
 try:
     from importlib.resources import files
@@ -72,16 +70,16 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
         # For 0.10.x: Try packaged missions (should work post-0.10.8)
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.exists():
                 return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
 
         # Fallback: Try legacy .kittify location (pre-0.11.0)
-        legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+        legacy_path = (
+            project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+        )
         if legacy_path.exists():
             return True, ""
 
@@ -89,9 +87,9 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update implement slash command across all agent directories."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         # Load template from packaged missions or legacy location
         template_content = None
@@ -100,19 +98,19 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
         try:
             # Try packaged missions first (0.10.8+)
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if template_path.exists():
                 template_content = template_path.read_text(encoding="utf-8")
                 template_source = "packaged missions"
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Fallback to legacy location (pre-0.11.0)
         if not template_content:
-            legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+            legacy_path = (
+                project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+            )
             if legacy_path.exists():
                 template_content = legacy_path.read_text(encoding="utf-8")
                 template_source = "legacy .kittify/missions"
