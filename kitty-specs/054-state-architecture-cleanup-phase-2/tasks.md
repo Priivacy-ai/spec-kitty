@@ -395,5 +395,5 @@
 ## Canonical Status (Generated)
 - WP01: in_progress
 - WP06: in_progress
-- WP08: for_review
+- WP08: in_progress
 <!-- status-model:end -->
