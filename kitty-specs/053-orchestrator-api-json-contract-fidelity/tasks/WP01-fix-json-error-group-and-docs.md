@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Fix _JSONErrorGroup Error Handling + Docs
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 9812ee34905de737259c9019dd6e85fb9249a129
+created_at: '2026-03-20T12:35:22.058330+00:00'
 subtasks:
 - T001
 - T002
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 1 - Core Fix
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "39519"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
