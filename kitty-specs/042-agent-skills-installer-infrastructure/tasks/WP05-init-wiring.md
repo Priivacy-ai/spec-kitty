@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Init Wiring
-lane: in_progress
+lane: "planned"
 dependencies: [WP01, WP02, WP03, WP04]
 base_branch: 042-agent-skills-installer-infrastructure-WP04
 base_commit: 02040aa5810b7dde66c0e3394a7178d059c38ca9
@@ -18,8 +18,9 @@ phase: Phase 3 - Integration
 assignee: ''
 agent: codex
 shell_pid: '67720'
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://042-agent-skills-installer-infrastructure/WP05/20260320T175305Z-e5b85888.md"
 history:
 - timestamp: '2026-03-20T16:29:09Z'
   lane: planned
@@ -307,3 +308,4 @@ def test_init_invalid_skills_mode(tmp_path):
 - 2026-03-20T17:40:59Z – coordinator – shell_pid=48589 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T17:47:45Z – coordinator – shell_pid=48589 – lane=for_review – Ready for review: --skills flag, skill root creation, manifest writing, verification wired into init. All 5 integration tests pass, 15 existing init tests pass (no regressions).
 - 2026-03-20T17:48:13Z – codex – shell_pid=67720 – lane=doing – Started review via workflow command
+- 2026-03-20T17:53:05Z – codex – shell_pid=67720 – lane=planned – Moved to planned

@@ -282,7 +282,7 @@ Wave 5: WP09 (depends on all, final validation)
 - WP02: approved
 - WP03: approved
 - WP04: planned
-- WP05: in_progress
+- WP05: planned
 - WP06: approved
 - WP07: planned
 - WP08: approved
