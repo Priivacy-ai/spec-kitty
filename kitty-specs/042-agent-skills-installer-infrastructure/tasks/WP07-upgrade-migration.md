@@ -1,8 +1,11 @@
 ---
 work_package_id: WP07
 title: Upgrade Migration
-lane: planned
+lane: "doing"
 dependencies: [WP01, WP02, WP03, WP04]
+base_branch: 042-agent-skills-installer-infrastructure-WP04
+base_commit: 02040aa5810b7dde66c0e3394a7178d059c38ca9
+created_at: '2026-03-20T17:41:02.463722+00:00'
 subtasks:
 - T033
 - T034
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 3 - Integration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "48735"
 review_status: ''
 reviewed_by: ''
 history:
