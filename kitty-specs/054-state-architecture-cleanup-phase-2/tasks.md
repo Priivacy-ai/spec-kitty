@@ -141,10 +141,10 @@
 **Requirement Refs**: FR-012, FR-013, FR-014, FR-015, NFR-001
 
 ### Included Subtasks
-- [ ] T019 Convert `src/specify_cli/sync/clock.py` — `LamportClock.save()`: replace inline `tempfile.mkstemp + os.replace` with `atomic_write(self._storage_path, content, mkdir=True)`
-- [ ] T020 Convert `src/specify_cli/sync/auth.py` — `CredentialStore.save()`: add `atomic_write()` inside the existing `self._acquire_lock()` context; keep file lock + 600 permissions
-- [ ] T021 [P] Convert `src/specify_cli/sync/config.py` — `set_server_url()`: replace `open() + toml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
-- [ ] T022 [P] Convert `src/specify_cli/tracker/config.py` — `save_tracker_config()`: replace `open() + YAML.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [x] T019 Convert `src/specify_cli/sync/clock.py` — `LamportClock.save()`: replace inline `tempfile.mkstemp + os.replace` with `atomic_write(self._storage_path, content, mkdir=True)`
+- [x] T020 Convert `src/specify_cli/sync/auth.py` — `CredentialStore.save()`: add `atomic_write()` inside the existing `self._acquire_lock()` context; keep file lock + 600 permissions
+- [x] T021 [P] Convert `src/specify_cli/sync/config.py` — `set_server_url()`: replace `open() + toml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [x] T022 [P] Convert `src/specify_cli/tracker/config.py` — `save_tracker_config()`: replace `open() + YAML.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
 
 ### Implementation Notes
 - **clock.py** (T019): Already has atomic write logic (lines 62-87). Replace with the shared utility. The `json.dump(data, f, indent=2)` becomes `json.dumps(data, indent=2)` → `atomic_write(path, content)`.
