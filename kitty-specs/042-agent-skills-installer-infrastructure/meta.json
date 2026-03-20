@@ -2,8 +2,10 @@
   "feature_number": "042",
   "slug": "042-agent-skills-installer-infrastructure",
   "feature_slug": "042-agent-skills-installer-infrastructure",
-  "friendly_name": "agent skills installer infrastructure",
+  "friendly_name": "Agent Skills Installer Infrastructure",
   "mission": "software-dev",
+  "source_description": "Phase 0 of the Agent Skills Pack PRD: replace command-only agent config with a richer capability-profile model, add skill-pack generation/install plumbing with a managed manifest, wire spec-kitty init to distribute skills by distribution class, and preserve backward compatibility with existing wrappers.",
   "target_branch": "main",
-  "created_at": "2026-03-20T16:18:33.874544+00:00"
+  "created_at": "2026-03-20T16:18:33.874544+00:00",
+  "vcs": "git"
 }
