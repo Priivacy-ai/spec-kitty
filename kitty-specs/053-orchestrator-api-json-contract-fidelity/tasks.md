@@ -49,9 +49,9 @@
 **Requirement Refs**: FR-003, NFR-003, C-002
 
 ### Included Subtasks
-- [ ] T005 [P] Add `TestRootCLIPath` success tests (contract-version through root CLI)
-- [ ] T006 [P] Add `TestRootCLIPath` error tests (unknown flag, unknown subcommand through root CLI)
-- [ ] T007 Verify existing sub-app tests still pass (regression check)
+- [x] T005 [P] Add `TestRootCLIPath` success tests (contract-version through root CLI)
+- [x] T006 [P] Add `TestRootCLIPath` error tests (unknown flag, unknown subcommand through root CLI)
+- [x] T007 Verify existing sub-app tests still pass (regression check)
 
 ### Implementation Notes
 - Import `app` from `specify_cli` (the root CLI), not from `specify_cli.orchestrator_api.commands`.
@@ -109,5 +109,5 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: approved
+- WP01: planned
 <!-- status-model:end -->
