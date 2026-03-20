@@ -36,6 +36,7 @@ from specify_cli.core.feature_detection import (
 )
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
+from specify_cli.status.locking import feature_status_lock
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -1068,166 +1069,164 @@ def move_task(
         if not emit_force:
             transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
 
-        event = None
-        current_canonical_lane = resolve_lane_alias(old_lane)
-        current_event_lane = None
-        for existing_event in reversed(read_events(feature_dir)):
-            if existing_event.wp_id == task_id:
-                current_event_lane = str(existing_event.to_lane)
-                break
-        if (
-            current_canonical_lane != "planned"
-            and current_event_lane != current_canonical_lane
-        ):
-            # Seed/sync canonical history from frontmatter so strict transitions can continue.
-            sync_reason = (
-                "bootstrap from frontmatter lane "
-                if current_event_lane is None
-                else "sync from frontmatter lane "
-            )
-            emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug=feature_slug,
-                wp_id=task_id,
-                to_lane=current_canonical_lane,
-                actor=actor,
-                force=True,
-                reason=(
-                    f"{sync_reason}"
-                    f"{current_canonical_lane} before move-task transition"
-                ),
-                workspace_context=f"move-task:{main_repo_root}",
-                subtasks_complete=True if current_canonical_lane == "for_review" else None,
-                implementation_evidence_present=(
-                    True if current_canonical_lane == "for_review" else None
-                ),
-                repo_root=main_repo_root,
-            )
-
-        for target in transition_targets:
-            event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug=feature_slug,
-                wp_id=task_id,
-                to_lane=target,
-                actor=actor,
-                force=emit_force,
-                reason=emit_reason,
-                evidence=evidence_dict if target in ("approved", "done") else None,
-                review_ref=emit_review_ref,
-                workspace_context=f"move-task:{main_repo_root}",
-                subtasks_complete=(
-                    True
-                    if target in ("for_review", "approved") and not emit_force
-                    else None
-                ),
-                implementation_evidence_present=(
-                    True
-                    if target in ("for_review", "approved") and not emit_force
-                    else None
-                ),
-                repo_root=main_repo_root,
-            )
-            # review_ref only applies to rollback transitions, never to forward chain hops
-            emit_review_ref = None
-
-        if event is None:
-            raise TransitionError("No status transition event was emitted")
-
-        # --- Post-emit: apply metadata fields to WP file ---
-        # The emit pipeline (via legacy_bridge) may have updated the lane
-        # in frontmatter. Re-read the file to get the current state,
-        # then apply additional metadata fields that are NOT part of
-        # the canonical event.
-        wp_content = wp.path.read_text(encoding="utf-8-sig")
-        updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-
-        # Ensure lane is set (in case legacy_bridge didn't update it)
-        updated_front = set_scalar(updated_front, "lane", canonical_lane)
-
-        # Update assignee if provided
-        if assignee:
-            updated_front = set_scalar(updated_front, "assignee", assignee)
-
-        # Update agent if provided
-        if agent:
-            updated_front = set_scalar(updated_front, "agent", agent)
-
-        # Update shell_pid if provided
-        if shell_pid:
-            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
-
-        # Store canonical review feedback pointer in frontmatter (no body duplication).
-        if target_lane == "planned" and review_feedback_pointer is not None:
-            effective_reviewer = reviewer or _detect_reviewer_name()
-            updated_front = set_scalar(updated_front, "review_status", "has_feedback")
-            updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-            updated_front = set_scalar(
-                updated_front,
-                "review_feedback",
-                review_feedback_pointer,
-            )
-
-        # Record approval metadata when review passes.
-        if target_lane in ("approved", "done"):
-            effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
-            updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-            updated_front = set_scalar(updated_front, "review_status", "approved")
-
-        # Build history entry
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
-        shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
-        note_text = note_text or f"Moved to {target_lane}"
-
-        shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
-        history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
-
-        # Add history entry to body
-        updated_body = append_activity_log(updated_body, history_entry)
-
-        # Build updated document and write
-        updated_doc = build_document(updated_front, updated_body, updated_padding)
-
-        file_written = False
-        if auto_commit:
-            spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
-
-            commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
-            if agent_name != "unknown":
-                commit_msg += f" [{agent_name}]"
-
-            try:
-                actual_file_path = wp.path.resolve()
-
-                wp.path.write_text(updated_doc, encoding="utf-8")
-                file_written = True
-
-                # Commit the WP file together with all status artifacts
-                # so that events.jsonl, status.json, and tasks.md
-                # changes are captured in the same atomic commit.
-                status_artifacts = _collect_status_artifacts(feature_dir)
-                commit_success = safe_commit(
-                    repo_path=main_repo_root,
-                    files_to_commit=[actual_file_path] + status_artifacts,
-                    commit_message=commit_msg,
-                    allow_empty=True,  # OK if nothing changed
+        with feature_status_lock(main_repo_root, feature_slug):
+            event = None
+            current_canonical_lane = resolve_lane_alias(old_lane)
+            current_event_lane = None
+            for existing_event in reversed(read_events(feature_dir)):
+                if existing_event.wp_id == task_id:
+                    current_event_lane = str(existing_event.to_lane)
+                    break
+            if (
+                current_canonical_lane != "planned"
+                and current_event_lane != current_canonical_lane
+            ):
+                # Seed/sync canonical history from frontmatter so strict transitions can continue.
+                sync_reason = (
+                    "bootstrap from frontmatter lane "
+                    if current_event_lane is None
+                    else "sync from frontmatter lane "
+                )
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=task_id,
+                    to_lane=current_canonical_lane,
+                    actor=actor,
+                    force=True,
+                    reason=(
+                        f"{sync_reason}"
+                        f"{current_canonical_lane} before move-task transition"
+                    ),
+                    workspace_context=f"move-task:{main_repo_root}",
+                    subtasks_complete=True if current_canonical_lane == "for_review" else None,
+                    implementation_evidence_present=(
+                        True if current_canonical_lane == "for_review" else None
+                    ),
+                    repo_root=main_repo_root,
                 )
 
-                if commit_success:
-                    if not json_output:
-                        console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                else:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
+            for target in transition_targets:
+                event = emit_status_transition(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=task_id,
+                    to_lane=target,
+                    actor=actor,
+                    force=emit_force,
+                    reason=emit_reason,
+                    evidence=evidence_dict if target in ("approved", "done") else None,
+                    review_ref=emit_review_ref,
+                    workspace_context=f"move-task:{main_repo_root}",
+                    subtasks_complete=(
+                        True
+                        if target in ("for_review", "approved") and not emit_force
+                        else None
+                    ),
+                    implementation_evidence_present=(
+                        True
+                        if target in ("for_review", "approved") and not emit_force
+                        else None
+                    ),
+                    repo_root=main_repo_root,
+                )
+                # review_ref only applies to rollback transitions, never to forward chain hops
+                emit_review_ref = None
 
-            except Exception as e:
-                if not file_written:
+            # --- Post-emit: apply metadata fields to WP file ---
+            # The emit pipeline (via legacy_bridge) may have updated the lane
+            # in frontmatter. Re-read the file to get the current state,
+            # then apply additional metadata fields that are NOT part of
+            # the canonical event.
+            wp_content = wp.path.read_text(encoding="utf-8-sig")
+            updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+
+            # Ensure lane is set (in case legacy_bridge didn't update it)
+            updated_front = set_scalar(updated_front, "lane", canonical_lane)
+
+            # Update assignee if provided
+            if assignee:
+                updated_front = set_scalar(updated_front, "assignee", assignee)
+
+            # Update agent if provided
+            if agent:
+                updated_front = set_scalar(updated_front, "agent", agent)
+
+            # Update shell_pid if provided
+            if shell_pid:
+                updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+
+            # Store canonical review feedback pointer in frontmatter (no body duplication).
+            if target_lane == "planned" and review_feedback_pointer is not None:
+                effective_reviewer = reviewer or _detect_reviewer_name()
+                updated_front = set_scalar(updated_front, "review_status", "has_feedback")
+                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(
+                    updated_front,
+                    "review_feedback",
+                    review_feedback_pointer,
+                )
+
+            # Record approval metadata when review passes.
+            if target_lane in ("approved", "done"):
+                effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
+                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(updated_front, "review_status", "approved")
+
+            # Build history entry
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
+            shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
+            note_text = note_text or f"Moved to {target_lane}"
+
+            shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
+            history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
+
+            # Add history entry to body
+            updated_body = append_activity_log(updated_body, history_entry)
+
+            # Build updated document and write
+            updated_doc = build_document(updated_front, updated_body, updated_padding)
+
+            file_written = False
+            if auto_commit:
+                spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+
+                commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
+                if agent_name != "unknown":
+                    commit_msg += f" [{agent_name}]"
+
+                try:
+                    actual_file_path = wp.path.resolve()
+
                     wp.path.write_text(updated_doc, encoding="utf-8")
-                if not json_output:
-                    console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
-        else:
-            wp.path.write_text(updated_doc, encoding="utf-8")
+                    file_written = True
+
+                    # Commit the WP file together with all status artifacts
+                    # so that events.jsonl, status.json, and tasks.md
+                    # changes are captured in the same atomic commit.
+                    status_artifacts = _collect_status_artifacts(feature_dir)
+                    commit_success = safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[actual_file_path] + status_artifacts,
+                        commit_message=commit_msg,
+                        allow_empty=True,  # OK if nothing changed
+                    )
+
+                    if commit_success:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                    else:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
+
+                except Exception as e:
+                    if not file_written:
+                        wp.path.write_text(updated_doc, encoding="utf-8")
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
+            else:
+                wp.path.write_text(updated_doc, encoding="utf-8")
 
         # Output result
         result = {
@@ -1314,77 +1313,78 @@ def mark_status(
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
 
-        if not tasks_md.exists():
-            _output_error(json_output, f"tasks.md not found: {tasks_md}")
-            raise typer.Exit(1)
+        with feature_status_lock(main_repo_root, feature_slug):
+            if not tasks_md.exists():
+                _output_error(json_output, f"tasks.md not found: {tasks_md}")
+                raise typer.Exit(1)
 
-        # Read tasks.md content
-        content = tasks_md.read_text(encoding="utf-8")
-        lines = content.split('\n')
-        new_checkbox = "[x]" if status == "done" else "[ ]"
+            # Read tasks.md content
+            content = tasks_md.read_text(encoding="utf-8")
+            lines = content.split('\n')
+            new_checkbox = "[x]" if status == "done" else "[ ]"
 
-        # Track which tasks were updated and which weren't found
-        updated_tasks = []
-        not_found_tasks = []
+            # Track which tasks were updated and which weren't found
+            updated_tasks = []
+            not_found_tasks = []
 
-        # Update all requested tasks in a single pass
-        for task_id in task_ids:
-            task_found = False
-            for i, line in enumerate(lines):
-                # Match checkbox lines with this task ID
-                if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
-                    # Replace the checkbox
-                    lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
-                    updated_tasks.append(task_id)
-                    task_found = True
-                    break
+            # Update all requested tasks in a single pass
+            for task_id in task_ids:
+                task_found = False
+                for i, line in enumerate(lines):
+                    # Match checkbox lines with this task ID
+                    if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
+                        # Replace the checkbox
+                        lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
+                        updated_tasks.append(task_id)
+                        task_found = True
+                        break
 
-            if not task_found:
-                not_found_tasks.append(task_id)
+                if not task_found:
+                    not_found_tasks.append(task_id)
 
-        # Fail if no tasks were updated
-        if not updated_tasks:
-            _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
-            raise typer.Exit(1)
+            # Fail if no tasks were updated
+            if not updated_tasks:
+                _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
+                raise typer.Exit(1)
 
-        # Write updated content (single write for all changes)
-        updated_content = '\n'.join(lines)
-        tasks_md.write_text(updated_content, encoding="utf-8")
+            # Write updated content (single write for all changes)
+            updated_content = '\n'.join(lines)
+            tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to TARGET branch (detects from feature meta.json)
-        if auto_commit:
-            import subprocess
+            # Auto-commit to TARGET branch (detects from feature meta.json)
+            if auto_commit:
+                import subprocess
 
-            # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
-            spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+                # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
+                spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
 
-            # Build commit message
-            if len(updated_tasks) == 1:
-                commit_msg = f"chore: Mark {updated_tasks[0]} as {status} on spec {spec_number}"
-            else:
-                commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status} on spec {spec_number}"
-
-            try:
-                actual_tasks_path = tasks_md.resolve()
-
-                # Commit only the tasks.md file (preserves staging area)
-                commit_success = safe_commit(
-                    repo_path=main_repo_root,
-                    files_to_commit=[actual_tasks_path],
-                    commit_message=commit_msg,
-                    allow_empty=True,  # OK if nothing changed
-                )
-
-                if commit_success:
-                    if not json_output:
-                        console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                # Build commit message
+                if len(updated_tasks) == 1:
+                    commit_msg = f"chore: Mark {updated_tasks[0]} as {status} on spec {spec_number}"
                 else:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
+                    commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status} on spec {spec_number}"
 
-            except Exception as e:
-                if not json_output:
-                    console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
+                try:
+                    actual_tasks_path = tasks_md.resolve()
+
+                    # Commit only the tasks.md file (preserves staging area)
+                    commit_success = safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[actual_tasks_path],
+                        commit_message=commit_msg,
+                        allow_empty=True,  # OK if nothing changed
+                    )
+
+                    if commit_success:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                    else:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
+
+                except Exception as e:
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
         # Emit HistoryAdded event for subtask status changes (T014)
         try:

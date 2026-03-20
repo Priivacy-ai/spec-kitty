@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import builtins
 import json
+import sys
+import types
 from pathlib import Path
 from unittest.mock import patch
 
@@ -390,6 +393,63 @@ class TestMaterializeCommand:
         assert "summary" in data
         assert data["event_count"] == 1
         assert "WP01" in data["work_packages"]
+
+    def test_materialize_ignores_legacy_bridge_import_error(self, tmp_path: Path, feature_dir_with_events: Path):
+        """Missing legacy bridge should not block materialize."""
+        patches = _patch_detection(tmp_path)
+        real_import = builtins.__import__
+
+        def raising_import(name: str, *args: object, **kwargs: object):
+            if name == "specify_cli.status.legacy_bridge":
+                raise ImportError("legacy bridge unavailable")
+            return real_import(name, *args, **kwargs)
+
+        with (
+            patches["locate_project_root"],
+            patches["get_main_repo_root"],
+            patches["detect_feature_slug"],
+            patch("builtins.__import__", side_effect=raising_import),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "materialize",
+                    "--feature", "034-test-feature",
+                ],
+            )
+
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        assert "Materialized" in result.output
+
+    def test_materialize_warns_when_legacy_bridge_update_fails(self, tmp_path: Path, feature_dir_with_events: Path):
+        """Legacy bridge exceptions should warn without failing materialize."""
+        patches = _patch_detection(tmp_path)
+        mock_bridge = types.ModuleType("specify_cli.status.legacy_bridge")
+        mock_bridge.update_all_views = lambda feature_dir, snapshot: (_ for _ in ()).throw(RuntimeError("bridge broken"))  # type: ignore[attr-defined]
+
+        saved = sys.modules.get("specify_cli.status.legacy_bridge")
+        sys.modules["specify_cli.status.legacy_bridge"] = mock_bridge
+        try:
+            with (
+                patches["locate_project_root"],
+                patches["get_main_repo_root"],
+                patches["detect_feature_slug"],
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "materialize",
+                        "--feature", "034-test-feature",
+                    ],
+                )
+        finally:
+            if saved is not None:
+                sys.modules["specify_cli.status.legacy_bridge"] = saved
+            else:
+                sys.modules.pop("specify_cli.status.legacy_bridge", None)
+
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        assert "Legacy bridge update failed: bridge broken" in result.output
 
     def test_materialize_no_events(self, tmp_path: Path, feature_dir: Path):
         """Missing event log should produce an error message."""
