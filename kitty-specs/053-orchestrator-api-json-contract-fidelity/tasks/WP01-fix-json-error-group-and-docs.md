@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Fix _JSONErrorGroup Error Handling + Docs
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 9812ee34905de737259c9019dd6e85fb9249a129
@@ -13,8 +13,8 @@ subtasks:
 - T004
 phase: Phase 1 - Core Fix
 assignee: ''
-agent: coordinator
-shell_pid: '39519'
+agent: "codex"
+shell_pid: "49444"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -177,3 +177,4 @@ spec-kitty implement WP01
 - 2026-03-20T12:31:02Z – system – lane=planned – Prompt created.
 - 2026-03-20T12:35:22Z – coordinator – shell_pid=39519 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T12:38:08Z – coordinator – shell_pid=39519 – lane=for_review – invoke() override + _emit_error() helper + docs fix complete. All 52 existing tests pass.
+- 2026-03-20T12:38:28Z – codex – shell_pid=49444 – lane=doing – Started review via workflow command
