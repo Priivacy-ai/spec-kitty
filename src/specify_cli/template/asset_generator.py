@@ -9,7 +9,7 @@ from typing import Dict, Mapping
 
 import yaml
 
-from specify_cli.core.config import AGENT_COMMAND_CONFIG
+from specify_cli.core.agent_surface import get_agent_surface
 from specify_cli.template.renderer import parse_frontmatter, render_template, rewrite_paths
 
 
@@ -64,8 +64,8 @@ def prepare_command_templates(
 
 def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
     """Render every command template for the selected agent."""
-    config = AGENT_COMMAND_CONFIG[agent_key]
-    output_dir = project_path / config["dir"]
+    surface = get_agent_surface(agent_key)
+    output_dir = project_path / surface.wrapper.dir
     if output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -78,10 +78,10 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
             template_path,
             script_type,
             agent_key,
-            config["arg_format"],
-            config["ext"],
+            surface.wrapper.arg_format,
+            surface.wrapper.ext,
         )
-        ext = config["ext"]
+        ext = surface.wrapper.ext
         stem = template_path.stem
         if agent_key == "codex":
             stem = stem.replace("-", "_")
