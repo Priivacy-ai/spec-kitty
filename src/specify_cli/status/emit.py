@@ -12,7 +12,7 @@ Pipeline order (critical -- do not reorder):
     4. Create StatusEvent with ULID event_id
     5. store.append_event(feature_dir, event)
     6. reducer.materialize(feature_dir)
-    7. legacy_bridge.update_all_views(feature_dir, snapshot)  [try/except]
+    7. legacy_bridge.update_all_views(feature_dir, snapshot)  [non-critical]
     8. _saas_fan_out(event, feature_slug, repo_root)
     9. Return the event
 """
@@ -36,6 +36,7 @@ from .models import (
     VerificationResult,
 )
 from .transitions import resolve_lane_alias, validate_transition
+from .legacy_bridge import update_all_views as _update_all_views
 from . import store as _store
 from . import reducer as _reducer
 
@@ -285,14 +286,10 @@ def emit_status_transition(
         )
         snapshot = None
 
-    # Step 7: Update legacy bridge views (WP06 may not be merged yet)
+    # Step 7: Update legacy compatibility views
     if snapshot is not None:
         try:
-            from specify_cli.status.legacy_bridge import update_all_views
-
-            update_all_views(feature_dir, snapshot)
-        except ImportError:
-            pass  # WP06 not yet available
+            _update_all_views(feature_dir, snapshot)
         except Exception:
             logger.warning(
                 "Legacy bridge update failed for event %s; "
