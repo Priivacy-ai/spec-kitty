@@ -79,6 +79,7 @@ def _resolve_feature_context(
             cwd=cwd,
             env=env,
             mode="strict",
+            allow_latest_incomplete=True,
         )
     except Exception as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc

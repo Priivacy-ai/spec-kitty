@@ -1009,10 +1009,10 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_multiple_features_fall_back_to_latest_incomplete(
+    def test_multiple_features_require_explicit_selection(
         self, mock_is_worktree: Mock, tmp_path: Path
     ):
-        """Should use centralized latest-incomplete fallback when no feature is specified."""
+        """Mutating feature commands should not auto-select among multiple features."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
         mock_is_worktree.return_value = False
@@ -1033,9 +1033,8 @@ class TestFindFeatureDirectory:
                 encoding="utf-8",
             )
 
-        result = _find_feature_directory(tmp_path, tmp_path)
-
-        assert result == kitty_specs / "003-feature"
+        with pytest.raises(ValueError, match="Please specify explicitly"):
+            _find_feature_directory(tmp_path, tmp_path)
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
     def test_raises_error_when_no_features_in_main_repo(

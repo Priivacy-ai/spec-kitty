@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import subprocess
+import json
 from pathlib import Path
 
 import pytest
@@ -120,8 +121,27 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     subprocess.run(["git", "add", "."], cwd=project_dir, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Init"], cwd=project_dir, check=True, capture_output=True)
 
-    # Verify research mission active
-    result = run_cli(project_dir, "mission", "current")
+    # Create a feature so mission current has explicit feature context.
+    feature_slug = "001-research-test"
+    feature_dir = project_dir / "kitty-specs" / feature_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "feature_number": "001",
+                "slug": feature_slug,
+                "feature_slug": feature_slug,
+                "friendly_name": "Research Test",
+                "mission": "research",
+                "target_branch": "main",
+                "created_at": "2026-03-20T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    # Verify research mission active for the explicit feature.
+    result = run_cli(project_dir, "mission", "current", "--feature", feature_slug)
     assert result.returncode == 0
     assert "research" in result.stdout.lower()
 
