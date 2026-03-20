@@ -4,7 +4,7 @@ pytestmark = pytest.mark.git_repo
 
 Tests for the ops command.
 
-Tests operation history and undo functionality for both git and jj backends.
+Tests operation history and undo functionality for git backend.
 """
 
 import subprocess
@@ -16,7 +16,6 @@ from typer.testing import CliRunner
 
 from specify_cli.core.vcs import (
     GIT_CAPABILITIES,
-    JJ_CAPABILITIES,
     OperationInfo,
     VCSBackend,
 )
@@ -72,15 +71,6 @@ def mock_git_vcs():
 
 
 @pytest.fixture
-def mock_jj_vcs():
-    """Create a mock JujutsuVCS for testing."""
-    vcs = MagicMock()
-    vcs.backend = VCSBackend.JUJUTSU
-    vcs.capabilities = JJ_CAPABILITIES
-    return vcs
-
-
-@pytest.fixture
 def sample_operations():
     """Create sample operation info for testing."""
     now = datetime.now(UTC)
@@ -116,62 +106,35 @@ def sample_operations():
 
 
 # =============================================================================
-# Test: ops log for both backends
+# Test: ops log for git backend
 # =============================================================================
 
 
 class TestOpsLog:
     """Tests for ops log subcommand."""
 
-    @pytest.mark.parametrize(
-        "backend",
-        [
-            "git",
-            pytest.param("jj", marks=pytest.mark.xfail(reason="jj not installed in CI environment")),
-        ],
-    )
-    def test_ops_log_shows_history(self, runner, backend, sample_operations, tmp_path):
-        """ops log should show operation history for both backends."""
+    def test_ops_log_shows_history(self, runner, sample_operations, tmp_path):
+        """ops log should show operation history for git backend."""
         # Import here to allow patching
         from specify_cli.cli.commands import ops as ops_module
 
-        if backend == "git":
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.GIT
-            mock_vcs.capabilities = GIT_CAPABILITIES
+        mock_vcs = MagicMock()
+        mock_vcs.backend = VCSBackend.GIT
+        mock_vcs.capabilities = GIT_CAPABILITIES
 
-            with (
-                patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-                patch(
-                    "specify_cli.core.vcs.git.git_get_reflog",
-                    return_value=sample_operations,
-                ),
-                patch("os.getcwd", return_value=str(tmp_path)),
-            ):
-                result = runner.invoke(ops_module.app, ["log"])
+        with (
+            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
+            patch(
+                "specify_cli.core.vcs.git.git_get_reflog",
+                return_value=sample_operations,
+            ),
+            patch("os.getcwd", return_value=str(tmp_path)),
+        ):
+            result = runner.invoke(ops_module.app, ["log"])
 
-            assert result.exit_code == 0
-            assert "Operation History" in result.output
-            assert "git reflog" in result.output
-
-        else:  # jj
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.JUJUTSU
-            mock_vcs.capabilities = JJ_CAPABILITIES
-
-            with (
-                patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-                patch(
-                    "specify_cli.core.vcs.jujutsu.jj_get_operation_log",
-                    return_value=sample_operations,
-                ),
-                patch("os.getcwd", return_value=str(tmp_path)),
-            ):
-                result = runner.invoke(ops_module.app, ["log"])
-
-            assert result.exit_code == 0
-            assert "Operation History" in result.output
-            assert "jj" in result.output
+        assert result.exit_code == 0
+        assert "Operation History" in result.output
+        assert "git reflog" in result.output
 
     def test_ops_log_respects_limit(self, runner, sample_operations, tmp_path):
         """ops log should respect the --limit option."""
@@ -248,33 +211,12 @@ class TestOpsLog:
 
 
 # =============================================================================
-# Test: ops undo for jj
+# Test: ops undo for git
 # =============================================================================
 
 
 class TestOpsUndo:
     """Tests for ops undo subcommand."""
-
-    def test_ops_undo_works_for_jj(self, runner, tmp_path):
-        """ops undo should work for jj backend."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        with (
-            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-            patch(
-                "specify_cli.core.vcs.jujutsu.jj_undo_operation",
-                return_value=True,
-            ),
-            patch("os.getcwd", return_value=str(tmp_path)),
-        ):
-            result = runner.invoke(ops_module.app, ["undo"])
-
-        assert result.exit_code == 0
-        assert "Operation undone successfully" in result.output
 
     def test_ops_undo_fails_for_git(self, runner, tmp_path):
         """ops undo should fail gracefully for git backend."""
@@ -289,116 +231,6 @@ class TestOpsUndo:
         assert "git" in result.output.lower()
         # Should provide helpful alternatives
         assert "git reset" in result.output or "git revert" in result.output
-
-    def test_ops_undo_with_operation_id(self, runner, tmp_path):
-        """ops undo should accept an operation ID for jj."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        captured_op_id = None
-
-        def mock_undo(path, op_id=None):
-            nonlocal captured_op_id
-            captured_op_id = op_id
-            return True
-
-        with (
-            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-            patch(
-                "specify_cli.core.vcs.jujutsu.jj_undo_operation",
-                side_effect=mock_undo,
-            ),
-            patch("os.getcwd", return_value=str(tmp_path)),
-        ):
-            result = runner.invoke(ops_module.app, ["undo", "abc123"])
-
-        assert result.exit_code == 0
-        assert captured_op_id == "abc123"
-
-    def test_ops_undo_failure_shows_error(self, runner, tmp_path):
-        """ops undo should show error message when undo fails."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        with (
-            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-            patch(
-                "specify_cli.core.vcs.jujutsu.jj_undo_operation",
-                return_value=False,
-            ),
-            patch("os.getcwd", return_value=str(tmp_path)),
-        ):
-            result = runner.invoke(ops_module.app, ["undo"])
-
-        assert result.exit_code == 1
-        assert "Undo failed" in result.output
-
-
-# =============================================================================
-# Test: ops restore for jj
-# =============================================================================
-
-
-class TestOpsRestore:
-    """Tests for ops restore subcommand."""
-
-    def test_ops_restore_works_for_jj(self, runner, tmp_path):
-        """ops restore should work for jj backend."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stderr = ""
-
-        with (
-            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-            patch("subprocess.run", return_value=mock_result),
-            patch("os.getcwd", return_value=str(tmp_path)),
-        ):
-            result = runner.invoke(ops_module.app, ["restore", "abc123"])
-
-        assert result.exit_code == 0
-        assert "Restored successfully" in result.output
-
-    def test_ops_restore_fails_for_git(self, runner, tmp_path):
-        """ops restore should fail gracefully for git backend."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.GIT
-        mock_vcs.capabilities = GIT_CAPABILITIES
-
-        with patch.object(ops_module, "get_vcs", return_value=mock_vcs), patch("os.getcwd", return_value=str(tmp_path)):
-            result = runner.invoke(ops_module.app, ["restore", "abc123"])
-
-        assert result.exit_code == 1
-        assert "Restore not supported" in result.output
-        assert "git" in result.output.lower()
-
-    def test_ops_restore_requires_operation_id(self, runner, tmp_path):
-        """ops restore should require an operation ID."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        with patch.object(ops_module, "get_vcs", return_value=mock_vcs), patch("os.getcwd", return_value=str(tmp_path)):
-            result = runner.invoke(ops_module.app, ["restore"])
-
-        # Typer should report missing argument
-        assert result.exit_code != 0
-        assert "Missing argument" in result.output or "OPERATION_ID" in result.output
 
 
 # =============================================================================
@@ -470,40 +302,6 @@ class TestDisplayFormatting:
         # But truncated version should
         assert long_id[:12] in result.output
 
-    @pytest.mark.xfail(reason="jj not installed in CI environment")
-    def test_jj_shows_undoable_column(self, runner, tmp_path):
-        """jj backend should show Undoable column."""
-        from specify_cli.cli.commands import ops as ops_module
-
-        mock_vcs = MagicMock()
-        mock_vcs.backend = VCSBackend.JUJUTSU
-        mock_vcs.capabilities = JJ_CAPABILITIES
-
-        ops = [
-            OperationInfo(
-                operation_id="abc123",
-                description="Test operation",
-                timestamp=datetime.now(UTC),
-                heads=["abc123"],
-                working_copy_commit="abc123",
-                is_undoable=True,
-                parent_operation=None,
-            )
-        ]
-
-        with (
-            patch.object(ops_module, "get_vcs", return_value=mock_vcs),
-            patch(
-                "specify_cli.core.vcs.jujutsu.jj_get_operation_log",
-                return_value=ops,
-            ),
-            patch("os.getcwd", return_value=str(tmp_path)),
-        ):
-            result = runner.invoke(ops_module.app, ["log"])
-
-        assert result.exit_code == 0
-        assert "Undoable" in result.output
-
     def test_description_truncation(self, runner, tmp_path):
         """Long descriptions should be truncated."""
         from specify_cli.cli.commands import ops as ops_module
@@ -548,12 +346,7 @@ class TestDisplayFormatting:
 
 
 class TestIntegration:
-    """Integration tests using real git repository.
-
-    Note: These tests use mocking to force git backend because the auto-detection
-    may prefer jj if it's installed. For true integration tests, we mock just
-    the backend detection.
-    """
+    """Integration tests using real git repository."""
 
     def test_real_git_reflog(self, runner, git_repo):
         """Test ops log with real git repository."""
@@ -597,21 +390,3 @@ class TestIntegration:
         # Should suggest alternatives
         assert "git reset" in result.output or "git revert" in result.output
 
-    def test_real_git_restore_fails(self, runner, git_repo):
-        """Test that restore fails for git with helpful message."""
-        from specify_cli.cli.commands import ops as ops_module
-        from specify_cli.core.vcs.git import GitVCS
-
-        import os
-
-        original_dir = os.getcwd()
-        try:
-            os.chdir(git_repo)
-            # Force git backend for this test
-            with patch.object(ops_module, "get_vcs", return_value=GitVCS()):
-                result = runner.invoke(ops_module.app, ["restore", "abc123"])
-        finally:
-            os.chdir(original_dir)
-
-        assert result.exit_code == 1
-        assert "Restore not supported" in result.output

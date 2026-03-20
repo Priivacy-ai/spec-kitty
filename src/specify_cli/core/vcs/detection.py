@@ -3,11 +3,7 @@ VCS Detection Module
 ====================
 
 This module provides tool detection and the get_vcs() factory function.
-It detects which VCS tools (git, jj) are available and returns the
-appropriate implementation.
-
-See kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py
-for the factory function contract.
+It detects whether git is available and returns the appropriate implementation.
 """
 
 from __future__ import annotations
@@ -36,35 +32,6 @@ if TYPE_CHECKING:
 
 
 @lru_cache(maxsize=1)
-def is_jj_available() -> bool:
-    """
-    Check if jj is installed and working.
-
-    DISABLED: jj colocated mode is incompatible with sparse checkouts.
-    This function now always returns False to prevent jj detection.
-
-    Returns:
-        False (jj detection disabled)
-    """
-    # DISABLED: jj is not compatible with sparse checkouts
-    # Keeping function signature for VCS abstraction layer compatibility
-    return False
-
-    # Original implementation (commented out for reference):
-    # if shutil.which("jj") is None:
-    #     return False
-    # try:
-    #     result = subprocess.run(
-    #         ["jj", "--version"],
-    #         capture_output=True,
-    #         timeout=5,
-    #     )
-    #     return result.returncode == 0
-    # except (subprocess.TimeoutExpired, OSError):
-    #     return False
-
-
-@lru_cache(maxsize=1)
 def is_git_available() -> bool:
     """
     Check if git is installed and working.
@@ -83,20 +50,6 @@ def is_git_available() -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
-
-
-@lru_cache(maxsize=1)
-def get_jj_version() -> str | None:
-    """
-    Get installed jj version, or None if not installed.
-
-    DISABLED: jj detection is disabled (incompatible with sparse checkouts).
-
-    Returns:
-        None (jj detection disabled)
-    """
-    # DISABLED: jj is not compatible with sparse checkouts
-    return None
 
 
 @lru_cache(maxsize=1)
@@ -138,11 +91,9 @@ def detect_available_backends() -> list[VCSBackend]:
     Detect which VCS tools are installed and available.
 
     Returns:
-        List of available backends, in preference order (jj first if available).
+        List of available backends.
     """
     backends = []
-    if is_jj_available():
-        backends.append(VCSBackend.JUJUTSU)
     if is_git_available():
         backends.append(VCSBackend.GIT)
     return backends
@@ -240,16 +191,7 @@ def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
     Raises:
         VCSNotFoundError: If the requested backend is not available.
     """
-    if backend == VCSBackend.JUJUTSU:
-        if not is_jj_available():
-            raise VCSNotFoundError(
-                "jj is not available. Install jj from https://github.com/martinvonz/jj"
-            )
-        # Lazy import to avoid circular imports
-        from .jujutsu import JujutsuVCS
-
-        return JujutsuVCS()
-    elif backend == VCSBackend.GIT:
+    if backend == VCSBackend.GIT:
         if not is_git_available():
             raise VCSNotFoundError("git is not available. Please install git.")
         # Lazy import to avoid circular imports
@@ -263,7 +205,6 @@ def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
 def get_vcs(
     path: Path,
     backend: VCSBackend | None = None,
-    prefer_jj: bool = True,
 ) -> "VCSProtocol":
     """
     Factory function to get appropriate VCS implementation.
@@ -271,21 +212,19 @@ def get_vcs(
     Args:
         path: Path within a repository or feature directory.
         backend: Explicit backend choice (None = auto-detect).
-        prefer_jj: If auto-detecting, prefer jj over git when both available.
 
     Returns:
-        VCSProtocol implementation (GitVCS or JujutsuVCS).
+        VCSProtocol implementation (GitVCS).
 
     Raises:
-        VCSNotFoundError: Neither jj nor git available.
+        VCSNotFoundError: Git is not available.
         VCSBackendMismatchError: Requested backend doesn't match feature's locked VCS.
 
     Detection order:
         1. If backend specified, use that
         2. If path is in a feature, read meta.json for locked VCS
-        3. If jj available and prefer_jj=True, use jj
-        4. If git available, use git
-        5. Raise VCSNotFoundError
+        3. If git available, use git
+        4. Raise VCSNotFoundError
     """
     # 1. If explicit backend specified, use that
     if backend is not None:
@@ -305,13 +244,6 @@ def get_vcs(
         return _instantiate_backend(locked)
 
     # 3. Auto-detect based on availability
-    # DISABLED: jj detection disabled (incompatible with sparse checkouts)
-    # if prefer_jj and is_jj_available():
-    #     # Lazy import to avoid circular imports
-    #     from .jujutsu import JujutsuVCS
-    #
-    #     return JujutsuVCS()
-
     if is_git_available():
         # Lazy import to avoid circular imports
         from .git import GitVCS
@@ -334,10 +266,7 @@ def _clear_detection_cache() -> None:
     """
     Clear the detection cache. For testing purposes only.
 
-    This clears the cached results of is_jj_available, is_git_available,
-    get_jj_version, and get_git_version.
+    This clears the cached results of is_git_available and get_git_version.
     """
-    is_jj_available.cache_clear()
     is_git_available.cache_clear()
-    get_jj_version.cache_clear()
     get_git_version.cache_clear()

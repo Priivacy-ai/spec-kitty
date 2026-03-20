@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -14,8 +13,6 @@ from specify_cli.cli.commands.merge import (
     find_wp_worktrees,
     validate_wp_ready_for_merge,
 )
-from specify_cli.core.vcs import VCSBackend
-from specify_cli.core.vcs.exceptions import VCSNotFoundError
 
 pytestmark = pytest.mark.git_repo
 
@@ -572,64 +569,3 @@ class TestEffectiveMergePlanning:
         assert "010-test-feature-WP03" not in result.stdout
 
 
-class TestVCSAbstractionIntegration:
-    """Tests for VCS abstraction layer integration requiring real repos.
-
-    Simple detection tests are in test_merge_workspace_per_wp_unit.py.
-    These tests cover jj-specific scenarios (xfail when jj not installed).
-    """
-
-    @pytest.mark.xfail(reason="jj not installed in CI environment")
-    def test_merge_detects_jj_backend_when_jj_present(self, git_repo: Path):
-        """Test that merge command detects jj backend when .jj exists."""
-        # Create .jj directory to simulate jj repo
-        (git_repo / ".jj").mkdir()
-
-        from specify_cli.core.vcs import detection
-
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=True):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(git_repo)
-            assert vcs.backend == VCSBackend.JUJUTSU
-
-    @pytest.mark.xfail(reason="jj not installed in CI environment")
-    def test_merge_handles_vcs_detection_failure_gracefully(self, tmp_path: Path):
-        """Test that merge handles VCS detection failure gracefully."""
-        # Create directory without git or jj
-        test_dir = tmp_path / "not_a_repo"
-        test_dir.mkdir()
-
-        from specify_cli.core.vcs import detection
-
-        detection.is_jj_available.cache_clear()
-        detection.is_git_available.cache_clear()
-
-        with (
-            patch.object(detection, "is_jj_available", return_value=False),
-            patch.object(detection, "is_git_available", return_value=False),
-        ):
-            from specify_cli.core.vcs import get_vcs
-
-            # Detection should raise an error when no VCS available
-            with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
-                get_vcs(test_dir)
-
-    @pytest.mark.xfail(reason="jj not installed in CI environment")
-    def test_vcs_detection_prefers_jj_in_colocated_mode(self, git_repo: Path):
-        """Test that jj is preferred over git when both .jj and .git exist."""
-        # Create .jj directory (simulating colocated mode)
-        (git_repo / ".jj").mkdir()
-
-        from specify_cli.core.vcs import detection
-
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=True):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(git_repo)
-            # In colocated mode, jj should be preferred
-            assert vcs.backend == VCSBackend.JUJUTSU

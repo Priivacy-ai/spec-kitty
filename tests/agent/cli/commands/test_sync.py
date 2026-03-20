@@ -14,7 +14,6 @@ from specify_cli.cli.commands.sync import (
     _display_changes_integrated,
     _display_conflicts,
     _git_repair,
-    _jj_repair,
     app as sync_app,
     sync_server,
     sync_workspace,
@@ -163,41 +162,11 @@ class TestRepairFunctions:
 
             assert result is False
 
-    def test_jj_repair_success(self, tmp_path):
-        """Test successful jj repair."""
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0)
 
-            result = _jj_repair(tmp_path)
-
-            assert result is True
-
-    def test_jj_repair_fallback_to_update_stale(self, tmp_path):
-        """Test jj repair falls back to update-stale."""
-        with patch("subprocess.run") as mock_run:
-            # First call (jj undo) fails, second (update-stale) succeeds
-            mock_run.side_effect = [
-                MagicMock(returncode=1),  # undo fails
-                MagicMock(returncode=0),  # update-stale succeeds
-            ]
-
-            result = _jj_repair(tmp_path)
-
-            assert result is True
-            assert mock_run.call_count == 2
-
-
-@pytest.mark.parametrize(
-    "backend",
-    [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ],
-)
 class TestSyncCommand:
     """Tests for sync command."""
 
-    def test_sync_up_to_date(self, tmp_path, backend):
+    def test_sync_up_to_date(self, tmp_path):
         """Test sync when already up to date."""
         # Setup worktree path
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -208,7 +177,7 @@ class TestSyncCommand:
             patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
         ):
             mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.backend = VCSBackend.GIT
             mock_vcs.sync_workspace.return_value = SyncResult(
                 status=SyncStatus.UP_TO_DATE,
                 conflicts=[],
@@ -225,7 +194,7 @@ class TestSyncCommand:
 
             mock_vcs.sync_workspace.assert_called_once()
 
-    def test_sync_with_changes(self, tmp_path, backend):
+    def test_sync_with_changes(self, tmp_path):
         """Test sync with changes to integrate."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
@@ -235,7 +204,7 @@ class TestSyncCommand:
             patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
         ):
             mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.backend = VCSBackend.GIT
             mock_vcs.sync_workspace.return_value = SyncResult(
                 status=SyncStatus.SYNCED,
                 conflicts=[],
@@ -254,45 +223,6 @@ class TestSyncCommand:
 
 class TestSyncWithConflicts:
     """Tests for conflict handling in sync."""
-
-    @pytest.mark.jj
-    def test_sync_with_conflicts_jj_succeeds(self, tmp_path):
-        """Test jj sync succeeds even with conflicts."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
-        worktree.mkdir(parents=True)
-
-        with (
-            patch("pathlib.Path.cwd", return_value=worktree),
-            patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
-        ):
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.JUJUTSU
-            mock_vcs.sync_workspace.return_value = SyncResult(
-                status=SyncStatus.CONFLICTS,
-                conflicts=[
-                    ConflictInfo(
-                        file_path=Path("src/test.py"),
-                        conflict_type=ConflictType.CONTENT,
-                        line_ranges=[(10, 20)],
-                        sides=2,
-                        is_resolved=False,
-                        our_content=None,
-                        their_content=None,
-                        base_content=None,
-                    )
-                ],
-                files_updated=3,
-                files_added=0,
-                files_deleted=0,
-                changes_integrated=[],
-                message="Synced with conflicts",
-            )
-            mock_get_vcs.return_value = mock_vcs
-
-            # jj: sync completes without raising
-            sync_workspace(repair=False)
-
-            mock_vcs.sync_workspace.assert_called_once()
 
     def test_sync_with_conflicts_git_reports(self, tmp_path):
         """Test git sync reports conflicts (may fail)."""
@@ -337,14 +267,7 @@ class TestSyncWithConflicts:
 class TestSyncRepair:
     """Tests for --repair flag."""
 
-    @pytest.mark.parametrize(
-        "backend",
-        [
-            "git",
-            pytest.param("jj", marks=pytest.mark.jj),
-        ],
-    )
-    def test_repair_success(self, tmp_path, backend):
+    def test_repair_success(self, tmp_path):
         """Test successful repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
@@ -354,25 +277,17 @@ class TestSyncRepair:
             patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
         ):
             mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.backend = VCSBackend.GIT
             mock_get_vcs.return_value = mock_vcs
 
-            repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
-            with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
+            with patch("specify_cli.cli.commands.sync._git_repair") as mock_repair:
                 mock_repair.return_value = True
 
                 sync_workspace(repair=True)
 
                 mock_repair.assert_called_once()
 
-    @pytest.mark.parametrize(
-        "backend",
-        [
-            "git",
-            pytest.param("jj", marks=pytest.mark.jj),
-        ],
-    )
-    def test_repair_failure(self, tmp_path, backend):
+    def test_repair_failure(self, tmp_path):
         """Test failed repair."""
         worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         worktree.mkdir(parents=True)
@@ -382,11 +297,10 @@ class TestSyncRepair:
             patch("specify_cli.cli.commands.sync.get_vcs") as mock_get_vcs,
         ):
             mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend(backend)
+            mock_vcs.backend = VCSBackend.GIT
             mock_get_vcs.return_value = mock_vcs
 
-            repair_func = "_jj_repair" if backend == "jj" else "_git_repair"
-            with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
+            with patch("specify_cli.cli.commands.sync._git_repair") as mock_repair:
                 mock_repair.return_value = False
 
                 with pytest.raises(typer.Exit) as exc:

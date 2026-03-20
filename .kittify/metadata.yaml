@@ -42,10 +42,7 @@ migrations:
       012-documentation-mission: normalized 10 work package files; 013-fix-and-test-dashboard:
       wrote baseline meta.json; 013-fix-and-test-dashboard: normalized 1 work package
       files; 014-comprehensive-end-user-documentation: wrote baseline meta.json; 014-comprehensive-end-user-documentation:
-      normalized 10 work package files; 015-first-class-jujutsu-vcs-integration: wrote
-      baseline meta.json; 015-first-class-jujutsu-vcs-integration: normalized 9 work
-      package files; 016-jujutsu-vcs-documentation: wrote baseline meta.json; 016-jujutsu-vcs-documentation:
-      normalized 6 work package files; 017-smarter-feature-merge-with-preflight: wrote
+      normalized 10 work package files; 017-smarter-feature-merge-with-preflight: wrote
       baseline meta.json; 017-smarter-feature-merge-with-preflight: normalized 6 work
       package files; 018-merge-preflight-documentation: wrote baseline meta.json;
       018-merge-preflight-documentation: normalized 4 work package files; 019-autonomous-multi-agent-orchestration-research:

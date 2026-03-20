@@ -31,7 +31,7 @@
   - Changes to .kittify/ or kitty-specs/ directory structure
   - Changes to .worktrees/ model (stays in project directory)
   - Non-agent configuration files
-  - Jujutsu (jj) vs Git VCS considerations (orthogonal concern)
+  - VCS considerations (orthogonal concern)
 
 - **Boundaries**:
   - Current Spec Kitty architecture (v0.15.0+ codebase)

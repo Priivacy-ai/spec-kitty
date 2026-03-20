@@ -185,7 +185,7 @@ Given that feature description, do this:
 
    **CRITICAL**: Always set these fields explicitly:
    - `target_branch`: Set to "main" by default (user can change to "2.x" for dual-branch features)
-   - `vcs`: Set to "git" by default (enables VCS locking and prevents jj fallback)
+   - `vcs`: Set to "git" (enables VCS locking)
 
 6. Generate the specification content by following this flow:
     - Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`)

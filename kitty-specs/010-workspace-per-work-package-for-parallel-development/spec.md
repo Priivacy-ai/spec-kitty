@@ -345,7 +345,7 @@ Transform Spec Kitty's workspace model from "one worktree per feature" to "one w
 
 ### Technical Constraints
 
-- **Git only**: This feature uses git worktree operations exclusively. jj workspace support is deferred to future VCS abstraction feature.
+- **Git only**: This feature uses git worktree operations exclusively.
 - **No concurrency control**: Multiple agents creating workspaces simultaneously could have race conditions. Acceptable risk as agents typically coordinate work assignment.
 - **Filesystem-based coordination**: No distributed locking or coordination mechanism. Relies on filesystem and git's atomic operations.
 

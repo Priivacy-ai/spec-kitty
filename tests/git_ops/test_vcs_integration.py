@@ -1,16 +1,13 @@
-"""Scope: git_repo integration tests for VCS abstraction layer — git and jj backends."""
+"""Scope: git_repo integration tests for VCS abstraction layer — git backend."""
 
 import subprocess
-from unittest.mock import patch
 
 import pytest
 
 from specify_cli.core.vcs import (
     GIT_CAPABILITIES,
-    JJ_CAPABILITIES,
     VCSBackend,
     get_vcs,
-    is_jj_available,
 )
 from specify_cli.core.vcs import detection
 
@@ -20,11 +17,9 @@ pytestmark = pytest.mark.git_repo
 @pytest.fixture(autouse=True)
 def clear_detection_cache():
     """Clear detection caches before each test."""
-    detection.is_jj_available.cache_clear()
     detection.is_git_available.cache_clear()
     yield
     # Clear again after test
-    detection.is_jj_available.cache_clear()
     detection.is_git_available.cache_clear()
 
 
@@ -35,11 +30,7 @@ def clear_detection_cache():
 
 @pytest.fixture
 def git_repo(tmp_path):
-    """Create a minimal git repository for testing.
-
-    Note: Tests using this fixture must also use mock_git_only to ensure
-    jj is not detected (since jj may be installed on the test machine).
-    """
+    """Create a minimal git repository for testing."""
     subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
@@ -67,49 +58,8 @@ def git_repo(tmp_path):
 
 @pytest.fixture
 def mock_git_only():
-    """Mock is_jj_available to return False, forcing git detection."""
-    with patch.object(detection, "is_jj_available", return_value=False):
-        yield
-
-
-@pytest.fixture
-def jj_repo(tmp_path):
-    """Create a minimal jj repository for testing (colocated with git)."""
-    # First init git
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=tmp_path,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=tmp_path,
-        capture_output=True,
-    )
-
-    # Create initial commit
-    test_file = tmp_path / "README.md"
-    test_file.write_text("# Test Repo\n")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Initial commit"],
-        cwd=tmp_path,
-        capture_output=True,
-    )
-
-    # Init jj on top of git (colocated)
-    if is_jj_available():
-        result = subprocess.run(
-            ["jj", "git", "init", "--colocate"],
-            cwd=tmp_path,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            pytest.skip("jj init failed")
-
-    return tmp_path
+    """Ensure only git detection is used (no-op now that jj is removed)."""
+    yield
 
 
 # =============================================================================
@@ -127,21 +77,11 @@ class TestVCSDetection:
         assert vcs.backend == VCSBackend.GIT
         assert vcs.is_repo(git_repo)
 
-    @pytest.mark.skipif(not is_jj_available(), reason="jj not installed")
-    def test_detect_jj_repo(self, jj_repo):
-        """Should detect jj repository correctly."""
-        vcs = get_vcs(jj_repo)
-        # In colocated mode, should prefer jj
-        assert vcs.backend == VCSBackend.JUJUTSU
-        assert vcs.is_repo(jj_repo)
-
     def test_capabilities_match_backend(self, git_repo, mock_git_only):
         """Capabilities should match backend type."""
         vcs = get_vcs(git_repo)
-        if vcs.backend == VCSBackend.GIT:
-            assert vcs.capabilities == GIT_CAPABILITIES
-        else:
-            assert vcs.capabilities == JJ_CAPABILITIES
+        assert vcs.backend == VCSBackend.GIT
+        assert vcs.capabilities == GIT_CAPABILITIES
 
 
 # =============================================================================
@@ -165,7 +105,7 @@ class TestWorkspaceCreation:
 
         assert result.success, f"Create failed: {result.error}"
         assert workspace_path.exists()
-        assert (workspace_path / ".git").exists() or (workspace_path / ".jj").exists()
+        assert (workspace_path / ".git").exists()
 
     def test_create_workspace_with_base_branch(self, git_repo, mock_git_only):
         """Should create workspace from base branch."""
@@ -335,16 +275,6 @@ class TestOperationHistory:
         assert len(operations) >= 3
         # Should have commit operations
         assert any("commit" in op.description.lower() for op in operations)
-
-    @pytest.mark.skipif(not is_jj_available(), reason="jj not installed")
-    def test_jj_operation_log(self, jj_repo):
-        """jj_get_operation_log should return operation history."""
-        from specify_cli.core.vcs.jujutsu import jj_get_operation_log
-
-        operations = jj_get_operation_log(jj_repo, limit=10)
-
-        # Should have at least the init operation
-        assert len(operations) >= 1
 
 
 # =============================================================================

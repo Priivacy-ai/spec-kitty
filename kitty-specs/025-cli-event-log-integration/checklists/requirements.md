@@ -38,7 +38,7 @@ All critical checklist items passed. Specification is complete, unambiguous, and
 ### Technical Details Justification
 This is a **technical infrastructure feature** where the "what" (integrate event sourcing library) is inherently technical. The success criteria are now user-focused (developer experience), but functional requirements necessarily mention specific technologies (JSONL storage, Lamport clocks, CRDT merge rules) because that IS what the feature delivers.
 
-Compare to Feature 015 (Jujutsu Integration): similarly technical feature where mentioning "jj" and "git" is unavoidable because the feature IS about integrating those tools.
+Compare to a technical infrastructure feature where mentioning specific tools is unavoidable because the feature IS about integrating those tools.
 
 ### Next Steps
 ✅ Ready for `/spec-kitty.plan` - no spec updates required

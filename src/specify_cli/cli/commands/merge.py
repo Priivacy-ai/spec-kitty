@@ -1,7 +1,6 @@
 """Merge command implementation.
 
 Merges completed work packages into target branch with VCS abstraction support.
-Supports both git and jujutsu backends through the VCS abstraction layer.
 """
 
 from __future__ import annotations

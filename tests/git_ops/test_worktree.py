@@ -834,44 +834,6 @@ class TestExcludeFromGit:
         marker_count = content.count("# Added by spec-kitty (worktree symlinks)")
         assert marker_count == 1
 
-    def test_handles_jj_workspace_without_git(self, tmp_path: Path):
-        """Should gracefully skip jj workspaces that don't have .git (pure jj mode).
-
-        jj workspaces use .jj/ directory, not .git/. The symlink commit issue
-        (#79) is git-specific, so we should gracefully skip jj workspaces.
-        """
-        # Setup: jj workspace with only .jj/ (no .git/)
-        workspace = tmp_path / "jj_workspace"
-        workspace.mkdir()
-        (workspace / ".jj").mkdir()  # jj marker, no .git
-
-        # Execute: Should not raise, should not create any exclude file
-        _exclude_from_git(workspace, [".kittify/memory", ".kittify/AGENTS.md"])
-
-        # Verify: No .git/info/exclude created (because no .git)
-        assert not (workspace / ".git").exists()
-
-    def test_handles_jj_colocated_mode(self, tmp_path: Path):
-        """Should work correctly in jj colocated mode (both .jj/ and .git/).
-
-        In colocated mode, jj and git coexist. The .git/ directory exists,
-        so exclusions should be applied to prevent git from committing symlinks.
-        """
-        # Setup: Colocated repo with both .jj/ and .git/
-        repo = tmp_path / "colocated"
-        repo.mkdir()
-        (repo / ".jj").mkdir()  # jj marker
-        (repo / ".git").mkdir()  # git marker (directory, not worktree)
-
-        # Execute
-        _exclude_from_git(repo, [".kittify/memory"])
-
-        # Verify: Exclusions applied to git
-        exclude_file = repo / ".git" / "info" / "exclude"
-        assert exclude_file.exists()
-        content = exclude_file.read_text()
-        assert ".kittify/memory" in content
-
     def test_integration_with_setup_feature_directory(self, tmp_path: Path):
         """Should be called by setup_feature_directory to exclude symlinks."""
         # Setup: Git repo with worktree structure

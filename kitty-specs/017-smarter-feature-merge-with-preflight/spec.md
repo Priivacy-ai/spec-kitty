@@ -188,7 +188,7 @@ As a developer whose merge was interrupted (context compaction, network failure,
 
 ## Assumptions
 
-- Git is the VCS in use (jj-specific optimizations are out of scope for this feature)
+- Git is the VCS in use
 - The existing `spec-kitty merge` command structure and CLI framework (typer) will be preserved
 - WP frontmatter format remains stable and parseable for dependency extraction
 - Users are willing to adopt `--single` flag if they need the old single-WP behavior

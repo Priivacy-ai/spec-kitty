@@ -23,7 +23,6 @@ from specify_cli.core.vcs import (
     ConflictInfo,
     SyncResult,
     SyncStatus,
-    VCSBackend,
     get_vcs,
 )
 
@@ -239,7 +238,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
     # Show resolution hints
     console.print("\n[dim]To resolve conflicts:[/dim]")
     console.print("[dim]  1. Edit the conflicted files to resolve markers[/dim]")
-    console.print("[dim]  2. Continue your work (jj) or commit resolution (git)[/dim]")
+    console.print("[dim]  2. Commit the resolution (git)[/dim]")
 
 
 def _git_repair(workspace_path: Path) -> bool:
@@ -287,49 +286,6 @@ def _git_repair(workspace_path: Path) -> bool:
         return False
 
 
-def _jj_repair(workspace_path: Path) -> bool:
-    """Attempt jj workspace recovery via operation undo.
-
-    Jujutsu has much better recovery capabilities via the operation log.
-    This function tries to undo the last operation.
-
-    Returns:
-        True if recovery succeeded, False otherwise
-    """
-    try:
-        # Try to undo the last operation
-        result = subprocess.run(
-            ["jj", "undo"],
-            cwd=workspace_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=30,
-        )
-
-        if result.returncode == 0:
-            return True
-
-        # If undo fails, try to update the workspace
-        result = subprocess.run(
-            ["jj", "workspace", "update-stale"],
-            cwd=workspace_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=30,
-        )
-
-        return result.returncode == 0
-
-    except (subprocess.TimeoutExpired, OSError):
-        return False
-
-
 @app.command(name="workspace")
 def sync_workspace(
     repair: bool = typer.Option(
@@ -348,13 +304,9 @@ def sync_workspace(
     """Synchronize workspace with upstream changes.
 
     Updates the current workspace with changes from its base branch or parent.
-    This is equivalent to:
-    - git: `git rebase <base-branch>`
-    - jj: `jj workspace update-stale` + auto-rebase
+    This is equivalent to `git rebase <base-branch>`.
 
-    Key difference between VCS backends:
-    - git: Sync may FAIL on conflicts (must resolve before continuing)
-    - jj: Sync always SUCCEEDS (conflicts stored, resolve later)
+    Sync may FAIL on conflicts (must resolve before continuing).
 
     Examples:
         # Sync current workspace
@@ -395,10 +347,7 @@ def sync_workspace(
         console.print("[dim]Note: This may lose uncommitted work[/dim]")
         console.print()
 
-        if vcs.backend == VCSBackend.JUJUTSU:
-            success = _jj_repair(workspace_path)
-        else:
-            success = _git_repair(workspace_path)
+        success = _git_repair(workspace_path)
 
         if success:
             console.print("[green]✓ Recovery successful[/green]")
@@ -407,16 +356,10 @@ def sync_workspace(
             console.print("[red]✗ Recovery failed[/red]")
             console.print("Manual intervention may be required.")
             console.print()
-            if vcs.backend == VCSBackend.GIT:
-                console.print("[dim]Try these commands manually:[/dim]")
-                console.print("  git status")
-                console.print("  git rebase --abort")
-                console.print("  git reset --hard HEAD")
-            else:
-                console.print("[dim]Try these commands manually:[/dim]")
-                console.print("  jj status")
-                console.print("  jj op log")
-                console.print("  jj undo")
+            console.print("[dim]Try these commands manually:[/dim]")
+            console.print("  git status")
+            console.print("  git rebase --abort")
+            console.print("  git reset --hard HEAD")
             raise typer.Exit(1)
 
         return
@@ -451,14 +394,8 @@ def sync_workspace(
             console.print(f"[dim]{result.message}[/dim]")
 
     elif result.status == SyncStatus.CONFLICTS:
-        # jj: This means sync succeeded but there are conflicts to resolve
         console.print("\n[yellow]⚠ Synced with conflicts[/yellow]")
-
-        if vcs.backend == VCSBackend.JUJUTSU:
-            console.print("[dim]Conflicts are stored in the commit.[/dim]")
-            console.print("[dim]You can continue working and resolve later.[/dim]")
-        else:
-            console.print("[dim]You must resolve conflicts before continuing.[/dim]")
+        console.print("[dim]You must resolve conflicts before continuing.[/dim]")
 
         _display_conflicts(result.conflicts)
 

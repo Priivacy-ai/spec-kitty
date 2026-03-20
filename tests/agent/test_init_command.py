@@ -148,92 +148,6 @@ def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.
 # =============================================================================
 
 
-def test_init_with_jj_shows_confirmation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Init should show 'git detected' message (jj no longer supported)."""
-    app, console, outputs = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        pass
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
-
-    # Git available (jj support removed)
-    with patch.object(init_module, "is_git_available", return_value=True):
-        runner = CliRunner()
-        result = runner.invoke(
-            app,
-            [
-                "init",
-                "git-project",
-                "--ai",
-                "claude",
-                "--script",
-                "sh",
-                "--no-git",
-                "--non-interactive",
-            ],
-        )
-
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    # Check the Rich console output (not CliRunner output)
-    console_output = console.file.getvalue()
-    assert "git detected" in console_output
-
-
-def test_init_without_jj_shows_recommendation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Init should work with git (jj no longer supported)."""
-    app, console, outputs = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        pass
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
-
-    # Git available (jj support removed)
-    with patch.object(init_module, "is_git_available", return_value=True):
-        runner = CliRunner()
-        result = runner.invoke(
-            app,
-            [
-                "init",
-                "git-project",
-                "--ai",
-                "claude",
-                "--script",
-                "sh",
-                "--no-git",
-                "--non-interactive",
-            ],
-        )
-
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    # Check the Rich console output (not CliRunner output)
-    console_output = console.file.getvalue()
-    assert "git detected" in console_output
-
-
 def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Init should create config.yaml with git vcs section."""
     app, console, outputs = cli_app
@@ -254,7 +168,7 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
     monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
 
-    # Git available (jj support removed)
+    # Git available
     with patch.object(init_module, "is_git_available", return_value=True):
         runner = CliRunner()
         result = runner.invoke(

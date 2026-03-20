@@ -30,7 +30,7 @@ Spec-kitty is a **Specification-Driven Development** tool where "specification" 
 - Cannot grep for 2.x features: `grep -r '"target_branch": "2.x"'` finds nothing
 - Violates SDD principle: "Specification should be explicit, not implicit"
 - When get_feature_target_branch() defaults to "main", users don't know if it's explicit or fallback
-- VCS fallback logic (git → jj) is invisible
+- VCS fallback logic is invisible
 
 **Question:** Should configuration fields ALWAYS be set explicitly in meta.json, even if they match defaults?
 
@@ -67,7 +67,7 @@ Spec-kitty is a **Specification-Driven Development** tool where "specification" 
 * **Clarity** - No hidden defaults or magic behavior
 * **Dual-branch** - `grep -r '"target_branch": "2.x"'` finds SaaS features
 * **SDD compliance** - Specification is explicit and visible
-* **VCS transparency** - Can see if git or jj was chosen
+* **VCS transparency** - Can see the VCS choice explicitly
 * **Audit trail** - Git history shows when fields were added/changed
 
 #### Negative
