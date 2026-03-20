@@ -14,7 +14,7 @@ subtasks:
 - T018
 phase: Phase 2 - Hardening
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "94470"
 review_status: ''
 reviewed_by: ''
@@ -215,3 +215,4 @@ Run: `pytest tests/ -k "runtime_bridge or workspace_context or constitution or d
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T14:00:40Z – coordinator – shell_pid=94470 – lane=doing – Assigned agent via workflow command
