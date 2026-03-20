@@ -15,6 +15,7 @@ import json
 from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
+from specify_cli import app as root_app
 
 import pytest
 
@@ -195,3 +196,74 @@ class TestValidCommandsStillWork:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+
+# ---------------------------------------------------------------------------
+# Root CLI path: orchestrator-api invoked through the real root CLI app
+# ---------------------------------------------------------------------------
+
+class TestRootCLIPath:
+    """Invoke orchestrator-api commands through the root CLI app.
+
+    The existing test classes above invoke the orchestrator-api sub-app
+    directly. This class exercises the NESTED dispatch path through the
+    root ``spec-kitty`` CLI -- the exact path that external orchestrators
+    use and the path that was broken in Issue #304 / GH issue #3.
+    """
+
+    # -- T005: success tests ------------------------------------------------
+
+    def test_contract_version_success_through_root(self):
+        """contract-version through root CLI produces valid JSON envelope."""
+        result = runner.invoke(root_app, ["orchestrator-api", "contract-version"])
+        assert result.exit_code == 0, result.output
+        data = _parse_envelope(result.output)
+        assert data["success"] is True
+        assert data["error_code"] is None
+        assert data["data"]["api_version"] is not None
+
+    def test_contract_version_with_provider_through_root(self):
+        """contract-version with --provider-version through root CLI."""
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "contract-version",
+            "--provider-version", "0.1.0",
+        ])
+        assert result.exit_code == 0, result.output
+        data = _parse_envelope(result.output)
+        assert data["success"] is True
+
+    # -- T006: error tests (regression for Issue #304) ----------------------
+
+    def test_unknown_flag_through_root(self):
+        """Unknown flag through root CLI must return USAGE_ERROR JSON, not prose.
+
+        This is the definitive regression test for Issue #304.
+        """
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "contract-version", "--bogus",
+        ])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="--bogus")
+
+    def test_unknown_subcommand_through_root(self):
+        """Unknown subcommand through root CLI must return USAGE_ERROR JSON."""
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "nonexistent-command",
+        ])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="nonexistent-command")
+
+    def test_missing_required_args_through_root(self):
+        """Missing required args through root CLI must return USAGE_ERROR JSON."""
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "feature-state",
+        ])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="--feature")
+
+    def test_json_flag_rejected_through_root(self):
+        """--json flag through root CLI must return USAGE_ERROR (no such flag)."""
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "contract-version", "--json",
+        ])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="--json")
