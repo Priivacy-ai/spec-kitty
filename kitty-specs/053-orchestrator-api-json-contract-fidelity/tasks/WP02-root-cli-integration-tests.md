@@ -1,9 +1,12 @@
 ---
 work_package_id: WP02
 title: Root CLI Integration Tests
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 053-orchestrator-api-json-contract-fidelity-WP01
+base_commit: 7708b81c62d62488da9bfbed3873576d901b1771
+created_at: '2026-03-20T12:44:50.117054+00:00'
 subtasks:
 - T005
 - T006
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 2 - Verification
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "55395"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
