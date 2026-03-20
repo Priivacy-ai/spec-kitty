@@ -16,7 +16,7 @@ subtasks:
 - T007
 phase: Phase 1 - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "29009"
 review_status: ''
 reviewed_by: ''
@@ -356,3 +356,4 @@ def test_wrapper_dir_consistency(agent_key):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T16:38:57Z – coordinator – shell_pid=29009 – lane=doing – Assigned agent via workflow command
