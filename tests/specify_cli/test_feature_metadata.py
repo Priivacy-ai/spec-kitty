@@ -9,10 +9,10 @@ from unittest.mock import patch
 
 import pytest
 
+from specify_cli.core.atomic import atomic_write
 from specify_cli.feature_metadata import (
     HISTORY_CAP,
     REQUIRED_FIELDS,
-    _atomic_write,
     finalize_merge,
     load_meta,
     record_acceptance,
@@ -28,6 +28,7 @@ from specify_cli.feature_metadata import (
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
@@ -234,7 +235,7 @@ class TestWriteMeta:
         _write_meta_file(tmp_path, _minimal_meta())
 
         with (
-            patch("specify_cli.feature_metadata.os.replace", side_effect=OSError("boom")),
+            patch("specify_cli.core.atomic.os.replace", side_effect=OSError("boom")),
             pytest.raises(OSError, match="boom"),
         ):
             write_meta(tmp_path, _minimal_meta())
@@ -244,33 +245,33 @@ class TestWriteMeta:
         assert original == _minimal_meta()
 
         # No temp files left
-        temp_files = list(tmp_path.glob(".meta-*.tmp"))
+        temp_files = list(tmp_path.glob(".atomic-*.tmp"))
         assert temp_files == []
 
 
 # ===================================================================
-# _atomic_write tests
+# atomic_write tests (shared utility, imported from specify_cli.core.atomic)
 # ===================================================================
 
 
 class TestAtomicWrite:
-    """Tests for _atomic_write()."""
+    """Tests for atomic_write()."""
 
     def test_creates_file(self, tmp_path: Path) -> None:
         target = tmp_path / "test.json"
-        _atomic_write(target, '{"key": "value"}\n')
+        atomic_write(target, '{"key": "value"}\n')
         assert target.read_text(encoding="utf-8") == '{"key": "value"}\n'
 
     def test_replaces_existing_file(self, tmp_path: Path) -> None:
         target = tmp_path / "test.json"
         target.write_text("old content", encoding="utf-8")
-        _atomic_write(target, "new content")
+        atomic_write(target, "new content")
         assert target.read_text(encoding="utf-8") == "new content"
 
     def test_no_temp_file_on_success(self, tmp_path: Path) -> None:
         target = tmp_path / "test.json"
-        _atomic_write(target, "content")
-        temp_files = list(tmp_path.glob(".meta-*.tmp"))
+        atomic_write(target, "content")
+        temp_files = list(tmp_path.glob(".atomic-*.tmp"))
         assert temp_files == []
 
     def test_cleanup_on_write_failure(self, tmp_path: Path) -> None:
@@ -278,13 +279,13 @@ class TestAtomicWrite:
         target.write_text("original", encoding="utf-8")
 
         with (
-            patch("specify_cli.feature_metadata.os.replace", side_effect=OSError("disk full")),
+            patch("specify_cli.core.atomic.os.replace", side_effect=OSError("disk full")),
             pytest.raises(OSError),
         ):
-            _atomic_write(target, "new content")
+            atomic_write(target, "new content")
 
         assert target.read_text(encoding="utf-8") == "original"
-        temp_files = list(tmp_path.glob(".meta-*.tmp"))
+        temp_files = list(tmp_path.glob(".atomic-*.tmp"))
         assert temp_files == []
 
     def test_write_is_complete_not_truncated(self, tmp_path: Path) -> None:
@@ -296,7 +297,7 @@ class TestAtomicWrite:
         # Use a payload large enough that a short write would be detectable
         content = '{"data": "' + "x" * 100_000 + '"}\n'
         target = tmp_path / "big.json"
-        _atomic_write(target, content)
+        atomic_write(target, content)
 
         expected_bytes = content.encode("utf-8")
         actual_bytes = target.read_bytes()
@@ -308,7 +309,7 @@ class TestAtomicWrite:
         # Multi-byte characters: each is 3+ bytes in UTF-8
         content = '{"name": "' + "\u00fc\u00e4\u00f6\u00df" * 5000 + '"}\n'
         target = tmp_path / "unicode.json"
-        _atomic_write(target, content)
+        atomic_write(target, content)
 
         expected_bytes = content.encode("utf-8")
         actual_bytes = target.read_bytes()
@@ -507,9 +508,7 @@ class TestFinalizeMerge:
 
     def test_sets_commit_hash(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
-        meta["merge_history"] = [
-            {"merged_at": "2026-01-01T00:00:00+00:00", "merged_commit": None}
-        ]
+        meta["merge_history"] = [{"merged_at": "2026-01-01T00:00:00+00:00", "merged_commit": None}]
         _write_meta_file(tmp_path, meta)
 
         result = finalize_merge(tmp_path, merged_commit="abc123")
@@ -650,9 +649,7 @@ class TestUnknownFieldPreservation:
         meta["my_extension"] = "preserved"
         _write_meta_file(tmp_path, meta)
 
-        result = record_acceptance(
-            tmp_path, accepted_by="agent", mode="auto"
-        )
+        result = record_acceptance(tmp_path, accepted_by="agent", mode="auto")
         assert result["my_extension"] == "preserved"
 
 
@@ -960,9 +957,7 @@ class TestMergeToleranceMalformedMeta:
         feature_dir = tmp_path / "kitty-specs" / "test-feature"
         feature_dir.mkdir(parents=True)
         meta = _minimal_meta()
-        meta["merge_history"] = [
-            {"merged_at": "2026-03-18T00:00:00+00:00", "merged_commit": None}
-        ]
+        meta["merge_history"] = [{"merged_at": "2026-03-18T00:00:00+00:00", "merged_commit": None}]
         _write_meta_file(feature_dir, meta)
 
         meta_path = feature_dir / "meta.json"
@@ -1014,9 +1009,7 @@ class TestCompatibilityWrappers:
 
         feature_dir = tmp_path / "001-test"
         feature_dir.mkdir()
-        (feature_dir / "meta.json").write_text(
-            '{"feature_number": "001"}', encoding="utf-8"
-        )
+        (feature_dir / "meta.json").write_text('{"feature_number": "001"}', encoding="utf-8")
 
         result = load_feature_meta(feature_dir)
         assert result == {"feature_number": "001"}
