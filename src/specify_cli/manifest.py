@@ -1,6 +1,6 @@
 """
 Manifest system for spec-kitty file verification.
-This module generates and checks expected files based on the active mission.
+This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
@@ -10,27 +10,19 @@ import subprocess
 
 
 class FileManifest:
-    """Manages the expected file manifest for spec-kitty missions."""
+    """Manages the expected file manifest for spec-kitty missions.
 
-    def __init__(self, kittify_dir: Path):
+    The mission context must be provided explicitly via *mission_key*.
+    There is no project-level fallback -- callers should resolve the
+    mission from feature-level ``meta.json`` before constructing a
+    manifest.
+    """
+
+    def __init__(self, kittify_dir: Path, *, mission_key: Optional[str] = None):
         self.kittify_dir = kittify_dir
-        self.active_mission = self._detect_active_mission()
-        self.mission_dir = kittify_dir / "missions" / self.active_mission if self.active_mission else None
-
-    def _detect_active_mission(self) -> Optional[str]:
-        """Detect the active mission from the symlink or file."""
-        active_mission_path = self.kittify_dir / "active-mission"
-        if active_mission_path.exists():
-            if active_mission_path.is_symlink():
-                # It's a symlink, resolve it
-                target = active_mission_path.resolve()
-                return target.name
-            elif active_mission_path.is_file():
-                # It's a file with the mission name
-                return active_mission_path.read_text(encoding='utf-8-sig').strip()
-
-        # Default to software-dev if no active mission
-        return "software-dev"
+        self.mission_dir = (
+            kittify_dir / "missions" / mission_key if mission_key else None
+        )
 
     def get_expected_files(self) -> Dict[str, List[str]]:
         """

@@ -15,7 +15,6 @@ from specify_cli.mission import (
     MissionError,
     MissionNotFoundError,
     discover_missions,
-    get_active_mission,
     get_mission_by_name,
     get_mission_for_feature,
     list_available_missions,
@@ -199,21 +198,35 @@ def current_cmd(
     # Detect feature if not explicitly provided
     feature_slug = feature if feature else _detect_current_feature(project_root)
 
-    try:
-        if feature_slug:
-            # Use feature-level detection (CORRECT)
-            feature_dir = project_root / "kitty-specs" / feature_slug
-            if not feature_dir.exists():
-                console.print(f"[red]Feature not found:[/red] {feature_slug}")
-                raise typer.Exit(1)
+    if not feature_slug:
+        console.print(
+            "[yellow]No active feature detected.[/yellow]\n"
+            "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
+            "or run from within a feature worktree."
+        )
+        # Optionally list available features
+        kitty_specs = project_root / "kitty-specs"
+        if kitty_specs.is_dir():
+            features = sorted(
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and d.name[0:1].isdigit()
+            )
+            if features:
+                console.print("\n[cyan]Available features:[/cyan]")
+                for feat in features[:10]:
+                    console.print(f"  - {feat}")
+                if len(features) > 10:
+                    console.print(f"  ... and {len(features) - 10} more")
+        raise typer.Exit(1)
 
-            mission = get_mission_for_feature(feature_dir, project_root)
-            context = f"Feature: {feature_slug}"
-        else:
-            # No feature context - show project default
-            # Still use get_active_mission() for backward compat with project-level
-            mission = get_active_mission(project_root)
-            context = "Project Default"
+    try:
+        feature_dir = project_root / "kitty-specs" / feature_slug
+        if not feature_dir.exists():
+            console.print(f"[red]Feature not found:[/red] {feature_slug}")
+            raise typer.Exit(1)
+
+        mission = get_mission_for_feature(feature_dir, project_root)
+        context = f"Feature: {feature_slug}"
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")

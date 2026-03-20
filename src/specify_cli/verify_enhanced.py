@@ -13,6 +13,21 @@ from rich.panel import Panel
 from .manifest import FileManifest, WorktreeStatus
 
 
+def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
+    """Resolve mission key from a feature's meta.json.
+
+    Returns the mission string or ``None`` when no meta.json exists.
+    """
+    try:
+        from .feature_metadata import load_meta
+        meta = load_meta(feature_dir)
+        if meta:
+            return meta.get("mission")
+    except Exception:
+        pass
+    return None
+
+
 def run_enhanced_verify(
     repo_root: Path,
     project_root: Path,
@@ -20,7 +35,8 @@ def run_enhanced_verify(
     feature: Optional[str],
     json_output: bool,
     check_files: bool,
-    console: Console
+    console: Console,
+    feature_dir: Optional[Path] = None,
 ) -> Dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
@@ -36,9 +52,18 @@ def run_enhanced_verify(
         "recommendations": []
     }
 
+    # Resolve mission from feature-level meta.json when available
+    mission_key: Optional[str] = None
+    if feature_dir is not None:
+        mission_key = _resolve_mission_from_feature(feature_dir)
+    elif feature:
+        candidate = project_root / "kitty-specs" / feature
+        if candidate.is_dir():
+            mission_key = _resolve_mission_from_feature(candidate)
+
     # Initialize helpers
     kittify_dir = project_root / ".kittify"
-    manifest = FileManifest(kittify_dir)
+    manifest = FileManifest(kittify_dir, mission_key=mission_key)
     worktree_status = WorktreeStatus(repo_root)
 
     # 1. Environment Information
@@ -63,7 +88,7 @@ def run_enhanced_verify(
         "project_root": str(project_root),
         "in_worktree": in_worktree,
         "current_branch": current_branch,
-        "active_mission": manifest.active_mission
+        "active_mission": mission_key or "no feature context"
     }
 
     if not json_output:
@@ -87,6 +112,7 @@ def run_enhanced_verify(
             console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
 
     # 2. File Integrity Check
+    total_missing = 0
     if check_files:
         file_check = manifest.check_files()
         expected_files = manifest.get_expected_files()
@@ -96,7 +122,7 @@ def run_enhanced_verify(
         total_missing = len(file_check["missing"])
 
         output_data["file_integrity"] = {
-            "active_mission": manifest.active_mission,
+            "active_mission": mission_key or "no feature context",
             "total_expected": total_expected,
             "total_present": total_present,
             "total_missing": total_missing,
@@ -115,7 +141,7 @@ def run_enhanced_verify(
 
         if not json_output:
             console.print("\n[cyan]2. Mission File Integrity[/cyan]")
-            console.print(f"   Active mission: {manifest.active_mission}")
+            console.print(f"   Active mission: {mission_key or 'no feature context'}")
 
             if total_missing == 0:
                 console.print(f"   [green]✓[/green] All {total_expected} expected files present")
