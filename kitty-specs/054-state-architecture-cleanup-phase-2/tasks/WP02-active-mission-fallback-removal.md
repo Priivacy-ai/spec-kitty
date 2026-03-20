@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -14,8 +14,8 @@ subtasks:
 - T008
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: "coordinator"
-shell_pid: "73479"
+agent: coordinator
+shell_pid: '73479'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -171,3 +171,4 @@ spec-kitty implement WP02
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T13:51:57Z – coordinator – shell_pid=73479 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T14:00:50Z – coordinator – shell_pid=73479 – lane=for_review – Ready for review: removed active-mission fallback from FileManifest, verify_enhanced, diagnostics, and mission CLI. All 14 tests passing.

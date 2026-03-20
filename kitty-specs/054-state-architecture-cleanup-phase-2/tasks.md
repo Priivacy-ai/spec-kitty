@@ -394,6 +394,7 @@
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
+- WP02: for_review
 - WP06: approved
 - WP08: approved
 <!-- status-model:end -->
