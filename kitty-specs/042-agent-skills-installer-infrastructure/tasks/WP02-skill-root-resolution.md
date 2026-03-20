@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Skill Root Resolution
-lane: "doing"
+lane: in_progress
 dependencies: [WP01]
 base_branch: 042-agent-skills-installer-infrastructure-WP01
 base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
@@ -14,8 +14,8 @@ subtasks:
 - T012
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "codex"
-shell_pid: "96492"
+agent: codex
+shell_pid: '96492'
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://042-agent-skills-installer-infrastructure/WP02/20260320T170636Z-e7183cd3.md
