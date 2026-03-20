@@ -555,15 +555,11 @@ class TestImplementCommand:
 class TestVCSAbstraction:
     """Tests for VCS abstraction in implement command."""
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
-    def test_implement_creates_workspace(self, tmp_path, backend):
-        """Test implement creates workspace correctly for both VCS backends."""
+    def test_implement_creates_workspace(self, tmp_path):
+        """Test implement creates workspace correctly for git backend."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs=backend)
+        create_meta_json(feature_dir, vcs="git")
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
         wp_file.write_text(
@@ -578,10 +574,10 @@ class TestVCSAbstraction:
             with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
                 mock_detect.return_value = ("015", "015-feature")
 
-                # Mock VCS detection to return the specified backend
+                # Mock VCS detection to return git
                 with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
                     mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend(backend)
+                    mock_vcs.backend = VCSBackend.GIT
                     mock_vcs.get_workspace_info.return_value = None  # Workspace doesn't exist
                     mock_vcs.create_workspace.return_value = MagicMock(
                         success=True,
@@ -602,7 +598,6 @@ class TestVCSAbstraction:
                         call_kwargs = mock_vcs.create_workspace.call_args[1]
                         assert call_kwargs["workspace_name"] == "015-feature-WP01"
 
-                        # Sparse_exclude is always used now (jj converted to git)
                         assert "sparse_exclude" in call_kwargs
                         assert "kitty-specs/" in call_kwargs["sparse_exclude"]
 
@@ -648,15 +643,11 @@ class TestVCSAbstraction:
         # Verify jj is converted to git
         assert backend == VCSBackend.GIT
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
-    def test_stale_workspace_detection(self, tmp_path, backend):
-        """Test stale workspace detection works for both backends."""
+    def test_stale_workspace_detection(self, tmp_path):
+        """Test stale workspace detection works for git backend."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs=backend)
+        create_meta_json(feature_dir, vcs="git")
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
         wp_file.write_text(
@@ -677,7 +668,7 @@ class TestVCSAbstraction:
 
                     with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
                         mock_vcs = MagicMock()
-                        mock_vcs.backend = VCSBackend(backend)
+                        mock_vcs.backend = VCSBackend.GIT
                         # Workspace exists and is STALE
                         mock_vcs.get_workspace_info.return_value = MagicMock(
                             name="015-feature-WP01",
@@ -694,15 +685,11 @@ class TestVCSAbstraction:
                         mock_vcs.create_workspace.assert_not_called()
                         # Stale detection was triggered via workspace_info.is_stale
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
-    def test_implement_with_base_flag(self, tmp_path, backend):
-        """Test --base flag works for both backends."""
+    def test_implement_with_base_flag(self, tmp_path):
+        """Test --base flag works for git backend."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs=backend)
+        create_meta_json(feature_dir, vcs="git")
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         # Create WP01 file (base dependency)
@@ -728,7 +715,7 @@ class TestVCSAbstraction:
 
                 with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
                     mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend(backend)
+                    mock_vcs.backend = VCSBackend.GIT
 
                     def get_workspace_info_side_effect(path):
                         if "WP01" in str(path):

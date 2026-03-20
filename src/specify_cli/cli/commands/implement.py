@@ -339,8 +339,7 @@ def display_rebase_warning(
     console.print("  git add .")
     console.print("  git rebase --continue\n")
 
-    console.print("[yellow]This is a git limitation.[/yellow]")
-    console.print("Future jj integration will auto-rebase dependent workspaces.\n")
+    console.print("[yellow]This is a git limitation.[/yellow]\n")
 
 
 def check_for_dependents(
@@ -501,61 +500,10 @@ def _ensure_planning_artifacts_committed_git(
             console.print(f"[green]✓[/green] Planning artifacts committed to {primary_branch}")
 
 
-def _ensure_planning_artifacts_committed_jj(
-    repo_root: Path,
-    feature_dir: Path,
-    feature_slug: str,
-    wp_id: str,
-    primary_branch: str,
-) -> None:
-    """Verify planning artifacts exist for jj repos.
-
-    For jj repos, the working copy IS always a commit - there's no "uncommitted"
-    state like in git. We just need to verify the feature directory exists.
-
-    The user can run orchestration from any bookmark - we don't enforce being
-    on main. The planning artifacts just need to exist in the current revision.
-
-    Args:
-        repo_root: Repository root path
-        feature_dir: Path to feature directory (kitty-specs/###-feature/)
-        feature_slug: Feature slug (e.g., "001-my-feature")
-        wp_id: Work package ID (e.g., "WP01")
-        primary_branch: Primary branch name (main/master) - not enforced
-
-    Raises:
-        typer.Exit: If feature directory doesn't exist
-    """
-    # In jj, working copy IS a commit - no "uncommitted" state
-    # Just verify the feature directory exists
-    if not feature_dir.exists():
-        console.print(
-            f"\n[red]Error:[/red] Feature directory not found: {feature_dir}"
-        )
-        console.print("Run planning commands first (specify, plan, tasks)")
-        raise typer.Exit(1)
-
-    # Get current bookmark for display
-    result = subprocess.run(
-        ["jj", "log", "-r", "@", "--no-graph", "-T", "bookmarks"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False
-    )
-    current_bookmark = result.stdout.strip() if result.returncode == 0 else "unknown"
-    console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
-
-
 def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
-    Always locks to git (jj support removed due to sparse checkout incompatibility).
-
-    If a feature was created with jj, it will be automatically converted to git
-    with a warning message.
+    Always locks to git.
 
     Args:
         feature_dir: Path to the feature directory (kitty-specs/###-feature/)
@@ -582,15 +530,6 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 
     # Check if VCS is already locked
     if "vcs" in meta:
-        backend_str = meta["vcs"]
-        if backend_str == "jj":
-            console.print("[yellow]Warning:[/yellow] Feature was created with jj, but jj is no longer supported.")
-            console.print("[yellow]Converting to git...[/yellow]")
-            # Override to git
-            now_iso = datetime.now(timezone.utc).isoformat()
-            set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
-            return VCSBackend.GIT
-        # Already git
         return VCSBackend.GIT
 
     # VCS not yet locked - lock to git (only supported VCS)
@@ -765,16 +704,10 @@ def implement(
 
             planning_branch = resolve_feature_target_branch(feature_slug, repo_root)
 
-            if vcs_backend == VCSBackend.GIT:
-                # Git path: check branch and status using git commands
-                _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
-                )
-            else:
-                # jj path: check status and commit using jj commands
-                _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, planning_branch
-                )
+            # Git path: check branch and status using git commands
+            _ensure_planning_artifacts_committed_git(
+                repo_root, feature_dir, feature_slug, wp_id, planning_branch
+            )
 
         except typer.Exit:
             raise
@@ -813,10 +746,7 @@ def implement(
                 else:
                     # No explicit base, but workspace is stale (base changed)
                     console.print(f"\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
-                    if vcs_backend == VCSBackend.JUJUTSU:
-                        console.print("Run [bold]jj workspace update-stale[/bold] to sync")
-                    else:
-                        console.print(f"Consider rebasing if needed")
+                    console.print(f"Consider rebasing if needed")
 
             # Check for dependent WPs (T079)
             check_for_dependents(repo_root, feature_slug, wp_id)
@@ -973,42 +903,31 @@ def implement(
                     console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
 
-                # Use the base workspace's current branch for git, or the revision for jj
-                if vcs_backend == VCSBackend.GIT:
-                    if base_workspace_info.current_branch:
-                        base_branch = base_workspace_info.current_branch
-                    # For git, verify the branch exists
-                    result = subprocess.run(
-                        ["git", "rev-parse", "--verify", base_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        check=False
-                    )
-                    if result.returncode != 0:
-                        tracker.error("create", f"base branch {base_branch} not found")
-                        console.print(tracker.render())
-                        console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
-                        raise typer.Exit(1)
+                # Use the base workspace's current branch
+                if base_workspace_info.current_branch:
+                    base_branch = base_workspace_info.current_branch
+                # Verify the branch exists
+                result = subprocess.run(
+                    ["git", "rev-parse", "--verify", base_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False
+                )
+                if result.returncode != 0:
+                    tracker.error("create", f"base branch {base_branch} not found")
+                    console.print(tracker.render())
+                    console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
+                    raise typer.Exit(1)
 
         # Create workspace using VCS abstraction
-        # For git: sparse_exclude excludes kitty-specs/ from worktree
-        # For jj: no sparse-checkout needed (jj has different isolation model)
-        if vcs_backend == VCSBackend.GIT:
-            create_result = vcs.create_workspace(
-                workspace_path=workspace_path,
-                workspace_name=workspace_name,
-                base_branch=base_branch,
-                repo_root=repo_root,
-                sparse_exclude=["kitty-specs/"],
-            )
-        else:
-            # jj workspace creation
-            create_result = vcs.create_workspace(
-                workspace_path=workspace_path,
-                workspace_name=workspace_name,
-                base_branch=base_branch,
-                repo_root=repo_root,
-            )
+        # sparse_exclude excludes kitty-specs/ from worktree
+        create_result = vcs.create_workspace(
+            workspace_path=workspace_path,
+            workspace_name=workspace_name,
+            base_branch=base_branch,
+            repo_root=repo_root,
+            sparse_exclude=["kitty-specs/"],
+        )
 
         if not create_result.success:
             tracker.error("create", "workspace creation failed")
@@ -1017,9 +936,8 @@ def implement(
             console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
 
-        # For git, confirm sparse-checkout was applied
-        if vcs_backend == VCSBackend.GIT:
-            console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
+        # Confirm sparse-checkout was applied
+        console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         # Step 3.5: Get base commit SHA for tracking
         result = subprocess.run(

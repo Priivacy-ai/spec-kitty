@@ -179,8 +179,7 @@ _No unreleased changes._
   and vcs/git.py.
 
 - **Subprocess encoding safety**: Added `encoding="utf-8", errors="replace"` to all ~135
-  `subprocess.run(text=True)` calls across 36 files, including 2.x-only `vcs/jujutsu.py`
-  (22 calls). Prevents crashes on non-UTF-8 git output (Windows, locale mismatches).
+  `subprocess.run(text=True)` calls across 36 files. Prevents crashes on non-UTF-8 git output (Windows, locale mismatches).
 
 - **Pre-commit hook safety**: Removed `set -e` from encoding check hook, expanded Python
   interpreter detection (loops through python3/python/py with smoke test), fixed exit code
@@ -656,7 +655,6 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 - Added `docs/how-to/upgrade-to-0-12-0.md` - Migration guide for config-driven agent management
 - Updated `docs/reference/cli-commands.md` with comprehensive `agent config` subcommand documentation
 - Updated `docs/reference/agent-subcommands.md`, `docs/reference/configuration.md`, `docs/reference/supported-agents.md` with accurate cross-references
-- Cleaned up outdated Jujutsu (jj) references throughout documentation (git-only VCS for now)
 - Updated `docs/how-to/install-spec-kitty.md` with agent configuration guidance
 
 ### 🐛 Fixed
@@ -809,7 +807,6 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 - Better isolation per work package
 - Explicit dependencies with validation
 - Scalability for large features (10+ WPs)
-- Foundation for future jujutsu VCS integration
 
 **Feature 011 (Constitution & Packaging Safety)**:
 - Safe dogfooding (no packaging contamination)

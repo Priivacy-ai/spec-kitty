@@ -17,7 +17,6 @@ from specify_cli.cli.commands.merge import (
     merge_workspace_per_wp,
     validate_wp_ready_for_merge,
 )
-from specify_cli.core.vcs import VCSBackend
 import specify_cli.cli.commands.merge as merge_module
 
 pytestmark = pytest.mark.fast
@@ -481,39 +480,3 @@ class TestMergeWorkspacePerWpDryRunMocked:
         assert "git branch -d 030-feature-WP01" in output
         assert "git branch -d 030-feature-WP02" in output
         assert "# skip worktree removal for WP02 (path not present)" in output
-
-
-# ---------------------------------------------------------------------------
-# VCS abstraction — detection logic with mocked backends
-# ---------------------------------------------------------------------------
-
-
-class TestVCSDetectionMocked:
-    """VCS backend detection with mocked availability checks."""
-
-    def test_detects_git_backend(self, tmp_path):
-        (tmp_path / ".git").mkdir()
-
-        from specify_cli.core.vcs import detection
-
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=False):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(tmp_path)
-            assert vcs.backend == VCSBackend.GIT
-
-    def test_falls_back_to_git_when_jj_unavailable(self, tmp_path):
-        (tmp_path / ".git").mkdir()
-        (tmp_path / ".jj").mkdir()
-
-        from specify_cli.core.vcs import detection
-
-        detection.is_jj_available.cache_clear()
-
-        with patch.object(detection, "is_jj_available", return_value=False):
-            from specify_cli.core.vcs import get_vcs
-
-            vcs = get_vcs(tmp_path)
-            assert vcs.backend == VCSBackend.GIT

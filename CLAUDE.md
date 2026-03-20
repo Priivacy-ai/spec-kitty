@@ -201,9 +201,6 @@ agents:
 - Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
 - Python 3.11+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
 - Filesystem only (mission configs in YAML, Divio templates in Markdown, iteration state in JSON) (012-documentation-mission)
-- Python 3.11+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
-- Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
-
 - Markdown (documentation only) + None (pure documentation) (023-documentation-sprint-agent-management-cleanup)
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
 - Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
@@ -254,7 +251,6 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 ## Recent Changes
 - 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
-- 015-first-class-jujutsu-vcs-integration: Adding VCS abstraction layer (Protocol-based), jj as first-class citizen alongside git, new vcs/ subpackage
 <!-- MANUAL ADDITIONS START -->
 
 ## PyPI Release (Quick Reference)

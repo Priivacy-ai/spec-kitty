@@ -2,11 +2,8 @@
 VCS Protocol Module
 ===================
 
-This module defines the VCSProtocol interface that GitVCS and JujutsuVCS implement.
+This module defines the VCSProtocol interface that GitVCS implements.
 The protocol uses Python's typing.Protocol for structural subtyping.
-
-See kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py
-for the complete interface contract.
 """
 
 from __future__ import annotations
@@ -30,7 +27,7 @@ class VCSProtocol(Protocol):
     """
     Interface contract for VCS backends.
 
-    Both GitVCS and JujutsuVCS must implement this protocol.
+    GitVCS must implement this protocol.
     Operations not supported by a backend should raise VCSCapabilityError.
 
     This protocol is runtime-checkable, so you can use:
@@ -40,7 +37,7 @@ class VCSProtocol(Protocol):
 
     @property
     def backend(self) -> VCSBackend:
-        """Return which backend this is (GIT or JUJUTSU)."""
+        """Return which backend this is (GIT)."""
         ...
 
     @property
@@ -77,7 +74,6 @@ class VCSProtocol(Protocol):
 
         Implementation notes:
             - Git: Uses `git worktree add`
-            - jj: Uses `jj workspace add`
         """
         ...
 
@@ -93,7 +89,6 @@ class VCSProtocol(Protocol):
 
         Implementation notes:
             - Git: Uses `git worktree remove`
-            - jj: Uses `jj workspace forget` + directory removal
         """
         ...
 
@@ -129,9 +124,7 @@ class VCSProtocol(Protocol):
         """
         Synchronize workspace with upstream changes.
 
-        This is the key operation that differs between backends:
-        - Git: Fetch + rebase, conflicts block the operation
-        - jj: update-stale, conflicts are stored (non-blocking)
+        This operation fetches and rebases, conflicts block the operation.
 
         Args:
             workspace_path: Path to the workspace to sync
@@ -169,7 +162,6 @@ class VCSProtocol(Protocol):
 
         Implementation notes:
             - Git: Parse conflict markers in working tree
-            - jj: Query jj status for conflict state
         """
         ...
 
@@ -212,7 +204,7 @@ class VCSProtocol(Protocol):
 
         Args:
             repo_path: Repository path
-            revision_range: Git revision range or jj revset
+            revision_range: Git revision range
             limit: Maximum number to return
 
         Returns:
@@ -239,7 +231,6 @@ class VCSProtocol(Protocol):
 
         Implementation notes:
             - Git: git add + git commit
-            - jj: jj describe (working copy already committed)
         """
         ...
 
@@ -257,7 +248,7 @@ class VCSProtocol(Protocol):
 
         Args:
             path: Where to initialize
-            colocate: If jj, whether to colocate with git
+            colocate: Whether to colocate
 
         Returns:
             True if successful, False otherwise

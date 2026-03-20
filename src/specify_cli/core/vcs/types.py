@@ -3,9 +3,7 @@ VCS Types Module
 ================
 
 This module defines all enums and dataclasses for VCS operations.
-These types are backend-agnostic and used by both GitVCS and JujutsuVCS.
-
-See kitty-specs/015-first-class-jujutsu-vcs-integration/data-model.md for full documentation.
+These types are backend-agnostic and used by GitVCS.
 """
 
 from __future__ import annotations
@@ -26,7 +24,6 @@ class VCSBackend(str, Enum):
     """Supported VCS backends."""
 
     GIT = "git"
-    JUJUTSU = "jj"
 
 
 class SyncStatus(str, Enum):
@@ -61,26 +58,24 @@ class VCSCapabilities:
     Used for feature detection and capability checking before operations.
     """
 
-    supports_auto_rebase: bool  # jj: True, git: False
-    supports_conflict_storage: bool  # jj: True, git: False (conflicts block)
-    supports_operation_log: bool  # jj: True, git: partial (reflog)
-    supports_change_ids: bool  # jj: True, git: False
-    supports_workspaces: bool  # jj: True (native), git: True (worktrees)
-    supports_colocated: bool  # jj: True, git: N/A
-    supports_operation_undo: bool  # jj: True, git: False
+    supports_auto_rebase: bool
+    supports_conflict_storage: bool
+    supports_operation_log: bool
+    supports_change_ids: bool
+    supports_workspaces: bool
+    supports_colocated: bool
+    supports_operation_undo: bool
 
 
 @dataclass
 class ChangeInfo:
     """
     Represents a single commit/change with metadata for automation.
-
-    For jj, change_id is stable across rebases. For git, change_id is None.
     """
 
     # Identity
-    change_id: str | None  # jj Change ID (stable across rebases), None for git
-    commit_id: str  # Git SHA or jj commit ID
+    change_id: str | None  # Stable Change ID, None for git
+    commit_id: str  # Git SHA
 
     # Metadata
     message: str  # First line of commit message
@@ -94,7 +89,7 @@ class ChangeInfo:
     is_merge: bool  # True if multiple parents
 
     # State
-    is_conflicted: bool  # True if this commit has stored conflicts (jj)
+    is_conflicted: bool  # True if this commit has stored conflicts
     is_empty: bool  # True if no file changes
 
 
@@ -104,13 +99,12 @@ class ConflictInfo:
     Represents a conflict in a file.
 
     In git, conflicts block operations and must be resolved immediately.
-    In jj, conflicts are stored in the commit and can be resolved later.
     """
 
     file_path: Path  # Relative path from workspace root
     conflict_type: ConflictType  # Type of conflict
     line_ranges: list[tuple[int, int]] | None  # Start/end lines, None if whole-file
-    sides: int  # Number of sides (2 for normal, 3+ for octopus in jj)
+    sides: int  # Number of sides (2 for normal, 3+ for octopus)
     is_resolved: bool  # True if conflict markers removed
 
     # Content (for automation)
@@ -143,7 +137,7 @@ class SyncResult:
 @dataclass
 class WorkspaceInfo:
     """
-    Represents a VCS workspace (git worktree or jj workspace).
+    Represents a VCS workspace (git worktree).
 
     A workspace is an isolated working directory for a work package.
     """
@@ -154,11 +148,11 @@ class WorkspaceInfo:
 
     # State
     backend: VCSBackend  # Which VCS backend
-    is_colocated: bool  # True if both .jj/ and .git/ present
+    is_colocated: bool  # True if colocated repository
 
     # Branch/Change tracking
-    current_branch: str | None  # Git branch name, None for detached/jj
-    current_change_id: str | None  # jj Change ID of working copy
+    current_branch: str | None  # Git branch name, None for detached
+    current_change_id: str | None  # Change ID of working copy
     current_commit_id: str  # Current HEAD commit
 
     # Relationship to base
@@ -174,13 +168,12 @@ class WorkspaceInfo:
 @dataclass
 class OperationInfo:
     """
-    Entry in the operation log (primarily jj, approximated for git).
+    Entry in the operation log.
 
-    jj has full operation log with complete undo capability.
-    git approximates via reflog but with limited undo.
+    Git approximates via reflog with limited undo.
     """
 
-    operation_id: str  # jj operation ID or git reflog index
+    operation_id: str  # Operation ID or git reflog index
     timestamp: datetime  # When operation occurred
     description: str  # What the operation did
     heads: list[str]  # Commit IDs of all heads after operation
@@ -206,9 +199,7 @@ class ProjectVCSConfig:
     Controls default VCS selection and backend-specific settings.
     """
 
-    preferred: Literal["auto", "jj", "git"] = "auto"
-    jj_min_version: str = "0.20.0"
-    jj_colocate: bool = True
+    preferred: Literal["auto", "git"] = "auto"
 
 
 @dataclass
@@ -236,14 +227,4 @@ GIT_CAPABILITIES = VCSCapabilities(
     supports_workspaces=True,
     supports_colocated=False,
     supports_operation_undo=False,
-)
-
-JJ_CAPABILITIES = VCSCapabilities(
-    supports_auto_rebase=True,
-    supports_conflict_storage=True,
-    supports_operation_log=True,
-    supports_change_ids=True,
-    supports_workspaces=True,
-    supports_colocated=True,
-    supports_operation_undo=True,
 )

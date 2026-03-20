@@ -1,8 +1,7 @@
 """Worktree management utilities for spec-kitty feature development.
 
-This module provides functions for creating and managing workspaces (git worktrees
-or jj workspaces) for parallel feature development. Uses the VCS abstraction layer
-to support both git and jujutsu backends.
+This module provides functions for creating and managing workspaces (git worktrees)
+for parallel feature development. Uses the VCS abstraction layer.
 
 All functions are location-aware and work correctly whether called from main
 repository or existing worktree/workspace.
@@ -131,11 +130,10 @@ def create_feature_worktree(
     feature_slug: str,
     feature_number: Optional[int] = None
 ) -> Tuple[Path, Path]:
-    """Create workspace (git worktree or jj workspace) for feature development.
+    """Create workspace (git worktree) for feature development.
 
     Creates a new workspace with a feature branch and sets up the
-    feature directory structure. Uses VCS abstraction to support both
-    git and jujutsu backends.
+    feature directory structure. Uses VCS abstraction.
 
     Args:
         repo_root: Repository root path
@@ -220,7 +218,7 @@ def create_feature_worktree(
         warnings.warn(
             f"VCS abstraction failed ({type(e).__name__}: {e}); "
             "falling back to direct git commands. "
-            "See: kitty-specs/015-first-class-jujutsu-vcs-integration/",
+            "See: VCS abstraction layer documentation",
             DeprecationWarning,
             stacklevel=2,
         )

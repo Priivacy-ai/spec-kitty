@@ -3,7 +3,7 @@ VCS Abstraction Package
 =======================
 
 This package provides a unified interface for Version Control System operations,
-supporting both Git and Jujutsu (jj) backends.
+supporting Git as the backend.
 
 Usage:
     from specify_cli.core.vcs import (
@@ -12,16 +12,12 @@ Usage:
         VCSBackend,
         VCSCapabilities,
         GIT_CAPABILITIES,
-        JJ_CAPABILITIES,
-        is_jj_available,
         is_git_available,
     )
 
     # Get appropriate VCS implementation
-    vcs = get_vcs(feature_path)  # Auto-detect, prefers jj
+    vcs = get_vcs(feature_path)  # Auto-detect
     vcs = get_vcs(feature_path, backend=VCSBackend.GIT)  # Explicit git
-
-See kitty-specs/015-first-class-jujutsu-vcs-integration/ for full documentation.
 """
 
 from __future__ import annotations
@@ -49,7 +45,6 @@ from .types import (
 # Capability constants
 from .types import (
     GIT_CAPABILITIES,
-    JJ_CAPABILITIES,
 )
 
 # Protocol
@@ -70,10 +65,8 @@ from .exceptions import (
 from .detection import (
     detect_available_backends,
     get_git_version,
-    get_jj_version,
     get_vcs,
     is_git_available,
-    is_jj_available,
 )
 
 __all__ = [
@@ -93,7 +86,6 @@ __all__ = [
     "FeatureVCSConfig",
     # Capability constants
     "GIT_CAPABILITIES",
-    "JJ_CAPABILITIES",
     # Protocol
     "VCSProtocol",
     # Exceptions
@@ -106,9 +98,7 @@ __all__ = [
     "VCSSyncError",
     # Detection and factory
     "get_vcs",
-    "is_jj_available",
     "is_git_available",
-    "get_jj_version",
     "get_git_version",
     "detect_available_backends",
 ]
