@@ -14,7 +14,7 @@ subtasks:
 - T012
 phase: Phase 1 - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "68466"
 review_status: ''
 reviewed_by: ''
@@ -288,3 +288,4 @@ def test_no_duplicates():
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T16:58:22Z – coordinator – shell_pid=68466 – lane=doing – Assigned agent via workflow command
