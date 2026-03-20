@@ -275,3 +275,8 @@ Wave 5: WP09 (depends on all, final validation)
 4. Coverage report validation
 
 **Prompt file**: [tasks/WP09-integration-tests-final-validation.md](tasks/WP09-integration-tests-final-validation.md)
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Canonical Agent Surface Config
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: 4054a2d1253a294814072ecba33a429142fc41ee
@@ -16,8 +16,8 @@ subtasks:
 - T007
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "coordinator"
-shell_pid: "29009"
+agent: coordinator
+shell_pid: '29009'
 review_status: ''
 reviewed_by: ''
 history:
@@ -357,3 +357,4 @@ def test_wrapper_dir_consistency(agent_key):
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
 - 2026-03-20T16:38:57Z – coordinator – shell_pid=29009 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T16:45:04Z – coordinator – shell_pid=29009 – lane=for_review – Ready for review: canonical agent surface config with 12 agents, derived views, and 51 unit tests
