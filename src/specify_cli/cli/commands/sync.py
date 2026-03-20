@@ -80,7 +80,12 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     """
     # --- Summary panel ---
     summary_lines: list[str] = []
-    summary_lines.append(f"[bold]Queue Depth:[/bold] {stats.total_queued:,} event(s)")
+    pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
+    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
+    summary_lines.append(
+        f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] "
+        f"({pct:.0f}%)"
+    )
     summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
     if stats.oldest_event_age is not None:
         age_str = humanize_timedelta(stats.oldest_event_age)
@@ -815,6 +820,169 @@ def diagnose(
                 console.print(f"    - {err}")
 
     console.print()
+
+
+@app.command()
+def doctor() -> None:
+    """Diagnose sync health: queue, auth, and server connectivity.
+
+    Runs a comprehensive check of offline queue state, authentication
+    validity, and server reachability, printing actionable remediation
+    steps for any issues found.
+
+    Examples:
+        spec-kitty sync doctor
+    """
+    from datetime import datetime, timezone, timedelta
+
+    from specify_cli.sync.auth import AuthClient, CredentialStore
+    from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.queue import OfflineQueue
+
+    console.print()
+    console.print("[bold cyan]Sync Doctor[/bold cyan]")
+    console.print()
+
+    issues: list[str] = []
+
+    # --- 1. Queue health ---
+    queue = OfflineQueue()
+    stats = queue.get_queue_stats()
+    queue_size = stats.total_queued
+    max_size = stats.max_queue_size
+    pct = (queue_size / max_size * 100) if max_size > 0 else 0
+
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim", min_width=20)
+    table.add_column("Value")
+
+    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
+    table.add_row("Queue size", f"[{depth_color}]{queue_size:,} / {max_size:,} ({pct:.0f}%)[/{depth_color}]")
+
+    if stats.oldest_event_age is not None:
+        age_str = humanize_timedelta(stats.oldest_event_age)
+        table.add_row("Oldest event", f"{age_str} ago")
+    else:
+        table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
+
+    table.add_row("Queue DB", str(queue.db_path))
+
+    if pct >= 100:
+        issues.append(
+            "Queue is FULL -- new sync events are being dropped. "
+            "Run `spec-kitty sync now` after fixing auth/connectivity."
+        )
+    elif pct >= 80:
+        issues.append(
+            f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`."
+        )
+
+    # --- 2. Auth status ---
+    config = SyncConfig()
+    server_url = config.get_server_url()
+    table.add_row("Server URL", server_url)
+
+    store = CredentialStore()
+    if not store.exists():
+        table.add_row("Auth", "[red]No credentials[/red]")
+        issues.append("Not authenticated. Run `spec-kitty auth login`.")
+    else:
+        expiry_info = store.get_token_expiry_info()
+        access_exp = expiry_info.get("access_expires_at")
+        refresh_exp = expiry_info.get("refresh_expires_at")
+
+        now = datetime.now(timezone.utc)
+
+        def _parse_exp(val: str | None) -> datetime | None:
+            if not val:
+                return None
+            try:
+                v = val.replace("Z", "+00:00") if isinstance(val, str) else val
+                parsed = datetime.fromisoformat(str(v))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                return parsed
+            except (ValueError, TypeError):
+                return None
+
+        access_dt = _parse_exp(access_exp)
+        refresh_dt = _parse_exp(refresh_exp)
+
+        access_ok = access_dt is not None and access_dt > now
+        refresh_ok = refresh_dt is not None and refresh_dt > now
+
+        if access_ok:
+            table.add_row("Access token", f"[green]Valid[/green] (expires {access_exp})")
+        elif access_dt is not None:
+            table.add_row("Access token", f"[red]Expired[/red] ({access_exp})")
+        else:
+            table.add_row("Access token", "[red]Missing[/red]")
+
+        if refresh_ok:
+            table.add_row("Refresh token", f"[green]Valid[/green] (expires {refresh_exp})")
+        elif refresh_dt is not None:
+            table.add_row("Refresh token", f"[red]Expired[/red] ({refresh_exp})")
+        else:
+            table.add_row("Refresh token", "[red]Missing[/red]")
+
+        username = store.get_username()
+        team_slug = store.get_team_slug()
+        if username:
+            table.add_row("User", username)
+        if team_slug:
+            table.add_row("Team", team_slug)
+
+        if not access_ok and not refresh_ok:
+            issues.append(
+                "Both access and refresh tokens are expired. "
+                "Run `spec-kitty auth login` to re-authenticate."
+            )
+        elif not access_ok and refresh_ok:
+            issues.append(
+                "Access token expired but refresh token is still valid. "
+                "Token will auto-refresh on next sync attempt."
+            )
+
+    # --- 3. Server reachability ---
+    connection_status, connection_note = _check_server_connection(server_url)
+    table.add_row("Server", connection_status)
+    if connection_note:
+        table.add_row("", f"[dim]{connection_note}[/dim]")
+
+    if "Unreachable" in connection_status or "Error" in connection_status:
+        issues.append(
+            f"Cannot reach server at {server_url}. "
+            "Events will continue to queue locally."
+        )
+
+    console.print(table)
+    console.print()
+
+    # --- 4. Top event types (if queue non-empty) ---
+    if stats.top_event_types:
+        type_table = Table(
+            title="Top Queued Event Types",
+            show_header=True,
+            header_style="bold",
+            show_lines=False,
+            expand=False,
+        )
+        type_table.add_column("Event Type", style="cyan")
+        type_table.add_column("Count", justify="right")
+        for event_type, count in stats.top_event_types:
+            type_table.add_row(event_type, f"{count:,}")
+        console.print(type_table)
+        console.print()
+
+    # --- 5. Summary ---
+    if issues:
+        console.print("[bold yellow]Issues found:[/bold yellow]")
+        for issue in issues:
+            console.print(f"  [yellow]![/yellow] {issue}")
+        console.print()
+    else:
+        console.print("[bold green]No issues detected. Sync is healthy.[/bold green]")
+        console.print()
 
 
 __all__ = ["app"]
