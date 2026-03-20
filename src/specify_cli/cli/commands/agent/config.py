@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -16,6 +17,8 @@ from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
 )
+from specify_cli.skills.manifest import load_manifest, write_manifest
+from specify_cli.skills.roots import resolve_skill_roots
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
@@ -300,7 +303,7 @@ def agent_status():
             f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
             f"(present but not configured)"
         )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")
@@ -320,6 +323,7 @@ def sync_agents(
 
     By default, removes orphaned directories (present but not configured).
     Use --create-missing to also create directories for configured agents.
+    Also manages skill root directories based on the skills manifest.
     """
     try:
         repo_root = find_repo_root()
@@ -330,7 +334,13 @@ def sync_agents(
     # Load config
     config = _load_config_or_exit(repo_root)
 
+    # T028: Load manifest for skill root awareness
+    manifest = load_manifest(repo_root)
+    if manifest is None:
+        console.print("[dim]No skills manifest found - skipping skill root sync[/dim]")
+
     changes_made = False
+    expected_roots: list[str] = []
 
     # Remove orphaned directories
     if remove_orphaned:
@@ -352,6 +362,30 @@ def sync_agents(
                 changes_made = True
             except OSError as e:
                 console.print(f"  [red]✗[/red] Failed to remove {agent_root}/: {e}")
+
+    # T030: Orphaned skill root removal with shared root protection
+    if remove_orphaned and manifest:
+        console.print("\n[cyan]Checking for orphaned skill roots...[/cyan]")
+        # Compute which roots are still needed by configured agents
+        needed_roots = set(resolve_skill_roots(config.available, mode=manifest.skills_mode))
+        # Check manifest for roots that were installed but are no longer needed
+        for root in manifest.installed_skill_roots:
+            if root not in needed_roots:
+                root_path = repo_root / root
+                if root_path.exists():
+                    # Only remove managed content (gitkeep), not user files
+                    gitkeep = root_path / ".gitkeep"
+                    if gitkeep.exists():
+                        gitkeep.unlink()
+                    # Only rmdir if empty (don't delete user content)
+                    try:
+                        root_path.rmdir()
+                        console.print(f"  [green]✓[/green] Removed orphaned skill root {root}")
+                        changes_made = True
+                    except OSError:
+                        console.print(
+                            f"  [yellow]⚠[/yellow] Skill root {root} has non-managed content, keeping"
+                        )
 
     # Create missing directories
     if create_missing:
@@ -381,6 +415,33 @@ def sync_agents(
                     changes_made = True
                 except OSError as e:
                     console.print(f"  [red]✗[/red] Failed to create {agent_root}/{subdir}/: {e}")
+
+    # T029: Repair missing skill roots for configured agents
+    if create_missing and manifest:
+        console.print("\n[cyan]Checking for missing skill roots...[/cyan]")
+        expected_roots = resolve_skill_roots(config.available, mode=manifest.skills_mode)
+        for root in expected_roots:
+            root_path = repo_root / root
+            if not root_path.exists():
+                root_path.mkdir(parents=True, exist_ok=True)
+                (root_path / ".gitkeep").write_text("", encoding="utf-8")
+                console.print(f"  [green]✓[/green] Recreated skill root {root}")
+                changes_made = True
+
+    # T031: Update manifest after sync changes
+    if changes_made and manifest:
+        # Recompute installed roots: keep only those that still exist
+        manifest.installed_skill_roots = [
+            root for root in manifest.installed_skill_roots
+            if (repo_root / root).exists()
+        ]
+        # Add any newly created roots not already tracked
+        for root in expected_roots:
+            if root not in manifest.installed_skill_roots and (repo_root / root).exists():
+                manifest.installed_skill_roots.append(root)
+        manifest.installed_skill_roots.sort()
+        manifest.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        write_manifest(repo_root, manifest)
 
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")
