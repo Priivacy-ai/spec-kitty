@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
 from .tasks_support import (
     LANES,
@@ -37,6 +37,21 @@ AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
+
+
+class ArtifactEncodingError(AcceptanceError):
+    """Raised when a project artifact cannot be decoded as UTF-8."""
+
+    def __init__(self, path: Path, error: UnicodeDecodeError):
+        byte = error.object[error.start : error.start + 1]
+        byte_display = f"0x{byte[0]:02x}" if byte else "unknown"
+        message = (
+            f"Invalid UTF-8 encoding in {path}: byte {byte_display} at offset {error.start}. "
+            "Run with --normalize-encoding to fix automatically."
+        )
+        super().__init__(message)
+        self.path = path
+        self.error = error
 
 
 @dataclass
@@ -73,11 +88,7 @@ class AcceptanceSummary:
 
     @property
     def all_done(self) -> bool:
-        return not (
-            self.lanes.get("planned")
-            or self.lanes.get("doing")
-            or self.lanes.get("for_review")
-        )
+        return not (self.lanes.get("planned") or self.lanes.get("doing") or self.lanes.get("for_review"))
 
     @property
     def ok(self) -> bool:
@@ -195,7 +206,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             if lane not in LANES:
                 continue
             for path in sorted(lane_dir.rglob("*.md")):
-                text = path.read_text(encoding="utf-8-sig")
+                text = _read_text_strict(path)
                 front, body, padding = split_frontmatter(text)
                 relative = path.relative_to(lane_dir)
                 yield WorkPackage(
@@ -212,7 +223,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
         for path in sorted(tasks_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
-            text = path.read_text(encoding="utf-8-sig")
+            text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
             # Get lane from frontmatter
             lane = get_lane_from_frontmatter(path, warn_on_missing=False)
@@ -233,6 +244,7 @@ def detect_feature_slug(
     *,
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
+    announce_fallback: bool = True,  # noqa: ARG001 -- kept for backward compat
 ) -> str:
     """Detect feature slug using centralized detection.
 
@@ -243,6 +255,8 @@ def detect_feature_slug(
         repo_root: Repository root path
         env: Environment variables (defaults to os.environ)
         cwd: Current working directory (defaults to Path.cwd())
+        announce_fallback: Whether to announce fallback detection (unused,
+            kept for backward compatibility with standalone callers)
 
     Returns:
         Feature slug (e.g., "020-my-feature")
@@ -262,8 +276,16 @@ def detect_feature_slug(
         raise AcceptanceError(str(e)) from e
 
 
+def _read_text_strict(path: Path) -> str:
+    """Read a file as UTF-8, raising ArtifactEncodingError on decode failure."""
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ArtifactEncodingError(path, exc) from exc
+
+
 def _read_file(path: Path) -> str:
-    return path.read_text(encoding="utf-8-sig") if path.exists() else ""
+    return _read_text_strict(path) if path.exists() else ""
 
 
 def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
@@ -271,7 +293,7 @@ def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
         return ["tasks.md missing"]
 
     unchecked: List[str] = []
-    for line in tasks_file.read_text(encoding="utf-8-sig").splitlines():
+    for line in _read_text_strict(tasks_file).splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
@@ -281,7 +303,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     results: List[str] = []
     for file_path in files:
         if file_path.exists():
-            text = file_path.read_text(encoding="utf-8-sig")
+            text = _read_text_strict(file_path)
             if "[NEEDS CLARIFICATION" in text:
                 results.append(str(file_path))
     return results
@@ -300,6 +322,83 @@ def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
     return missing_required, missing_optional
 
 
+def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
+    """Normalize file encoding from Windows-1252 to UTF-8 with ASCII character mapping.
+
+    Converts Windows-1252 encoded files to UTF-8, replacing Unicode smart quotes
+    and special characters with ASCII equivalents for maximum compatibility.
+    """
+    # Map Unicode characters to ASCII equivalents
+    NORMALIZE_MAP = {
+        "\u2018": "'",  # Left single quotation mark -> apostrophe
+        "\u2019": "'",  # Right single quotation mark -> apostrophe
+        "\u201a": "'",  # Single low-9 quotation mark -> apostrophe
+        "\u201c": '"',  # Left double quotation mark -> straight quote
+        "\u201d": '"',  # Right double quotation mark -> straight quote
+        "\u201e": '"',  # Double low-9 quotation mark -> straight quote
+        "\u2014": "--",  # Em dash -> double hyphen
+        "\u2013": "-",  # En dash -> hyphen
+        "\u2026": "...",  # Horizontal ellipsis -> three dots
+        "\u00a0": " ",  # Non-breaking space -> regular space
+        "\u2022": "*",  # Bullet -> asterisk
+        "\u00b7": "*",  # Middle dot -> asterisk
+    }
+
+    feature_dir = repo_root / "kitty-specs" / feature
+    if not feature_dir.exists():
+        return []
+
+    candidates: List[Path] = []
+    primary_files = [
+        feature_dir / "spec.md",
+        feature_dir / "plan.md",
+        feature_dir / "quickstart.md",
+        feature_dir / "tasks.md",
+        feature_dir / "research.md",
+        feature_dir / "data-model.md",
+    ]
+    candidates.extend(p for p in primary_files if p.exists())
+
+    for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
+        if subdir.exists():
+            candidates.extend(path for path in subdir.rglob("*.md"))
+
+    rewritten: List[Path] = []
+    seen: Set[Path] = set()
+    for path in candidates:
+        if path in seen or not path.exists():
+            continue
+        seen.add(path)
+        data = path.read_bytes()
+        try:
+            data.decode("utf-8")
+            continue
+        except UnicodeDecodeError:
+            pass
+
+        text: Optional[str] = None
+        for encoding in ("cp1252", "latin-1"):
+            try:
+                text = data.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if text is None:
+            text = data.decode("utf-8", errors="replace")
+
+        # Strip UTF-8 BOM if present in the text
+        text = text.lstrip("\ufeff")
+
+        # Normalize Unicode characters to ASCII equivalents
+        for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
+            text = text.replace(unicode_char, ascii_replacement)
+
+        path.write_text(text, encoding="utf-8")
+        rewritten.append(path)
+
+    return rewritten
+
+
 def collect_feature_summary(
     repo_root: Path,
     feature: str,
@@ -313,10 +412,7 @@ def collect_feature_summary(
 
     branch: Optional[str] = None
     try:
-        branch_value = (
-            run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True)
-            .stdout.strip()
-        )
+        branch_value = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True).stdout.strip()
         if branch_value and branch_value != "HEAD":
             branch = branch_value
     except TaskCliError:
@@ -324,16 +420,14 @@ def collect_feature_summary(
 
     try:
         worktree_root = Path(
-            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True)
-            .stdout.strip()
+            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()
         ).resolve()
     except TaskCliError:
         worktree_root = repo_root
 
     try:
         git_common_dir = Path(
-            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True)
-            .stdout.strip()
+            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
         ).resolve()
         primary_repo_root = git_common_dir.parent
     except TaskCliError:
@@ -365,9 +459,7 @@ def collect_feature_summary(
         try:
             snapshot = materialize(feature_dir)
         except StoreError as exc:
-            raise AcceptanceError(
-                f"Status event log is corrupted for feature '{feature}': {exc}"
-            ) from exc
+            raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
         snapshot_wps = snapshot.work_packages
         if not snapshot_wps:
             activity_issues.append(
@@ -417,7 +509,7 @@ def collect_feature_summary(
 
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
+            if wp.current_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
@@ -439,13 +531,9 @@ def collect_feature_summary(
         for wp_id in expected_wp_ids:
             wp_snapshot = snapshot_wps.get(wp_id)
             if wp_snapshot is None:
-                activity_issues.append(
-                    f"{wp_id}: no canonical state found in status.events.jsonl"
-                )
+                activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
             elif wp_snapshot.get("lane") != "done":
-                activity_issues.append(
-                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'"
-                )
+                activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'")
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
@@ -475,9 +563,7 @@ def collect_feature_summary(
 
     warnings: List[str] = []
     if missing_optional:
-        warnings.append(
-            "Optional artifacts missing: " + ", ".join(missing_optional)
-        )
+        warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
@@ -507,9 +593,7 @@ def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
     if preference in {"pr", "local", "checklist"}:
         return preference
     try:
-        remotes = (
-            run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
-        )
+        remotes = run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
         if remotes:
             return "pr"
     except TaskCliError:
@@ -526,9 +610,7 @@ def perform_acceptance(
     auto_commit: bool = True,
 ) -> AcceptanceResult:
     if mode != "checklist" and not summary.ok:
-        raise AcceptanceError(
-            "Acceptance checks failed; run verify to see outstanding issues."
-        )
+        raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
     actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -538,11 +620,7 @@ def perform_acceptance(
 
     if auto_commit and mode != "checklist":
         try:
-            parent_commit = (
-                run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False)
-                .stdout.strip()
-                or None
-            )
+            parent_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
         except TaskCliError:
             parent_commit = None
 
@@ -569,10 +647,7 @@ def perform_acceptance(
             run_git(["commit", "-m", commit_msg], cwd=summary.repo_root, check=True)
             commit_created = True
             try:
-                accept_commit = (
-                    run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True)
-                    .stdout.strip()
-                )
+                accept_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True).stdout.strip()
             except TaskCliError:
                 accept_commit = None
             # Persist commit SHA to meta.json
@@ -593,33 +668,57 @@ def perform_acceptance(
     cleanup_instructions: List[str] = []
 
     branch = summary.branch or summary.feature
+
+    # Determine whether `branch` is the integration/target branch itself.
+    # If so, merge and branch-deletion guidance is nonsensical and dangerous
+    # (e.g. "git merge main" or "git branch -d main" when already on main).
+    _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({
+        "main", "master", "develop", "development", "2.x", "3.x",
+    })
+    _meta = load_meta(summary.feature_dir)
+    _target_branch = (_meta or {}).get("target_branch")
+    _is_integration_branch = (
+        branch == _target_branch
+        or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
+    )
+
     if mode == "pr":
-        instructions.extend(
-            [
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
-            ]
-        )
+        if _is_integration_branch:
+            instructions.append(
+                f"Acceptance recorded on integration branch `{branch}`. "
+                "Push and open a pull request if needed."
+            )
+        else:
+            instructions.extend(
+                [
+                    f"Review the acceptance commit on branch `{branch}`.",
+                    f"Push your branch: `git push origin {branch}`",
+                    "Open a pull request referencing spec/plan/tasks artifacts.",
+                    "Include acceptance summary and test evidence in the PR description.",
+                ]
+            )
     elif mode == "local":
-        instructions.extend(
-            [
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
-            ]
-        )
+        if _is_integration_branch:
+            instructions.append(
+                f"Acceptance recorded directly on `{branch}`. No merge needed."
+            )
+        else:
+            instructions.extend(
+                [
+                    "Switch to your integration branch (e.g., `git checkout main`).",
+                    "Synchronize it (e.g., `git pull --ff-only`).",
+                    f"Merge the feature: `git merge {branch}`",
+                ]
+            )
     else:  # checklist
-        instructions.append(
-            "All checks passed. Proceed with your manual acceptance workflow."
-        )
+        instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
         )
-    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    if not _is_integration_branch:
+        cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
 
     notes: List[str] = []
     if accept_commit:
@@ -646,11 +745,14 @@ def perform_acceptance(
 
 __all__ = [
     "AcceptanceError",
+    "AcceptanceMode",
     "AcceptanceResult",
     "AcceptanceSummary",
-    "AcceptanceMode",
+    "ArtifactEncodingError",
+    "WorkPackageState",
+    "choose_mode",
     "collect_feature_summary",
     "detect_feature_slug",
-    "choose_mode",
+    "normalize_feature_encoding",
     "perform_acceptance",
 ]

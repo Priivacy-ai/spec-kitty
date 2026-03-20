@@ -158,9 +158,7 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
     repo_root, _feature_dir = _create_test_feature(tmp_path)
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert summary.git_dirty == [], (
-        f"First call dirtied the repo: {summary.git_dirty}"
-    )
+    assert summary.git_dirty == [], f"First call dirtied the repo: {summary.git_dirty}"
 
     # Commit any status.json changes from the first call so the repo is clean
     # again.  materialize() always rewrites status.json with a fresh timestamp,
@@ -180,9 +178,7 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
 
     # Call a second time -- must still report clean (no cumulative drift)
     summary2 = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert summary2.git_dirty == [], (
-        f"Second call dirtied the repo: {summary2.git_dirty}"
-    )
+    assert summary2.git_dirty == [], f"Second call dirtied the repo: {summary2.git_dirty}"
 
 
 # ---------------------------------------------------------------------------
@@ -207,22 +203,135 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     # accept_commit must be a valid 40-char hex SHA
     accept_commit = meta.get("accept_commit")
     assert accept_commit is not None, "accept_commit missing from meta.json"
-    assert re.fullmatch(r"[0-9a-f]{40}", accept_commit), (
-        f"accept_commit is not a valid SHA: {accept_commit!r}"
-    )
+    assert re.fullmatch(r"[0-9a-f]{40}", accept_commit), f"accept_commit is not a valid SHA: {accept_commit!r}"
 
     # acceptance_history[-1] must match
     history = meta.get("acceptance_history", [])
     assert history, "acceptance_history is empty"
     assert history[-1].get("accept_commit") == accept_commit, (
-        f"acceptance_history[-1]['accept_commit'] mismatch: "
-        f"{history[-1].get('accept_commit')!r} != {accept_commit!r}"
+        f"acceptance_history[-1]['accept_commit'] mismatch: {history[-1].get('accept_commit')!r} != {accept_commit!r}"
     )
 
     # AcceptanceResult.accept_commit must also match
     assert result.accept_commit == accept_commit, (
         f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Integration branch guard: merge guidance must not target integration branch
+# ---------------------------------------------------------------------------
+
+
+class TestIntegrationBranchGuard:
+    """perform_acceptance() must never emit 'git merge <integration>' or
+    'git branch -d <integration>' when the current branch IS the integration
+    branch (e.g. main, 2.x).
+    """
+
+    def _make_summary_on_branch(
+        self, tmp_path: Path, branch: str, *, target_branch: str = "main"
+    ) -> AcceptanceSummary:
+        """Create a minimal AcceptanceSummary as if on *branch*."""
+        repo_root, feature_dir = _create_test_feature(tmp_path)
+        # Patch meta.json with the desired target_branch and recommit
+        # so the repo stays clean (summary.ok requires no dirty files).
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta["target_branch"] = target_branch
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+        subprocess.run(
+            ["git", "-C", str(repo_root), "add", "-A"],
+            check=True, capture_output=True,
+        )
+        # Commit only if there are staged changes (target_branch may already
+        # match the value written by _create_test_feature).
+        diff = subprocess.run(
+            ["git", "-C", str(repo_root), "diff", "--cached", "--quiet"],
+            capture_output=True,
+        )
+        if diff.returncode != 0:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "commit", "-m", "patch target_branch"],
+                check=True, capture_output=True,
+            )
+
+        summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
+        # Override the detected branch to simulate the desired state
+        object.__setattr__(summary, "branch", branch)
+        return summary
+
+    def test_branch_main_no_merge_guidance(self, tmp_path: Path) -> None:
+        """branch='main' with target_branch='main' must NOT produce 'git merge main'."""
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge main" not in merged, (
+            f"Should not suggest merging integration branch. instructions={result.instructions}"
+        )
+        assert "git branch -d main" not in merged, (
+            f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
+        )
+
+    def test_branch_2x_no_merge_guidance(self, tmp_path: Path) -> None:
+        """branch='2.x' with target_branch='2.x' must NOT produce 'git merge 2.x'."""
+        summary = self._make_summary_on_branch(tmp_path, "2.x", target_branch="2.x")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge 2.x" not in merged
+        assert "git branch -d 2.x" not in merged
+
+    def test_pr_mode_integration_branch_no_push_branch(self, tmp_path: Path) -> None:
+        """PR mode on integration branch should not say 'Push your branch'."""
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions)
+        assert "Push your branch" not in merged, (
+            f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
+        )
+
+    def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
+        """A real feature branch must still get full merge + cleanup guidance."""
+        summary = self._make_summary_on_branch(
+            tmp_path, "054-my-feature-WP01", target_branch="main"
+        )
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge 054-my-feature-WP01" in merged, (
+            f"Feature branch should get merge guidance. instructions={result.instructions}"
+        )
+        assert "git branch -d 054-my-feature-WP01" in merged, (
+            f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
+        )
+
+    def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
+        """When meta.json has no target_branch, well-known names are guarded."""
+        repo_root, feature_dir = _create_test_feature(tmp_path)
+        # Remove target_branch from meta and recommit
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta.pop("target_branch", None)
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+        subprocess.run(
+            ["git", "-C", str(repo_root), "add", "-A"],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_root), "commit", "-m", "remove target_branch"],
+            check=True, capture_output=True,
+        )
+
+        summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
+        object.__setattr__(summary, "branch", "master")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge master" not in merged
+        assert "git branch -d master" not in merged
 
 
 # ---------------------------------------------------------------------------
@@ -249,12 +358,8 @@ def test_standalone_tasks_cli_help() -> None:
         env={**os.environ, "PYTHONPATH": ""},
     )
 
-    assert result.returncode == 0, (
-        f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
-    )
-    assert "ModuleNotFoundError" not in result.stderr, (
-        f"ModuleNotFoundError in stderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
+    assert "ModuleNotFoundError" not in result.stderr, f"ModuleNotFoundError in stderr:\n{result.stderr}"
     # Confirm help text actually rendered
     assert "usage" in result.stdout.lower() or "--help" in result.stdout, (
         f"Help text not found in stdout:\n{result.stdout}"
@@ -319,25 +424,31 @@ class TestMalformedJsonlRaisesAcceptanceError:
 
 
 def test_copy_parity_between_acceptance_modules() -> None:
-    """Verify acceptance.py and acceptance_support.py remain API-aligned.
+    """Verify acceptance_support.py re-exports match acceptance.py exactly.
 
-    The standalone copy may have additional exports (e.g., ArtifactEncodingError,
-    normalize_feature_encoding), but the core set must be a subset.
-
-    detect_feature_slug is intentionally skipped in signature comparison
-    because the two copies have different parameter lists.
+    After deduplication, acceptance_support.py is a thin re-export wrapper.
+    The __all__ sets must be equal, and every re-exported name must be the
+    exact same object (not a copy).
     """
     from specify_cli import acceptance
     from specify_cli.scripts.tasks import acceptance_support
 
-    # __all__ parity: core exports must be a subset of standalone exports
+    # __all__ parity: sets must be equal
     core_exports = set(acceptance.__all__)
     standalone_exports = set(acceptance_support.__all__)
-    assert core_exports.issubset(standalone_exports), (
-        f"Missing from standalone: {core_exports - standalone_exports}"
+    assert core_exports == standalone_exports, (
+        f"Wrapper must re-export all canonical names. "
+        f"Missing: {core_exports - standalone_exports}, "
+        f"Extra: {standalone_exports - core_exports}"
     )
 
-    # Function signature parity for key functions
+    # Object identity: re-exports must be the same objects, not copies
+    for name in acceptance.__all__:
+        assert getattr(acceptance, name) is getattr(acceptance_support, name), (
+            f"{name} in acceptance_support is not the same object as in acceptance"
+        )
+
+    # Function signature parity for key functions (validates re-exports match)
     parity_functions = [
         "collect_feature_summary",
         "detect_feature_slug",
@@ -348,7 +459,5 @@ def test_copy_parity_between_acceptance_modules() -> None:
         sig_core = inspect.signature(getattr(acceptance, fn_name))
         sig_standalone = inspect.signature(getattr(acceptance_support, fn_name))
         assert sig_core == sig_standalone, (
-            f"{fn_name} signature mismatch:\n"
-            f"  acceptance:         {sig_core}\n"
-            f"  acceptance_support: {sig_standalone}"
+            f"{fn_name} signature mismatch:\n  acceptance:         {sig_core}\n  acceptance_support: {sig_standalone}"
         )
