@@ -236,10 +236,10 @@
 **Requirement Refs**: FR-021, FR-022, NFR-002
 
 ### Included Subtasks
-- [ ] T033 Move `from specify_cli.status.legacy_bridge import update_all_views` to top-level import in `src/specify_cli/status/emit.py`
-- [ ] T034 Remove the `except ImportError: pass` block and the `# WP06 not yet available` comment
-- [ ] T035 Add test to `tests/status/test_emit.py` that patches the import to raise `ImportError` and asserts it propagates
-- [ ] T036 Update `test_legacy_bridge_import_error_handled` test — it currently asserts silent handling; change to assert the error is NOT silently handled
+- [x] T033 Move `from specify_cli.status.legacy_bridge import update_all_views` to top-level import in `src/specify_cli/status/emit.py`
+- [x] T034 Remove the `except ImportError: pass` block and the `# WP06 not yet available` comment
+- [x] T035 Add test to `tests/status/test_emit.py` that patches the import to raise `ImportError` and asserts it propagates
+- [x] T036 Update `test_legacy_bridge_import_error_handled` test — it currently asserts silent handling; change to assert the error is NOT silently handled
 
 ### Implementation Notes
 - Current code (emit.py:288-301):
