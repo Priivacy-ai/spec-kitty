@@ -28,6 +28,10 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
         "feature_number": feature_dir.name.split("-")[0],
         "feature_slug": feature_dir.name,
         "created_at": "2026-01-17T00:00:00Z",
+        "friendly_name": feature_dir.name,
+        "mission": "software-dev",
+        "slug": feature_dir.name,
+        "target_branch": "main",
     }
     if vcs:
         meta_content["vcs"] = vcs
@@ -321,6 +325,75 @@ class TestImplementCommand:
         assert (feature_dir / "meta.json").resolve() in files_to_commit
         assert config_path.resolve() in files_to_commit
 
+    def test_implement_uses_project_auto_commit_default_for_programmatic_calls(self, tmp_path):
+        """Direct Python callers should honor the project auto_commit default."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
+
+        def run_side_effect(cmd, *args, **kwargs):
+            if cmd[:3] == ["git", "status", "--porcelain"]:
+                return MagicMock(returncode=0, stdout="")
+            if cmd[:3] == ["git", "rev-parse", "main"]:
+                return MagicMock(returncode=0, stdout="abc123\n")
+            return MagicMock(returncode=0, stdout="main\n")
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), \
+             patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")), \
+             patch("specify_cli.cli.commands.implement.get_auto_commit_default", return_value=False) as mock_auto_commit_default, \
+             patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs, \
+             patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit, \
+             patch("specify_cli.cli.commands.implement.subprocess.run", side_effect=run_side_effect):
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend.GIT
+            mock_vcs.get_workspace_info.return_value = None
+            mock_vcs.create_workspace.return_value = MagicMock(
+                success=True,
+                workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
+                error=None,
+            )
+            mock_get_vcs.return_value = mock_vcs
+
+            implement("WP01", base=None)
+
+        mock_auto_commit_default.assert_called_once_with(tmp_path)
+        mock_safe_commit.assert_not_called()
+
+    def test_implement_no_auto_commit_blocks_dirty_planning_artifacts(self, tmp_path):
+        """Dirty planning artifacts must block workspace creation when auto-commit is disabled."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), \
+             patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")), \
+             patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs, \
+             patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit, \
+             patch("specify_cli.cli.commands.implement.subprocess.run") as mock_run:
+            mock_vcs = MagicMock()
+            mock_vcs.backend = VCSBackend.GIT
+            mock_vcs.get_workspace_info.return_value = None
+            mock_get_vcs.return_value = mock_vcs
+
+            def run_side_effect(cmd, *args, **kwargs):
+                if cmd[:3] == ["git", "status", "--porcelain"]:
+                    return MagicMock(returncode=0, stdout=" M kitty-specs/010-feature/tasks/WP01-setup.md\n")
+                return MagicMock(returncode=0, stdout="main\n")
+
+            mock_run.side_effect = run_side_effect
+
+            with pytest.raises(typer.Exit):
+                implement("WP01", base=None, auto_commit=False)
+
+        mock_vcs.create_workspace.assert_not_called()
+        mock_safe_commit.assert_not_called()
+
     def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
         """--json failures should still emit a single machine-parseable object."""
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -605,14 +678,7 @@ class TestVCSAbstraction:
         """Test VCS is stored and locked in meta.json on first workspace creation."""
         # Setup - meta.json WITHOUT vcs field
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        feature_dir.mkdir(parents=True)
-        meta_path = feature_dir / "meta.json"
-        meta_content = {
-            "feature_number": "015",
-            "feature_slug": "015-feature",
-            "created_at": "2026-01-17T00:00:00Z",
-        }
-        meta_path.write_text(json.dumps(meta_content, indent=2))
+        meta_path = create_meta_json(feature_dir, vcs="")
 
         # Mock VCS detection
         with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:

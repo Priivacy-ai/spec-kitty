@@ -10,6 +10,7 @@ from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
     AgentSelectionConfig,
+    get_auto_commit_default,
     load_agent_config,
     save_agent_config,
 )
@@ -65,3 +66,26 @@ class TestStrategyRemoval:
         assert "strategy:" not in content
         assert "preferred_implementer: claude" in content
         assert "preferred_reviewer: codex" in content
+
+
+class TestAutoCommitLoading:
+    def test_loads_top_level_auto_commit_without_agents_section(self, tmp_path: Path) -> None:
+        """Top-level auto_commit should still work when agents config is absent."""
+        _write_config(tmp_path, "auto_commit: false\n")
+
+        config = load_agent_config(tmp_path)
+
+        assert config.auto_commit is False
+        assert config.available == []
+        assert get_auto_commit_default(tmp_path) is False
+
+    def test_agents_auto_commit_overrides_top_level(self, tmp_path: Path) -> None:
+        """agents.auto_commit should take precedence over the legacy top-level key."""
+        _write_config(
+            tmp_path,
+            "auto_commit: false\nagents:\n  available: []\n  auto_commit: true\n",
+        )
+
+        config = load_agent_config(tmp_path)
+
+        assert config.auto_commit is True

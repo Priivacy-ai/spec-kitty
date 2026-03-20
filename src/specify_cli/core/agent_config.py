@@ -125,9 +125,19 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
 
     agents_data = data.get("agents", {})
+
+    # Parse auto_commit setting first so top-level configs still work
+    # when no agents section is present.
+    auto_commit_raw = None
+    if isinstance(agents_data, dict):
+        auto_commit_raw = agents_data.get("auto_commit")
+    if auto_commit_raw is None:
+        auto_commit_raw = data.get("auto_commit")
+    auto_commit = auto_commit_raw if isinstance(auto_commit_raw, bool) else True
+
     if not agents_data:
         logger.info("No agents section in config.yaml")
-        return AgentConfig()
+        return AgentConfig(auto_commit=auto_commit)
 
     # Parse available agents
     available = agents_data.get("available", [])
@@ -151,16 +161,6 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         preferred_implementer=selection_data.get("preferred_implementer"),
         preferred_reviewer=selection_data.get("preferred_reviewer"),
     )
-
-    # Parse auto_commit setting (default True for backward compatibility)
-    auto_commit_raw = agents_data.get("auto_commit")
-    if auto_commit_raw is None:
-        # Also check top-level config for auto_commit
-        auto_commit_raw = data.get("auto_commit")
-    if isinstance(auto_commit_raw, bool):
-        auto_commit = auto_commit_raw
-    else:
-        auto_commit = True
 
     return AgentConfig(available=available, selection=selection, auto_commit=auto_commit)
 
