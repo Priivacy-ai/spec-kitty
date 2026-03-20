@@ -11,6 +11,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from typing_extensions import Annotated
 
 from specify_cli.cli import StepTracker
 from specify_cli.core.dependency_graph import (
@@ -41,6 +42,7 @@ from specify_cli.core.feature_detection import (
 from specify_cli.feature_metadata import set_vcs_lock
 from specify_cli.git import safe_commit
 from specify_cli.sync.events import emit_wp_status_changed
+from specify_cli.core.agent_config import get_auto_commit_default
 
 console = Console()
 
@@ -394,6 +396,8 @@ def _ensure_planning_artifacts_committed_git(
     feature_slug: str,
     wp_id: str,
     primary_branch: str,
+    *,
+    auto_commit: bool = True,
 ) -> None:
     """Ensure planning artifacts are committed using git commands.
 
@@ -401,7 +405,9 @@ def _ensure_planning_artifacts_committed_git(
     1. We're on the primary branch (main/master)
     2. No uncommitted files exist in kitty-specs/$feature/
 
-    If uncommitted files exist and we're on the primary branch, auto-commits them.
+    If uncommitted files exist and we're on the primary branch, auto-commits them
+    (unless auto_commit is False, in which case it reports the uncommitted files
+    and exits so the workspace is not created from stale planning state).
 
     Args:
         repo_root: Repository root path
@@ -409,6 +415,7 @@ def _ensure_planning_artifacts_committed_git(
         feature_slug: Feature slug (e.g., "001-my-feature")
         wp_id: Work package ID (e.g., "WP01")
         primary_branch: Primary branch name (main/master)
+        auto_commit: Whether to auto-commit planning artifacts
 
     Raises:
         typer.Exit: If not on primary branch or commit fails
@@ -461,6 +468,13 @@ def _ensure_planning_artifacts_committed_git(
                 )
                 console.print(f"Current branch: {current_branch}")
                 console.print(f"Run: git checkout {primary_branch}")
+                raise typer.Exit(1)
+
+            if not auto_commit:
+                console.print(f"\n[yellow]Auto-commit disabled.[/yellow] Planning artifacts need manual commit:")
+                console.print(f"  git add -f {feature_dir}")
+                commit_msg = f"chore: Planning artifacts for {feature_slug}"
+                console.print(f'  git commit -m "{commit_msg}"')
                 raise typer.Exit(1)
 
             console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
@@ -547,6 +561,10 @@ def implement(
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
     feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
+    auto_commit: Annotated[
+        bool | None,
+        typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit lane change (default: from project config)"),
+    ] = None,
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
 ) -> None:
     """Create workspace for work package implementation.
@@ -581,6 +599,9 @@ def implement(
     tracker.start("detect")
     try:
         repo_root = find_repo_root()
+        # Resolve auto_commit: CLI flag overrides project config
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(repo_root)
         feature_number, feature_slug = detect_feature_context(feature)
         tracker.complete("detect", f"Feature: {feature_slug}")
     except (TaskCliError, typer.Exit) as exc:
@@ -706,7 +727,8 @@ def implement(
 
             # Git path: check branch and status using git commands
             _ensure_planning_artifacts_committed_git(
-                repo_root, feature_dir, feature_slug, wp_id, planning_branch
+                repo_root, feature_dir, feature_slug, wp_id, planning_branch,
+                auto_commit=auto_commit,
             )
 
         except typer.Exit:
@@ -1033,31 +1055,34 @@ def implement(
                     f"Status will commit to '{resolution.current}'."
                 )
 
-            # Commit to current branch (no checkout)
+            # Write updated WP file (always, regardless of auto_commit)
             wp.path.write_text(updated_doc, encoding="utf-8")
             lane_changed = True
 
-            # Commit only the WP file (safe_commit preserves staging area)
-            meta_file = feature_dir / "meta.json"
-            config_file = repo_root / ".kittify" / "config.yaml"
-            files_to_commit = [wp.path.resolve()]
-            if meta_file.exists():
-                files_to_commit.append(meta_file.resolve())
-            if config_file.exists():
-                files_to_commit.append(config_file.resolve())
+            if auto_commit:
+                # Commit only the WP file (safe_commit preserves staging area)
+                meta_file = feature_dir / "meta.json"
+                config_file = repo_root / ".kittify" / "config.yaml"
+                files_to_commit = [wp.path.resolve()]
+                if meta_file.exists():
+                    files_to_commit.append(meta_file.resolve())
+                if config_file.exists():
+                    files_to_commit.append(config_file.resolve())
 
-            commit_success = safe_commit(
-                repo_path=repo_root,
-                files_to_commit=files_to_commit,
-                commit_message=commit_msg,
-                allow_empty=True,  # OK if nothing changed
-            )
+                commit_success = safe_commit(
+                    repo_path=repo_root,
+                    files_to_commit=files_to_commit,
+                    commit_message=commit_msg,
+                    allow_empty=True,  # OK if nothing changed
+                )
 
-            if commit_success:
-                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {resolution.current})[/cyan]")
+                if commit_success:
+                    console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {resolution.current})[/cyan]")
+                else:
+                    # Commit failed - file might be unchanged or other issue
+                    console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
             else:
-                # Commit failed - file might be unchanged or other issue
-                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
 
             # Emit event for 2.x (with sync integration)
             if lane_changed:
