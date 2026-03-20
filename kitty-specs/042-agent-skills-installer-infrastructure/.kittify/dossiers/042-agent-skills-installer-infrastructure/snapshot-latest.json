@@ -1,6 +1,6 @@
 {
   "feature_slug": "042-agent-skills-installer-infrastructure",
-  "snapshot_id": "88e4b52f-bc7b-41cf-9afd-bef25a311136",
+  "snapshot_id": "9b08897e-e543-41fa-99e3-8405e1734db6",
   "total_artifacts": 21,
   "required_artifacts": 3,
   "required_present": 3,
@@ -8,28 +8,28 @@
   "optional_artifacts": 18,
   "optional_present": 18,
   "completeness_status": "complete",
-  "parity_hash_sha256": "2e793e747f2c1a33952ff8631d49dd2f3e1bdff535e354b3c1db0f9130c2fc8e",
+  "parity_hash_sha256": "00abc2943bdd1acbba55cbbb045d162edc6562766b69b096c2ed810b24b36b0a",
   "parity_hash_components": [
     "09dedbc308f808f264fbbca55006396c134e5216aae68ae097845815f32d38bb",
     "0f01bc85bd767aa20c89fe7ddf5a2fdf8437f637a0e60eb0f1f9100a74e9c25f",
-    "0f7e0e27aab78c05d7c48ef35e5c36b85be4827dd3caaeaa7fe5fd26a43838f6",
+    "19243f1d7e7ad12eae5c82605a45b7a437adba8270b5e9ad4521a59799bd973b",
+    "2807d708ae41d49b8fac3a882a4722e090ae94cd80a1ce74f2b4121f4d87a841",
     "3ddf11e21dc7a69db115069ceed9c4575fbdf89a774ee546120f7dc38357ba3d",
+    "44c1249360c7c7b47ae49ecec01c6fdab56574c6d9fb071baafc0333ce71b02c",
     "66cb3ceb382ccc8fff5612000c0157d00255d62b2953ffd8e796b5f2c10f440c",
     "6856a4be9e8f65d7a7740d36d325a41e5c6c8962461cab4173f1bbad02cc7ec9",
     "6e0018d857e5a08b21423cf44b544feeedc66ba0682f0351e27e75c1a72c36ed",
     "7a214a584ef78f8ad952e7354593d158bacb20a1d62a16a2ca462c034a42fa97",
-    "849002a89fddd978a9bb490c2c44f6a96967b36e68e9b7fdbe3301f58ea428b5",
     "8a71915fbfe6c6aba1c1ef98600acd624ddf50614ca534ddf579edbac67b1f00",
     "8cdad469b451c792073f20c17cb784b77d9ae55b718d68790c48850d29465509",
     "8fcd330362b7bd3f0000f64d4a6fb7acc3c2e16ed3e07f40447bfc766da39948",
-    "94f14a73ea3765ff413ac08f949a754d418d3c781a3f98539cafdf3e6148b194",
     "9d0993e67c8db12d3767f7238720e725317b8281ecdbce64814588356bd509c8",
     "b5ba48d9132b64166d010ead48bc53e5d3bed7e3f6fead0210ab7f147d2c9023",
-    "ba540c6bd52c3e42e08e37cf29f4a036e0dd69fb6fdadea422673e059bb0eff2",
+    "c0f3297f0558aa4b5ec786d3ce00dc3b0ee07a91c5779b07b02f345d7259f045",
+    "c26bd89354ec81d87bba0e3d92f452d36c5ef00936bcb577e146494ceb3dbe43",
     "d8f377616669ac42d098f98d32047e7d8e82b62b62e5da8a770a96b01d80af25",
     "df690b53a911c417a60249d4a0524b1cce6dd78c430e1d1290916fc089f2cb56",
     "f68e98bdba39ccd0218cc9d6868c790b245079c7b15951dde5678b4afe931440",
-    "f9d9f326641f454146838348594f370d05c7c8aa09ad34f6afc577397667c9fe",
     "fd802dc6376153c8a0e0d392c29fa4444140753fded2a48a32cc360e280f78a1"
   ],
   "artifact_summaries": [
@@ -44,7 +44,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.490701+00:00",
+      "indexed_at": "2026-03-20T17:23:53.247088+00:00",
       "provenance": null
     },
     {
@@ -58,7 +58,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488531+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244623+00:00",
       "provenance": null
     },
     {
@@ -72,7 +72,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489951+00:00",
+      "indexed_at": "2026-03-20T17:23:53.246298+00:00",
       "provenance": null
     },
     {
@@ -86,35 +86,35 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.490436+00:00",
+      "indexed_at": "2026-03-20T17:23:53.246819+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status",
       "artifact_class": "output",
       "relative_path": "status.json",
-      "content_hash_sha256": "f9d9f326641f454146838348594f370d05c7c8aa09ad34f6afc577397667c9fe",
-      "size_bytes": 1234,
+      "content_hash_sha256": "c26bd89354ec81d87bba0e3d92f452d36c5ef00936bcb577e146494ceb3dbe43",
+      "size_bytes": 1230,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488457+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244539+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status.events",
       "artifact_class": "output",
       "relative_path": "status.events.jsonl",
-      "content_hash_sha256": "94f14a73ea3765ff413ac08f949a754d418d3c781a3f98539cafdf3e6148b194",
-      "size_bytes": 15090,
+      "content_hash_sha256": "2807d708ae41d49b8fac3a882a4722e090ae94cd80a1ce74f2b4121f4d87a841",
+      "size_bytes": 17946,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.487205+00:00",
+      "indexed_at": "2026-03-20T17:23:53.243082+00:00",
       "provenance": null
     },
     {
@@ -128,7 +128,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489373+00:00",
+      "indexed_at": "2026-03-20T17:23:53.245621+00:00",
       "provenance": null
     },
     {
@@ -142,21 +142,21 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488785+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244894+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp03-skills-manifest-crud",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP03-skills-manifest-crud.md",
-      "content_hash_sha256": "0f7e0e27aab78c05d7c48ef35e5c36b85be4827dd3caaeaa7fe5fd26a43838f6",
-      "size_bytes": 10133,
+      "content_hash_sha256": "44c1249360c7c7b47ae49ecec01c6fdab56574c6d9fb071baafc0333ce71b02c",
+      "size_bytes": 10499,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.490032+00:00",
+      "indexed_at": "2026-03-20T17:23:53.246383+00:00",
       "provenance": null
     },
     {
@@ -170,7 +170,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489753+00:00",
+      "indexed_at": "2026-03-20T17:23:53.246085+00:00",
       "provenance": null
     },
     {
@@ -184,7 +184,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488708+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244818+00:00",
       "provenance": null
     },
     {
@@ -198,7 +198,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489249+00:00",
+      "indexed_at": "2026-03-20T17:23:53.245489+00:00",
       "provenance": null
     },
     {
@@ -212,21 +212,21 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489034+00:00",
+      "indexed_at": "2026-03-20T17:23:53.245197+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp08-asset-generator-refactor",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP08-asset-generator-refactor.md",
-      "content_hash_sha256": "ba540c6bd52c3e42e08e37cf29f4a036e0dd69fb6fdadea422673e059bb0eff2",
-      "size_bytes": 7323,
+      "content_hash_sha256": "19243f1d7e7ad12eae5c82605a45b7a437adba8270b5e9ad4521a59799bd973b",
+      "size_bytes": 7420,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.490109+00:00",
+      "indexed_at": "2026-03-20T17:23:53.246468+00:00",
       "provenance": null
     },
     {
@@ -240,7 +240,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.489586+00:00",
+      "indexed_at": "2026-03-20T17:23:53.245927+00:00",
       "provenance": null
     },
     {
@@ -254,7 +254,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.487948+00:00",
+      "indexed_at": "2026-03-20T17:23:53.243871+00:00",
       "provenance": null
     },
     {
@@ -268,7 +268,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.487455+00:00",
+      "indexed_at": "2026-03-20T17:23:53.243370+00:00",
       "provenance": null
     },
     {
@@ -282,7 +282,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.487726+00:00",
+      "indexed_at": "2026-03-20T17:23:53.243654+00:00",
       "provenance": null
     },
     {
@@ -296,7 +296,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488364+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244340+00:00",
       "provenance": null
     },
     {
@@ -310,23 +310,23 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.488173+00:00",
+      "indexed_at": "2026-03-20T17:23:53.244091+00:00",
       "provenance": null
     },
     {
       "artifact_key": "output.tasks.list",
       "artifact_class": "output",
       "relative_path": "tasks.md",
-      "content_hash_sha256": "849002a89fddd978a9bb490c2c44f6a96967b36e68e9b7fdbe3301f58ea428b5",
-      "size_bytes": 11702,
+      "content_hash_sha256": "c0f3297f0558aa4b5ec786d3ce00dc3b0ee07a91c5779b07b02f345d7259f045",
+      "size_bytes": 11699,
       "wp_id": null,
       "step_id": null,
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:18:09.487526+00:00",
+      "indexed_at": "2026-03-20T17:23:53.243447+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-03-20 17:18:09.533678+00:00"
+  "computed_at": "2026-03-20 17:23:53.277705+00:00"
 }
