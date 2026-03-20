@@ -879,6 +879,7 @@ def init(  # noqa: C901
         "kilocode": ".kilocode/",
         "auggie": ".augment/",
         "copilot": ".github/",
+        "antigravity": ".agent/",
         "roo": ".roo/",
         "q": ".amazonq/",
     }

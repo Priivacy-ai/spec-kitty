@@ -54,7 +54,12 @@ def resolve_doctrine_root() -> Path:
     if dev_root.is_dir():
         return dev_root
 
-    raise FileNotFoundError("Cannot locate doctrine root. Ensure doctrine assets are packaged.")
+    raise FileNotFoundError(
+        "Cannot locate doctrine root. "
+        "Checked importlib.resources('doctrine') and development layout at "
+        f"{dev_root}. "
+        "Ensure the 'doctrine' package is installed or run from the repository root."
+    )
 
 
 # Backward-compatible alias for existing private callers.

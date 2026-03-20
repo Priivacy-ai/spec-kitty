@@ -45,7 +45,7 @@ class CredentialStore:
         try:
             with self._acquire_lock(), open(self.credentials_path) as handle:
                 return toml.load(handle)
-        except (toml.TomlDecodeError, OSError):
+        except (toml.TomlDecodeError, OSError, Timeout):
             return None
 
     def save(
