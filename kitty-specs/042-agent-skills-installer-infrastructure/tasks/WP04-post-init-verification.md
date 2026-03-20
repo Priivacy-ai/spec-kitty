@@ -12,7 +12,7 @@ subtasks:
 - T020
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "13034"
 review_status: ''
 reviewed_by: ''
@@ -206,3 +206,4 @@ def test_wrapper_only_agent_no_skill_root(tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T17:29:03Z – coordinator – shell_pid=13034 – lane=doing – Assigned agent via workflow command
