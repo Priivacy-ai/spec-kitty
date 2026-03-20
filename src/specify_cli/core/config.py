@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from specify_cli.core.agent_surface import get_agent_command_config
+from specify_cli.core.agent_surface import AGENT_SURFACE_CONFIG, get_agent_command_config
 
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
@@ -80,6 +80,7 @@ __all__ = [
     "SCRIPT_TYPE_CHOICES",
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
+    "AGENT_SURFACE_CONFIG",
     "IDE_AGENTS",
     "BANNER",
 ]

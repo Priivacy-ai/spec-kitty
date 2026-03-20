@@ -268,3 +268,15 @@ def test_codex_ext_is_md_not_prompt_md() -> None:
     assert AGENT_SURFACE_CONFIG["codex"].wrapper.ext == "md"
     # copilot is the one with prompt.md
     assert AGENT_SURFACE_CONFIG["copilot"].wrapper.ext == "prompt.md"
+
+
+# ---------------------------------------------------------------------------
+# AGENT_SURFACE_CONFIG importable from config.py (User Story 2 requirement)
+# ---------------------------------------------------------------------------
+
+
+def test_agent_surface_config_importable_from_config() -> None:
+    """Verify AGENT_SURFACE_CONFIG is re-exported from config.py per spec."""
+    from specify_cli.core.config import AGENT_SURFACE_CONFIG as config_asc
+
+    assert len(config_asc) == 12
