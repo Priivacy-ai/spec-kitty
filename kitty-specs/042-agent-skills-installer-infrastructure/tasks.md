@@ -279,7 +279,7 @@ Wave 5: WP09 (depends on all, final validation)
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
-- WP02: in_progress
+- WP02: planned
 - WP03: in_progress
 - WP08: in_progress
 <!-- status-model:end -->
