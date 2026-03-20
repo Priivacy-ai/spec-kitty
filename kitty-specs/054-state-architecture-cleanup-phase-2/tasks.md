@@ -49,11 +49,11 @@
 **Requirement Refs**: FR-001, FR-002, FR-003, FR-004
 
 ### Included Subtasks
-- [ ] T004 Remove `_detect_active_mission()` from `src/specify_cli/manifest.py` and refactor `FileManifest` to not carry `active_mission` property
-- [ ] T005 Update `src/specify_cli/verify_enhanced.py` to accept `feature_dir: Path | None` parameter and resolve mission from `meta.json`
-- [ ] T006 Update `src/specify_cli/dashboard/diagnostics.py` to accept `feature_dir: Path | None` and resolve mission per-feature
-- [ ] T007 Update `src/specify_cli/cli/commands/mission.py` `current_cmd()` to show explicit "no active feature detected" instead of project-level fallback
-- [ ] T008 Add/update tests: manifest without active_mission, verify with feature context, diagnostics with feature context
+- [x] T004 Remove `_detect_active_mission()` from `src/specify_cli/manifest.py` and refactor `FileManifest` to not carry `active_mission` property
+- [x] T005 Update `src/specify_cli/verify_enhanced.py` to accept `feature_dir: Path | None` parameter and resolve mission from `meta.json`
+- [x] T006 Update `src/specify_cli/dashboard/diagnostics.py` to accept `feature_dir: Path | None` and resolve mission per-feature
+- [x] T007 Update `src/specify_cli/cli/commands/mission.py` `current_cmd()` to show explicit "no active feature detected" instead of project-level fallback
+- [x] T008 Add/update tests: manifest without active_mission, verify with feature context, diagnostics with feature context
 
 ### Implementation Notes
 - `FileManifest.__init__()` currently sets `self.active_mission = self._detect_active_mission()` and derives `self.mission_dir` from it. After removing, callers that need mission context must resolve it from feature `meta.json` via `get_mission_for_feature()`.
