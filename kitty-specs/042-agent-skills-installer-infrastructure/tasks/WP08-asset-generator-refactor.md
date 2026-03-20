@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Asset Generator Refactor
-lane: "doing"
+lane: "approved"
 dependencies: [WP01]
 base_branch: 042-agent-skills-installer-infrastructure-WP01
 base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
@@ -12,10 +12,10 @@ subtasks:
 - T039
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: "codex"
-shell_pid: "5867"
-review_status: has_feedback
-reviewed_by: Robert Douglass
+agent: codex
+shell_pid: '5867'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: feedback://042-agent-skills-installer-infrastructure/WP08/20260320T170756Z-b1735646.md
 history:
 - timestamp: '2026-03-20T16:29:09Z'
@@ -200,3 +200,4 @@ def test_wrapper_generation_unchanged(agent_key, tmp_path):
 - 2026-03-20T17:10:02Z – coordinator – shell_pid=94243 – lane=doing – Started implementation via workflow command
 - 2026-03-20T17:17:46Z – coordinator – shell_pid=94243 – lane=for_review – Fixed: added byte-exact golden baseline test with real sw-dev templates (merged via prepare_command_templates). 111 tests total (75 synthetic + 36 real-template). All pass.
 - 2026-03-20T17:18:09Z – codex – shell_pid=5867 – lane=doing – Started review via workflow command
+- 2026-03-20T17:23:53Z – codex – shell_pid=5867 – lane=approved – Review passed: asset_generator refactor is minimal and wrapper output is byte-exact vs pre-refactor for all 12 agents
