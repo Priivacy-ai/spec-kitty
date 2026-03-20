@@ -1,3 +1,6 @@
+# FUSE temporary files (created by filesystem-in-userspace on some Linux systems)
+.fuse_hidden*
+
 # Python
 __pycache__/
 *.py[cod]
@@ -92,6 +95,12 @@ sdd-*/
 doctrine_ref
 /work/
 
+# Mutation testing
+mutmut.db
+mutmut-cache/
+.mutmut-cache
+mutants/
+
 # CI report outputs
 .coverage
 out/reports/**
@@ -113,5 +122,6 @@ out
 
 tmp/**
 !tmp/.gitkeep
+pytest-of-*/
 .kittify/missions/__pycache__/
 .spec-kitty/
