@@ -27,6 +27,7 @@
 - "Why do we track base branch in frontmatter?" → [ADR-2026-01-23-2](adrs/2026-01-23-2-explicit-base-branch-tracking.md)
 - "Why auto-merge instead of manual merge?" → [ADR-2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md)
 - "Why use decorators for validation?" → [ADR-2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md)
+- "Why do feature planning artifacts live on `feature_branch` instead of `target_branch`?" → [ADR-2026-03-20-1](adrs/2026-03-20-1-separate-feature-planning-branch-from-merge-target.md)
 
 **What you'll find:**
 - Problem being solved
@@ -63,6 +64,7 @@
 2. [ADR-2026-01-23-3](adrs/2026-01-23-3-centralized-workspace-context-storage.md) - Why centralized storage?
 3. [ADR-2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md) - Why auto-merge?
 4. [ADR-2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md) - Why decorators?
+5. [ADR-2026-03-20-1](adrs/2026-03-20-1-separate-feature-planning-branch-from-merge-target.md) - Why separate planning state from final merge target?
 
 **Step 2:** Explore implementation
 - Check code references in each ADR
@@ -160,7 +162,7 @@ Do you need to document something?
 ### By Topic
 
 **Git/VCS:**
-- ADRs: 0002, 0003, 0004, 0005
+- ADRs: 0002, 0003, 0004, 0005, 0013, 0017, 2026-03-20-1
 - Code: `src/specify_cli/workspace_context.py`, `src/specify_cli/core/multi_parent_merge.py`, `src/specify_cli/core/context_validation.py`
 
 **Future topics will be organized similarly**

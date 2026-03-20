@@ -137,7 +137,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-27-10](adrs/2026-01-27-10-per-feature-mission-selection.md) | Per-Feature Mission Selection | Accepted | Mission System |
 | [2026-01-27-11](adrs/2026-01-27-11-dual-repository-pattern.md) | Dual-Repository Pattern for Private Dependency | Accepted | Dependency Management |
 | [2026-01-27-12](adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) | Two-Branch Strategy for SaaS Transformation | Accepted | Release Strategy |
-| [2026-01-29-13](adrs/2026-01-29-13-target-branch-routing-for-status-commits.md) | Target Branch Routing for Status Commits | Accepted | Git Repository Management |
+| [2026-01-29-13](adrs/2026-01-29-13-target-branch-routing-for-status-commits.md) | Target Branch Routing for Status Commits | Superseded (ADR-2026-03-20-1) | Git Repository Management |
 | [2026-01-29-14](adrs/2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md) | Explicit Metadata Fields Over Implicit Defaults | Accepted | Metadata & Configuration |
 | [2026-01-29-15](adrs/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md) | Merge-First Suggestion for Completed Dependencies | Superseded (ADR-21) | Git Repository Management |
 | [2026-01-29-16](adrs/2026-01-29-16-rich-json-outputs-for-agent-commands.md) | Rich JSON Outputs for Agent Commands | Accepted | Agent Experience |
@@ -150,14 +150,16 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-02-12-2](adrs/2026-02-12-2-use-scoped-api-keys-for-ci-during-stabilization.md) | Use Scoped API Keys for CI During Stabilization | Accepted | Service Authentication |
 | [2026-02-12-3](adrs/2026-02-12-3-defer-auth0-and-nango-to-post-stabilization.md) | Defer Auth0 and Nango to Post-Stabilization Migration | Accepted | Identity & Integration Roadmap |
 | [2026-02-23-4](adrs/2026-02-23-4-orchestrator-externalization-host-contract.md) | Externalize Orchestration Behind a Host Contract | Accepted | CLI/Automation |
+| [2026-03-20-1](adrs/2026-03-20-1-separate-feature-planning-branch-from-merge-target.md) | Separate Feature Planning Branch from Merge Target | Accepted | Git Repository Management |
 
 ### By Topic
 
-**Git Repository Management** (ADRs 2, 4, 5, 9, 13, 15, 17, 18, 21)
+**Git Repository Management** (ADRs 2, 4, 5, 9, 13, 15, 17, 18, 21, 2026-03-20-1)
 - Base branch visibility and tracking (ADR-2)
 - Multi-parent dependency handling (ADR-4, ~~ADR-15~~ superseded)
 - Worktree lifecycle management (ADR-9)
-- Dual-branch status routing (ADR-13)
+- Dual-branch status routing (~~ADR-13~~ superseded by ADR-2026-03-20-1)
+- Separate planning branch from merge target (ADR-2026-03-20-1)
 - Runtime context enforcement (ADR-5)
 - Auto-create target branch (ADR-17)
 - "Done" lane semantics (ADR-21, supersedes ADR-15 and ADR-18)
