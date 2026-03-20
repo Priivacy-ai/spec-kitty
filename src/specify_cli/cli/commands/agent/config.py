@@ -74,6 +74,13 @@ def list_agents():
         else:
             console.print(f"  ✗ {agent_key} (unknown agent)")
 
+    # Show auto-commit setting
+    auto_commit_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
+    console.print(f"\n[cyan]Auto-commit:[/cyan] {auto_commit_label}")
+    if not config.auto_commit:
+        console.print("[dim]  Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
+        console.print("[dim]  Override per-command with --auto-commit flag.[/dim]")
+
     # Show available but not configured
     all_agent_keys = set(AGENT_DIR_TO_KEY.values())
     not_configured = all_agent_keys - set(config.available)
@@ -386,6 +393,51 @@ def sync_agents(
         console.print("[dim]No changes needed - filesystem matches config[/dim]")
     else:
         console.print("\n[green]✓ Sync complete[/green]")
+
+
+@app.command(name="set")
+def set_config(
+    key: str = typer.Argument(..., help="Configuration key (e.g., auto_commit)"),
+    value: str = typer.Argument(..., help="Configuration value (e.g., true, false)"),
+):
+    """Set a project-level agent configuration value.
+
+    Currently supported keys:
+        auto_commit  - Enable/disable automatic commits by agents (true/false)
+
+    Examples:
+        spec-kitty agent config set auto_commit false
+        spec-kitty agent config set auto_commit true
+    """
+    try:
+        repo_root = find_repo_root()
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+    config = _load_config_or_exit(repo_root)
+
+    if key == "auto_commit":
+        if value.lower() in ("true", "1", "yes", "on"):
+            config.auto_commit = True
+        elif value.lower() in ("false", "0", "no", "off"):
+            config.auto_commit = False
+        else:
+            console.print(f"[red]Error:[/red] Invalid value for auto_commit: '{value}'. Use 'true' or 'false'.")
+            raise typer.Exit(1)
+
+        save_agent_config(repo_root, config)
+
+        status_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
+        console.print(f"[green]✓[/green] auto_commit set to {status_label}")
+        if not config.auto_commit:
+            console.print("[dim]Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
+            console.print("[dim]Per-command flags (--auto-commit/--no-auto-commit) override this setting.[/dim]")
+    else:
+        console.print(f"[red]Error:[/red] Unknown configuration key: '{key}'")
+        console.print("\nSupported keys:")
+        console.print("  auto_commit  - Enable/disable automatic commits by agents (true/false)")
+        raise typer.Exit(1)
 
 
 __all__ = ["app"]

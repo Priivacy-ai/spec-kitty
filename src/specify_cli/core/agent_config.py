@@ -44,10 +44,15 @@ class AgentConfig:
     Attributes:
         available: List of agent IDs that are available for use
         selection: Configuration for how to select agents
+        auto_commit: Whether agents should auto-commit status changes.
+            When False, agents may stage changes but MUST NOT create
+            commits unless explicitly instructed. Per-command flags
+            (--auto-commit/--no-auto-commit) override this setting.
     """
 
     available: list[str] = field(default_factory=list)
     selection: AgentSelectionConfig = field(default_factory=AgentSelectionConfig)
+    auto_commit: bool = True
 
     def select_implementer(self, exclude: str | None = None) -> str | None:
         """Select an agent for implementation.
@@ -147,7 +152,17 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         preferred_reviewer=selection_data.get("preferred_reviewer"),
     )
 
-    return AgentConfig(available=available, selection=selection)
+    # Parse auto_commit setting (default True for backward compatibility)
+    auto_commit_raw = agents_data.get("auto_commit")
+    if auto_commit_raw is None:
+        # Also check top-level config for auto_commit
+        auto_commit_raw = data.get("auto_commit")
+    if isinstance(auto_commit_raw, bool):
+        auto_commit = auto_commit_raw
+    else:
+        auto_commit = True
+
+    return AgentConfig(available=available, selection=selection, auto_commit=auto_commit)
 
 
 def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
@@ -180,6 +195,7 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
             "preferred_implementer": config.selection.preferred_implementer,
             "preferred_reviewer": config.selection.preferred_reviewer,
         },
+        "auto_commit": config.auto_commit,
     }
 
     # Write back
@@ -204,6 +220,23 @@ def get_configured_agents(repo_root: Path) -> list[str]:
     return config.available
 
 
+def get_auto_commit_default(repo_root: Path) -> bool:
+    """Get the auto_commit default from project config.
+
+    This is the project-level setting that commands should use as their
+    default for auto-commit behavior. Per-command flags (--auto-commit/
+    --no-auto-commit) override this value.
+
+    Args:
+        repo_root: Repository root directory
+
+    Returns:
+        True if auto-commit is enabled (the default), False if disabled
+    """
+    config = load_agent_config(repo_root)
+    return config.auto_commit
+
+
 __all__ = [
     "AgentSelectionConfig",
     "AgentConfig",
@@ -211,4 +244,5 @@ __all__ = [
     "load_agent_config",
     "save_agent_config",
     "get_configured_agents",
+    "get_auto_commit_default",
 ]

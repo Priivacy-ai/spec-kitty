@@ -31,6 +31,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_slug as centralized_detect_feature_slug,
     FeatureDetectionError,
 )
+from specify_cli.core.agent_config import get_auto_commit_default
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -607,8 +608,12 @@ def perform_acceptance(
     mode: AcceptanceMode,
     actor: Optional[str],
     tests: Optional[Sequence[str]] = None,
-    auto_commit: bool = True,
+    auto_commit: Optional[bool] = None,
 ) -> AcceptanceResult:
+    # Resolve auto_commit: explicit value wins, then project config, then default True
+    if auto_commit is None:
+        auto_commit = get_auto_commit_default(summary.repo_root)
+
     if mode != "checklist" and not summary.ok:
         raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 

@@ -37,6 +37,7 @@ from specify_cli.core.feature_detection import (
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.core.agent_config import get_auto_commit_default
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -821,7 +822,7 @@ def move_task(
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     done_override_reason: Annotated[Optional[str], typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
-    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
+    auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
@@ -842,6 +843,10 @@ def move_task(
         if repo_root is None:
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
+
+        # Resolve auto_commit: CLI flag overrides project config
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(repo_root)
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
@@ -1269,7 +1274,7 @@ def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch")] = True,
+    auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Update task checkbox status in tasks.md for one or more tasks.
@@ -1306,6 +1311,10 @@ def mark_status(
         if repo_root is None:
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
+
+        # Resolve auto_commit: CLI flag overrides project config
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(repo_root)
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
         # Ensure we operate on the target branch for this feature
@@ -1931,6 +1940,7 @@ def status(
 
             lane_counts = Counter(wp["lane"] for wp in work_packages)
             stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
+            auto_commit_enabled = get_auto_commit_default(main_repo_root)
             result = {
                 "feature": feature_slug,
                 "total_wps": len(work_packages),
@@ -1938,6 +1948,7 @@ def status(
                 "work_packages": work_packages,
                 "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1),
                 "stale_wps": stale_count,
+                "auto_commit": auto_commit_enabled,
             }
             print(json.dumps(result, indent=2))
             return
@@ -2095,6 +2106,11 @@ def status(
         summary.add_row("Completed:", f"[green]{done_count}[/green] ({progress_pct}%)")
         summary.add_row("In Progress:", f"[blue]{in_progress}[/blue]")
         summary.add_row("Planned:", f"[yellow]{planned_count}[/yellow]")
+
+        # Show auto-commit mode
+        auto_commit_enabled = get_auto_commit_default(main_repo_root)
+        auto_commit_label = "[green]enabled[/green]" if auto_commit_enabled else "[yellow]disabled[/yellow]"
+        summary.add_row("Auto-commit:", auto_commit_label)
 
         console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
         console.print()
