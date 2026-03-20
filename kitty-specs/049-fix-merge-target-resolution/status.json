@@ -1,0 +1,31 @@
+{
+  "event_count": 9,
+  "feature_slug": "049-fix-merge-target-resolution",
+  "last_event_id": "01KKBT5ATFVXFNSGXGMX7KWZA8",
+  "materialized_at": "2026-03-10T12:04:48.079687+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBSG4XEVF0WP7983SMR823K",
+      "last_transition_at": "2026-03-10T11:53:13.902676+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KKBT5ATFVXFNSGXGMX7KWZA8",
+      "last_transition_at": "2026-03-10T12:04:48.079345+00:00"
+    }
+  }
+}
