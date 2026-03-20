@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Atomic Write Conversion — Sync and Config
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 054-state-architecture-cleanup-phase-2-WP01
 base_commit: b989de5f96e3c9e6c776a952a010cdeacc2e69e8
@@ -13,8 +13,8 @@ subtasks:
 - T022
 phase: Phase 2 - Hardening
 assignee: ''
-agent: "coordinator"
-shell_pid: "94629"
+agent: coordinator
+shell_pid: '94629'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -207,3 +207,4 @@ Run: `pytest tests/ -k "clock or auth or sync_config or tracker" -v`
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T14:00:43Z – coordinator – shell_pid=94629 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T14:03:40Z – coordinator – shell_pid=94629 – lane=for_review – Ready for review: converted 4 sync/config write paths to atomic_write (clock, auth, sync config, tracker config)
