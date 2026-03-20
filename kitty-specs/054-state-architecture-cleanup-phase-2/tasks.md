@@ -274,10 +274,10 @@
 **Requirement Refs**: FR-023, NFR-002, NFR-003
 
 ### Included Subtasks
-- [ ] T037 Update `07-2026-03-20-refresh-findings.md` with implementation outcomes for all 7 areas
-- [ ] T038 Add new entries to `08-evidence-log-2026-03-20.md` referencing implementation commits and test results
-- [ ] T039 Run full test suite (`PWHEADLESS=1 pytest tests/ -q`) and record results
-- [ ] T040 Create `09-implementation-outcome-054.md` with summary of what changed, what was deferred, and what was intentionally left
+- [x] T037 Update `07-2026-03-20-refresh-findings.md` with implementation outcomes for all 7 areas
+- [x] T038 Add new entries to `08-evidence-log-2026-03-20.md` referencing implementation commits and test results
+- [x] T039 Run full test suite (`PWHEADLESS=1 pytest tests/ -q`) and record results
+- [x] T040 Create `09-implementation-outcome-054.md` with summary of what changed, what was deferred, and what was intentionally left
 
 ### Implementation Notes
 - Vault absolute path: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/research/007-spec-kitty-2x-state-architecture-audit/`
