@@ -33,7 +33,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for feature_dir and available_docs list.
    - All file paths must be absolute.
-   - Treat `target_branch` / `base_branch` in the JSON payload as canonical branch context for this run.
+   - Treat `target_branch` as the final merge target and `feature_branch` / `planning_branch` as the canonical planning-branch context for this run.
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks

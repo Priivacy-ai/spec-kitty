@@ -24,7 +24,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
+Run `{SCRIPT}` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and feature_branch. Derive absolute paths:
 
 - SPEC = feature_dir/spec.md
 - PLAN = feature_dir/plan.md

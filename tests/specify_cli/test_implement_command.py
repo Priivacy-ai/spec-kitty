@@ -20,7 +20,13 @@ from specify_cli.cli.commands.implement import (
 from specify_cli.core.vcs import VCSBackend
 
 
-def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
+def create_meta_json(
+    feature_dir: Path,
+    vcs: str = "git",
+    *,
+    target_branch: str | None = None,
+    feature_branch: str | None = None,
+) -> Path:
     """Helper to create meta.json in a feature directory."""
     meta_path = feature_dir / "meta.json"
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -31,6 +37,10 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
     }
     if vcs:
         meta_content["vcs"] = vcs
+    if target_branch:
+        meta_content["target_branch"] = target_branch
+    if feature_branch:
+        meta_content["feature_branch"] = feature_branch
     meta_path.write_text(json.dumps(meta_content, indent=2))
     return meta_path
 
@@ -510,6 +520,57 @@ class TestImplementCommand:
                         assert call_kwargs["workspace_name"] == "010-workspace-per-wp-WP01"
                         # Verify workspace path
                         assert str(call_kwargs["workspace_path"]).endswith(".worktrees/010-workspace-per-wp-WP01")
+
+    def test_implement_uses_feature_branch_for_planning_guard(self, tmp_path):
+        """Features with a distinct merge target should still plan from feature_branch."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(
+            feature_dir,
+            target_branch="2.x",
+            feature_branch="010-feature",
+        )
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
+
+        def fake_subprocess_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "branch", "--show-current"]:
+                return MagicMock(returncode=0, stdout="010-feature\n")
+            if cmd[:2] == ["git", "status"]:
+                return MagicMock(returncode=0, stdout="?? kitty-specs/010-feature/tasks/\n")
+            if cmd[:2] == ["git", "add"]:
+                return MagicMock(returncode=0, stdout="", stderr="")
+            if cmd[:2] == ["git", "commit"]:
+                return MagicMock(returncode=0, stdout="", stderr="")
+            return MagicMock(returncode=0, stdout="010-feature\n", stderr="")
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
+            mock_repo_root.return_value = tmp_path
+
+            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
+                mock_detect.return_value = ("010", "010-feature")
+
+                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
+                    mock_vcs = MagicMock()
+                    mock_vcs.backend = VCSBackend.GIT
+                    mock_vcs.get_workspace_info.return_value = None
+                    mock_vcs.create_workspace.return_value = MagicMock(
+                        success=True,
+                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
+                        error=None,
+                    )
+                    mock_get_vcs.return_value = mock_vcs
+
+                    with patch("subprocess.run", side_effect=fake_subprocess_run):
+                        implement("WP01", base=None)
+
+                        mock_vcs.create_workspace.assert_called_once()
+                        call_kwargs = mock_vcs.create_workspace.call_args[1]
+                        assert call_kwargs["base_branch"] == "010-feature"
 
 
 class TestVCSAbstraction:

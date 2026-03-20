@@ -50,10 +50,13 @@ class TestCreateFeatureCommand:
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
         assert "feature_dir" in output
-        # Git-flow: target_branch is the feature slug branch
-        assert output["target_branch"] == "001-test-feature"
+        assert output["target_branch"] == "main"
+        assert output["feature_branch"] == "001-test-feature"
+        assert output["planning_branch"] == "001-test-feature"
         assert output["base_branch"] == "001-test-feature"
-        assert output["TARGET_BRANCH"] == "001-test-feature"
+        assert output["TARGET_BRANCH"] == "main"
+        assert output["FEATURE_BRANCH"] == "001-test-feature"
+        assert output["PLANNING_BRANCH"] == "001-test-feature"
         assert output["BASE_BRANCH"] == "001-test-feature"
 
         # Verify feature directory was created
@@ -69,7 +72,9 @@ class TestCreateFeatureCommand:
         assert meta["slug"] == "001-test-feature"
         assert meta["feature_slug"] == "001-test-feature"
         assert meta["mission"] == "software-dev"
-        assert meta["target_branch"] == "001-test-feature"
+        assert meta["target_branch"] == "main"
+        assert meta["feature_branch"] == "001-test-feature"
+        assert meta["created_from_branch"] == "main"
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
@@ -181,11 +186,12 @@ class TestCreateFeatureCommand:
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
-        # Verify - should succeed from any branch, feature branch is the target
+        # Verify - should succeed from any branch, while preserving merge target
         assert result.exit_code == 0
         output = json.loads(result.stdout)
         assert output["result"] == "success"
-        assert output["target_branch"] == "001-test-feature"
+        assert output["target_branch"] == "develop"
+        assert output["feature_branch"] == "001-test-feature"
 
 
 class TestCheckPrerequisitesCommand:
@@ -328,8 +334,12 @@ class TestCheckPrerequisitesCommand:
         output = json.loads(result.stdout)
         assert output["spec_file"] == paths["spec_file"]
         assert output["target_branch"] == "main"
+        assert output["feature_branch"] == "main"
+        assert output["planning_branch"] == "main"
         assert output["base_branch"] == "main"
         assert output["TARGET_BRANCH"] == "main"
+        assert output["FEATURE_BRANCH"] == "main"
+        assert output["PLANNING_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
         assert "runtime_vars" in output
         assert "now_utc_iso" in output["runtime_vars"]
@@ -663,8 +673,12 @@ class TestSetupPlanCommand:
         assert "plan_file" in output
         assert "feature_dir" in output
         assert output["target_branch"] == "main"
+        assert output["feature_branch"] == "main"
+        assert output["planning_branch"] == "main"
         assert output["base_branch"] == "main"
         assert output["TARGET_BRANCH"] == "main"
+        assert output["FEATURE_BRANCH"] == "main"
+        assert output["PLANNING_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
 
         # Verify plan file was created

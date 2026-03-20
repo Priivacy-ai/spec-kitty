@@ -629,19 +629,20 @@ def detect_feature_directory(repo_root: Path, **kwargs) -> Path:
 
 
 def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
-    """Get target branch for feature from meta.json.
+    """Get final merge target branch for a feature from meta.json.
 
     This function reads the target_branch field from a feature's meta.json file.
-    The target_branch determines where status commits and implementation work
-    should be routed (e.g., "main" for 1.x features, "2.x" for SaaS features).
+    The target_branch determines where the feature is ultimately merged
+    (for example, "main" for 1.x features or "2.x" for SaaS features).
 
     Args:
         repo_root: Repository root path (may be worktree)
         feature_slug: Feature slug (e.g., "025-cli-event-log-integration")
 
     Returns:
-        Target branch name (defaults to "main" for legacy features without
-        the target_branch field, or if meta.json cannot be read)
+        Final merge target branch name (defaults to the detected primary branch
+        for legacy features without the target_branch field, or if meta.json
+        cannot be read)
 
     Examples:
         >>> # Feature targeting main branch
@@ -653,7 +654,8 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
         '2.x'
 
     Note:
-        This function always returns "main" as a safe default if:
+        This function always returns the detected primary branch as a safe
+        default if:
         - meta.json doesn't exist
         - meta.json is malformed (invalid JSON)
         - target_branch field is missing
@@ -682,6 +684,48 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
         return fallback
 
 
+def get_feature_planning_branch(repo_root: Path, feature_slug: str) -> str:
+    """Get the planning/status branch for a feature from meta.json.
+
+    Newer features created with git-flow store a dedicated `feature_branch`
+    field for planning artifacts and WP branching. Legacy features fall back
+    to `target_branch`, which preserves the historical behavior of planning on
+    the final merge target branch.
+
+    Args:
+        repo_root: Repository root path (may be worktree)
+        feature_slug: Feature slug (for example, "025-cli-event-log-integration")
+
+    Returns:
+        Planning branch name. Prefers `feature_branch`, then falls back to
+        `target_branch`, then to the detected primary branch if metadata is
+        missing or malformed.
+    """
+    import json
+
+    main_repo_root = _get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    meta_file = feature_dir / "meta.json"
+
+    fallback = get_feature_target_branch(main_repo_root, feature_slug)
+
+    if not meta_file.exists():
+        return fallback
+
+    try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        if not isinstance(meta, dict):
+            return fallback
+
+        feature_branch = str(meta.get("feature_branch", "")).strip()
+        if feature_branch:
+            return feature_branch
+
+        return str(meta.get("target_branch", fallback)).strip() or fallback
+    except (json.JSONDecodeError, KeyError, OSError):
+        return fallback
+
+
 # ============================================================================
 # Exports
 # ============================================================================
@@ -701,4 +745,5 @@ __all__ = [
     "detect_feature_directory",
     # Target branch detection
     "get_feature_target_branch",
+    "get_feature_planning_branch",
 ]

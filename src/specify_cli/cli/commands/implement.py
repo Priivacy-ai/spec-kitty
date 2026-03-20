@@ -38,7 +38,7 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
-    get_feature_target_branch,
+    get_feature_planning_branch,
 )
 
 console = Console()
@@ -553,7 +553,7 @@ def implement(
     """Create workspace for work package implementation.
 
     Creates a git worktree for the specified work package, branching from
-    the feature's target branch (for WPs with no dependencies) or from a base WP's branch.
+    the feature's planning branch context (for WPs with no dependencies) or from a base WP's branch.
 
     Examples:
         # Create workspace for WP01 (no dependencies)
@@ -719,17 +719,17 @@ def implement(
             vcs = get_vcs(repo_root)
             vcs_backend = vcs.backend
 
-            target_branch_for_wp = get_feature_target_branch(repo_root, feature_slug)
+            planning_branch_for_wp = get_feature_planning_branch(repo_root, feature_slug)
 
             if vcs_backend == VCSBackend.GIT:
                 # Git path: check branch and status using git commands
                 _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, target_branch_for_wp
+                    repo_root, feature_dir, feature_slug, wp_id, planning_branch_for_wp
                 )
             else:
                 # jj path: check status and commit using jj commands
                 _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, target_branch_for_wp
+                    repo_root, feature_dir, feature_slug, wp_id, planning_branch_for_wp
                 )
 
         except typer.Exit:
@@ -990,7 +990,7 @@ def implement(
         console.print(tracker.render())
         raise
 
-    # Step 4: Update WP lane to "doing" and auto-commit to target branch
+    # Step 4: Update WP lane to "doing" and auto-commit to the current planning branch
     # This enables multi-agent synchronization - all agents see the claim immediately
     try:
         import os
@@ -1007,7 +1007,7 @@ def implement(
             updated_front = set_scalar(wp.frontmatter, "lane", "doing")
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-            # Build updated document (write after ensuring target branch)
+            # Build updated document (write after resolving branch context)
             updated_doc = build_document(updated_front, wp.body, wp.padding)
 
             # Auto-commit to current branch (respects user context, no auto-checkout)

@@ -23,7 +23,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Location Pre-flight Check
 
 Run `{SCRIPT}` first and treat its JSON as canonical runtime context:
-- `target_branch` / `base_branch` (plus `TARGET_BRANCH` / `BASE_BRANCH` aliases)
+- `target_branch` (final merge target)
+- `feature_branch` / `planning_branch` (plus `FEATURE_BRANCH` / `PLANNING_BRANCH` aliases)
 - `feature_dir`
 - `spec_file`
 
@@ -31,7 +32,7 @@ Then verify:
 ```bash
 git branch --show-current
 ```
-Current branch must match `TARGET_BRANCH` from the JSON payload.
+Current branch must match `FEATURE_BRANCH` from the JSON payload.
 
 ---
 
@@ -40,7 +41,8 @@ Current branch must match `TARGET_BRANCH` from the JSON payload.
 After running `{SCRIPT}`, you will have paths to:
 - **feature_dir**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
 - **FEATURE_SPEC**: Absolute path to spec.md (the file you'll be clarifying)
-- **target_branch / base_branch**: Deterministic branch contract for this feature
+- **target_branch**: Final merge target for this feature
+- **feature_branch / planning_branch**: Deterministic planning branch for this feature
 
 You may also have:
 - **plan.md**: If planning has started (optional)
