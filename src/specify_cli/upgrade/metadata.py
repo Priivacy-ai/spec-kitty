@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 import yaml
+
+from specify_cli.core.atomic import atomic_write
 
 
 @dataclass
@@ -109,7 +112,6 @@ class ProjectMetadata:
             kittify_dir: Path to the .kittify directory
         """
         metadata_path = kittify_dir / "metadata.yaml"
-        kittify_dir.mkdir(parents=True, exist_ok=True)
 
         data = {
             "spec_kitty": {
@@ -144,9 +146,10 @@ class ProjectMetadata:
             "# DO NOT EDIT MANUALLY\n\n"
         )
 
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(header)
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+        buf = io.StringIO()
+        buf.write(header)
+        yaml.dump(data, buf, default_flow_style=False, sort_keys=False)
+        atomic_write(metadata_path, buf.getvalue(), mkdir=True)
 
     def has_migration(self, migration_id: str) -> bool:
         """Check if a migration has been successfully applied.
