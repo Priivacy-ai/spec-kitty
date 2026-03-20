@@ -202,12 +202,12 @@
 **Requirement Refs**: FR-020, NFR-002
 
 ### Included Subtasks
-- [ ] T027 Move `ArtifactEncodingError` exception class from `acceptance_support.py` to `acceptance.py`
-- [ ] T028 Move `normalize_feature_encoding()` from `acceptance_support.py` to `acceptance.py`
-- [ ] T029 Move `_read_text_strict()` from `acceptance_support.py` to `acceptance.py`
-- [ ] T030 Align `AcceptanceSummary` — ensure `path_violations` field is consistent (present in canonical, was missing in standalone)
-- [ ] T031 Rewrite `acceptance_support.py` as pure re-export wrapper (~25 lines: imports + `__all__`)
-- [ ] T032 Update `tests/specify_cli/test_acceptance_regressions.py` — parity test should now validate re-exports match canonical `__all__`
+- [x] T027 Move `ArtifactEncodingError` exception class from `acceptance_support.py` to `acceptance.py`
+- [x] T028 Move `normalize_feature_encoding()` from `acceptance_support.py` to `acceptance.py`
+- [x] T029 Move `_read_text_strict()` from `acceptance_support.py` to `acceptance.py`
+- [x] T030 Align `AcceptanceSummary` — ensure `path_violations` field is consistent (present in canonical, was missing in standalone)
+- [x] T031 Rewrite `acceptance_support.py` as pure re-export wrapper (~25 lines: imports + `__all__`)
+- [x] T032 Update `tests/specify_cli/test_acceptance_regressions.py` — parity test should now validate re-exports match canonical `__all__`
 
 ### Implementation Notes
 - `ArtifactEncodingError` is at acceptance_support.py:50-62. Custom exception with UTF-8 diagnostics.
