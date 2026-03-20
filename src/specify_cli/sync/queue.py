@@ -36,8 +36,9 @@ COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
 def _coalesce_key(event: dict[str, Any]) -> Optional[str]:
     """Return a deterministic coalesce key for an event, or None if not coalesceable.
 
-    The key is built from the event_type and the payload fields listed in
-    COALESCEABLE_EVENT_TYPES.
+    The key is built from the event_type and the fields listed in
+    COALESCEABLE_EVENT_TYPES. Fields may live either on the top-level event
+    envelope (for example ``project_uuid``) or inside ``payload``.
     """
     event_type = str(event.get("event_type", ""))
     key_fields = COALESCEABLE_EVENT_TYPES.get(event_type)
@@ -46,7 +47,10 @@ def _coalesce_key(event: dict[str, Any]) -> Optional[str]:
     payload = event.get("payload") or {}
     parts = [event_type]
     for field_name in key_fields:
-        parts.append(str(payload.get(field_name, "")))
+        value = event.get(field_name)
+        if value is None:
+            value = payload.get(field_name, "")
+        parts.append(str(value))
     return "|".join(parts)
 
 

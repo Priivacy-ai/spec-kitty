@@ -55,7 +55,8 @@ class TestCoalesceKey:
     def test_artifact_indexed_key(self):
         event = {
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"project_uuid": "proj-1", "feature_slug": "010-my-feature", "artifact_key": "manifest.json"},
+            "project_uuid": "proj-1",
+            "payload": {"feature_slug": "010-my-feature", "artifact_key": "manifest.json"},
         }
         key = _coalesce_key(event)
         assert key == "MissionDossierArtifactIndexed|proj-1|010-my-feature|manifest.json"
@@ -63,7 +64,8 @@ class TestCoalesceKey:
     def test_snapshot_computed_key(self):
         event = {
             "event_type": "MissionDossierSnapshotComputed",
-            "payload": {"project_uuid": "proj-1", "feature_slug": "010-my-feature", "snapshot_id": "snap-001"},
+            "project_uuid": "proj-1",
+            "payload": {"feature_slug": "010-my-feature", "snapshot_id": "snap-001"},
         }
         key = _coalesce_key(event)
         assert key == "MissionDossierSnapshotComputed|proj-1|010-my-feature"
@@ -78,12 +80,14 @@ class TestCoalesceKey:
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"project_uuid": "proj-A", "feature_slug": "010-feat", "artifact_key": "readme.md"},
+            "project_uuid": "proj-A",
+            "payload": {"feature_slug": "010-feat", "artifact_key": "readme.md"},
         }
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"project_uuid": "proj-B", "feature_slug": "010-feat", "artifact_key": "readme.md"},
+            "project_uuid": "proj-B",
+            "payload": {"feature_slug": "010-feat", "artifact_key": "readme.md"},
         }
         temp_queue.queue_event(event1)
         temp_queue.queue_event(event2)
@@ -98,8 +102,8 @@ class TestEventCoalescing:
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
+            "project_uuid": "proj-1",
             "payload": {
-                "project_uuid": "proj-1",
                 "feature_slug": "010-feat",
                 "artifact_key": "readme.md",
                 "content_hash_sha256": "aaa",
@@ -108,8 +112,8 @@ class TestEventCoalescing:
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
+            "project_uuid": "proj-1",
             "payload": {
-                "project_uuid": "proj-1",
                 "feature_slug": "010-feat",
                 "artifact_key": "readme.md",
                 "content_hash_sha256": "bbb",
@@ -184,6 +188,7 @@ class TestEventCoalescing:
             temp_queue.queue_event({
                 "event_id": f"snap-{i}",
                 "event_type": "MissionDossierSnapshotComputed",
+                "project_uuid": "proj-1",
                 "payload": {"feature_slug": "010-feat", "snapshot_id": f"snap-{i}"},
             })
         assert temp_queue.size() == 1
