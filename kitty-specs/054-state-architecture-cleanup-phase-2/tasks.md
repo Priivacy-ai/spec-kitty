@@ -393,7 +393,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: in_progress
-- WP06: in_progress
-- WP08: in_progress
+- WP01: approved
+- WP06: approved
+- WP08: approved
 <!-- status-model:end -->

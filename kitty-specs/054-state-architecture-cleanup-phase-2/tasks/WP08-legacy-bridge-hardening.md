@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Legacy Bridge Import Hardening
-lane: "doing"
+lane: "approved"
 dependencies: []
 base_branch: 2.x
 base_commit: 20e2a63bb590443ec2d0885d22d58f40efa6f9ce
@@ -13,10 +13,10 @@ subtasks:
 - T036
 phase: Phase 2 - Correctness
 assignee: ''
-agent: "codex"
-shell_pid: "86255"
-review_status: ''
-reviewed_by: ''
+agent: codex
+shell_pid: '86255'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
@@ -204,3 +204,4 @@ pytest tests/status/test_emit.py -v
 - 2026-03-20T13:52:04Z – coordinator – shell_pid=73924 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T13:56:10Z – coordinator – shell_pid=73924 – lane=for_review – Ready for review: legacy_bridge import hardened to top-level, ImportError swallow removed, AST-based test added, all 45 tests pass
 - 2026-03-20T13:57:10Z – codex – shell_pid=86255 – lane=doing – Started review via workflow command
+- 2026-03-20T13:59:04Z – codex – shell_pid=86255 – lane=approved – Review passed: top-level legacy_bridge import hardened, silent ImportError path removed, focused emit tests passing

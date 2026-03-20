@@ -1,39 +1,39 @@
 {
-  "event_count": 9,
+  "event_count": 15,
   "feature_slug": "054-state-architecture-cleanup-phase-2",
-  "last_event_id": "01KM5RJ8GVTZ5J598JBZDMT5S5",
-  "materialized_at": "2026-03-20T13:57:09.788274+00:00",
+  "last_event_id": "01KM5RPWYXMKSYYDPN2RVAX5WN",
+  "materialized_at": "2026-03-20T13:59:41.789655+00:00",
   "summary": {
-    "approved": 0,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
+    "in_progress": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KM5RJ5RBPRSSDNT352QHXPP5",
-      "last_transition_at": "2026-03-20T13:57:06.955774+00:00"
+      "lane": "approved",
+      "last_event_id": "01KM5RPP5R87TYE5Y4RS68ZY5C",
+      "last_transition_at": "2026-03-20T13:59:34.840341+00:00"
     },
     "WP06": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KM5RGREJ6S9M3184VF9E4R9R",
-      "last_transition_at": "2026-03-20T13:56:20.562476+00:00"
+      "lane": "approved",
+      "last_event_id": "01KM5RPWYXMKSYYDPN2RVAX5WN",
+      "last_transition_at": "2026-03-20T13:59:41.789358+00:00"
     },
     "WP08": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KM5RJ8GVTZ5J598JBZDMT5S5",
-      "last_transition_at": "2026-03-20T13:57:09.787854+00:00"
+      "lane": "approved",
+      "last_event_id": "01KM5RNR2K5J9P2RB9FRKDXMMS",
+      "last_transition_at": "2026-03-20T13:59:04.019317+00:00"
     }
   }
 }
