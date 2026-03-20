@@ -189,6 +189,11 @@ def init(
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
     force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
     non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
+    skills_mode: str = typer.Option(
+        "auto",
+        "--skills",
+        help="Skill distribution mode: auto, native, shared, or wrappers-only",
+    ),
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
@@ -356,6 +361,15 @@ def init(
     # Build agent config to save later
     agent_config = AgentConfig(available=selected_agents)
 
+    # Validate --skills flag
+    VALID_SKILLS_MODES = {"auto", "native", "shared", "wrappers-only"}
+    if skills_mode not in VALID_SKILLS_MODES:
+        _console.print(
+            f"[red]Error:[/red] Invalid --skills value '{skills_mode}'. "
+            f"Choose from: {', '.join(sorted(VALID_SKILLS_MODES))}"
+        )
+        raise typer.Exit(1)
+
     # Determine script type (explicit or auto-detect)
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
@@ -511,6 +525,92 @@ def init(
                         repo_owner=repo_owner,
                         repo_name=repo_name,
                     )
+
+            # ── Skill root resolution (T023) ──
+            from specify_cli.skills.roots import resolve_skill_roots
+
+            tracker.add("skills-resolve", "Resolve skill roots")
+            tracker.start("skills-resolve")
+            resolved_roots = resolve_skill_roots(selected_agents, mode=skills_mode)
+            if resolved_roots:
+                tracker.complete("skills-resolve", f"{len(resolved_roots)} root(s)")
+            else:
+                tracker.complete("skills-resolve", "none needed")
+
+            # ── Create skill root directories (T024) ──
+            tracker.add("skills-create", "Create skill directories")
+            tracker.start("skills-create")
+            for root in resolved_roots:
+                root_path = project_path / root
+                root_path.mkdir(parents=True, exist_ok=True)
+                gitkeep = root_path / ".gitkeep"
+                if not gitkeep.exists():
+                    gitkeep.write_text("", encoding="utf-8")
+            tracker.complete("skills-create", f"{len(resolved_roots)} created")
+
+            # ── Write installation manifest (T025) ──
+            from specify_cli.skills.manifest import (
+                ManagedFile, SkillsManifest, compute_file_hash, write_manifest,
+            )
+            from specify_cli.core.agent_surface import get_agent_surface
+            from specify_cli import __version__ as _sk_version
+            from datetime import datetime, timezone
+
+            tracker.add("skills-manifest", "Write installation manifest")
+            tracker.start("skills-manifest")
+
+            managed_files: list[ManagedFile] = []
+
+            # Collect skill root markers
+            for root in resolved_roots:
+                gitkeep = project_path / root / ".gitkeep"
+                if gitkeep.exists():
+                    managed_files.append(ManagedFile(
+                        path=str(Path(root) / ".gitkeep"),
+                        sha256=compute_file_hash(gitkeep),
+                        file_type="skill_root_marker",
+                    ))
+
+            # Collect wrapper files
+            for agent_key in selected_agents:
+                surface = get_agent_surface(agent_key)
+                wrapper_dir = project_path / surface.wrapper.dir
+                if wrapper_dir.exists():
+                    for wrapper_file in sorted(wrapper_dir.iterdir()):
+                        if wrapper_file.is_file() and wrapper_file.name.startswith("spec-kitty."):
+                            managed_files.append(ManagedFile(
+                                path=str(wrapper_file.relative_to(project_path)),
+                                sha256=compute_file_hash(wrapper_file),
+                                file_type="wrapper",
+                            ))
+
+            now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            manifest = SkillsManifest(
+                spec_kitty_version=_sk_version,
+                created_at=now_iso,
+                updated_at=now_iso,
+                skills_mode=skills_mode,
+                selected_agents=list(selected_agents),
+                installed_skill_roots=resolved_roots,
+                managed_files=managed_files,
+            )
+            write_manifest(project_path, manifest)
+            tracker.complete("skills-manifest", f"{len(managed_files)} files tracked")
+
+            # ── Run verification (T026) ──
+            from specify_cli.skills.verification import verify_installation
+
+            tracker.add("skills-verify", "Verify installation")
+            tracker.start("skills-verify")
+            verification = verify_installation(project_path, selected_agents, manifest)
+            if verification.passed:
+                tracker.complete("skills-verify", "all checks passed")
+            else:
+                for error in verification.errors:
+                    _console.print(f"  [red]✗[/red] {error}")
+                for warning in verification.warnings:
+                    _console.print(f"  [yellow]⚠[/yellow] {warning}")
+                tracker.error("skills-verify", f"{len(verification.errors)} error(s)")
 
             tracker.start("mission-activate")
             try:
