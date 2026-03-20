@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Root CLI Integration Tests
-lane: "approved"
+lane: "done"
 dependencies:
 - WP01
 base_branch: 053-orchestrator-api-json-contract-fidelity-WP01
@@ -219,3 +219,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-03-20T12:47:46Z – coordinator – shell_pid=55395 – lane=for_review – Root CLI integration tests complete. All 24 contract tests and 58 total orchestrator tests pass.
 - 2026-03-20T12:48:03Z – codex – shell_pid=57980 – lane=doing – Started review via workflow command
 - 2026-03-20T12:50:30Z – codex – shell_pid=57980 – lane=approved – Review passed: root CLI integration tests added and verified through real root app; sandbox-only stderr noise in unrelated orchestrator integration tests is not caused by WP02
+- 2026-03-20T12:56:18Z – codex – shell_pid=57980 – lane=done – Merged to 2.x | Done override: Merged to 2.x in commit 999d213d
