@@ -1,8 +1,11 @@
 ---
 work_package_id: WP08
 title: Legacy Bridge Import Hardening
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 20e2a63bb590443ec2d0885d22d58f40efa6f9ce
+created_at: '2026-03-20T13:52:04.586264+00:00'
 subtasks:
 - T033
 - T034
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 2 - Correctness
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "73924"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
