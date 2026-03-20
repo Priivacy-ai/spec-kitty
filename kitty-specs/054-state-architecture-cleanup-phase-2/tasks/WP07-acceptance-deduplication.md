@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: "doing"
+lane: planned
 dependencies: []
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
@@ -15,11 +15,11 @@ subtasks:
 - T032
 phase: Phase 2 - Consolidation
 assignee: ''
-agent: "coordinator"
-shell_pid: "14121"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
-review_feedback: "feedback://054-state-architecture-cleanup-phase-2/WP07/20260320T141112Z-ca0ab65c.md"
+agent: coordinator
+shell_pid: '14121'
+review_status: has_feedback
+reviewed_by: Robert Douglass
+review_feedback: feedback://054-state-architecture-cleanup-phase-2/WP07/20260320T141112Z-ca0ab65c.md
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
