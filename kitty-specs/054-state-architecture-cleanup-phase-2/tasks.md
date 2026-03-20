@@ -79,11 +79,11 @@
 **Requirement Refs**: FR-005, FR-006, FR-007
 
 ### Included Subtasks
-- [ ] T009 Delete `set_active_mission()` from `src/specify_cli/mission.py`
-- [ ] T010 Delete `get_active_mission_key()` from `src/specify_cli/core/project_resolver.py` and remove from `src/specify_cli/core/__init__.py` exports
-- [ ] T011 Update `src/specify_cli/state_contract.py` — remove `active_mission_marker` entry entirely
-- [ ] T012 Add `.kittify/active-mission` to `.gitignore` (prevent accidental recommit of legacy markers)
-- [ ] T013 Update/remove tests referencing deleted functions (`tests/runtime/test_project_resolver.py`, any test calling `set_active_mission`)
+- [x] T009 Delete `set_active_mission()` from `src/specify_cli/mission.py`
+- [x] T010 Delete `get_active_mission_key()` from `src/specify_cli/core/project_resolver.py` and remove from `src/specify_cli/core/__init__.py` exports
+- [x] T011 Update `src/specify_cli/state_contract.py` — remove `active_mission_marker` entry entirely
+- [x] T012 Add `.kittify/active-mission` to `.gitignore` (prevent accidental recommit of legacy markers)
+- [x] T013 Update/remove tests referencing deleted functions (`tests/runtime/test_project_resolver.py`, any test calling `set_active_mission`)
 
 ### Implementation Notes
 - `set_active_mission()` is at mission.py:523-566. It's deprecated since v0.8.0 with no production callers.
