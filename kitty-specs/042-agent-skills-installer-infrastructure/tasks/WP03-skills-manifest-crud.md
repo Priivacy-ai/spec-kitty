@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Skills Manifest CRUD
-lane: in_progress
+lane: "planned"
 dependencies:
 - WP01
 base_branch: 042-agent-skills-installer-infrastructure-WP01
@@ -17,8 +17,9 @@ phase: Phase 1 - Foundation
 assignee: ''
 agent: codex
 shell_pid: '77270'
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://042-agent-skills-installer-infrastructure/WP03/20260320T170736Z-2a549533.md"
 history:
 - timestamp: '2026-03-20T16:29:09Z'
   lane: planned
@@ -271,3 +272,4 @@ def test_write_creates_parent_dir(tmp_path):
 - 2026-03-20T16:58:25Z – coordinator – shell_pid=68611 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T17:02:06Z – coordinator – shell_pid=68611 – lane=for_review – Ready for review: SkillsManifest/ManagedFile dataclasses, write_manifest(), load_manifest(), compute_file_hash(), 17 passing tests
 - 2026-03-20T17:02:58Z – codex – shell_pid=77270 – lane=doing – Started review via workflow command
+- 2026-03-20T17:07:36Z – codex – shell_pid=77270 – lane=planned – Moved to planned
