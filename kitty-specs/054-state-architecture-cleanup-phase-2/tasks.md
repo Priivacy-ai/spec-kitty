@@ -110,11 +110,11 @@
 **Requirement Refs**: FR-008, FR-009, FR-010, FR-011, FR-016, NFR-001
 
 ### Included Subtasks
-- [ ] T014 [P] Convert `src/specify_cli/next/runtime_bridge.py` — `_save_feature_runs()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
-- [ ] T015 [P] Convert `src/specify_cli/workspace_context.py` — `save_context()`: replace `context_path.write_text(json.dumps(...))` with `atomic_write(context_path, content)`
-- [ ] T016 [P] Convert `src/specify_cli/constitution/context.py` — `_write_state()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
-- [ ] T017 [P] Convert `src/specify_cli/dashboard/lifecycle.py` — `_write_dashboard_file()`: replace `dashboard_file.write_text(...)` with `atomic_write(dashboard_file, content, mkdir=True)`
-- [ ] T018 [P] Convert `src/specify_cli/upgrade/metadata.py` — `ProjectMetadata.save()`: replace `open() + yaml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [x] T014 [P] Convert `src/specify_cli/next/runtime_bridge.py` — `_save_feature_runs()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
+- [x] T015 [P] Convert `src/specify_cli/workspace_context.py` — `save_context()`: replace `context_path.write_text(json.dumps(...))` with `atomic_write(context_path, content)`
+- [x] T016 [P] Convert `src/specify_cli/constitution/context.py` — `_write_state()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
+- [x] T017 [P] Convert `src/specify_cli/dashboard/lifecycle.py` — `_write_dashboard_file()`: replace `dashboard_file.write_text(...)` with `atomic_write(dashboard_file, content, mkdir=True)`
+- [x] T018 [P] Convert `src/specify_cli/upgrade/metadata.py` — `ProjectMetadata.save()`: replace `open() + yaml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
 
 ### Implementation Notes
 - Each conversion follows the same pattern: serialize content to string first, then call `atomic_write(path, content, mkdir=True)`.
