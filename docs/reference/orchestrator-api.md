@@ -84,7 +84,7 @@ Validation rules:
 ### contract-version
 
 ```bash
-spec-kitty orchestrator-api contract-version --json [--provider-version <semver>]
+spec-kitty orchestrator-api contract-version [--provider-version <semver>]
 ```
 
 Returns host `api_version` and minimum supported provider version.
