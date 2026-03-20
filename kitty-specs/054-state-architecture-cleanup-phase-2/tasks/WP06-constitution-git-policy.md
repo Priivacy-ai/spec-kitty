@@ -1,8 +1,11 @@
 ---
 work_package_id: WP06
 title: Constitution Git Policy Enforcement
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 6e3db85e32dcfdb9c4586f193d6a8e67155dad91
+created_at: '2026-03-20T13:51:59.757350+00:00'
 subtasks:
 - T023
 - T024
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 2 - Policy
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "73698"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
