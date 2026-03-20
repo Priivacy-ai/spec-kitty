@@ -1,4 +1,5 @@
 """Shared fixtures for adversarial tests."""
+
 from __future__ import annotations
 
 import os
@@ -30,24 +31,14 @@ class AttackVector:
 
 PATH_ATTACK_VECTORS = [
     # Directory traversal
-    AttackVector(
-        "traversal_parent", "../kitty-specs/", "path", "reject", "Parent directory escape"
-    ),
-    AttackVector(
-        "traversal_deep", "../../../etc/passwd", "path", "reject", "Deep traversal"
-    ),
-    AttackVector(
-        "traversal_dot_slash", "./kitty-specs/", "path", "reject", "Dot-slash to kitty-specs"
-    ),
-    AttackVector(
-        "traversal_nested", "docs/../../kitty-specs/", "path", "reject", "Nested traversal"
-    ),
+    AttackVector("traversal_parent", "../kitty-specs/", "path", "reject", "Parent directory escape"),
+    AttackVector("traversal_deep", "../../../etc/passwd", "path", "reject", "Deep traversal"),
+    AttackVector("traversal_dot_slash", "./kitty-specs/", "path", "reject", "Dot-slash to kitty-specs"),
+    AttackVector("traversal_nested", "docs/../../kitty-specs/", "path", "reject", "Nested traversal"),
     # Case sensitivity bypass (macOS HFS+/APFS)
     AttackVector("case_upper", "KITTY-SPECS/test/", "path", "reject", "Uppercase bypass"),
     AttackVector("case_mixed", "Kitty-Specs/test/", "path", "reject", "Mixed case bypass"),
-    AttackVector(
-        "case_alternating", "KiTtY-SpEcS/test/", "path", "reject", "Alternating case"
-    ),
+    AttackVector("case_alternating", "KiTtY-SpEcS/test/", "path", "reject", "Alternating case"),
     # Empty/whitespace
     AttackVector("empty_string", "", "path", "reject", "Empty path"),
     AttackVector("whitespace_only", "   ", "path", "reject", "Whitespace-only path"),
@@ -56,14 +47,10 @@ PATH_ATTACK_VECTORS = [
     # Special paths
     AttackVector("home_tilde", "~/research/", "path", "reject", "Home directory reference"),
     AttackVector("absolute_path", "/tmp/research/", "path", "reject", "Absolute path"),
-    AttackVector(
-        "null_byte", "docs/research/\x00evil/", "path", "reject", "Null byte injection"
-    ),
+    AttackVector("null_byte", "docs/research/\x00evil/", "path", "reject", "Null byte injection"),
     # Unicode edge cases
     AttackVector("unicode_valid", "docs/研究/", "path", "handle", "Valid Unicode path"),
-    AttackVector(
-        "unicode_rtl", "docs/\u202e/test/", "path", "reject", "RTL override character"
-    ),
+    AttackVector("unicode_rtl", "docs/\u202e/test/", "path", "reject", "RTL override character"),
     AttackVector("unicode_bidi", "docs/a\u202eb\u202c/", "path", "reject", "BiDi override"),
 ]
 
@@ -86,16 +73,12 @@ def valid_unicode_path(request) -> AttackVector:
 
 CSV_ATTACK_VECTORS = [
     # Formula injection
-    AttackVector(
-        "formula_equals", "=cmd|'/c calc'!A1", "csv", "warn", "Excel formula injection"
-    ),
+    AttackVector("formula_equals", "=cmd|'/c calc'!A1", "csv", "warn", "Excel formula injection"),
     AttackVector("formula_plus", "+1+1", "csv", "warn", "Plus formula"),
     AttackVector("formula_minus", "-1+1", "csv", "warn", "Minus formula"),
     AttackVector("formula_at", "@SUM(A1:A10)", "csv", "warn", "At-sign formula"),
     # Encoding attacks
-    AttackVector(
-        "invalid_utf8", b"\xff\xfe\x00\x01", "csv", "handle", "Invalid UTF-8 sequence"
-    ),
+    AttackVector("invalid_utf8", b"\xff\xfe\x00\x01", "csv", "handle", "Invalid UTF-8 sequence"),
     AttackVector(
         "latin1_encoding",
         "café,naïve,résumé".encode("latin-1"),
@@ -112,25 +95,15 @@ CSV_ATTACK_VECTORS = [
     ),
     AttackVector("null_bytes", b"col1,col2\x00,col3", "csv", "handle", "Null bytes in content"),
     # Schema violations
-    AttackVector(
-        "duplicate_columns", "col1,col1,col2", "csv", "reject", "Duplicate column names"
-    ),
-    AttackVector(
-        "extra_columns", "a,b,c,d,e,f,g,h,i,j", "csv", "reject", "Extra columns beyond schema"
-    ),
+    AttackVector("duplicate_columns", "col1,col1,col2", "csv", "reject", "Duplicate column names"),
+    AttackVector("extra_columns", "a,b,c,d,e,f,g,h,i,j", "csv", "reject", "Extra columns beyond schema"),
     AttackVector("missing_columns", "a,b", "csv", "reject", "Missing required columns"),
-    AttackVector(
-        "whitespace_columns", " col1 , col2 ", "csv", "handle", "Whitespace in column names"
-    ),
+    AttackVector("whitespace_columns", " col1 , col2 ", "csv", "handle", "Whitespace in column names"),
     # Empty/malformed
     AttackVector("empty_file", "", "csv", "handle", "Empty CSV file"),
     AttackVector("headers_only", "col1,col2,col3\n", "csv", "handle", "Headers without data rows"),
-    AttackVector(
-        "mixed_line_endings", "a,b\r\nc,d\ne,f\r", "csv", "handle", "Mixed CRLF/LF/CR"
-    ),
-    AttackVector(
-        "unquoted_comma", "a,b,c with, comma,d", "csv", "handle", "Unquoted field with comma"
-    ),
+    AttackVector("mixed_line_endings", "a,b\r\nc,d\ne,f\r", "csv", "handle", "Mixed CRLF/LF/CR"),
+    AttackVector("unquoted_comma", "a,b,c with, comma,d", "csv", "handle", "Unquoted field with comma"),
 ]
 
 
@@ -185,9 +158,7 @@ def symlinks_supported() -> bool:
 
 
 @pytest.fixture
-def symlink_factory(
-    tmp_path: Path, symlinks_supported: bool
-) -> Callable[[str | Path, str], Path | None]:
+def symlink_factory(tmp_path: Path, symlinks_supported: bool) -> Callable[[str | Path, str], Path | None]:
     """Factory fixture for creating symlinks with platform awareness.
 
     Returns None if symlinks not supported, allowing tests to skip gracefully.
@@ -240,9 +211,7 @@ def temp_git_project(tmp_path: Path) -> Iterator[Path]:
     project.mkdir()
 
     # Initialize git
-    subprocess.run(
-        ["git", "init", "-b", "main"], cwd=project, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@adversarial.local"],
         cwd=project,

@@ -74,17 +74,11 @@ def test_glossary_relative_links_resolve(source_path: Path) -> None:
         try:
             destination.relative_to(REPO_ROOT.resolve())
         except ValueError:
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} "
-                f"link escapes repository: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repository: {target}")
             continue
 
         if link_path and not destination.exists():
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} "
-                f"missing file target: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}")
             continue
 
         if fragment and destination.suffix.lower() == ".md" and fragment not in _anchors_for(destination):

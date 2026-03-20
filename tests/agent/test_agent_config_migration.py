@@ -103,9 +103,7 @@ class TestMigrationRespectsConfig:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode (will be updated)
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement without scroll warning")
 
         # Create old template for claude (should NOT be updated - not configured)
@@ -288,9 +286,7 @@ class TestDryRunBehavior:
         migration = ImprovedWorkflowTemplatesMigration()
 
         # Create old template for opencode
-        opencode_implement = (
-            mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
-        )
+        opencode_implement = mock_project_with_config / ".opencode" / "command" / "spec-kitty.implement.md"
         opencode_implement.write_text("# Old implement")
 
         # Run dry-run

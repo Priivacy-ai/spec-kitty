@@ -1,7 +1,8 @@
 """Tests for term extraction (WP03)."""
 
-import pytest
 import time
+
+import pytest
 
 from specify_cli.glossary.extraction import (
     extract_metadata_hints,
