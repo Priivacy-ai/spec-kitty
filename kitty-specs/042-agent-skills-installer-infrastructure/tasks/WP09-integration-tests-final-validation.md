@@ -1,8 +1,11 @@
 ---
 work_package_id: WP09
 title: Integration Tests and Final Validation
-lane: planned
+lane: "doing"
 dependencies: [WP05, WP06, WP07, WP08]
+base_branch: 042-agent-skills-installer-infrastructure-WP05
+base_commit: 6be144628a109e7f2b006156ce2b2d5b2cfeb358
+created_at: '2026-03-20T17:49:36.413938+00:00'
 subtasks:
 - T040
 - T041
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 4 - Validation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "73470"
 review_status: ''
 reviewed_by: ''
 history:
