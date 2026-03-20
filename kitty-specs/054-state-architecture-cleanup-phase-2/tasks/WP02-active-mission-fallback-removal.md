@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: planned
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -175,3 +175,4 @@ spec-kitty implement WP02
 - 2026-03-20T14:01:32Z – codex – shell_pid=96119 – lane=doing – Started review via workflow command
 - 2026-03-20T14:09:11Z – codex – shell_pid=96119 – lane=planned – Moved to planned
 - 2026-03-20T14:09:21Z – coordinator – shell_pid=12831 – lane=doing – Started implementation via workflow command
+- 2026-03-20T14:15:58Z – coordinator – shell_pid=12831 – lane=for_review – Fixed: production callers now pass feature_dir via _resolve_feature_dir helper and scan_all_features/resolve_active_feature (cycle 2/3)
