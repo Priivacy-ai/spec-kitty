@@ -44,18 +44,56 @@ from typer.core import TyperGroup
 
 
 class _JSONErrorGroup(TyperGroup):
-    """Click Group that converts parse/usage errors to JSON envelopes.
+    """Click Group that guarantees JSON envelopes for all error paths.
 
-    Click/Typer normally prints plain-text usage errors and exits with code 2.
     The orchestrator-api contract requires *every* stdout emission to be a
     single JSON envelope, including parser-level failures (missing required
-    args, unknown options, etc.).
+    args, unknown options, etc.).  Two overrides cooperate to cover every
+    dispatch path:
 
-    This overrides ``main()`` with ``standalone_mode=False`` so that
-    ``click.UsageError`` propagates as an exception instead of being
-    formatted as prose text.  The handler then emits a ``USAGE_ERROR``
-    envelope and exits non-zero.
+    ``invoke(ctx)``
+        Catches errors during *subcommand dispatch*.  When this group is
+        registered as a sub-group of the root CLI via ``add_typer()``, Click
+        dispatches through ``invoke()``, not ``main()``.  Without this
+        override the root ``BannerGroup`` would format the error as prose.
+
+    ``main(*args, **kwargs)``
+        Catches errors during *direct invocation* and group-level argument
+        parsing (e.g. ``orchestrator-api --unknown-flag``).  Uses
+        ``standalone_mode=False`` so ``click.UsageError`` propagates as an
+        exception rather than being printed as plain text.
+
+    Interaction: when both paths are active (direct invocation), a subcommand
+    error is caught by ``invoke()`` first, which calls ``ctx.exit(2)``
+    (raising ``SystemExit(2)``).  ``main()`` passes ``SystemExit`` through
+    via ``except SystemExit: raise``, so no double emission occurs.
     """
+
+    def _emit_error(self, message: str) -> None:
+        """Emit a USAGE_ERROR JSON envelope to stdout."""
+        _emit(make_envelope(
+            command="unknown",
+            success=False,
+            data={"message": message},
+            error_code="USAGE_ERROR",
+        ))
+
+    def invoke(self, ctx):
+        """Catch errors during subcommand dispatch (nested invocation path).
+
+        When this group is registered as a sub-group of the root CLI via
+        add_typer(), Click dispatches to invoke(), not main(). This override
+        ensures parse/usage errors produce JSON envelopes even when the root
+        CLI's BannerGroup would otherwise emit prose.
+        """
+        try:
+            return super().invoke(ctx)
+        except click.UsageError as exc:
+            self._emit_error(exc.format_message())
+            ctx.exit(2)
+        except click.Abort:
+            self._emit_error("Command aborted")
+            ctx.exit(2)
 
     def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]
         try:
@@ -67,22 +105,10 @@ class _JSONErrorGroup(TyperGroup):
                 raise SystemExit(rv)
             return rv
         except click.UsageError as exc:
-            envelope = make_envelope(
-                command="unknown",
-                success=False,
-                data={"message": exc.format_message()},
-                error_code="USAGE_ERROR",
-            )
-            _emit(envelope)
+            self._emit_error(exc.format_message())
             raise SystemExit(2) from exc
         except click.Abort:
-            envelope = make_envelope(
-                command="unknown",
-                success=False,
-                data={"message": "Command aborted"},
-                error_code="USAGE_ERROR",
-            )
-            _emit(envelope)
+            self._emit_error("Command aborted")
             raise SystemExit(2)
         except SystemExit:
             raise
