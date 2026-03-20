@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Init Wiring
-lane: "doing"
+lane: in_progress
 dependencies: [WP01, WP02, WP03, WP04]
 base_branch: 042-agent-skills-installer-infrastructure-WP04
 base_commit: 02040aa5810b7dde66c0e3394a7178d059c38ca9
@@ -16,8 +16,8 @@ subtasks:
 - T027
 phase: Phase 3 - Integration
 assignee: ''
-agent: "codex"
-shell_pid: "67720"
+agent: codex
+shell_pid: '67720'
 review_status: ''
 reviewed_by: ''
 history:
