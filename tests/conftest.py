@@ -29,9 +29,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     try:
         prepare_mutants_environment_from_cwd()
-    except OSError:
-        # mutmut bootstrapping is best-effort during pytest startup
-        pass
+    except OSError as exc:
+        import warnings
+        warnings.warn(f"Failed to prepare mutants environment: {exc}", stacklevel=1)
 
     # HARDCODED: Never open browser windows during tests.
     # Propagates to subprocesses too (e.g. dashboard CLI spawned by tests).
