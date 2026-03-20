@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.0.11] - 2026-03-20
+
+### 📄 Documentation
+
+- **2.x release metadata refresh**: updated the README's current-release banner so the branch advertises the active GitHub-only 2.x release line instead of the initial `v2.0.0` placeholder.
+
 ## [2.0.10] - 2026-03-20
 
 ### ✅ Added

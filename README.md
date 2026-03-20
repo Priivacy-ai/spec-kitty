@@ -96,7 +96,7 @@ graph LR
 
 </div>
 
-**Current 2.x release line:** `v2.0.0` (GitHub releases)
+**Current 2.x release line:** `v2.0.11` (GitHub releases)
 
 **2.x highlights:**
 - Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
