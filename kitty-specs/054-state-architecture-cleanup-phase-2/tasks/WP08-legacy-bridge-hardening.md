@@ -13,7 +13,7 @@ subtasks:
 - T036
 phase: Phase 2 - Correctness
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "73924"
 review_status: ''
 reviewed_by: ''
@@ -201,3 +201,4 @@ pytest tests/status/test_emit.py -v
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T13:52:04Z – coordinator – shell_pid=73924 – lane=doing – Assigned agent via workflow command
