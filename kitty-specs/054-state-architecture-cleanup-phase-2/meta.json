@@ -1,0 +1,9 @@
+{
+  "feature_number": "054",
+  "slug": "054-state-architecture-cleanup-phase-2",
+  "feature_slug": "054-state-architecture-cleanup-phase-2",
+  "friendly_name": "state architecture cleanup phase 2",
+  "mission": "software-dev",
+  "target_branch": "2.x",
+  "created_at": "2026-03-20T13:20:31.673605+00:00"
+}
