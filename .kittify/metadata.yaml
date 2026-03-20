@@ -3,51 +3,12 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 2.0.4
-  initialized_at: '2026-02-15T14:42:49.153283'
-  last_upgraded_at: '2026-03-09T07:14:17.853911'
+  version: 2.0.9
+  initialized_at: '2026-03-20T16:25:01.317180'
+  last_upgraded_at: null
 environment:
-  python_version: 3.14.0
+  python_version: 3.11.14
   platform: darwin
-  platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
+  platform_version: macOS-15.7.3-arm64-arm-64bit
 migrations:
-  applied:
-  - id: 2.0.0a5_remove_wp_status_gitignore_rule
-    applied_at: '2026-03-09T07:14:17.467477'
-    result: skipped
-    notes: Not applicable
-  - id: 2.0.0_constitution_directory
-    applied_at: '2026-03-09T07:14:17.489028'
-    result: success
-    notes: 'Moved .kittify/memory/constitution.md -> .kittify/constitution/constitution.md;
-      Initial extraction: 3 YAML files created'
-  - id: 2.0.0_historical_status_migration
-    applied_at: '2026-03-09T07:14:17.839310'
-    result: success
-    notes: '002-lightweight-pypi-release: migrated (4 WPs, 4 events); 003-auto-protect-agent:
-      migrated (5 WPs, 11 events); 004-modular-code-refactoring: migrated (8 WPs,
-      8 events); 005-refactor-mission-system: migrated (9 WPs, 9 events); 006-per-feature-mission:
-      migrated (6 WPs, 6 events); 007-frontmatter-only-lane: migrated (6 WPs, 6 events);
-      008-unified-python-cli: migrated (7 WPs, 10 events); 010-workspace-per-work-package-for-parallel-development:
-      migrated (10 WPs, 10 events); 011-constitution-packaging-safety-and-redesign:
-      migrated (6 WPs, 6 events); 012-documentation-mission: migrated (10 WPs, 10
-      events); 013-fix-and-test-dashboard: migrated (1 WPs, 1 events); 014-comprehensive-end-user-documentation:
-      migrated (10 WPs, 11 events); 015-first-class-jujutsu-vcs-integration: migrated
-      (9 WPs, 9 events); 016-jujutsu-vcs-documentation: migrated (6 WPs, 6 events);
-      017-smarter-feature-merge-with-preflight: migrated (6 WPs, 6 events); 018-merge-preflight-documentation:
-      migrated (4 WPs, 4 events); 019-autonomous-multi-agent-orchestration-research:
-      migrated (8 WPs, 8 events); 020-autonomous-multi-agent-orchestrator: migrated
-      (9 WPs, 9 events); 021-orchestrator-end-to-end-testing-suite: migrated (12 WPs,
-      12 events); 023-documentation-sprint-agent-management-cleanup: migrated (7 WPs,
-      7 events); 025-cli-event-log-integration: migrated (8 WPs, 8 events); 028-cli-event-emission-sync:
-      migrated (1 WPs, 1 events); 030-2x-sync-auth-docs: migrated (4 WPs, 4 events);
-      038-v0-15-0-quality-bugfix-release: migrated (11 WPs, 11 events); 040-mission-collaboration-cli-soft-coordination:
-      migrated (8 WPs, 8 events)'
-  - id: 2.0.0_retire_git_hooks
-    applied_at: '2026-03-09T07:14:17.839377'
-    result: skipped
-    notes: Not applicable
-  - id: 2.0.1_fix_generated_command_templates
-    applied_at: '2026-03-09T07:14:17.853904'
-    result: skipped
-    notes: Not applicable
+  applied: []

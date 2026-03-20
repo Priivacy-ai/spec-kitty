@@ -75,3 +75,5 @@ sdd-*/
 # Generated PDF brochures (output of generate_pdf.py)
 spec-kitty-capabilities.pdf
 .claude/
+.agent/
+.kittify/missions/__pycache__/
