@@ -279,4 +279,5 @@ Wave 5: WP09 (depends on all, final validation)
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
+- WP02: for_review
 <!-- status-model:end -->

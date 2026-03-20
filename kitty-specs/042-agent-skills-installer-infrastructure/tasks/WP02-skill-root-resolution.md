@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Skill Root Resolution
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 042-agent-skills-installer-infrastructure-WP01
 base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
@@ -14,8 +14,8 @@ subtasks:
 - T012
 phase: Phase 1 - Foundation
 assignee: ''
-agent: "coordinator"
-shell_pid: "68466"
+agent: coordinator
+shell_pid: '68466'
 review_status: ''
 reviewed_by: ''
 history:
@@ -289,3 +289,4 @@ def test_no_duplicates():
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
 - 2026-03-20T16:58:22Z – coordinator – shell_pid=68466 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T17:01:35Z – coordinator – shell_pid=68466 – lane=for_review – Ready for review: resolve_skill_roots() implemented with all 4 modes, 28 passing tests, mypy --strict clean, ruff clean
