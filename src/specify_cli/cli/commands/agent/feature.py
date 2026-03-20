@@ -250,8 +250,6 @@ def _find_feature_directory(
     repo_root: Path,
     cwd: Path,
     explicit_feature: str | None = None,
-    *,
-    allow_latest_incomplete_fallback: bool = True,
 ) -> Path:
     """Find the current feature directory using centralized detection.
 
@@ -271,22 +269,12 @@ def _find_feature_directory(
         FeatureDetectionError: If detection fails
     """
     try:
-        kwargs: dict[str, object] = {
-            "explicit_feature": explicit_feature,
-            "cwd": cwd,
-            "mode": "strict",
-        }
-        if allow_latest_incomplete_fallback:
-            kwargs["allow_latest_incomplete_fallback"] = True
-        try:
-            return detect_feature_directory(repo_root, **kwargs)
-        except TypeError as exc:
-            # Backward compatibility: older feature_detection APIs do not accept
-            # allow_latest_incomplete_fallback.
-            if "allow_latest_incomplete_fallback" not in str(exc):
-                raise
-            kwargs.pop("allow_latest_incomplete_fallback", None)
-            return detect_feature_directory(repo_root, **kwargs)
+        return detect_feature_directory(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict",
+        )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e
@@ -709,7 +697,6 @@ def check_prerequisites(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             command_args: list[str] = []
@@ -815,15 +802,12 @@ def setup_plan(
         )
 
         # Determine feature directory using centralized detection.
-        # For planning bootstrap, disallow latest-incomplete fallback so the agent
-        # cannot silently bind to the wrong feature in fresh sessions.
         cwd = Path.cwd().resolve()
         try:
             feature_dir = _find_feature_directory(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
@@ -1440,7 +1424,6 @@ def finalize_tasks(
                 repo_root,
                 cwd,
                 explicit_feature=feature,
-                allow_latest_incomplete_fallback=False,
             )
         except ValueError as detection_error:
             payload = _build_setup_plan_detection_error(

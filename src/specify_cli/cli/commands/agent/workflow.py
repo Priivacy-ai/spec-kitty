@@ -141,7 +141,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"
+            mode="strict",
         )
     except FeatureDetectionError as e:
         print(f"Error: {e}")

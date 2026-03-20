@@ -117,10 +117,7 @@ def accept(
     try:
         feature_slug = (
             feature
-            or detect_feature_slug(
-                repo_root,
-                announce_fallback=not json_output,
-            )
+            or detect_feature_slug(repo_root)
         ).strip()
     except AcceptanceError as exc:
         if json_output:

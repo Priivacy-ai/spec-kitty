@@ -55,7 +55,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"  # Raise error if ambiguous
+            mode="strict",
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
