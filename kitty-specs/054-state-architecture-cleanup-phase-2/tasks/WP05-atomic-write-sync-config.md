@@ -1,8 +1,11 @@
 ---
 work_package_id: WP05
 title: Atomic Write Conversion — Sync and Config
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 054-state-architecture-cleanup-phase-2-WP01
+base_commit: b989de5f96e3c9e6c776a952a010cdeacc2e69e8
+created_at: '2026-03-20T14:00:42.961383+00:00'
 subtasks:
 - T019
 - T020
@@ -11,7 +14,7 @@ subtasks:
 phase: Phase 2 - Hardening
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "94629"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
