@@ -219,6 +219,122 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Integration branch guard: merge guidance must not target integration branch
+# ---------------------------------------------------------------------------
+
+
+class TestIntegrationBranchGuard:
+    """perform_acceptance() must never emit 'git merge <integration>' or
+    'git branch -d <integration>' when the current branch IS the integration
+    branch (e.g. main, 2.x).
+    """
+
+    def _make_summary_on_branch(
+        self, tmp_path: Path, branch: str, *, target_branch: str = "main"
+    ) -> AcceptanceSummary:
+        """Create a minimal AcceptanceSummary as if on *branch*."""
+        repo_root, feature_dir = _create_test_feature(tmp_path)
+        # Patch meta.json with the desired target_branch and recommit
+        # so the repo stays clean (summary.ok requires no dirty files).
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta["target_branch"] = target_branch
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+        subprocess.run(
+            ["git", "-C", str(repo_root), "add", "-A"],
+            check=True, capture_output=True,
+        )
+        # Commit only if there are staged changes (target_branch may already
+        # match the value written by _create_test_feature).
+        diff = subprocess.run(
+            ["git", "-C", str(repo_root), "diff", "--cached", "--quiet"],
+            capture_output=True,
+        )
+        if diff.returncode != 0:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "commit", "-m", "patch target_branch"],
+                check=True, capture_output=True,
+            )
+
+        summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
+        # Override the detected branch to simulate the desired state
+        object.__setattr__(summary, "branch", branch)
+        return summary
+
+    def test_branch_main_no_merge_guidance(self, tmp_path: Path) -> None:
+        """branch='main' with target_branch='main' must NOT produce 'git merge main'."""
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge main" not in merged, (
+            f"Should not suggest merging integration branch. instructions={result.instructions}"
+        )
+        assert "git branch -d main" not in merged, (
+            f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
+        )
+
+    def test_branch_2x_no_merge_guidance(self, tmp_path: Path) -> None:
+        """branch='2.x' with target_branch='2.x' must NOT produce 'git merge 2.x'."""
+        summary = self._make_summary_on_branch(tmp_path, "2.x", target_branch="2.x")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge 2.x" not in merged
+        assert "git branch -d 2.x" not in merged
+
+    def test_pr_mode_integration_branch_no_push_branch(self, tmp_path: Path) -> None:
+        """PR mode on integration branch should not say 'Push your branch'."""
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions)
+        assert "Push your branch" not in merged, (
+            f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
+        )
+
+    def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
+        """A real feature branch must still get full merge + cleanup guidance."""
+        summary = self._make_summary_on_branch(
+            tmp_path, "054-my-feature-WP01", target_branch="main"
+        )
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge 054-my-feature-WP01" in merged, (
+            f"Feature branch should get merge guidance. instructions={result.instructions}"
+        )
+        assert "git branch -d 054-my-feature-WP01" in merged, (
+            f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
+        )
+
+    def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
+        """When meta.json has no target_branch, well-known names are guarded."""
+        repo_root, feature_dir = _create_test_feature(tmp_path)
+        # Remove target_branch from meta and recommit
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta.pop("target_branch", None)
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+        subprocess.run(
+            ["git", "-C", str(repo_root), "add", "-A"],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_root), "commit", "-m", "remove target_branch"],
+            check=True, capture_output=True,
+        )
+
+        summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
+        object.__setattr__(summary, "branch", "master")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions + result.cleanup_instructions)
+        assert "git merge master" not in merged
+        assert "git branch -d master" not in merged
+
+
+# ---------------------------------------------------------------------------
 # T014: standalone tasks_cli.py --help works
 # ---------------------------------------------------------------------------
 

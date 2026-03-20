@@ -668,23 +668,48 @@ def perform_acceptance(
     cleanup_instructions: List[str] = []
 
     branch = summary.branch or summary.feature
+
+    # Determine whether `branch` is the integration/target branch itself.
+    # If so, merge and branch-deletion guidance is nonsensical and dangerous
+    # (e.g. "git merge main" or "git branch -d main" when already on main).
+    _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({
+        "main", "master", "develop", "development", "2.x", "3.x",
+    })
+    _meta = load_meta(summary.feature_dir)
+    _target_branch = (_meta or {}).get("target_branch")
+    _is_integration_branch = (
+        branch == _target_branch
+        or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
+    )
+
     if mode == "pr":
-        instructions.extend(
-            [
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
-            ]
-        )
+        if _is_integration_branch:
+            instructions.append(
+                f"Acceptance recorded on integration branch `{branch}`. "
+                "Push and open a pull request if needed."
+            )
+        else:
+            instructions.extend(
+                [
+                    f"Review the acceptance commit on branch `{branch}`.",
+                    f"Push your branch: `git push origin {branch}`",
+                    "Open a pull request referencing spec/plan/tasks artifacts.",
+                    "Include acceptance summary and test evidence in the PR description.",
+                ]
+            )
     elif mode == "local":
-        instructions.extend(
-            [
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
-            ]
-        )
+        if _is_integration_branch:
+            instructions.append(
+                f"Acceptance recorded directly on `{branch}`. No merge needed."
+            )
+        else:
+            instructions.extend(
+                [
+                    "Switch to your integration branch (e.g., `git checkout main`).",
+                    "Synchronize it (e.g., `git pull --ff-only`).",
+                    f"Merge the feature: `git merge {branch}`",
+                ]
+            )
     else:  # checklist
         instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
 
@@ -692,7 +717,8 @@ def perform_acceptance(
         cleanup_instructions.append(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
         )
-    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    if not _is_integration_branch:
+        cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
 
     notes: List[str] = []
     if accept_commit:
