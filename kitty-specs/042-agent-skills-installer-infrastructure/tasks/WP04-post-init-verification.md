@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Post-Init Verification
-lane: "doing"
+lane: "planned"
 dependencies: [WP02, WP03]
 base_branch: 042-agent-skills-installer-infrastructure-WP03
 base_commit: fffc6ec2d5dbd24eb746058f5087717457777579
@@ -12,10 +12,11 @@ subtasks:
 - T020
 phase: Phase 2 - Core Logic
 assignee: ''
-agent: "codex"
-shell_pid: "30650"
-review_status: ''
-reviewed_by: ''
+agent: codex
+shell_pid: '30650'
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://042-agent-skills-installer-infrastructure/WP04/20260320T173955Z-004fc582.md"
 history:
 - timestamp: '2026-03-20T16:29:09Z'
   lane: planned
@@ -209,3 +210,4 @@ def test_wrapper_only_agent_no_skill_root(tmp_path):
 - 2026-03-20T17:29:03Z – coordinator – shell_pid=13034 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T17:34:21Z – coordinator – shell_pid=13034 – lane=for_review – Ready for review: verification module with 4 checks, 16 passing tests, clean ruff
 - 2026-03-20T17:34:46Z – codex – shell_pid=30650 – lane=doing – Started review via workflow command
+- 2026-03-20T17:39:55Z – codex – shell_pid=30650 – lane=planned – Moved to planned
