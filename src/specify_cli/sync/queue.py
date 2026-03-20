@@ -24,10 +24,12 @@ DEFAULT_MAX_QUEUE_SIZE = 100_000
 # the queue, the existing row is updated in-place rather than inserting a new
 # row.  This prevents high-volume instrumentation from flooding the queue.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
-    "MissionDossierArtifactIndexed": ["feature_slug", "artifact_key"],
-    # Snapshot IDs are regenerated on each scan, so coalesce by feature to
-    # keep only the latest snapshot queued for a given dossier.
-    "MissionDossierSnapshotComputed": ["feature_slug"],
+    # project_uuid scopes the key so events from different repos/branches
+    # sharing the same feature_slug+artifact_key never collide.
+    "MissionDossierArtifactIndexed": ["project_uuid", "feature_slug", "artifact_key"],
+    # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
+    # to keep only the latest snapshot queued for a given dossier.
+    "MissionDossierSnapshotComputed": ["project_uuid", "feature_slug"],
 }
 
 
@@ -565,7 +567,7 @@ class OfflineQueue:
             total_queued = int(total_queued_row[0]) if total_queued_row is not None else 0
 
             if total_queued == 0:
-                return QueueStats()
+                return QueueStats(max_queue_size=self._max_queue_size)
 
             # Total retried (retry_count > 0)
             total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()

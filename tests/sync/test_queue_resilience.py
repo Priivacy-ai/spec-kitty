@@ -55,23 +55,39 @@ class TestCoalesceKey:
     def test_artifact_indexed_key(self):
         event = {
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"feature_slug": "010-my-feature", "artifact_key": "manifest.json"},
+            "payload": {"project_uuid": "proj-1", "feature_slug": "010-my-feature", "artifact_key": "manifest.json"},
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierArtifactIndexed|010-my-feature|manifest.json"
+        assert key == "MissionDossierArtifactIndexed|proj-1|010-my-feature|manifest.json"
 
     def test_snapshot_computed_key(self):
         event = {
             "event_type": "MissionDossierSnapshotComputed",
-            "payload": {"feature_slug": "010-my-feature", "snapshot_id": "snap-001"},
+            "payload": {"project_uuid": "proj-1", "feature_slug": "010-my-feature", "snapshot_id": "snap-001"},
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierSnapshotComputed|010-my-feature"
+        assert key == "MissionDossierSnapshotComputed|proj-1|010-my-feature"
 
     def test_missing_payload_fields_produce_empty_parts(self):
         event = {"event_type": "MissionDossierArtifactIndexed", "payload": {}}
         key = _coalesce_key(event)
-        assert key == "MissionDossierArtifactIndexed||"
+        assert key == "MissionDossierArtifactIndexed|||"
+
+    def test_different_projects_not_coalesced(self, temp_queue: OfflineQueue):
+        """Events from different project_uuids must not coalesce."""
+        event1 = {
+            "event_id": "evt-001",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {"project_uuid": "proj-A", "feature_slug": "010-feat", "artifact_key": "readme.md"},
+        }
+        event2 = {
+            "event_id": "evt-002",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {"project_uuid": "proj-B", "feature_slug": "010-feat", "artifact_key": "readme.md"},
+        }
+        temp_queue.queue_event(event1)
+        temp_queue.queue_event(event2)
+        assert temp_queue.size() == 2  # different projects, not coalesced
 
 
 class TestEventCoalescing:
@@ -83,6 +99,7 @@ class TestEventCoalescing:
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
             "payload": {
+                "project_uuid": "proj-1",
                 "feature_slug": "010-feat",
                 "artifact_key": "readme.md",
                 "content_hash_sha256": "aaa",
@@ -92,6 +109,7 @@ class TestEventCoalescing:
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
             "payload": {
+                "project_uuid": "proj-1",
                 "feature_slug": "010-feat",
                 "artifact_key": "readme.md",
                 "content_hash_sha256": "bbb",
@@ -255,10 +273,12 @@ class TestQueueStatsDefaults:
 
     def test_empty_queue_stats_max_size(self, temp_queue: OfflineQueue):
         stats = temp_queue.get_queue_stats()
-        # Empty queue returns default QueueStats but that's a fresh dataclass
-        # so max_queue_size is the DEFAULT (not the instance value when empty)
-        # This is acceptable: when queue is empty the stats still report the default.
         assert stats.max_queue_size == DEFAULT_MAX_QUEUE_SIZE
+
+    def test_empty_queue_stats_respects_custom_cap(self, small_queue: OfflineQueue):
+        """Empty queue should still report the configured max_queue_size, not the default."""
+        stats = small_queue.get_queue_stats()
+        assert stats.max_queue_size == 5
 
 
 # ---------------------------------------------------------------------------
