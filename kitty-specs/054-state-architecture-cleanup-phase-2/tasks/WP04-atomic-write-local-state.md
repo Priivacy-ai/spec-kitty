@@ -1,8 +1,11 @@
 ---
 work_package_id: WP04
 title: Atomic Write Conversion — Local State Files
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 054-state-architecture-cleanup-phase-2-WP01
+base_commit: b989de5f96e3c9e6c776a952a010cdeacc2e69e8
+created_at: '2026-03-20T14:00:40.124184+00:00'
 subtasks:
 - T014
 - T015
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 2 - Hardening
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "94470"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
