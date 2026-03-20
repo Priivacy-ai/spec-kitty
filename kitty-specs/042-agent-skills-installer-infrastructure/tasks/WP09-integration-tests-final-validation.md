@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Integration Tests and Final Validation
-lane: "for_review"
+lane: "doing"
 dependencies: [WP05, WP06, WP07, WP08]
 base_branch: 042-agent-skills-installer-infrastructure-WP05
 base_commit: 6be144628a109e7f2b006156ce2b2d5b2cfeb358
@@ -14,8 +14,8 @@ subtasks:
 - T044
 phase: Phase 4 - Validation
 assignee: ''
-agent: coordinator
-shell_pid: '73470'
+agent: "codex"
+shell_pid: "86377"
 review_status: ''
 reviewed_by: ''
 history:
@@ -244,3 +244,4 @@ def test_wrapper_backward_compat(agent_key, tmp_path):
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
 - 2026-03-20T17:49:36Z – coordinator – shell_pid=73470 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T17:56:26Z – coordinator – shell_pid=73470 – lane=for_review – Ready for review: integration tests, mypy, ruff, coverage validated. 316 tests pass, 95% coverage, mypy --strict clean, ruff clean.
+- 2026-03-20T17:56:51Z – codex – shell_pid=86377 – lane=doing – Started review via workflow command
