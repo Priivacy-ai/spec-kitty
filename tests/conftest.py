@@ -12,11 +12,27 @@ import pytest
 import yaml
 
 from tests.branch_contract import IS_2X_BRANCH
+from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
 from tests.utils import REPO_ROOT, run, write_wp
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register pytest-asyncio ini keys for environments without the plugin."""
+    parser.addini("asyncio_mode", "pytest-asyncio compatibility option")
+    parser.addini(
+        "asyncio_default_fixture_loop_scope",
+        "pytest-asyncio compatibility option",
+    )
+
+
 def pytest_configure(config: pytest.Config) -> None:
+    try:
+        prepare_mutants_environment_from_cwd()
+    except OSError as exc:
+        import warnings
+        warnings.warn(f"Failed to prepare mutants environment: {exc}", stacklevel=1)
+
     # HARDCODED: Never open browser windows during tests.
     # Propagates to subprocesses too (e.g. dashboard CLI spawned by tests).
     os.environ["PWHEADLESS"] = "1"
@@ -74,7 +90,60 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
     return result.returncode == 0
 
 
-def _create_test_venv(venv_dir: Path) -> None:
+def _venv_site_packages(venv_dir: Path) -> Path:
+    python = _venv_python(venv_dir)
+    result = subprocess.run(
+        [
+            str(python),
+            "-c",
+            "import site; print(site.getsitepackages()[0])",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def _seed_offline_test_venv(venv_dir: Path, source_version: str) -> None:
+    """Seed a fallback venv without requiring network access."""
+    site_packages = _venv_site_packages(venv_dir)
+    site_packages.mkdir(parents=True, exist_ok=True)
+
+    host_site_packages = [
+        path for path in sys.path if "site-packages" in path and Path(path).exists()
+    ]
+    if host_site_packages:
+        (site_packages / "host-site-packages.pth").write_text(
+            "\n".join(host_site_packages) + "\n",
+            encoding="utf-8",
+        )
+
+    (site_packages / "spec-kitty-src.pth").write_text(
+        f"{REPO_ROOT / 'src'}\n",
+        encoding="utf-8",
+    )
+
+    dist_info_dir = site_packages / f"spec_kitty_cli-{source_version}.dist-info"
+    dist_info_dir.mkdir(exist_ok=True)
+    (dist_info_dir / "METADATA").write_text(
+        "\n".join(
+            [
+                "Metadata-Version: 2.1",
+                "Name: spec-kitty-cli",
+                f"Version: {source_version}",
+                "Summary: Local offline test install shim",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (dist_info_dir / "top_level.txt").write_text("specify_cli\n", encoding="utf-8")
+    (dist_info_dir / "INSTALLER").write_text("offline-shim\n", encoding="utf-8")
+    (dist_info_dir / "RECORD").write_text("", encoding="utf-8")
+
+
+def _create_test_venv(venv_dir: Path, source_version: str) -> None:
     """Create the test venv, with an offline-safe fallback."""
     subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
     pip = _venv_pip(venv_dir)
@@ -83,10 +152,8 @@ def _create_test_venv(venv_dir: Path) -> None:
     except subprocess.CalledProcessError:
         # Fallback for offline/dev shells where build deps cannot be downloaded.
         shutil.rmtree(venv_dir, ignore_errors=True)
-        subprocess.run(
-            [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)],
-            check=True,
-        )
+        subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+        _seed_offline_test_venv(venv_dir, source_version)
 
     if not _venv_has_required_runtime(venv_dir):
         raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
@@ -112,7 +179,7 @@ def test_venv() -> Path:
 
     if rebuild:
         shutil.rmtree(venv_dir, ignore_errors=True)
-        _create_test_venv(venv_dir)
+        _create_test_venv(venv_dir, source_version)
         venv_marker.write_text(source_version, encoding="utf-8")
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)

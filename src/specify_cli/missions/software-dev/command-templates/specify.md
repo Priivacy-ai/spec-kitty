@@ -181,6 +181,20 @@ Given that feature description, do this:
    - Optionally add/update `source_description`.
    - Ensure `vcs` exists (`"git"` default).
 
+   Example `meta.json` schema (identity fields that must be present explicitly):
+   ```json
+   {
+     "feature_number": "042",
+     "slug": "my-feature",
+     "feature_slug": "042-my-feature",
+     "friendly_name": "My Feature",
+     "mission": "software-dev",
+     "target_branch": "main",
+     "vcs": "git",
+     "created_at": "2026-01-01T00:00:00+00:00"
+   }
+   ```
+
    **Do not regenerate timestamps or directory paths via shell commands.**
 
 6. Generate the specification content by following this flow:
