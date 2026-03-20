@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Canonical Agent Surface Config
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: 4054a2d1253a294814072ecba33a429142fc41ee
@@ -16,8 +16,8 @@ subtasks:
 - T007
 phase: Phase 1 - Foundation
 assignee: ''
-agent: coordinator
-shell_pid: '58802'
+agent: "codex"
+shell_pid: "59771"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://042-agent-skills-installer-infrastructure/WP01/20260320T164958Z-9a4c3c54.md
@@ -363,3 +363,4 @@ def test_wrapper_dir_consistency(agent_key):
 - 2026-03-20T16:49:58Z – codex – shell_pid=52348 – lane=planned – Moved to planned
 - 2026-03-20T16:50:44Z – coordinator – shell_pid=58802 – lane=doing – Started implementation via workflow command
 - 2026-03-20T16:52:12Z – coordinator – shell_pid=58802 – lane=for_review – Fixed: AGENT_SURFACE_CONFIG now importable from config.py per Codex feedback
+- 2026-03-20T16:52:29Z – codex – shell_pid=59771 – lane=doing – Started review via workflow command
