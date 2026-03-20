@@ -109,6 +109,6 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: planned
-- WP02: in_progress
+- WP01: approved
+- WP02: approved
 <!-- status-model:end -->
