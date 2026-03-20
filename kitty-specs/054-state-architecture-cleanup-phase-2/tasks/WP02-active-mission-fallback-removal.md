@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -14,8 +14,8 @@ subtasks:
 - T008
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: coordinator
-shell_pid: '12831'
+agent: "codex"
+shell_pid: "24137"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://054-state-architecture-cleanup-phase-2/WP02/20260320T140911Z-9b452901.md
@@ -176,3 +176,4 @@ spec-kitty implement WP02
 - 2026-03-20T14:09:11Z – codex – shell_pid=96119 – lane=planned – Moved to planned
 - 2026-03-20T14:09:21Z – coordinator – shell_pid=12831 – lane=doing – Started implementation via workflow command
 - 2026-03-20T14:15:58Z – coordinator – shell_pid=12831 – lane=for_review – Fixed: production callers now pass feature_dir via _resolve_feature_dir helper and scan_all_features/resolve_active_feature (cycle 2/3)
+- 2026-03-20T14:16:22Z – codex – shell_pid=24137 – lane=doing – Started review via workflow command
