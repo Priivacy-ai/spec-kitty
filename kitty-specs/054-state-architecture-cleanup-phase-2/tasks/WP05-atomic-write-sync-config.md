@@ -13,7 +13,7 @@ subtasks:
 - T022
 phase: Phase 2 - Hardening
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "94629"
 review_status: ''
 reviewed_by: ''
@@ -206,3 +206,4 @@ Run: `pytest tests/ -k "clock or auth or sync_config or tracker" -v`
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T14:00:43Z – coordinator – shell_pid=94629 – lane=doing – Assigned agent via workflow command
