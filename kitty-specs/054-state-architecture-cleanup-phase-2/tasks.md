@@ -394,7 +394,7 @@
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: approved
-- WP02: in_progress
+- WP02: planned
 - WP04: approved
 - WP05: approved
 - WP06: approved
