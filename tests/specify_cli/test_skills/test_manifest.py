@@ -162,10 +162,77 @@ def test_load_managed_files_missing_key_returns_none(tmp_path: Path) -> None:
             "created_at: '2026-01-01'\n"
             "updated_at: '2026-01-01'\n"
             "skills_mode: auto\n"
+            "selected_agents: []\n"
+            "installed_skill_roots: []\n"
             "managed_files:\n"
             "  - path: foo\n"
             "    sha256: abc\n"
             # missing file_type
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_binary_garbage_returns_none(tmp_path: Path) -> None:
+    """Manifest containing invalid UTF-8 bytes returns None (not UnicodeDecodeError)."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_bytes(b"\x80\x81\x82")
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_missing_selected_agents_returns_none(tmp_path: Path) -> None:
+    """Manifest missing required 'selected_agents' field returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: '1.0'\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            # selected_agents missing
+            "installed_skill_roots: []\n"
+            "managed_files: []\n"
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_missing_installed_skill_roots_returns_none(tmp_path: Path) -> None:
+    """Manifest missing required 'installed_skill_roots' field returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: '1.0'\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            "selected_agents: []\n"
+            # installed_skill_roots missing
+            "managed_files: []\n"
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_missing_managed_files_returns_none(tmp_path: Path) -> None:
+    """Manifest missing required 'managed_files' field returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: '1.0'\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            "selected_agents: []\n"
+            "installed_skill_roots: []\n"
+            # managed_files missing
         ),
         encoding="utf-8",
     )

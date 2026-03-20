@@ -110,7 +110,14 @@ def _dict_to_manifest(data: dict[str, Any]) -> SkillsManifest | None:
             logger.warning("Manifest missing required field: %s", key)
             return None
 
-    raw_files = data.get("managed_files", [])
+    # The three list sections are required schema fields.  A manifest
+    # missing any of them is considered corrupt (fail closed).
+    for list_key in ("selected_agents", "installed_skill_roots", "managed_files"):
+        if list_key not in data:
+            logger.warning("Manifest missing required field: %s", list_key)
+            return None
+
+    raw_files = data["managed_files"]
     if not isinstance(raw_files, list):
         logger.warning("managed_files is not a list")
         return None
@@ -132,12 +139,12 @@ def _dict_to_manifest(data: dict[str, Any]) -> SkillsManifest | None:
             logger.warning("ManagedFile entry missing key: %s", exc)
             return None
 
-    selected_agents = data.get("selected_agents", [])
+    selected_agents = data["selected_agents"]
     if not isinstance(selected_agents, list):
         logger.warning("selected_agents is not a list")
         return None
 
-    installed_skill_roots = data.get("installed_skill_roots", [])
+    installed_skill_roots = data["installed_skill_roots"]
     if not isinstance(installed_skill_roots, list):
         logger.warning("installed_skill_roots is not a list")
         return None
@@ -190,7 +197,7 @@ def load_manifest(project_root: Path) -> SkillsManifest | None:
 
     try:
         raw_text = manifest_path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         logger.warning("Cannot read manifest: %s", exc)
         return None
 
