@@ -284,6 +284,6 @@ Wave 5: WP09 (depends on all, final validation)
 - WP04: planned
 - WP05: in_progress
 - WP06: approved
-- WP07: in_progress
+- WP07: planned
 - WP08: approved
 <!-- status-model:end -->
