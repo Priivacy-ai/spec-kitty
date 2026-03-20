@@ -1,6 +1,6 @@
 {
   "feature_slug": "042-agent-skills-installer-infrastructure",
-  "snapshot_id": "62da4031-88f6-4bab-a2e3-8f78f69f6c11",
+  "snapshot_id": "52c3a031-e49f-43c1-9121-7e6fc2346b06",
   "total_artifacts": 21,
   "required_artifacts": 3,
   "required_present": 3,
@@ -8,9 +8,8 @@
   "optional_artifacts": 18,
   "optional_present": 18,
   "completeness_status": "complete",
-  "parity_hash_sha256": "9c162a8fc7a3ea7a3f5d9e2e4ae890d4fc672ded015a5f3c0b056cb531ece594",
+  "parity_hash_sha256": "8f2661fb53f0672bccc81a11d3f4f9c63d1d4be6f5de5969f8c4f18512c8bb01",
   "parity_hash_components": [
-    "0990d4cd00307b951ad12778ef09a4a9a0d89e287182cda9b2adfc5423028fce",
     "09dedbc308f808f264fbbca55006396c134e5216aae68ae097845815f32d38bb",
     "0f01bc85bd767aa20c89fe7ddf5a2fdf8437f637a0e60eb0f1f9100a74e9c25f",
     "1e1982cc604c0d6f0a252c77b058276e496bd6c0f667ada562fbbee47719bb2c",
@@ -30,7 +29,8 @@
     "d8f377616669ac42d098f98d32047e7d8e82b62b62e5da8a770a96b01d80af25",
     "df690b53a911c417a60249d4a0524b1cce6dd78c430e1d1290916fc089f2cb56",
     "f68e98bdba39ccd0218cc9d6868c790b245079c7b15951dde5678b4afe931440",
-    "fd802dc6376153c8a0e0d392c29fa4444140753fded2a48a32cc360e280f78a1"
+    "fd802dc6376153c8a0e0d392c29fa4444140753fded2a48a32cc360e280f78a1",
+    "ff24c54dedd15c0faa7c229d8d8764e11ba3225e4d40ed7b55b27239caf709b2"
   ],
   "artifact_summaries": [
     {
@@ -44,7 +44,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.251662+00:00",
+      "indexed_at": "2026-03-20T17:16:54.033148+00:00",
       "provenance": null
     },
     {
@@ -58,7 +58,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.248849+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030380+00:00",
       "provenance": null
     },
     {
@@ -72,7 +72,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.250545+00:00",
+      "indexed_at": "2026-03-20T17:16:54.032159+00:00",
       "provenance": null
     },
     {
@@ -86,7 +86,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.251134+00:00",
+      "indexed_at": "2026-03-20T17:16:54.032780+00:00",
       "provenance": null
     },
     {
@@ -100,7 +100,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.248763+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030290+00:00",
       "provenance": null
     },
     {
@@ -114,7 +114,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.246975+00:00",
+      "indexed_at": "2026-03-20T17:16:54.028309+00:00",
       "provenance": null
     },
     {
@@ -128,7 +128,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.249937+00:00",
+      "indexed_at": "2026-03-20T17:16:54.031423+00:00",
       "provenance": null
     },
     {
@@ -142,21 +142,21 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.249142+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030681+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp03-skills-manifest-crud",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP03-skills-manifest-crud.md",
-      "content_hash_sha256": "0990d4cd00307b951ad12778ef09a4a9a0d89e287182cda9b2adfc5423028fce",
-      "size_bytes": 9916,
+      "content_hash_sha256": "ff24c54dedd15c0faa7c229d8d8764e11ba3225e4d40ed7b55b27239caf709b2",
+      "size_bytes": 10141,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.250629+00:00",
+      "indexed_at": "2026-03-20T17:16:54.032305+00:00",
       "provenance": null
     },
     {
@@ -170,7 +170,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.250374+00:00",
+      "indexed_at": "2026-03-20T17:16:54.031879+00:00",
       "provenance": null
     },
     {
@@ -184,7 +184,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.249045+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030596+00:00",
       "provenance": null
     },
     {
@@ -198,7 +198,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.249840+00:00",
+      "indexed_at": "2026-03-20T17:16:54.031182+00:00",
       "provenance": null
     },
     {
@@ -212,7 +212,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.249564+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030945+00:00",
       "provenance": null
     },
     {
@@ -226,7 +226,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.250714+00:00",
+      "indexed_at": "2026-03-20T17:16:54.032392+00:00",
       "provenance": null
     },
     {
@@ -240,7 +240,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.250107+00:00",
+      "indexed_at": "2026-03-20T17:16:54.031644+00:00",
       "provenance": null
     },
     {
@@ -254,7 +254,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.248154+00:00",
+      "indexed_at": "2026-03-20T17:16:54.029391+00:00",
       "provenance": null
     },
     {
@@ -268,7 +268,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.247430+00:00",
+      "indexed_at": "2026-03-20T17:16:54.028595+00:00",
       "provenance": null
     },
     {
@@ -282,7 +282,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.247819+00:00",
+      "indexed_at": "2026-03-20T17:16:54.028986+00:00",
       "provenance": null
     },
     {
@@ -296,7 +296,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.248665+00:00",
+      "indexed_at": "2026-03-20T17:16:54.030064+00:00",
       "provenance": null
     },
     {
@@ -310,7 +310,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.248468+00:00",
+      "indexed_at": "2026-03-20T17:16:54.029728+00:00",
       "provenance": null
     },
     {
@@ -324,9 +324,9 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-03-20T17:15:31.247521+00:00",
+      "indexed_at": "2026-03-20T17:16:54.028721+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-03-20 17:15:31.257476+00:00"
+  "computed_at": "2026-03-20 17:16:54.169651+00:00"
 }
