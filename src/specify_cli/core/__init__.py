@@ -1,5 +1,12 @@
 """Core utilities and configuration exports."""
 
+from .agent_surface import (
+    AGENT_SURFACE_CONFIG,
+    AgentSurface,
+    DistributionClass,
+    WrapperConfig,
+    get_agent_surface,
+)
 from .config import (
     AGENT_COMMAND_CONFIG,
     AGENT_TOOL_REQUIREMENTS,
@@ -27,17 +34,22 @@ from .tool_checker import (
 
 __all__ = [
     "AGENT_COMMAND_CONFIG",
+    "AGENT_SURFACE_CONFIG",
     "AGENT_TOOL_REQUIREMENTS",
     "AI_CHOICES",
+    "AgentSurface",
     "BANNER",
     "DEFAULT_MISSION_KEY",
     "DEFAULT_TEMPLATE_REPO",
+    "DistributionClass",
     "MISSION_CHOICES",
     "SCRIPT_TYPE_CHOICES",
+    "WrapperConfig",
     "format_path",
     "ensure_directory",
     "safe_remove",
     "get_platform",
+    "get_agent_surface",
     "run_command",
     "is_git_repo",
     "init_git_repo",
