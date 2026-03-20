@@ -1,8 +1,11 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
+created_at: '2026-03-20T13:51:56.768729+00:00'
 subtasks:
 - T004
 - T005
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 1 - Core Cleanup
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "73479"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
