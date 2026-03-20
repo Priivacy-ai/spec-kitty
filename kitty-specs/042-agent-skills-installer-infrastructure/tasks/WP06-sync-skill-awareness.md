@@ -1,8 +1,11 @@
 ---
 work_package_id: WP06
 title: Agent Config Sync Skill Awareness
-lane: planned
+lane: "doing"
 dependencies: [WP02, WP03]
+base_branch: 042-agent-skills-installer-infrastructure-WP03
+base_commit: fffc6ec2d5dbd24eb746058f5087717457777579
+created_at: '2026-03-20T17:29:57.784627+00:00'
 subtasks:
 - T028
 - T029
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 3 - Integration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "15294"
 review_status: ''
 reviewed_by: ''
 history:
