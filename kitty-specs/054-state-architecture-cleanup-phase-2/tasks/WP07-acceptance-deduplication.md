@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
@@ -15,8 +15,8 @@ subtasks:
 - T032
 phase: Phase 2 - Consolidation
 assignee: ''
-agent: codex
-shell_pid: '41059'
+agent: "coordinator"
+shell_pid: "59036"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 review_feedback: "feedback://054-state-architecture-cleanup-phase-2/WP07/20260320T142746Z-e45fa3ea.md"
@@ -250,3 +250,4 @@ pytest tests/specify_cli/test_acceptance_regressions.py tests/specify_cli/test_c
 - 2026-03-20T14:21:41Z – coordinator – shell_pid=14121 – lane=for_review – Fixed both findings (cycle 2/3): repo-root acceptance_support.py converted to thin wrapper, bare read_text() replaced with _read_text_strict(), cross-cutting tests updated. All 34 tests pass.
 - 2026-03-20T14:22:04Z – codex – shell_pid=41059 – lane=doing – Started review via workflow command
 - 2026-03-20T14:27:46Z – codex – shell_pid=41059 – lane=planned – Moved to planned
+- 2026-03-20T14:27:55Z – coordinator – shell_pid=59036 – lane=doing – Started implementation via workflow command
