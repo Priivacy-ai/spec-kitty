@@ -233,7 +233,6 @@ def detect_feature_slug(
     *,
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
-    announce_fallback: bool = True,
 ) -> str:
     """Detect feature slug using centralized detection.
 
@@ -257,7 +256,6 @@ def detect_feature_slug(
             env=env,
             cwd=cwd,
             mode="strict",
-            announce_fallback=announce_fallback,
         )
     except FeatureDetectionError as e:
         # Convert to AcceptanceError for backward compatibility

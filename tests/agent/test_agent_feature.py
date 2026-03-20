@@ -465,7 +465,6 @@ class TestCheckPrerequisitesCommand:
         assert args[0] == tmp_path
         assert isinstance(args[1], Path)
         assert kwargs["explicit_feature"] == "001-test"
-        assert kwargs["allow_latest_incomplete_fallback"] is False
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -652,7 +651,6 @@ class TestFinalizeTasksCommand:
         assert args[0] == tmp_path
         assert isinstance(args[1], Path)
         assert kwargs["explicit_feature"] == "001-test"
-        assert kwargs["allow_latest_incomplete_fallback"] is False
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -1011,16 +1009,15 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_finds_latest_feature_in_main_repo(
+    def test_multiple_features_requires_explicit_selection(
         self, mock_is_worktree: Mock, tmp_path: Path
     ):
-        """Should find highest numbered feature in main repo."""
-        # Setup
+        """Should raise error when multiple features exist and none specified."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
         mock_is_worktree.return_value = False
 
-        # Create main repo structure
+        # Create main repo structure with multiple features
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         for slug in ("001-feature", "002-feature", "003-feature"):
@@ -1029,11 +1026,9 @@ class TestFindFeatureDirectory:
             tasks_dir.mkdir(parents=True)
             (tasks_dir / "WP01-test.md").write_text("# WP01\n")
 
-        # Execute
-        result = _find_feature_directory(tmp_path, tmp_path)
-
-        # Verify
-        assert result == kitty_specs / "003-feature"
+        # Multiple features without explicit selection should error
+        with pytest.raises(ValueError, match="Multiple features found"):
+            _find_feature_directory(tmp_path, tmp_path)
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
     def test_raises_error_when_no_features_in_main_repo(

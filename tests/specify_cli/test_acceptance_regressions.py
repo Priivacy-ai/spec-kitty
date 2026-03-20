@@ -338,10 +338,9 @@ def test_copy_parity_between_acceptance_modules() -> None:
     )
 
     # Function signature parity for key functions
-    # NOTE: detect_feature_slug is intentionally EXCLUDED because the
-    # standalone copy omits the `announce_fallback` parameter.
     parity_functions = [
         "collect_feature_summary",
+        "detect_feature_slug",
         "perform_acceptance",
         "choose_mode",
     ]
