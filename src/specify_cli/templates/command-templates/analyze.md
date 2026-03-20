@@ -23,7 +23,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Location Pre-flight Check
 
 Run `{SCRIPT}` first and treat its JSON as canonical runtime context:
-- `target_branch` / `base_branch` (plus `TARGET_BRANCH` / `BASE_BRANCH`)
+- `target_branch` (final merge target)
+- `feature_branch` / `planning_branch` (plus `FEATURE_BRANCH` / `PLANNING_BRANCH`)
 - `feature_dir`
 - `spec_file`, `plan_file`, `tasks_file`
 
@@ -31,7 +32,7 @@ Then verify:
 ```bash
 git branch --show-current
 ```
-Current branch must match `TARGET_BRANCH` from the JSON payload.
+Current branch must match `FEATURE_BRANCH` from the JSON payload.
 
 ---
 
@@ -83,7 +84,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
+Run `{SCRIPT}` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and feature_branch. Derive absolute paths:
 
 - SPEC = feature_dir/spec.md
 - PLAN = feature_dir/plan.md

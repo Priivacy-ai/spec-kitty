@@ -17,26 +17,27 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-Verify you are in the primary repository checkout (not a worktree). Task generation happens on the feature target branch for all missions.
+Verify you are in the primary repository checkout (not a worktree). Task generation happens on the feature planning branch for all missions.
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` and capture:
-   - `target_branch` / `base_branch`
-   - `TARGET_BRANCH` / `BASE_BRANCH`
+   - `target_branch` (final merge target)
+   - `feature_branch` / `planning_branch`
+   - `TARGET_BRANCH`, `FEATURE_BRANCH`, `PLANNING_BRANCH`
    - `feature_dir`
 
    Treat this JSON as the canonical branch contract for this command.
 
 ```bash
-git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites JSON
+git branch --show-current  # Should match FEATURE_BRANCH from check-prerequisites JSON
 ```
 
-**Note**: Task generation happens on the feature target branch. Implementation happens later in per-WP worktrees.
+**Note**: Task generation happens on the feature planning branch. Implementation happens later in per-WP worktrees.
 
 ---
 
 ## Outline
 
-1. **Setup**: Use the pre-flight `check-prerequisites` JSON and keep `feature_dir` plus `target_branch/base_branch` in context.
+1. **Setup**: Use the pre-flight `check-prerequisites` JSON and keep `feature_dir` plus `target_branch` and `feature_branch/planning_branch` in context.
 
 2. **Load design documents**:
    - spec.md (documentation goals, selected Divio types)

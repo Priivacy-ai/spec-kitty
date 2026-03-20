@@ -16,7 +16,7 @@ cd /path/to/project/root  # Your planning repository
 
 # All planning artifacts are created in the planning repo and committed:
 # - kitty-specs/###-feature/spec.md → Created in planning repo
-# - Committed to target branch (from create-feature JSON: target_branch/base_branch)
+# - Committed to the feature planning branch (from create-feature JSON: feature_branch/planning_branch)
 # - NO worktrees created
 ```
 
@@ -98,7 +98,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 **Planning happens in the planning repository - NO worktree created!**
 
 1. Creates `kitty-specs/###-feature/spec.md` directly in planning repo
-2. Automatically commits to target branch
+2. Automatically commits to the feature planning branch
 3. No worktree created during specify
 
 **Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-feature-WP##`).
@@ -107,7 +107,9 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Work in: **Planning repository** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
-- Commits to: target branch (from `create-feature --json` → `target_branch`)
+- Commits to: feature planning branch (from `create-feature --json` → `feature_branch`, e.g. `014-checkout-upsell-flow`)
+- Final merge target: `target_branch` (for example `main` or `2.x`)
+- After all WPs are accepted, open a PR from the feature branch into the merge target
 
 ## Outline
 
@@ -141,7 +143,8 @@ Given that feature description, do this:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
    - `feature_dir`: Absolute path to the feature directory inside the main repo
-   - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
+   - `target_branch`: final merge target for the feature
+   - `feature_branch` / `planning_branch`: deterministic planning-branch contract for downstream commands
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
@@ -155,7 +158,7 @@ Given that feature description, do this:
    The software-dev spec template is bundled at `.kittify/missions/software-dev/templates/spec-template.md`.
 
 5. Update `<feature_dir>/meta.json` only when needed:
-   - Keep identity fields from `create-feature` unchanged (`feature_number`, `slug`, `feature_slug`, `created_at`, `target_branch`).
+   - Keep identity fields from `create-feature` unchanged (`feature_number`, `slug`, `feature_slug`, `created_at`, `target_branch`, `feature_branch`).
    - Ensure `friendly_name` matches the confirmed title.
    - Ensure `mission` is correct.
    - Optionally add/update `source_description`.
@@ -169,7 +172,8 @@ Given that feature description, do this:
      "slug": "014-checkout-upsell-flow",
      "feature_slug": "014-checkout-upsell-flow",
      "created_at": "2026-03-06T12:34:56Z",
-     "target_branch": "main",
+     "target_branch": "2.x",
+     "feature_branch": "014-checkout-upsell-flow",
      "friendly_name": "Checkout Upsell Flow",
      "mission": "software-dev",
      "source_description": "optional source summary",

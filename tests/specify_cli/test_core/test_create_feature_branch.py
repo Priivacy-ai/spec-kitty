@@ -1,4 +1,4 @@
-"""Tests for create_feature() branch handling — current branch IS the target branch.
+"""Tests for create_feature() branch handling with separate merge and feature branches.
 
 All tests use real git repos. No mocks.
 """
@@ -58,14 +58,20 @@ def _get_feature_slugs(repo: Path) -> list[str]:
     )
 
 
+def _get_current_branch(repo: Path) -> str:
+    """Return the current git branch name."""
+    _, stdout, _ = run_command(["git", "branch", "--show-current"], cwd=repo, capture=True)
+    return stdout.strip()
+
+
 # ============================================================================
-# create_feature records current branch as target
+# create_feature preserves merge target and creates a dedicated feature branch
 # ============================================================================
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on 2.x records target_branch='2.x' in meta.json."""
+    """create_feature on 2.x preserves 2.x as target and records feature_branch."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.feature import app
 
@@ -81,11 +87,14 @@ def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"
+    assert meta["feature_branch"] == slugs[0]
+    assert meta["created_from_branch"] == "2.x"
+    assert _get_current_branch(repo) == slugs[0]
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
-    """create_feature on 2.x records target_branch='2.x' even when main exists.
+    """create_feature on 2.x preserves the merge target even when main exists.
 
     THIS IS THE CRITICAL REGRESSION TEST.
     """
@@ -107,11 +116,13 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"
+    assert meta["feature_branch"] == slugs[0]
+    assert _get_current_branch(repo) == slugs[0]
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on main records target_branch='main'."""
+    """create_feature on main records main as target and the slug as feature_branch."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.feature import app
 
@@ -127,11 +138,13 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "main"
+    assert meta["feature_branch"] == slugs[0]
+    assert _get_current_branch(repo) == slugs[0]
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on master records target_branch='master'."""
+    """create_feature on master records master as target and the slug as feature_branch."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.feature import app
 
@@ -147,11 +160,13 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "master"
+    assert meta["feature_branch"] == slugs[0]
+    assert _get_current_branch(repo) == slugs[0]
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on v3-next records target_branch='v3-next'."""
+    """create_feature on v3-next records that branch as target and the slug as feature_branch."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.feature import app
 
@@ -167,16 +182,19 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "v3-next"
+    assert meta["feature_branch"] == slugs[0]
+    assert _get_current_branch(repo) == slugs[0]
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
-    """--target-branch flag overrides current branch."""
+    """--target-branch sets the merge target while still checking out the feature branch."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.feature import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
+    run_command(["git", "branch", "2.x"], cwd=repo)
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
@@ -187,6 +205,33 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"
+    assert meta["feature_branch"] == slugs[0]
+    assert meta["created_from_branch"] == "2.x"
+    assert _get_current_branch(repo) == slugs[0]
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_create_feature_fails_when_existing_branch_cannot_be_checked_out(tmp_path, monkeypatch):
+    """Existing feature branch checkout failures must abort instead of committing on the wrong branch."""
+    from typer.testing import CliRunner
+    from specify_cli.cli.commands.agent.feature import app
+
+    repo = _init_repo(tmp_path, "main")
+    _setup_kittify(repo)
+    run_command(["git", "checkout", "-b", "001-test-feature"], cwd=repo)
+    (repo / "README.md").write_text("feature branch version\n", encoding="utf-8")
+    run_command(["git", "commit", "-am", "feature change"], cwd=repo)
+    run_command(["git", "checkout", "main"], cwd=repo)
+    (repo / "README.md").write_text("uncommitted main edit\n", encoding="utf-8")
+    monkeypatch.chdir(repo)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+
+    assert result.exit_code != 0, result.output
+    assert _get_current_branch(repo) == "main"
+    slugs = _get_feature_slugs(repo)
+    assert slugs == []
 
 
 @pytest.mark.usefixtures("_git_identity")

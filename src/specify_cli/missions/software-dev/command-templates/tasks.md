@@ -35,7 +35,7 @@ description: Generate grouped work packages with actionable subtasks and matchin
 # Creates:
 # - kitty-specs/###-feature/tasks/WP01-*.md → In planning repository
 # - kitty-specs/###-feature/tasks/WP02-*.md → In planning repository
-# - Commits ALL to target branch
+# - Commits ALL to the feature planning branch
 # - NO worktrees created
 ```
 
@@ -56,8 +56,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding, verify you are in the planning repository:
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture:
-   - `target_branch` / `base_branch`
-   - `TARGET_BRANCH` / `BASE_BRANCH` (uppercase aliases)
+   - `target_branch` (final merge target)
+   - `feature_branch` / `planning_branch`
+   - `TARGET_BRANCH`, `FEATURE_BRANCH`, `PLANNING_BRANCH`, `EXPECTED_CHECKOUT_BRANCH`
    - `feature_dir`, `artifact_files`, `artifact_dirs`
 
    Treat this JSON as canonical branch context for this command. Do not read `meta.json` to infer branch expectations.
@@ -67,14 +68,14 @@ Before proceeding, verify you are in the planning repository:
 git branch --show-current
 ```
 
-**Expected output:** the value from `TARGET_BRANCH` (typically `main` or `2.x`)
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
+**Expected output:** the value from `FEATURE_BRANCH`
+**If you see a different branch:** You're in the wrong place. Return to the feature planning branch:
 ```bash
 cd $(git rev-parse --show-toplevel)
-git checkout "$TARGET_BRANCH"
+git checkout "$FEATURE_BRANCH"
 ```
 
-Work packages are generated directly in `kitty-specs/###-feature/` and committed to the target branch. Worktrees are created later when implementing each work package.
+Work packages are generated directly in `kitty-specs/###-feature/` and committed to the feature planning branch. The final merge target remains `target_branch`.
 
 ## Outline
 
@@ -82,7 +83,8 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - `feature_dir`
    - `artifact_files` / `artifact_dirs` (if present)
    - `available_docs`
-   - `target_branch` / `base_branch`
+   - `target_branch`
+   - `feature_branch` / `planning_branch`
    All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).

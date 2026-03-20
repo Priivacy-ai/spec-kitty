@@ -16,7 +16,7 @@ description: Execute the implementation planning workflow using the plan templat
 
 # Creates:
 # - kitty-specs/###-feature/plan.md → In planning repository
-# - Commits to target branch
+# - Commits to the feature planning branch
 # - NO worktrees created
 ```
 
@@ -36,10 +36,10 @@ This command runs in the **planning repository**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
-  - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
-  - Ensure `git branch --show-current` matches `target_branch`
+  - Use `feature_branch` / `planning_branch` (and uppercase aliases) from that payload
+  - Ensure `git branch --show-current` matches `feature_branch`
 - Planning artifacts live in `kitty-specs/###-feature/`
-- The plan template is committed to the target branch after generation
+- The plan template is committed to the feature planning branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -105,7 +105,8 @@ Planning requirements (scale to complexity):
    - `result`: "success" or error message
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
-   - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
+   - `target_branch` (final merge target for the feature)
+   - `feature_branch` / `planning_branch` (deterministic planning branch for downstream commands)
 
    **Example**:
    ```bash

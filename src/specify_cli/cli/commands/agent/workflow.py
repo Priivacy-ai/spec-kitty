@@ -27,6 +27,8 @@ from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_w
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
     FeatureDetectionError,
+    get_feature_planning_branch,
+    get_feature_target_branch,
 )
 from specify_cli.core.vcs import get_vcs
 from specify_cli.git import safe_commit
@@ -89,12 +91,11 @@ app = typer.Typer(
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
-    """Resolve branch context without auto-checkout (respects user's current branch).
+    """Ensure planning/status workflow commands run on the planning branch.
 
-    Returns the planning repo root and the user's current branch.
-    Shows notification if current branch differs from feature target.
+    Returns the planning repo root and the planning branch name.
     """
-    from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
+    from specify_cli.core.git_ops import get_current_branch
 
     main_repo_root = get_main_repo_root(repo_root)
 
@@ -104,17 +105,26 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
         print("Error: Planning repo is in detached HEAD state. Checkout a branch before continuing.")
         raise typer.Exit(1)
 
-    # Resolve branch routing (unified logic, no auto-checkout)
-    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
+    planning_branch = get_feature_planning_branch(main_repo_root, feature_slug)
+    merge_target = get_feature_target_branch(main_repo_root, feature_slug)
+
+    if current_branch != planning_branch:
+        print(
+            f"Error: Planning/status workflow commands for {feature_slug} must run on "
+            f"{planning_branch}."
+        )
+        print(f"Current branch: {current_branch}")
+        print(f"Final merge target: {merge_target}")
+        print(f"Run: git checkout {planning_branch}")
+        raise typer.Exit(1)
 
     # Show branch context
-    if not resolution.should_notify:
-        print(f"Branch: {current_branch} (target for this feature)")
+    if planning_branch == merge_target:
+        print(f"Branch: {planning_branch} (planning and merge target for this feature)")
     else:
-        print(f"Branch: on '{resolution.current}', feature targets '{resolution.target}'")
+        print(f"Branch: {planning_branch} (planning branch; merges to {merge_target})")
 
-    # Return current branch (no checkout performed)
-    return main_repo_root, resolution.current
+    return main_repo_root, planning_branch
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
@@ -339,9 +349,10 @@ def implement(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure planning repo is on the target branch before we start
+        # Ensure planning repo is on the planning branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        main_repo_root, planning_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        merge_target_branch = get_feature_target_branch(main_repo_root, feature_slug)
 
         # Determine which WP to implement
         if wp_id:
@@ -384,7 +395,7 @@ def implement(
             raise
 
         # If validation resolved a base, validate base workspace exists when still in progress.
-        # Done base WPs are already merged and should branch from feature target branch.
+        # Done base WPs are already merged and should branch from the feature merge target.
         if resolved_base:
             try:
                 base_wp = locate_work_package(repo_root, feature_slug, resolved_base)
@@ -485,7 +496,7 @@ def implement(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to target branch when git is available.
+            # Auto-commit to the planning branch when git is available.
             # Some tests/fixtures intentionally run without git.
             if _is_git_repo(main_repo_root):
                 actual_wp_path = wp.path.resolve()
@@ -504,7 +515,10 @@ def implement(
             else:
                 print("Warning: No git repository detected. Skipping status auto-commit.")
 
-            print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
+            print(
+                f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, "
+                f"planning: {planning_branch})"
+            )
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -596,8 +610,8 @@ def implement(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
-        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {planning_branch})")
+        lines.append(f"   Status changes auto-commit to {planning_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
@@ -617,7 +631,7 @@ def implement(
             lines.append(deliv_line)
             lines.append("║     ↳ Create findings, reports, data here                                ║")
             lines.append("║     ↳ Commit to worktree branch                                          ║")
-            lines.append(f"║     ↳ Will merge to {target_branch:<62} ║")
+            lines.append(f"║     ↳ Will merge to {merge_target_branch:<62} ║")
             lines.append("║                                                                          ║")
             lines.append("║  📋 PLANNING ARTIFACTS (kitty-specs/):                                   ║")
             lines.append("║     ↳ evidence-log.csv, source-register.csv                              ║")
@@ -859,9 +873,10 @@ def review(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure planning repo is on the target branch before we start
+        # Ensure planning repo is on the planning branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        main_repo_root, planning_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        merge_target_branch = get_feature_target_branch(main_repo_root, feature_slug)
 
         # Determine which WP to review
         if wp_id:
@@ -940,7 +955,10 @@ def review(
             else:
                 print("Warning: No git repository detected. Skipping status auto-commit.")
 
-            print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
+            print(
+                f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, "
+                f"planning: {planning_branch})"
+            )
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -965,7 +983,7 @@ def review(
                 create_result = vcs.create_workspace(
                     workspace_path=workspace_path,
                     workspace_name=workspace_name,
-                    base_branch=target_branch,
+                    base_branch=planning_branch,
                     repo_root=repo_root,
                     sparse_exclude=["kitty-specs/"],
                 )
@@ -1090,8 +1108,8 @@ def review(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
-        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {planning_branch})")
+        lines.append(f"   Status changes auto-commit to {planning_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")

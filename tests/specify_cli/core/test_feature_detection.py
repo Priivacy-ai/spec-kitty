@@ -29,6 +29,7 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     detect_feature_slug,
     detect_feature_directory,
+    get_feature_planning_branch,
     get_feature_target_branch,
 )
 
@@ -948,3 +949,36 @@ def test_get_feature_target_branch_from_worktree(tmp_path: Path):
     # Call from worktree context (should resolve to main repo)
     target = get_feature_target_branch(worktree, "025-cli-event-log-integration")
     assert target == "2.x"
+
+
+def test_get_feature_planning_branch_prefers_feature_branch(tmp_path: Path):
+    """Planning branch should prefer feature_branch when present."""
+    import json
+
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "025-cli-event-log-integration"
+    feature_dir.mkdir(parents=True)
+    meta = {
+        "target_branch": "2.x",
+        "feature_branch": "025-cli-event-log-integration",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    branch = get_feature_planning_branch(repo_root, "025-cli-event-log-integration")
+    assert branch == "025-cli-event-log-integration"
+
+
+def test_get_feature_planning_branch_falls_back_to_target_branch(tmp_path: Path):
+    """Legacy features without feature_branch should plan on target_branch."""
+    import json
+
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "020-feature-a"
+    feature_dir.mkdir(parents=True)
+    meta = {
+        "target_branch": "main",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    branch = get_feature_planning_branch(repo_root, "020-feature-a")
+    assert branch == "main"

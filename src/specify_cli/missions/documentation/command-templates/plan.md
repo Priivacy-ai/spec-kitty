@@ -17,20 +17,21 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-Verify you are in the primary repository checkout (not a worktree). Planning happens on the feature target branch for all missions.
+Verify you are in the primary repository checkout (not a worktree). Planning happens on the feature planning branch for all missions.
 
 1. Run `spec-kitty agent feature setup-plan --json` and capture:
-   - `target_branch` / `base_branch`
-   - `TARGET_BRANCH` / `BASE_BRANCH`
+   - `target_branch` (final merge target)
+   - `feature_branch` / `planning_branch`
+   - `TARGET_BRANCH`, `FEATURE_BRANCH`, `PLANNING_BRANCH`
    - `feature_dir`
 
    Treat this JSON as the canonical branch contract.
 
 ```bash
-git branch --show-current  # Should match TARGET_BRANCH from setup-plan output
+git branch --show-current  # Should match FEATURE_BRANCH from setup-plan output
 ```
 
-**Note**: Planning runs on the feature target branch. Implementation happens later in per-WP worktrees.
+**Note**: Planning runs on the feature planning branch. Implementation happens later in per-WP worktrees.
 
 ---
 
@@ -64,7 +65,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 ## Outline
 
-1. **Setup**: Use the pre-flight `setup-plan --json` output to initialize plan.md and keep `target_branch/base_branch` in context.
+1. **Setup**: Use the pre-flight `setup-plan --json` output to initialize plan.md and keep `target_branch` plus `feature_branch/planning_branch` in context.
 
 2. **Load context**: Read spec.md, meta.json (especially `documentation_state`)
 

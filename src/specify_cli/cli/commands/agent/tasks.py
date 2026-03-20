@@ -17,6 +17,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
+    get_feature_planning_branch,
     get_feature_target_branch,
     FeatureDetectionError,
 )
@@ -72,13 +73,11 @@ def _ensure_target_branch_checked_out(
     feature_slug: str,
     json_output: bool,
 ) -> tuple[Path, str]:
-    """Resolve branch context without auto-checkout (respects user's current branch).
+    """Ensure planning/status commands run on the feature planning branch.
 
     Returns:
-        (main_repo_root, current_branch)
+        (main_repo_root, planning_branch)
     """
-    from specify_cli.core.git_ops import resolve_target_branch
-
     from specify_cli.core.git_ops import get_current_branch
 
     main_repo_root = get_main_repo_root(repo_root)
@@ -88,23 +87,29 @@ def _ensure_target_branch_checked_out(
     if current_branch is None:
         raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
 
-    # Resolve branch routing (unified logic, no auto-checkout)
-    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
+    planning_branch = get_feature_planning_branch(main_repo_root, feature_slug)
+    merge_target = get_feature_target_branch(main_repo_root, feature_slug)
+
+    if current_branch != planning_branch:
+        raise RuntimeError(
+            f"Planning/status commands for {feature_slug} must run on {planning_branch}. "
+            f"Current branch: {current_branch}. Final merge target: {merge_target}."
+        )
 
     # Show branch context
     if not json_output:
-        if not resolution.should_notify:
+        if planning_branch == merge_target:
             console.print(
-                f"[bold cyan]Branch:[/bold cyan] {current_branch} "
-                f"(target for this feature)"
+                f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
+                f"(planning and merge target for this feature)"
             )
         else:
             console.print(
-                f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
-                f"feature targets '{resolution.target}'"
+                f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
+                f"(planning branch; merges to {merge_target})"
             )
 
-    return main_repo_root, resolution.current
+    return main_repo_root, planning_branch
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
@@ -366,7 +371,7 @@ def _auto_rebase_worktree_if_needed(
     from specify_cli.workspace_context import load_context
     from specify_cli.core.git_ops import get_current_branch
 
-    target_branch = get_feature_target_branch(repo_root, feature_slug)
+    target_branch = get_feature_planning_branch(repo_root, feature_slug)
     workspace_name = f"{feature_slug}-{wp_id}"
     ws_context = load_context(main_repo_root, workspace_name)
     check_branch = ws_context.base_branch if ws_context else target_branch
@@ -639,9 +644,9 @@ def _validate_ready_for_review(
 
             # Check if worktree branch is behind its base branch
             # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
-            from specify_cli.core.feature_detection import get_feature_target_branch
+            from specify_cli.core.feature_detection import get_feature_planning_branch
             from specify_cli.workspace_context import load_context
-            target_branch = get_feature_target_branch(repo_root, feature_slug)
+            target_branch = get_feature_planning_branch(repo_root, feature_slug)
 
             # Resolve actual base: workspace context tracks the real base branch
             workspace_name = f"{feature_slug}-{wp_id}"
@@ -875,7 +880,7 @@ def move_task(
     review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
-    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
+    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to the planning branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → done).
@@ -898,8 +903,8 @@ def move_task(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure we operate on the target branch for this feature
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        # Ensure we operate on the planning branch for this feature
+        main_repo_root, planning_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
 
         # Informational: Let user know we're using planning repo's kitty-specs
         cwd = Path.cwd().resolve()
@@ -916,7 +921,7 @@ def move_task(
 
                 if worktree_kitty and (worktree_kitty / feature_slug / "tasks").exists():
                     console.print(
-                        f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]"
+                        f"[dim]Note: Using planning repo's kitty-specs/ on {planning_branch} (worktree copy ignored)[/dim]"
                     )
 
         # Load work package first (needed for current_lane check)
@@ -1112,7 +1117,7 @@ def move_task(
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
 
-            # Commit to target branch (file is always in planning repo, worktrees excluded via sparse-checkout)
+            # Commit to planning branch (file is always in planning repo, worktrees excluded via sparse-checkout)
             commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
             if agent_name != "unknown":
                 commit_msg += f" [{agent_name}]"
@@ -1122,7 +1127,7 @@ def move_task(
                 # Worktrees use sparse-checkout to exclude kitty-specs/, so path is always to planning repo
                 actual_file_path = wp.path.resolve()
 
-                # Write file AFTER ensuring target branch
+                # Write file AFTER ensuring the planning branch
                 wp.path.write_text(updated_doc, encoding="utf-8")
                 file_written = True
 
@@ -1138,7 +1143,7 @@ def move_task(
 
                 if commit_success:
                     if not json_output:
-                        console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                        console.print(f"[cyan]→ Committed status change to {planning_branch} branch[/cyan]")
                 else:
                     # Commit failed (safe_commit returned False)
                     if not json_output:
@@ -1182,7 +1187,7 @@ def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch")] = True,
+    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to the planning branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Update task checkbox status in tasks.md for one or more tasks.
@@ -1221,8 +1226,8 @@ def mark_status(
             raise typer.Exit(1)
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
-        # Ensure we operate on the target branch for this feature
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        # Ensure we operate on the planning branch for this feature
+        main_repo_root, planning_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
 
@@ -1263,7 +1268,7 @@ def mark_status(
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to TARGET branch (detects from feature meta.json)
+        # Auto-commit to the planning branch
         if auto_commit:
             import subprocess
 
@@ -1289,7 +1294,7 @@ def mark_status(
 
                 if commit_success:
                     if not json_output:
-                        console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                        console.print(f"[cyan]→ Committed subtask changes to {planning_branch} branch[/cyan]")
                 else:
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
@@ -1344,7 +1349,7 @@ def list_tasks(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure we operate on the target branch for this feature
+        # Ensure we operate on the planning branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
 
         # Find all task files
@@ -1417,7 +1422,7 @@ def add_history(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure we operate on the target branch for this feature
+        # Ensure we operate on the planning branch for this feature
         _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
 
         # Load work package
@@ -1481,7 +1486,7 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
-        # Ensure we operate on the target branch for this feature
+        # Ensure we operate on the planning branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
@@ -1599,7 +1604,7 @@ def validate_workflow(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure we operate on the target branch for this feature
+        # Ensure we operate on the planning branch for this feature
         _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
 
         # Load work package
@@ -1704,7 +1709,7 @@ def status(
         # Auto-detect or use provided feature slug
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
-        # Ensure we operate on the target branch for this feature
+        # Ensure we operate on the planning branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
 
         # Locate feature directory
