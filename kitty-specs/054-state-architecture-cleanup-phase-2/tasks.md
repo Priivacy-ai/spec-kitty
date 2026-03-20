@@ -172,10 +172,10 @@
 **Requirement Refs**: FR-017, FR-018, FR-019, NFR-004
 
 ### Included Subtasks
-- [ ] T023 Add `.kittify/constitution/references.yaml` to `.gitignore` (scope tightly — only this specific file, not wildcards)
-- [ ] T024 Update `src/specify_cli/state_contract.py`: `constitution_references` → `LOCAL_RUNTIME` / `IGNORED`; `constitution_library` → `AUTHORITATIVE` / `TRACKED`; `constitution_interview_answers` → `AUTHORITATIVE` / `TRACKED`
-- [ ] T025 Remove "Git boundary decision deferred to constitution cleanup sprint" notes from state contract entries
-- [ ] T026 Add test to `tests/specify_cli/test_state_contract.py` validating new classifications match actual `.gitignore` and Git status
+- [x] T023 Add `.kittify/constitution/references.yaml` to `.gitignore` (scope tightly — only this specific file, not wildcards)
+- [x] T024 Update `src/specify_cli/state_contract.py`: `constitution_references` → `LOCAL_RUNTIME` / `IGNORED`; `constitution_library` → `AUTHORITATIVE` / `TRACKED`; `constitution_interview_answers` → `AUTHORITATIVE` / `TRACKED`
+- [x] T025 Remove "Git boundary decision deferred to constitution cleanup sprint" notes from state contract entries
+- [x] T026 Add test to `tests/specify_cli/test_state_contract.py` validating new classifications match actual `.gitignore` and Git status
 
 ### Implementation Notes
 - `.gitignore` entry must be scoped to exactly `.kittify/constitution/references.yaml` — not `references.*` or broader patterns that could catch other files.
