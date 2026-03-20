@@ -1,8 +1,11 @@
 ---
 work_package_id: WP03
 title: Dead Mission Code Deletion
-lane: planned
+lane: "doing"
 dependencies: [WP02]
+base_branch: 054-state-architecture-cleanup-phase-2-WP02
+base_commit: e3bf132b1edb14ea76fbfe55a0511613da0ff64d
+created_at: '2026-03-20T14:42:46.091792+00:00'
 subtasks:
 - T009
 - T010
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 1 - Core Cleanup
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "88054"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
