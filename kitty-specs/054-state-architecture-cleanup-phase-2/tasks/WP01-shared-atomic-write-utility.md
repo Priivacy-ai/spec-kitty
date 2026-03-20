@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Shared Atomic Write Utility
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 7398e08cf45e2431807a2e804f596b30fa7f1a1b
+created_at: '2026-03-20T13:51:54.296826+00:00'
 subtasks:
 - T001
 - T002
@@ -10,7 +13,7 @@ subtasks:
 phase: Phase 0 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "73280"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
