@@ -19,10 +19,10 @@
 **Requirement Refs**: FR-001, FR-002, FR-004, FR-005, NFR-001, NFR-002, C-001, C-003
 
 ### Included Subtasks
-- [ ] T001 Extract `_emit_error()` helper method on `_JSONErrorGroup`
-- [ ] T002 Add `invoke()` override to `_JSONErrorGroup` for nested dispatch path
-- [ ] T003 Update `_JSONErrorGroup` class docstring with two-level error handling explanation
-- [ ] T004 Remove `--json` from `docs/reference/orchestrator-api.md` contract-version signature
+- [x] T001 Extract `_emit_error()` helper method on `_JSONErrorGroup`
+- [x] T002 Add `invoke()` override to `_JSONErrorGroup` for nested dispatch path
+- [x] T003 Update `_JSONErrorGroup` class docstring with two-level error handling explanation
+- [x] T004 Remove `--json` from `docs/reference/orchestrator-api.md` contract-version signature
 
 ### Implementation Notes
 - T001 and T002 are tightly coupled — `invoke()` uses `_emit_error()`, and the existing `main()` should be refactored to use it too.
