@@ -106,3 +106,8 @@
 | T005 | Root CLI success tests | WP02 | P0 | Yes |
 | T006 | Root CLI error tests | WP02 | P0 | Yes |
 | T007 | Regression check | WP02 | P0 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
