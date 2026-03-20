@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from specify_cli.dashboard import scanner
@@ -32,6 +33,31 @@ def test_scan_all_features_detects_feature(tmp_path):
     assert features, "Expected at least one feature"
     assert features[0]["id"] == feature_dir.name
     assert features[0]["artifacts"]["spec"]
+
+
+def test_scan_all_features_builds_switcher_display_name(tmp_path):
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"friendly_name": "Demo Feature"}),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert features[0]["name"] == "Demo Feature"
+    assert features[0]["display_name"] == "001 - Demo Feature"
+
+
+def test_scan_all_features_display_name_avoids_duplicate_prefix(tmp_path):
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"friendly_name": "001 - Demo Feature"}),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert features[0]["display_name"] == "001 - Demo Feature"
 
 
 def test_scan_feature_kanban_returns_prompt(tmp_path):
