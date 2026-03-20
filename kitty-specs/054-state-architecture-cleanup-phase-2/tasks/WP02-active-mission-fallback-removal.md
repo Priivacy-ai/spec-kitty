@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "doing"
+lane: in_progress
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -14,8 +14,8 @@ subtasks:
 - T008
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: "codex"
-shell_pid: "24137"
+agent: codex
+shell_pid: '24137'
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://054-state-architecture-cleanup-phase-2/WP02/20260320T140911Z-9b452901.md
