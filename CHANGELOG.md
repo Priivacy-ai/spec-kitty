@@ -11,6 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.0.10] - 2026-03-20
+
+### ✅ Added
+
+- **Project-level `auto_commit` setting (`#321`)**: repos can now configure automatic commit behavior directly in project config.
+- **Sync queue resilience and diagnostics (`#320`)**: offline queue now supports FIFO eviction, coalescing, configurable caps, and sync doctor coverage for failure recovery.
+
+### 🐛 Fixed
+
+- **Merge target resolution (`#272`)**: merge target branch is now resolved from feature `meta.json`, preventing merges from targeting the wrong branch.
+- **Acceptance and state persistence hardening (`#319`)**: state writes are now centralized around canonical metadata/state handling to reduce drift across acceptance, mission, and status flows.
+- **Feature context fallback restored**: ambiguous agent/task resolution now falls back to the latest incomplete feature instead of stopping on a stale explicit-selection error.
+- **Upgrade downgrade protection**: `spec-kitty upgrade` now refuses older targets instead of silently rewriting project metadata backwards.
+- **Migration discovery fail-fast**: broken `m_*.py` modules now fail discovery immediately instead of being skipped with a stderr warning.
+- **Upgrade metadata durability**: successful and failed migration records are now persisted immediately so retries can resume from an accurate state after mid-run failures.
+- **Safe auto-commit stash isolation**: `safe_commit()` now restores only the stash entry it created, preventing unrelated user stashes from being popped during upgrade/status auto-commits.
+- **Embedded task script compatibility**: copied `.kittify/scripts/tasks` helpers now fall back cleanly when the host `specify_cli` install is older than the copied templates.
+
+### 🔧 Changed
+
+- **State architecture cleanup phase 2 (`#319`)**: consolidated atomic-write and state-contract handling across runtime, acceptance, and feature metadata paths.
+- **Test and quality isolation follow-ups**: retained the refactors that separated policy/test churn from release-critical behavior on the 2.x line.
+
 ## [2.0.9] - 2026-03-15
 
 ### ✅ Added

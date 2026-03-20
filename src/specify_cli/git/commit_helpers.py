@@ -7,7 +7,32 @@ capturing unrelated staged changes.
 from __future__ import annotations
 
 import subprocess
+import uuid
 from pathlib import Path
+
+
+def _find_stash_ref(repo_path: Path, stash_message: str) -> str | None:
+    """Return the stash ref for a unique stash message, if present."""
+    result = subprocess.run(
+        ["git", "stash", "list", "--format=%gd\t%s"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+
+    for line in result.stdout.splitlines():
+        if "\t" not in line:
+            continue
+        ref, message = line.split("\t", 1)
+        if message == stash_message or message.endswith(f": {stash_message}"):
+            return ref
+
+    return None
 
 
 def safe_commit(
@@ -58,9 +83,11 @@ def safe_commit(
                 pass
         normalized_files.append(str(file))
 
+    stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
+
     # Save current staging area (only staged changes, not working tree)
     stash_result = subprocess.run(
-        ["git", "stash", "push", "--staged", "--quiet"],
+        ["git", "stash", "push", "--staged", "--quiet", "-m", stash_message],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -69,8 +96,10 @@ def safe_commit(
         check=False,
     )
 
-    # Track if we stashed anything (needed for cleanup)
-    stashed_something = stash_result.returncode == 0
+    # Track whether we created a stash entry so we only restore our own stash.
+    created_stash = stash_result.returncode == 0 and _find_stash_ref(repo_path, stash_message) is not None
+    restore_failed = False
+    commit_success = False
 
     try:
         # Stage only the intended files
@@ -88,35 +117,12 @@ def safe_commit(
             )
             if add_result.returncode != 0:
                 # Failed to stage file
-                return False
-
-        # Commit the staged files
-        commit_result = subprocess.run(
-            ["git", "commit", "-m", commit_message],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-
-        # Check for success
-        if commit_result.returncode == 0:
-            return True
-
-        # Check if it was "nothing to commit" scenario
-        if "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-            return allow_empty
-
-        # Other error occurred
-        return False
-
-    finally:
-        # Restore original staging area if we stashed anything
-        if stashed_something:
-            subprocess.run(
-                ["git", "stash", "pop", "--index", "--quiet"],
+                commit_success = False
+                break
+        else:
+            # Commit the staged files
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", commit_message],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
@@ -124,3 +130,37 @@ def safe_commit(
                 errors="replace",
                 check=False,
             )
+
+            # Check for success
+            if commit_result.returncode == 0:
+                commit_success = True
+            # Check if it was "nothing to commit" scenario
+            elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                commit_success = allow_empty
+            else:
+                # Other error occurred
+                commit_success = False
+
+    finally:
+        # Restore original staging area if we created a stash entry.
+        if created_stash:
+            stash_ref = _find_stash_ref(repo_path, stash_message)
+            if stash_ref is None:
+                restore_failed = True
+            else:
+                restore_result = subprocess.run(
+                    ["git", "stash", "pop", "--index", "--quiet", stash_ref],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    check=False,
+                )
+                if restore_result.returncode != 0:
+                    restore_failed = True
+
+        if restore_failed:
+            commit_success = False
+
+    return commit_success

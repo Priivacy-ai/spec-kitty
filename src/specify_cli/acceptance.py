@@ -22,7 +22,6 @@ from .tasks_support import (
     run_git,
     split_frontmatter,
 )
-from specify_cli.status.reducer import materialize
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
@@ -434,7 +433,8 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
-    # Capture git cleanliness BEFORE materialize() writes status.json
+    # Capture git cleanliness before any status inspection. Query paths must
+    # not rewrite derived files like status.json.
     try:
         git_dirty = git_status_lines(repo_root)
     except TaskCliError:
@@ -447,7 +447,7 @@ def collect_feature_summary(
 
     use_legacy = is_legacy_format(feature_dir)
 
-    # ── Canonical state validation via materialize() ──────────────────────
+    # ── Canonical state validation via reducer-only snapshot ──────────────
     events_path = feature_dir / EVENTS_FILENAME
     if not events_path.exists():
         activity_issues.append(
@@ -458,7 +458,10 @@ def collect_feature_summary(
         snapshot_wps: Dict[str, dict] = {}
     else:
         try:
-            snapshot = materialize(feature_dir)
+            from specify_cli.status.reducer import reduce
+            from specify_cli.status.store import read_events
+
+            snapshot = reduce(read_events(feature_dir))
         except StoreError as exc:
             raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
         snapshot_wps = snapshot.work_packages

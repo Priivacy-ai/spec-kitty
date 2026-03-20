@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
@@ -31,6 +32,20 @@ class UpgradeResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
+
+
+def validate_upgrade_target(from_version: str, target_version: str) -> str | None:
+    """Return an error message when the requested target would downgrade state."""
+    if from_version == "unknown":
+        return None
+
+    try:
+        if Version(target_version) < Version(from_version):
+            return f"Refusing to downgrade project metadata from {from_version} to {target_version}"
+    except InvalidVersion:
+        return None
+
+    return None
 
 
 class MigrationRunner:
@@ -75,8 +90,19 @@ class MigrationRunner:
             dry_run=dry_run,
         )
 
+        validation_error = validate_upgrade_target(from_version, target_version)
+        if validation_error:
+            result.success = False
+            result.errors.append(validation_error)
+            return result
+
         # Get applicable migrations
-        migrations = MigrationRegistry.get_applicable(from_version, target_version, project_path=self.project_path)
+        version_for_migration = "0.0.0" if from_version == "unknown" else from_version
+        migrations = MigrationRegistry.get_applicable(
+            version_for_migration,
+            target_version,
+            project_path=self.project_path,
+        )
 
         if not migrations:
             # Still update version stamp even when no migrations needed
@@ -157,7 +183,13 @@ class MigrationRunner:
         if not migration.detect(self.project_path):
             # Migration not needed - project doesn't have old state
             if not dry_run:
-                metadata.record_migration(migration.migration_id, "skipped", "Not applicable")
+                self._record_migration_result(
+                    metadata,
+                    self.kittify_dir,
+                    migration.migration_id,
+                    "skipped",
+                    "Not applicable",
+                )
             return (MigrationResult(
                 success=True,
                 warnings=[f"Migration {migration.migration_id} not needed (project already in target state)"],),
@@ -180,7 +212,9 @@ class MigrationRunner:
 
         # Record in metadata
         if not dry_run:
-            metadata.record_migration(
+            self._record_migration_result(
+                metadata,
+                self.kittify_dir,
                 migration.migration_id,
                 "success" if result.success else "failed",
                 "; ".join(result.changes_made) if result.changes_made else None,
@@ -234,7 +268,13 @@ class MigrationRunner:
 
                 if not migration.detect(worktree):
                     if not dry_run:
-                        wt_metadata.record_migration(migration.migration_id, "skipped", "Not applicable")
+                        self._record_migration_result(
+                            wt_metadata,
+                            wt_kittify,
+                            migration.migration_id,
+                            "skipped",
+                            "Not applicable",
+                        )
                     continue
 
                 can_apply, reason = migration.can_apply(worktree)
@@ -248,13 +288,23 @@ class MigrationRunner:
 
                 if migration_result.success:
                     if not dry_run:
-                        wt_metadata.record_migration(
+                        self._record_migration_result(
+                            wt_metadata,
+                            wt_kittify,
                             migration.migration_id,
                             "success",
                             "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
                         )
                     result["warnings"].extend([f"Worktree {worktree.name}: {w}" for w in migration_result.warnings])
                 else:
+                    if not dry_run:
+                        self._record_migration_result(
+                            wt_metadata,
+                            wt_kittify,
+                            migration.migration_id,
+                            "failed",
+                            "; ".join(migration_result.errors) if migration_result.errors else None,
+                        )
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
             # Save worktree metadata
@@ -281,3 +331,15 @@ class MigrationRunner:
             platform=sys.platform,
             platform_version=platform.platform(),
         )
+
+    def _record_migration_result(
+        self,
+        metadata: ProjectMetadata,
+        metadata_dir: Path,
+        migration_id: str,
+        result: str,
+        notes: str | None = None,
+    ) -> None:
+        """Persist each migration record immediately for crash/failure recovery."""
+        metadata.record_migration(migration_id, result, notes)
+        metadata.save(metadata_dir)

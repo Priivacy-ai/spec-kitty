@@ -312,3 +312,47 @@ def test_safe_commit_fails_gracefully_on_invalid_file(git_repo: Path):
     )
 
     assert result is False, "Should return False when file doesn't exist"
+
+
+def test_safe_commit_does_not_pop_unrelated_existing_stash(git_repo: Path):
+    """safe_commit must restore only its own temporary stash entry."""
+    staged_file = git_repo / "staged.txt"
+    staged_file.write_text("already staged\n", encoding="utf-8")
+    subprocess.run(["git", "add", "staged.txt"], cwd=git_repo, check=True)
+    subprocess.run(
+        ["git", "stash", "push", "--staged", "-m", "preexisting-stash"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    before = subprocess.run(
+        ["git", "stash", "list"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "preexisting-stash" in before.stdout
+
+    wp_file = git_repo / "WP07.md"
+    wp_file.write_text("---\nlane: planned\n---\n", encoding="utf-8")
+
+    result = safe_commit(
+        repo_path=git_repo,
+        files_to_commit=[wp_file],
+        commit_message="Commit WP07 only",
+        allow_empty=False,
+    )
+
+    after = subprocess.run(
+        ["git", "stash", "list"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result is True
+    assert "preexisting-stash" in after.stdout

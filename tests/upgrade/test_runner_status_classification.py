@@ -42,6 +42,21 @@ class _AppliedMigration(BaseMigration):
         return MigrationResult(success=True, changes_made=["updated file"])
 
 
+class _FailingMigration(BaseMigration):
+    migration_id = "10.0.0_failed"
+    description = "Failing migration for metadata persistence tests"
+    target_version = "10.0.0"
+
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
+        return MigrationResult(success=False, errors=["boom"])
+
+
 def _setup_project(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -123,3 +138,41 @@ def test_upgrade_creates_worktree_metadata_when_only_kitty_specs_exists(
 
     assert result.success is True
     assert (worktree / ".kittify" / "metadata.yaml").exists()
+
+
+def test_upgrade_rejects_downgrade_target(monkeypatch, tmp_path: Path) -> None:
+    project_path = _setup_project(tmp_path)
+    runner = MigrationRunner(project_path)
+
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "2.0.9")
+
+    result = runner.upgrade("1.0.0", include_worktrees=False)
+
+    assert result.success is False
+    assert result.errors == ["Refusing to downgrade project metadata from 2.0.9 to 1.0.0"]
+
+
+def test_upgrade_persists_successful_migrations_before_later_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    project_path = _setup_project(tmp_path)
+    runner = MigrationRunner(project_path)
+    first = _AppliedMigration()
+    second = _FailingMigration()
+
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+        lambda _from, _to, project_path=None: [first, second],  # noqa: ARG005
+    )
+
+    result = runner.upgrade("10.0.0", include_worktrees=False)
+    metadata = ProjectMetadata.load(project_path / ".kittify")
+
+    assert result.success is False
+    assert result.migrations_applied == [first.migration_id]
+    assert result.errors == ["boom"]
+    assert metadata is not None
+    assert metadata.has_migration(first.migration_id)
+    assert any(record.id == second.migration_id and record.result == "failed" for record in metadata.applied_migrations)

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.migrations import MigrationDiscoveryError, auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = pytest.mark.fast
@@ -64,8 +64,8 @@ class TestAutoDiscovery:
         assert "__init__" not in migration_ids
         assert "test_" not in " ".join(migration_ids)
 
-    def test_auto_discover_handles_import_errors_gracefully(self, capsys):
-        """Import errors are logged but don't crash discovery."""
+    def test_auto_discover_raises_on_import_errors(self):
+        """Import errors fail fast so broken migrations cannot be skipped silently."""
         MigrationRegistry.clear()
 
         # Mock pkgutil to return a fake module that will fail import
@@ -74,15 +74,10 @@ class TestAutoDiscovery:
             class FakeModuleInfo:
                 name = "m_fake_broken"
 
-            # Return our fake module plus one real one
             mock_iter.return_value = [FakeModuleInfo()]
 
-            # This should log a warning but not crash
-            auto_discover_migrations()
-
-            # Check stderr for warning
-            captured = capsys.readouterr()
-            assert "Warning" in captured.err or "Failed to import" in captured.err
+            with pytest.raises(MigrationDiscoveryError, match="m_fake_broken"):
+                auto_discover_migrations()
 
     def test_auto_discover_imports_base_module(self):
         """The base.py module is also imported (needed for BaseMigration)."""

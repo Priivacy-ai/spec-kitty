@@ -1009,10 +1009,10 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_multiple_features_requires_explicit_selection(
+    def test_multiple_features_fall_back_to_latest_incomplete(
         self, mock_is_worktree: Mock, tmp_path: Path
     ):
-        """Should raise error when multiple features exist and none specified."""
+        """Should use centralized latest-incomplete fallback when no feature is specified."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
         mock_is_worktree.return_value = False
@@ -1020,15 +1020,22 @@ class TestFindFeatureDirectory:
         # Create main repo structure with multiple features
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
-        for slug in ("001-feature", "002-feature", "003-feature"):
+        for slug, lane in (
+            ("001-feature", "done"),
+            ("002-feature", "done"),
+            ("003-feature", "planned"),
+        ):
             feature_dir = kitty_specs / slug
             tasks_dir = feature_dir / "tasks"
             tasks_dir.mkdir(parents=True)
-            (tasks_dir / "WP01-test.md").write_text("# WP01\n")
+            (tasks_dir / "WP01.md").write_text(
+                f"---\nwork_package_id: WP01\ntitle: Test\nlane: {lane}\n---\n",
+                encoding="utf-8",
+            )
 
-        # Multiple features without explicit selection should error
-        with pytest.raises(ValueError, match="Multiple features found"):
-            _find_feature_directory(tmp_path, tmp_path)
+        result = _find_feature_directory(tmp_path, tmp_path)
+
+        assert result == kitty_specs / "003-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
     def test_raises_error_when_no_features_in_main_repo(
