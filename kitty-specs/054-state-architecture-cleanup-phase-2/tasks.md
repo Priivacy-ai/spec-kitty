@@ -19,9 +19,9 @@
 **Requirement Refs**: FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, NFR-001, C-004
 
 ### Included Subtasks
-- [x] T001 Create `src/specify_cli/core/atomic.py` with public `atomic_write()` function
-- [x] T002 Refactor `src/specify_cli/feature_metadata.py` to import from `core.atomic` instead of private `_atomic_write()`
-- [x] T003 Create `tests/specify_cli/test_atomic_write.py` with success, interrupt, mkdir, bytes/str, and cleanup tests
+- [ ] T001 Create `src/specify_cli/core/atomic.py` with public `atomic_write()` function
+- [ ] T002 Refactor `src/specify_cli/feature_metadata.py` to import from `core.atomic` instead of private `_atomic_write()`
+- [ ] T003 Create `tests/specify_cli/test_atomic_write.py` with success, interrupt, mkdir, bytes/str, and cleanup tests
 
 ### Implementation Notes
 - Extract the exact pattern from `feature_metadata.py:_atomic_write()` (lines 84-108)
@@ -49,11 +49,11 @@
 **Requirement Refs**: FR-001, FR-002, FR-003, FR-004
 
 ### Included Subtasks
-- [x] T004 Remove `_detect_active_mission()` from `src/specify_cli/manifest.py` and refactor `FileManifest` to not carry `active_mission` property
-- [x] T005 Update `src/specify_cli/verify_enhanced.py` to accept `feature_dir: Path | None` parameter and resolve mission from `meta.json`
-- [x] T006 Update `src/specify_cli/dashboard/diagnostics.py` to accept `feature_dir: Path | None` and resolve mission per-feature
-- [x] T007 Update `src/specify_cli/cli/commands/mission.py` `current_cmd()` to show explicit "no active feature detected" instead of project-level fallback
-- [x] T008 Add/update tests: manifest without active_mission, verify with feature context, diagnostics with feature context
+- [ ] T004 Remove `_detect_active_mission()` from `src/specify_cli/manifest.py` and refactor `FileManifest` to not carry `active_mission` property
+- [ ] T005 Update `src/specify_cli/verify_enhanced.py` to accept `feature_dir: Path | None` parameter and resolve mission from `meta.json`
+- [ ] T006 Update `src/specify_cli/dashboard/diagnostics.py` to accept `feature_dir: Path | None` and resolve mission per-feature
+- [ ] T007 Update `src/specify_cli/cli/commands/mission.py` `current_cmd()` to show explicit "no active feature detected" instead of project-level fallback
+- [ ] T008 Add/update tests: manifest without active_mission, verify with feature context, diagnostics with feature context
 
 ### Implementation Notes
 - `FileManifest.__init__()` currently sets `self.active_mission = self._detect_active_mission()` and derives `self.mission_dir` from it. After removing, callers that need mission context must resolve it from feature `meta.json` via `get_mission_for_feature()`.
@@ -79,11 +79,11 @@
 **Requirement Refs**: FR-005, FR-006, FR-007
 
 ### Included Subtasks
-- [x] T009 Delete `set_active_mission()` from `src/specify_cli/mission.py`
-- [x] T010 Delete `get_active_mission_key()` from `src/specify_cli/core/project_resolver.py` and remove from `src/specify_cli/core/__init__.py` exports
-- [x] T011 Update `src/specify_cli/state_contract.py` — remove `active_mission_marker` entry entirely
-- [x] T012 Add `.kittify/active-mission` to `.gitignore` (prevent accidental recommit of legacy markers)
-- [x] T013 Update/remove tests referencing deleted functions (`tests/runtime/test_project_resolver.py`, any test calling `set_active_mission`)
+- [ ] T009 Delete `set_active_mission()` from `src/specify_cli/mission.py`
+- [ ] T010 Delete `get_active_mission_key()` from `src/specify_cli/core/project_resolver.py` and remove from `src/specify_cli/core/__init__.py` exports
+- [ ] T011 Update `src/specify_cli/state_contract.py` — remove `active_mission_marker` entry entirely
+- [ ] T012 Add `.kittify/active-mission` to `.gitignore` (prevent accidental recommit of legacy markers)
+- [ ] T013 Update/remove tests referencing deleted functions (`tests/runtime/test_project_resolver.py`, any test calling `set_active_mission`)
 
 ### Implementation Notes
 - `set_active_mission()` is at mission.py:523-566. It's deprecated since v0.8.0 with no production callers.
@@ -110,11 +110,11 @@
 **Requirement Refs**: FR-008, FR-009, FR-010, FR-011, FR-016, NFR-001
 
 ### Included Subtasks
-- [x] T014 [P] Convert `src/specify_cli/next/runtime_bridge.py` — `_save_feature_runs()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
-- [x] T015 [P] Convert `src/specify_cli/workspace_context.py` — `save_context()`: replace `context_path.write_text(json.dumps(...))` with `atomic_write(context_path, content)`
-- [x] T016 [P] Convert `src/specify_cli/constitution/context.py` — `_write_state()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
-- [x] T017 [P] Convert `src/specify_cli/dashboard/lifecycle.py` — `_write_dashboard_file()`: replace `dashboard_file.write_text(...)` with `atomic_write(dashboard_file, content, mkdir=True)`
-- [x] T018 [P] Convert `src/specify_cli/upgrade/metadata.py` — `ProjectMetadata.save()`: replace `open() + yaml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [ ] T014 [P] Convert `src/specify_cli/next/runtime_bridge.py` — `_save_feature_runs()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
+- [ ] T015 [P] Convert `src/specify_cli/workspace_context.py` — `save_context()`: replace `context_path.write_text(json.dumps(...))` with `atomic_write(context_path, content)`
+- [ ] T016 [P] Convert `src/specify_cli/constitution/context.py` — `_write_state()`: replace `path.write_text(json.dumps(...))` with `atomic_write(path, content, mkdir=True)`
+- [ ] T017 [P] Convert `src/specify_cli/dashboard/lifecycle.py` — `_write_dashboard_file()`: replace `dashboard_file.write_text(...)` with `atomic_write(dashboard_file, content, mkdir=True)`
+- [ ] T018 [P] Convert `src/specify_cli/upgrade/metadata.py` — `ProjectMetadata.save()`: replace `open() + yaml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
 
 ### Implementation Notes
 - Each conversion follows the same pattern: serialize content to string first, then call `atomic_write(path, content, mkdir=True)`.
@@ -141,10 +141,10 @@
 **Requirement Refs**: FR-012, FR-013, FR-014, FR-015, NFR-001
 
 ### Included Subtasks
-- [x] T019 Convert `src/specify_cli/sync/clock.py` — `LamportClock.save()`: replace inline `tempfile.mkstemp + os.replace` with `atomic_write(self._storage_path, content, mkdir=True)`
-- [x] T020 Convert `src/specify_cli/sync/auth.py` — `CredentialStore.save()`: add `atomic_write()` inside the existing `self._acquire_lock()` context; keep file lock + 600 permissions
-- [x] T021 [P] Convert `src/specify_cli/sync/config.py` — `set_server_url()`: replace `open() + toml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
-- [x] T022 [P] Convert `src/specify_cli/tracker/config.py` — `save_tracker_config()`: replace `open() + YAML.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [ ] T019 Convert `src/specify_cli/sync/clock.py` — `LamportClock.save()`: replace inline `tempfile.mkstemp + os.replace` with `atomic_write(self._storage_path, content, mkdir=True)`
+- [ ] T020 Convert `src/specify_cli/sync/auth.py` — `CredentialStore.save()`: add `atomic_write()` inside the existing `self._acquire_lock()` context; keep file lock + 600 permissions
+- [ ] T021 [P] Convert `src/specify_cli/sync/config.py` — `set_server_url()`: replace `open() + toml.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
+- [ ] T022 [P] Convert `src/specify_cli/tracker/config.py` — `save_tracker_config()`: replace `open() + YAML.dump()` with serialize-to-string then `atomic_write(path, content, mkdir=True)`
 
 ### Implementation Notes
 - **clock.py** (T019): Already has atomic write logic (lines 62-87). Replace with the shared utility. The `json.dump(data, f, indent=2)` becomes `json.dumps(data, indent=2)` → `atomic_write(path, content)`.
@@ -172,10 +172,10 @@
 **Requirement Refs**: FR-017, FR-018, FR-019, NFR-004
 
 ### Included Subtasks
-- [x] T023 Add `.kittify/constitution/references.yaml` to `.gitignore` (scope tightly — only this specific file, not wildcards)
-- [x] T024 Update `src/specify_cli/state_contract.py`: `constitution_references` → `LOCAL_RUNTIME` / `IGNORED`; `constitution_library` → `AUTHORITATIVE` / `TRACKED`; `constitution_interview_answers` → `AUTHORITATIVE` / `TRACKED`
-- [x] T025 Remove "Git boundary decision deferred to constitution cleanup sprint" notes from state contract entries
-- [x] T026 Add test to `tests/specify_cli/test_state_contract.py` validating new classifications match actual `.gitignore` and Git status
+- [ ] T023 Add `.kittify/constitution/references.yaml` to `.gitignore` (scope tightly — only this specific file, not wildcards)
+- [ ] T024 Update `src/specify_cli/state_contract.py`: `constitution_references` → `LOCAL_RUNTIME` / `IGNORED`; `constitution_library` → `AUTHORITATIVE` / `TRACKED`; `constitution_interview_answers` → `AUTHORITATIVE` / `TRACKED`
+- [ ] T025 Remove "Git boundary decision deferred to constitution cleanup sprint" notes from state contract entries
+- [ ] T026 Add test to `tests/specify_cli/test_state_contract.py` validating new classifications match actual `.gitignore` and Git status
 
 ### Implementation Notes
 - `.gitignore` entry must be scoped to exactly `.kittify/constitution/references.yaml` — not `references.*` or broader patterns that could catch other files.
@@ -202,12 +202,12 @@
 **Requirement Refs**: FR-020, NFR-002
 
 ### Included Subtasks
-- [x] T027 Move `ArtifactEncodingError` exception class from `acceptance_support.py` to `acceptance.py`
-- [x] T028 Move `normalize_feature_encoding()` from `acceptance_support.py` to `acceptance.py`
-- [x] T029 Move `_read_text_strict()` from `acceptance_support.py` to `acceptance.py`
-- [x] T030 Align `AcceptanceSummary` — ensure `path_violations` field is consistent (present in canonical, was missing in standalone)
-- [x] T031 Rewrite `acceptance_support.py` as pure re-export wrapper (~25 lines: imports + `__all__`)
-- [x] T032 Update `tests/specify_cli/test_acceptance_regressions.py` — parity test should now validate re-exports match canonical `__all__`
+- [ ] T027 Move `ArtifactEncodingError` exception class from `acceptance_support.py` to `acceptance.py`
+- [ ] T028 Move `normalize_feature_encoding()` from `acceptance_support.py` to `acceptance.py`
+- [ ] T029 Move `_read_text_strict()` from `acceptance_support.py` to `acceptance.py`
+- [ ] T030 Align `AcceptanceSummary` — ensure `path_violations` field is consistent (present in canonical, was missing in standalone)
+- [ ] T031 Rewrite `acceptance_support.py` as pure re-export wrapper (~25 lines: imports + `__all__`)
+- [ ] T032 Update `tests/specify_cli/test_acceptance_regressions.py` — parity test should now validate re-exports match canonical `__all__`
 
 ### Implementation Notes
 - `ArtifactEncodingError` is at acceptance_support.py:50-62. Custom exception with UTF-8 diagnostics.
@@ -236,10 +236,10 @@
 **Requirement Refs**: FR-021, FR-022, NFR-002
 
 ### Included Subtasks
-- [x] T033 Move `from specify_cli.status.legacy_bridge import update_all_views` to top-level import in `src/specify_cli/status/emit.py`
-- [x] T034 Remove the `except ImportError: pass` block and the `# WP06 not yet available` comment
-- [x] T035 Add test to `tests/status/test_emit.py` that patches the import to raise `ImportError` and asserts it propagates
-- [x] T036 Update `test_legacy_bridge_import_error_handled` test — it currently asserts silent handling; change to assert the error is NOT silently handled
+- [ ] T033 Move `from specify_cli.status.legacy_bridge import update_all_views` to top-level import in `src/specify_cli/status/emit.py`
+- [ ] T034 Remove the `except ImportError: pass` block and the `# WP06 not yet available` comment
+- [ ] T035 Add test to `tests/status/test_emit.py` that patches the import to raise `ImportError` and asserts it propagates
+- [ ] T036 Update `test_legacy_bridge_import_error_handled` test — it currently asserts silent handling; change to assert the error is NOT silently handled
 
 ### Implementation Notes
 - Current code (emit.py:288-301):
@@ -274,10 +274,10 @@
 **Requirement Refs**: FR-023, NFR-002, NFR-003
 
 ### Included Subtasks
-- [x] T037 Update `07-2026-03-20-refresh-findings.md` with implementation outcomes for all 7 areas
-- [x] T038 Add new entries to `08-evidence-log-2026-03-20.md` referencing implementation commits and test results
-- [x] T039 Run full test suite (`PWHEADLESS=1 pytest tests/ -q`) and record results
-- [x] T040 Create `09-implementation-outcome-054.md` with summary of what changed, what was deferred, and what was intentionally left
+- [ ] T037 Update `07-2026-03-20-refresh-findings.md` with implementation outcomes for all 7 areas
+- [ ] T038 Add new entries to `08-evidence-log-2026-03-20.md` referencing implementation commits and test results
+- [ ] T039 Run full test suite (`PWHEADLESS=1 pytest tests/ -q`) and record results
+- [ ] T040 Create `09-implementation-outcome-054.md` with summary of what changed, what was deferred, and what was intentionally left
 
 ### Implementation Notes
 - Vault absolute path: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/research/007-spec-kitty-2x-state-architecture-audit/`
@@ -390,16 +390,3 @@
 | T038 | Add evidence log entries | WP09 | P3 | Yes |
 | T039 | Run full test suite and record results | WP09 | P3 | No |
 | T040 | Create implementation outcome note | WP09 | P3 | No |
-
-<!-- status-model:start -->
-## Canonical Status (Generated)
-- WP01: approved
-- WP02: approved
-- WP03: approved
-- WP04: approved
-- WP05: approved
-- WP06: approved
-- WP07: approved
-- WP08: approved
-- WP09: approved
-<!-- status-model:end -->

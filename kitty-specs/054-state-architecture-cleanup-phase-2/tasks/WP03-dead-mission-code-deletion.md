@@ -1,11 +1,8 @@
 ---
 work_package_id: WP03
 title: Dead Mission Code Deletion
-lane: "approved"
+lane: planned
 dependencies: [WP02]
-base_branch: 054-state-architecture-cleanup-phase-2-WP02
-base_commit: e3bf132b1edb14ea76fbfe55a0511613da0ff64d
-created_at: '2026-03-20T14:42:46.091792+00:00'
 subtasks:
 - T009
 - T010
@@ -14,10 +11,10 @@ subtasks:
 - T013
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: codex
-shell_pid: '98176'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
 review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
@@ -176,7 +173,3 @@ spec-kitty implement WP03 --base WP02
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
-- 2026-03-20T14:42:46Z – coordinator – shell_pid=88054 – lane=doing – Assigned agent via workflow command
-- 2026-03-20T14:46:35Z – coordinator – shell_pid=88054 – lane=for_review – Ready for review: deleted set_active_mission, get_active_mission_key, active_mission_marker; added .gitignore entry; all tests pass
-- 2026-03-20T14:47:00Z – codex – shell_pid=98176 – lane=doing – Started review via workflow command
-- 2026-03-20T14:48:39Z – codex – shell_pid=98176 – lane=approved – Review passed: deleted dead mission helpers, removed active_mission_marker, added active-mission gitignore, validation passed

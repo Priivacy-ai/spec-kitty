@@ -1,11 +1,8 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "approved"
+lane: planned
 dependencies: []
-base_branch: 2.x
-base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
-created_at: '2026-03-20T13:51:56.768729+00:00'
 subtasks:
 - T004
 - T005
@@ -14,11 +11,11 @@ subtasks:
 - T008
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: codex
-shell_pid: '83615'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://054-state-architecture-cleanup-phase-2/WP02/20260320T142248Z-b7877022.md
+agent: ''
+shell_pid: ''
+review_status: ''
+reviewed_by: ''
+review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
@@ -170,15 +167,3 @@ spec-kitty implement WP02
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
-- 2026-03-20T13:51:57Z – coordinator – shell_pid=73479 – lane=doing – Assigned agent via workflow command
-- 2026-03-20T14:00:50Z – coordinator – shell_pid=73479 – lane=for_review – Ready for review: removed active-mission fallback from FileManifest, verify_enhanced, diagnostics, and mission CLI. All 14 tests passing.
-- 2026-03-20T14:01:32Z – codex – shell_pid=96119 – lane=doing – Started review via workflow command
-- 2026-03-20T14:09:11Z – codex – shell_pid=96119 – lane=planned – Moved to planned
-- 2026-03-20T14:09:21Z – coordinator – shell_pid=12831 – lane=doing – Started implementation via workflow command
-- 2026-03-20T14:15:58Z – coordinator – shell_pid=12831 – lane=for_review – Fixed: production callers now pass feature_dir via _resolve_feature_dir helper and scan_all_features/resolve_active_feature (cycle 2/3)
-- 2026-03-20T14:16:22Z – codex – shell_pid=24137 – lane=doing – Started review via workflow command
-- 2026-03-20T14:22:48Z – codex – shell_pid=24137 – lane=planned – Moved to planned
-- 2026-03-20T14:22:55Z – coordinator – shell_pid=45261 – lane=doing – Started implementation via workflow command
-- 2026-03-20T14:37:53Z – coordinator – shell_pid=45261 – lane=for_review – Fixed: worktree detection uses main repo root for feature detection - locate_project_root() in diagnostics mode + _get_main_repo_root() in FeatureContext construction. Added realistic worktree test without detect_feature mock. (cycle 3/3 FINAL)
-- 2026-03-20T14:38:20Z – codex – shell_pid=83615 – lane=doing – Started review via workflow command
-- 2026-03-20T14:42:14Z – codex – shell_pid=83615 – lane=approved – Review passed: removed manifest active-mission fallback and verified feature-level mission resolution in verify, diagnostics, and mission current

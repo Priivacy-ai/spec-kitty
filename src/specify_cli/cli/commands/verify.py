@@ -12,10 +12,38 @@ from rich.table import Table
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
+from specify_cli.core.feature_detection import detect_feature
+from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.verify_enhanced import run_enhanced_verify
+
+
+def _resolve_feature_dir(
+    project_root: Path,
+    feature: str | None = None,
+) -> Path | None:
+    """Detect the feature directory from explicit flag or current context.
+
+    Uses the centralized ``detect_feature`` helper in lenient mode so that
+    callers never crash when no feature is active.
+
+    Returns:
+        Path to the ``kitty-specs/<slug>`` directory, or ``None``.
+    """
+    try:
+        ctx = detect_feature(
+            project_root,
+            explicit_feature=feature,
+            cwd=Path.cwd(),
+            mode="lenient",
+        )
+        if ctx is not None and ctx.directory.is_dir():
+            return ctx.directory
+    except Exception:  # noqa: S110 – lenient: detection failures are non-fatal
+        pass
+    return None
 
 TOOL_LABELS = [
     ("git", "Git version control"),
@@ -46,7 +74,7 @@ def verify_setup(
 
     # If diagnostics mode requested, use diagnostics output
     if diagnostics:
-        _run_diagnostics_mode(json_output, check_tools)
+        _run_diagnostics_mode(json_output, check_tools, feature=feature)
         return
 
     # Check tools if requested
@@ -90,6 +118,9 @@ def verify_setup(
     check_version_compatibility(project_root, "verify")
     cwd = Path.cwd()
 
+    # Detect feature directory from --feature flag or current context
+    feature_dir = _resolve_feature_dir(project_root, feature)
+
     result = run_enhanced_verify(
         repo_root=repo_root,
         project_root=project_root,
@@ -98,6 +129,7 @@ def verify_setup(
         json_output=json_output,
         check_files=check_files,
         console=console,
+        feature_dir=feature_dir,
     )
 
     # Add tool checking results to JSON output
@@ -111,11 +143,15 @@ def verify_setup(
     return
 
 
-def _run_diagnostics_mode(json_output: bool, check_tools: bool) -> None:
+def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
     """Run diagnostics mode with detailed health information."""
     try:
-        project_path = Path.cwd()
-        diag = run_diagnostics(project_path)
+        # Resolve the MAIN repo root, not CWD.  In worktrees CWD lacks
+        # kitty-specs/ (sparse checkout), so feature detection would fail
+        # if we passed CWD directly.
+        project_path = locate_project_root() or Path.cwd()
+        feature_dir = _resolve_feature_dir(project_path, feature)
+        diag = run_diagnostics(project_path, feature_dir=feature_dir)
 
         # Add tool checking if requested
         if check_tools:

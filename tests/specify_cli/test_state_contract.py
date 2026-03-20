@@ -276,10 +276,9 @@ def test_runtime_gitignore_entries_only_project_ignored():
 
 
 def test_deprecated_surfaces():
-    """At least one deprecated surface exists and active_mission_marker is deprecated."""
+    """At least one deprecated surface exists."""
     deprecated = [s for s in STATE_SURFACES if s.deprecated]
     assert len(deprecated) >= 1
-    assert any(s.name == "active_mission_marker" for s in deprecated)
 
 
 def test_deprecated_authority_class():
@@ -419,7 +418,6 @@ def test_section_g_legacy_present():
     """All Section G legacy surfaces exist."""
     names = {s.name for s in STATE_SURFACES}
     expected = {
-        "active_mission_marker",
         "legacy_session_json",
         "legacy_lamport_clock",
         "legacy_mission_sessions",

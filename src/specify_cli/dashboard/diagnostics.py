@@ -18,7 +18,19 @@ def _ensure_specify_cli_on_path() -> None:
         sys.path.insert(0, str(candidate))
 
 
-def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
+def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
+    """Resolve mission key from a feature's meta.json."""
+    try:
+        from specify_cli.feature_metadata import load_meta
+        meta = load_meta(feature_dir)
+        if meta:
+            return meta.get("mission")
+    except Exception:
+        pass
+    return None
+
+
+def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
@@ -51,7 +63,12 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
         'issues': [],
     }
 
-    manifest = FileManifest(kittify_dir)
+    # Resolve mission from feature-level meta.json when available
+    mission_key: str | None = None
+    if feature_dir is not None:
+        mission_key = _resolve_mission_from_feature(feature_dir)
+
+    manifest = FileManifest(kittify_dir, mission_key=mission_key)
     worktree_status = WorktreeStatus(repo_root)
 
     try:
@@ -71,7 +88,7 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     diagnostics['in_worktree'] = '.worktrees' in str(Path.cwd())
     worktrees_dir = project_dir / '.worktrees'
     diagnostics['worktrees_exist'] = worktrees_dir.exists()
-    diagnostics['active_mission'] = manifest.active_mission
+    diagnostics['active_mission'] = mission_key or "no feature context"
 
     file_check = manifest.check_files()
     expected_files = manifest.get_expected_files()

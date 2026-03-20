@@ -87,7 +87,21 @@ class APIHandler(DashboardHandler):
     def handle_diagnostics(self) -> None:
         """Run diagnostics and report JSON payloads (or errors)."""
         try:
-            diagnostics = run_diagnostics(Path(self.project_dir))
+            project_path = Path(self.project_dir).resolve()
+            # Detect active feature to resolve per-feature mission context
+            feature_dir = None
+            try:
+                features = scan_all_features(project_path)
+                active_feature = resolve_active_feature(project_path, features)
+                if active_feature:
+                    rel_path = active_feature.get("path")
+                    if rel_path is not None:
+                        candidate = project_path / rel_path
+                        if candidate.is_dir():
+                            feature_dir = candidate
+            except Exception:  # noqa: S110 – feature detection is best-effort
+                pass  # Diagnostics should still run without feature context
+            diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')

@@ -525,9 +525,12 @@ def detect_feature(
             raise NoFeatureFoundError(error_msg)
         return None
 
-    # Build FeatureContext (re-validates format, but we've already checked above)
+    # Build FeatureContext using the MAIN repo root so that the directory
+    # path always points to the real kitty-specs/ location (even when
+    # called from a worktree that lacks kitty-specs/ via sparse checkout).
+    main_repo_root = _get_main_repo_root(repo_root)
     try:
-        return FeatureContext.from_slug(detected_slug, repo_root, detection_method)
+        return FeatureContext.from_slug(detected_slug, main_repo_root, detection_method)
     except FeatureDetectionError:
         if mode == "strict":
             raise

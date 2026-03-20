@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Shared Atomic Write Utility
-lane: "approved"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 7398e08cf45e2431807a2e804f596b30fa7f1a1b
@@ -12,10 +12,10 @@ subtasks:
 - T003
 phase: Phase 0 - Foundation
 assignee: ''
-agent: codex
-shell_pid: '85849'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
+agent: "coordinator"
+shell_pid: "73280"
+review_status: ''
+reviewed_by: ''
 review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
@@ -187,6 +187,3 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T13:51:54Z – coordinator – shell_pid=73280 – lane=doing – Assigned agent via workflow command
-- 2026-03-20T13:56:41Z – coordinator – shell_pid=73280 – lane=for_review – Ready for review: atomic_write extracted to core/atomic.py, feature_metadata refactored, 75 tests passing
-- 2026-03-20T13:57:07Z – codex – shell_pid=85849 – lane=doing – Started review via workflow command
-- 2026-03-20T13:59:34Z – codex – shell_pid=85849 – lane=approved – Review passed: shared atomic_write utility extracted, feature_metadata refactored, targeted pytest and ruff checks passed
