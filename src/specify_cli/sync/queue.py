@@ -17,6 +17,61 @@ class _BatchEventResultLike(Protocol):
     event_id: str
 
 
+DEFAULT_MAX_QUEUE_SIZE = 100_000
+
+# Event types eligible for coalescing: when a new event of one of these types
+# arrives and an equivalent event (same type + coalesce key) already exists in
+# the queue, the existing row is updated in-place rather than inserting a new
+# row.  This prevents high-volume instrumentation from flooding the queue.
+COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
+    # project_uuid scopes the key so events from different repos/branches
+    # sharing the same feature_slug+artifact_key never collide.
+    "MissionDossierArtifactIndexed": ["project_uuid", "feature_slug", "artifact_key"],
+    # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
+    # to keep only the latest snapshot queued for a given dossier.
+    "MissionDossierSnapshotComputed": ["project_uuid", "feature_slug"],
+}
+
+
+def _coalesce_key(event: dict[str, Any]) -> Optional[str]:
+    """Return a deterministic coalesce key for an event, or None if not coalesceable.
+
+    The key is built from the event_type and the fields listed in
+    COALESCEABLE_EVENT_TYPES. Fields may live either on the top-level event
+    envelope (for example ``project_uuid``) or inside ``payload``.
+    """
+    event_type = str(event.get("event_type", ""))
+    key_fields = COALESCEABLE_EVENT_TYPES.get(event_type)
+    if key_fields is None:
+        return None
+    payload = event.get("payload") or {}
+    parts = [event_type]
+    for field_name in key_fields:
+        value = event.get(field_name)
+        if value is None:
+            value = payload.get(field_name, "")
+        parts.append(str(value))
+    return "|".join(parts)
+
+
+def get_max_queue_size() -> int:
+    """Read max_queue_size from ~/.spec-kitty/config.toml, falling back to DEFAULT_MAX_QUEUE_SIZE.
+
+    Config key: [sync] max_queue_size = <int>
+    """
+    config_file = _spec_kitty_dir() / "config.toml"
+    if not config_file.exists():
+        return DEFAULT_MAX_QUEUE_SIZE
+    try:
+        data = toml.load(config_file)
+        value = data.get("sync", {}).get("max_queue_size")
+        if value is not None:
+            return int(value)
+    except (toml.TomlDecodeError, OSError, TypeError, ValueError):
+        pass
+    return DEFAULT_MAX_QUEUE_SIZE
+
+
 @dataclass
 class QueueStats:
     """Aggregate statistics about the offline event queue.
@@ -26,6 +81,7 @@ class QueueStats:
     """
 
     total_queued: int = 0
+    max_queue_size: int = DEFAULT_MAX_QUEUE_SIZE
     total_retried: int = 0
     oldest_event_age: Optional[timedelta] = None
     retry_distribution: dict[str, int] = field(default_factory=dict)
@@ -178,13 +234,14 @@ class OfflineQueue:
     Features:
     - Persistent storage across CLI restarts
     - FIFO ordering by timestamp
-    - 10,000 event capacity limit with user warning
+    - Configurable capacity limit (default 100,000) with FIFO eviction
+    - Event coalescing for high-volume event types
     - Indexes for efficient retrieval
     """
 
-    MAX_QUEUE_SIZE = 10000
+    MAX_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE  # kept as class attr for back-compat
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Optional[Path] = None, max_queue_size: Optional[int] = None) -> None:
         """
         Initialize offline queue.
 
@@ -192,16 +249,25 @@ class OfflineQueue:
             db_path: Path to SQLite database. Defaults to a scope-aware path:
                 - unauthenticated: ~/.spec-kitty/queue.db
                 - authenticated: ~/.spec-kitty/queues/queue-<scope-hash>.db
+            max_queue_size: Override maximum queue capacity.  When None the
+                value is read from ``~/.spec-kitty/config.toml`` (key
+                ``[sync] max_queue_size``) or falls back to 100,000.
         """
         if db_path is None:
             db_path = default_queue_db_path()
 
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if max_queue_size is not None:
+            self._max_queue_size = int(max_queue_size)
+        else:
+            self._max_queue_size = get_max_queue_size()
+
         self._init_db()
 
     def _init_db(self) -> None:
-        """Initialize database schema with indexes"""
+        """Initialize database schema with indexes."""
         conn = sqlite3.connect(self.db_path)
         try:
             conn.execute("""
@@ -211,48 +277,126 @@ class OfflineQueue:
                     event_type TEXT NOT NULL,
                     data TEXT NOT NULL,
                     timestamp INTEGER NOT NULL,
-                    retry_count INTEGER DEFAULT 0
+                    retry_count INTEGER DEFAULT 0,
+                    coalesce_key TEXT
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
             conn.commit()
+
+            # Migrate: add coalesce_key column to legacy databases that lack it.
+            # Must run BEFORE the coalesce_key index creation.
+            self._migrate_add_coalesce_key(conn)
+
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_coalesce_key ON queue(coalesce_key)")
+            conn.commit()
             ensure_body_queue_schema(conn)
         finally:
             conn.close()
+
+    @staticmethod
+    def _migrate_add_coalesce_key(conn: sqlite3.Connection) -> None:
+        """Add coalesce_key column to existing databases that lack it."""
+        cursor = conn.execute("PRAGMA table_info(queue)")
+        columns = {row[1] for row in cursor}
+        if "coalesce_key" not in columns:
+            conn.execute("ALTER TABLE queue ADD COLUMN coalesce_key TEXT")
+            conn.commit()
 
     def queue_event(self, event: dict[str, Any]) -> bool:
         """
         Add event to offline queue.
 
+        High-volume event types listed in ``COALESCEABLE_EVENT_TYPES`` are
+        coalesced: if an existing row with the same coalesce key is already
+        queued, the row is updated in-place (new event_id, data, timestamp)
+        instead of inserting a new row.  This prevents dossier scans from
+        flooding the queue.
+
         Args:
             event: Event dict with event_id, event_type, and payload
 
         Returns:
-            True if queued successfully, False if queue is full
+            True if queued successfully, False on database error
         """
-        if self.size() >= self.MAX_QUEUE_SIZE:
-            print(
-                f"⚠️  Offline queue full ({self.MAX_QUEUE_SIZE:,} events). Cannot sync until reconnected.",
-                file=sys.stderr,
-            )
-            return False
+        c_key = _coalesce_key(event)
+
+        # Attempt coalescing before checking the size cap.
+        # If an existing row can be updated, no new row is added.
+        if c_key is not None:
+            coalesced = self._try_coalesce(event, c_key)
+            if coalesced:
+                return True
 
         conn = sqlite3.connect(self.db_path)
         try:
+            cursor = conn.execute("SELECT COUNT(*) FROM queue")
+            count_row = cursor.fetchone()
+            current_size = int(count_row[0]) if count_row else 0
+            if current_size >= self._max_queue_size:
+                # FIFO eviction: delete the oldest events to make room
+                overflow = current_size - self._max_queue_size + 1
+                conn.execute(
+                    "DELETE FROM queue WHERE id IN ("
+                    "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
+                    ")",
+                    (overflow,),
+                )
+                print(
+                    f"Offline queue at capacity ({self._max_queue_size:,} events). "
+                    f"Evicted {overflow:,} oldest event(s) to make room.\n"
+                    f"  Check auth and connectivity: spec-kitty sync status --check\n"
+                    f"  Drain the queue manually:    spec-kitty sync now",
+                    file=sys.stderr,
+                )
+
             conn.execute(
-                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
+                "VALUES (?, ?, ?, ?, ?)",
                 (
                     str(event["event_id"]),
                     str(event["event_type"]),
                     json.dumps(event),
                     int(datetime.now().timestamp()),
+                    c_key,
                 ),
             )
             conn.commit()
             return True
         except Exception as e:
             print(f"Failed to queue event: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def _try_coalesce(self, event: dict[str, Any], c_key: str) -> bool:
+        """Update an existing row with the same coalesce key, if one exists.
+
+        Returns True if a row was updated (coalesced), False otherwise.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT id FROM queue WHERE coalesce_key = ? LIMIT 1",
+                (c_key,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return False
+            existing_id = row[0]
+            conn.execute(
+                "UPDATE queue SET event_id = ?, data = ?, timestamp = ? WHERE id = ?",
+                (
+                    str(event["event_id"]),
+                    json.dumps(event),
+                    int(datetime.now().timestamp()),
+                    existing_id,
+                ),
+            )
+            conn.commit()
+            return True
+        except Exception:
             return False
         finally:
             conn.close()
@@ -427,7 +571,7 @@ class OfflineQueue:
             total_queued = int(total_queued_row[0]) if total_queued_row is not None else 0
 
             if total_queued == 0:
-                return QueueStats()
+                return QueueStats(max_queue_size=self._max_queue_size)
 
             # Total retried (retry_count > 0)
             total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()
@@ -472,6 +616,7 @@ class OfflineQueue:
 
             return QueueStats(
                 total_queued=total_queued,
+                max_queue_size=self._max_queue_size,
                 total_retried=total_retried,
                 oldest_event_age=oldest_event_age,
                 retry_distribution=retry_distribution,
