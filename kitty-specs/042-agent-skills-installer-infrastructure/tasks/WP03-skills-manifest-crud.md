@@ -1,9 +1,12 @@
 ---
 work_package_id: WP03
 title: Skills Manifest CRUD
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 042-agent-skills-installer-infrastructure-WP01
+base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
+created_at: '2026-03-20T16:58:24.895146+00:00'
 subtasks:
 - T013
 - T014
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "68611"
 review_status: ''
 reviewed_by: ''
 history:
