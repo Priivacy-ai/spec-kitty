@@ -19,9 +19,9 @@
 **Requirement Refs**: FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, NFR-001, C-004
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/core/atomic.py` with public `atomic_write()` function
-- [ ] T002 Refactor `src/specify_cli/feature_metadata.py` to import from `core.atomic` instead of private `_atomic_write()`
-- [ ] T003 Create `tests/specify_cli/test_atomic_write.py` with success, interrupt, mkdir, bytes/str, and cleanup tests
+- [x] T001 Create `src/specify_cli/core/atomic.py` with public `atomic_write()` function
+- [x] T002 Refactor `src/specify_cli/feature_metadata.py` to import from `core.atomic` instead of private `_atomic_write()`
+- [x] T003 Create `tests/specify_cli/test_atomic_write.py` with success, interrupt, mkdir, bytes/str, and cleanup tests
 
 ### Implementation Notes
 - Extract the exact pattern from `feature_metadata.py:_atomic_write()` (lines 84-108)
