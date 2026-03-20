@@ -66,14 +66,22 @@ from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
 
 
 def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
-    """Derive current canonical lane for a WP from reduced status events."""
-    try:
-        snapshot = _materialize(feature_dir)
-        wp_state = snapshot.work_packages.get(wp_id)
-        if wp_state and isinstance(wp_state.get("lane"), str):
-            return wp_state["lane"]
-    except Exception:
-        pass
+    """Derive current canonical lane for a WP from reduced status events.
+
+    Raises StoreError if the event log exists but is corrupt.
+    Returns "planned" only when no event log exists yet.
+    """
+    from specify_cli.status.store import read_events, StoreError
+
+    events = read_events(feature_dir)  # raises StoreError on corrupt JSONL
+    if not events:
+        return "planned"
+
+    from specify_cli.status.reducer import reduce as _reduce
+    snapshot = _reduce(events)
+    wp_state = snapshot.work_packages.get(wp_id)
+    if wp_state and isinstance(wp_state.get("lane"), str):
+        return wp_state["lane"]
     return "planned"
 
 
@@ -107,21 +115,12 @@ def stage_update(
     wp_id = wp.work_package_id or wp.path.stem
     feature_dir = wp.path.parent.parent  # tasks/ -> feature_dir
 
-    # Derive from_lane from canonical state (or fall back to frontmatter)
+    # ── Phase 1: Read-only validation (no mutations yet) ─────────────────
+    # Derive from_lane from canonical state.  Raises StoreError if the
+    # event log is corrupt, preventing partial state mutation.
     from_lane = _derive_current_lane(feature_dir, wp_id)
 
-    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
-    wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
-    if shell_pid:
-        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
-    new_body = append_activity_log(wp.body, log_entry)
-
-    new_content = build_document(wp.frontmatter, new_body, wp.padding)
-    wp.path.write_text(new_content, encoding="utf-8")
-
-    # Emit canonical status event to status.events.jsonl
-    # Resolve lane aliases (e.g. "doing" -> "in_progress") for canonical model
+    # Pre-build the canonical event and new WP content before writing anything
     feature_slug = feature_dir.name
     canonical_from = resolve_lane_alias(from_lane)
     canonical_to = resolve_lane_alias(target_lane)
@@ -137,10 +136,22 @@ def stage_update(
         execution_mode="direct_repo",
         reason=note,
     )
+
+    updated_frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
+    updated_frontmatter = set_scalar(updated_frontmatter, "agent", agent)
+    if shell_pid:
+        updated_frontmatter = set_scalar(updated_frontmatter, "shell_pid", shell_pid)
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
+    new_body = append_activity_log(wp.body, log_entry)
+    new_content = build_document(updated_frontmatter, new_body, wp.padding)
+
+    # ── Phase 2: Atomic-ish writes (all validation passed) ───────────────
+    wp.frontmatter = updated_frontmatter
+    wp.path.write_text(new_content, encoding="utf-8")
     append_event(feature_dir, event)
     _materialize(feature_dir)
 
-    # Stage both the WP file and updated status files
+    # Stage the WP file and updated status files
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
     events_path = feature_dir / "status.events.jsonl"
     status_path = feature_dir / "status.json"
@@ -425,20 +436,41 @@ def list_command(args: argparse.Namespace) -> None:
 def rollback_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     wp = locate_work_package(repo_root, args.feature, args.work_package)
-    entries = activity_entries(wp.body)
-    if len(entries) < 2:
-        raise TaskCliError("Not enough activity entries to determine the previous lane.")
+    wp_id = wp.work_package_id or wp.path.stem
+    feature_dir = wp.path.parent.parent  # tasks/ -> feature_dir
 
-    previous_lane = ensure_lane(entries[-2]["lane"])
+    # Derive previous lane from canonical event history
+    from specify_cli.status.store import read_events
+    events = read_events(feature_dir)
+    wp_events = [e for e in events if e.wp_id == wp_id]
+
+    if not wp_events:
+        raise TaskCliError(
+            f"No canonical status events for {wp_id}. Cannot determine the previous lane."
+        )
+
+    if len(wp_events) == 1:
+        # Only one event: previous lane is the from_lane of that event
+        previous_lane_canonical = str(wp_events[0].from_lane)
+    else:
+        # Two or more events: previous lane is the to_lane of the second-to-last
+        previous_lane_canonical = str(wp_events[-2].to_lane)
+    # Map canonical lane back to standalone alias for ensure_lane
+    # (e.g. "in_progress" is valid in canonical but standalone uses "doing")
+    _REVERSE_ALIASES: Dict[str, str] = {"in_progress": "doing"}
+    previous_lane_alias = _REVERSE_ALIASES.get(previous_lane_canonical, previous_lane_canonical)
+    previous_lane = ensure_lane(previous_lane_alias)
+
+    current_event = wp_events[-1]
     note = args.note or f"Rolled back to {previous_lane}"
     args_for_update = argparse.Namespace(
         feature=args.feature,
         work_package=args.work_package,
         lane=previous_lane,
         note=note,
-        agent=args.agent or entries[-1]["agent"],
+        agent=args.agent or current_event.actor,
         assignee=args.assignee,
-        shell_pid=args.shell_pid or entries[-1].get("shell_pid", ""),
+        shell_pid=args.shell_pid or "",
         timestamp=args.timestamp or now_utc(),
         dry_run=args.dry_run,
         force=args.force,
