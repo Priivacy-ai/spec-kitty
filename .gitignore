@@ -46,6 +46,7 @@ env/
 *.lock
 .worktrees/
 .kittify/.dashboard
+.kittify/active-mission
 .kittify/workspaces/
 .kittify/missions/
 .kittify/scripts/

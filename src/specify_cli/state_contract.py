@@ -521,18 +521,6 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     # Section G -- Legacy
     # -----------------------------------------------------------------------
     StateSurface(
-        name="active_mission_marker",
-        path_pattern=".kittify/active-mission",
-        root=StateRoot.PROJECT,
-        format=StateFormat.SYMLINK,
-        authority=AuthorityClass.DEPRECATED,
-        git_class=GitClass.INSIDE_REPO_NOT_IGNORED,
-        owner_module="legacy fallback",
-        creation_trigger="legacy mission selection",
-        deprecated=True,
-        notes="Deprecated but still read as fallback",
-    ),
-    StateSurface(
         name="legacy_session_json",
         path_pattern="~/.spec-kitty/session.json",
         root=StateRoot.GLOBAL_SYNC,

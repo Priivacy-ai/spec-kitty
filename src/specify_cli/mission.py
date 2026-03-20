@@ -520,51 +520,6 @@ def get_mission_by_name(mission_name: str, kittify_dir: Optional[Path] = None) -
     return Mission(mission_path)
 
 
-def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) -> None:
-    """DEPRECATED: Set the active mission for a project.
-
-    .. deprecated:: 0.8.0
-        Missions are now selected per-feature during /spec-kitty.specify.
-        This function is kept for backwards compatibility but will be removed
-        in a future version. Use get_mission_for_feature() instead.
-
-    Args:
-        mission_name: Name of the mission to activate
-        kittify_dir: Path to .kittify directory (defaults to current project)
-
-    Raises:
-        MissionNotFoundError: If mission doesn't exist
-    """
-    import warnings
-    warnings.warn(
-        "set_active_mission() is deprecated. Missions are now per-feature "
-        "and selected during /spec-kitty.specify. This function will be "
-        "removed in a future version.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    if kittify_dir is None:
-        kittify_dir = Path.cwd() / ".kittify"
-
-    # Validate mission exists
-    mission = get_mission_by_name(mission_name, kittify_dir)
-
-    # Create or update symlink
-    active_mission_link = kittify_dir / "active-mission"
-
-    # Remove existing symlink if it exists
-    if active_mission_link.exists() or active_mission_link.is_symlink():
-        active_mission_link.unlink()
-
-    # Create new symlink (relative path keeps worktrees portable)
-    try:
-        active_mission_link.symlink_to(Path("missions") / mission_name)
-    except (OSError, NotImplementedError):
-        # Fall back to plain file marker when symlinks are unavailable
-        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8")
-
-
 # =============================================================================
 # Per-Feature Mission Functions (v0.8.0+)
 # =============================================================================

@@ -2,7 +2,6 @@
 
 import pytest
 from specify_cli.core.project_resolver import (
-    get_active_mission_key,
     locate_project_root,
     resolve_template_path,
     resolve_worktree_aware_feature_dir,
@@ -36,24 +35,6 @@ def test_locate_project_root_and_template_resolution(tmp_path):
     # Assert
     assert root == project
     assert template_path == project / ".kittify" / "missions" / "software-dev" / "templates" / "foo.txt"
-
-
-def test_get_active_mission_key_prefers_file(tmp_path):
-    """get_active_mission_key reads the active-mission marker file."""
-    # Arrange
-    project = tmp_path / "workspace"
-    (project / ".kittify").mkdir(parents=True)
-    marker = project / ".kittify" / "active-mission"
-    marker.write_text("research\n", encoding="utf-8")
-
-    # Assumption check
-    assert marker.exists(), "active-mission file must exist before the call"
-
-    # Act
-    result = get_active_mission_key(project)
-
-    # Assert
-    assert result == "research"
 
 
 def test_resolve_worktree_awareness(tmp_path):
