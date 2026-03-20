@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "doing"
+lane: "approved"
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -14,10 +14,10 @@ subtasks:
 - T008
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: "codex"
-shell_pid: "83615"
-review_status: has_feedback
-reviewed_by: Robert Douglass
+agent: codex
+shell_pid: '83615'
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: feedback://054-state-architecture-cleanup-phase-2/WP02/20260320T142248Z-b7877022.md
 history:
 - timestamp: '2026-03-20T13:39:48Z'
@@ -181,3 +181,4 @@ spec-kitty implement WP02
 - 2026-03-20T14:22:55Z – coordinator – shell_pid=45261 – lane=doing – Started implementation via workflow command
 - 2026-03-20T14:37:53Z – coordinator – shell_pid=45261 – lane=for_review – Fixed: worktree detection uses main repo root for feature detection - locate_project_root() in diagnostics mode + _get_main_repo_root() in FeatureContext construction. Added realistic worktree test without detect_feature mock. (cycle 3/3 FINAL)
 - 2026-03-20T14:38:20Z – codex – shell_pid=83615 – lane=doing – Started review via workflow command
+- 2026-03-20T14:42:14Z – codex – shell_pid=83615 – lane=approved – Review passed: removed manifest active-mission fallback and verified feature-level mission resolution in verify, diagnostics, and mission current
