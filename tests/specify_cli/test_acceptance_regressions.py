@@ -158,9 +158,7 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
     repo_root, _feature_dir = _create_test_feature(tmp_path)
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert summary.git_dirty == [], (
-        f"First call dirtied the repo: {summary.git_dirty}"
-    )
+    assert summary.git_dirty == [], f"First call dirtied the repo: {summary.git_dirty}"
 
     # Commit any status.json changes from the first call so the repo is clean
     # again.  materialize() always rewrites status.json with a fresh timestamp,
@@ -180,9 +178,7 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
 
     # Call a second time -- must still report clean (no cumulative drift)
     summary2 = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert summary2.git_dirty == [], (
-        f"Second call dirtied the repo: {summary2.git_dirty}"
-    )
+    assert summary2.git_dirty == [], f"Second call dirtied the repo: {summary2.git_dirty}"
 
 
 # ---------------------------------------------------------------------------
@@ -207,16 +203,13 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     # accept_commit must be a valid 40-char hex SHA
     accept_commit = meta.get("accept_commit")
     assert accept_commit is not None, "accept_commit missing from meta.json"
-    assert re.fullmatch(r"[0-9a-f]{40}", accept_commit), (
-        f"accept_commit is not a valid SHA: {accept_commit!r}"
-    )
+    assert re.fullmatch(r"[0-9a-f]{40}", accept_commit), f"accept_commit is not a valid SHA: {accept_commit!r}"
 
     # acceptance_history[-1] must match
     history = meta.get("acceptance_history", [])
     assert history, "acceptance_history is empty"
     assert history[-1].get("accept_commit") == accept_commit, (
-        f"acceptance_history[-1]['accept_commit'] mismatch: "
-        f"{history[-1].get('accept_commit')!r} != {accept_commit!r}"
+        f"acceptance_history[-1]['accept_commit'] mismatch: {history[-1].get('accept_commit')!r} != {accept_commit!r}"
     )
 
     # AcceptanceResult.accept_commit must also match
@@ -249,12 +242,8 @@ def test_standalone_tasks_cli_help() -> None:
         env={**os.environ, "PYTHONPATH": ""},
     )
 
-    assert result.returncode == 0, (
-        f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
-    )
-    assert "ModuleNotFoundError" not in result.stderr, (
-        f"ModuleNotFoundError in stderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
+    assert "ModuleNotFoundError" not in result.stderr, f"ModuleNotFoundError in stderr:\n{result.stderr}"
     # Confirm help text actually rendered
     assert "usage" in result.stdout.lower() or "--help" in result.stdout, (
         f"Help text not found in stdout:\n{result.stdout}"
@@ -319,25 +308,31 @@ class TestMalformedJsonlRaisesAcceptanceError:
 
 
 def test_copy_parity_between_acceptance_modules() -> None:
-    """Verify acceptance.py and acceptance_support.py remain API-aligned.
+    """Verify acceptance_support.py re-exports match acceptance.py exactly.
 
-    The standalone copy may have additional exports (e.g., ArtifactEncodingError,
-    normalize_feature_encoding), but the core set must be a subset.
-
-    detect_feature_slug is intentionally skipped in signature comparison
-    because the two copies have different parameter lists.
+    After deduplication, acceptance_support.py is a thin re-export wrapper.
+    The __all__ sets must be equal, and every re-exported name must be the
+    exact same object (not a copy).
     """
     from specify_cli import acceptance
     from specify_cli.scripts.tasks import acceptance_support
 
-    # __all__ parity: core exports must be a subset of standalone exports
+    # __all__ parity: sets must be equal
     core_exports = set(acceptance.__all__)
     standalone_exports = set(acceptance_support.__all__)
-    assert core_exports.issubset(standalone_exports), (
-        f"Missing from standalone: {core_exports - standalone_exports}"
+    assert core_exports == standalone_exports, (
+        f"Wrapper must re-export all canonical names. "
+        f"Missing: {core_exports - standalone_exports}, "
+        f"Extra: {standalone_exports - core_exports}"
     )
 
-    # Function signature parity for key functions
+    # Object identity: re-exports must be the same objects, not copies
+    for name in acceptance.__all__:
+        assert getattr(acceptance, name) is getattr(acceptance_support, name), (
+            f"{name} in acceptance_support is not the same object as in acceptance"
+        )
+
+    # Function signature parity for key functions (validates re-exports match)
     parity_functions = [
         "collect_feature_summary",
         "detect_feature_slug",
@@ -348,7 +343,5 @@ def test_copy_parity_between_acceptance_modules() -> None:
         sig_core = inspect.signature(getattr(acceptance, fn_name))
         sig_standalone = inspect.signature(getattr(acceptance_support, fn_name))
         assert sig_core == sig_standalone, (
-            f"{fn_name} signature mismatch:\n"
-            f"  acceptance:         {sig_core}\n"
-            f"  acceptance_support: {sig_standalone}"
+            f"{fn_name} signature mismatch:\n  acceptance:         {sig_core}\n  acceptance_support: {sig_standalone}"
         )
