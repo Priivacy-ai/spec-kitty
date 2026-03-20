@@ -55,9 +55,14 @@ def test_all_state_roots_used():
 
 
 def test_all_git_classes_used():
-    """At least one surface per GitClass value."""
+    """At least one surface per GitClass value (except retired classes)."""
+    # INSIDE_REPO_NOT_IGNORED was retired in feature 054: all surfaces using it
+    # were either removed (active_mission_marker) or reclassified (constitution).
+    retired_classes = {GitClass.INSIDE_REPO_NOT_IGNORED}
     classes_used = {s.git_class for s in STATE_SURFACES}
     for gc in GitClass:
+        if gc in retired_classes:
+            continue
         assert gc in classes_used, f"GitClass.{gc.name} has no surfaces"
 
 
