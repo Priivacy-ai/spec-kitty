@@ -1,6 +1,6 @@
 """Migration: add NEW runtime state surfaces to .gitignore.
 
-Adds the 4 runtime gitignore entries introduced by this sprint to existing
+Adds the 5 runtime gitignore entries introduced by this sprint to existing
 projects.  Existing entries (.dashboard, workspaces/, constitution/*,
 missions/__pycache__/) are already present in projects that were initialized
 before this migration -- they are NOT re-added here.
@@ -23,11 +23,14 @@ from .base import BaseMigration, MigrationResult
 # in their .gitignore.  We intentionally do NOT use the full
 # get_runtime_gitignore_entries() helper here to avoid backfilling
 # constitution surfaces or other pre-existing entries.
+# The kitty-specs/**/.kittify/dossiers/ entry covers feature-local dossier
+# snapshots saved by src/specify_cli/dossier/snapshot.py.
 _NEW_RUNTIME_ENTRIES = [
     ".kittify/runtime/",
     ".kittify/merge-state.json",
     ".kittify/events/",
     ".kittify/dossiers/",
+    "kitty-specs/**/.kittify/dossiers/",
 ]
 
 
@@ -40,7 +43,7 @@ class StateGitignoreMigration(BaseMigration):
     target_version = "2.0.9"
 
     def detect(self, project_path: Path) -> bool:
-        """Return True if any of the 4 new runtime entries are missing."""
+        """Return True if any of the 5 new runtime entries are missing."""
         gitignore_path = project_path / ".gitignore"
         if not gitignore_path.exists():
             return True
@@ -54,7 +57,7 @@ class StateGitignoreMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Add the 4 new runtime state entries to .gitignore."""
+        """Add the 5 new runtime state entries to .gitignore."""
         if dry_run:
             return MigrationResult(
                 success=True,

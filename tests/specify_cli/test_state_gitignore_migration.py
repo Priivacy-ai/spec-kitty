@@ -16,7 +16,7 @@ def migration():
 
 
 def test_migration_adds_only_new_entries_to_empty_gitignore(tmp_path: Path, migration):
-    """Migration adds only the 4 new runtime entries to an empty .gitignore."""
+    """Migration adds the new runtime entries to an empty .gitignore."""
     (tmp_path / ".gitignore").write_text("")
     result = migration.apply(tmp_path)
 
@@ -26,6 +26,7 @@ def test_migration_adds_only_new_entries_to_empty_gitignore(tmp_path: Path, migr
     assert ".kittify/merge-state.json" in content
     assert ".kittify/events/" in content
     assert ".kittify/dossiers/" in content
+    assert "kitty-specs/**/.kittify/dossiers/" in content
 
 
 def test_migration_does_not_add_dashboard(tmp_path: Path, migration):
@@ -135,10 +136,11 @@ def test_can_apply_missing_path(tmp_path: Path, migration):
     assert "does not exist" in reason
 
 
-def test_new_runtime_entries_are_exactly_four():
-    """The migration targets exactly 4 new entries."""
-    assert len(_NEW_RUNTIME_ENTRIES) == 4  # noqa: PLR2004
+def test_new_runtime_entries_are_exactly_five():
+    """The migration targets exactly 5 new entries."""
+    assert len(_NEW_RUNTIME_ENTRIES) == 5  # noqa: PLR2004
     assert ".kittify/runtime/" in _NEW_RUNTIME_ENTRIES
     assert ".kittify/merge-state.json" in _NEW_RUNTIME_ENTRIES
     assert ".kittify/events/" in _NEW_RUNTIME_ENTRIES
     assert ".kittify/dossiers/" in _NEW_RUNTIME_ENTRIES
+    assert "kitty-specs/**/.kittify/dossiers/" in _NEW_RUNTIME_ENTRIES

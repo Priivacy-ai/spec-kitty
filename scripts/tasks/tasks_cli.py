@@ -58,6 +58,8 @@ from acceptance_support import (  # noqa: E402
     perform_acceptance,
 )
 
+from specify_cli.feature_metadata import record_merge, finalize_merge  # noqa: E402
+
 
 def stage_update(
     repo_root: Path,
@@ -546,40 +548,21 @@ def _prepare_merge_metadata(
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if not meta_path.exists():
+        return None
+
     merged_by = _merge_actor(repo_root)
 
-    entry: Dict[str, Any] = {
-        "merged_at": timestamp,
-        "merged_by": merged_by,
-        "target": target,
-        "strategy": strategy,
-        "pushed": pushed,
-        "merge_commit": None,
-    }
-
-    meta: Dict[str, Any] = {}
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-        except json.JSONDecodeError:
-            meta = {}
-
-    history = meta.get("merge_history", [])
-    if not isinstance(history, list):
-        history = []
-    history.append(entry)
-    if len(history) > 20:
-        history = history[-20:]
-    meta["merge_history"] = history
-
-    meta["merged_at"] = timestamp
-    meta["merged_by"] = merged_by
-    meta["merged_into"] = target
-    meta["merged_strategy"] = strategy
-    meta["merged_push"] = pushed
-
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        record_merge(
+            feature_dir,
+            merged_by=merged_by,
+            merged_into=target,
+            strategy=strategy,
+            push=pushed,
+        )
+    except (ValueError, FileNotFoundError):
+        return None
     return meta_path
 
 
@@ -587,18 +570,11 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     if not meta_path or not meta_path.exists():
         return
 
+    feature_dir = meta_path.parent
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-    except json.JSONDecodeError:
-        meta = {}
-
-    history = meta.get("merge_history")
-    if isinstance(history, list) and history:
-        if isinstance(history[-1], dict):
-            history[-1]["merge_commit"] = merge_commit
-    meta["merged_commit"] = merge_commit
-
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        finalize_merge(feature_dir, merged_commit=merge_commit)
+    except (ValueError, FileNotFoundError):
+        pass
 
 def merge_command(args: argparse.Namespace) -> None:
     # merge_command needs the LOCAL git root (may be a worktree), not the main

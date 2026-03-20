@@ -39,6 +39,8 @@ from task_helpers import (
     split_frontmatter,
 )
 
+from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
+
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
 
@@ -408,6 +410,11 @@ def collect_feature_summary(
     *,
     strict_metadata: bool = True,
 ) -> AcceptanceSummary:
+    # DEPRECATION: This standalone version still validates lane state via
+    # Activity Log parsing (activity_entries).  The canonical version in
+    # src/specify_cli/acceptance.py uses materialize() from status.events.jsonl.
+    # This function should be migrated to canonical state validation in a
+    # future sprint (audit Phase 3 completion).
     feature_dir = repo_root / "kitty-specs" / feature
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
@@ -601,34 +608,15 @@ def perform_acceptance(
         except TaskCliError:
             parent_commit = None
 
+        record_acceptance(
+            summary.feature_dir,
+            accepted_by=actor_name,
+            mode=mode,
+            from_commit=parent_commit,
+            accept_commit=None,
+        )
+
         meta_path = summary.feature_dir / "meta.json"
-        if meta_path.exists():
-            meta = json.loads(_read_text_strict(meta_path))
-        else:
-            meta = {}
-
-        acceptance_record: Dict[str, object] = {
-            "accepted_at": timestamp,
-            "accepted_by": actor_name,
-            "mode": mode,
-            "branch": summary.branch,
-            "accepted_from_commit": parent_commit,
-        }
-        if tests:
-            acceptance_record["validation_commands"] = list(tests)
-
-        meta["accepted_at"] = timestamp
-        meta["accepted_by"] = actor_name
-        meta["acceptance_mode"] = mode
-        meta["accepted_from_commit"] = parent_commit
-        meta["accept_commit"] = None
-
-        history: List[Dict[str, object]] = meta.setdefault("acceptance_history", [])
-        history.append(acceptance_record)
-        if len(history) > 20:
-            meta["acceptance_history"] = history[-20:]
-
-        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         run_git(
             ["add", str(meta_path.relative_to(summary.repo_root))],
             cwd=summary.repo_root,
@@ -649,19 +637,15 @@ def perform_acceptance(
                 )
             except TaskCliError:
                 accept_commit = None
-            # Persist commit SHA to meta.json
+            # Persist commit SHA to meta.json via canonical writer
             if accept_commit:
-                _meta_path = summary.feature_dir / "meta.json"
-                if _meta_path.exists():
-                    _meta = json.loads(_read_text_strict(_meta_path))
+                _meta = load_meta(summary.feature_dir)
+                if _meta is not None:
                     _meta["accept_commit"] = accept_commit
                     _history = _meta.get("acceptance_history", [])
                     if _history:
                         _history[-1]["accept_commit"] = accept_commit
-                    _meta_path.write_text(
-                        json.dumps(_meta, indent=2, sort_keys=True) + "\n",
-                        encoding="utf-8",
-                    )
+                    write_meta(summary.feature_dir, _meta)
         else:
             commit_created = False
     else:
