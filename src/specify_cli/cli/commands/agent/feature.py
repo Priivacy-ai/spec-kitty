@@ -271,22 +271,13 @@ def _find_feature_directory(
         FeatureDetectionError: If detection fails
     """
     try:
-        kwargs: dict[str, object] = {
-            "explicit_feature": explicit_feature,
-            "cwd": cwd,
-            "mode": "strict",
-        }
-        if allow_latest_incomplete_fallback:
-            kwargs["allow_latest_incomplete_fallback"] = True
-        try:
-            return detect_feature_directory(repo_root, **kwargs)
-        except TypeError as exc:
-            # Backward compatibility: older feature_detection APIs do not accept
-            # allow_latest_incomplete_fallback.
-            if "allow_latest_incomplete_fallback" not in str(exc):
-                raise
-            kwargs.pop("allow_latest_incomplete_fallback", None)
-            return detect_feature_directory(repo_root, **kwargs)
+        return detect_feature_directory(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict",
+            allow_latest_incomplete_fallback=allow_latest_incomplete_fallback,
+        )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e

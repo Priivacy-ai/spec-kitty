@@ -837,6 +837,48 @@ def test_detect_fallback_respects_explicit_feature(tmp_path: Path):
     assert ctx.detection_method == "explicit"
 
 
+def test_detect_fallback_disabled_by_allow_latest_incomplete_fallback(tmp_path: Path):
+    """Test that allow_latest_incomplete_fallback=False suppresses Priority 6 fallback."""
+    # Same setup as test_detect_fallback_to_latest_incomplete
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    kitty_specs.mkdir(parents=True)
+
+    # Feature 020 - complete
+    feature_020 = kitty_specs / "020-feature-a"
+    tasks_020 = feature_020 / "tasks"
+    tasks_020.mkdir(parents=True)
+    (tasks_020 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
+    )
+
+    # Feature 025 - incomplete
+    feature_025 = kitty_specs / "025-feature-b"
+    tasks_025 = feature_025 / "tasks"
+    tasks_025.mkdir(parents=True)
+    (tasks_025 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
+    )
+
+    # Mock git to fail (force past priorities 3-4)
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
+
+        # With fallback disabled, should raise MultipleFeaturesError instead of
+        # silently picking 025-feature-b
+        with pytest.raises(MultipleFeaturesError) as exc_info:
+            detect_feature(
+                repo_root,
+                cwd=repo_root,
+                mode="strict",
+                allow_latest_incomplete_fallback=False,
+            )
+
+        error_msg = str(exc_info.value)
+        assert "Multiple features found" in error_msg
+        assert "--feature" in error_msg
+
+
 def test_detect_fallback_error_when_all_complete(tmp_path: Path):
     """Test Priority 7: error when all features complete (no fallback available)."""
     repo_root = tmp_path / "repo"
