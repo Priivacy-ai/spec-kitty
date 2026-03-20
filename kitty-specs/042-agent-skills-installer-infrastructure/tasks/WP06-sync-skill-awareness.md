@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Agent Config Sync Skill Awareness
-lane: in_progress
+lane: "for_review"
 dependencies: [WP02, WP03]
 base_branch: 042-agent-skills-installer-infrastructure-WP03
 base_commit: fffc6ec2d5dbd24eb746058f5087717457777579
@@ -223,3 +223,4 @@ def test_sync_preserves_user_content_in_skill_root(tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T17:37:38Z – unknown – shell_pid=15294 – lane=for_review – Ready for review: skill root awareness in agent config sync
