@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
@@ -15,8 +15,8 @@ subtasks:
 - T032
 phase: Phase 2 - Consolidation
 assignee: ''
-agent: "coordinator"
-shell_pid: "73852"
+agent: coordinator
+shell_pid: '73852'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -243,3 +243,4 @@ pytest tests/specify_cli/test_acceptance_regressions.py tests/specify_cli/test_c
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T13:52:02Z – coordinator – shell_pid=73852 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T14:03:26Z – coordinator – shell_pid=73852 – lane=for_review – Ready for review: acceptance.py is single canonical impl (~760 lines), acceptance_support.py is thin re-export wrapper (55 lines). All 34 tests pass.
