@@ -1,4 +1,12 @@
-"""Exhaustive parametrized tests for skill root resolution."""
+"""Exhaustive parametrized tests for skill root resolution.
+
+Note: @pytest.mark.parametrize is inherently untyped under mypy --strict
+(triggers ``Untyped decorator makes function … untyped [misc]``).  This is
+standard across the test suite (14+ test files use parametrize the same way)
+and mypy --strict is not enforced on test files in CI.  We add targeted
+``# type: ignore[misc]`` comments to keep the WP02-specific strict check
+clean per reviewer request.
+"""
 
 from __future__ import annotations
 
@@ -133,7 +141,7 @@ class TestNativeMode:
 class TestWrappersOnlyMode:
     """Tests for mode='wrappers-only'."""
 
-    @pytest.mark.parametrize(
+    @pytest.mark.parametrize(  # type: ignore[misc]
         "agents",
         [
             ["claude"],
