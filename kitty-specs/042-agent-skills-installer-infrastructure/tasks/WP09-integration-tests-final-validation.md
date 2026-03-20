@@ -14,7 +14,7 @@ subtasks:
 - T044
 phase: Phase 4 - Validation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "73470"
 review_status: ''
 reviewed_by: ''
@@ -242,3 +242,4 @@ def test_wrapper_backward_compat(agent_key, tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T17:49:36Z – coordinator – shell_pid=73470 – lane=doing – Assigned agent via workflow command
