@@ -267,3 +267,16 @@ class TestRootCLIPath:
         ])
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--json")
+
+    def test_group_level_unknown_flag_through_root(self):
+        """Unknown flag on the group itself (not a subcommand) must return JSON.
+
+        orchestrator-api --bogus (flag on the group, before subcommand
+        resolution) hits make_context(), not invoke(). Without the
+        make_context() override this produces prose from BannerGroup.
+        """
+        result = runner.invoke(root_app, [
+            "orchestrator-api", "--bogus",
+        ])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="--bogus")

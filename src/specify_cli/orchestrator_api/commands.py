@@ -48,8 +48,15 @@ class _JSONErrorGroup(TyperGroup):
 
     The orchestrator-api contract requires *every* stdout emission to be a
     single JSON envelope, including parser-level failures (missing required
-    args, unknown options, etc.).  Two overrides cooperate to cover every
+    args, unknown options, etc.).  Three overrides cooperate to cover every
     dispatch path:
+
+    ``make_context(info_name, args, parent, **extra)``
+        Catches errors during *group-level argument parsing* when nested.
+        When the parent group calls ``make_context()`` on this sub-group
+        (e.g. ``orchestrator-api --bogus``), the error would otherwise
+        propagate to the parent's ``BannerGroup``.  This is the outermost
+        catch for the nested path.
 
     ``invoke(ctx)``
         Catches errors during *subcommand dispatch*.  When this group is
@@ -77,6 +84,19 @@ class _JSONErrorGroup(TyperGroup):
             data={"message": message},
             error_code="USAGE_ERROR",
         ))
+
+    def make_context(self, info_name, args, parent=None, **extra):
+        """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
+
+        When nested as a sub-group, the parent's invoke() calls
+        make_context() on this group to parse its own arguments.  Errors
+        here would propagate to the parent's BannerGroup, producing prose.
+        """
+        try:
+            return super().make_context(info_name, args, parent=parent, **extra)
+        except click.UsageError as exc:
+            self._emit_error(exc.format_message())
+            raise SystemExit(2) from exc
 
     def invoke(self, ctx):
         """Catch errors during subcommand dispatch (nested invocation path).
