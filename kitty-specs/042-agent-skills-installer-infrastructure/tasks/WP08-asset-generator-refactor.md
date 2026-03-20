@@ -1,8 +1,11 @@
 ---
 work_package_id: WP08
 title: Asset Generator Refactor
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 042-agent-skills-installer-infrastructure-WP01
+base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
+created_at: '2026-03-20T16:58:27.267293+00:00'
 subtasks:
 - T037
 - T038
@@ -10,7 +13,7 @@ subtasks:
 phase: Phase 2 - Core Logic
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "68715"
 review_status: ''
 reviewed_by: ''
 history:
