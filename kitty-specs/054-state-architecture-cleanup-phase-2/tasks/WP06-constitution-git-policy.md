@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Constitution Git Policy Enforcement
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 6e3db85e32dcfdb9c4586f193d6a8e67155dad91
@@ -13,8 +13,8 @@ subtasks:
 - T026
 phase: Phase 2 - Policy
 assignee: ''
-agent: coordinator
-shell_pid: '73698'
+agent: "codex"
+shell_pid: "84306"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -168,3 +168,4 @@ pytest tests/specify_cli/test_state_contract.py -v
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T13:52:00Z – coordinator – shell_pid=73698 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T13:54:32Z – coordinator – shell_pid=73698 – lane=for_review – Ready for review: references.yaml gitignored, state contract updated (references=LOCAL_RUNTIME/IGNORED, library=AUTHORITATIVE/TRACKED, answers=AUTHORITATIVE/TRACKED), deferred notes replaced, 4 new tests pass
+- 2026-03-20T13:56:20Z – codex – shell_pid=84306 – lane=doing – Started review via workflow command
