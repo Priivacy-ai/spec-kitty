@@ -159,11 +159,14 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
     return main_repo_root, resolution.current
 
 
-def _find_feature_slug(explicit_feature: str | None = None) -> str:
+def _find_feature_slug(explicit_feature: str | None = None, *, allow_latest_incomplete_fallback: bool = False) -> str:
     """Find the current feature slug using centralized detection.
 
     Args:
         explicit_feature: Optional explicit feature slug from --feature flag
+        allow_latest_incomplete_fallback: Allow fallback to highest-numbered
+            incomplete feature. Default False — workflow commands should error
+            rather than silently pick the wrong feature.
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
@@ -183,7 +186,8 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"
+            mode="strict",
+            allow_latest_incomplete_fallback=allow_latest_incomplete_fallback,
         )
     except FeatureDetectionError as e:
         print(f"Error: {e}")
