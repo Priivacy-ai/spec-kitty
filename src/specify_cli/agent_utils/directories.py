@@ -11,39 +11,13 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-# Canonical list of all supported agent directories and their subdirectories
-# This is the single source of truth for agent directory configuration
-AGENT_DIRS: List[Tuple[str, str]] = [
-    (".claude", "commands"),
-    (".github", "prompts"),
-    (".gemini", "commands"),
-    (".cursor", "commands"),
-    (".qwen", "commands"),
-    (".opencode", "command"),
-    (".windsurf", "workflows"),
-    (".codex", "prompts"),
-    (".kilocode", "workflows"),
-    (".augment", "commands"),
-    (".roo", "commands"),
-    (".amazonq", "prompts"),
-]
+from specify_cli.core.agent_surface import get_agent_dir_to_key, get_agent_dirs
 
-# Mapping from agent directory to agent key (for config.yaml)
-# Note: Some agents have different keys than their directory names
-AGENT_DIR_TO_KEY = {
-    ".claude": "claude",
-    ".github": "copilot",  # copilot, not github
-    ".gemini": "gemini",
-    ".cursor": "cursor",
-    ".qwen": "qwen",
-    ".opencode": "opencode",
-    ".windsurf": "windsurf",
-    ".codex": "codex",
-    ".kilocode": "kilocode",
-    ".augment": "auggie",  # auggie, not augment
-    ".roo": "roo",
-    ".amazonq": "q",  # q, not amazonq
-}
+# Canonical list derived from AGENT_SURFACE_CONFIG
+AGENT_DIRS: List[Tuple[str, str]] = get_agent_dirs()
+
+# Mapping derived from AGENT_SURFACE_CONFIG
+AGENT_DIR_TO_KEY: dict[str, str] = get_agent_dir_to_key()
 
 
 def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:

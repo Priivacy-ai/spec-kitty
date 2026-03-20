@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from specify_cli.core.agent_surface import AGENT_SURFACE_CONFIG, get_agent_command_config
+
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
     "claude": "Claude Code",
@@ -41,20 +43,7 @@ DEFAULT_TEMPLATE_REPO = "spec-kitty/spec-kitty"
 # IDE-integrated agents that don't require CLI installation
 IDE_AGENTS = {"cursor", "windsurf", "copilot", "kilocode"}
 
-AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
-    "claude": {"dir": ".claude/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "gemini": {"dir": ".gemini/commands", "ext": "toml", "arg_format": "{{args}}"},
-    "copilot": {"dir": ".github/prompts", "ext": "prompt.md", "arg_format": "$ARGUMENTS"},
-    "cursor": {"dir": ".cursor/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "qwen": {"dir": ".qwen/commands", "ext": "toml", "arg_format": "{{args}}"},
-    "opencode": {"dir": ".opencode/command", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "windsurf": {"dir": ".windsurf/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "codex": {"dir": ".codex/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "kilocode": {"dir": ".kilocode/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
-}
+AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = get_agent_command_config()
 
 BANNER = """
 `````````````````````````````````````````````````````````
@@ -91,6 +80,7 @@ __all__ = [
     "SCRIPT_TYPE_CHOICES",
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
+    "AGENT_SURFACE_CONFIG",
     "IDE_AGENTS",
     "BANNER",
 ]
