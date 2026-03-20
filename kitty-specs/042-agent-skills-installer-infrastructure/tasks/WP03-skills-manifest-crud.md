@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Skills Manifest CRUD
-lane: planned
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 042-agent-skills-installer-infrastructure-WP01
@@ -274,3 +274,4 @@ def test_write_creates_parent_dir(tmp_path):
 - 2026-03-20T17:02:58Z – codex – shell_pid=77270 – lane=doing – Started review via workflow command
 - 2026-03-20T17:07:36Z – codex – shell_pid=77270 – lane=planned – Moved to planned
 - 2026-03-20T17:09:07Z – coordinator – shell_pid=92922 – lane=doing – Started implementation via workflow command
+- 2026-03-20T17:10:52Z – coordinator – shell_pid=92922 – lane=for_review – Fixed: load_manifest now catches UnicodeDecodeError and requires list fields
