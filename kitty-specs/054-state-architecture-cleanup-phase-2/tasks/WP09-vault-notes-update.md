@@ -14,7 +14,7 @@ subtasks:
 - T040
 phase: Phase 3 - Documentation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "4038"
 review_status: ''
 reviewed_by: ''
@@ -216,3 +216,4 @@ Note: WP09 depends on all previous WPs. Use `--base WP08` (the last WP) or merge
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T14:50:47Z – coordinator – shell_pid=4038 – lane=doing – Assigned agent via workflow command
