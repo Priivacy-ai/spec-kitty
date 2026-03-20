@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: planned
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
@@ -247,3 +247,4 @@ pytest tests/specify_cli/test_acceptance_regressions.py tests/specify_cli/test_c
 - 2026-03-20T14:03:45Z – codex – shell_pid=1446 – lane=doing – Started review via workflow command
 - 2026-03-20T14:11:12Z – codex – shell_pid=1446 – lane=planned – Moved to planned
 - 2026-03-20T14:11:19Z – coordinator – shell_pid=14121 – lane=doing – Started implementation via workflow command
+- 2026-03-20T14:21:41Z – coordinator – shell_pid=14121 – lane=for_review – Fixed both findings (cycle 2/3): repo-root acceptance_support.py converted to thin wrapper, bare read_text() replaced with _read_text_strict(), cross-cutting tests updated. All 34 tests pass.

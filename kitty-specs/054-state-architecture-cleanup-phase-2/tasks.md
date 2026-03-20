@@ -398,6 +398,6 @@
 - WP04: approved
 - WP05: approved
 - WP06: approved
-- WP07: planned
+- WP07: for_review
 - WP08: approved
 <!-- status-model:end -->
