@@ -16,7 +16,7 @@ subtasks:
 - T027
 phase: Phase 3 - Integration
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "48589"
 review_status: ''
 reviewed_by: ''
@@ -304,3 +304,4 @@ def test_init_invalid_skills_mode(tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T17:40:59Z – coordinator – shell_pid=48589 – lane=doing – Assigned agent via workflow command
