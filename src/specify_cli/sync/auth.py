@@ -12,6 +12,8 @@ import httpx
 import toml
 from filelock import FileLock, Timeout
 
+from specify_cli.core.atomic import atomic_write
+
 from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
@@ -84,8 +86,8 @@ class CredentialStore:
 
         try:
             with self._acquire_lock():
-                with open(self.credentials_path, "w") as handle:
-                    toml.dump(data, handle)
+                content = toml.dumps(data)
+                atomic_write(self.credentials_path, content)
                 if os.name != "nt":
                     os.chmod(self.credentials_path, 0o600)
         except Timeout as exc:

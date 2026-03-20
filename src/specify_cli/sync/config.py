@@ -1,7 +1,8 @@
 """Sync configuration management"""
-import os
 from pathlib import Path
 import toml
+
+from specify_cli.core.atomic import atomic_write
 
 
 class SyncConfig:
@@ -21,8 +22,6 @@ class SyncConfig:
 
     def set_server_url(self, url: str):
         """Set server URL in config"""
-        self.config_dir.mkdir(exist_ok=True)
-
         config = {}
         if self.config_file.exists():
             config = toml.load(self.config_file)
@@ -32,7 +31,7 @@ class SyncConfig:
 
         config['sync']['server_url'] = url
 
-        with open(self.config_file, 'w') as f:
-            toml.dump(config, f)
+        content = toml.dumps(config)
+        atomic_write(self.config_file, content, mkdir=True)
 
         print(f"✅ Server URL set to: {url}")

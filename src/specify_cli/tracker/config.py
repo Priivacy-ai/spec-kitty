@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import locate_project_root
 
 
@@ -101,7 +103,6 @@ def load_tracker_config(repo_root: Path) -> TrackerProjectConfig:
 def save_tracker_config(repo_root: Path, config: TrackerProjectConfig) -> None:
     """Persist tracker config into .kittify/config.yaml, preserving other sections."""
     config_path = _config_path(repo_root)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
 
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -117,8 +118,9 @@ def save_tracker_config(repo_root: Path, config: TrackerProjectConfig) -> None:
 
     payload["tracker"] = config.to_dict()
 
-    with config_path.open("w", encoding="utf-8") as handle:
-        yaml.dump(payload, handle)
+    buf = io.StringIO()
+    yaml.dump(payload, buf)
+    atomic_write(config_path, buf.getvalue(), mkdir=True)
 
 
 def clear_tracker_config(repo_root: Path) -> None:
