@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: "doing"
+lane: in_progress
 dependencies: []
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
@@ -15,8 +15,8 @@ subtasks:
 - T032
 phase: Phase 2 - Consolidation
 assignee: ''
-agent: "codex"
-shell_pid: "1446"
+agent: codex
+shell_pid: '1446'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
