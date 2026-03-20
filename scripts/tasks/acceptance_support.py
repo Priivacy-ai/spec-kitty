@@ -29,7 +29,6 @@ from task_helpers import (
     LANES,
     TaskCliError,
     WorkPackage,
-    activity_entries,
     extract_scalar,
     find_repo_root,
     get_lane_from_frontmatter,
@@ -40,6 +39,8 @@ from task_helpers import (
 )
 
 from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
+from specify_cli.status.reducer import reduce as _reduce_events
+from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -410,11 +411,6 @@ def collect_feature_summary(
     *,
     strict_metadata: bool = True,
 ) -> AcceptanceSummary:
-    # DEPRECATION: This standalone version still validates lane state via
-    # Activity Log parsing (activity_entries).  The canonical version in
-    # src/specify_cli/acceptance.py uses materialize() from status.events.jsonl.
-    # This function should be migrated to canonical state validation in a
-    # future sprint (audit Phase 3 completion).
     feature_dir = repo_root / "kitty-specs" / feature
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
@@ -448,7 +444,7 @@ def collect_feature_summary(
     except TaskCliError:
         primary_repo_root = repo_root
 
-    # Capture git cleanliness BEFORE any file-writing operations
+    # Capture git cleanliness BEFORE materialize() writes status.json
     try:
         git_dirty = git_status_lines(repo_root)
     except TaskCliError:
@@ -459,15 +455,54 @@ def collect_feature_summary(
     metadata_issues: List[str] = []
     activity_issues: List[str] = []
 
+    use_legacy = is_legacy_format(feature_dir)
+
+    # ── Canonical state validation via reduce (read-only, no status.json write) ─
+    events_path = feature_dir / EVENTS_FILENAME
+    if not events_path.exists():
+        activity_issues.append(
+            f"No canonical state found for feature '{feature}'. "
+            "Cannot validate acceptance without status.events.jsonl. "
+            "Run status migration to bootstrap the event log."
+        )
+        snapshot_wps: Dict[str, dict] = {}
+    else:
+        try:
+            events = read_events(feature_dir)
+            snapshot = _reduce_events(events)
+        except StoreError as exc:
+            raise AcceptanceError(
+                f"Status event log is corrupted for feature '{feature}': {exc}"
+            ) from exc
+        snapshot_wps = snapshot.work_packages
+        if not snapshot_wps:
+            activity_issues.append(
+                f"No canonical state found for feature '{feature}'. "
+                "Cannot validate acceptance without status.events.jsonl. "
+                "Run status migration to bootstrap the event log."
+            )
+
+    # Collect WP IDs from task files
+    expected_wp_ids: List[str] = []
     for wp in _iter_work_packages(repo_root, feature):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
-        lanes[wp.current_lane].append(wp_id)
+        expected_wp_ids.append(wp_id)
 
-        entries = activity_entries(wp.body)
-        lanes_logged = {entry["lane"] for entry in entries}
-        latest_lane = entries[-1]["lane"] if entries else None
-        has_lane_entry = wp.current_lane in lanes_logged
+        # Check canonical state for this WP
+        wp_snapshot = snapshot_wps.get(wp_id)
+        canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
+        has_lane_entry = canonical_lane is not None
+        latest_lane = canonical_lane
+
+        # Use canonical lane for bucketing (authoritative), fall back to
+        # frontmatter only when no canonical state exists (missing event log).
+        bucket_lane = canonical_lane if canonical_lane is not None else wp.current_lane
+        if bucket_lane in lanes:
+            lanes[bucket_lane].append(wp_id)
+        else:
+            # Unknown lane value — bucket under frontmatter lane as safety net
+            lanes[wp.current_lane].append(wp_id)
 
         metadata: Dict[str, Optional[str]] = {
             "lane": wp.lane,
@@ -480,9 +515,10 @@ def collect_feature_summary(
             lane_value = (wp.lane or "").strip()
             if not lane_value:
                 metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
-            elif lane_value != wp.current_lane:
+            elif use_legacy and lane_value != wp.current_lane:
+                # Only check directory/frontmatter mismatch in legacy format
                 metadata_issues.append(
-                    f"{wp_id}: frontmatter lane '{lane_value}' does not match expected '{wp.current_lane}'"
+                    f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
                 )
 
             if not wp.agent:
@@ -492,20 +528,10 @@ def collect_feature_summary(
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
 
-        if not entries:
-            activity_issues.append(f"{wp_id}: Activity Log missing entries")
-        else:
-            if wp.current_lane not in lanes_logged:
-                activity_issues.append(
-                    f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}"
-                )
-            if wp.current_lane == "done" and entries[-1]["lane"] != "done":
-                activity_issues.append(f"{wp_id}: latest Activity Log entry not lane=done")
-
         work_packages.append(
             WorkPackageState(
                 work_package_id=wp_id,
-                lane=wp.current_lane,
+                lane=bucket_lane,
                 title=title,
                 path=str(wp.path.relative_to(repo_root)),
                 has_lane_entry=has_lane_entry,
@@ -513,6 +539,19 @@ def collect_feature_summary(
                 metadata=metadata,
             )
         )
+
+    # Validate canonical state for all WPs (only if event log exists and has events)
+    if events_path.exists() and snapshot_wps:
+        for wp_id in expected_wp_ids:
+            wp_snapshot = snapshot_wps.get(wp_id)
+            if wp_snapshot is None:
+                activity_issues.append(
+                    f"{wp_id}: no canonical state found in status.events.jsonl"
+                )
+            elif wp_snapshot.get("lane") != "done":
+                activity_issues.append(
+                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'"
+                )
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(

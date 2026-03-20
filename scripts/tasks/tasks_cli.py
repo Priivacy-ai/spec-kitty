@@ -59,6 +59,30 @@ from acceptance_support import (  # noqa: E402
 )
 
 from specify_cli.feature_metadata import record_merge, finalize_merge  # noqa: E402
+from specify_cli.status.store import append_event  # noqa: E402
+from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
+from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
+from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
+
+
+def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
+    """Derive current canonical lane for a WP from reduced status events."""
+    try:
+        snapshot = _materialize(feature_dir)
+        wp_state = snapshot.work_packages.get(wp_id)
+        if wp_state and isinstance(wp_state.get("lane"), str):
+            return wp_state["lane"]
+    except Exception:
+        pass
+    return "planned"
+
+
+def _generate_ulid() -> str:
+    """Generate a ULID for the status event."""
+    import ulid as _ulid_mod
+    if hasattr(_ulid_mod, "new"):
+        return _ulid_mod.new().str
+    return str(_ulid_mod.ULID())
 
 
 def stage_update(
@@ -79,6 +103,13 @@ def stage_update(
     if dry_run:
         return wp.path
 
+    # Derive feature slug and WP ID for canonical event
+    wp_id = wp.work_package_id or wp.path.stem
+    feature_dir = wp.path.parent.parent  # tasks/ -> feature_dir
+
+    # Derive from_lane from canonical state (or fall back to frontmatter)
+    from_lane = _derive_current_lane(feature_dir, wp_id)
+
     wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
     wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
     if shell_pid:
@@ -89,7 +120,33 @@ def stage_update(
     new_content = build_document(wp.frontmatter, new_body, wp.padding)
     wp.path.write_text(new_content, encoding="utf-8")
 
+    # Emit canonical status event to status.events.jsonl
+    # Resolve lane aliases (e.g. "doing" -> "in_progress") for canonical model
+    feature_slug = feature_dir.name
+    canonical_from = resolve_lane_alias(from_lane)
+    canonical_to = resolve_lane_alias(target_lane)
+    event = StatusEvent(
+        event_id=_generate_ulid(),
+        feature_slug=feature_slug,
+        wp_id=wp_id,
+        from_lane=Lane(canonical_from),
+        to_lane=Lane(canonical_to),
+        at=timestamp,
+        actor=agent,
+        force=True,
+        execution_mode="direct_repo",
+        reason=note,
+    )
+    append_event(feature_dir, event)
+    _materialize(feature_dir)
+
+    # Stage both the WP file and updated status files
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
+    events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
+    for p in (events_path, status_path):
+        if p.exists():
+            run_git(["add", str(p.relative_to(repo_root))], cwd=repo_root, check=True)
 
     return wp.path
 
