@@ -395,7 +395,7 @@
 ## Canonical Status (Generated)
 - WP01: approved
 - WP02: planned
-- WP04: in_progress
+- WP04: planned
 - WP05: approved
 - WP06: approved
 - WP07: planned
