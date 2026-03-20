@@ -160,22 +160,6 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
     assert summary.git_dirty == [], f"First call dirtied the repo: {summary.git_dirty}"
 
-    # Commit any status.json changes from the first call so the repo is clean
-    # again.  materialize() always rewrites status.json with a fresh timestamp,
-    # so it will be modified after each call.  The regression fix ensures the
-    # git-cleanliness check runs BEFORE materialize -- so each individual call
-    # sees a clean repo *at the point of checking*.
-    subprocess.run(
-        ["git", "-C", str(repo_root), "add", "-A"],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(repo_root), "commit", "-m", "post-materialize"],
-        check=True,
-        capture_output=True,
-    )
-
     # Call a second time -- must still report clean (no cumulative drift)
     summary2 = collect_feature_summary(repo_root, _FEATURE_SLUG)
     assert summary2.git_dirty == [], f"Second call dirtied the repo: {summary2.git_dirty}"

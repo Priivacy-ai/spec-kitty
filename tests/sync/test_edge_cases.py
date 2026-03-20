@@ -113,7 +113,7 @@ class TestQueueOverflow:
     """Test queue behavior at 10K limit."""
 
     def test_queue_rejects_at_max(self, tmp_path: Path):
-        """Queue returns False when at MAX_QUEUE_SIZE (SC-006 edge case)."""
+        """Queue evicts the oldest event when it reaches MAX_QUEUE_SIZE."""
         queue = OfflineQueue(db_path=tmp_path / "overflow.db")
 
         # Fill to capacity
@@ -129,7 +129,7 @@ class TestQueueOverflow:
 
         assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
-        # Next event should be rejected
+        # Next event should succeed by evicting the oldest row
         result = queue.queue_event(
             {
                 "event_id": "overflow_event_00000000000000",
@@ -137,13 +137,15 @@ class TestQueueOverflow:
                 "payload": {},
             }
         )
-        assert result is False
+        assert result is True
         assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        events = queue.drain_queue(limit=1)
+        assert events[0]["event_id"] != "evt0000000000000000000000"
 
     def test_emitter_handles_full_queue(self, tmp_path: Path):
-        """EventEmitter handles full queue gracefully (non-blocking)."""
+        """EventEmitter handles queue persistence gracefully (non-blocking)."""
         queue = MagicMock(spec=OfflineQueue)
-        queue.queue_event.return_value = False  # Queue full
+        queue.queue_event.return_value = True
 
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         auth = MagicMock()
@@ -154,7 +156,7 @@ class TestQueueOverflow:
         em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
         # Should not raise even though queue is full
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        # Event is still returned (it was valid), but queue rejected it
+        # Event is still returned when it can be persisted.
         assert event is not None
 
 

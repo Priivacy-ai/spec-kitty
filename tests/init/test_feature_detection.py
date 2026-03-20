@@ -722,7 +722,7 @@ def test_is_feature_complete_parse_error(tmp_path: Path):
 
 
 def test_detect_multiple_features_falls_back_to_latest_incomplete(tmp_path: Path):
-    """Multiple features with no context pick the latest incomplete feature."""
+    """Latest-incomplete fallback is available when callers opt in."""
     repo_root = tmp_path / "repo"
     kitty_specs = repo_root / "kitty-specs"
     kitty_specs.mkdir(parents=True)
@@ -747,7 +747,12 @@ def test_detect_multiple_features_falls_back_to_latest_incomplete(tmp_path: Path
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, "git")
 
-        ctx = detect_feature(repo_root, cwd=repo_root, mode="strict")
+        ctx = detect_feature(
+            repo_root,
+            cwd=repo_root,
+            mode="strict",
+            allow_latest_incomplete=True,
+        )
 
         assert ctx is not None
         assert ctx.slug == "025-feature-b"

@@ -310,7 +310,7 @@ class TestQueueSizeLimit:
     """Test T133: Queue size limit warning"""
 
     def test_queue_size_limit_enforced(self, temp_queue):
-        """Queue should reject events at MAX_QUEUE_SIZE (10,000)"""
+        """Queue should evict the oldest event at MAX_QUEUE_SIZE."""
         # Fill queue to limit
         for i in range(OfflineQueue.MAX_QUEUE_SIZE):
             result = temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
@@ -318,10 +318,12 @@ class TestQueueSizeLimit:
 
         assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
-        # 10,001st event should fail
+        # 10,001st event should succeed and evict the oldest row
         result = temp_queue.queue_event({"event_id": "evt-overflow", "event_type": "Test", "payload": {}})
-        assert result is False
+        assert result is True
         assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        events = temp_queue.drain_queue(limit=1)
+        assert events[0]["event_id"] == "evt-1"
 
     def test_queue_accepts_after_sync(self, temp_queue):
         """Queue accepts new events after sync makes room"""

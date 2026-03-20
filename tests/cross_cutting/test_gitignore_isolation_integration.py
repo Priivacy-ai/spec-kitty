@@ -6,12 +6,47 @@ instead of mutating versioned .gitignore files.
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from tests.utils import REPO_ROOT
 
 pytestmark = pytest.mark.git_repo
+
+
+def _write_valid_meta(feature_dir: Path, slug: str) -> None:
+    feature_dir.joinpath("meta.json").write_text(
+        json.dumps(
+            {
+                "feature_number": slug.split("-", 1)[0],
+                "slug": slug,
+                "feature_slug": slug,
+                "friendly_name": "Test Feature",
+                "mission": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-03-20T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProcess:
+    env = os.environ.copy()
+    src_root = str(REPO_ROOT / "src")
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = src_root if not existing else f"{src_root}:{existing}"
+    return subprocess.run(
+        [sys.executable, "-m", "specify_cli.__init__", *args],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     """Test that worktree creation doesn't modify tracked .gitignore file.
@@ -43,9 +78,7 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    # Create meta.json
-    meta_path = feature_dir / "meta.json"
-    meta_path.write_text('{"feature_slug": "001-test-feature", "target_branch": "main"}')
+    _write_valid_meta(feature_dir, "001-test-feature")
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -78,12 +111,7 @@ dependencies: []
     initial_gitignore = gitignore_path.read_text()
 
     # Run spec-kitty implement to create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = _run_checkout_cli(tmp_path, "implement", "WP01")
 
     # Verify command succeeded
     assert result.returncode == 0, f"implement failed: {result.stderr}"
@@ -159,9 +187,7 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    # Create meta.json
-    meta_path = feature_dir / "meta.json"
-    meta_path.write_text('{"feature_slug": "001-test-feature", "target_branch": "main"}')
+    _write_valid_meta(feature_dir, "001-test-feature")
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -199,12 +225,7 @@ dependencies: []
     ).stdout.strip()
 
     # Create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = _run_checkout_cli(tmp_path, "implement", "WP01")
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # In worktree, create a test file and commit
@@ -289,9 +310,7 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    # Create meta.json
-    meta_path = feature_dir / "meta.json"
-    meta_path.write_text('{"feature_slug": "001-test-feature", "target_branch": "main"}')
+    _write_valid_meta(feature_dir, "001-test-feature")
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -317,12 +336,7 @@ dependencies: []
     )
 
     # Create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = _run_checkout_cli(tmp_path, "implement", "WP01")
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Check that .git/info/exclude exists (in git directory, not worktree)

@@ -134,7 +134,7 @@ class TestOfflineQueueSizeLimit:
     """Test queue size limit enforcement"""
 
     def test_queue_size_limit_enforced(self, temp_queue):
-        """Test queue rejects events when at capacity"""
+        """Test queue evicts oldest events when at capacity."""
         # Queue up to the limit
         for i in range(OfflineQueue.MAX_QUEUE_SIZE):
             event = {"event_id": f"evt-{i}", "event_type": "Test", "payload": {}}
@@ -144,11 +144,13 @@ class TestOfflineQueueSizeLimit:
 
         assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
-        # One more should fail
+        # One more should succeed by evicting the oldest row
         overflow_event = {"event_id": "evt-overflow", "event_type": "Test", "payload": {}}
         result = temp_queue.queue_event(overflow_event)
-        assert result is False
+        assert result is True
         assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        events = temp_queue.drain_queue(limit=1)
+        assert events[0]["event_id"] == "evt-1"
 
     def test_queue_accepts_after_drain_and_sync(self, temp_queue):
         """Test queue accepts events after making room"""

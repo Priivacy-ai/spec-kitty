@@ -18,7 +18,7 @@ Priority order:
 3. Git branch name (strips -WP## suffix for worktree branches)
 4. Current directory path (walk up looking for ###-feature-name)
 5. Single feature auto-detect (only if exactly one feature exists)
-6. Fallback to latest incomplete feature (auto-selects if no explicit context)
+6. Optional fallback to latest incomplete feature (opt-in only)
 7. Error with clear guidance (if all features complete or ambiguous)
 """
 
@@ -353,6 +353,7 @@ def detect_feature(
     env: Mapping[str, str] | None = None,
     mode: Literal["strict", "lenient"] = "strict",
     allow_single_auto: bool = True,
+    allow_latest_incomplete: bool = False,
 ) -> FeatureContext | None:
     """
     Unified feature detection with configurable behavior.
@@ -363,6 +364,7 @@ def detect_feature(
     3. Git branch name (strips -WP## suffix)
     4. Current directory path (walks up to find ###-feature-name)
     5. Single feature auto-detect (if allow_single_auto=True)
+    6. Optional latest-incomplete fallback (if allow_latest_incomplete=True)
     6. Error (strict mode) or None (lenient mode)
 
     Args:
@@ -372,6 +374,8 @@ def detect_feature(
         env: Environment variables (defaults to os.environ)
         mode: "strict" raises error if ambiguous, "lenient" returns None
         allow_single_auto: Auto-detect if exactly one feature exists
+        allow_latest_incomplete: Auto-select the latest incomplete feature
+            when multiple features exist and no other context is available.
 
     Returns:
         FeatureContext with detection details, or None in lenient mode
@@ -463,9 +467,24 @@ def detect_feature(
                 if mode == "strict":
                     raise MultipleFeaturesError(all_features, error_msg)
                 return None
-            else:
+            elif allow_latest_incomplete:
                 detected_slug = incomplete_features[-1]
                 detection_method = "latest_incomplete"
+            else:
+                error_msg = (
+                    f"Multiple features found ({len(all_features)} total, "
+                    f"{len(incomplete_features)} incomplete).\n\n"
+                    "Please specify explicitly using:\n"
+                    "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
+                    "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
+                    "\nAvailable features:\n"
+                    + "\n".join(f"  - {slug}" for slug in all_features[:20])
+                )
+                if len(all_features) > 20:
+                    error_msg += f"\n  ... and {len(all_features) - 20} more"
+                if mode == "strict":
+                    raise MultipleFeaturesError(all_features, error_msg)
+                return None
         else:
             # No features found
             error_msg = (
