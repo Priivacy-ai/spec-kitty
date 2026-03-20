@@ -15,7 +15,7 @@ subtasks:
 - T017
 phase: Phase 1 - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "68611"
 review_status: ''
 reviewed_by: ''
@@ -268,3 +268,4 @@ def test_write_creates_parent_dir(tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T16:58:25Z – coordinator – shell_pid=68611 – lane=doing – Assigned agent via workflow command
