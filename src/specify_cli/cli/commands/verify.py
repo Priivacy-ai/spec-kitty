@@ -13,6 +13,7 @@ from rich.table import Table
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.feature_detection import detect_feature
+from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -145,7 +146,10 @@ def verify_setup(
 def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
     """Run diagnostics mode with detailed health information."""
     try:
-        project_path = Path.cwd()
+        # Resolve the MAIN repo root, not CWD.  In worktrees CWD lacks
+        # kitty-specs/ (sparse checkout), so feature detection would fail
+        # if we passed CWD directly.
+        project_path = locate_project_root() or Path.cwd()
         feature_dir = _resolve_feature_dir(project_path, feature)
         diag = run_diagnostics(project_path, feature_dir=feature_dir)
 

@@ -191,6 +191,110 @@ def test_resolve_feature_dir_returns_none_on_exception(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Realistic worktree test: NO detect_feature mock
+# --------------------------------------------------------------------------- #
+
+
+def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
+    """_resolve_feature_dir finds features when called from a worktree CWD.
+
+    This test creates a realistic directory layout:
+      main_repo/
+        .git/                        (real git dir marker)
+        .git/worktrees/my-wt/        (worktree gitdir)
+        .kittify/                    (project marker)
+        kitty-specs/099-research-feature/meta.json
+      worktree/
+        .git  (file: "gitdir: <main>/.git/worktrees/my-wt")
+
+    Calling _resolve_feature_dir(worktree_root, feature=...) must still
+    resolve the feature directory under main_repo/kitty-specs/ because
+    worktrees lack kitty-specs/ via sparse checkout.
+    """
+    from specify_cli.cli.commands.verify import _resolve_feature_dir
+
+    # --- Set up main repo ---
+    main_repo = tmp_path / "main_repo"
+    main_repo.mkdir()
+    (main_repo / ".git").mkdir()  # Real .git directory (not a file)
+    (main_repo / ".kittify").mkdir()
+
+    feature_dir = main_repo / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+    meta = {"mission": "research", "feature_slug": "099-research-feature"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    # --- Set up git worktree gitdir ---
+    wt_gitdir = main_repo / ".git" / "worktrees" / "my-wt"
+    wt_gitdir.mkdir(parents=True)
+
+    # --- Set up the worktree root ---
+    worktree_root = tmp_path / "worktree"
+    worktree_root.mkdir()
+    # .git is a *file* with a gitdir: pointer (this is how real worktrees work)
+    (worktree_root / ".git").write_text(f"gitdir: {wt_gitdir}\n")
+    # Worktrees have .kittify/ (shared/linked) but NOT kitty-specs/
+    (worktree_root / ".kittify").mkdir()
+    # Do NOT create kitty-specs/ here — that's the whole point
+
+    # Mock git branch detection to avoid needing a real git repo
+    with patch("specify_cli.core.feature_detection._detect_from_git_branch", return_value=None):
+        result = _resolve_feature_dir(worktree_root, feature="099-research-feature")
+
+    assert result is not None, (
+        "_resolve_feature_dir returned None; feature detection failed to "
+        "resolve through worktree .git pointer to main repo kitty-specs/"
+    )
+    assert result == feature_dir
+    assert result.is_dir()
+
+
+def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
+    """_run_diagnostics_mode uses locate_project_root() (not Path.cwd()).
+
+    When CWD is a worktree, locate_project_root() resolves the main repo
+    root where kitty-specs/ lives, enabling feature detection.
+    """
+    from specify_cli.cli.commands.verify import _run_diagnostics_mode
+
+    main_repo = tmp_path / "main_repo"
+    main_repo.mkdir()
+    (main_repo / ".kittify").mkdir()
+
+    feature_dir = main_repo / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+    meta = {"mission": "research", "feature_slug": "099-research-feature"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    captured_path = {}
+
+    def fake_run_diagnostics(project_path, *, feature_dir=None):
+        captured_path["project_path"] = project_path
+        captured_path["feature_dir"] = feature_dir
+        return {
+            "project_path": str(project_path),
+            "active_mission": "research" if feature_dir else "no feature context",
+        }
+
+    mock_ctx = MagicMock()
+    mock_ctx.slug = "099-research-feature"
+    mock_ctx.directory = feature_dir
+
+    with (
+        # locate_project_root returns main repo, not CWD
+        patch("specify_cli.cli.commands.verify.locate_project_root", return_value=main_repo),
+        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
+        patch("specify_cli.cli.commands.verify.run_diagnostics", side_effect=fake_run_diagnostics),
+    ):
+        _run_diagnostics_mode(json_output=True, check_tools=False, feature="099-research-feature")
+
+    # The project_path passed to run_diagnostics should be the main repo root,
+    # NOT whatever Path.cwd() happens to be.
+    assert captured_path["project_path"] == main_repo
+    assert captured_path["feature_dir"] == feature_dir
+
+
+# --------------------------------------------------------------------------- #
 # verify_setup production caller wiring tests
 # --------------------------------------------------------------------------- #
 
