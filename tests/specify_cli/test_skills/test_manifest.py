@@ -174,6 +174,67 @@ def test_load_managed_files_missing_key_returns_none(tmp_path: Path) -> None:
     assert load_manifest(tmp_path) is None
 
 
+def test_load_wrong_type_version_returns_none(tmp_path: Path) -> None:
+    """spec_kitty_version as list instead of string returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: [2.1.0]\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            "selected_agents: []\n"
+            "installed_skill_roots: []\n"
+            "managed_files: []\n"
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_wrong_type_selected_agents_returns_none(tmp_path: Path) -> None:
+    """selected_agents containing dicts instead of strings returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: '2.1.0'\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            "selected_agents:\n"
+            "  - name: claude\n"
+            "installed_skill_roots: []\n"
+            "managed_files: []\n"
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
+def test_load_wrong_type_managed_file_entry_returns_none(tmp_path: Path) -> None:
+    """managed_files entry with non-string path returns None."""
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        (
+            "spec_kitty_version: '2.1.0'\n"
+            "created_at: '2026-01-01'\n"
+            "updated_at: '2026-01-01'\n"
+            "skills_mode: auto\n"
+            "selected_agents: []\n"
+            "installed_skill_roots: []\n"
+            "managed_files:\n"
+            "  - path: 123\n"
+            "    sha256: abc\n"
+            "    file_type: wrapper\n"
+        ),
+        encoding="utf-8",
+    )
+    assert load_manifest(tmp_path) is None
+
+
 def test_load_binary_garbage_returns_none(tmp_path: Path) -> None:
     """Manifest containing invalid UTF-8 bytes returns None (not UnicodeDecodeError)."""
     manifest_path = tmp_path / MANIFEST_PATH

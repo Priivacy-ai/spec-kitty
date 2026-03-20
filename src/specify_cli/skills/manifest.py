@@ -99,23 +99,39 @@ def _dict_to_manifest(data: dict[str, Any]) -> SkillsManifest | None:
 
     Returns ``None`` when required fields are missing or have wrong types.
     """
-    required_fields = (
+    # -- Validate required scalar fields are present and are strings ----------
+    scalar_fields = (
         "spec_kitty_version",
         "created_at",
         "updated_at",
         "skills_mode",
     )
-    for key in required_fields:
+    for key in scalar_fields:
         if key not in data:
             logger.warning("Manifest missing required field: %s", key)
             return None
+        if not isinstance(data[key], str):
+            logger.warning("Manifest field %s must be a string, got %s", key, type(data[key]).__name__)
+            return None
 
-    # The three list sections are required schema fields.  A manifest
-    # missing any of them is considered corrupt (fail closed).
-    for list_key in ("selected_agents", "installed_skill_roots", "managed_files"):
+    # -- Validate required list-of-strings fields -----------------------------
+    for list_key in ("selected_agents", "installed_skill_roots"):
         if list_key not in data:
             logger.warning("Manifest missing required field: %s", list_key)
             return None
+        value = data[list_key]
+        if not isinstance(value, list):
+            logger.warning("%s is not a list", list_key)
+            return None
+        for elem in value:
+            if not isinstance(elem, str):
+                logger.warning("%s element must be a string, got %s", list_key, type(elem).__name__)
+                return None
+
+    # -- Validate managed_files -----------------------------------------------
+    if "managed_files" not in data:
+        logger.warning("Manifest missing required field: managed_files")
+        return None
 
     raw_files = data["managed_files"]
     if not isinstance(raw_files, list):
@@ -127,35 +143,32 @@ def _dict_to_manifest(data: dict[str, Any]) -> SkillsManifest | None:
         if not isinstance(entry, dict):
             logger.warning("managed_files entry is not a dict")
             return None
-        try:
-            managed_files.append(
-                ManagedFile(
-                    path=str(entry["path"]),
-                    sha256=str(entry["sha256"]),
-                    file_type=str(entry["file_type"]),
+        for mf_key in ("path", "sha256", "file_type"):
+            if mf_key not in entry:
+                logger.warning("ManagedFile entry missing key: %s", mf_key)
+                return None
+            if not isinstance(entry[mf_key], str):
+                logger.warning(
+                    "ManagedFile field %s must be a string, got %s",
+                    mf_key,
+                    type(entry[mf_key]).__name__,
                 )
+                return None
+        managed_files.append(
+            ManagedFile(
+                path=entry["path"],
+                sha256=entry["sha256"],
+                file_type=entry["file_type"],
             )
-        except KeyError as exc:
-            logger.warning("ManagedFile entry missing key: %s", exc)
-            return None
-
-    selected_agents = data["selected_agents"]
-    if not isinstance(selected_agents, list):
-        logger.warning("selected_agents is not a list")
-        return None
-
-    installed_skill_roots = data["installed_skill_roots"]
-    if not isinstance(installed_skill_roots, list):
-        logger.warning("installed_skill_roots is not a list")
-        return None
+        )
 
     return SkillsManifest(
-        spec_kitty_version=str(data["spec_kitty_version"]),
-        created_at=str(data["created_at"]),
-        updated_at=str(data["updated_at"]),
-        skills_mode=str(data["skills_mode"]),
-        selected_agents=[str(a) for a in selected_agents],
-        installed_skill_roots=[str(r) for r in installed_skill_roots],
+        spec_kitty_version=data["spec_kitty_version"],
+        created_at=data["created_at"],
+        updated_at=data["updated_at"],
+        skills_mode=data["skills_mode"],
+        selected_agents=list(data["selected_agents"]),
+        installed_skill_roots=list(data["installed_skill_roots"]),
         managed_files=managed_files,
     )
 
