@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Asset Generator Refactor
-lane: in_progress
+lane: "planned"
 dependencies: [WP01]
 base_branch: 042-agent-skills-installer-infrastructure-WP01
 base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
@@ -14,8 +14,9 @@ phase: Phase 2 - Core Logic
 assignee: ''
 agent: codex
 shell_pid: '83694'
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
+review_feedback: "feedback://042-agent-skills-installer-infrastructure/WP08/20260320T170756Z-b1735646.md"
 history:
 - timestamp: '2026-03-20T16:29:09Z'
   lane: planned
@@ -195,3 +196,4 @@ def test_wrapper_generation_unchanged(agent_key, tmp_path):
 - 2026-03-20T16:58:27Z – coordinator – shell_pid=68715 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T17:03:53Z – coordinator – shell_pid=68715 – lane=for_review – All 3 subtasks complete: T037 (import update), T038 (dict-to-dataclass refactor), T039 (75 backward compat tests, all passing). Diff is minimal (6 lines changed). All existing tests pass.
 - 2026-03-20T17:04:13Z – codex – shell_pid=83694 – lane=doing – Started review via workflow command
+- 2026-03-20T17:07:56Z – codex – shell_pid=83694 – lane=planned – Moved to planned
