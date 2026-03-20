@@ -790,11 +790,16 @@ def merge(
 
     resolved_feature = feature
 
+    # Track where the target branch value came from for error messages.
+    # Possible values: "flag" (--target), "meta.json", "primary_branch"
+    target_source: str | None = "flag" if target_branch is not None else None
+
     # Resolve target branch dynamically if not specified
     if target_branch is None:
         if resolved_feature:
             from specify_cli.core.feature_detection import get_feature_target_branch
             target_branch = get_feature_target_branch(repo_root, resolved_feature)
+            target_source = "meta.json"
         else:
             # Attempt to derive feature slug from current branch before falling
             # back to resolve_primary_branch().  This handles the case where the
@@ -808,9 +813,11 @@ def merge(
                 from specify_cli.core.feature_detection import get_feature_target_branch
                 resolved_feature = _inferred_slug
                 target_branch = get_feature_target_branch(repo_root, resolved_feature)
+                target_source = "meta.json"
             else:
                 from specify_cli.core.git_ops import resolve_primary_branch
                 target_branch = resolve_primary_branch(repo_root)
+                target_source = "primary_branch"
 
     # Validate resolved target branch exists (FR-006: hard error, no silent fallback)
     if resolved_feature and target_branch:
@@ -828,10 +835,21 @@ def merge(
                 cwd=repo_root,
             )
             if ret_remote != 0:
-                error_msg = (
-                    f"Target branch '{target_branch}' (from meta.json) does not exist "
-                    f"locally or on origin. Check kitty-specs/{resolved_feature}/meta.json."
-                )
+                if target_source == "meta.json":
+                    error_msg = (
+                        f"Target branch '{target_branch}' (from meta.json) does not exist "
+                        f"locally or on origin. Check kitty-specs/{resolved_feature}/meta.json."
+                    )
+                elif target_source == "primary_branch":
+                    error_msg = (
+                        f"Target branch '{target_branch}' (resolved as primary branch) does not exist "
+                        f"locally or on origin. Check kitty-specs/{resolved_feature}/meta.json."
+                    )
+                else:
+                    error_msg = (
+                        f"Target branch '{target_branch}' does not exist "
+                        f"locally or on origin. Check kitty-specs/{resolved_feature}/meta.json."
+                    )
                 if json_output:
                     print(json.dumps({
                         "spec_kitty_version": SPEC_KITTY_VERSION,

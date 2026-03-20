@@ -165,6 +165,93 @@ def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> Non
     assert payload["target_branch"] == "main"
 
 
+def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) -> None:
+    slug = "049-fix-merge-target-resolution"
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    _write_meta_json(repo_root / "kitty-specs" / slug, "2.x")
+    _patch_merge_environment(
+        monkeypatch,
+        repo_root,
+        current_branch="main",
+        existing_branches={"2.x", "main"},
+    )
+
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--dry-run", "--json", "--feature", slug],
+    )
+
+    assert result.exit_code == 0
+    payload = _extract_json(result.stdout)
+    assert payload["feature_slug"] == slug
+    assert payload["target_branch"] == "2.x"
+
+
+def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, tmp_path: Path) -> None:
+    slug = "049-fix-merge-target-resolution"
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    # No meta.json written — feature dir does not exist
+    _patch_merge_environment(
+        monkeypatch,
+        repo_root,
+        current_branch="main",
+        existing_branches={"main"},
+    )
+
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--dry-run", "--json", "--feature", slug],
+    )
+
+    assert result.exit_code == 0
+    payload = _extract_json(result.stdout)
+    assert payload["feature_slug"] == slug
+    assert payload["target_branch"] == "main"
+
+
+def test_no_feature_no_feature_branch_uses_primary_branch(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    _patch_merge_environment(
+        monkeypatch,
+        repo_root,
+        current_branch="some-unrelated-branch",
+        existing_branches={"main"},
+    )
+
+    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+
+    assert result.exit_code == 0
+    payload = _extract_json(result.stdout)
+    assert payload["target_branch"] == "main"
+
+
+def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
+    slug = "049-fix-merge-target-resolution"
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    _write_meta_json(repo_root / "kitty-specs" / slug, "main")
+    _patch_merge_environment(
+        monkeypatch,
+        repo_root,
+        current_branch=slug,
+        existing_branches={"main"},
+    )
+
+    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+
+    assert result.exit_code == 0
+    payload = _extract_json(result.stdout)
+    assert payload["feature_slug"] == slug
+    assert payload["target_branch"] == "main"
+
+
 def test_merge_template_has_no_agent_feature_merge_references() -> None:
     src_root = Path(__file__).resolve().parents[4] / "src"
     merge_templates = list(src_root.glob("**/command-templates/merge.md"))
