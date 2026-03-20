@@ -1,14 +1,14 @@
 {
-  "event_count": 12,
+  "event_count": 13,
   "feature_slug": "053-orchestrator-api-json-contract-fidelity",
-  "last_event_id": "01KM5MW7B363AFZ4JXQVEV9WQF",
-  "materialized_at": "2026-03-20T12:52:41.955929+00:00",
+  "last_event_id": "01KM5N2S2NQVB8R8ZWYMNF99VW",
+  "materialized_at": "2026-03-20T12:56:16.725897+00:00",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 1,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -16,10 +16,10 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
-      "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KM5MW7B363AFZ4JXQVEV9WQF",
-      "last_transition_at": "2026-03-20T12:52:41.955428+00:00"
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KM5N2S2NQVB8R8ZWYMNF99VW",
+      "last_transition_at": "2026-03-20T12:56:16.725459+00:00"
     },
     "WP02": {
       "actor": "user",

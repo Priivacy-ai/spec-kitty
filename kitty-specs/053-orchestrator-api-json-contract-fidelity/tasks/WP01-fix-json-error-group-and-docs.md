@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Fix _JSONErrorGroup Error Handling + Docs
-lane: "approved"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: 9812ee34905de737259c9019dd6e85fb9249a129
@@ -181,3 +181,4 @@ spec-kitty implement WP01
 - 2026-03-20T12:44:36Z – codex – shell_pid=49444 – lane=approved – Arbiter decision: Approved. Implementation correct — invoke() override, _emit_error() helper, docstring, docs fix all verified. All 52 existing tests pass. Codex reviewed wrong feature context.
 - 2026-03-20T12:45:03Z – codex – shell_pid=49444 – lane=planned – Moved to planned
 - 2026-03-20T12:52:42Z – codex – shell_pid=49444 – lane=approved – Re-approving: arbiter decision stands. Implementation verified correct.
+- 2026-03-20T12:56:16Z – codex – shell_pid=49444 – lane=done – Merged to 2.x | Done override: Merged to 2.x via WP02 (WP01 is ancestor of WP02)
