@@ -4,6 +4,7 @@ Validates:
 - FileManifest no longer has active_mission attribute
 - verify_enhanced resolves mission from feature-level meta.json
 - mission CLI shows 'No active feature detected' when no feature context
+- Production callers (verify.py, api.py) wire feature_dir through
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import subprocess
 import sys
 import types
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -144,3 +145,158 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "No active feature detected" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# _resolve_feature_dir (verify.py helper) tests
+# --------------------------------------------------------------------------- #
+
+def test_resolve_feature_dir_with_explicit_feature(tmp_path: Path) -> None:
+    """_resolve_feature_dir returns feature directory when given an explicit slug."""
+    from specify_cli.cli.commands.verify import _resolve_feature_dir
+
+    project_root = tmp_path / "project"
+    feature_dir = project_root / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+
+    # Mock detect_feature to return a context with the feature directory
+    mock_ctx = MagicMock()
+    mock_ctx.slug = "099-research-feature"
+    mock_ctx.directory = feature_dir
+
+    with patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx):
+        result = _resolve_feature_dir(project_root, feature="099-research-feature")
+
+    assert result == feature_dir
+
+
+def test_resolve_feature_dir_returns_none_when_no_feature(tmp_path: Path) -> None:
+    """_resolve_feature_dir returns None when no feature can be detected."""
+    from specify_cli.cli.commands.verify import _resolve_feature_dir
+
+    with patch("specify_cli.cli.commands.verify.detect_feature", return_value=None):
+        result = _resolve_feature_dir(tmp_path)
+
+    assert result is None
+
+
+def test_resolve_feature_dir_returns_none_on_exception(tmp_path: Path) -> None:
+    """_resolve_feature_dir returns None when detect_feature raises."""
+    from specify_cli.cli.commands.verify import _resolve_feature_dir
+
+    with patch("specify_cli.cli.commands.verify.detect_feature", side_effect=RuntimeError("boom")):
+        result = _resolve_feature_dir(tmp_path)
+
+    assert result is None
+
+
+# --------------------------------------------------------------------------- #
+# verify_setup production caller wiring tests
+# --------------------------------------------------------------------------- #
+
+def test_verify_setup_passes_feature_dir_to_run_enhanced_verify(tmp_path: Path) -> None:
+    """verify_setup should detect feature_dir and pass it to run_enhanced_verify."""
+    from specify_cli.cli.commands.verify import verify_setup
+
+    feature_dir = tmp_path / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+
+    mock_ctx = MagicMock()
+    mock_ctx.slug = "099-research-feature"
+    mock_ctx.directory = feature_dir
+
+    captured_kwargs = {}
+
+    def fake_run_enhanced_verify(**kwargs):
+        captured_kwargs.update(kwargs)
+        return {"environment": {"active_mission": "research"}}
+
+    with (
+        patch("specify_cli.cli.commands.verify.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.verify.get_project_root_or_exit", return_value=tmp_path),
+        patch("specify_cli.cli.commands.verify.check_version_compatibility"),
+        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
+        patch("specify_cli.cli.commands.verify.run_enhanced_verify", side_effect=fake_run_enhanced_verify),
+    ):
+        # Call with json_output to avoid console rendering issues, and skip tool checks
+        verify_setup(
+            feature="099-research-feature",
+            json_output=True,
+            check_files=False,
+            check_tools=False,
+            diagnostics=False,
+        )
+
+    assert captured_kwargs.get("feature_dir") == feature_dir
+
+
+def test_diagnostics_mode_passes_feature_dir_to_run_diagnostics(tmp_path: Path) -> None:
+    """_run_diagnostics_mode should detect feature_dir and pass it to run_diagnostics."""
+    from specify_cli.cli.commands.verify import _run_diagnostics_mode
+
+    feature_dir = tmp_path / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+
+    mock_ctx = MagicMock()
+    mock_ctx.slug = "099-research-feature"
+    mock_ctx.directory = feature_dir
+
+    captured_kwargs = {}
+
+    def fake_run_diagnostics(project_path, *, feature_dir=None):
+        captured_kwargs["feature_dir"] = feature_dir
+        return {
+            "project_path": str(project_path),
+            "active_mission": "research" if feature_dir else "no feature context",
+        }
+
+    with (
+        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
+        patch("specify_cli.cli.commands.verify.run_diagnostics", side_effect=fake_run_diagnostics),
+    ):
+        _run_diagnostics_mode(json_output=True, check_tools=False, feature="099-research-feature")
+
+    assert captured_kwargs.get("feature_dir") == feature_dir
+
+
+# --------------------------------------------------------------------------- #
+# api.py handle_diagnostics wiring test
+# --------------------------------------------------------------------------- #
+
+def test_api_handle_diagnostics_passes_feature_dir(tmp_path: Path) -> None:
+    """APIHandler.handle_diagnostics should detect active feature and pass feature_dir."""
+    import io
+
+    feature_dir = tmp_path / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+
+    captured_kwargs = {}
+
+    def fake_run_diagnostics(project_path, *, feature_dir=None):
+        captured_kwargs["feature_dir"] = feature_dir
+        return {"active_mission": "research" if feature_dir else "no feature context"}
+
+    def fake_scan_all_features(project_path):
+        return [{"id": "099-research-feature", "path": "kitty-specs/099-research-feature"}]
+
+    def fake_resolve_active_feature(project_path, features):
+        return features[0] if features else None
+
+    with (
+        patch("specify_cli.dashboard.handlers.api.run_diagnostics", side_effect=fake_run_diagnostics),
+        patch("specify_cli.dashboard.handlers.api.scan_all_features", side_effect=fake_scan_all_features),
+        patch("specify_cli.dashboard.handlers.api.resolve_active_feature", side_effect=fake_resolve_active_feature),
+    ):
+        from specify_cli.dashboard.handlers.api import APIHandler
+
+        handler = MagicMock(spec=APIHandler)
+        handler.project_dir = str(tmp_path)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+
+        # Call the unbound method with our mock handler
+        APIHandler.handle_diagnostics(handler)
+
+    assert captured_kwargs.get("feature_dir") == feature_dir
