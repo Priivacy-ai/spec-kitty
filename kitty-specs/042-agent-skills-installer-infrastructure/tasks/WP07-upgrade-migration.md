@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Upgrade Migration
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01, WP02, WP03, WP04]
 base_branch: 042-agent-skills-installer-infrastructure-WP04
 base_commit: 02040aa5810b7dde66c0e3394a7178d059c38ca9
@@ -13,8 +13,8 @@ subtasks:
 - T036
 phase: Phase 3 - Integration
 assignee: ''
-agent: "coordinator"
-shell_pid: "48735"
+agent: coordinator
+shell_pid: '48735'
 review_status: ''
 reviewed_by: ''
 history:
@@ -295,3 +295,4 @@ def test_apply_config_aware(tmp_path):
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
 - 2026-03-20T17:41:02Z – coordinator – shell_pid=48735 – lane=doing – Assigned agent via workflow command
+- 2026-03-20T17:45:27Z – coordinator – shell_pid=48735 – lane=for_review – Ready for review: migration creates skills manifest and empty skill roots for configured agents, tracks existing wrappers, is idempotent and config-aware. All 15 tests pass.
