@@ -1,8 +1,11 @@
 ---
 work_package_id: WP04
 title: Post-Init Verification
-lane: planned
+lane: "doing"
 dependencies: [WP02, WP03]
+base_branch: 042-agent-skills-installer-infrastructure-WP03
+base_commit: fffc6ec2d5dbd24eb746058f5087717457777579
+created_at: '2026-03-20T17:29:03.114733+00:00'
 subtasks:
 - T018
 - T019
@@ -10,7 +13,7 @@ subtasks:
 phase: Phase 2 - Core Logic
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "13034"
 review_status: ''
 reviewed_by: ''
 history:
