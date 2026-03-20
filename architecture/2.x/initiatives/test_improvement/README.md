@@ -155,7 +155,7 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 | `merge_workspace_per_wp` (dry-run) | 2 | Fully mocked internals |
 | VCS detection | 2 | Mocked availability checks |
 
-**Integration tests kept (17 + 3 xfail):** Tests requiring real git repos — worktree detection from within worktrees, full merge workflows, ancestry chain planning, jj backend detection (xfail).
+**Integration tests kept (17):** Tests requiring real git repos — worktree detection from within worktrees, full merge workflows, ancestry chain planning.
 
 ### 3.3 test_core/ Unit Extraction (commits `3ed22b5a`, `b402d17f`)
 
