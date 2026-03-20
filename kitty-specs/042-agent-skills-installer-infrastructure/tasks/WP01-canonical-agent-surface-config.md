@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Canonical Agent Surface Config
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: main
+base_commit: 4054a2d1253a294814072ecba33a429142fc41ee
+created_at: '2026-03-20T16:38:56.718624+00:00'
 subtasks:
 - T001
 - T002
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "29009"
 review_status: ''
 reviewed_by: ''
 history:
