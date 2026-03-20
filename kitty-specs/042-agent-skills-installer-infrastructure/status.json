@@ -1,25 +1,25 @@
 {
-  "event_count": 7,
+  "event_count": 8,
   "feature_slug": "042-agent-skills-installer-infrastructure",
-  "last_event_id": "01KM62K9S8G01N9Z9RDJ70FAP5",
-  "materialized_at": "2026-03-20T16:52:29.608435+00:00",
+  "last_event_id": "01KM62WNPV2HK6AYZJZ0ECA6P1",
+  "materialized_at": "2026-03-20T16:57:36.732337+00:00",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "codex",
-      "force_count": 4,
-      "lane": "in_progress",
-      "last_event_id": "01KM62K9S8G01N9Z9RDJ70FAP5",
-      "last_transition_at": "2026-03-20T16:52:29.608148+00:00"
+      "actor": "user",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KM62WNPV2HK6AYZJZ0ECA6P1",
+      "last_transition_at": "2026-03-20T16:57:36.731954+00:00"
     }
   }
 }
