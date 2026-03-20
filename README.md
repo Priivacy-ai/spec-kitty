@@ -54,7 +54,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
-    <a href="docs/claude-code-integration.md"><strong>Claude Code Guide</strong></a> •
+    <a href="docs/tutorials/claude-code-integration.md"><strong>Claude Code Guide</strong></a> •
     <a href="#-real-time-dashboard">Live Dashboard</a> •
     <a href="#-supported-ai-agents">12 AI Agents</a> •
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
