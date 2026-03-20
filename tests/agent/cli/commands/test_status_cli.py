@@ -53,12 +53,7 @@ def feature_dir(tmp_path: Path) -> Path:
     tasks_dir.mkdir()
     wp_file = tasks_dir / "WP01-test-task.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Test Task\n"
-        "lane: planned\n"
-        "---\n"
-        "\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Test Task\nlane: planned\n---\n\n# WP01\n",
         encoding="utf-8",
     )
     return fd
@@ -132,9 +127,12 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "claimed",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
+                    "--to",
+                    "claimed",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
                 ],
             )
 
@@ -160,9 +158,12 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "done",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
                 ],
             )
 
@@ -184,9 +185,12 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "claimed",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
+                    "--to",
+                    "claimed",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )
@@ -220,9 +224,12 @@ class TestEmitCommand:
                     [
                         "emit",
                         "WP01",
-                        "--to", to_lane,
-                        "--actor", "test-agent",
-                        "--feature", "034-test-feature",
+                        "--to",
+                        to_lane,
+                        "--actor",
+                        "test-agent",
+                        "--feature",
+                        "034-test-feature",
                     ],
                 )
                 assert r.exit_code == 0, f"Failed at {to_lane}: {r.output}"
@@ -246,10 +253,14 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "done",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
-                    "--evidence-json", json.dumps(evidence),
+                    "--to",
+                    "done",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
+                    "--evidence-json",
+                    json.dumps(evidence),
                     "--json",
                 ],
             )
@@ -272,10 +283,14 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "done",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
-                    "--evidence-json", "not valid json",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
+                    "--evidence-json",
+                    "not valid json",
                 ],
             )
 
@@ -296,10 +311,14 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "done",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
-                    "--evidence-json", "{bad",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
+                    "--evidence-json",
+                    "{bad",
                     "--json",
                 ],
             )
@@ -322,11 +341,15 @@ class TestEmitCommand:
                 [
                     "emit",
                     "WP01",
-                    "--to", "in_progress",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
+                    "--to",
+                    "in_progress",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
                     "--force",
-                    "--reason", "resuming after crash",
+                    "--reason",
+                    "resuming after crash",
                 ],
             )
 
@@ -353,7 +376,8 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                 ],
             )
 
@@ -377,7 +401,8 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )
@@ -403,7 +428,8 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                 ],
             )
 
@@ -422,7 +448,8 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )
@@ -491,7 +518,8 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )
@@ -528,9 +556,12 @@ class TestEmitThenMaterialize:
                 [
                     "emit",
                     "WP01",
-                    "--to", "claimed",
-                    "--actor", "test-agent",
-                    "--feature", "034-test-feature",
+                    "--to",
+                    "claimed",
+                    "--actor",
+                    "test-agent",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )
@@ -546,7 +577,8 @@ class TestEmitThenMaterialize:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--feature",
+                    "034-test-feature",
                     "--json",
                 ],
             )

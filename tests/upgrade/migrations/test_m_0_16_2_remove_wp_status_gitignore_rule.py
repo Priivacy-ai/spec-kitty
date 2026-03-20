@@ -137,8 +137,7 @@ class TestMigration:
     def test_apply(self, tmp_path: Path) -> None:
         gitignore = tmp_path / ".gitignore"
         gitignore.write_text(
-            "# Block WP status files (managed in main repo, prevents merge conflicts)\n"
-            "kitty-specs/**/tasks/*.md\n",
+            "# Block WP status files (managed in main repo, prevents merge conflicts)\nkitty-specs/**/tasks/*.md\n",
             encoding="utf-8",
         )
 

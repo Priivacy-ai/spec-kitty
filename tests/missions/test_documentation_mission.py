@@ -1,7 +1,8 @@
 """Tests for documentation mission configuration."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from specify_cli.mission import Mission
 

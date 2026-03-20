@@ -1,6 +1,13 @@
 """Tests for strictness policy system (WP05)."""
 
 import pytest
+
+from specify_cli.glossary.models import (
+    SemanticConflict,
+    Severity,
+    TermSurface,
+    ConflictType,
+)
 from specify_cli.glossary.strictness import (
     Strictness,
     resolve_strictness,
@@ -10,13 +17,6 @@ from specify_cli.glossary.strictness import (
 )
 
 pytestmark = pytest.mark.fast
-
-from specify_cli.glossary.models import (
-    SemanticConflict,
-    Severity,
-    TermSurface,
-    ConflictType,
-)
 
 
 class TestStrictnessEnum:
@@ -106,9 +106,7 @@ class TestResolvePrecedence:
             (Strictness.MAX, None, None, None, Strictness.MAX),
         ],
     )
-    def test_precedence_combinations(
-        self, global_val, mission_val, step_val, runtime_val, expected
-    ):
+    def test_precedence_combinations(self, global_val, mission_val, step_val, runtime_val, expected):
         """Test all precedence combinations systematically."""
         result = resolve_strictness(
             global_default=global_val,

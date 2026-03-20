@@ -85,7 +85,7 @@ def mock_research_project_one_agent(tmp_path):
 
     # Old research template
     (opencode / "spec-kitty.implement.md").write_text(
-        "## Sprint Planning Artifacts (Separate)\n\n" "Planning artifacts\n",
+        "## Sprint Planning Artifacts (Separate)\n\nPlanning artifacts\n",
         encoding="utf-8",
     )
 
@@ -113,11 +113,7 @@ def mock_software_dev_project(tmp_path):
 
         # Software-dev template (no Sprint Planning Artifacts)
         (agent_path / "spec-kitty.implement.md").write_text(
-            "---\n"
-            "description: Implement software WP\n"
-            "---\n\n"
-            "## Implementation Workflow\n\n"
-            "Navigate to worktree\n",
+            "---\ndescription: Implement software WP\n---\n\n## Implementation Workflow\n\nNavigate to worktree\n",
             encoding="utf-8",
         )
 
@@ -183,9 +179,7 @@ class TestMigrationApply:
         assert len(result.errors) == 0
 
         # Check this agent's template was updated
-        template_path = (
-            mock_research_project_all_agents / agent_dir / subdir / "spec-kitty.implement.md"
-        )
+        template_path = mock_research_project_all_agents / agent_dir / subdir / "spec-kitty.implement.md"
         content = template_path.read_text()
 
         # Should have Research CSV Schemas section
@@ -213,9 +207,7 @@ class TestMigrationApply:
         # Create opencode directory (configured)
         opencode = tmp_path / ".opencode" / "command"
         opencode.mkdir(parents=True)
-        (opencode / "spec-kitty.implement.md").write_text(
-            "## Sprint Planning Artifacts (Separate)\n"
-        )
+        (opencode / "spec-kitty.implement.md").write_text("## Sprint Planning Artifacts (Separate)\n")
 
         # Create claude directory (NOT configured)
         claude = tmp_path / ".claude" / "commands"
@@ -249,12 +241,8 @@ class TestMigrationApply:
         assert result.success is True
 
         # Software-dev templates should NOT have schema section
-        claude_content = (
-            mock_software_dev_project / ".claude" / "commands" / "spec-kitty.implement.md"
-        ).read_text()
-        opencode_content = (
-            mock_software_dev_project / ".opencode" / "command" / "spec-kitty.implement.md"
-        ).read_text()
+        claude_content = (mock_software_dev_project / ".claude" / "commands" / "spec-kitty.implement.md").read_text()
+        opencode_content = (mock_software_dev_project / ".opencode" / "command" / "spec-kitty.implement.md").read_text()
 
         assert "Research CSV Schemas" not in claude_content
         assert "Research CSV Schemas" not in opencode_content
@@ -269,12 +257,7 @@ class TestMigrationApply:
         assert result1.success is True
 
         # Read updated content
-        opencode_template = (
-            mock_research_project_one_agent
-            / ".opencode"
-            / "command"
-            / "spec-kitty.implement.md"
-        )
+        opencode_template = mock_research_project_one_agent / ".opencode" / "command" / "spec-kitty.implement.md"
         content_after_first = opencode_template.read_text()
 
         # Run migration second time
@@ -293,12 +276,7 @@ class TestMigrationApply:
         migration = UpdateResearchImplementTemplatesMigration()
 
         # Read original content
-        opencode_template = (
-            mock_research_project_one_agent
-            / ".opencode"
-            / "command"
-            / "spec-kitty.implement.md"
-        )
+        opencode_template = mock_research_project_one_agent / ".opencode" / "command" / "spec-kitty.implement.md"
         original_content = opencode_template.read_text()
 
         # Run dry run
@@ -334,12 +312,7 @@ class TestMigrationApply:
         migration = UpdateResearchImplementTemplatesMigration()
         migration.apply(mock_research_project_one_agent, dry_run=False)
 
-        opencode_template = (
-            mock_research_project_one_agent
-            / ".opencode"
-            / "command"
-            / "spec-kitty.implement.md"
-        )
+        opencode_template = mock_research_project_one_agent / ".opencode" / "command" / "spec-kitty.implement.md"
         content = opencode_template.read_text()
 
         # Should have append examples
@@ -352,12 +325,7 @@ class TestMigrationApply:
         migration = UpdateResearchImplementTemplatesMigration()
         migration.apply(mock_research_project_one_agent, dry_run=False)
 
-        opencode_template = (
-            mock_research_project_one_agent
-            / ".opencode"
-            / "command"
-            / "spec-kitty.implement.md"
-        )
+        opencode_template = mock_research_project_one_agent / ".opencode" / "command" / "spec-kitty.implement.md"
         content = opencode_template.read_text()
 
         # Should document enum values (escaped pipes in markdown tables)
