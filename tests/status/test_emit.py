@@ -7,6 +7,7 @@ alias resolution, and pipeline ordering guarantees.
 
 from __future__ import annotations
 
+import builtins
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -824,14 +825,21 @@ class TestPipelineOrder:
 
     def test_legacy_bridge_import_error_handled(self, feature_dir: Path):
         """ImportError from legacy_bridge does not block emit."""
-        event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        )
-        # If we got here without error, the ImportError was handled
+        real_import = builtins.__import__
+
+        def raising_import(name: str, *args: object, **kwargs: object):
+            if name == "specify_cli.status.legacy_bridge":
+                raise ImportError("legacy bridge unavailable")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=raising_import):
+            event = emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
         assert event.to_lane == Lane.CLAIMED
 
     def test_legacy_bridge_exception_handled(self, feature_dir: Path):

@@ -88,10 +88,7 @@ def feature_status_lock(
             yield lock_path
         finally:
             lock, depth = held_locks[lock_key]
-            if depth <= 1:
-                del held_locks[lock_key]
-            else:
-                held_locks[lock_key] = (lock, depth - 1)
+            held_locks[lock_key] = (lock, depth - 1)
         return
 
     lock = FileLock(str(lock_path), timeout=timeout)
@@ -106,9 +103,5 @@ def feature_status_lock(
     try:
         yield lock_path
     finally:
-        lock, depth = held_locks[lock_key]
-        if depth <= 1:
-            del held_locks[lock_key]
-            lock.release()
-        else:
-            held_locks[lock_key] = (lock, depth - 1)
+        del held_locks[lock_key]
+        lock.release()

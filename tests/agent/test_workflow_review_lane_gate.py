@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
+from specify_cli.status.emit import emit_status_transition
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 pytestmark = pytest.mark.fast
@@ -156,6 +157,37 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     assert result.exit_code == 0, result.stdout
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
     assert extract_scalar(frontmatter, "agent") == "claude"
+
+
+def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path) -> None:
+    """Review should read the existing canonical event lane before claiming the WP."""
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(wp_path, "WP01", lane="for_review")
+
+    emit_status_transition(
+        feature_dir=feature_dir,
+        feature_slug=feature_slug,
+        wp_id="WP01",
+        to_lane="for_review",
+        actor="system",
+        force=True,
+        reason="seed canonical lane",
+        repo_root=workflow_repo,
+    )
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter, "lane") == "doing"
 
 
 def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> tuple[Path, str]:

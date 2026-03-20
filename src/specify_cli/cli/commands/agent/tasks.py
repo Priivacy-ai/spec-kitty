@@ -1133,9 +1133,6 @@ def move_task(
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 
-            if event is None:
-                raise TransitionError("No status transition event was emitted")
-
             # --- Post-emit: apply metadata fields to WP file ---
             # The emit pipeline (via legacy_bridge) may have updated the lane
             # in frontmatter. Re-read the file to get the current state,
