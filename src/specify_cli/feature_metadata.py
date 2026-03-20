@@ -15,13 +15,12 @@ always either the old version or the new version, never a partial write.
 
 from __future__ import annotations
 
-import json
-import os
-import tempfile
-import contextlib
 import datetime as _dt
+import json
 from pathlib import Path
 from typing import Any, TypedDict
+
+from specify_cli.core.atomic import atomic_write
 
 
 # ---------------------------------------------------------------------------
@@ -81,32 +80,6 @@ def _now_iso() -> str:
     return _dt.datetime.now(_dt.UTC).isoformat()
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    """Write *content* atomically.  File is either old or new, never partial.
-
-    Uses :func:`os.fdopen` to wrap the raw file descriptor in a Python file
-    object whose ``.write()`` method handles short writes internally, so the
-    full payload is always flushed before the atomic rename.
-    """
-    fd, tmp_path = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=".meta-",
-        suffix=".tmp",
-    )
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(content.encode("utf-8"))
-        # fd is now closed by the context manager
-        os.replace(tmp_path, str(path))
-    except BaseException:
-        # fd may already be closed by the context manager; suppress errors
-        with contextlib.suppress(OSError):
-            os.close(fd)
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
-        raise
-
-
 # ---------------------------------------------------------------------------
 # Core read / validate / write
 # ---------------------------------------------------------------------------
@@ -125,13 +98,9 @@ def load_meta(feature_dir: Path) -> dict[str, Any] | None:
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"Malformed JSON in {meta_path}: {exc}"
-        ) from exc
+        raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
     if not isinstance(data, dict):
-        raise ValueError(
-            f"Expected JSON object in {meta_path}, got {type(data).__name__}"
-        )
+        raise ValueError(f"Expected JSON object in {meta_path}, got {type(data).__name__}")
     return data
 
 
@@ -171,12 +140,10 @@ def write_meta(
     if validate:
         errors = validate_meta(meta)
         if errors:
-            raise ValueError(
-                f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}"
-            )
+            raise ValueError(f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}")
     content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     meta_path = feature_dir / "meta.json"
-    _atomic_write(meta_path, content)
+    atomic_write(meta_path, content)
 
 
 # ---------------------------------------------------------------------------

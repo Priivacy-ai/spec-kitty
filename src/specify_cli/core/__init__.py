@@ -1,5 +1,6 @@
 """Core utilities and configuration exports."""
 
+from .atomic import atomic_write
 from .config import (
     AGENT_COMMAND_CONFIG,
     AGENT_TOOL_REQUIREMENTS,
@@ -25,6 +26,7 @@ from .tool_checker import (
 )
 
 __all__ = [
+    "atomic_write",
     "AGENT_COMMAND_CONFIG",
     "AGENT_TOOL_REQUIREMENTS",
     "AI_CHOICES",

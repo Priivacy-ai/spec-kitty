@@ -20,6 +20,8 @@ from typing import Optional, Tuple
 
 import psutil
 
+from specify_cli.core.atomic import atomic_write
+
 from .server import find_free_port, start_dashboard
 
 logger = logging.getLogger(__name__)
@@ -90,13 +92,13 @@ def _write_dashboard_file(
         token: Security token (optional)
         pid: Process ID of background dashboard (optional)
     """
-    dashboard_file.parent.mkdir(parents=True, exist_ok=True)
     lines = [url, str(port)]
     if token:
         lines.append(token)
     if pid is not None:
         lines.append(str(pid))
-    dashboard_file.write_text("\n".join(lines) + "\n", encoding='utf-8')
+    content = "\n".join(lines) + "\n"
+    atomic_write(dashboard_file, content, mkdir=True)
 
 
 def _is_process_alive(pid: int) -> bool:
