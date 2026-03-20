@@ -390,3 +390,8 @@
 | T038 | Add evidence log entries | WP09 | P3 | Yes |
 | T039 | Run full test suite and record results | WP09 | P3 | No |
 | T040 | Create implementation outcome note | WP09 | P3 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP06: for_review
+<!-- status-model:end -->
