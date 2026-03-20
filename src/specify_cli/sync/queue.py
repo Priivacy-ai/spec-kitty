@@ -17,7 +17,7 @@ class _BatchEventResultLike(Protocol):
     event_id: str
 
 
-DEFAULT_MAX_QUEUE_SIZE = 10_000
+DEFAULT_MAX_QUEUE_SIZE = 100_000
 
 # Event types eligible for coalescing: when a new event of one of these types
 # arrives and an equivalent event (same type + coalesce key) already exists in
@@ -321,18 +321,26 @@ class OfflineQueue:
             if coalesced:
                 return True
 
-        if self.size() >= self._max_queue_size:
-            print(
-                f"Offline queue full ({self._max_queue_size:,} events). "
-                f"New sync events are being DROPPED.\n"
-                f"  Check auth and connectivity: spec-kitty sync status --check\n"
-                f"  Drain the queue manually:    spec-kitty sync now",
-                file=sys.stderr,
-            )
-            return False
-
         conn = sqlite3.connect(self.db_path)
         try:
+            current_size = self.size()
+            if current_size >= self._max_queue_size:
+                # FIFO eviction: delete the oldest events to make room
+                overflow = current_size - self._max_queue_size + 1
+                conn.execute(
+                    "DELETE FROM queue WHERE id IN ("
+                    "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
+                    ")",
+                    (overflow,),
+                )
+                print(
+                    f"Offline queue at capacity ({self._max_queue_size:,} events). "
+                    f"Evicted {overflow:,} oldest event(s) to make room.\n"
+                    f"  Check auth and connectivity: spec-kitty sync status --check\n"
+                    f"  Drain the queue manually:    spec-kitty sync now",
+                    file=sys.stderr,
+                )
+
             conn.execute(
                 "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
                 "VALUES (?, ?, ?, ?, ?)",

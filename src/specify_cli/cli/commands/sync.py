@@ -869,7 +869,7 @@ def doctor() -> None:
 
     if pct >= 100:
         issues.append(
-            "Queue is FULL -- new sync events are being dropped. "
+            "Queue is FULL -- oldest events are being evicted to make room for new ones. "
             "Run `spec-kitty sync now` after fixing auth/connectivity."
         )
     elif pct >= 80:

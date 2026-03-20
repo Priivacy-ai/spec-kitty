@@ -185,7 +185,7 @@ class TestConfigurableQueueCap:
     def test_custom_max_queue_size(self, small_queue: OfflineQueue):
         assert small_queue._max_queue_size == 5
 
-    def test_queue_rejects_at_custom_cap(self, small_queue: OfflineQueue):
+    def test_queue_evicts_oldest_at_custom_cap(self, small_queue: OfflineQueue):
         for i in range(5):
             assert small_queue.queue_event({
                 "event_id": f"evt-{i}",
@@ -193,14 +193,20 @@ class TestConfigurableQueueCap:
                 "payload": {},
             }) is True
 
-        # 6th event should be rejected
+        # 6th event should succeed, evicting the oldest
         result = small_queue.queue_event({
             "event_id": "overflow",
             "event_type": "WPStatusChanged",
             "payload": {},
         })
-        assert result is False
-        assert small_queue.size() == 5
+        assert result is True
+        assert small_queue.size() == 5  # still at cap, oldest evicted
+
+        # Verify the oldest event (evt-0) was evicted and newest is present
+        events = small_queue.drain_queue()
+        event_ids = [e["event_id"] for e in events]
+        assert "evt-0" not in event_ids
+        assert "overflow" in event_ids
 
     def test_queue_stats_includes_max_size(self, small_queue: OfflineQueue):
         small_queue.queue_event({"event_id": "e1", "event_type": "Test", "payload": {}})
@@ -225,11 +231,11 @@ class TestQueueFullMessaging:
         for i in range(5):
             small_queue.queue_event({"event_id": f"e-{i}", "event_type": "T", "payload": {}})
 
-        # Trigger the full-queue path
+        # Trigger the eviction path
         small_queue.queue_event({"event_id": "overflow", "event_type": "T", "payload": {}})
 
         captured = capsys.readouterr()
-        assert "DROPPED" in captured.err
+        assert "Evicted" in captured.err
         assert "spec-kitty sync status --check" in captured.err
         assert "spec-kitty sync now" in captured.err
 

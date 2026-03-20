@@ -123,5 +123,5 @@ class TestDoctorCommand:
 
         captured = capsys.readouterr()
         assert "Issues found" in captured.out
-        assert "FULL" in captured.out or "DROPPED" in captured.out
+        assert "FULL" in captured.out or "evicted" in captured.out.lower()
         assert "spec-kitty auth login" in captured.out
