@@ -13,7 +13,7 @@ subtasks:
 - T036
 phase: Phase 3 - Integration
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "48735"
 review_status: ''
 reviewed_by: ''
@@ -294,3 +294,4 @@ def test_apply_config_aware(tmp_path):
 ## Activity Log
 
 - 2026-03-20T16:29:09Z – system – lane=planned – Prompt created.
+- 2026-03-20T17:41:02Z – coordinator – shell_pid=48735 – lane=doing – Assigned agent via workflow command
