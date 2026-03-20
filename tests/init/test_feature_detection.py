@@ -261,6 +261,21 @@ def test_detect_cwd_path_inside_worktree(repo_with_features: Path):
         assert ctx.detection_method == "cwd_path"
 
 
+def test_detect_cwd_path_at_worktree_root(repo_with_features: Path):
+    """Worktree root itself should still resolve via cwd detection."""
+    worktree_dir = repo_with_features / ".worktrees" / "020-feature-a-WP01"
+    worktree_dir.mkdir(parents=True)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
+
+        ctx = detect_feature(repo_with_features, cwd=worktree_dir)
+
+        assert ctx is not None
+        assert ctx.slug == "020-feature-a"
+        assert ctx.detection_method == "cwd_path"
+
+
 def test_detect_single_feature_auto(repo_with_single_feature: Path):
     """Test single feature auto-detect (only one feature exists)."""
     # Mock git to fail (force auto-detect)
@@ -706,8 +721,8 @@ def test_is_feature_complete_parse_error(tmp_path: Path):
     assert is_feature_complete(feature_dir) is False
 
 
-def test_detect_multiple_features_requires_explicit(tmp_path: Path):
-    """Multiple features with no context raises MultipleFeaturesError."""
+def test_detect_multiple_features_falls_back_to_latest_incomplete(tmp_path: Path):
+    """Multiple features with no context pick the latest incomplete feature."""
     repo_root = tmp_path / "repo"
     kitty_specs = repo_root / "kitty-specs"
     kitty_specs.mkdir(parents=True)
@@ -732,12 +747,11 @@ def test_detect_multiple_features_requires_explicit(tmp_path: Path):
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, "git")
 
-        with pytest.raises(MultipleFeaturesError) as exc_info:
-            detect_feature(repo_root, cwd=repo_root, mode="strict")
+        ctx = detect_feature(repo_root, cwd=repo_root, mode="strict")
 
-        error_msg = str(exc_info.value)
-        assert "Multiple features found" in error_msg
-        assert "--feature" in error_msg
+        assert ctx is not None
+        assert ctx.slug == "025-feature-b"
+        assert ctx.detection_method == "latest_incomplete"
 
 
 def test_detect_explicit_feature_wins_over_ambiguity(tmp_path: Path):

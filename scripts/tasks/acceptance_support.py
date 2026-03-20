@@ -7,6 +7,7 @@ the public API for backwards compatibility with standalone scripts.
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 
@@ -26,19 +27,31 @@ for _ in range(6):
             sys.path.insert(0, str(_src))
         break
 
-from specify_cli.acceptance import (  # noqa: E402
-    AcceptanceError,
-    AcceptanceMode,
-    AcceptanceResult,
-    AcceptanceSummary,
-    ArtifactEncodingError,
-    WorkPackageState,
-    choose_mode,
-    collect_feature_summary,
-    detect_feature_slug,
-    normalize_feature_encoding,
-    perform_acceptance,
+_EXPORT_NAMES = (
+    "AcceptanceError",
+    "AcceptanceMode",
+    "AcceptanceResult",
+    "AcceptanceSummary",
+    "ArtifactEncodingError",
+    "WorkPackageState",
+    "choose_mode",
+    "collect_feature_summary",
+    "detect_feature_slug",
+    "normalize_feature_encoding",
+    "perform_acceptance",
 )
+
+
+def _load_acceptance_api():
+    core = importlib.import_module("specify_cli.acceptance")
+    if all(hasattr(core, name) for name in _EXPORT_NAMES):
+        return {name: getattr(core, name) for name in _EXPORT_NAMES}
+
+    legacy = importlib.import_module("specify_cli.scripts.tasks.acceptance_support")
+    return {name: getattr(legacy, name) for name in _EXPORT_NAMES}
+
+
+globals().update(_load_acceptance_api())
 
 # Re-export task_helpers utilities that callers historically accessed
 # through this module (e.g. acc.run_git in tests).

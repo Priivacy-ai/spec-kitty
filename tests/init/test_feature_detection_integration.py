@@ -221,7 +221,7 @@ def test_error_messages_mention_feature_flag(repo_root: Path):
     # Check for helpful error messages
     assert "--feature" in content, "Error messages should mention --feature flag"
     assert "SPECIFY_FEATURE" in content, "Error messages should mention SPECIFY_FEATURE env var"
-    assert "Multiple features found" in content, "Should handle multiple features case"
+    assert "All features are complete" in content, "Should handle completed feature ambiguity"
 
 
 def test_error_messages_list_available_features(repo_root: Path):

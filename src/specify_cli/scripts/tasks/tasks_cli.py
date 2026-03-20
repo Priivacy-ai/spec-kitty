@@ -590,18 +590,23 @@ def merge_command(args: argparse.Namespace) -> None:
         run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip()
     )
     repo_root = local_root
-    feature = _resolve_feature(find_repo_root(), args.feature)
+    current_branch = run_git(
+        ["rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_root,
+        check=True,
+    ).stdout.strip()
+
+    if args.feature:
+        feature = args.feature
+    elif current_branch and current_branch != "HEAD":
+        feature = current_branch
+    else:
+        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
         args.target = resolve_primary_branch(repo_root)
-
-    current_branch = run_git([
-        "rev-parse",
-        "--abbrev-ref",
-        "HEAD",
-    ], cwd=repo_root, check=True).stdout.strip()
 
     if current_branch == args.target:
         raise TaskCliError(

@@ -11,6 +11,10 @@ import pkgutil
 from pathlib import Path
 
 
+class MigrationDiscoveryError(RuntimeError):
+    """Raised when a migration module cannot be imported cleanly."""
+
+
 def auto_discover_migrations() -> None:
     """
     Auto-discover and import all migration modules.
@@ -26,6 +30,8 @@ def auto_discover_migrations() -> None:
     by reloading already-imported modules (only if they're not already registered).
     """
     import sys
+
+    failures: list[str] = []
 
     # Get the migrations package directory
     migrations_dir = Path(__file__).parent
@@ -72,15 +78,15 @@ def auto_discover_migrations() -> None:
                     # Fresh import
                     importlib.import_module(f".{module_name}", package=__name__)
             except Exception as e:
-                # Log but don't fail - let the migration registry validation catch it
-                print(
-                    f"Warning: Failed to import migration module {module_name}: {e}",
-                    file=sys.stderr,
-                )
+                failures.append(f"{module_name}: {e}")
+
+    if failures:
+        joined = "; ".join(failures)
+        raise MigrationDiscoveryError(f"Failed to import migration module(s): {joined}")
 
 
 # Auto-discover all migrations on module import
 auto_discover_migrations()
 
 # Export the auto_discover function for testing
-__all__ = ["auto_discover_migrations"]
+__all__ = ["MigrationDiscoveryError", "auto_discover_migrations"]

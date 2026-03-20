@@ -244,7 +244,7 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> Optional[str]:
     # Walk up directory tree
     for parent in [cwd, *cwd.parents]:
         # Stop at repo root
-        if parent == repo_root or parent.parent == repo_root:
+        if parent == repo_root:
             break
 
         # Check for .worktrees/###-feature-name pattern
@@ -444,15 +444,13 @@ def detect_feature(
             detected_slug = all_features[0]
             detection_method = "single_auto"
         elif len(all_features) > 1:
-            # Multiple features: require explicit selection
             main_repo_root = _get_main_repo_root(repo_root)
             kitty_specs_dir = main_repo_root / "kitty-specs"
-            all_complete = all(
-                is_feature_complete(kitty_specs_dir / slug)
-                for slug in all_features
-            )
+            incomplete_features = [
+                slug for slug in all_features if not is_feature_complete(kitty_specs_dir / slug)
+            ]
 
-            if all_complete:
+            if not incomplete_features:
                 error_msg = (
                     f"All features are complete ({len(all_features)} features).\n\n"
                     + "Please specify explicitly using:\n"
@@ -462,20 +460,12 @@ def detect_feature(
                     + "  spec-kitty specify\n"
                     + "  /spec-kitty.specify  (in agent workflow)"
                 )
+                if mode == "strict":
+                    raise MultipleFeaturesError(all_features, error_msg)
+                return None
             else:
-                error_msg = (
-                    f"Multiple features found ({len(all_features)}), cannot auto-detect:\n"
-                    + "\n".join(f"  - {f}" for f in all_features[:10])
-                    + ("\n  ... and more" if len(all_features) > 10 else "")
-                    + "\n\nPlease specify explicitly using:\n"
-                    + "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
-                    + "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
-                    + "  Or run from inside a feature directory or worktree"
-                )
-
-            if mode == "strict":
-                raise MultipleFeaturesError(all_features, error_msg)
-            return None
+                detected_slug = incomplete_features[-1]
+                detection_method = "latest_incomplete"
         else:
             # No features found
             error_msg = (

@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+import typer
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
 
@@ -549,3 +551,30 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
     assert data["auto_committed"] is False
     assert len(data["warnings"]) == 1
     assert "review and commit manually" in data["warnings"][0]
+
+
+def test_upgrade_rejects_downgrade_target_in_json_mode(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Downgrade targets should fail before metadata is rewritten."""
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+
+    with pytest.raises(typer.Exit) as exc:
+        upgrade_cmd.upgrade(
+            dry_run=False,
+            force=True,
+            target="0.9.0",
+            json_output=True,
+            verbose=False,
+            no_worktrees=True,
+        )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert exc.value.exit_code == 1
+    assert data["status"] == "failed"
+    assert data["success"] is False
+    assert data["errors"] == ["Refusing to downgrade project metadata from 1.0.0a1 to 0.9.0"]

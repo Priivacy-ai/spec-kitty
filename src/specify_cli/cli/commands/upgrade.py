@@ -164,7 +164,7 @@ def upgrade(  # noqa: C901
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector
     from specify_cli.upgrade.registry import MigrationRegistry
-    from specify_cli.upgrade.runner import MigrationRunner
+    from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
 
     # Import migrations to register them
     from specify_cli.upgrade import migrations  # noqa: F401
@@ -180,6 +180,27 @@ def upgrade(  # noqa: C901
         target_version = __version__
     else:
         target_version = target
+
+    validation_error = validate_upgrade_target(current_version, target_version)
+    if validation_error:
+        if json_output:
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "current_version": current_version,
+                        "target_version": target_version,
+                        "success": False,
+                        "errors": [validation_error],
+                        "warnings": [],
+                        "auto_committed": False,
+                        "auto_commit_paths": [],
+                    }
+                )
+            )
+        else:
+            console.print(f"[red]Error:[/red] {validation_error}")
+        raise typer.Exit(1)
 
     if not json_output:
         console.print(f"[cyan]Current version:[/cyan] {current_version}")

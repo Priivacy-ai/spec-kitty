@@ -20,6 +20,7 @@ import pytest
 pytestmark = pytest.mark.git_repo
 
 GitignoreManager = gitignore_manager.GitignoreManager
+TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
 
 def test_init_flow_fresh_project():
     """Test init flow with a fresh project (no .gitignore)."""
@@ -33,7 +34,7 @@ def test_init_flow_fresh_project():
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should create new .gitignore"
-        assert len(result.entries_added) == 24, "Should add all 13 agents + 11 runtime paths"
+        assert len(result.entries_added) == TOTAL_PROTECTED_ENTRIES, "Should add all protected agent/runtime paths"
 
         # Verify file exists and has correct content
         gitignore_path = project_path / ".gitignore"
@@ -70,7 +71,7 @@ dist/
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should modify existing .gitignore"
-        assert len(result.entries_added) == 24, "Should add all 13 agents + 11 runtime paths"
+        assert len(result.entries_added) == TOTAL_PROTECTED_ENTRIES, "Should add all protected agent/runtime paths"
 
         # Verify existing content is preserved
         content = gitignore_path.read_text()
@@ -95,14 +96,14 @@ def test_init_flow_idempotency():
         result1 = manager1.protect_all_agents()
         assert result1.success
         assert result1.modified
-        assert len(result1.entries_added) == 24
+        assert len(result1.entries_added) == TOTAL_PROTECTED_ENTRIES
 
         # Second init (should do nothing)
         manager2 = GitignoreManager(project_path)
         result2 = manager2.protect_all_agents()
         assert result2.success
         assert not result2.modified, "Should not modify on second run"
-        assert len(result2.entries_skipped) == 24
+        assert len(result2.entries_skipped) == TOTAL_PROTECTED_ENTRIES
         assert len(result2.entries_added) == 0
 
         # Third init (still should do nothing)
@@ -146,8 +147,8 @@ node_modules/
         assert ".claude/" in result.entries_skipped
         assert ".gemini/" in result.entries_skipped
 
-        # Check that new ones were added (should be 21 - 24 total minus 3 existing)
-        assert len(result.entries_added) == 21
+        expected_new_entries = TOTAL_PROTECTED_ENTRIES - 3
+        assert len(result.entries_added) == expected_new_entries
         assert ".cursor/" in result.entries_added
 
         # Verify no duplicates in file
