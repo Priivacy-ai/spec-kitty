@@ -22,6 +22,7 @@ from specify_cli.skills.manifest import (
     load_manifest,
     write_manifest,
 )
+from specify_cli.skills.verification import verify_installation
 
 runner = CliRunner()
 
@@ -318,6 +319,38 @@ class TestSyncManifestUpdate:
         assert updated_manifest is not None
         # The removed root should no longer appear
         assert ".agents/skills/" not in updated_manifest.installed_skill_roots
+
+    def test_manifest_tracks_recreated_wrappers_for_wrapper_only_agent(
+        self, tmp_path: Path
+    ) -> None:
+        """Recreated wrapper-only surfaces must be added back into the manifest."""
+        project = _make_project(tmp_path, ["q"])
+        _make_manifest(
+            project,
+            selected_agents=["q"],
+            installed_skill_roots=[],
+        )
+        missions_dir = project / ".kittify" / "missions" / "software-dev" / "command-templates"
+        missions_dir.mkdir(parents=True, exist_ok=True)
+        (missions_dir / "specify.md").write_text("body", encoding="utf-8")
+
+        with patch(
+            "specify_cli.cli.commands.agent.config.find_repo_root",
+            return_value=project,
+        ):
+            result = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned"])
+
+        assert result.exit_code == 0
+
+        updated_manifest = load_manifest(project)
+        assert updated_manifest is not None
+        wrapper_paths = [
+            mf.path for mf in updated_manifest.managed_files if mf.file_type == "wrapper"
+        ]
+        assert wrapper_paths == [".amazonq/prompts/spec-kitty.specify.md"]
+
+        verification = verify_installation(project, ["q"], updated_manifest)
+        assert verification.passed is True
 
     def test_no_manifest_skips_skill_sync(self, tmp_path: Path) -> None:
         """When no manifest exists, skill root sync is skipped entirely."""

@@ -11,13 +11,19 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.core.agent_surface import get_agent_surface
 from specify_cli.core.agent_config import (
     load_agent_config,
     save_agent_config,
     AgentConfig,
     AgentConfigError,
 )
-from specify_cli.skills.manifest import load_manifest, write_manifest
+from specify_cli.skills.manifest import (
+    ManagedFile,
+    compute_file_hash,
+    load_manifest,
+    write_manifest,
+)
 from specify_cli.skills.roots import resolve_skill_roots
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
@@ -46,6 +52,53 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
     except AgentConfigError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+
+def _refresh_manifest_from_filesystem(
+    repo_root: Path,
+    config: AgentConfig,
+    manifest,
+) -> None:
+    """Rebuild manifest state from the current config and filesystem."""
+    managed_files: list[ManagedFile] = []
+    installed_roots: list[str] = []
+
+    expected_roots = resolve_skill_roots(config.available, mode=manifest.skills_mode)
+    for root in expected_roots:
+        root_path = repo_root / root
+        if not root_path.exists():
+            continue
+        installed_roots.append(root)
+        gitkeep = root_path / ".gitkeep"
+        if gitkeep.exists():
+            managed_files.append(
+                ManagedFile(
+                    path=str(Path(root) / ".gitkeep"),
+                    sha256=compute_file_hash(gitkeep),
+                    file_type="skill_root_marker",
+                )
+            )
+
+    for agent_key in config.available:
+        surface = get_agent_surface(agent_key)
+        wrapper_dir = repo_root / surface.wrapper.dir
+        if not wrapper_dir.exists():
+            continue
+        for wrapper_file in sorted(wrapper_dir.iterdir()):
+            if wrapper_file.is_file() and wrapper_file.name.startswith("spec-kitty."):
+                managed_files.append(
+                    ManagedFile(
+                        path=str(wrapper_file.relative_to(repo_root)),
+                        sha256=compute_file_hash(wrapper_file),
+                        file_type="wrapper",
+                    )
+                )
+
+    manifest.selected_agents = list(config.available)
+    manifest.installed_skill_roots = sorted(installed_roots)
+    manifest.managed_files = managed_files
+    manifest.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    write_manifest(repo_root, manifest)
 
 
 @app.command(name="list")
@@ -157,6 +210,9 @@ def add_agents(
     if added:
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
+        manifest = load_manifest(repo_root)
+        if manifest is not None:
+            _refresh_manifest_from_filesystem(repo_root, config, manifest)
 
     if already_configured:
         console.print(f"\n[dim]Already configured:[/dim] {', '.join(already_configured)}")
@@ -232,6 +288,9 @@ def remove_agents(
     if not keep_config and (removed or any(a in config.available for a in agents)):
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed)}")
+        manifest = load_manifest(repo_root)
+        if manifest is not None:
+            _refresh_manifest_from_filesystem(repo_root, config, manifest)
 
     if errors:
         console.print("\n[yellow]Warnings:[/yellow]")
@@ -430,18 +489,7 @@ def sync_agents(
 
     # T031: Update manifest after sync changes
     if changes_made and manifest:
-        # Recompute installed roots: keep only those that still exist
-        manifest.installed_skill_roots = [
-            root for root in manifest.installed_skill_roots
-            if (repo_root / root).exists()
-        ]
-        # Add any newly created roots not already tracked
-        for root in expected_roots:
-            if root not in manifest.installed_skill_roots and (repo_root / root).exists():
-                manifest.installed_skill_roots.append(root)
-        manifest.installed_skill_roots.sort()
-        manifest.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        write_manifest(repo_root, manifest)
+        _refresh_manifest_from_filesystem(repo_root, config, manifest)
 
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")
