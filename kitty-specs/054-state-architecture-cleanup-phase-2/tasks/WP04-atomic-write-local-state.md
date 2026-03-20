@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Atomic Write Conversion — Local State Files
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 054-state-architecture-cleanup-phase-2-WP01
 base_commit: b989de5f96e3c9e6c776a952a010cdeacc2e69e8
@@ -14,8 +14,8 @@ subtasks:
 - T018
 phase: Phase 2 - Hardening
 assignee: ''
-agent: coordinator
-shell_pid: '94470'
+agent: "codex"
+shell_pid: "2881"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -217,3 +217,4 @@ Run: `pytest tests/ -k "runtime_bridge or workspace_context or constitution or d
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
 - 2026-03-20T14:00:40Z – coordinator – shell_pid=94470 – lane=doing – Assigned agent via workflow command
 - 2026-03-20T14:03:40Z – coordinator – shell_pid=94470 – lane=for_review – Ready for review
+- 2026-03-20T14:04:05Z – codex – shell_pid=2881 – lane=doing – Started review via workflow command
