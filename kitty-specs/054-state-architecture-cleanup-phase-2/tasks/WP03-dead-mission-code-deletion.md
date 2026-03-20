@@ -14,7 +14,7 @@ subtasks:
 - T013
 phase: Phase 1 - Core Cleanup
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "88054"
 review_status: ''
 reviewed_by: ''
@@ -176,3 +176,4 @@ spec-kitty implement WP03 --base WP02
 ## Activity Log
 
 - 2026-03-20T13:39:48Z – system – lane=planned – Prompt created.
+- 2026-03-20T14:42:46Z – coordinator – shell_pid=88054 – lane=doing – Assigned agent via workflow command
