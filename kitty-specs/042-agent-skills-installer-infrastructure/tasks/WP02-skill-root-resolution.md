@@ -1,8 +1,11 @@
 ---
 work_package_id: WP02
 title: Skill Root Resolution
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 042-agent-skills-installer-infrastructure-WP01
+base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
+created_at: '2026-03-20T16:58:22.384743+00:00'
 subtasks:
 - T008
 - T009
@@ -12,7 +15,7 @@ subtasks:
 phase: Phase 1 - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "68466"
 review_status: ''
 reviewed_by: ''
 history:
