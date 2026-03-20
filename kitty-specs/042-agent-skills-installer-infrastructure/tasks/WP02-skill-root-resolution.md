@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Skill Root Resolution
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 042-agent-skills-installer-infrastructure-WP01
 base_commit: 06eb8070106b6ece8424249f8a245949d4c4169b
@@ -14,8 +14,8 @@ subtasks:
 - T012
 phase: Phase 1 - Foundation
 assignee: ''
-agent: coordinator
-shell_pid: '91362'
+agent: "codex"
+shell_pid: "96492"
 review_status: has_feedback
 reviewed_by: Robert Douglass
 review_feedback: feedback://042-agent-skills-installer-infrastructure/WP02/20260320T170636Z-e7183cd3.md
@@ -295,3 +295,4 @@ def test_no_duplicates():
 - 2026-03-20T17:06:37Z – codex – shell_pid=77176 – lane=planned – Moved to planned
 - 2026-03-20T17:07:40Z – coordinator – shell_pid=91362 – lane=doing – Started implementation via workflow command
 - 2026-03-20T17:09:31Z – coordinator – shell_pid=91362 – lane=for_review – Fixed: added type: ignore[misc] to parametrize decorator per reviewer feedback. mypy --strict now clean on all WP02 files. 28 tests passing.
+- 2026-03-20T17:10:40Z – codex – shell_pid=96492 – lane=doing – Started review via workflow command
