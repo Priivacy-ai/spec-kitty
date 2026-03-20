@@ -43,7 +43,7 @@ Build a customer dashboard showing:
 1. **Share screen** showing `kitty-specs/002-customer-dashboard/spec.md`
 2. **Walk through** user stories and acceptance criteria
 3. **Client feedback** → Update spec.md live
-4. **Confirm scope** → Run `/spec-kitty.clarify` to ask client targeted questions
+4. **Confirm scope** → Resolve open questions directly in `spec.md` before planning
 5. **Show dashboard** → Client sees feature card appear
 
 **After Meeting:**

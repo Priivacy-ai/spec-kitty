@@ -941,7 +941,6 @@ def init(  # noqa: C901
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",  # noqa: E501
         "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",  # noqa: E501
         "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]

@@ -12,7 +12,6 @@ EXPECTED_TEMPLATES = {
     "accept.md",
     "analyze.md",
     "checklist.md",
-    "clarify.md",
     "constitution.md",
     "dashboard.md",
     "implement.md",
