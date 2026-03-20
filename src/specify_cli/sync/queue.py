@@ -25,7 +25,9 @@ DEFAULT_MAX_QUEUE_SIZE = 100_000
 # row.  This prevents high-volume instrumentation from flooding the queue.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
     "MissionDossierArtifactIndexed": ["feature_slug", "artifact_key"],
-    "MissionDossierSnapshotComputed": ["feature_slug", "snapshot_id"],
+    # Snapshot IDs are regenerated on each scan, so coalesce by feature to
+    # keep only the latest snapshot queued for a given dossier.
+    "MissionDossierSnapshotComputed": ["feature_slug"],
 }
 
 

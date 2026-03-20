@@ -66,7 +66,7 @@ class TestCoalesceKey:
             "payload": {"feature_slug": "010-my-feature", "snapshot_id": "snap-001"},
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierSnapshotComputed|010-my-feature|snap-001"
+        assert key == "MissionDossierSnapshotComputed|010-my-feature"
 
     def test_missing_payload_fields_produce_empty_parts(self):
         event = {"event_type": "MissionDossierArtifactIndexed", "payload": {}}
@@ -161,14 +161,17 @@ class TestEventCoalescing:
         assert small_queue.size() == 5  # still at capacity, not 6
 
     def test_snapshot_computed_coalesces(self, temp_queue: OfflineQueue):
-        """MissionDossierSnapshotComputed should also coalesce."""
+        """MissionDossierSnapshotComputed should keep only the latest snapshot per feature."""
         for i in range(10):
             temp_queue.queue_event({
                 "event_id": f"snap-{i}",
                 "event_type": "MissionDossierSnapshotComputed",
-                "payload": {"feature_slug": "010-feat", "snapshot_id": "snap-latest"},
+                "payload": {"feature_slug": "010-feat", "snapshot_id": f"snap-{i}"},
             })
         assert temp_queue.size() == 1
+        events = temp_queue.drain_queue()
+        assert events[0]["event_id"] == "snap-9"
+        assert events[0]["payload"]["snapshot_id"] == "snap-9"
 
 
 # ---------------------------------------------------------------------------
