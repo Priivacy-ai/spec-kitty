@@ -206,7 +206,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             if lane not in LANES:
                 continue
             for path in sorted(lane_dir.rglob("*.md")):
-                text = path.read_text(encoding="utf-8-sig")
+                text = _read_text_strict(path)
                 front, body, padding = split_frontmatter(text)
                 relative = path.relative_to(lane_dir)
                 yield WorkPackage(
@@ -223,7 +223,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
         for path in sorted(tasks_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
-            text = path.read_text(encoding="utf-8-sig")
+            text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
             # Get lane from frontmatter
             lane = get_lane_from_frontmatter(path, warn_on_missing=False)
@@ -293,7 +293,7 @@ def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
         return ["tasks.md missing"]
 
     unchecked: List[str] = []
-    for line in tasks_file.read_text(encoding="utf-8-sig").splitlines():
+    for line in _read_text_strict(tasks_file).splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
@@ -303,7 +303,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     results: List[str] = []
     for file_path in files:
         if file_path.exists():
-            text = file_path.read_text(encoding="utf-8-sig")
+            text = _read_text_strict(file_path)
             if "[NEEDS CLARIFICATION" in text:
                 results.append(str(file_path))
     return results
@@ -509,7 +509,7 @@ def collect_feature_summary(
 
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
+            if wp.current_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")

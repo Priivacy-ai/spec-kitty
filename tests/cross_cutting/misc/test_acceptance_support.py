@@ -28,8 +28,11 @@ def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, feat
 def test_detect_feature_slug_prefers_env(
     feature_repo: Path, feature_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("SPECIFY_FEATURE", "999-from-env")
-    assert acc.detect_feature_slug(feature_repo) == "999-from-env"
+    # Create the feature directory so centralized detection doesn't reject it
+    env_feature = "999-from-env"
+    (feature_repo / "kitty-specs" / env_feature).mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPECIFY_FEATURE", env_feature)
+    assert acc.detect_feature_slug(feature_repo) == env_feature
 
 
 def test_detect_feature_slug_from_branch(feature_repo: Path, feature_slug: str) -> None:
@@ -55,7 +58,7 @@ def test_perform_acceptance_without_commit(feature_repo: Path, feature_slug: str
 
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
     assert summary.lanes["planned"] == []
-    assert summary.lanes["doing"] == []
+    assert summary.lanes.get("doing", summary.lanes.get("in_progress", [])) == []
     assert summary.lanes["for_review"] == []
     assert summary.metadata_issues == []
     assert summary.activity_issues == []
