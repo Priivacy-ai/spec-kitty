@@ -1,8 +1,8 @@
 {
-  "event_count": 46,
+  "event_count": 47,
   "feature_slug": "054-state-architecture-cleanup-phase-2",
-  "last_event_id": "01KM5T16VV7RFRK9RRJXEMC2WB",
-  "materialized_at": "2026-03-20T14:22:48.187479+00:00",
+  "last_event_id": "01KM5TA9QFQ9EK4974WB5TVADE",
+  "materialized_at": "2026-03-20T14:27:46.032861+00:00",
   "summary": {
     "approved": 5,
     "blocked": 0,
@@ -10,8 +10,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "planned": 1
+    "in_progress": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -50,11 +50,11 @@
       "last_transition_at": "2026-03-20T13:59:41.789358+00:00"
     },
     "WP07": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KM5SZW26NVC52J3Q3DBBNYEF",
-      "last_transition_at": "2026-03-20T14:22:04.358708+00:00"
+      "lane": "planned",
+      "last_event_id": "01KM5TA9QFQ9EK4974WB5TVADE",
+      "last_transition_at": "2026-03-20T14:27:46.031996+00:00"
     },
     "WP08": {
       "actor": "user",
