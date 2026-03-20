@@ -8,6 +8,7 @@ from pathlib import Path
 from ..constitution_path import resolve_project_constitution_path
 from ..diagnostics import run_diagnostics
 from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
+from specify_cli.core.feature_detection import detect_feature
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
 from specify_cli.mission import MissionError, get_mission_by_name
@@ -88,17 +89,15 @@ class APIHandler(DashboardHandler):
         """Run diagnostics and report JSON payloads (or errors)."""
         try:
             project_path = Path(self.project_dir).resolve()
-            # Detect active feature to resolve per-feature mission context
+            # Detect active feature to resolve per-feature mission context.
+            # Use detect_feature() directly — resolve_active_feature() falls
+            # back to the first scanned feature when detection fails, which
+            # would bind diagnostics to an arbitrary feature on integration branches.
             feature_dir = None
             try:
-                features = scan_all_features(project_path)
-                active_feature = resolve_active_feature(project_path, features)
-                if active_feature:
-                    rel_path = active_feature.get("path")
-                    if rel_path is not None:
-                        candidate = project_path / rel_path
-                        if candidate.is_dir():
-                            feature_dir = candidate
+                context = detect_feature(project_path, cwd=project_path, mode="lenient")
+                if context and context.directory and context.directory.is_dir():
+                    feature_dir = context.directory
             except Exception:  # noqa: S110 – feature detection is best-effort
                 pass  # Diagnostics should still run without feature context
             diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)

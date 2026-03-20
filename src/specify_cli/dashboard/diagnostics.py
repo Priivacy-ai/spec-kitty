@@ -122,7 +122,12 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
         })
 
     try:
-        feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
+        # When feature_dir is provided by the caller, derive the slug from it
+        # to stay consistent with the mission resolution above.
+        if feature_dir is not None:
+            feature_slug = feature_dir.name
+        else:
+            feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
         if feature_slug:
             feature_status = worktree_status.get_feature_status(feature_slug.strip())
             diagnostics['current_feature'] = {

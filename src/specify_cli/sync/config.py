@@ -18,7 +18,8 @@ class SyncConfig:
             return "https://spec-kitty-dev.fly.dev"  # Default
 
         config = toml.load(self.config_file)
-        return config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
+        url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
+        return str(url)
 
     def set_server_url(self, url: str):
         """Set server URL in config"""
