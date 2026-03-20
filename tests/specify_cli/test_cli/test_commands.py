@@ -172,7 +172,7 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
     assert data["feature"] == "001-demo-feature"
 
 
-def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Path) -> None:
+def test_accept_json_auto_detect_feature(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
@@ -188,16 +188,8 @@ def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Pat
         def to_dict(self) -> dict[str, object]:
             return {"feature": self.feature, "lanes": self.lanes}
 
-    captured: dict[str, object] = {}
-
-    def fake_detect(_repo_root, *, announce_fallback=True):
-        captured["announce_fallback"] = announce_fallback
-        if announce_fallback:
-            print("ℹ️  Auto-selected latest incomplete: 002-auto-feature")
-        return "002-auto-feature"
-
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(accept_module, "detect_feature_slug", fake_detect)
+    monkeypatch.setattr(accept_module, "detect_feature_slug", lambda _repo_root: "002-auto-feature")
     monkeypatch.setattr(accept_module, "choose_mode", lambda mode, _repo_root: mode)
     monkeypatch.setattr(accept_module, "collect_feature_summary", lambda *args, **kwargs: DummySummary())
 
@@ -207,7 +199,6 @@ def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Pat
     )
 
     assert result.exit_code == 0
-    assert captured["announce_fallback"] is False
     assert result.stdout.lstrip().startswith("{")
     data = json.loads(result.stdout)
     assert data["feature"] == "002-auto-feature"

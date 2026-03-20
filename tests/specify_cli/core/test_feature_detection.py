@@ -705,141 +705,9 @@ def test_is_feature_complete_parse_error(tmp_path: Path):
     assert is_feature_complete(feature_dir) is False
 
 
-def test_find_latest_incomplete_multiple(tmp_path: Path):
-    """Test find_latest_incomplete_feature with multiple incomplete features."""
-    from specify_cli.core.feature_detection import find_latest_incomplete_feature
-
+def test_detect_multiple_features_raises_when_incomplete_exist(tmp_path: Path):
+    """Test that multiple features (even with incomplete ones) raises MultipleFeaturesError."""
     # Create repo with multiple features
-    repo_root = tmp_path / "repo"
-    kitty_specs = repo_root / "kitty-specs"
-    kitty_specs.mkdir(parents=True)
-
-    # Feature 001 - complete
-    feature_001 = kitty_specs / "001-feature-a"
-    tasks_001 = feature_001 / "tasks"
-    tasks_001.mkdir(parents=True)
-    (tasks_001 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
-    )
-
-    # Feature 002 - incomplete
-    feature_002 = kitty_specs / "002-feature-b"
-    tasks_002 = feature_002 / "tasks"
-    tasks_002.mkdir(parents=True)
-    (tasks_002 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
-    )
-
-    # Feature 003 - incomplete (should be selected as latest)
-    feature_003 = kitty_specs / "003-feature-c"
-    tasks_003 = feature_003 / "tasks"
-    tasks_003.mkdir(parents=True)
-    (tasks_003 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: planned\n---\n"
-    )
-
-    latest = find_latest_incomplete_feature(repo_root)
-    assert latest == "003-feature-c"
-
-
-def test_find_latest_incomplete_all_complete(tmp_path: Path):
-    """Test find_latest_incomplete_feature when all features are complete."""
-    from specify_cli.core.feature_detection import find_latest_incomplete_feature
-
-    repo_root = tmp_path / "repo"
-    kitty_specs = repo_root / "kitty-specs"
-    kitty_specs.mkdir(parents=True)
-
-    # Both features complete
-    for slug in ["001-feature-a", "002-feature-b"]:
-        feature_dir = kitty_specs / slug
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
-        )
-
-    latest = find_latest_incomplete_feature(repo_root)
-    assert latest is None
-
-
-def test_find_latest_incomplete_no_features(tmp_path: Path):
-    """Test find_latest_incomplete_feature when no features exist."""
-    from specify_cli.core.feature_detection import find_latest_incomplete_feature
-
-    repo_root = tmp_path / "repo"
-    kitty_specs = repo_root / "kitty-specs"
-    kitty_specs.mkdir(parents=True)
-
-    latest = find_latest_incomplete_feature(repo_root)
-    assert latest is None
-
-
-def test_detect_fallback_to_latest_incomplete(tmp_path: Path):
-    """Test Priority 6: fallback to latest incomplete feature."""
-    # Create repo with multiple features
-    repo_root = tmp_path / "repo"
-    kitty_specs = repo_root / "kitty-specs"
-    kitty_specs.mkdir(parents=True)
-
-    # Feature 020 - complete
-    feature_020 = kitty_specs / "020-feature-a"
-    tasks_020 = feature_020 / "tasks"
-    tasks_020.mkdir(parents=True)
-    (tasks_020 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
-    )
-
-    # Feature 025 - incomplete (should be auto-selected)
-    feature_025 = kitty_specs / "025-feature-b"
-    tasks_025 = feature_025 / "tasks"
-    tasks_025.mkdir(parents=True)
-    (tasks_025 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
-    )
-
-    # Mock git to fail (force fallback)
-    with patch("subprocess.run") as mock_run:
-        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
-
-        ctx = detect_feature(repo_root, cwd=repo_root, mode="strict")
-
-        assert ctx is not None
-        assert ctx.slug == "025-feature-b"
-        assert ctx.detection_method == "fallback_latest_incomplete"
-
-
-def test_detect_fallback_respects_explicit_feature(tmp_path: Path):
-    """Test fallback does NOT activate when explicit feature is provided."""
-    repo_root = tmp_path / "repo"
-    kitty_specs = repo_root / "kitty-specs"
-    kitty_specs.mkdir(parents=True)
-
-    # Create complete and incomplete features
-    feature_020 = kitty_specs / "020-complete"
-    tasks_020 = feature_020 / "tasks"
-    tasks_020.mkdir(parents=True)
-    (tasks_020 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
-    )
-
-    feature_025 = kitty_specs / "025-incomplete"
-    tasks_025 = feature_025 / "tasks"
-    tasks_025.mkdir(parents=True)
-    (tasks_025 / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
-    )
-
-    # Explicit feature should win (Priority 1), not fallback (Priority 6)
-    ctx = detect_feature(repo_root, explicit_feature="020-complete")
-
-    assert ctx.slug == "020-complete"
-    assert ctx.detection_method == "explicit"
-
-
-def test_detect_fallback_disabled_by_allow_latest_incomplete_fallback(tmp_path: Path):
-    """Test that allow_latest_incomplete_fallback=False suppresses Priority 6 fallback."""
-    # Same setup as test_detect_fallback_to_latest_incomplete
     repo_root = tmp_path / "repo"
     kitty_specs = repo_root / "kitty-specs"
     kitty_specs.mkdir(parents=True)
@@ -860,23 +728,44 @@ def test_detect_fallback_disabled_by_allow_latest_incomplete_fallback(tmp_path: 
         "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
     )
 
-    # Mock git to fail (force past priorities 3-4)
+    # Mock git to fail (force auto-detect path)
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, "git")
 
-        # With fallback disabled, should raise MultipleFeaturesError instead of
-        # silently picking 025-feature-b
         with pytest.raises(MultipleFeaturesError) as exc_info:
-            detect_feature(
-                repo_root,
-                cwd=repo_root,
-                mode="strict",
-                allow_latest_incomplete_fallback=False,
-            )
+            detect_feature(repo_root, cwd=repo_root, mode="strict")
 
         error_msg = str(exc_info.value)
         assert "Multiple features found" in error_msg
         assert "--feature" in error_msg
+
+
+def test_detect_explicit_feature_wins_over_multiple(tmp_path: Path):
+    """Test explicit feature wins when multiple features exist."""
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    kitty_specs.mkdir(parents=True)
+
+    # Create complete and incomplete features
+    feature_020 = kitty_specs / "020-complete"
+    tasks_020 = feature_020 / "tasks"
+    tasks_020.mkdir(parents=True)
+    (tasks_020 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
+    )
+
+    feature_025 = kitty_specs / "025-incomplete"
+    tasks_025 = feature_025 / "tasks"
+    tasks_025.mkdir(parents=True)
+    (tasks_025 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
+    )
+
+    # Explicit feature should win (Priority 1)
+    ctx = detect_feature(repo_root, explicit_feature="020-complete")
+
+    assert ctx.slug == "020-complete"
+    assert ctx.detection_method == "explicit"
 
 
 def test_detect_fallback_error_when_all_complete(tmp_path: Path):
@@ -906,8 +795,8 @@ def test_detect_fallback_error_when_all_complete(tmp_path: Path):
         assert "spec-kitty specify" in error_msg
 
 
-def test_detect_fallback_respects_priority_order(tmp_path: Path):
-    """Test fallback (Priority 6) is lower than cwd detection (Priority 4)."""
+def test_detect_cwd_wins_over_error_with_multiple_features(tmp_path: Path):
+    """Test cwd detection (Priority 4) wins when multiple features exist."""
     repo_root = tmp_path / "repo"
     kitty_specs = repo_root / "kitty-specs"
     kitty_specs.mkdir(parents=True)

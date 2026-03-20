@@ -418,7 +418,6 @@ class TestFinalizeTasksCommand:
         assert args[0] == tmp_path
         assert isinstance(args[1], Path)
         assert kwargs["explicit_feature"] == "001-test"
-        assert kwargs["allow_latest_incomplete_fallback"] is False
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -792,27 +791,25 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_finds_latest_feature_in_main_repo(
+    def test_raises_error_with_multiple_features_in_main_repo(
         self, mock_is_worktree: Mock, tmp_path: Path
     ):
-        """Should find highest numbered feature in main repo."""
+        """Should raise error when multiple features exist (no auto-selection)."""
         # Setup
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
         mock_is_worktree.return_value = False
 
-        # Create main repo structure
+        # Create main repo structure with multiple features
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         (kitty_specs / "001-feature").mkdir()
         (kitty_specs / "003-feature").mkdir()
         (kitty_specs / "002-feature").mkdir()
 
-        # Execute
-        result = _find_feature_directory(tmp_path, tmp_path)
-
-        # Verify
-        assert result == kitty_specs / "003-feature"
+        # Execute & Verify - should raise because multiple features and no context
+        with pytest.raises(ValueError, match="Multiple features found"):
+            _find_feature_directory(tmp_path, tmp_path)
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
     def test_raises_error_when_no_features_in_main_repo(
