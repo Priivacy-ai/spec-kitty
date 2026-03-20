@@ -203,6 +203,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/constitution/directives.yaml",
         ".kittify/constitution/governance.yaml",
         ".kittify/constitution/metadata.yaml",
+        ".kittify/constitution/references.yaml",
         ".kittify/dossiers/",
         ".kittify/events/",
         ".kittify/merge-state.json",
@@ -291,34 +292,49 @@ def test_deprecated_authority_class():
 
 
 # ---------------------------------------------------------------------------
-# Constitution deferred notes
+# Constitution Git policy (feature 054)
 # ---------------------------------------------------------------------------
 
 
-def test_constitution_deferred_notes():
-    """Constitution surfaces with deferred git decisions have notes."""
-    deferred = [s for s in STATE_SURFACES if "deferred" in s.notes.lower()]
-    assert len(deferred) >= 3, (
-        f"Expected at least 3 deferred surfaces (answers, references, library), got {len(deferred)}"
+def test_constitution_references_is_local_runtime_ignored():
+    """constitution_references must be LOCAL_RUNTIME / IGNORED (local machine state)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "constitution_references")
+    assert surface.authority == AuthorityClass.LOCAL_RUNTIME, (
+        f"Expected LOCAL_RUNTIME, got {surface.authority}"
     )
-    deferred_names = {s.name for s in deferred}
-    assert "constitution_interview_answers" in deferred_names
-    assert "constitution_references" in deferred_names
-    assert "constitution_library" in deferred_names
+    assert surface.git_class == GitClass.IGNORED, (
+        f"Expected IGNORED, got {surface.git_class}"
+    )
 
 
-def test_constitution_deferred_git_class():
-    """Constitution deferred surfaces use INSIDE_REPO_NOT_IGNORED."""
-    deferred_names = {
-        "constitution_interview_answers",
-        "constitution_references",
-        "constitution_library",
-    }
-    for s in STATE_SURFACES:
-        if s.name in deferred_names:
-            assert s.git_class == GitClass.INSIDE_REPO_NOT_IGNORED, (
-                f"{s.name} should use INSIDE_REPO_NOT_IGNORED, got {s.git_class}"
-            )
+def test_constitution_library_is_authoritative_tracked():
+    """constitution_library must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "constitution_library")
+    assert surface.authority == AuthorityClass.AUTHORITATIVE, (
+        f"Expected AUTHORITATIVE, got {surface.authority}"
+    )
+    assert surface.git_class == GitClass.TRACKED, (
+        f"Expected TRACKED, got {surface.git_class}"
+    )
+
+
+def test_constitution_answers_is_authoritative_tracked():
+    """constitution_interview_answers must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "constitution_interview_answers")
+    assert surface.authority == AuthorityClass.AUTHORITATIVE, (
+        f"Expected AUTHORITATIVE, got {surface.authority}"
+    )
+    assert surface.git_class == GitClass.TRACKED, (
+        f"Expected TRACKED, got {surface.git_class}"
+    )
+
+
+def test_no_deferred_notes_remain():
+    """No state surface notes field should contain the word 'deferred'."""
+    deferred = [s for s in STATE_SURFACES if "deferred" in s.notes.lower()]
+    assert len(deferred) == 0, (
+        f"Found surfaces with deferred notes: {[s.name for s in deferred]}"
+    )
 
 
 # ---------------------------------------------------------------------------
