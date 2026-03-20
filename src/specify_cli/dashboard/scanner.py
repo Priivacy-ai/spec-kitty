@@ -136,6 +136,20 @@ def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
     return f"~{os.sep}{relative_str}"
 
 
+def format_feature_display_name(feature_id: str, friendly_name: str) -> str:
+    """Return a dashboard label that preserves the numeric feature prefix."""
+    label = friendly_name.strip() or feature_id
+    number_match = re.match(r"^(\d+)", feature_id)
+    if not number_match:
+        return label
+
+    feature_number = number_match.group(1)
+    if re.match(rf"^{re.escape(feature_number)}(?:\b|[-:_\s])", label):
+        return label
+
+    return f"{feature_number} - {label}"
+
+
 def work_package_sort_key(task: Dict[str, Any]) -> tuple:
     """Provide a natural sort key for work package identifiers."""
     work_id = str(task.get("id", "")).strip()
@@ -350,11 +364,13 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         worktree_root = project_dir / ".worktrees"
         worktree_path = worktree_root / feature_dir.name
         worktree_exists = worktree_path.exists()
+        display_name = format_feature_display_name(feature_id, friendly_name)
 
         features.append(
             {
                 "id": feature_id,
                 "name": friendly_name,
+                "display_name": display_name,
                 "path": str(feature_dir.relative_to(project_dir)),
                 "artifacts": artifacts,
                 "workflow": workflow,
