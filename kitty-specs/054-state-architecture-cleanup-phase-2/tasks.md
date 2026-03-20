@@ -393,7 +393,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: for_review
+- WP01: in_progress
 - WP06: in_progress
 - WP08: for_review
 <!-- status-model:end -->
