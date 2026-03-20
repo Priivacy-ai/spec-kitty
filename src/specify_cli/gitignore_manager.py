@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
+from specify_cli.state_contract import get_runtime_gitignore_entries
+
 
 @dataclass
 class AgentDirectory:
@@ -70,10 +72,8 @@ AGENT_DIRECTORIES = [
 ]
 
 # Runtime/generated artifacts that should never be tracked.
-RUNTIME_PROTECTED_ENTRIES = [
-    ".kittify/.dashboard",
-    ".kittify/missions/__pycache__/",
-]
+# Derived from the state contract -- not hardcoded.
+RUNTIME_PROTECTED_ENTRIES = get_runtime_gitignore_entries()
 
 
 class GitignoreManager:

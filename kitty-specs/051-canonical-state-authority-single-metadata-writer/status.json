@@ -1,0 +1,53 @@
+{
+  "event_count": 53,
+  "feature_slug": "051-canonical-state-authority-single-metadata-writer",
+  "last_event_id": "01KM2MDKRBCQ9KQX3K7ZC6C8W9",
+  "materialized_at": "2026-03-19T08:46:59.851571+00:00",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 9,
+      "lane": "done",
+      "last_event_id": "01KM2MDERHVCHZA0TP401BSVWN",
+      "last_transition_at": "2026-03-19T08:46:54.737527+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 11,
+      "lane": "done",
+      "last_event_id": "01KM2MDG2ZTV0150T8T84BXB6Q",
+      "last_transition_at": "2026-03-19T08:46:56.095584+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 7,
+      "lane": "done",
+      "last_event_id": "01KM2MDHAEZEQ3DX33BRCKBGBH",
+      "last_transition_at": "2026-03-19T08:46:57.358188+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 9,
+      "lane": "done",
+      "last_event_id": "01KM2MDJJ6JE4S34CVGA8NJXZ1",
+      "last_transition_at": "2026-03-19T08:46:58.630848+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KM2MDKRBCQ9KQX3K7ZC6C8W9",
+      "last_transition_at": "2026-03-19T08:46:59.851071+00:00"
+    }
+  }
+}

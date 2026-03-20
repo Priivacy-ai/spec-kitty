@@ -38,6 +38,7 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
 )
+from specify_cli.feature_metadata import set_vcs_lock
 from specify_cli.git import safe_commit
 from specify_cli.sync.events import emit_wp_status_changed
 
@@ -586,19 +587,15 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
             console.print("[yellow]Warning:[/yellow] Feature was created with jj, but jj is no longer supported.")
             console.print("[yellow]Converting to git...[/yellow]")
             # Override to git
-            meta["vcs"] = "git"
-            meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
-            meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+            now_iso = datetime.now(timezone.utc).isoformat()
+            set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
             return VCSBackend.GIT
         # Already git
         return VCSBackend.GIT
 
     # VCS not yet locked - lock to git (only supported VCS)
-    meta["vcs"] = "git"
-    meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
-
-    # Write updated meta.json
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
 
     console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
     return VCSBackend.GIT

@@ -15,7 +15,16 @@ import sys
 # Add the src directory to the path so we can import the module
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult, AgentDirectory  # noqa: E402
+from specify_cli.gitignore_manager import (  # noqa: E402
+    AGENT_DIRECTORIES,
+    RUNTIME_PROTECTED_ENTRIES,
+    AgentDirectory,
+    GitignoreManager,
+    ProtectionResult,
+)
+
+# Total entries: agents + runtime (derived from state contract)
+_TOTAL_ENTRIES = len(AGENT_DIRECTORIES) + len(RUNTIME_PROTECTED_ENTRIES)
 
 
 class TestGitignoreManager:
@@ -73,7 +82,7 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 15  # All 13 agent directories + runtime entries
+        assert len(result.entries_added) == _TOTAL_ENTRIES  # All agent directories + runtime entries
         assert len(result.entries_skipped) == 0
         assert manager.gitignore_path.exists()
 
@@ -85,7 +94,7 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 15
+        assert len(result.entries_added) == _TOTAL_ENTRIES
 
         content = manager.gitignore_path.read_text()
         assert manager.marker in content
@@ -174,12 +183,12 @@ class TestGitignoreManager:
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified
-        assert len(result1.entries_added) == 15
+        assert len(result1.entries_added) == _TOTAL_ENTRIES
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified
-        assert len(result2.entries_skipped) == 15
+        assert len(result2.entries_skipped) == _TOTAL_ENTRIES
         assert len(result2.entries_added) == 0
 
     def test_duplicate_detection_with_manual_entries(self, manager):
@@ -190,10 +199,10 @@ class TestGitignoreManager:
         # Try to protect all agents
         result = manager.protect_all_agents()
 
-        assert result.modified  # Still modified because we add the other 13
+        assert result.modified  # Still modified because we add the remaining entries
         assert ".claude/" in result.entries_skipped
         assert ".codex/" in result.entries_skipped
-        assert len(result.entries_added) == 13
+        assert len(result.entries_added) == _TOTAL_ENTRIES - 2
 
     def test_duplicate_detection_marker_comment(self, manager):
         """Test that marker comment is not duplicated."""

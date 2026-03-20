@@ -43,6 +43,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Literal, Optional, TypedDict
 
+from specify_cli.feature_metadata import load_meta, write_meta
+
 
 class GeneratorConfig(TypedDict):
     """Generator configuration entry."""
@@ -87,9 +89,11 @@ def set_iteration_mode(
             f"Invalid iteration_mode: {iteration_mode}. Must be one of: {valid_modes}"
         )
 
-    # Read existing meta.json
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Initialize documentation_state if not present
     if "documentation_state" not in meta:
@@ -98,9 +102,8 @@ def set_iteration_mode(
     # Set iteration mode
     meta["documentation_state"]["iteration_mode"] = iteration_mode
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
@@ -121,9 +124,11 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
             f"Invalid Divio types: {invalid_types}. Must be one of: {valid_types}"
         )
 
-    # Read existing meta.json
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Initialize documentation_state if not present
     if "documentation_state" not in meta:
@@ -132,9 +137,8 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
     # Set Divio types
     meta["documentation_state"]["divio_types_selected"] = divio_types
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]) -> None:
@@ -165,9 +169,11 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
         if "config_path" not in gen:
             raise ValueError(f"Generator config missing 'config_path' field: {gen}")
 
-    # Read existing meta.json
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Initialize documentation_state if not present
     if "documentation_state" not in meta:
@@ -176,9 +182,8 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
     # Set generators
     meta["documentation_state"]["generators_configured"] = generators
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def set_audit_metadata(
@@ -200,9 +205,11 @@ def set_audit_metadata(
             f"coverage_percentage must be 0.0-1.0, got {coverage_percentage}"
         )
 
-    # Read existing meta.json
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Initialize documentation_state if not present
     if "documentation_state" not in meta:
@@ -214,9 +221,8 @@ def set_audit_metadata(
     )
     meta["documentation_state"]["coverage_percentage"] = coverage_percentage
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 # ============================================================================
@@ -273,16 +279,17 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     if missing_fields:
         raise ValueError(f"State missing required fields: {missing_fields}")
 
-    # Read existing meta.json
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Update documentation_state
     meta["documentation_state"] = state
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def initialize_documentation_state(
@@ -368,8 +375,11 @@ def ensure_documentation_state(meta_file: Path) -> None:
     Args:
         meta_file: Path to meta.json
     """
-    with open(meta_file, "r") as f:
-        meta = json.load(f)
+    # Read existing meta.json (feature_dir = parent of meta.json path)
+    feature_dir = meta_file.parent
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
     # Check if documentation mission
     if meta.get("mission") != "documentation":
@@ -389,9 +399,8 @@ def ensure_documentation_state(meta_file: Path) -> None:
         "coverage_percentage": 0.0,
     }
 
-    # Write back
-    with open(meta_file, "w") as f:
-        json.dump(meta, f, indent=2)
+    # Write back with standard formatting (tolerant — no top-level validation)
+    write_meta(meta_file.parent, meta, validate=False)
 
 
 def get_state_version(state: DocumentationState) -> int:

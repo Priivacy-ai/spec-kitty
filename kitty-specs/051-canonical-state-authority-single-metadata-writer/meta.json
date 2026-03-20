@@ -1,0 +1,11 @@
+{
+  "feature_number": "051",
+  "slug": "051-canonical-state-authority-single-metadata-writer",
+  "feature_slug": "051-canonical-state-authority-single-metadata-writer",
+  "friendly_name": "Canonical State Authority & Single Metadata Writer",
+  "mission": "software-dev",
+  "source_description": "Phase 3 + Phase 4 of the Spec Kitty 2.x state architecture cleanup plan. Make workflow correctness depend on canonical state (status.events.jsonl, status.json, meta.json) instead of markdown-body compatibility views. Route all meta.json writes through one API module (feature_metadata.py), extending the existing write_feature_meta() helper.",
+  "created_at": "2026-03-18T20:07:06.167917+00:00",
+  "target_branch": "2.x",
+  "vcs": "git"
+}

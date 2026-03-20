@@ -1,0 +1,39 @@
+{
+  "event_count": 30,
+  "feature_slug": "050-state-model-cleanup-foundations",
+  "last_event_id": "01KM18DAKY30GZ72ANHCKRG8A2",
+  "materialized_at": "2026-03-18T19:57:53.150482+00:00",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 6,
+      "lane": "approved",
+      "last_event_id": "01KM168A0AX0A79N0DCDJ95HW5",
+      "last_transition_at": "2026-03-18T19:20:11.530976+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KM18DA8GAVQCG1K7YQS3BBZZ",
+      "last_transition_at": "2026-03-18T19:57:52.784368+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 10,
+      "lane": "done",
+      "last_event_id": "01KM18DAKY30GZ72ANHCKRG8A2",
+      "last_transition_at": "2026-03-18T19:57:53.150058+00:00"
+    }
+  }
+}

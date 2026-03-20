@@ -770,21 +770,15 @@ def accept_feature(
         )
         return
 
-    # Write acceptance record to meta.json
-    import json as _json
-
-    meta_path = feature_dir / "meta.json"
-    meta: dict = {}
-    if meta_path.exists():
-        try:
-            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:
-            meta = {}
+    # Write acceptance record via centralized metadata writer
+    from specify_cli.feature_metadata import record_acceptance
 
     accepted_at = datetime.now(timezone.utc).isoformat()
-    meta["accepted_at"] = accepted_at
-    meta["accepted_by"] = actor
-    meta_path.write_text(_json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")
+    record_acceptance(
+        feature_dir,
+        accepted_by=actor,
+        mode="orchestrator",
+    )
 
     envelope = make_envelope(
         command=cmd,

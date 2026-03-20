@@ -1,0 +1,11 @@
+{
+  "feature_number": "052",
+  "slug": "052-acceptance-pipeline-regression-fixes",
+  "feature_slug": "052-acceptance-pipeline-regression-fixes",
+  "friendly_name": "Acceptance Pipeline Regression Fixes",
+  "mission": "software-dev",
+  "source_description": "Fix 4 regressions in the acceptance/verification pipeline: P0 materialize dirties repo before cleanliness check, P1 standalone script entrypoint broken by new specify_cli imports, P1 acceptance commit SHA not persisted to meta.json, P2 malformed event log crashes CLI instead of structured error.",
+  "target_branch": "2.x",
+  "vcs": "git",
+  "created_at": "2026-03-19T15:50:41.079202+00:00"
+}
