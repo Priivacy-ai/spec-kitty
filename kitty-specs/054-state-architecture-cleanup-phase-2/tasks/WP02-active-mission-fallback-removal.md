@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: planned
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
@@ -179,3 +179,4 @@ spec-kitty implement WP02
 - 2026-03-20T14:16:22Z – codex – shell_pid=24137 – lane=doing – Started review via workflow command
 - 2026-03-20T14:22:48Z – codex – shell_pid=24137 – lane=planned – Moved to planned
 - 2026-03-20T14:22:55Z – coordinator – shell_pid=45261 – lane=doing – Started implementation via workflow command
+- 2026-03-20T14:37:53Z – coordinator – shell_pid=45261 – lane=for_review – Fixed: worktree detection uses main repo root for feature detection - locate_project_root() in diagnostics mode + _get_main_repo_root() in FeatureContext construction. Added realistic worktree test without detect_feature mock. (cycle 3/3 FINAL)

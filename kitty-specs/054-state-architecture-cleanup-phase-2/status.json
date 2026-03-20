@@ -1,17 +1,17 @@
 {
-  "event_count": 50,
+  "event_count": 55,
   "feature_slug": "054-state-architecture-cleanup-phase-2",
-  "last_event_id": "01KM5TPAZB7J1DGH9MRKASXRHE",
-  "materialized_at": "2026-03-20T14:34:20.523580+00:00",
+  "last_event_id": "01KM5TWTGBMKY7A3989DRXHGMG",
+  "materialized_at": "2026-03-20T14:37:53.036276+00:00",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
-    "planned": 1
+    "for_review": 1,
+    "in_progress": 0,
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -24,9 +24,9 @@
     "WP02": {
       "actor": "user",
       "force_count": 3,
-      "lane": "planned",
-      "last_event_id": "01KM5T16VV7RFRK9RRJXEMC2WB",
-      "last_transition_at": "2026-03-20T14:22:48.187082+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KM5TWTGBMKY7A3989DRXHGMG",
+      "last_transition_at": "2026-03-20T14:37:53.035813+00:00"
     },
     "WP04": {
       "actor": "user",
@@ -50,11 +50,11 @@
       "last_transition_at": "2026-03-20T13:59:41.789358+00:00"
     },
     "WP07": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 5,
-      "lane": "in_progress",
-      "last_event_id": "01KM5TPAZB7J1DGH9MRKASXRHE",
-      "last_transition_at": "2026-03-20T14:34:20.523112+00:00"
+      "lane": "approved",
+      "last_event_id": "01KM5TW0QY3NFE8NS2NQ5V7HYW",
+      "last_transition_at": "2026-03-20T14:37:26.654785+00:00"
     },
     "WP08": {
       "actor": "user",
