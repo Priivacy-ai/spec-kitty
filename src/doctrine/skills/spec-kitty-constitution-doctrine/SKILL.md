@@ -129,18 +129,17 @@ and per-file sizes.
 
 ## When Doctrine Constrains Runtime
 
-Doctrine constrains the runtime when:
-
-- **Testing policy** applies -- `min_coverage: 90` blocks review acceptance.
-- **Quality gates** apply -- `pre_commit_hooks: true` prevents hook bypass.
-- **Branch strategy** applies -- `main_branch: main` sets the merge target.
-- **Directives fire** -- rules with `severity: error` block progression.
+Doctrine constrains runtime behavior when the constitution has been generated
+and the agent is executing a workflow action (specify, plan, implement, review).
+The specific constraints come from the project's own constitution — load them
+with `spec-kitty constitution context --action <action> --json` rather than
+assuming fixed policy values.
 
 Doctrine does NOT constrain when:
 
 - The user works outside a mission.
 - No constitution has been generated.
-- The action is not a bootstrap action (specify, plan, implement, review).
+- The action is not a workflow action (specify, plan, implement, review).
 
 ---
 

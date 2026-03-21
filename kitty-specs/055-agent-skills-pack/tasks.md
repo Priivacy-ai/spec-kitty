@@ -385,6 +385,38 @@
 
 ---
 
+## Work Package WP12: Author spec-kitty-orchestrator-api-operator Skill (Priority: P2)
+
+**Goal**: Author the canonical orchestrator-api skill teaching external systems how to use the orchestrator-api contract correctly (PRD section 8).
+**Independent Test**: Registry discovers the skill; content references only real orchestrator-api commands.
+**Prompt**: `tasks/WP12-orchestrator-api-operator-skill.md`
+**Requirement Refs**: FR-009, FR-010, C-006, C-007
+
+### Included Subtasks
+
+- [x] T047 Write `src/doctrine/skills/spec-kitty-orchestrator-api-operator/SKILL.md`
+- [x] T048 Create `references/orchestrator-api-contract.md`
+- [x] T049 Create `references/host-boundary-rules.md`
+
+### Dependencies
+
+- Depends on WP01 (skill directory structure)
+
+---
+
+## Scope Decision: spec-kitty-specify-plan and spec-kitty-mission-orchestrator
+
+**Decision**: Do NOT author these two skills per architectural boundary review.
+
+- `spec-kitty-specify-plan` teaches _how to do product work_ (discovery, spec writing, planning), not _how to use Spec Kitty_. The specify/plan behavior is owned by the mission state machine and `spec-kitty next`. A skill here would duplicate mission composition logic.
+- `spec-kitty-mission-orchestrator` is mission composition — deciding when to delegate to setup, doctrine, runtime, or review. That sequencing belongs in the mission state machine and future doctrine mission compiler (Issue #327), not in a hand-authored skill.
+
+Both were called out in the PRD section 7 but the architectural boundary review (PR #305 / Issue #327 context) correctly identifies them as mission-authoring territory, not product-operation territory.
+
+**6 skills shipped. 2 skills deferred to doctrine mission compiler.**
+
+---
+
 ## Dependency & Execution Summary
 
 ```
