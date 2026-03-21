@@ -160,7 +160,7 @@ Even working alone, the dashboard provides:
 
 - **Keep dashboard open** - It's your visual TODO list
 - **One feature at a time** - Resist urge to skip worktree workflow
-- **Use `/spec-kitty.clarify`** - Ask yourself questions before planning
+- **Pressure-test the spec before planning** - Resolve open questions in the spec itself before `/spec-kitty.plan`
 - **Self-review seriously** - `/spec-kitty.review` catches bugs early
 - **Constitution matters** - Even solo, it keeps you consistent
 - **Don't skip acceptance** - `/spec-kitty.accept` ensures quality gates

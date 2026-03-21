@@ -1,0 +1,1 @@
+../2.x/adr/2026-03-20-1-remove-clarify-slash-command.md

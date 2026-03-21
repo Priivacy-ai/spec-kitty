@@ -500,7 +500,6 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 ### Optional Enhancement Commands
 ```
-/spec-kitty.clarify    → Before /plan: Ask structured questions about spec
 /spec-kitty.research   → After /plan: Investigate technical decisions
 /spec-kitty.analyze    → After /tasks: Cross-artifact consistency check
 /spec-kitty.checklist  → Anytime: Generate custom quality checklists
@@ -998,7 +997,6 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 | Command              | When to Use                                                           |
 |----------------------|-----------------------------------------------------------------------|
-| `/spec-kitty.clarify`   | **Optional, before `/spec-kitty.plan`**: Clarify underspecified areas in your specification to reduce downstream rework |
 | `/spec-kitty.analyze`   | **Optional, after `/spec-kitty.tasks`, before `/spec-kitty.implement`**: Cross-artifact consistency & coverage analysis |
 | `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency |
 | `/spec-kitty.dashboard` | **Anytime (runs in background)**: Open the real-time kanban dashboard in your browser. Automatically starts with `spec-kitty init` and updates as you work. |
@@ -1069,15 +1067,14 @@ my-project/                    # Main repo (main branch)
 cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
 
 # ========== IN FEATURE WORKTREE ==========
-/spec-kitty.clarify          # Step 3 (optional): Clarify requirements before planning
-/spec-kitty.plan             # Step 4: Design technical implementation
-/spec-kitty.research         # Step 5 (as needed): Research technologies, patterns, etc.
-/spec-kitty.tasks            # Step 6: Break plan into actionable tasks
-/spec-kitty.analyze          # Step 7 (optional): Check cross-artifact consistency
-/spec-kitty.implement        # Step 8: Execute implementation tasks
-/spec-kitty.review           # Step 9: Review and refine completed work
-/spec-kitty.accept           # Step 10: Acceptance checks & final metadata
-/spec-kitty.merge --push     # Step 11: Merge to main + cleanup worktree
+/spec-kitty.plan             # Step 3: Design technical implementation
+/spec-kitty.research         # Step 4 (as needed): Research technologies, patterns, etc.
+/spec-kitty.tasks            # Step 5: Break plan into actionable tasks
+/spec-kitty.analyze          # Step 6 (optional): Check cross-artifact consistency
+/spec-kitty.implement        # Step 7: Execute implementation tasks
+/spec-kitty.review           # Step 8: Review and refine completed work
+/spec-kitty.accept           # Step 9: Acceptance checks & final metadata
+/spec-kitty.merge --push     # Step 10: Merge to main + cleanup worktree
 
 # ========== BACK IN MAIN REPO ==========
 # Ready for next feature!

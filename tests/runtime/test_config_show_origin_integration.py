@@ -186,7 +186,6 @@ class TestShowOriginExtendedAssets:
             "dashboard.md",
             "analyze.md",
             "checklist.md",
-            "clarify.md",
             "constitution.md",
         ]:
             (cmd_dir / name).write_text(f"# {name}\n")
@@ -209,7 +208,6 @@ class TestShowOriginExtendedAssets:
         # Should include dynamically discovered commands beyond the old hardcoded list
         assert "analyze.md" in command_names
         assert "checklist.md" in command_names
-        assert "clarify.md" in command_names
         assert "constitution.md" in command_names
 
     def test_all_missions_discovered(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

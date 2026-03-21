@@ -65,7 +65,7 @@ def test_applies_replacements_to_generated_prompts(tmp_path: Path) -> None:
 
 def test_dry_run_reports_without_modifying(tmp_path: Path) -> None:
     project = _make_project(tmp_path)
-    stale = project / ".codex" / "prompts" / "spec-kitty.clarify.md"
+    stale = project / ".codex" / "prompts" / "spec-kitty.plan.md"
     original = "spec-kitty agent check-prerequisites --json --paths-only\n"
     stale.write_text(original, encoding="utf-8")
 

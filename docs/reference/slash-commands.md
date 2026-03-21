@@ -231,27 +231,6 @@ Syntax format in this reference:
 
 ---
 
-## /spec-kitty.clarify
-
-**Syntax**: `/spec-kitty.clarify [notes]`
-
-**Purpose**: Identify underspecified areas in the spec and record clarifications.
-
-**Prerequisites**:
-- Run from the feature worktree.
-- `spec.md` must exist.
-
-**What it does**:
-- Asks up to five targeted questions.
-- Updates `spec.md` with clarified requirements.
-
-**Creates/updates**:
-- `kitty-specs/<feature>/spec.md`
-
-**Related**: `/spec-kitty.specify`, `/spec-kitty.plan`
-
----
-
 ## /spec-kitty.research
 
 **Syntax**: `/spec-kitty.research [--force]`

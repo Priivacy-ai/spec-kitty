@@ -164,7 +164,6 @@ my-project/
 │       ├── spec-kitty.status.md
 │       ├── spec-kitty.dashboard.md
 │       ├── spec-kitty.constitution.md
-│       ├── spec-kitty.clarify.md
 │       ├── spec-kitty.research.md
 │       ├── spec-kitty.checklist.md
 │       └── spec-kitty.analyze.md
@@ -233,7 +232,7 @@ my-project/
 │       └── constitution.md
 ├── .claude/
 │   └── commands/
-│       └── (14 slash command files)
+│       └── (13 slash command files)
 ├── kitty-specs/
 │   └── 001-auth-system/
 │       ├── meta.json

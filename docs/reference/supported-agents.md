@@ -291,7 +291,7 @@ cp .claude/commands/*.md .cursor/commands/
 
 ## Slash Commands
 
-All agents support the same 14 slash commands:
+All agents support the same 13 slash commands:
 
 | Command | Purpose |
 |---------|---------|
@@ -305,7 +305,6 @@ All agents support the same 14 slash commands:
 | `/spec-kitty.status` | Show kanban status |
 | `/spec-kitty.dashboard` | Open web dashboard |
 | `/spec-kitty.constitution` | Create project principles |
-| `/spec-kitty.clarify` | Clarify requirements |
 | `/spec-kitty.research` | Conduct research |
 | `/spec-kitty.checklist` | Generate checklists |
 | `/spec-kitty.analyze` | Analyze codebase |
