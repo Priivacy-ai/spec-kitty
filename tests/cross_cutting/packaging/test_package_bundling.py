@@ -71,7 +71,7 @@ def test_sdist_bundles_templates():
 
 
 def test_wheel_bundles_templates_correctly():
-    """Verify wheel includes templates at correct path for importlib.resources."""
+    """Verify wheel includes templates and doctrine skills for importlib.resources."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
 
     result = subprocess.run(
@@ -134,3 +134,18 @@ def test_wheel_bundles_templates_correctly():
         output = result.stdout
         assert "command-templates" in output, "command-templates not found in bundled package"
         assert "git-hooks" not in output, "git-hooks should not be bundled in 2.x"
+
+        result = subprocess.run(
+            [
+                str(python),
+                "-c",
+                "from importlib.resources import files; "
+                "skill = files('doctrine').joinpath('skills', 'spec-kitty-setup-doctor', 'SKILL.md'); "
+                "print(skill.is_file())",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, f"Failed to check bundled doctrine skills: {result.stderr}"
+        assert result.stdout.strip() == "True", "Bundled canonical skill missing from wheel"

@@ -90,6 +90,7 @@ jobs:
 
           # Extract wheel to temp directory
           WHEEL_FILE=$(ls dist/*.whl)
+          rm -rf /tmp/wheel_check
           unzip -q "$WHEEL_FILE" -d /tmp/wheel_check
 
           # Count migration files in wheel
@@ -112,6 +113,37 @@ jobs:
           fi
 
           echo "✅ Wheel contains all $SOURCE_COUNT migration files"
+          echo "::endgroup::"
+
+          echo "::group::Verifying doctrine payload in wheel"
+
+          # Count all source doctrine files, including skills and extensionless templates.
+          SOURCE_DOCTRINE_COUNT=$(find src/doctrine -type f | wc -l | tr -d ' ')
+          echo "Source doctrine file count: $SOURCE_DOCTRINE_COUNT"
+
+          WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/doctrine -type f 2>/dev/null | wc -l | tr -d ' ')
+          echo "Wheel doctrine file count: $WHEEL_DOCTRINE_COUNT"
+
+          SOURCE_SKILL_COUNT=$(find src/doctrine/skills -path '*/SKILL.md' -type f | wc -l | tr -d ' ')
+          echo "Source bundled skill count: $SOURCE_SKILL_COUNT"
+
+          WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/doctrine/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
+          echo "Wheel bundled skill count: $WHEEL_SKILL_COUNT"
+
+          if [ "$SOURCE_DOCTRINE_COUNT" -ne "$WHEEL_DOCTRINE_COUNT" ]; then
+            echo "::error::Doctrine file count mismatch! Source: $SOURCE_DOCTRINE_COUNT, Wheel: $WHEEL_DOCTRINE_COUNT"
+            echo "::error::This means doctrine resources are missing from the wheel package."
+            echo "::error::Check pyproject.toml [tool.hatch.build.targets.wheel] configuration."
+            exit 1
+          fi
+
+          if [ "$SOURCE_SKILL_COUNT" -ne "$WHEEL_SKILL_COUNT" ]; then
+            echo "::error::Bundled skill count mismatch! Source: $SOURCE_SKILL_COUNT, Wheel: $WHEEL_SKILL_COUNT"
+            echo "::error::The wheel must ship every canonical SKILL.md under doctrine/skills."
+            exit 1
+          fi
+
+          echo "✅ Wheel contains all $SOURCE_DOCTRINE_COUNT doctrine files and $SOURCE_SKILL_COUNT bundled skills"
           echo "::endgroup::"
 
       - name: Check distributions

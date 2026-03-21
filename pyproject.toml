@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "2.1.0"
+version = "2.1.1"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -108,18 +108,14 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/specify_cli"]
+packages = ["src/specify_cli", "src/doctrine"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
-# Include all non-Python files (templates, configs, etc.)
+# Include bundled templates, doctrine assets, and extensionless payload files.
 artifacts = [
-    "src/specify_cli/**/*.md",
-    "src/specify_cli/**/*.yaml",
-    "src/specify_cli/**/*.yml",
-    "src/specify_cli/**/*.json",
-    "src/specify_cli/**/*.csv",
-    "src/specify_cli/**/*.template",
+    "src/specify_cli/**/*",
+    "src/doctrine/**/*",
 ]
 
 [tool.hatch.build.targets.sdist]

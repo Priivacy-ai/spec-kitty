@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.1.1] - 2026-03-21
+
+### 🐛 Fixed
+
+- **Bundled doctrine payload in wheels**: the PyPI wheel now includes the full `doctrine/` package tree, including the canonical skill pack under `doctrine/skills/`, so `spec-kitty init` and `spec-kitty upgrade` can install managed skills for shipped builds.
+- **Release verification guard**: the release workflow now fails if the built wheel omits doctrine files or bundled skills, and distribution tests now assert that a wheel-installed `spec-kitty init` produces the managed skill manifest and installed skill files.
+
 ## [2.1.0] - 2026-03-21
 
 ### ✅ Added
