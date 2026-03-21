@@ -321,6 +321,7 @@ also_copy = [
     "src/specify_cli/templates/",  # Copy templates
     "src/specify_cli/mission_v1/",  # Copy mission v1
     "src/specify_cli/scripts/",  # Copy scripts
+    "src/specify_cli/skills/",  # Copy skills distribution runtime
 ]
 # Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
 do_not_mutate = [

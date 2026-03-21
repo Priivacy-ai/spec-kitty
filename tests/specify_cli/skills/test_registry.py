@@ -124,3 +124,52 @@ def test_from_local_repo(tmp_path: Path) -> None:
     skills = registry.discover_skills()
     assert len(skills) == 1
     assert skills[0].name == "local-skill"
+
+
+# ── Multi-skill discovery ──────────────────────────────────────────
+
+
+def test_discover_multiple_skills_sorted(tmp_path: Path) -> None:
+    """Registry discovers multiple skills and returns them sorted by name."""
+    _make_skill(tmp_path, "spec-kitty-runtime-next")
+    _make_skill(tmp_path, "spec-kitty-setup-doctor")
+    _make_skill(tmp_path, "spec-kitty-glossary-context")
+
+    registry = SkillRegistry(tmp_path)
+    skills = registry.discover_skills()
+    assert len(skills) == 3
+    names = [s.name for s in skills]
+    assert names == ["spec-kitty-glossary-context", "spec-kitty-runtime-next", "spec-kitty-setup-doctor"]
+
+
+# ── Packaging verification ─────────────────────────────────────────
+
+
+def test_skills_module_importable() -> None:
+    """Verify the skills module is importable (packaging sanity check)."""
+    import specify_cli.skills
+    assert hasattr(specify_cli.skills, "CanonicalSkill")
+    assert hasattr(specify_cli.skills, "SkillRegistry")
+    assert hasattr(specify_cli.skills, "ManagedSkillManifest")
+    assert hasattr(specify_cli.skills, "install_skills_for_agent")
+    assert hasattr(specify_cli.skills, "verify_installed_skills")
+
+
+def test_doctrine_skills_exist_in_repo() -> None:
+    """Verify canonical skills exist in the doctrine layer of this repo."""
+    from specify_cli.skills.registry import SkillRegistry
+    import subprocess
+
+    # Find repo root via git
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    repo_root = Path(result.stdout.strip())
+
+    registry = SkillRegistry.from_local_repo(repo_root)
+    skills = registry.discover_skills()
+    skill_names = {s.name for s in skills}
+    assert "spec-kitty-setup-doctor" in skill_names
+    assert "spec-kitty-runtime-next" in skill_names
+    assert len(skills) >= 2

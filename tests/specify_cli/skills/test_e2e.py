@@ -346,4 +346,42 @@ def test_multiple_agents_mixed_classes(tmp_path: Path) -> None:
     result = verify_installed_skills(project)
     assert result.ok is True
     assert result.missing == []
+
+
+# ── T046: Multi-skill pack ────────────────────────────────────────
+
+
+def test_multi_skill_pack_installs_all_skills(tmp_path: Path) -> None:
+    """Two skills in the pack are both discovered and installed correctly."""
+    project, skills_root = _setup_project(tmp_path)
+
+    _create_skill_on_disk(skills_root, "spec-kitty-setup-doctor")
+    _create_skill_on_disk(
+        skills_root,
+        "spec-kitty-runtime-next",
+        references={"runtime-result-taxonomy.md": "# Taxonomy\nResult types.\n"},
+    )
+
+    registry = SkillRegistry(skills_root)
+    skills = registry.discover_skills()
+    assert len(skills) == 2
+
+    # Install for claude (native-root)
+    manifest = install_all_skills(project, ["claude"], registry)
+    save_manifest(manifest, project)
+
+    # Both skills should be installed
+    assert (project / ".claude" / "skills" / "spec-kitty-setup-doctor" / "SKILL.md").is_file()
+    assert (project / ".claude" / "skills" / "spec-kitty-runtime-next" / "SKILL.md").is_file()
+    assert (project / ".claude" / "skills" / "spec-kitty-runtime-next" / "references" / "runtime-result-taxonomy.md").is_file()
+
+    # Manifest should track all files for both skills
+    doctor_entries = manifest.find_by_skill("spec-kitty-setup-doctor")
+    runtime_entries = manifest.find_by_skill("spec-kitty-runtime-next")
+    assert len(doctor_entries) >= 1
+    assert len(runtime_entries) >= 2  # SKILL.md + reference
+
+    # Verify passes
+    result = verify_installed_skills(project)
+    assert result.ok is True
     assert result.drifted == []

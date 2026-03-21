@@ -347,6 +347,44 @@
 
 ---
 
+## Work Package WP10: Packaging Completeness (Priority: P1)
+
+**Goal**: Add `src/specify_cli/skills/` to `also_copy` in `pyproject.toml` for consistency with other subpackages, and add a packaging verification test.
+**Independent Test**: Verify the skills module would be included in a wheel build.
+**Prompt**: `tasks/WP10-packaging-completeness.md`
+**Requirement Refs**: NFR-005
+
+### Included Subtasks
+
+- [ ] T041 Add `src/specify_cli/skills/` to `also_copy` in `pyproject.toml`
+- [ ] T042 [P] Add packaging verification test confirming skills module is discoverable
+
+### Dependencies
+
+- Depends on WP01-WP09 (first slice complete)
+
+---
+
+## Work Package WP11: Author spec-kitty-runtime-next Skill (Priority: P1)
+
+**Goal**: Author the second canonical shipped skill that teaches agents the `spec-kitty next --agent <name>` control loop (PRD section 8).
+**Independent Test**: Install via registry, verify correct frontmatter, triggers, workflow steps, and that it installs alongside setup-doctor without conflicts.
+**Prompt**: `tasks/WP11-runtime-next-skill.md`
+**Requirement Refs**: FR-009, FR-010, C-006, C-007
+
+### Included Subtasks
+
+- [ ] T043 Write `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` with frontmatter and workflow
+- [ ] T044 Create `src/doctrine/skills/spec-kitty-runtime-next/references/runtime-result-taxonomy.md`
+- [ ] T045 Create `src/doctrine/skills/spec-kitty-runtime-next/references/blocked-state-recovery.md`
+- [ ] T046 [P] Test registry discovers both skills and installer handles multi-skill pack
+
+### Dependencies
+
+- Depends on WP10 (packaging complete)
+
+---
+
 ## Dependency & Execution Summary
 
 ```
