@@ -4,6 +4,9 @@ Use this guide to install the Spec Kitty CLI and upgrade existing projects.
 
 ## Install from PyPI
 
+The stable PyPI package now tracks the `2.x` line from `main`.
+The old `1.x` line is deprecated and remains available only from pinned maintenance tags or source checkouts if you cannot migrate yet.
+
 ```bash
 pip install spec-kitty-cli
 ```

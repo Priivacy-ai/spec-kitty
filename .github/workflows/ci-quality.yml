@@ -3,6 +3,7 @@ name: CI Quality
 on:
   pull_request:
     branches:
+      - main
       - develop
       - 2.x
   push:

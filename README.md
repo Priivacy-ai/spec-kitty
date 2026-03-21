@@ -41,7 +41,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get in 0.15.x
+## 🚀 What You Get in 2.1.x
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
@@ -96,12 +96,13 @@ graph LR
 
 </div>
 
-**Current 2.x release line:** `v2.0.11` (GitHub releases)
+**Current stable release line:** `v2.1.0` (`main`, GitHub Releases, and PyPI)
 
-**2.x highlights:**
-- Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
-- Branch routing and merge-base calculation are centralized for more predictable behavior
-- Worktree isolation and lane transitions have stronger guardrails and test coverage
+**2.1.0 highlights:**
+- Agent Skills Pack with bundled skills, installer/verification flow, and upgrade migration coverage
+- Structured requirement mapping from requirements into work-package planning
+- Deterministic branch intent injection in planning templates
+- `1.x` is now deprecated and retained only as `1.x-maintenance` for critical fixes
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -115,15 +116,16 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty now runs split release tracks: `main` for the 1.0 PyPI stream and `2.x` for GitHub-only next-generation releases.
+Spec Kitty now uses `main` as the stable `2.x` release line.
+The former `1.x` line is deprecated and moves to `1.x-maintenance` for maintenance-only fixes.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **1.0.0rc** | Release-candidate/stable PyPI stream | `pip install --pre spec-kitty-cli` |
-| **2.x** | **2.x** | GitHub-only semantic releases | Install from source or GitHub release artifacts |
+| **main** | **2.1.x** | Current stable line | `pip install spec-kitty-cli` |
+| **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
-**For users:** install stable from PyPI (`pip install spec-kitty-cli`) or opt into RC (`pip install --pre spec-kitty-cli`).
-**For 2.x contributors/testers:** follow `v2.*.*` GitHub releases and install from source or release artifacts.
+**For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
+**For existing 1.x users:** migrate to `2.1.x` where possible; `1.x-maintenance` is only for critical maintenance and will no longer publish new PyPI releases.
 
 ---
 
@@ -1141,20 +1143,25 @@ cat .kittify/metadata.yaml
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
 <details>
-<summary><h2>🚀 Releasing 2.x on GitHub (Maintainers)</h2></summary>
+<summary><h2>🚀 Releasing 2.x on GitHub and PyPI (Maintainers)</h2></summary>
 
-`2.x` now uses GitHub-only releases with semantic tags in the form `v2.<minor>.<patch>`.
-The `2.x` release workflow does not publish to PyPI.
+The stable `2.x` line now lives on `main` and publishes from semantic tags in the form `v2.<minor>.<patch>`.
+Starting with `2.1.0`, the release workflow publishes both GitHub release artifacts and the PyPI package.
+
+### 0. One-Time Setup
+
+- Configure PyPI Trusted Publishing for `spec-kitty-cli` against `.github/workflows/release.yml`.
+- Keep `1.x-maintenance` maintenance-only; do not use it for new PyPI releases.
 
 ### 1. Prepare Release Branch
 
 ```bash
-git checkout 2.x
-git pull origin 2.x
-git checkout -b release/v2.0.0
+git checkout main
+git pull origin main
+git checkout -b release/vX.Y.Z
 
-# Update pyproject.toml to a semantic version (example: 2.0.0)
-# Add CHANGELOG.md entry under: ## [2.0.0] - YYYY-MM-DD
+# Update pyproject.toml to a semantic version (example: X.Y.Z)
+# Add CHANGELOG.md entry under: ## [X.Y.Z] - YYYY-MM-DD
 ```
 
 ### 2. Validate Locally
@@ -1167,40 +1174,42 @@ twine check dist/*
 rm -rf dist/ build/
 ```
 
-### 3. Open and Merge PR to `2.x`
+### 3. Open and Merge PR to `main`
 
 ```bash
 git add pyproject.toml CHANGELOG.md
-git commit -m "chore(release): prepare 2.0.0"
-git push origin release/v2.0.0
+git commit -m "chore(release): prepare X.Y.Z"
+git push origin release/vX.Y.Z
 ```
 
-After review, merge into `2.x`.
+After review, merge into `main` with a linear-history strategy (`rebase`).
 
 ### 4. Tag and Push
 
 ```bash
-git checkout 2.x
-git pull origin 2.x
-git tag v2.0.0 -m "Release 2.0.0"
-git push origin v2.0.0
+git checkout main
+git pull origin main
+git tag vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 This triggers `.github/workflows/release.yml`.
 
-### 5. Verify GitHub Release
+### 5. Verify GitHub Release and PyPI Publication
 
 ```bash
-gh release view v2.0.0
+gh release view vX.Y.Z
+python -m pip index versions spec-kitty-cli
 ```
 
 ### Guardrails
 
-- `release-readiness.yml`: runs on PRs to `2.x` to validate version/changelog/tests.
+- `release-readiness.yml`: runs on PRs to `main` (and `2.x` during the cutover window) to validate version/changelog/tests.
 - `release.yml`: runs on `v2.*.*` tags and performs:
   - test execution
   - release metadata validation
   - artifact build and checksums
+  - PyPI publication via Trusted Publishing
   - GitHub Release creation with changelog notes
 
 ### Troubleshooting
@@ -1214,15 +1223,16 @@ gh release view v2.0.0
 
 **Tag already exists**:
 ```bash
-git tag -d v2.0.0
-git push origin :refs/tags/v2.0.0
-git tag v2.0.0 -m "Release 2.0.0"
-git push origin v2.0.0
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+git tag vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 ### References
 
 - `RELEASE_CHECKLIST.md`
+- `docs/how-to/2-1-main-cutover-checklist.md`
 - `scripts/release/README.md`
 - `.github/workflows/release.yml`
 

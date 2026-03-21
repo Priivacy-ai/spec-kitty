@@ -1,4 +1,4 @@
-name: Publish 2.x GitHub Release
+name: Publish 2.x Release
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -158,3 +158,24 @@ jobs:
             dist/
             SHA256SUMS.txt
           retention-days: 30
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/project/spec-kitty-cli/
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: .
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

@@ -6,8 +6,8 @@ This site is versioned by product line.
 
 | Track | Use when | Entry point |
 |---|---|---|
-| `1.x` | You are maintaining or operating legacy local-first workflows. | [Open 1.x docs](1x/index.md) |
-| `2.x` | You are building on current doctrine, glossary, constitution, and runtime architecture. | [Open 2.x docs](2x/index.md) |
+| `1.x` | You are maintaining a deprecated legacy workflow that is now maintenance-only. | [Open 1.x docs](1x/index.md) |
+| `2.x` | You are building on the current stable line published from `main` and PyPI. | [Open 2.x docs](2x/index.md) |
 
 ## Documentation Scope for This Release
 
