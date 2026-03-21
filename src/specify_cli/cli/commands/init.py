@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from collections.abc import Callable
 
@@ -56,6 +57,9 @@ from specify_cli.template.github_client import (
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.installer import install_skills_for_agent
+from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -667,6 +671,7 @@ def init(  # noqa: C901
         tracker.add(f"{agent_key}-zip-list", f"{label}: archive contents")
         tracker.add(f"{agent_key}-extracted-summary", f"{label}: extraction summary")
         tracker.add(f"{agent_key}-cleanup", f"{label}: cleanup")
+        tracker.add(f"{agent_key}-skills", f"{label}: install skill pack")
     for key, label in [
         ("chmod", "Ensure scripts executable"),
         ("git", "Initialize git repository"),
@@ -689,6 +694,18 @@ def init(  # noqa: C901
         try:
             # Create a httpx client with verify based on skip_tls
             local_client = build_http_client(skip_tls=skip_tls)
+
+            # Skill pack installation state
+            from specify_cli import __version__ as _sk_version
+
+            _now_iso = datetime.now(timezone.utc).isoformat()
+            skill_manifest = ManagedSkillManifest(
+                created_at=_now_iso,
+                updated_at=_now_iso,
+                spec_kitty_version=_sk_version,
+            )
+            skill_registry: SkillRegistry | None = None
+            shared_root_installed: set[str] = set()
 
             for index, agent_key in enumerate(selected_agents):
                 if template_mode in ("local", "package"):
@@ -804,6 +821,38 @@ def init(  # noqa: C901
                         repo_owner=repo_owner,
                         repo_name=repo_name,
                     )
+
+                # Install skill pack for this agent (non-fatal)
+                tracker.start(f"{agent_key}-skills")
+                try:
+                    if skill_registry is None:
+                        if template_mode == "local" and local_repo is not None:
+                            skill_registry = SkillRegistry.from_local_repo(local_repo)
+                        else:
+                            skill_registry = SkillRegistry.from_package()
+                        if debug:
+                            _console.print(f"[cyan]Skill source:[/cyan] {skill_registry._skills_root}")
+                    skills = skill_registry.discover_skills()
+                    if skills:
+                        entries = install_skills_for_agent(
+                            project_path,
+                            agent_key,
+                            skills,
+                            shared_root_installed=shared_root_installed,
+                        )
+                        for entry in entries:
+                            skill_manifest.add_entry(entry)
+                        tracker.complete(f"{agent_key}-skills", f"{len(skills)} skills installed")
+                    else:
+                        tracker.complete(f"{agent_key}-skills", "no skills found")
+                except Exception as exc:
+                    tracker.error(f"{agent_key}-skills", str(exc))
+                    _logger.warning("Skill installation failed for %s: %s", agent_key, exc)
+                    # Non-fatal: wrappers are already installed
+
+            # Save managed skill manifest
+            if skill_manifest.entries:
+                save_manifest(skill_manifest, project_path)
 
             tracker.start("mission-activate")
             try:
@@ -1023,7 +1072,6 @@ def init(  # noqa: C901
 
     # Create project metadata for upgrade tracking
     try:
-        from datetime import datetime
         import platform as plat
         import sys as system
         from specify_cli import __version__

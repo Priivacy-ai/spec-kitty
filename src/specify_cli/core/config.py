@@ -58,6 +58,27 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
 }
 
+# Skill installation classes (PRD section 6)
+SKILL_CLASS_SHARED: str = "shared-root-capable"
+SKILL_CLASS_NATIVE: str = "native-root-required"
+SKILL_CLASS_WRAPPER: str = "wrapper-only"
+
+AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
+    "claude":       {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".claude/skills/"]},
+    "copilot":      {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".github/skills/"]},
+    "gemini":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".gemini/skills/"]},
+    "cursor":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".cursor/skills/"]},
+    "qwen":         {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".qwen/skills/"]},
+    "opencode":     {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".opencode/skills/"]},
+    "windsurf":     {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".windsurf/skills/"]},
+    "codex":        {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
+    "kilocode":     {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".kilocode/skills/"]},
+    "auggie":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".augment/skills/"]},
+    "roo":          {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".roo/skills/"]},
+    "q":            {"class": SKILL_CLASS_WRAPPER, "skill_roots": None},
+    "antigravity":  {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".agent/skills/"]},
+}
+
 BANNER = """
 `````````````````````````````````````````````````````````
 
@@ -94,5 +115,9 @@ __all__ = [
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
     "IDE_AGENTS",
+    "SKILL_CLASS_SHARED",
+    "SKILL_CLASS_NATIVE",
+    "SKILL_CLASS_WRAPPER",
+    "AGENT_SKILL_CONFIG",
     "BANNER",
 ]

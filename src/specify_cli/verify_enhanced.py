@@ -3,7 +3,9 @@ Enhanced verify_setup implementation for spec-kitty.
 """
 
 import json
+import logging
 import subprocess
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Optional
 from rich.console import Console
@@ -11,6 +13,10 @@ from rich.table import Table
 from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
+from .skills.manifest import load_manifest as load_skill_manifest
+from .skills.verifier import verify_installed_skills
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
@@ -25,6 +31,28 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
             return meta.get("mission")
     except Exception:
         pass
+    return None
+
+
+def _parse_skill_name_from_frontmatter(content: str) -> Optional[str]:
+    """Extract the ``name`` field from YAML frontmatter in a SKILL.md file.
+
+    Returns ``None`` when no frontmatter or no ``name`` key is found.
+    """
+    if not content.startswith("---"):
+        return None
+    end = content.find("---", 3)
+    if end == -1:
+        return None
+    frontmatter = content[3:end]
+    for line in frontmatter.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("name:"):
+            value = stripped[len("name:"):].strip()
+            # Remove optional surrounding quotes
+            if len(value) >= 2 and value[0] in ('"', "'") and value[-1] == value[0]:
+                value = value[1:-1]
+            return value if value else None
     return None
 
 
@@ -271,7 +299,121 @@ def run_enhanced_verify(
         if len(all_features) > 10:
             console.print(f"   [dim]... and {len(all_features) - 10} more features[/dim]")
 
-    # 6. Observations (not recommendations)
+    # 6. Managed Skills
+    skill_verify_data: Dict = {"status": "skipped"}
+    skill_warnings: list[str] = []
+    skill_has_issues = False
+
+    try:
+        skill_manifest = load_skill_manifest(project_root)
+        if skill_manifest is None:
+            skill_verify_data = {"status": "no_manifest"}
+            if not json_output:
+                console.print("\n[cyan]6. Managed Skills[/cyan]")
+                console.print("   [dim]○[/dim] No skill manifest found")
+        else:
+            skill_result = verify_installed_skills(project_root)
+            total_entries = len(skill_manifest.entries)
+            n_missing = len(skill_result.missing)
+            n_drifted = len(skill_result.drifted)
+            n_errors = len(skill_result.errors)
+            n_ok = total_entries - n_missing - n_drifted - n_errors
+
+            skill_verify_data = {
+                "status": "ok" if skill_result.ok else "issues_found",
+                "total_files": total_entries,
+                "ok": n_ok,
+                "missing": n_missing,
+                "drifted": n_drifted,
+                "errors": n_errors,
+                "missing_files": [e.installed_path for e in skill_result.missing],
+                "drifted_files": [
+                    {"path": e.installed_path, "skill": e.skill_name}
+                    for e, _hash in skill_result.drifted
+                ],
+                "error_messages": skill_result.errors,
+            }
+
+            if not skill_result.ok:
+                skill_has_issues = True
+
+            if not json_output:
+                console.print("\n[cyan]6. Managed Skills[/cyan]")
+                if skill_result.ok:
+                    console.print(f"   [green]✓[/green] All {total_entries} files intact")
+                else:
+                    console.print(f"   [yellow]⚠[/yellow] {n_missing + n_drifted + n_errors} issue(s) in {total_entries} managed files")
+
+                    if skill_result.missing:
+                        console.print(f"   Missing ({n_missing}):")
+                        for entry in skill_result.missing:
+                            console.print(f"     - {entry.installed_path} (skill: {entry.skill_name})")
+
+                    if skill_result.drifted:
+                        console.print(f"   Drifted ({n_drifted}):")
+                        for entry, _actual_hash in skill_result.drifted:
+                            console.print(f"     - {entry.installed_path} (skill: {entry.skill_name})")
+
+                    if skill_result.errors:
+                        console.print(f"   Errors ({n_errors}):")
+                        for err_msg in skill_result.errors:
+                            console.print(f"     - {err_msg}")
+
+            # T030: Detect duplicate skill names across roots
+            # Scan installed skill roots for SKILL.md files and parse name
+            # from YAML frontmatter to detect naming conflicts.
+            skill_name_to_roots: dict[str, list[str]] = defaultdict(list)
+            seen_roots: set[str] = set()
+
+            # Collect unique skill roots from manifest entries
+            for entry in skill_manifest.entries:
+                parts = Path(entry.installed_path).parts
+                # installed_path like ".claude/skills/my-skill/SKILL.md"
+                # root is ".claude/skills"
+                if len(parts) >= 3:
+                    root_key = str(Path(parts[0]) / parts[1])
+                    seen_roots.add(root_key)
+
+            # Scan each root for SKILL.md files and parse name from frontmatter
+            for root_key in sorted(seen_roots):
+                root_dir = project_root / root_key
+                if not root_dir.is_dir():
+                    continue
+                for skill_dir in sorted(root_dir.iterdir()):
+                    if not skill_dir.is_dir():
+                        continue
+                    skill_md = skill_dir / "SKILL.md"
+                    if not skill_md.is_file():
+                        continue
+                    try:
+                        content = skill_md.read_text(encoding="utf-8")
+                        skill_name = _parse_skill_name_from_frontmatter(content)
+                        if skill_name:
+                            skill_name_to_roots[skill_name].append(root_key)
+                    except OSError:
+                        continue
+
+            for name, roots in sorted(skill_name_to_roots.items()):
+                if len(roots) > 1:
+                    warning = f"Duplicate skill '{name}' found in: {', '.join(sorted(roots))}"
+                    skill_warnings.append(warning)
+
+            if skill_warnings:
+                skill_verify_data["duplicate_warnings"] = skill_warnings
+                if not json_output:
+                    for warning in skill_warnings:
+                        console.print(f"   [yellow]⚠[/yellow] {warning}")
+
+    except Exception as exc:
+        logger.warning("Skill verification failed: %s", exc)
+        skill_verify_data = {"status": "error", "error": str(exc)}
+        if not json_output:
+            console.print("\n[cyan]6. Managed Skills[/cyan]")
+            console.print(f"   [yellow]⚠[/yellow] Skill verification failed: {exc}")
+
+    output_data["managed_skills"] = skill_verify_data
+
+    # 7. Observations (not recommendations)
     observations = []
 
     if current_branch in ("main", "master") and in_worktree:
@@ -284,10 +426,13 @@ def run_enhanced_verify(
     if total_missing > 0 and check_files:
         observations.append(f"Mission integrity: {total_missing} expected files not found")
 
+    if skill_has_issues:
+        observations.append("Managed skills: some files are missing or drifted (run spec-kitty skills repair)")
+
     output_data["observations"] = observations
 
     if not json_output and observations:
-        console.print("\n[cyan]6. Observations[/cyan]")
+        console.print("\n[cyan]7. Observations[/cyan]")
         for obs in observations:
             console.print(f"   • {obs}")
 
