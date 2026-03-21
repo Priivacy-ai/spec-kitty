@@ -41,6 +41,7 @@ class FrontmatterManager:
         "title",
         "lane",
         "dependencies",  # List of WP IDs this WP depends on (e.g., ['WP01', 'WP02'])
+        "requirement_refs",  # Requirement IDs mapped to this WP (e.g., ['FR-001', 'NFR-002'])
         "planning_base_branch",  # Planning branch active when the WP prompt was generated
         "merge_target_branch",  # Final branch where completed WP changes must land
         "branch_strategy",  # Human-readable branch contract to prevent landing on wrong stream
