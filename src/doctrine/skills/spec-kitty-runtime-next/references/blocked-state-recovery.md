@@ -4,7 +4,7 @@ Reference for diagnosing and recovering from blocked runtime states.
 
 ## Pattern 1: Unmet WP Dependencies
 
-**Symptom:** `spec-kitty next` returns `blocked` with `blocked_wps` listing WPs whose dependencies are not in `done` lane.
+**Symptom:** `spec-kitty next` returns `kind: "blocked"` with `reason` describing unmet dependencies and `guard_failures` listing specific guards that failed.
 
 **Diagnosis:**
 
@@ -88,7 +88,7 @@ The dependency graph has a cycle. This should have been caught by `finalize-task
 
 ## Pattern 6: All WPs Done But Mission Not Complete
 
-**Symptom:** All WPs are in `done` lane but `spec-kitty next` does not return `complete`.
+**Symptom:** All WPs are in `done` lane but `spec-kitty next` does not return `kind: "terminal"`.
 
 **Diagnosis:**
 The mission state machine may require additional steps beyond WP completion (e.g., acceptance validation, merge).

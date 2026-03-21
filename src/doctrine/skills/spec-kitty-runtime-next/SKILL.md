@@ -73,7 +73,7 @@ The runtime returns a decision with one of four `kind` values. See `references/r
 |------|---------|-------------|
 | **step** | An action is available — read the prompt file and execute | Read `prompt_file` from the output, execute the action |
 | **decision_required** | Runtime needs input before continuing | Answer the question using `spec-kitty next --agent <agent> --answer "..." --decision-id "..."` |
-| **blocked** | Guards are failing or state is invalid | Read `guard_failures` and `reason`, resolve the blockers |
+| **blocked** | Cannot proceed — prerequisites or state invalid | Read `reason` and `guard_failures`, resolve the blockers |
 | **terminal** | Mission is complete — agent loop should exit | Run `/spec-kitty.accept` for final validation |
 
 **Key output fields:**
@@ -84,7 +84,7 @@ The runtime returns a decision with one of four `kind` values. See `references/r
 - `workspace_path` — path to the worktree directory for this WP
 - `prompt_file` — path to the prompt file the agent should read and follow
 - `reason` — explanation for blocked or terminal decisions
-- `guard_failures` — list of guard failure descriptions when blocked
+- `guard_failures` — list of guard failure descriptions (may appear on any kind)
 - `progress` — WP progress summary with counts per lane
 
 ## Step 4: Handle Blocked States

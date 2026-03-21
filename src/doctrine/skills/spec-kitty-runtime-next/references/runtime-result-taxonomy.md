@@ -43,14 +43,17 @@ The runtime cannot proceed. Guards are failing or the mission state is invalid.
 **Key fields:**
 - `reason`: High-level description of why the mission is blocked
 - `guard_failures`: List of specific guard failure descriptions
-- `action`: The action that was attempted but blocked
+
+**Note:** Blocked decisions do not populate `action` — the runtime could not determine a valid action.
 
 **Common causes:**
 - Required artifacts missing (e.g., plan.md not yet created)
 - Prerequisites not met (e.g., upstream WP not done)
 - Configuration invalid (e.g., mission not activated)
 
-**Agent response:** Read `guard_failures` to understand what is missing. Resolve each guard failure, then retry `spec-kitty next`.
+**Agent response:** Read `reason` and `guard_failures` to understand what is missing. Resolve each guard failure, then retry `spec-kitty next`.
+
+**Note on guard_failures:** This field may also appear on `step` decisions when the runtime reuses the current step after guard evaluation. Always check it regardless of kind.
 
 ### terminal
 
