@@ -76,13 +76,15 @@ class InstallSkillsMigration(BaseMigration):
             warnings.append("No skills found to install")
             return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
-        # Get configured agents
+        # Get configured agents — config parse failure is a real error
+        # (returning success=True would stamp the migration as applied,
+        # permanently skipping skill installation for this project)
         try:
             agent_config = load_agent_config(project_path)
             agent_keys = agent_config.available
-        except Exception:
-            warnings.append("Could not load agent config; skipping skill installation")
-            return MigrationResult(success=True, changes_made=changes, warnings=warnings)
+        except Exception as exc:
+            errors.append(f"Could not load agent config: {exc}")
+            return MigrationResult(success=False, changes_made=changes, errors=errors)
 
         if not agent_keys:
             warnings.append("No agents configured; skipping skill installation")

@@ -395,6 +395,13 @@ def run_enhanced_verify(
 
             for name, roots in sorted(skill_name_to_roots.items()):
                 if len(roots) > 1:
+                    # A skill in both .agents/skills/ (shared root) and a
+                    # vendor-native root (e.g. .claude/skills/) is normal for
+                    # mixed-agent installs — not a duplicate.
+                    shared_root = ".agents/skills"
+                    non_shared = [r for r in roots if r != shared_root]
+                    if shared_root in roots and len(non_shared) <= 1:
+                        continue  # Expected mixed-agent layout
                     warning = f"Duplicate skill '{name}' found in: {', '.join(sorted(roots))}"
                     skill_warnings.append(warning)
 
