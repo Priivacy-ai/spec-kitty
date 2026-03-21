@@ -135,7 +135,7 @@ Existing 2.0.11+ projects that did not previously have the skill pack can receiv
 | FR-008 | Wrapper generation unchanged | Existing thin wrapper generation into wrapper roots continues to work unchanged alongside skill installation. | High | Done |
 | FR-009 | Ship product-operation skills | 6 product-operation skills authored per PRD section 8 guidance. 2 mission-composition skills deferred to doctrine mission compiler (PR #305 / Issue #327). | Medium | Done |
 | FR-010 | Skill frontmatter | Each shipped skill has minimal frontmatter: `name` and `description` only, with specific positive triggers and explicit negative scope boundaries in the description. | Medium | Done |
-| FR-011 | Upgrade installs skills | The upgrade flow installs the modern skill pack into existing 2.0.11+ projects that lack it. | Medium | Open |
+| FR-011 | Upgrade installs skills | The upgrade flow installs the modern skill pack into existing 2.0.11+ projects that lack it. | Medium | Done |
 | FR-012 | No duplicate skill names | Verification detects duplicate skill names across installed roots where relevant. | Low | Done |
 
 ### Non-Functional Requirements
