@@ -189,14 +189,17 @@ class TestFieldOrdering:
         manager = FrontmatterManager()
 
         assert "dependencies" in manager.WP_FIELD_ORDER
+        assert "requirement_refs" in manager.WP_FIELD_ORDER
 
-        # dependencies should be after lane and before subtasks
+        # dependencies should be after lane and before requirement_refs / subtasks
         lane_idx = manager.WP_FIELD_ORDER.index("lane")
         dep_idx = manager.WP_FIELD_ORDER.index("dependencies")
+        req_idx = manager.WP_FIELD_ORDER.index("requirement_refs")
         subtasks_idx = manager.WP_FIELD_ORDER.index("subtasks")
 
         assert dep_idx > lane_idx, "dependencies should come after lane"
-        assert dep_idx < subtasks_idx, "dependencies should come before subtasks"
+        assert dep_idx < req_idx, "dependencies should come before requirement_refs"
+        assert req_idx < subtasks_idx, "requirement_refs should come before subtasks"
 
     def test_write_maintains_field_order(self, temp_wp_file):
         """Test writing frontmatter maintains correct field order."""
@@ -206,6 +209,8 @@ title: "Test WP"
 lane: "planned"
 dependencies:
   - "WP01"
+requirement_refs:
+  - "FR-001"
 subtasks:
   - "T001"
 ---
@@ -224,11 +229,13 @@ subtasks:
         # Find line indices
         lane_line = next(i for i, line in enumerate(lines) if line.startswith("lane:"))
         dep_line = next(i for i, line in enumerate(lines) if line.startswith("dependencies:"))
+        req_line = next(i for i, line in enumerate(lines) if line.startswith("requirement_refs:"))
         subtasks_line = next(i for i, line in enumerate(lines) if line.startswith("subtasks:"))
 
-        # dependencies should come after lane and before subtasks
+        # dependencies should come after lane and before requirement_refs / subtasks
         assert dep_line > lane_line, "dependencies should come after lane"
-        assert dep_line < subtasks_line, "dependencies should come before subtasks"
+        assert dep_line < req_line, "dependencies should come before requirement_refs"
+        assert req_line < subtasks_line, "requirement_refs should come before subtasks"
 
     def test_field_order_includes_review_feedback(self):
         """Test WP_FIELD_ORDER includes review_feedback in correct position."""

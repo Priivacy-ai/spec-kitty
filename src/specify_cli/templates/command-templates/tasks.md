@@ -192,20 +192,23 @@ The WP prompt must show the correct command so agents don't branch from the wron
 
 ## Requirement Reference Mapping (MANDATORY)
 
-`finalize-tasks` validates requirement coverage from `tasks.md`. Each WP section must include a requirement mapping line in this format:
+After creating all WP sections and prompt files, register requirement mappings using the CLI.
+The CLI validates each ref against spec.md and writes `requirement_refs` directly into each
+WP file's YAML frontmatter — no sidecar files needed.
 
-```markdown
-### Requirement Refs
-- FR-001, FR-007
+**Batch mode (recommended)** — register all WP mappings at once:
+```bash
+spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001","FR-002"],"WP02":["FR-003","FR-004"]}' --json
 ```
 
-or
-
-```markdown
-**Requirements Refs**: FR-001, FR-007
+**Individual mode** — register one WP at a time:
+```bash
+spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
 ```
 
-Do not rely on WP frontmatter alone for requirement mapping; keep the canonical mapping in `tasks.md`.
+The response includes a coverage summary showing which FRs are still unmapped. Keep calling
+until `unmapped_functional` is empty. Default mode unions new refs with existing ones in
+frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad mapping).
 
 ## Task Generation Rules
 
