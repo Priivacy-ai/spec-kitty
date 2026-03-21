@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-03-21T07:33:54.046048+00:00",
+  "feature_number": "055",
+  "feature_slug": "055-agent-skills-pack",
+  "friendly_name": "agent skills pack",
+  "mission": "software-dev",
+  "slug": "055-agent-skills-pack",
+  "target_branch": "2.x"
+}
