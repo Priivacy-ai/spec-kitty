@@ -38,23 +38,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding, verify you are in the planning repository:
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture:
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
    - `TARGET_BRANCH` / `BASE_BRANCH` (uppercase aliases)
    - `feature_dir`, `artifact_files`, `artifact_dirs`
 
    Treat this JSON as canonical branch context for this command. Do not read `meta.json` to infer branch expectations.
-
-**Check your current branch:**
-```bash
-git branch --show-current
-```
-
-**Expected output:** the value from `TARGET_BRANCH` (typically `main` or `2.x`)
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
-```bash
-cd $(git rev-parse --show-toplevel)
-git checkout "$TARGET_BRANCH"
-```
+   If `branch_matches_target` is false, stop and tell the user the current checkout does not match the intended planning branch. Do not probe git manually; `check-prerequisites` already resolved this in Python.
 
 Work packages are generated directly in `kitty-specs/###-feature/` and committed to the target branch. Worktrees are created later when implementing each work package.
 
@@ -68,7 +60,10 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - `feature_dir`
    - `artifact_files` / `artifact_dirs` (if present)
    - `available_docs`
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
    All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
@@ -125,8 +120,9 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
      - Use `.kittify/templates/task-prompt-template.md` to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, and history entry
        - Objective, context, detailed guidance per subtask
+       - A Branch Strategy section that repeats the planning branch, final merge target, and notes that the actual `base_branch` may later differ for stacked WPs during `/spec-kitty.implement`
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
      - Update `tasks.md` to reference the prompt filename
@@ -148,6 +144,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
    This step is MANDATORY for workspace-per-WP features. Without it:
    - Dependencies won't be in frontmatter
+   - Branching-strategy metadata won't be normalized into every WP prompt
    - Requirement refs won't be validated/normalized
    - Agents won't know which --base flag to use
    - Tasks won't be committed to target branch

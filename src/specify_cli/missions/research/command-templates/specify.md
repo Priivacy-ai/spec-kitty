@@ -30,6 +30,16 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Strategy Confirmation (MANDATORY)
+
+Before discovery, resolve branch intent through the Python helper:
+
+```bash
+spec-kitty agent feature branch-context --json
+```
+
+If the user already named the intended landing branch, pass `--target-branch <branch>` and use that JSON as the branch contract. In your next reply, explicitly state `current_branch`, `planning_base_branch`, and `merge_target_branch`. If the branch contract does not match the user's intention, stop and resolve that before `create-feature`.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.

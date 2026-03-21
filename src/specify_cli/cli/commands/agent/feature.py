@@ -99,28 +99,57 @@ def _inject_branch_contract(
     payload: dict[str, object],
     *,
     target_branch: str,
+    current_branch: str | None = None,
 ) -> dict[str, object]:
     """Attach deterministic branch/runtime aliases for templates and agents."""
     enriched = dict(payload)
     raw_runtime_vars = enriched.get("runtime_vars", {})
     runtime_vars = dict(raw_runtime_vars) if isinstance(raw_runtime_vars, dict) else {}
     now_utc_iso = str(runtime_vars.get("now_utc_iso", _utc_now_iso()))
+    resolved_current_branch = str(current_branch or target_branch).strip() or target_branch
+    planning_base_branch = target_branch
+    merge_target_branch = target_branch
+    branch_matches_target = resolved_current_branch == target_branch
+    branch_strategy_summary = (
+        f"Current branch at workflow start: {resolved_current_branch}. "
+        f"Planning/base branch for this feature: {planning_base_branch}. "
+        f"Completed worktree changes must merge into {merge_target_branch}."
+    )
     runtime_vars["now_utc_iso"] = now_utc_iso
+    runtime_vars["current_branch"] = resolved_current_branch
     runtime_vars["target_branch"] = target_branch
     runtime_vars["base_branch"] = target_branch
+    runtime_vars["planning_base_branch"] = planning_base_branch
+    runtime_vars["merge_target_branch"] = merge_target_branch
+    runtime_vars["branch_matches_target"] = branch_matches_target
+    runtime_vars["branch_strategy_summary"] = branch_strategy_summary
 
     branch_context = {
+        "current_branch": resolved_current_branch,
         "target_branch": target_branch,
         "base_branch": target_branch,
+        "planning_base_branch": planning_base_branch,
+        "merge_target_branch": merge_target_branch,
         "expected_checkout_branch": target_branch,
+        "matches_target": branch_matches_target,
+        "branch_strategy_summary": branch_strategy_summary,
     }
 
+    enriched["current_branch"] = resolved_current_branch
+    enriched["CURRENT_BRANCH"] = resolved_current_branch
     enriched["target_branch"] = target_branch
     enriched["base_branch"] = target_branch
     enriched["TARGET_BRANCH"] = target_branch
     enriched["BASE_BRANCH"] = target_branch
+    enriched["planning_base_branch"] = planning_base_branch
+    enriched["PLANNING_BASE_BRANCH"] = planning_base_branch
+    enriched["merge_target_branch"] = merge_target_branch
+    enriched["MERGE_TARGET_BRANCH"] = merge_target_branch
     enriched["EXPECTED_TARGET_BRANCH"] = target_branch
     enriched["EXPECTED_BASE_BRANCH"] = target_branch
+    enriched["branch_matches_target"] = branch_matches_target
+    enriched["BRANCH_MATCHES_TARGET"] = branch_matches_target
+    enriched["branch_strategy_summary"] = branch_strategy_summary
     enriched["runtime_vars"] = runtime_vars
     enriched["NOW_UTC_ISO"] = now_utc_iso
     enriched["branch_context"] = branch_context
@@ -399,6 +428,91 @@ def _build_setup_plan_detection_error(
     return payload
 
 
+@app.command(name="branch-context")
+def branch_context(
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    target_branch: Annotated[
+        Optional[str],
+        typer.Option(
+            "--target-branch",
+            help="Planned landing branch (defaults to current branch)",
+        ),
+    ] = None,
+) -> None:
+    """Return deterministic branch contract for planning-stage prompts."""
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Could not locate project root. Run from within spec-kitty repository."
+            if json_output:
+                _emit_json({"error": error_msg})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        if not is_git_repo(repo_root):
+            error_msg = "Not in a git repository. Branch context requires git."
+            if json_output:
+                _emit_json({"error": error_msg})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        current_branch = get_current_branch(repo_root)
+        if not current_branch or current_branch == "HEAD":
+            error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."
+            if json_output:
+                _emit_json({"error": error_msg})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        resolved_target_branch = (
+            str(target_branch).strip()
+            if target_branch and str(target_branch).strip()
+            else current_branch
+        )
+        payload = {
+            "result": "success",
+            "repo_root": str(repo_root.resolve()),
+            "target_branch_source": "cli_arg" if target_branch else "current_branch",
+            "next_step": (
+                "Use this deterministic branch contract during specify/plan prompts; "
+                "do not rediscover branch state inside the LLM."
+            ),
+        }
+        enriched = _inject_branch_contract(
+            payload,
+            target_branch=resolved_target_branch,
+            current_branch=current_branch,
+        )
+
+        if json_output:
+            _emit_json(enriched)
+        else:
+            console.print(
+                f"[bold cyan]Current branch:[/bold cyan] {enriched['current_branch']}"
+            )
+            console.print(
+                f"[bold cyan]Planning/base branch:[/bold cyan] {enriched['planning_base_branch']}"
+            )
+            console.print(
+                f"[bold cyan]Merge target:[/bold cyan] {enriched['merge_target_branch']}"
+            )
+            console.print(
+                f"[bold cyan]Matches target:[/bold cyan] {enriched['branch_matches_target']}"
+            )
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        if json_output:
+            _emit_json({"error": str(e)})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
 @app.command(name="create-feature")
 def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
@@ -540,6 +654,10 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 lane: "planned"
+dependencies: []
+planning_base_branch: "2.x"
+merge_target_branch: "2.x"
+branch_strategy: "Planning artifacts were generated on 2.x; completed worktree changes must merge back into 2.x."
 subtasks:
   - "T001"
   - "T002"
@@ -707,7 +825,13 @@ spec-kitty agent tasks move-task WP01 --to doing
                 "write_mode": "update_existing_files",
                 "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
             }
-            _emit_json(_inject_branch_contract(create_payload, target_branch=planning_branch))
+            _emit_json(
+                _inject_branch_contract(
+                    create_payload,
+                    target_branch=planning_branch,
+                    current_branch=current_branch,
+                )
+            )
         else:
             console.print(f"[green]✓[/green] Feature created: {feature_slug_formatted}")
             console.print(f"   Directory: {feature_dir}")
@@ -798,6 +922,7 @@ def check_prerequisites(
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
         target_branch = _resolve_feature_target_branch(feature_dir, repo_root)
+        current_branch = get_current_branch(repo_root) or target_branch
 
         if json_output:
             if paths_only:
@@ -814,10 +939,22 @@ def check_prerequisites(
                 paths_payload["TASKS"] = paths_payload.get("tasks_file", "")
                 feature_dir_value = str(paths_payload.get("feature_dir", ""))
                 paths_payload["SPECS_DIR"] = str(Path(feature_dir_value).parent) if feature_dir_value else ""
-                _emit_json(_inject_branch_contract(paths_payload, target_branch=target_branch))
+                _emit_json(
+                    _inject_branch_contract(
+                        paths_payload,
+                        target_branch=target_branch,
+                        current_branch=current_branch,
+                    )
+                )
             else:
                 result_payload = dict(validation_result)
-                _emit_json(_inject_branch_contract(result_payload, target_branch=target_branch))
+                _emit_json(
+                    _inject_branch_contract(
+                        result_payload,
+                        target_branch=target_branch,
+                        current_branch=current_branch,
+                    )
+                )
         else:
             if validation_result["valid"]:
                 console.print("[green]✓[/green] Prerequisites check passed")
@@ -896,6 +1033,7 @@ def setup_plan(
 
         feature_slug = feature_dir.name
         _, target_branch = _show_branch_context(repo_root, feature_slug, json_output)
+        current_branch = get_current_branch(repo_root) or target_branch
 
         spec_file = feature_dir / "spec.md"
         plan_file = feature_dir / "plan.md"
@@ -1071,7 +1209,13 @@ def setup_plan(
                 result["gap_analysis"] = gap_analysis_path
             if generators_detected:
                 result["generators_detected"] = generators_detected
-            _emit_json(_inject_branch_contract(result, target_branch=target_branch))
+            _emit_json(
+                _inject_branch_contract(
+                    result,
+                    target_branch=target_branch,
+                    current_branch=current_branch,
+                )
+            )
         else:
             console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
 
@@ -1608,6 +1752,13 @@ def finalize_tasks(
 
         updated_count = 0
         work_packages: list[dict[str, object]] = []
+        planning_base_branch = target_branch
+        merge_target_branch = target_branch
+        branch_strategy = (
+            f"Planning artifacts for this feature were generated on {planning_base_branch}. "
+            f"During /spec-kitty.implement this WP may branch from a dependency-specific base, "
+            f"but completed worktree changes must merge back into {merge_target_branch} unless the human explicitly redirects the landing branch."
+        )
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -1657,6 +1808,18 @@ def finalize_tasks(
             # Update frontmatter with dependencies + requirement refs
             if not has_dependencies_line or frontmatter.get("dependencies") != deps:
                 frontmatter["dependencies"] = deps
+                frontmatter_changed = True
+
+            if frontmatter.get("planning_base_branch") != planning_base_branch:
+                frontmatter["planning_base_branch"] = planning_base_branch
+                frontmatter_changed = True
+
+            if frontmatter.get("merge_target_branch") != merge_target_branch:
+                frontmatter["merge_target_branch"] = merge_target_branch
+                frontmatter_changed = True
+
+            if frontmatter.get("branch_strategy") != branch_strategy:
+                frontmatter["branch_strategy"] = branch_strategy
                 frontmatter_changed = True
 
             if (

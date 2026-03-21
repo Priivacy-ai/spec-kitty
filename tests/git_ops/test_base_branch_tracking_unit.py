@@ -300,17 +300,27 @@ class TestBaseBranchInFrontmatter:
         manager = FrontmatterManager()
 
         # Check that base_branch and base_commit are in field order
+        assert "planning_base_branch" in manager.WP_FIELD_ORDER
+        assert "merge_target_branch" in manager.WP_FIELD_ORDER
+        assert "branch_strategy" in manager.WP_FIELD_ORDER
         assert "base_branch" in manager.WP_FIELD_ORDER
         assert "base_commit" in manager.WP_FIELD_ORDER
         assert "created_at" in manager.WP_FIELD_ORDER
 
-        # Check order: dependencies should come before base_branch
+        # Check order: dependencies should come before the planning/merge contract,
+        # which should come before the actual worktree base tracking fields.
         deps_idx = manager.WP_FIELD_ORDER.index("dependencies")
+        planning_base_idx = manager.WP_FIELD_ORDER.index("planning_base_branch")
+        merge_target_idx = manager.WP_FIELD_ORDER.index("merge_target_branch")
+        branch_strategy_idx = manager.WP_FIELD_ORDER.index("branch_strategy")
         base_branch_idx = manager.WP_FIELD_ORDER.index("base_branch")
         base_commit_idx = manager.WP_FIELD_ORDER.index("base_commit")
         created_at_idx = manager.WP_FIELD_ORDER.index("created_at")
 
-        assert deps_idx < base_branch_idx
+        assert deps_idx < planning_base_idx
+        assert planning_base_idx < merge_target_idx
+        assert merge_target_idx < branch_strategy_idx
+        assert branch_strategy_idx < base_branch_idx
         assert base_branch_idx < base_commit_idx
         assert base_commit_idx < created_at_idx
 

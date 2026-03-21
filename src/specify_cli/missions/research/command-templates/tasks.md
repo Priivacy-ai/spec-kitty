@@ -20,15 +20,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the planning repository (not a worktree). Task generation happens on the target branch for ALL missions.
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture:
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
    - `TARGET_BRANCH` / `BASE_BRANCH`
    - `feature_dir`
 
    Treat this JSON as canonical branch context for this command. Do not infer from `meta.json`.
-
-```bash
-git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites JSON
-```
+   If `branch_matches_target` is false, stop and resolve the mismatch before generating tasks. Do not probe git manually inside the prompt.
 
 **Note**: Task generation in the target branch is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 
@@ -38,7 +38,10 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
 
 1. **Setup**: Use the `check-prerequisites` JSON from Location Pre-flight and capture:
    - `feature_dir`
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
    It also returns `runtime_vars.now_utc_iso` (`NOW_UTC_ISO`) for deterministic timestamp fields.
@@ -137,7 +140,8 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
      - Full path: `feature_dir/tasks/WP01-literature-search.md`
      - Use `templates/task-prompt-template.md` to capture:
        - **YAML frontmatter with `lane: "planned"`** (CRITICAL - this is how review finds WPs!)
-       - `work_package_id`, `subtasks` array, `dependencies`, history entry
+       - `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, history entry
+       - A Branch Strategy section that repeats the planning branch and final merge target for the WP
        - Objectives, context, methodology guidance per subtask
        - Evidence tracking requirements
        - Quality validation criteria
@@ -153,6 +157,7 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
 
    This step is MANDATORY. Without it:
    - Dependencies won't be in frontmatter
+   - Branching-strategy metadata won't be normalized into every WP prompt
    - Tasks won't be committed to target branch
 
 8. **Report**:
@@ -195,18 +200,21 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
 ```yaml
 ---
 work_package_id: "WP01"
+title: "Literature Search & Source Collection"
+lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
+dependencies: []  # Added by finalize-tasks
+planning_base_branch: "main"
+merge_target_branch: "main"
+branch_strategy: "Planning artifacts were generated on main; completed worktree changes must merge back into main."
 subtasks:
   - "T001"
   - "T002"
-title: "Literature Search & Source Collection"
 phase: "Phase 1 - Literature Review"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""
 agent: ""
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
-dependencies: []  # Added by finalize-tasks
 history:
   - timestamp: "2026-01-19T00:00:00Z"
     lane: "planned"

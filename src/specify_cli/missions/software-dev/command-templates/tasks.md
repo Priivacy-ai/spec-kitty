@@ -62,7 +62,11 @@ spec-kitty agent context resolve --action tasks --json
 Treat the resolver JSON as canonical for:
 - `feature_slug`
 - `feature_dir`
+- `current_branch`
 - `target_branch`
+- `planning_base_branch`
+- `merge_target_branch`
+- `branch_matches_target`
 - exact follow-up commands (`check_prerequisites`, `finalize_tasks`)
 
 Prompts do not rediscover feature context. Commands do.
@@ -73,8 +77,13 @@ Prompts do not rediscover feature context. Commands do.
    - `feature_dir`
    - `artifact_files` / `artifact_dirs` (if present)
    - `available_docs`
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
    All paths must be absolute.
+
+   If `branch_matches_target` is false, stop and tell the user the checkout is on the wrong planning branch instead of probing git manually in the prompt.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
    It also returns `runtime_vars.now_utc_iso` (`NOW_UTC_ISO`) for deterministic timestamp fields.
@@ -149,8 +158,9 @@ Prompts do not rediscover feature context. Commands do.
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
      - Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`) to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, and history entry
        - Objective, context, detailed guidance per subtask
+       - A Branch Strategy section that repeats the planning branch, final merge target, and notes that the actual `base_branch` may later differ for stacked WPs during `/spec-kitty.implement`
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
      - Update `tasks.md` to reference the prompt filename
@@ -174,6 +184,7 @@ Prompts do not rediscover feature context. Commands do.
 
    This step is MANDATORY for workspace-per-WP features. Without it:
    - Dependencies won't be in frontmatter
+   - Branching-strategy metadata won't be normalized into every WP prompt
    - Requirement refs won't be validated/normalized
    - Agents won't know which --base flag to use
    - Tasks won't be committed to target branch

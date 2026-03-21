@@ -1,10 +1,14 @@
 ---
 work_package_id: "WPxx"
+title: "Replace with work package title"
+lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
+dependencies: []
+planning_base_branch: "{{planning_base_branch}}"  # Planning branch active when this WP prompt was generated
+merge_target_branch: "{{merge_target_branch}}"    # Final landing branch for completed worktree changes
+branch_strategy: "{{branch_strategy}}"            # Repeat this branch contract before coding; never guess
 subtasks:
   - "Txxx"
-title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -22,6 +26,15 @@ history:
 
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
+
+## Branch Strategy
+
+- **Planning/base branch at prompt creation**: `{{planning_base_branch}}`
+- **Final merge target for completed work**: `{{merge_target_branch}}`
+- **Actual worktree base may differ later**: `/spec-kitty.implement` populates frontmatter `base_branch` when the worktree is created. For stacked WPs it may point at another WP branch, but the final merge target remains `{{merge_target_branch}}` unless the human explicitly changes the landing branch.
+- **If human instructions contradict these fields**: stop and resolve the intended landing branch before coding.
+
+---
 
 ## ⚠️ IMPORTANT: Review Feedback Status
 
@@ -55,7 +68,7 @@ When a parent WP changes during review:
 **Check if rebase needed**:
 ```bash
 cd .worktrees/{{feature_slug}}-{{work_package_id}}
-git log --oneline main..{{base_branch}}  # Shows commits in base not in your workspace
+git log --oneline HEAD..{{base_branch}}  # Shows commits in the base branch that are not in your workspace yet
 ```
 
 **If this WP has dependent WPs** (other WPs depend on this one):

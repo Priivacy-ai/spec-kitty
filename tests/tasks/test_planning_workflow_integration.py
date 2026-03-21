@@ -362,10 +362,18 @@ Test work package content.
     # Verify dependencies were added by finalize-tasks
     wp01_updated = (tasks_dir / "WP01-foundation.md").read_text()
     assert "dependencies" in wp01_updated.lower(), "WP01 should have dependencies field"
+    assert "planning_base_branch: main" in wp01_updated, (
+        "WP01 should record the planning branch used to generate tasks"
+    )
+    assert "merge_target_branch: main" in wp01_updated, (
+        "WP01 should record the final merge target"
+    )
 
     wp02_updated = (tasks_dir / "WP02-api.md").read_text()
     assert "dependencies" in wp02_updated.lower(), "WP02 should have dependencies field"
     assert "WP01" in wp02_updated, "WP02 should depend on WP01"
+    assert "planning_base_branch: main" in wp02_updated
+    assert "merge_target_branch: main" in wp02_updated
 
     # Verify: NO worktrees directory exists
     worktrees_dir = test_project / ".worktrees"

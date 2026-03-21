@@ -20,15 +20,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the primary repository checkout (not a worktree). Task generation happens on the feature target branch for all missions.
 
 1. Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` and capture:
+   - `current_branch`
    - `target_branch` / `base_branch`
+   - `planning_base_branch` / `merge_target_branch`
+   - `branch_matches_target`
    - `TARGET_BRANCH` / `BASE_BRANCH`
    - `feature_dir`
 
    Treat this JSON as the canonical branch contract for this command.
-
-```bash
-git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites JSON
-```
+   If `branch_matches_target` is false, stop and resolve the mismatch before generating tasks. Do not probe git manually inside the prompt.
 
 **Note**: Task generation happens on the feature target branch. Implementation happens later in per-WP worktrees.
 
@@ -36,7 +36,7 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
 
 ## Outline
 
-1. **Setup**: Use the pre-flight `check-prerequisites` JSON and keep `feature_dir` plus `target_branch/base_branch` in context.
+1. **Setup**: Use the pre-flight `check-prerequisites` JSON and keep `feature_dir`, `current_branch`, `target_branch/base_branch`, and `planning_base_branch/merge_target_branch` in context.
 
 2. **Load design documents**:
    - spec.md (documentation goals, selected Divio types)
@@ -136,6 +136,8 @@ git branch --show-current  # Should match TARGET_BRANCH from check-prerequisites
    - For each work package:
      - Generate `WPxx-slug.md` using `templates/task-prompt-template.md`
      - Include objectives, context, subtask guidance
+     - Include frontmatter `planning_base_branch`, `merge_target_branch`, and `branch_strategy`
+     - Add a short Branch Strategy section that repeats the planning branch and final merge target for the WP
      - Add quality validation strategy (documentation-specific)
      - Include Divio compliance checks
      - Add accessibility/inclusivity checklists
