@@ -100,6 +100,7 @@ graph LR
 
 **2.1.1 highlights:**
 - Hotfix for PyPI wheels to bundle the canonical doctrine skill pack correctly
+- Upgrade repair migration for `2.1.0` projects that missed the managed skill pack
 - Release guardrails now fail if a wheel omits doctrine files or bundled skills
 
 **2.1.0 highlights:**

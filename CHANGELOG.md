@@ -16,6 +16,7 @@ _No unreleased changes._
 ### 🐛 Fixed
 
 - **Bundled doctrine payload in wheels**: the PyPI wheel now includes the full `doctrine/` package tree, including the canonical skill pack under `doctrine/skills/`, so `spec-kitty init` and `spec-kitty upgrade` can install managed skills for shipped builds.
+- **2.1.0 repair migration**: added `2.1.1_repair_skill_pack` so projects that already upgraded on broken `2.1.0` wheels reinstall the canonical managed skill pack on `spec-kitty upgrade`.
 - **Release verification guard**: the release workflow now fails if the built wheel omits doctrine files or bundled skills, and distribution tests now assert that a wheel-installed `spec-kitty init` produces the managed skill manifest and installed skill files.
 
 ## [2.1.0] - 2026-03-21
