@@ -236,6 +236,38 @@ class TestInitWithoutTemplateRoot:
         if missions_dir.exists():
             assert (missions_dir / "software-dev").exists() or True  # May not exist in all versions
 
+    def test_init_installs_bundled_skills(self, installed_venv: Path, tmp_path: Path) -> None:
+        """Wheel-installed init should install the canonical bundled skill pack."""
+        project_dir = tmp_path / "skills-project"
+        spec_kitty = _venv_spec_kitty(installed_venv)
+
+        result = subprocess.run(
+            [
+                str(spec_kitty),
+                "init",
+                str(project_dir),
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--mission",
+                "software-dev",
+                "--no-git",
+            ],
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
+            cwd=str(tmp_path),
+        )
+
+        assert result.returncode == 0, f"Init failed: {result.stderr}"
+
+        manifest_path = project_dir / ".kittify" / "skills-manifest.json"
+        assert manifest_path.is_file(), "skills-manifest.json should be created for bundled skills"
+
+        skill_file = project_dir / ".claude" / "skills" / "spec-kitty-setup-doctor" / "SKILL.md"
+        assert skill_file.is_file(), "Bundled canonical skill should be installed during init"
+
 
 # =============================================================================
 # RESEARCH FEATURE CREATION TESTS (T011)

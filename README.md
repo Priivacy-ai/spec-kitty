@@ -96,7 +96,11 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v2.1.0` (`main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v2.1.1` (`main`, GitHub Releases, and PyPI)
+
+**2.1.1 highlights:**
+- Hotfix for PyPI wheels to bundle the canonical doctrine skill pack correctly
+- Release guardrails now fail if a wheel omits doctrine files or bundled skills
 
 **2.1.0 highlights:**
 - Agent Skills Pack with bundled skills, installer/verification flow, and upgrade migration coverage
