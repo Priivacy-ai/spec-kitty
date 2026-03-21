@@ -43,25 +43,9 @@ class InstallSkillsMigration(BaseMigration):
         if not kittify.is_dir():
             return False, ".kittify/ directory does not exist (not initialized)"
 
-        try:
-            from specify_cli.skills.registry import SkillRegistry
-
-            registry = SkillRegistry.from_package()
-            skills = registry.discover_skills()
-            if not skills:
-                # Try local repo fallback (development mode)
-                from specify_cli.template import get_local_repo_root
-
-                local_repo = get_local_repo_root()
-                if local_repo is not None:
-                    registry = SkillRegistry.from_local_repo(local_repo)
-                    skills = registry.discover_skills()
-
-            if not skills:
-                return False, "No canonical skills found in package or local repo"
-            return True, ""
-        except Exception as exc:
-            return False, f"Cannot discover skills: {exc}"
+        # Skill discovery is best-effort. If no skills are found, apply()
+        # handles it as a no-op warning rather than blocking the upgrade.
+        return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Install skills for all configured agents."""
