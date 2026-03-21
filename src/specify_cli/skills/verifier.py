@@ -51,7 +51,7 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     for entry in manifest.entries:
         installed = (project_path / entry.installed_path).resolve()
         # Guard against path traversal — installed path must stay within project
-        if not str(installed).startswith(str(project_path.resolve())):
+        if not installed.is_relative_to(project_path.resolve()):
             errors.append(f"Unsafe path {entry.installed_path}: escapes project root")
             continue
         if not installed.exists():
@@ -91,7 +91,7 @@ def repair_skills(
     for entry in entries_to_repair:
         # Guard against path traversal in installed_path
         dest = (project_path / entry.installed_path).resolve()
-        if not str(dest).startswith(str(project_path.resolve())):
+        if not dest.is_relative_to(project_path.resolve()):
             logger.warning("Unsafe path %s: escapes project root", entry.installed_path)
             failed += 1
             continue
@@ -153,7 +153,7 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
     """
     candidate = (skill_dir / source_file).resolve()
     # Guard against path traversal — source must stay inside skill directory
-    if not str(candidate).startswith(str(skill_dir.resolve())):
+    if not candidate.is_relative_to(skill_dir.resolve()):
         return None
     if candidate.is_file():
         return candidate

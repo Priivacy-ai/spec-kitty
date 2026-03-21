@@ -2,7 +2,7 @@
 
 **Feature Branch**: `055-agent-skills-pack`
 **Created**: 2026-03-21
-**Status**: Draft
+**Status**: Implemented
 **PRD Source**: `prd-spec-kitty-agent-skills-pack-v1.md`
 **Target**: Spec Kitty 2.0.11+ (`2.x` line only)
 
@@ -125,40 +125,40 @@ Existing 2.0.11+ projects that did not previously have the skill pack can receiv
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Canonical skill source layout | Skills are authored in `src/doctrine/skills/<skill-name>/` with SKILL.md, optional references/, scripts/, and assets/ subdirectories. | High | Open |
-| FR-002 | Init distributes skills | `spec-kitty init` installs the canonical skill pack into correct skill roots for each selected agent based on the framework capability matrix. | High | Open |
-| FR-003 | Installation class routing | Init uses the capability matrix to route skills: shared-root-capable to `.agents/skills/`, native-root-required to vendor-specific skill roots, wrapper-only agents receive no skills. | High | Open |
-| FR-004 | Managed-file manifest creation | Init creates a managed-file manifest tracking every installed skill file with source hash, target path, installation class, and skill name. | High | Open |
-| FR-005 | Manifest persistence | The managed-file manifest is persisted in `.kittify/` and survives across sessions. | High | Open |
-| FR-006 | Verify detects drift | `spec-kitty verify` reads the managed manifest, checks each tracked file for existence and content integrity, and reports missing or drifted files. | High | Open |
-| FR-007 | Sync restores managed files | Sync/repair recreates missing managed skill files and restores drifted files from the packaged canonical source. | Medium | Open |
-| FR-008 | Wrapper generation unchanged | Existing thin wrapper generation into wrapper roots continues to work unchanged alongside skill installation. | High | Open |
-| FR-009 | Ship spec-kitty-setup-doctor | The `spec-kitty-setup-doctor` skill is authored with SKILL.md, references, and scripts following PRD section 8 guidance. | Medium | Open |
-| FR-010 | Skill frontmatter | Each shipped skill has minimal frontmatter: `name` and `description` only, with specific positive triggers and explicit negative scope boundaries in the description. | Medium | Open |
+| FR-001 | Canonical skill source layout | Skills are authored in `src/doctrine/skills/<skill-name>/` with SKILL.md, optional references/, scripts/, and assets/ subdirectories. | High | Done |
+| FR-002 | Init distributes skills | `spec-kitty init` installs the canonical skill pack into correct skill roots for each selected agent based on the framework capability matrix. | High | Done |
+| FR-003 | Installation class routing | Init uses the capability matrix to route skills: shared-root-capable to `.agents/skills/`, native-root-required to vendor-specific skill roots, wrapper-only agents receive no skills. | High | Done |
+| FR-004 | Managed-file manifest creation | Init creates a managed-file manifest tracking every installed skill file with source hash, target path, installation class, and skill name. | High | Done |
+| FR-005 | Manifest persistence | The managed-file manifest is persisted in `.kittify/` and survives across sessions. | High | Done |
+| FR-006 | Verify detects drift | `spec-kitty verify` reads the managed manifest, checks each tracked file for existence and content integrity, and reports missing or drifted files. | High | Done |
+| FR-007 | Sync restores managed files | Sync/repair recreates missing managed skill files and restores drifted files from the packaged canonical source. | Medium | Done |
+| FR-008 | Wrapper generation unchanged | Existing thin wrapper generation into wrapper roots continues to work unchanged alongside skill installation. | High | Done |
+| FR-009 | Ship product-operation skills | 6 product-operation skills authored per PRD section 8 guidance. 2 mission-composition skills deferred to doctrine mission compiler (PR #305 / Issue #327). | Medium | Done |
+| FR-010 | Skill frontmatter | Each shipped skill has minimal frontmatter: `name` and `description` only, with specific positive triggers and explicit negative scope boundaries in the description. | Medium | Done |
 | FR-011 | Upgrade installs skills | The upgrade flow installs the modern skill pack into existing 2.0.11+ projects that lack it. | Medium | Open |
-| FR-012 | No duplicate skill names | Verification detects duplicate skill names across installed roots where relevant. | Low | Open |
+| FR-012 | No duplicate skill names | Verification detects duplicate skill names across installed roots where relevant. | Low | Done |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Init speed | Skill installation adds less than 2 seconds to the total init execution time. | Performance | Medium | Open |
-| NFR-002 | Manifest size | The managed manifest file remains under 50KB for a full 12-agent installation with all 8 skills. | Storage | Low | Open |
-| NFR-003 | Test coverage | New code has 90%+ test coverage with pytest. | Quality | High | Open |
-| NFR-004 | Type safety | All new code passes mypy --strict with no type errors. | Quality | High | Open |
-| NFR-005 | Local-first operation | All skill distribution, manifest, verify, and sync operations work fully offline without network access. | Availability | High | Open |
+| NFR-001 | Init speed | Skill installation adds less than 2 seconds to the total init execution time. | Performance | Medium | Done |
+| NFR-002 | Manifest size | The managed manifest file remains under 50KB for a full 12-agent installation with all 6 skills. | Storage | Low | Done |
+| NFR-003 | Test coverage | New code has 90%+ test coverage with pytest. | Quality | High | Done |
+| NFR-004 | Type safety | All new code passes mypy --strict with no type errors. | Quality | High | Done |
+| NFR-005 | Local-first operation | All skill distribution, manifest, verify, and sync operations work fully offline without network access. | Availability | High | Done |
 
 ### Constraints
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | 2.0.11+ only | No pre-2.0.11 compatibility code. The feature targets the modern 2.x runtime line exclusively. | Technical | High | Open |
-| C-002 | No separate legacy pack | A single modern pack is shipped. No legacy or split pack is introduced. | Product | High | Open |
-| C-003 | Preserve wrapper behavior | Existing wrapper generation and wrapper roots must continue to function unchanged. | Technical | High | Open |
-| C-004 | Doctrine content layer | Canonical skill source must reside in `src/doctrine/skills/`, following the 2.x dual-repository architecture. | Technical | High | Open |
-| C-005 | Separate from dossier manifest | The managed-file manifest is a new dedicated system, not an extension of `src/specify_cli/dossier/manifest.py`. | Technical | High | Open |
-| C-006 | PRD-defined skill surface | Only the 8 skills defined in PRD section 7 are shipped. No additional skills are added without PRD update. | Product | Medium | Open |
-| C-007 | Minimal frontmatter | Skill frontmatter contains only `name` and `description` by default, per PRD design principle 9. | Technical | Medium | Open |
+| C-001 | 2.0.11+ only | No pre-2.0.11 compatibility code. The feature targets the modern 2.x runtime line exclusively. | Technical | High | Met |
+| C-002 | No separate legacy pack | A single modern pack is shipped. No legacy or split pack is introduced. | Product | High | Met |
+| C-003 | Preserve wrapper behavior | Existing wrapper generation and wrapper roots must continue to function unchanged. | Technical | High | Met |
+| C-004 | Doctrine content layer | Canonical skill source must reside in `src/doctrine/skills/`, following the 2.x dual-repository architecture. | Technical | High | Met |
+| C-005 | Separate from dossier manifest | The managed-file manifest is a new dedicated system, not an extension of `src/specify_cli/dossier/manifest.py`. | Technical | High | Met |
+| C-006 | Product-operation skill surface | 6 product-operation skills shipped from PRD section 7. 2 mission-composition skills (specify-plan, mission-orchestrator) deferred to doctrine mission compiler per architectural boundary review (PR #305 / Issue #327). | Product | Medium | Met |
+| C-007 | Minimal frontmatter | Skill frontmatter contains only `name` and `description` by default, per PRD design principle 9. | Technical | Medium | Met |
 
 ### Key Entities
 

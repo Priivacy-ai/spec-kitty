@@ -66,13 +66,13 @@ src/doctrine/skills/                       # NEW: Canonical authored skill sourc
 │   │   └── common-failure-signatures.md
 │   └── scripts/                           # Deterministic check scripts
 │       └── health-check.sh
-├── spec-kitty-constitution-doctrine/      # Stub (future)
-├── spec-kitty-glossary-context/           # Stub (future)
-├── spec-kitty-specify-plan/               # Stub (future)
-├── spec-kitty-runtime-next/               # Stub (future)
-├── spec-kitty-runtime-review/             # Stub (future)
-├── spec-kitty-orchestrator-api-operator/  # Stub (future)
-└── spec-kitty-mission-orchestrator/       # Stub (future)
+├── spec-kitty-constitution-doctrine/      # Shipped: governance workflows
+├── spec-kitty-glossary-context/           # Shipped: glossary curation
+├── spec-kitty-runtime-next/               # Shipped: runtime control loop
+├── spec-kitty-runtime-review/             # Shipped: review workflow
+└── spec-kitty-orchestrator-api-operator/  # Shipped: external orchestration API
+# spec-kitty-specify-plan — DEFERRED to doctrine mission compiler (PR #305 / Issue #327)
+# spec-kitty-mission-orchestrator — DEFERRED to doctrine mission compiler
 
 src/specify_cli/skills/                    # NEW: Skill distribution runtime
 ├── __init__.py
