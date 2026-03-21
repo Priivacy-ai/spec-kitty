@@ -28,10 +28,10 @@ Reports: installed skills, missing files, drifted files.
 ### Repair Drifted Skills
 
 ```bash
-spec-kitty sync --repair-skills
+spec-kitty init --here
 ```
 
-Restores missing or modified managed skill files from canonical source.
+Re-initializes the project in place, restoring missing or modified managed skill files from canonical source.
 
 ## For Contributors
 
