@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-03-21T07:33:54.046048+00:00",
+  "feature_number": "055",
+  "feature_slug": "055-agent-skills-pack",
+  "friendly_name": "Agent Skills Pack",
+  "mission": "software-dev",
+  "slug": "agent-skills-pack",
+  "source_description": "Ship one canonical customer-facing skill pack for Spec Kitty 2.0.11+ with 8 composable skills, managed manifest, and deterministic distribution through spec-kitty init.",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
