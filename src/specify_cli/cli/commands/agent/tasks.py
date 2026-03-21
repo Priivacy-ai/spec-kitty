@@ -1952,7 +1952,9 @@ def map_requirements(
             frontmatter["requirement_refs"] = merged_refs
             write_frontmatter(wp_file, frontmatter, body)
 
-        # Detect stale/invalid refs across all WPs (warning, not error)
+        # Hard-fail on stale/invalid refs across all WPs.  This gate
+        # prevents the tasks phase from advancing with a mapping-invalid
+        # repo — finalize-tasks would reject it downstream anyway.
         all_wp_raw = read_all_wp_raw_requirement_refs(tasks_dir)
         all_raw_refs: list[str] = []
         for ref_list in all_wp_raw.values():
@@ -1971,6 +1973,24 @@ def map_requirements(
                 )
                 if wp_bad:
                     stale_refs[wp_id] = wp_bad
+
+        if stale_refs:
+            payload = {
+                "error": "Stale or invalid refs in WP frontmatter",
+                "stale_refs": stale_refs,
+                "hint": (
+                    "Re-run with --replace to correct, e.g.: "
+                    "map-requirements --wp WP01 --refs FR-001 --replace"
+                ),
+            }
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
+                for wp_id, bad_refs in sorted(stale_refs.items()):
+                    console.print(f"  {wp_id}: {', '.join(bad_refs)}")
+                console.print("  Use --replace to correct mappings")
+            raise typer.Exit(1)
 
         all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
         coverage = compute_coverage(all_wp_refs, functional_ids)
@@ -2009,7 +2029,7 @@ def map_requirements(
                             f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}"
                         )
 
-        payload: dict[str, object] = {
+        payload = {
             "result": "success",
             "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
             "total_mappings": {
@@ -2018,15 +2038,6 @@ def map_requirements(
             "coverage": coverage,
             "committed": committed,
         }
-        if stale_refs:
-            payload["warnings"] = {
-                "stale_refs": stale_refs,
-                "hint": (
-                    "Re-run with --replace to correct, e.g.: "
-                    "map-requirements --wp WP01 --refs FR-001 --replace"
-                ),
-            }
-
         if json_output:
             print(json.dumps(payload))
         else:
@@ -2040,13 +2051,6 @@ def map_requirements(
                 console.print(
                     f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}"
                 )
-            if stale_refs:
-                console.print(
-                    "\n  [yellow]Warning:[/yellow] Stale or invalid refs in WP frontmatter:"
-                )
-                for wp_id, bad_refs in sorted(stale_refs.items()):
-                    console.print(f"    {wp_id}: {', '.join(bad_refs)}")
-                console.print("    Use --replace to correct mappings")
             if committed:
                 console.print("[cyan]→ Committed mapping changes[/cyan]")
 
