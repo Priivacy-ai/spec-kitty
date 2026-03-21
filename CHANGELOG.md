@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.1.0] - 2026-03-21
+
+### ✅ Added
+
+- **Agent Skills Pack (`#330`)**: added canonical bundled skills, registry/installer/verification flow, manifest support, and upgrade migration `m_2_0_11_install_skills`.
+- **Structured requirement mapping (`#329`)**: added requirement-to-work-package mapping support with CLI integration for tracing delivery intent into execution planning.
+
+### 🔧 Changed
+
+- **Deterministic planning branch intent (`#328`)**: `specify` and `plan` commands now inject explicit target-branch metadata into templates to reduce ambiguity in downstream execution.
+- **Primary release line promotion**: `2.x` becomes the stable `main` line, with GitHub Releases and PyPI publication starting at `2.1.0`.
+
+### ⚠️ Deprecated
+
+- **`1.x` overall**: the former `1.x` line is now deprecated and moves to `1.x-maintenance` for critical fixes only. No new `1.x` PyPI releases are planned.
+
+### 🗑️ Removed
+
+- **Public `/spec-kitty.clarify` slash command (`#322`)**: removed the legacy clarify command, template, and migration path in favor of the current planning/discovery flow.
+
 ## [2.0.11] - 2026-03-20
 
 ### 📄 Documentation

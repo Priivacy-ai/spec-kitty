@@ -1,227 +1,140 @@
 # Release Checklist
 
-Use this checklist to ensure consistent, high-quality releases of spec-kitty.
+Use this checklist for stable `2.x` releases from `main`.
 
-> For the `2.x` branch, releases are GitHub-only. Use semantic tags in the form `v2.<minor>.<patch>` and skip any PyPI publication steps.
+> `main` is the primary `2.x` line and publishes both GitHub releases and PyPI packages.
+> `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
+> For the branch rename/cutover itself, see `docs/how-to/2-1-main-cutover-checklist.md`.
 
 ## Pre-Release Preparation
 
 ### Version Planning
 
-- [ ] Determine version number using [Semantic Versioning](https://semver.org/):
-  - **Patch** (X.Y.Z): Bug fixes, small improvements
-  - **Minor** (X.Y.0): New features, backward compatible
-  - **Major** (X.0.0): Breaking changes
+- [ ] Choose the version with [Semantic Versioning](https://semver.org/):
+  - Patch (`X.Y.Z`): bug fixes and small improvements
+  - Minor (`X.Y.0`): new features, backward-compatible platform changes
+  - Major (`X.0.0`): breaking changes
+- [ ] Confirm the release is intended for `main`, not `1.x-maintenance`.
+- [ ] If the release also changes branch policy, docs, or distribution channels, include that in `CHANGELOG.md`.
+
+### Release-Line Sanity
+
+- [ ] Confirm the default branch is `main`.
+- [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
+- [ ] Confirm open PRs are targeted intentionally:
+  - New product work should target `main`.
+  - Maintenance-only fixes should target `1.x-maintenance`.
+- [ ] Confirm PyPI Trusted Publishing is configured for `spec-kitty-cli` against `.github/workflows/release.yml`.
 
 ### Code Quality
 
-- [ ] Run full test suite: `pytest tests/ -v`
-  - All tests passing
-  - No unexpected failures
-  - Check for XPASS (unexpectedly passing tests that should be reviewed)
-
-- [ ] **CRITICAL: Verify all migrations are registered**:
+- [ ] Run the full test suite:
   ```bash
-  pytest tests/specify_cli/upgrade/test_migration_robustness.py::TestMigrationRegistryCompleteness -v
+  pytest tests/ -v
   ```
-  - **Why**: Prevents release blocker bug (0.13.2) where migrations existed but weren't imported
-  - **Impact**: If this test fails, migrations won't run during `spec-kitty upgrade`
-  - **Fix**: Add missing imports to `src/specify_cli/upgrade/migrations/__init__.py`
-
-- [ ] Run linting and formatting checks:
+- [ ] Verify migration registry completeness:
+  ```bash
+  pytest tests/upgrade/test_migration_robustness.py::TestMigrationRegistryCompleteness -v
+  ```
+- [ ] Run release validation in branch mode:
+  ```bash
+  python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+  ```
+- [ ] Run linting and formatting checks appropriate for changed files:
   ```bash
   ruff check .
   ruff format --check .
   ```
-
-- [ ] Verify test coverage for new features:
+- [ ] Build the package and verify metadata:
   ```bash
-  pytest tests/ --cov=src/specify_cli --cov-report=term-missing
+  python -m build
+  twine check dist/*
   ```
 
-### Documentation Updates
+### Documentation and Metadata
 
-- [ ] Update `CHANGELOG.md`:
-  - Add new version section with date
-  - List all changes under appropriate categories:
-    - **Added**: New features
-    - **Fixed**: Bug fixes
-    - **Changed**: Breaking changes or major updates
-    - **Deprecated**: Features marked for removal
-    - **Removed**: Removed features
-    - **Security**: Security fixes
-  - Reference relevant issues/PRs
-  - Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format
+- [ ] Bump `version` in `pyproject.toml`.
+- [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
+- [ ] Review `README.md` release-track messaging:
+  - `main` should be described as the stable `2.x` line.
+  - `1.x-maintenance` should be described as deprecated maintenance-only.
+- [ ] Review installation docs if distribution channels changed.
+- [ ] If new ADRs were added, verify they are filed under the correct versioned architecture path.
 
-- [ ] Update `pyproject.toml`:
-  - Bump `version` field to new version number
-  - Verify dependencies are up to date
-  - Check Python version requirements
+### Upgrade and Migration Checks
 
-- [ ] Review README.md:
-  - Ensure installation instructions are current
-  - Update version badges if present
-  - Verify examples still work
-
-- [ ] Check ADRs (Architecture Decision Records):
-  - If new ADR added, verify it's in `architecture/1.x/adr/` or `architecture/2.x/adr/` as appropriate
-  - Ensure ADR is linked from relevant docs
-
-### Migration Testing (if migrations included)
-
-- [ ] Test migrations on sample projects:
+- [ ] Test upgrade on a representative existing project:
   ```bash
-  # Create test project with old version
-  spec-kitty init test-project
-  cd test-project
-
-  # Upgrade to new version
-  spec-kitty upgrade --dry-run  # Preview changes
-  spec-kitty upgrade             # Apply migrations
+  spec-kitty upgrade --dry-run
+  spec-kitty upgrade
   ```
-
-- [ ] Verify migration idempotency:
+- [ ] Verify idempotency:
   ```bash
-  spec-kitty upgrade  # Run again
-  # Should report "No migrations needed"
+  spec-kitty upgrade
   ```
-
-- [ ] Test migration rollback (if applicable):
-  - Verify projects can downgrade safely
-  - Check for data loss scenarios
-
-### Agent Compatibility (if agent templates changed)
-
-- [ ] Verify all 12 agents updated:
-  - [ ] Claude Code (`.claude/commands/`)
-  - [ ] GitHub Copilot (`.github/prompts/`)
-  - [ ] GitHub Codex (`.codex/prompts/`)
-  - [ ] OpenCode (`.opencode/command/`)
-  - [ ] Google Gemini (`.gemini/commands/`)
-  - [ ] Cursor (`.cursor/commands/`)
-  - [ ] Windsurf (`.windsurf/workflows/`)
-  - [ ] Qwen Code (`.qwen/commands/`)
-  - [ ] Kilocode (`.kilocode/workflows/`)
-  - [ ] Augment Code (`.augment/commands/`)
-  - [ ] Roo Cline (`.roo/commands/`)
-  - [ ] Amazon Q (`.amazonq/prompts/`)
-
-- [ ] Test slash commands with at least 2 different agents:
-  ```bash
-  # In a test project with agent configured
-  /spec-kitty.specify
-  /spec-kitty.plan
-  /spec-kitty.tasks
-  /spec-kitty.implement
-  /spec-kitty.review
-  ```
-
-### Breaking Changes Review
-
-If this is a major or minor version with breaking changes:
-
-- [ ] Document breaking changes in CHANGELOG.md "Changed" section
-- [ ] Create migration guide if needed (e.g., `docs/upgrading-to-X.Y.0.md`)
-- [ ] Add deprecation warnings for features to be removed in next major version
-- [ ] Update examples in documentation to reflect breaking changes
+- [ ] If migrations changed agent assets or templates, smoke-test at least two agent integrations.
 
 ## Release Process
 
-### 1. Create Release Branch
+### 1. Create the Release Branch
 
 ```bash
+git checkout main
+git pull origin main
 git checkout -b release/X.Y.Z
 ```
 
-### 2. Commit Version Bump
+### 2. Commit Release Metadata
 
 ```bash
-git add pyproject.toml CHANGELOG.md
-git commit -m "chore: Bump version to X.Y.Z"
+git add pyproject.toml CHANGELOG.md README.md RELEASE_CHECKLIST.md
+git commit -m "chore(release): prepare X.Y.Z"
 ```
 
-### 3. Push and Create Pull Request
+### 3. Push and Open the Release PR
 
 ```bash
 git push origin release/X.Y.Z
-gh pr create --title "Release X.Y.Z: [Brief description]" \
-             --body "$(cat <<'EOF'
-## Release X.Y.Z
-
-### Summary
-[Brief description of what's in this release]
-
-### Checklist
-- [x] Version bumped in pyproject.toml
-- [x] CHANGELOG.md updated
-- [x] All tests passing
-- [x] Migrations tested
-- [x] Documentation updated
-
-### Testing
-- Tested on: [Python versions]
-- Tested agents: [List agents tested]
-- Tested migrations: [Yes/No]
-
-### Breaking Changes
-[List any breaking changes or "None"]
-EOF
-)" \
-             --base 2.x
+gh pr create --base main --title "Release X.Y.Z" --fill
 ```
 
 ### 4. Wait for CI and Review
 
-- [ ] GitHub Actions "Release Readiness Check" passes:
-  - Version properly bumped
-  - CHANGELOG.md has entry for new version
-  - Tests pass
-  - Package builds successfully
+- [ ] `Release Readiness Check` passes.
+- [ ] `CI Quality` passes or has explicitly accepted non-blocking failures.
+- [ ] Maintainer approval is recorded.
+- [ ] Any release-note or install-doc feedback is resolved.
 
-- [ ] Get approval from maintainer
-- [ ] Address any review feedback
+### 5. Merge the Release PR
 
-### 5. Merge Release PR
-
-- [ ] Use "Merge commit" strategy (NOT squash)
-  - Preserves commit history
-  - Important for changelog generation
+- [ ] Use a linear-history merge strategy that matches branch protection (`rebase` if available).
 
 ```bash
-# After approval, merge via GitHub UI or:
-gh pr merge --merge --delete-branch
+gh pr merge --rebase --delete-branch
 ```
 
-### 6. Create and Push Release Tag
+### 6. Tag the Release from `main`
 
 ```bash
-git checkout 2.x
-git pull origin 2.x
-git tag -a vX.Y.Z -m "Release vX.Y.Z
-
-[Brief description of what's in this release]
-
-Key changes:
-- [Feature 1]
-- [Feature 2]
-- [Bug fix 1]
-"
+git checkout main
+git pull origin main
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
 ### 7. Monitor Automated Publishing
 
-- [ ] Watch GitHub Actions workflow: `.github/workflows/release.yml`
+- [ ] Watch `.github/workflows/release.yml`:
   ```bash
   gh run watch
   ```
-
-- [ ] Verify workflow completes successfully:
-  - Tests pass
-  - Package builds
-  - GitHub release created (with artifacts)
-
-- [ ] Verify GitHub release payload:
+- [ ] Verify the workflow:
+  - runs tests
+  - validates release metadata
+  - builds distributions
+  - publishes to PyPI
+  - creates the GitHub release
+- [ ] Verify the GitHub release payload:
   ```bash
   gh release view vX.Y.Z
   gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
@@ -229,259 +142,56 @@ git push origin vX.Y.Z
 
 ## Post-Release Verification
 
-### Installation Testing
+### Package Availability
 
-- [ ] Test fresh installation:
+- [ ] Verify PyPI shows the new version:
   ```bash
-  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
-  python -m pip install --force-reinstall /tmp/spec-kitty-release-check/spec_kitty_cli-X.Y.Z-py3-none-any.whl
+  python -m pip index versions spec-kitty-cli
+  ```
+- [ ] Verify the GitHub release is public and includes the wheel, sdist, and checksums.
+
+### Installation and Upgrade
+
+- [ ] Test a fresh install:
+  ```bash
+  python -m pip install --force-reinstall spec-kitty-cli==X.Y.Z
   spec-kitty --version
-  spec-kitty init test-project
-  cd test-project
-  spec-kitty --help
   ```
+- [ ] Test upgrade from the previous stable release on a sample project.
 
-- [ ] Test upgrade from previous version:
-  ```bash
-  gh release download vX.Y.[Z-1] --dir /tmp/spec-kitty-prev-check
-  python -m pip install --force-reinstall /tmp/spec-kitty-prev-check/spec_kitty_cli-X.Y.[Z-1]-py3-none-any.whl
-  spec-kitty init old-project
-  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
-  python -m pip install --force-reinstall /tmp/spec-kitty-release-check/spec_kitty_cli-X.Y.Z-py3-none-any.whl
-  cd old-project
-  spec-kitty upgrade
-  ```
+### Communication
 
-### Documentation
+- [ ] If this is a minor or major release, publish release notes and migration guidance.
+- [ ] If release-track policy changed, call it out explicitly:
+  - `main` is the stable `2.x` line
+  - `1.x-maintenance` is deprecated maintenance-only
+  - no new `1.x` PyPI releases are planned
 
-- [ ] Update any external documentation sites
-- [ ] Post release announcement (if major/minor version):
-  - GitHub Discussions
-  - Project website
-  - Social media (if applicable)
+## Maintenance-Line Policy
 
-### Issue Cleanup
+- [ ] Only cut `1.x-maintenance` releases for critical fixes.
+- [ ] Do not publish new `1.x` releases to PyPI.
+- [ ] If a `1.x-maintenance` release is needed, use GitHub tags/releases only and state clearly that the line is deprecated.
 
-- [ ] Close resolved issues with release version:
-  ```
-  Fixed in vX.Y.Z
-  ```
+## Rollback Procedure
 
-- [ ] Update project board / milestones:
-  - Move completed issues to "Done"
-  - Create next milestone if needed
+If a critical issue is discovered after release:
 
-## Rollback Procedure (if needed)
-
-If critical issues discovered after release:
-
-### Option 1: Hot Fix Release
-
-1. Create hotfix branch from tag:
-   ```bash
-   git checkout -b hotfix/X.Y.Z+1 vX.Y.Z
-   ```
-
-2. Fix issue, commit, test
-
-3. Follow release process for X.Y.Z+1
-
-### Option 2: Retire GitHub Release
-
-**Only for critical security issues or broken installations before hotfix is ready**
-
-```bash
-# Mark the release as retired in GitHub and point users to the hotfix
-gh release edit vX.Y.Z --draft
-# Or delete if policy allows:
-# gh release delete vX.Y.Z --cleanup-tag --yes
-```
-
-**Note:** Prefer hotfix releases over deleting tags/releases.
-
-## Version-Specific Checklists
-
-### For Research Mission Changes (0.13.0+)
-
-- [ ] Test CSV schema validation:
-  - evidence-log.csv schema enforcement
-  - source-register.csv schema enforcement
-  - Detection migration informational output
-
-- [ ] Verify agent templates updated:
-  - Research CSV Schemas section present
-  - Canonical schemas documented
-  - Append-only examples included
-
-### For Agent Management Changes (0.12.0+)
-
-- [ ] Test config-driven behavior:
-  ```bash
-  spec-kitty agent config list
-  spec-kitty agent config add claude
-  spec-kitty agent config remove codex
-  spec-kitty agent config status
-  spec-kitty agent config sync
-  ```
-
-- [ ] Verify migrations respect agent config
-- [ ] Test with projects with/without config.yaml
-
-### For Workspace-per-WP Changes (0.11.0+)
-
-- [ ] Test workspace creation per work package
-- [ ] Test dependency graph handling
-- [ ] Test parallel WP execution
-- [ ] Test merge workflow with multiple WPs
+1. Cut a hotfix from `vX.Y.Z` and release `X.Y.(Z+1)` as soon as practical.
+2. If the PyPI artifact is broken and no hotfix is ready yet, yank the PyPI release and update the GitHub release notes with the replacement plan.
+3. Prefer forward fixes over deleting published tags.
 
 ## Common Gotchas
 
-### Migration Issues
-
-- **Migration not detected**: Ensure migration is registered with `@MigrationRegistry.register`
-- **Migration runs multiple times**: Check idempotency, should be safe to run repeatedly
-- **Migration breaks existing projects**: Always test on sample projects before release
-
-### Version Mismatch
-
-- **PyPI shows old version**: Wait 5-10 minutes for PyPI to update indexes
-- **Local installation wrong version**: Clear pip cache: `pip cache purge`
-
-### CI Failures
-
-- **Tests timeout**: Check for infinite loops in new code
-- **Import errors**: Verify package structure in `pyproject.toml`
-- **Release workflow fails**: Check `PYPI_API_TOKEN` secret is set
-
-### Test Environment Differences (Lessons from v0.13.6)
-
-**Problem**: Tests pass locally but fail in CI with git command errors.
-
-**Common Causes:**
-
-1. **Git Default Branch Name Mismatch**
-   ```
-   Error: Command '['git', 'branch', 'feature-branch', 'main']' returned non-zero exit status 128
-   ```
-   - **Cause**: `git init` creates different default branch names in different environments
-     - Local (macOS with git 2.30+): Creates "main"
-     - CI (Ubuntu with older git): Creates "master"
-     - User's machine: Depends on `init.defaultBranch` config
-
-   - **Fix**: Always use `git init -b main` to explicitly set branch name
-     ```python
-     # ❌ BAD (environment-dependent)
-     subprocess.run(["git", "init"], cwd=repo, check=True)
-
-     # ✅ GOOD (explicit)
-     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True)
-     ```
-
-   - **Files affected in v0.13.6**:
-     - `tests/unit/test_multi_parent_merge_empty_branches.py`
-     - `tests/unit/test_move_task_git_validation.py`
-
-2. **Rich Console Formatting Differences**
-   ```
-   AssertionError: assert 'exists but is not a valid worktree' in output
-   # Output has double spaces: 'exists but is not  a valid worktree'
-   ```
-   - **Cause**: Rich console adds ANSI color codes; `capsys.readouterr()` strips them but leaves spacing artifacts
-   - **Fix**: Normalize whitespace before assertions
-     ```python
-     import re
-     output = re.sub(r'\s+', ' ', captured.out)  # Normalize all whitespace
-     assert "expected text" in output
-     ```
-
-   - **File affected in v0.13.6**:
-     - `tests/specify_cli/test_implement_validation.py`
-
-3. **"PYPI_API_TOKEN not configured" Error (Misleading)**
-   - **What it looks like**: GitHub Actions shows "PYPI_API_TOKEN secret is not configured"
-   - **What it actually means**: Generic error message from failure handler
-   - **Real cause**: Usually test failures or validation errors earlier in workflow
-   - **Fix**: Check actual step that failed (tests, validation, build) before assuming it's a token issue
-   - **v0.13.6 experience**: Message appeared 3 times, but real issue was git test failures
-
-**Debugging Strategy:**
-
-1. **Add Test Output Capture** (Added in v0.13.6):
-   ```yaml
-   - name: Run tests
-     run: |
-       python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
-       exit ${PIPESTATUS[0]}
-
-   - name: Upload test output
-     uses: actions/upload-artifact@v4
-     if: always()
-     with:
-       name: pytest-output
-       path: pytest-output.txt
-       retention-days: 7
-   ```
-
-2. **Check System Reminder Messages**: When workflow fails, CI output may include system reminders with actual error details
-
-3. **Test Locally with CI-like Environment**:
-   ```bash
-   # Simulate CI Python version
-   python3.11 -m pytest
-
-   # Simulate CI git version
-   git --version
-   # If different from local, test with docker:
-   docker run -v $(pwd):/code -w /code python:3.11 python -m pytest
-   ```
-
-**Preventive Measures:**
-
-- [ ] Always use `git init -b main` in test fixtures
-- [ ] Normalize whitespace when testing console output
-- [ ] Don't assume default git config matches local environment
-- [ ] Test with pytest (not just `PYTHONPATH=src pytest`) to match CI
-- [ ] Review system reminder messages in CI output for real errors
-
-## Checklist Summary
-
-Quick reference for minimum release steps:
-
-1. ✅ All tests pass
-2. ✅ Version bumped in `pyproject.toml`
-3. ✅ CHANGELOG.md updated
-4. ✅ Release PR created and approved
-5. ✅ Release PR merged (merge commit, not squash)
-6. ✅ Tag created and pushed
-7. ✅ GitHub Actions workflow completes
-8. ✅ PyPI installation verified
+- **Validation fails with "Version does not advance beyond latest tag"**:
+  bump `pyproject.toml` to a higher semantic version.
+- **Validation fails with "CHANGELOG.md lacks a populated section"**:
+  add `## [X.Y.Z]` with real release notes before tagging.
+- **PyPI publish fails**:
+  check PyPI Trusted Publishing configuration for the workflow and repository, not a legacy token secret.
+- **Fresh install still shows the old version**:
+  wait a few minutes for package indexes to refresh, then retry with `pip cache purge` if needed.
 
 ---
 
-**Last Updated**: 2026-01-27 (for version 0.13.6)
-**Next Review**: After each major or minor release
-
-## Release History Notes
-
-### v0.13.6 (2026-01-27) - Lessons Learned
-
-**Issues Encountered:**
-1. Tests passed locally (1733/1733) but failed in CI (5 failed, 5 errors)
-2. Git default branch mismatch (local: "main", CI: "master")
-3. Rich console formatting created double-space artifacts in assertions
-4. Misleading "PYPI_API_TOKEN not configured" error (actual cause: test failures)
-
-**Resolution:**
-- Fixed git fixtures: `git init` → `git init -b main`
-- Normalized whitespace in assertions: `re.sub(r'\s+', ' ', output)`
-- Added pytest output artifact capture for debugging
-- Total release attempts: 4
-- Time to resolution: ~30 minutes
-
-**Improvements Made:**
-- Enhanced release workflow with test output artifacts
-- Documented CI environment gotchas
-- Added git fixture best practices
-- Clarified misleading error messages
-
-**Key Learning**: Always test that new test fixtures work in CI environments with different git/console configurations, not just locally.
+**Last Updated**: 2026-03-21

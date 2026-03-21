@@ -1,6 +1,7 @@
 # 1.x Documentation (Legacy Track)
 
-`1.x` is the stable local-first workflow track.
+`1.x` is deprecated overall and now retained only as `1.x-maintenance` for critical maintenance work.
+No new `1.x` PyPI releases are planned.
 
 ## What 1.x Covers
 
