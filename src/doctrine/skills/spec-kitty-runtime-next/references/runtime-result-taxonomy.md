@@ -1,74 +1,87 @@
 # Runtime Result Taxonomy
 
-Reference for interpreting `spec-kitty next --agent <name>` outcomes.
+Reference for interpreting `spec-kitty next --agent <name>` decision output.
 
-## Result Types
+## Decision Kinds
 
-### ready
+The runtime returns decisions with exactly four `kind` values.
 
-The runtime has identified a WP or action that is available for execution.
+### step
 
-**Fields returned:**
-- `action`: The specific action to take (e.g., "implement", "review")
-- `wp_id`: The work package identifier (e.g., "WP03")
-- `reason`: Why this WP was selected (e.g., "dependencies met, highest priority")
+A normal action step. The agent should read the prompt file and execute the action.
 
-**Agent response:** Execute the identified action. For implementation, run `spec-kitty implement WP##`. For review, run `/spec-kitty.review`.
+**Key fields:**
+- `action`: The action to take (e.g., "implement", "review", "specify", "plan")
+- `wp_id`: Work package identifier if iterating (e.g., "WP03")
+- `workspace_path`: Path to the worktree directory for this WP
+- `prompt_file`: Path to the prompt file the agent should read and follow
 
-### review-required
+**Agent response:** Read `prompt_file`, execute the action described within it. For implementation actions, the workspace is already prepared at `workspace_path`.
 
-A WP has reached the `for_review` lane and must be reviewed before the mission can advance.
+### decision_required
 
-**Fields returned:**
-- `wp_id`: The WP awaiting review
-- `reviewer`: Suggested reviewer agent (from agent config)
-- `blocking`: List of WPs that depend on this review completing
+The runtime needs input before it can determine the next step. The agent must answer the question or escalate to the user.
 
-**Agent response:** Switch to reviewer mode or dispatch a review agent. Do not skip the review — the mission state machine requires it.
+**Key fields:**
+- `question`: The decision question text
+- `options`: List of valid answer options
+- `decision_id`: ID to pass back when answering
+- `input_key`: Runtime input key for the answer
+- `prompt_file`: May contain additional context for the decision
+
+**Agent response:** Answer using:
+```bash
+spec-kitty next --agent <agent> --answer "<choice>" --decision-id "<decision_id>"
+```
+
+If the agent cannot determine the answer, escalate to the user with the question and options.
 
 ### blocked
 
-No WPs are currently actionable. All remaining WPs have unmet dependencies or are waiting for external input.
+The runtime cannot proceed. Guards are failing or the mission state is invalid.
 
-**Fields returned:**
-- `blocked_wps`: List of blocked WP IDs with their unmet dependencies
-- `reason`: High-level description of the blockage
-- `suggestion`: Recommended action to unblock
+**Key fields:**
+- `reason`: High-level description of why the mission is blocked
+- `guard_failures`: List of specific guard failure descriptions
+- `action`: The action that was attempted but blocked
 
 **Common causes:**
-- Upstream WP not yet merged
-- Review feedback not addressed
-- External dependency (human decision, API key, infrastructure)
+- Required artifacts missing (e.g., plan.md not yet created)
+- Prerequisites not met (e.g., upstream WP not done)
+- Configuration invalid (e.g., mission not activated)
 
-**Agent response:** Diagnose the specific blocker. If it is within the agent's capability, resolve it. Otherwise, report to the user with actionable next steps.
+**Agent response:** Read `guard_failures` to understand what is missing. Resolve each guard failure, then retry `spec-kitty next`.
 
-### failed
+### terminal
 
-A runtime action failed and needs intervention.
+The mission has reached its final state. The agent loop should exit.
 
-**Fields returned:**
-- `wp_id`: The WP that failed
-- `error`: Error description
-- `retry_allowed`: Whether automatic retry is permitted
-
-**Agent response:** Read the error details. If `retry_allowed` is true, attempt the action again after fixing the root cause. If not, escalate to the user.
-
-### complete
-
-All WPs are in the `done` lane and the mission has reached its terminal state.
-
-**Fields returned:**
-- `mission`: The completed mission identifier
-- `total_wps`: Number of WPs completed
-- `duration`: Time from first WP to last
+**Key fields:**
+- `reason`: Explanation of terminal state (e.g., "all work packages complete")
+- `progress`: Final WP progress summary
 
 **Agent response:** Run `/spec-kitty.accept` for final validation. Report completion to the user.
 
+## Progress Field
+
+Every decision includes a `progress` object summarizing WP status:
+
+```json
+{
+  "total_wps": 9,
+  "done_wps": 7,
+  "approved_wps": 2,
+  "in_progress_wps": 1,
+  "planned_wps": 1,
+  "for_review_wps": 0
+}
+```
+
 ## Precedence Rules
 
-When multiple WPs are ready simultaneously:
+When multiple actions are possible:
 
-1. **Higher priority WPs first** (P0 before P1 before P2)
-2. **Dependency-free WPs before dependent ones** (enable parallelization)
-3. **Reviews before new implementations** (unblock downstream work)
-4. **Smaller WPs before larger ones** (quick wins build momentum)
+1. **Reviews before new implementations** (unblock downstream work)
+2. **Higher priority WPs first** (P0 before P1 before P2)
+3. **Dependency-free WPs before dependent ones** (enable parallelization)
+4. **Guard resolution before retry** (fix blockers, don't retry blindly)
