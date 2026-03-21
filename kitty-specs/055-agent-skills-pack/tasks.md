@@ -22,10 +22,10 @@
 
 ### Included Subtasks
 
-- [ ] T001 Create `src/doctrine/skills/` directory with placeholder structure
-- [ ] T002 Create `src/specify_cli/skills/` package with `__init__.py`
-- [ ] T003 Implement `src/specify_cli/skills/registry.py` — discover canonical skills
-- [ ] T004 [P] Unit tests for registry in `tests/specify_cli/skills/test_registry.py`
+- [x] T001 Create `src/doctrine/skills/` directory with placeholder structure
+- [x] T002 Create `src/specify_cli/skills/` package with `__init__.py`
+- [x] T003 Implement `src/specify_cli/skills/registry.py` — discover canonical skills
+- [x] T004 [P] Unit tests for registry in `tests/specify_cli/skills/test_registry.py`
 
 ### Implementation Notes
 
@@ -56,10 +56,10 @@
 
 ### Included Subtasks
 
-- [ ] T005 Add installation class constants to `src/specify_cli/core/config.py`
-- [ ] T006 Add `AGENT_SKILL_CONFIG` dict to `src/specify_cli/core/config.py`
-- [ ] T007 Export new symbols from `src/specify_cli/core/__init__.py`
-- [ ] T008 [P] Unit tests for config entries in `tests/specify_cli/core/test_skill_config.py`
+- [x] T005 Add installation class constants to `src/specify_cli/core/config.py`
+- [x] T006 Add `AGENT_SKILL_CONFIG` dict to `src/specify_cli/core/config.py`
+- [x] T007 Export new symbols from `src/specify_cli/core/__init__.py`
+- [x] T008 [P] Unit tests for config entries in `tests/specify_cli/core/test_skill_config.py`
 
 ### Implementation Notes
 
@@ -91,11 +91,11 @@
 
 ### Included Subtasks
 
-- [ ] T009 Create `ManagedFileEntry` and `ManagedSkillManifest` dataclasses in `src/specify_cli/skills/manifest.py`
-- [ ] T010 Implement JSON persistence (save/load/clear) to `.kittify/skills-manifest.json`
-- [ ] T011 Implement helper methods (add_entry, remove_entries_for_agent, find_by_skill)
-- [ ] T012 Implement content hash computation utility (SHA-256)
-- [ ] T013 [P] Unit tests for manifest in `tests/specify_cli/skills/test_manifest.py`
+- [x] T009 Create `ManagedFileEntry` and `ManagedSkillManifest` dataclasses in `src/specify_cli/skills/manifest.py`
+- [x] T010 Implement JSON persistence (save/load/clear) to `.kittify/skills-manifest.json`
+- [x] T011 Implement helper methods (add_entry, remove_entries_for_agent, find_by_skill)
+- [x] T012 Implement content hash computation utility (SHA-256)
+- [x] T013 [P] Unit tests for manifest in `tests/specify_cli/skills/test_manifest.py`
 
 ### Implementation Notes
 
@@ -129,11 +129,11 @@
 
 ### Included Subtasks
 
-- [ ] T014 Implement `install_skills_for_agent()` in `src/specify_cli/skills/installer.py`
-- [ ] T015 Implement `install_all_skills()` orchestration across agents
-- [ ] T016 Handle shared-root deduplication (install once to `.agents/skills/`)
-- [ ] T017 Build manifest entries during installation and return them
-- [ ] T018 [P] Unit tests for installer in `tests/specify_cli/skills/test_installer.py`
+- [x] T014 Implement `install_skills_for_agent()` in `src/specify_cli/skills/installer.py`
+- [x] T015 Implement `install_all_skills()` orchestration across agents
+- [x] T016 Handle shared-root deduplication (install once to `.agents/skills/`)
+- [x] T017 Build manifest entries during installation and return them
+- [x] T018 [P] Unit tests for installer in `tests/specify_cli/skills/test_installer.py`
 
 ### Implementation Notes
 
@@ -167,11 +167,11 @@
 
 ### Included Subtasks
 
-- [ ] T019 Add skill installation step to init.py after `generate_agent_assets()` call
-- [ ] T020 Add StepTracker entries for skill install progress display
-- [ ] T021 Write manifest to `.kittify/skills-manifest.json` at end of init
-- [ ] T022 Handle template_mode (local vs package) for skill source discovery
-- [ ] T023 [P] Integration test for init with skills in `tests/specify_cli/skills/test_init_integration.py`
+- [x] T019 Add skill installation step to init.py after `generate_agent_assets()` call
+- [x] T020 Add StepTracker entries for skill install progress display
+- [x] T021 Write manifest to `.kittify/skills-manifest.json` at end of init
+- [x] T022 Handle template_mode (local vs package) for skill source discovery
+- [x] T023 [P] Integration test for init with skills in `tests/specify_cli/skills/test_init_integration.py`
 
 ### Implementation Notes
 
@@ -207,10 +207,10 @@
 
 ### Included Subtasks
 
-- [ ] T024 Implement `verify_installed_skills()` in `src/specify_cli/skills/verifier.py`
-- [ ] T025 Implement `VerifyResult` dataclass with missing/drifted/unmanaged lists
-- [ ] T026 Implement `repair_skills()` — restore from canonical source
-- [ ] T027 [P] Unit tests for verifier in `tests/specify_cli/skills/test_verifier.py`
+- [x] T024 Implement `verify_installed_skills()` in `src/specify_cli/skills/verifier.py`
+- [x] T025 Implement `VerifyResult` dataclass with missing/drifted/unmanaged lists
+- [x] T026 Implement `repair_skills()` — restore from canonical source
+- [x] T027 [P] Unit tests for verifier in `tests/specify_cli/skills/test_verifier.py`
 
 ### Implementation Notes
 
@@ -245,10 +245,10 @@
 
 ### Included Subtasks
 
-- [ ] T028 Add managed skill checks to `src/specify_cli/verify_enhanced.py`
-- [ ] T029 Display skill verification results with Rich formatting
-- [ ] T030 Detect duplicate skill names across roots
-- [ ] T031 [P] Integration test for verify with skills in `tests/specify_cli/skills/test_verify_integration.py`
+- [x] T028 Add managed skill checks to `src/specify_cli/verify_enhanced.py`
+- [x] T029 Display skill verification results with Rich formatting
+- [x] T030 Detect duplicate skill names across roots
+- [x] T031 [P] Integration test for verify with skills in `tests/specify_cli/skills/test_verify_integration.py`
 
 ### Implementation Notes
 
@@ -281,10 +281,10 @@
 
 ### Included Subtasks
 
-- [ ] T032 Write `src/doctrine/skills/spec-kitty-setup-doctor/SKILL.md` with frontmatter and workflow
-- [ ] T033 Create `src/doctrine/skills/spec-kitty-setup-doctor/references/agent-path-matrix.md`
-- [ ] T034 Create `src/doctrine/skills/spec-kitty-setup-doctor/references/common-failure-signatures.md`
-- [ ] T035 [P] Validate skill content against PRD section 8 and design principles
+- [x] T032 Write `src/doctrine/skills/spec-kitty-setup-doctor/SKILL.md` with frontmatter and workflow
+- [x] T033 Create `src/doctrine/skills/spec-kitty-setup-doctor/references/agent-path-matrix.md`
+- [x] T034 Create `src/doctrine/skills/spec-kitty-setup-doctor/references/common-failure-signatures.md`
+- [x] T035 [P] Validate skill content against PRD section 8 and design principles
 
 ### Implementation Notes
 
@@ -318,11 +318,11 @@
 
 ### Included Subtasks
 
-- [ ] T036 Test full init → verify → repair cycle in `tests/specify_cli/skills/test_e2e.py`
-- [ ] T037 Test per-installation-class distribution (shared, native, wrapper-only)
-- [ ] T038 Test manifest persistence across sessions (save, reload, query)
-- [ ] T039 Test drift detection and repair (delete, modify, verify, repair)
-- [ ] T040 Test with multiple agents of different installation classes simultaneously
+- [x] T036 Test full init → verify → repair cycle in `tests/specify_cli/skills/test_e2e.py`
+- [x] T037 Test per-installation-class distribution (shared, native, wrapper-only)
+- [x] T038 Test manifest persistence across sessions (save, reload, query)
+- [x] T039 Test drift detection and repair (delete, modify, verify, repair)
+- [x] T040 Test with multiple agents of different installation classes simultaneously
 
 ### Implementation Notes
 
@@ -349,15 +349,15 @@
 
 ## Work Package WP10: Packaging Completeness (Priority: P1)
 
-**Goal**: Add `src/specify_cli/skills/` to `also_copy` in `pyproject.toml` for consistency with other subpackages, and add a packaging verification test.
+**Goal**: Resolved: `packages = ["src/specify_cli"]` in hatch config auto-includes all subpackages including `skills/`. The `also_copy` entry was added to `[tool.mutmut]` for mutation testing environment consistency, not for wheel packaging.
 **Independent Test**: Verify the skills module would be included in a wheel build.
 **Prompt**: `tasks/WP10-packaging-completeness.md`
 **Requirement Refs**: NFR-005
 
 ### Included Subtasks
 
-- [ ] T041 Add `src/specify_cli/skills/` to `also_copy` in `pyproject.toml`
-- [ ] T042 [P] Add packaging verification test confirming skills module is discoverable
+- [x] T041 Add `src/specify_cli/skills/` to `also_copy` in `pyproject.toml`
+- [x] T042 [P] Add packaging verification test confirming skills module is discoverable
 
 ### Dependencies
 
@@ -374,10 +374,10 @@
 
 ### Included Subtasks
 
-- [ ] T043 Write `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` with frontmatter and workflow
-- [ ] T044 Create `src/doctrine/skills/spec-kitty-runtime-next/references/runtime-result-taxonomy.md`
-- [ ] T045 Create `src/doctrine/skills/spec-kitty-runtime-next/references/blocked-state-recovery.md`
-- [ ] T046 [P] Test registry discovers both skills and installer handles multi-skill pack
+- [x] T043 Write `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` with frontmatter and workflow
+- [x] T044 Create `src/doctrine/skills/spec-kitty-runtime-next/references/runtime-result-taxonomy.md`
+- [x] T045 Create `src/doctrine/skills/spec-kitty-runtime-next/references/blocked-state-recovery.md`
+- [x] T046 [P] Test registry discovers both skills and installer handles multi-skill pack
 
 ### Dependencies
 

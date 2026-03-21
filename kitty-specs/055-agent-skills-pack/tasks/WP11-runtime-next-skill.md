@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Author spec-kitty-runtime-next Skill
-lane: doing
+lane: done
 dependencies:
 - WP10
 subtasks:
@@ -46,3 +46,4 @@ history:
 
 - 2026-03-21T08:30:00Z – system – lane=planned – Prompt created.
 - 2026-03-21T08:30:01Z – claude – lane=doing – Implementation started.
+- 2026-03-21T09:00:00Z – claude – lane=done – Skill authored and codex-reviewed; contract aligned with actual next CLI output

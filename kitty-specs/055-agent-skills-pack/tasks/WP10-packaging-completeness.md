@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Packaging Completeness
-lane: doing
+lane: done
 dependencies:
 - WP09
 subtasks:
@@ -41,3 +41,4 @@ history:
 
 - 2026-03-21T08:30:00Z – system – lane=planned – Prompt created.
 - 2026-03-21T08:30:01Z – claude – lane=doing – Implementation started.
+- 2026-03-21T09:00:00Z – claude – lane=done – Packaging resolved: packages=["src/specify_cli"] auto-includes skills/; also_copy entry added for mutmut consistency
