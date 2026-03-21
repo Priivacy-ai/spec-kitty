@@ -45,19 +45,21 @@ Field meanings:
 
 ## Lanes and Mapping
 
-Public API lane model:
+Public API lane model (8 canonical lanes):
 
 - `planned`
+- `claimed`
 - `in_progress`
 - `for_review`
+- `approved`
 - `done`
 - `blocked`
 - `canceled`
 
 Host internal lane compatibility:
 
-- API `in_progress` maps to internal `doing`.
-- API `for_review`, `planned`, and `done` map directly.
+- The alias `doing` resolves to `in_progress`.
+- All other lanes map directly.
 
 ## Policy Contract (Mutation Commands)
 
@@ -109,7 +111,7 @@ Returns WPs in `planned` with all dependencies in `done`.
 spec-kitty orchestrator-api start-implementation \
   --feature <slug> --wp <WP##> --actor <actor-id> --policy '<json>'```
 
-Composite transition into `in_progress` for implementation. Returns `workspace_path` and `prompt_path`.
+Composite transition: `planned` -> `claimed` -> `in_progress` (idempotent). Records state transitions and returns computed `workspace_path` and `prompt_path` -- the caller is responsible for creating the worktree and presenting the prompt.
 
 ### start-review
 
@@ -118,7 +120,7 @@ spec-kitty orchestrator-api start-review \
   --feature <slug> --wp <WP##> --actor <actor-id> --policy '<json>' \
   --review-ref <ref>```
 
-Moves a rejected WP from `for_review` back to `in_progress`.
+Reviewer rollback: moves a WP from `for_review` back to `in_progress` so review feedback can be addressed. Requires `--review-ref`.
 
 ### transition
 
@@ -148,7 +150,7 @@ Accepts a feature when all WPs are `done`.
 
 ```bash
 spec-kitty orchestrator-api merge-feature \
-  --feature <slug> [--target main] [--strategy merge|squash] [--push]```
+  --feature <slug> [--target <branch>] [--strategy merge|squash|rebase] [--push]```
 
 Runs preflight and merges WP branches in dependency order.
 

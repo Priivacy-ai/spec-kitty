@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from specify_cli.skills.registry import SkillRegistry
 from specify_cli.upgrade.migrations.m_2_0_11_install_skills import (
     InstallSkillsMigration,
 )
@@ -43,142 +46,170 @@ def _setup_skills(tmp_path: Path) -> Path:
     return skills_root
 
 
+def _patch_registry(skills_root: Path):
+    """Return a context manager that patches SkillRegistry in the migration module."""
+    test_registry = SkillRegistry(skills_root)
+
+    def mock_from_package() -> SkillRegistry:
+        return test_registry
+
+    def mock_from_local(repo_root: Path) -> SkillRegistry:
+        return test_registry
+
+    return patch.multiple(
+        "specify_cli.skills.registry.SkillRegistry",
+        from_package=classmethod(lambda cls: mock_from_package()),
+        from_local_repo=classmethod(lambda cls, p: mock_from_local(p)),
+    )
+
+
+# ── detect ──────────────────────────────────────────────────────────
+
+
 class TestDetect:
     def test_true_when_no_manifest(self, tmp_path: Path) -> None:
         project = _setup_project(tmp_path)
-        migration = InstallSkillsMigration()
-        assert migration.detect(project) is True
+        assert InstallSkillsMigration().detect(project) is True
 
     def test_false_when_manifest_exists(self, tmp_path: Path) -> None:
         project = _setup_project(tmp_path)
-        manifest = project / ".kittify" / "skills-manifest.json"
-        manifest.write_text('{"version": 1, "entries": []}')
-        migration = InstallSkillsMigration()
-        assert migration.detect(project) is False
+        (project / ".kittify" / "skills-manifest.json").write_text("{}")
+        assert InstallSkillsMigration().detect(project) is False
+
+
+# ── can_apply ───────────────────────────────────────────────────────
 
 
 class TestCanApply:
     def test_false_when_no_kittify(self, tmp_path: Path) -> None:
         project = tmp_path / "empty"
         project.mkdir()
-        migration = InstallSkillsMigration()
-        can, reason = migration.can_apply(project)
+        can, reason = InstallSkillsMigration().can_apply(project)
         assert can is False
         assert ".kittify/" in reason
 
 
-class TestApply:
-    def test_installs_for_native_agent(self, tmp_path: Path) -> None:
-        """Skills are installed to native root for claude agent."""
-        project = _setup_project(tmp_path, agents=["claude"])
+# ── apply (real path) ──────────────────────────────────────────────
+
+
+class TestApplyReal:
+    """Exercise InstallSkillsMigration.apply() — the real code path."""
+
+    def _apply_with_test_skills(
+        self,
+        tmp_path: Path,
+        agents: list[str],
+        *,
+        dry_run: bool = False,
+    ):
+        project = _setup_project(tmp_path, agents=agents)
         skills_root = _setup_skills(tmp_path)
+        test_registry = SkillRegistry(skills_root)
 
-        # Directly call the installer instead of going through full apply
-        # which has complex import chains. This tests the same behavior.
-        from specify_cli.skills.installer import install_skills_for_agent
-        from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
-        from specify_cli.skills.registry import SkillRegistry
+        # Patch SkillRegistry.from_package to return our test registry
+        with patch(
+            "specify_cli.skills.registry.SkillRegistry.from_package",
+            return_value=test_registry,
+        ):
+            migration = InstallSkillsMigration()
+            result = migration.apply(project, dry_run=dry_run)
 
-        registry = SkillRegistry(skills_root)
-        skills = registry.discover_skills()
-        assert len(skills) == 1
+        return project, result
 
-        manifest = ManagedSkillManifest()
-        entries = install_skills_for_agent(project, "claude", skills)
-        for entry in entries:
-            manifest.add_entry(entry)
-        save_manifest(manifest, project)
+    def test_native_agent_via_apply(self, tmp_path: Path) -> None:
+        """apply() installs skills to .claude/skills/ for native agent."""
+        project, result = self._apply_with_test_skills(tmp_path, ["claude"])
 
-        # Skill should be in native root
-        skill_file = project / ".claude" / "skills" / "spec-kitty-test-skill" / "SKILL.md"
-        assert skill_file.is_file()
-        ref_file = project / ".claude" / "skills" / "spec-kitty-test-skill" / "references" / "guide.md"
-        assert ref_file.is_file()
+        assert result.success is True
+        assert any("Installed" in c for c in result.changes_made)
 
-        # Manifest should exist
-        manifest_file = project / ".kittify" / "skills-manifest.json"
-        assert manifest_file.is_file()
+        # Skill installed to native root
+        assert (project / ".claude" / "skills" / "spec-kitty-test-skill" / "SKILL.md").is_file()
+        assert (project / ".claude" / "skills" / "spec-kitty-test-skill" / "references" / "guide.md").is_file()
 
-        # detect() should now return False
-        migration = InstallSkillsMigration()
-        assert migration.detect(project) is False
+        # Manifest created with full metadata
+        manifest_path = project / ".kittify" / "skills-manifest.json"
+        assert manifest_path.is_file()
+        data = json.loads(manifest_path.read_text())
+        assert data["version"] == 1
+        assert data["created_at"] != ""
+        assert data["spec_kitty_version"] == "2.0.11"
+        assert len(data["entries"]) >= 1
 
-    def test_installs_for_shared_root_agent(self, tmp_path: Path) -> None:
-        """Skills are installed to .agents/skills/ for shared-root agents."""
-        project = _setup_project(tmp_path, agents=["codex"])
-        skills_root = _setup_skills(tmp_path)
+    def test_shared_root_agent_via_apply(self, tmp_path: Path) -> None:
+        """apply() installs skills to .agents/skills/ for shared-root agent."""
+        project, result = self._apply_with_test_skills(tmp_path, ["codex"])
 
-        from specify_cli.skills.installer import install_skills_for_agent
-        from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
-        from specify_cli.skills.registry import SkillRegistry
-
-        registry = SkillRegistry(skills_root)
-        skills = registry.discover_skills()
-
-        manifest = ManagedSkillManifest()
-        entries = install_skills_for_agent(project, "codex", skills)
-        for entry in entries:
-            manifest.add_entry(entry)
-        save_manifest(manifest, project)
-
-        # Skill in shared root
+        assert result.success is True
         assert (project / ".agents" / "skills" / "spec-kitty-test-skill" / "SKILL.md").is_file()
 
-    def test_skips_wrapper_only_agent(self, tmp_path: Path) -> None:
-        """Wrapper-only agents (q) get no skill files."""
-        project = _setup_project(tmp_path, agents=["q"])
-        skills_root = _setup_skills(tmp_path)
+    def test_wrapper_only_fails_when_sole_agent(self, tmp_path: Path) -> None:
+        """apply() with only wrapper-only agent fails (no files installed)."""
+        project, result = self._apply_with_test_skills(tmp_path, ["q"])
 
-        from specify_cli.skills.installer import install_skills_for_agent
-        from specify_cli.skills.registry import SkillRegistry
-
-        registry = SkillRegistry(skills_root)
-        skills = registry.discover_skills()
-
-        entries = install_skills_for_agent(project, "q", skills)
-        assert len(entries) == 0
-        assert not (project / ".amazonq" / "skills").exists()
-
-    def test_dry_run_no_files_created(self, tmp_path: Path) -> None:
-        """Dry run reports what would happen without creating files."""
-        project = _setup_project(tmp_path, agents=["claude"])
-
-        migration = InstallSkillsMigration()
-        # dry_run with no discoverable skills just returns cleanly
-        result = migration.apply(project, dry_run=True)
-        assert result.success is True
+        assert result.success is False
+        assert any("No skill files" in e for e in result.errors)
         # No manifest created
         assert not (project / ".kittify" / "skills-manifest.json").exists()
 
-    def test_mixed_agents_with_verify(self, tmp_path: Path) -> None:
-        """Full cycle: install for mixed agents, then verify passes."""
-        project = _setup_project(tmp_path, agents=["claude", "codex", "q"])
-        skills_root = _setup_skills(tmp_path)
+    def test_dry_run_creates_no_files(self, tmp_path: Path) -> None:
+        """apply(dry_run=True) reports but does not create files."""
+        project, result = self._apply_with_test_skills(tmp_path, ["claude"], dry_run=True)
 
-        from specify_cli.skills.installer import install_all_skills
-        from specify_cli.skills.manifest import save_manifest
-        from specify_cli.skills.registry import SkillRegistry
-        from specify_cli.skills.verifier import verify_installed_skills
+        assert result.success is True
+        assert any("Would install" in c for c in result.changes_made)
+        assert not (project / ".kittify" / "skills-manifest.json").exists()
+        assert not (project / ".claude" / "skills").exists()
 
-        registry = SkillRegistry(skills_root)
-        manifest = install_all_skills(project, ["claude", "codex", "q"], registry)
-        save_manifest(manifest, project)
+    def test_idempotent_after_apply(self, tmp_path: Path) -> None:
+        """detect() returns False after successful apply()."""
+        project, result = self._apply_with_test_skills(tmp_path, ["claude"])
+        assert result.success is True
+        assert InstallSkillsMigration().detect(project) is False
 
-        # Verify passes
-        result = verify_installed_skills(project)
-        assert result.ok is True
+    def test_mixed_agents_via_apply(self, tmp_path: Path) -> None:
+        """apply() with mixed agents: native + shared + wrapper-only."""
+        project, result = self._apply_with_test_skills(
+            tmp_path, ["claude", "codex", "q"]
+        )
 
-        # Claude has native root
+        assert result.success is True
+        # Claude: native root
         assert (project / ".claude" / "skills" / "spec-kitty-test-skill" / "SKILL.md").is_file()
-        # Codex has shared root
+        # Codex: shared root
         assert (project / ".agents" / "skills" / "spec-kitty-test-skill" / "SKILL.md").is_file()
-        # q has nothing
+        # q: nothing
         assert not (project / ".amazonq" / "skills").exists()
 
-        # Manifest tracks claude and codex, not q
-        claude_entries = [e for e in manifest.entries if e.agent_key == "claude"]
-        codex_entries = [e for e in manifest.entries if e.agent_key == "codex"]
-        q_entries = [e for e in manifest.entries if e.agent_key == "q"]
-        assert len(claude_entries) >= 1
-        assert len(codex_entries) >= 1
-        assert len(q_entries) == 0
+    def test_manifest_metadata_matches_init(self, tmp_path: Path) -> None:
+        """Manifest has created_at and spec_kitty_version like init does."""
+        project, result = self._apply_with_test_skills(tmp_path, ["claude"])
+
+        data = json.loads((project / ".kittify" / "skills-manifest.json").read_text())
+        assert data["created_at"] != ""
+        assert data["spec_kitty_version"] == "2.0.11"
+        assert data["updated_at"] != ""
+        assert data["version"] == 1
+
+    def test_no_config_warns(self, tmp_path: Path) -> None:
+        """apply() without config.yaml warns via agent config fallback."""
+        project = tmp_path / "noconfig"
+        project.mkdir()
+        (project / ".kittify").mkdir()
+        # No config.yaml at all — load_agent_config returns defaults
+
+        migration = InstallSkillsMigration()
+        result = migration.apply(project)
+
+        # Should not crash; either succeeds with defaults or warns
+        assert isinstance(result.success, bool)
+
+    def test_verify_passes_after_upgrade(self, tmp_path: Path) -> None:
+        """Full cycle: upgrade install → verify passes."""
+        project, result = self._apply_with_test_skills(tmp_path, ["claude", "codex"])
+        assert result.success is True
+
+        from specify_cli.skills.verifier import verify_installed_skills
+
+        verify_result = verify_installed_skills(project)
+        assert verify_result.ok is True

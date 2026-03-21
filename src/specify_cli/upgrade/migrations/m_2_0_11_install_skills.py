@@ -111,7 +111,13 @@ class InstallSkillsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes)
 
         # Install skills
-        manifest = ManagedSkillManifest()
+        from datetime import datetime, timezone
+
+        manifest = ManagedSkillManifest(
+            created_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat(),
+            spec_kitty_version="2.0.11",
+        )
         shared_root_installed: set[str] = set()
 
         for agent_key in agent_keys:
@@ -125,9 +131,9 @@ class InstallSkillsMigration(BaseMigration):
                 for entry in entries:
                     manifest.add_entry(entry)
             except Exception as exc:
-                warnings.append(f"Skill installation failed for {agent_key}: {exc}")
+                errors.append(f"Skill installation failed for {agent_key}: {exc}")
 
-        # Save manifest
+        # Save manifest only if files were actually installed
         if manifest.entries:
             save_manifest(manifest, project_path)
             changes.append(
@@ -136,8 +142,11 @@ class InstallSkillsMigration(BaseMigration):
             )
             changes.append("Created .kittify/skills-manifest.json")
         else:
-            warnings.append("No skill files were installed")
+            # No files installed — report failure so the runner does not
+            # stamp the migration as applied (allows re-run on next upgrade)
+            errors.append("No skill files were installed for any configured agent")
 
+        success = len(errors) == 0
         return MigrationResult(
-            success=True, changes_made=changes, errors=errors, warnings=warnings
+            success=success, changes_made=changes, errors=errors, warnings=warnings
         )
