@@ -98,10 +98,11 @@ the orchestrator-api.
 git worktree add .worktrees/017-feature-WP01 -b 017-feature-WP01
 ```
 
-**Why it breaks:** The orchestrator-api `start-implementation` command sets up
-the worktree, generates the prompt file, records the claiming actor, writes
-policy metadata, and transitions the WP atomically. Manual worktree creation
-skips all of that.
+**Why it breaks:** The orchestrator-api `start-implementation` command records
+the claiming actor, writes policy metadata, transitions the WP atomically, and
+returns the computed `workspace_path` and `prompt_path`. The orchestrator is
+then responsible for creating the worktree at that path. Manual worktree
+creation skips the state transitions, policy recording, and claim tracking.
 
 **Correct approach:** Use `spec-kitty orchestrator-api start-implementation`.
 

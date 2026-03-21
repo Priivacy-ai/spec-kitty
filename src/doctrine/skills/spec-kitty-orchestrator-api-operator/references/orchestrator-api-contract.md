@@ -7,7 +7,7 @@ Every command returns a canonical JSON envelope:
 ```json
 {
   "contract_version": "1.0.0",
-  "command": "<subcommand-name>",
+  "command": "orchestrator-api.<subcommand-name>",
   "timestamp": "2026-03-21T08:00:00Z",
   "correlation_id": "uuid-v4",
   "success": true,
@@ -79,7 +79,7 @@ spec-kitty orchestrator-api feature-state --feature TEXT
 | `summary.in_progress_count` | int | WPs in the `in_progress` lane |
 | `summary.planned_count` | int | WPs in the `planned` lane |
 | `summary.total_wps` | int | Total number of work packages |
-| `work_packages` | list | Per-WP objects with `wp_id`, `lane`, `dependencies`, `actor` |
+| `work_packages` | list | Per-WP objects with `wp_id`, `lane`, `dependencies`, `last_actor` |
 
 **Error codes:**
 
@@ -158,16 +158,18 @@ spec-kitty orchestrator-api start-implementation \
 | `sandbox_mode` | string | `container`, `none`, `vm`, etc. |
 | `network_mode` | string | `restricted`, `full`, `none` |
 | `dangerous_flags` | list | Any dangerous flags the agent has enabled |
-| `tool_restrictions` | list | Tools the agent is permitted to use |
+| `tool_restrictions` | string or null | optional | Tools the agent is permitted to use |
 
 **Data fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `workspace_path` | string | Path to the created worktree |
-| `prompt_path` | string | Path to the implementation prompt file |
-| `from_lane` | string | Lane the WP was in before (`planned`) |
+| `workspace_path` | string | Computed worktree path (the caller is responsible for creating the worktree) |
+| `prompt_path` | string | Path to the WP task file (the caller is responsible for presenting it to the agent) |
+| `from_lane` | string | Lane the WP was in before (`planned`, `claimed`, or `in_progress` for idempotent calls) |
 | `to_lane` | string | Lane the WP is now in (`in_progress`) |
+| `policy_metadata_recorded` | bool | Whether policy metadata was recorded |
+| `no_op` | bool | `true` if WP was already `in_progress` by the same actor (idempotent hit) |
 
 **Error codes:**
 
@@ -181,7 +183,9 @@ spec-kitty orchestrator-api start-implementation \
 
 ## 5. start-review
 
-Begin review of a work package. Transitions the WP to the review lane.
+Reviewer rollback: transitions a WP from `for_review` back to `in_progress` so the
+implementing agent can address review feedback. Requires `--review-ref` to link
+the review feedback that triggered the rollback.
 
 ```bash
 spec-kitty orchestrator-api start-review \
@@ -195,24 +199,24 @@ spec-kitty orchestrator-api start-review \
 | `--feature` | TEXT | required | Feature slug |
 | `--wp` | TEXT | required | Work package ID |
 | `--actor` | TEXT | required | Identity of the reviewing actor |
-| `--review-ref` | TEXT | required | Reference to the review artifact (PR URL, commit SHA) |
+| `--review-ref` | TEXT | required | Reference to review feedback (PR comment URL, review ID) |
 | `--policy` | TEXT | required | JSON string with policy metadata |
 
 **Data fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `from_lane` | string | Lane the WP was in before |
-| `to_lane` | string | Lane the WP is now in (`for_review`) |
-| `prompt_path` | string | Path to the review prompt file |
+| `from_lane` | string | Lane the WP was in before (typically `for_review`) |
+| `to_lane` | string | Lane the WP is now in (`in_progress`) |
+| `prompt_path` | string | Path to the WP task file |
+| `policy_metadata_recorded` | bool | Whether policy metadata was recorded |
 
 **Error codes:**
 
 | Code | Cause |
 |------|-------|
 | `POLICY_METADATA_REQUIRED` | `--policy` missing or incomplete |
-| `WP_ALREADY_CLAIMED` | Another actor owns this WP |
-| `TRANSITION_REJECTED` | Guard failure |
+| `TRANSITION_REJECTED` | WP is not in `for_review` lane, or `--review-ref` missing |
 
 ---
 
@@ -249,6 +253,8 @@ spec-kitty orchestrator-api transition \
 | `for_review` | yes | Submit WP for review |
 | `approved` | no | Mark WP as approved |
 | `done` | no | Mark WP as complete |
+| `blocked` | no | Mark WP as blocked |
+| `canceled` | no | Cancel the WP |
 
 **Data fields:**
 
@@ -268,7 +274,7 @@ spec-kitty orchestrator-api transition \
 
 - Use `--force` only for recovery from known-bad state, never in normal flow
 - Use `--note` to record reasoning for audit trail
-- Use `--review-ref` when transitioning to `for_review`
+- Use `--review-ref` when transitioning from `for_review` or `approved` back to `in_progress` or `planned` (review rollback guard)
 
 ---
 
@@ -346,7 +352,7 @@ spec-kitty orchestrator-api merge-feature \
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--feature` | TEXT | required | Feature slug |
-| `--target` | TEXT | `main` | Target branch to merge into |
+| `--target` | TEXT | auto-detected from `meta.json` | Target branch to merge into |
 | `--strategy` | TEXT | `merge` | Merge strategy: `merge`, `squash`, or `rebase` |
 | `--push` | FLAG | off | Push to remote after merge |
 
@@ -354,9 +360,11 @@ spec-kitty orchestrator-api merge-feature \
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `merged` | bool | Whether the merge completed successfully |
 | `merged_wps` | list | Work package IDs that were merged |
 | `target_branch` | string | Branch merged into |
-| `pushed` | bool | Whether the result was pushed to remote |
+| `strategy` | string | Merge strategy that was used |
+| `worktree_removed` | bool | Whether worktrees were cleaned up |
 
 **Usage notes:**
 
@@ -395,7 +403,7 @@ spec-kitty orchestrator-api start-implementation \
   --feature 017-my-feature --wp WP01 --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch",...}'
 
-# 4. (Agent executes the prompt_file)
+# 4. (Agent executes the prompt_file in the worktree the orchestrator created)
 
 # 5. Record history
 spec-kitty orchestrator-api append-history \
@@ -404,14 +412,15 @@ spec-kitty orchestrator-api append-history \
 # 6. Transition to review
 spec-kitty orchestrator-api transition \
   --feature 017-my-feature --wp WP01 --to for_review --actor "ci-bot" \
-  --review-ref "https://github.com/org/repo/pull/42" \
   --policy '{"orchestrator_id":"my-orch",...}'
 
-# 7. (Reviewer approves)
+# 7. (Reviewer reviews the work)
 
-# 8. Transition to done
+# 8. Transition to done (requires --force because the transition command
+#    does not accept reviewer evidence payloads)
 spec-kitty orchestrator-api transition \
-  --feature 017-my-feature --wp WP01 --to done --actor "reviewer-bot"
+  --feature 017-my-feature --wp WP01 --to done --actor "reviewer-bot" \
+  --force --note "Approved in PR #42"
 
 # 9. When all WPs are done, accept and merge
 spec-kitty orchestrator-api accept-feature --feature 017-my-feature --actor "ci-bot"
