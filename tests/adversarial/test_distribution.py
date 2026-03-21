@@ -74,9 +74,9 @@ def wheel_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     build_dir = tmp_path_factory.mktemp("build")
     dist_dir = build_dir / "dist"
 
-    # Build wheel
+    # Build distributions (wheel from sdist, matching release flow)
     result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(dist_dir), str(REPO_ROOT)],
+        [sys.executable, "-m", "build", "--outdir", str(dist_dir), str(REPO_ROOT)],
         capture_output=True,
         text=True,
     )

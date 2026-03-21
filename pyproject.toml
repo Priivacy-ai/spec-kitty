@@ -131,6 +131,9 @@ exclude = [
     "src/specify_cli/**/tests/**",
 ]
 
+[tool.hatch.build.targets.sdist.force-include]
+"src/doctrine/curation/imports" = "src/doctrine/curation/imports"
+
 [tool.pytest.ini_options]
 markers = [
     "fast: Pure unit tests with no I/O or subprocess calls (CI fast gate)",
