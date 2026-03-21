@@ -40,24 +40,30 @@ constitution rules that apply to this review.
 spec-kitty agent workflow review WP## --agent <your-name>
 ```
 
-This moves the WP from `for_review` to `doing` and outputs the path to a review
-prompt file at `/tmp/spec-kitty-review-WP##.md`.
+This moves the WP from `for_review` to `doing` and prints the path to a
+generated review prompt file (read the path from the command output).
 
 ---
 
 ## Step 3: Inspect Changes
 
 ```bash
-# Read the review prompt
-cat /tmp/spec-kitty-review-WP##.md
+# Read the review prompt (use the path printed by the workflow command)
+cat <prompt-file-path>
 
 # Check WP status
 spec-kitty agent tasks status
+```
 
-# Inspect the diff in the worktree
+The review prompt includes the correct git diff commands with the resolved base
+branch (which may differ from `main` on stacked worktrees). Use those commands
+rather than hardcoding `main`:
+
+```bash
+# Use the diff commands from the review prompt — they reference the correct base
 cd .worktrees/<feature>-WP##/
-git log main..HEAD --oneline
-git diff main..HEAD --stat
+git log <base-branch>..HEAD --oneline
+git diff <base-branch>..HEAD --stat
 ```
 
 Extract from the prompt: acceptance criteria, required deliverables, and
@@ -105,14 +111,14 @@ Take exactly one action -- never "approve with conditions".
 ### Approve (no blocking findings)
 
 ```bash
-spec-kitty agent tasks move-task WP## --to done --note "Review passed: <summary>"
+spec-kitty agent tasks move-task WP## --to approved --note "Review passed: <summary>"
 ```
 
 ### Reject (blocking findings exist)
 
 ```bash
-# Write structured feedback
-cat > /tmp/feedback.md << 'FEEDBACK'
+# Write structured feedback to a temp file
+cat > "$(mktemp)" << 'FEEDBACK'
 ## Blocking Findings
 1. **[Category]**: <what is wrong and why it blocks>
 
@@ -124,7 +130,7 @@ cat > /tmp/feedback.md << 'FEEDBACK'
 FEEDBACK
 
 # Move back to planned with feedback
-spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file /tmp/feedback.md
+spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file <feedback-file-path>
 ```
 
 Every blocking finding must map to a Required Actions item. Actions must be

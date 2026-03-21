@@ -116,14 +116,14 @@ Compile all findings and classify:
 ### If approving:
 
 ```bash
-spec-kitty agent tasks move-task WP## --to done --note "Review passed: <summary>"
+spec-kitty agent tasks move-task WP## --to approved --note "Review passed: <summary>"
 ```
 
 ### If rejecting:
 
 ```bash
 # Write feedback to temp file
-cat > /tmp/feedback.md << 'FEEDBACK'
+cat > "$(mktemp)" << 'FEEDBACK'
 ## Blocking Findings
 
 1. **[Category]**: <description>
@@ -138,7 +138,7 @@ cat > /tmp/feedback.md << 'FEEDBACK'
 FEEDBACK
 
 # Move back to planned with feedback
-spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file /tmp/feedback.md
+spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file <feedback-file-path>
 ```
 
 ## 10. Post-Review
