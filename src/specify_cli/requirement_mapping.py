@@ -2,17 +2,25 @@
 
 The LLM registers mappings via ``spec-kitty agent tasks map-requirements``
 which writes ``requirement_refs`` directly into each WP file's YAML
-frontmatter. ``finalize-tasks`` reads from frontmatter (2-tier fallback:
-tasks.md text -> WP frontmatter).
+frontmatter.  ``finalize-tasks`` reads from frontmatter first (primary),
+falling back to tasks.md text parsing for pre-API projects.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
+
+
+class CoverageSummary(TypedDict):
+    """Coverage summary returned by :func:`compute_coverage`."""
+
+    total_functional: int
+    mapped_functional: int
+    unmapped_functional: list[str]
 
 
 def validate_refs(
@@ -53,7 +61,7 @@ def validate_ref_format(refs: list[str]) -> tuple[list[str], list[str]]:
 
 def compute_coverage(
     mappings: dict[str, list[str]], functional_ids: set[str]
-) -> dict:
+) -> CoverageSummary:
     """Compute coverage summary: total, mapped, unmapped FRs."""
     mapped: set[str] = set()
     for refs in mappings.values():
@@ -112,8 +120,17 @@ def normalize_requirement_refs_value(value: Any) -> list[str]:
     return list(dict.fromkeys(refs))
 
 
-def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
-    """Read requirement_refs from all WP files' frontmatter."""
+def _read_all_wp_refs(
+    tasks_dir: Path,
+    extractor: Any,
+) -> dict[str, list[str]]:
+    """Shared reader for WP frontmatter requirement_refs.
+
+    Args:
+        tasks_dir: Directory containing WP*.md files.
+        extractor: Callable(value) -> list[str] applied to the raw
+            ``requirement_refs`` frontmatter value of each WP file.
+    """
     from specify_cli.frontmatter import read_frontmatter
 
     result: dict[str, list[str]] = {}
@@ -129,41 +146,33 @@ def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
         except Exception:
             result[wp_id] = []
             continue
-        result[wp_id] = normalize_requirement_refs_value(
-            frontmatter.get("requirement_refs")
-        )
+        result[wp_id] = extractor(frontmatter.get("requirement_refs"))
     return result
+
+
+def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
+    """Read requirement_refs from all WP files' frontmatter (normalized)."""
+    return _read_all_wp_refs(tasks_dir, normalize_requirement_refs_value)
 
 
 def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
     """Read raw requirement_refs from all WP files' frontmatter."""
-    from specify_cli.frontmatter import read_frontmatter
-
-    result: dict[str, list[str]] = {}
-    if not tasks_dir.exists():
-        return result
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        match = re.match(r"(WP\d{2})", wp_file.name)
-        if not match:
-            continue
-        wp_id = match.group(1)
-        try:
-            frontmatter, _ = read_frontmatter(wp_file)
-        except Exception:
-            result[wp_id] = []
-            continue
-        result[wp_id] = _extract_raw_tokens(frontmatter.get("requirement_refs"))
-    return result
+    return _read_all_wp_refs(tasks_dir, _extract_raw_tokens)
 
 
 def _extract_raw_tokens(value: Any) -> list[str]:
-    """Extract individual uppercased tokens from a frontmatter value."""
+    """Extract individual tokens from a frontmatter value, preserving case.
+
+    Case is preserved so that diagnostics can show exactly what was written
+    (e.g. ``BOGUS`` vs ``bogus``).  Callers that need uppercased tokens for
+    comparison should uppercase themselves.
+    """
     tokens: list[str] = []
     if isinstance(value, list):
         for item in value:
             if isinstance(item, str):
                 tokens.extend(
-                    token.upper()
+                    token
                     for token in re.split(r"[,\s]+", item)
                     if token.strip()
                 )
@@ -171,7 +180,7 @@ def _extract_raw_tokens(value: Any) -> list[str]:
                 tokens.append(f"<NON_STRING:{item}>")
     elif isinstance(value, str):
         tokens.extend(
-            token.upper()
+            token
             for token in re.split(r"[,\s]+", value)
             if token.strip()
         )

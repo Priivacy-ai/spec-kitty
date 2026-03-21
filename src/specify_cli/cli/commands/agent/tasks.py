@@ -1766,6 +1766,13 @@ def map_requirements(
         typer.Option("--feature", help="Feature slug (auto-detected if omitted)"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    auto_commit: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--auto-commit/--no-auto-commit",
+            help="Automatically commit WP file changes (default: from project config)",
+        ),
+    ] = None,
 ) -> None:
     """Register requirement-to-WP mappings with immediate validation."""
     from specify_cli.frontmatter import read_frontmatter, write_frontmatter
@@ -1837,7 +1844,9 @@ def map_requirements(
                     raise typer.Exit(1)
                 new_mappings[wp_id.upper()] = [ref.upper() for ref in ref_list]
         else:
-            assert wp is not None and refs is not None
+            if wp is None or refs is None:
+                _output_error(json_output, "Both --wp and --refs are required in individual mode.")
+                raise typer.Exit(1)
             ref_list_parsed = [ref.strip() for ref in refs.split(",") if ref.strip()]
             new_mappings[wp.upper()] = [ref.upper() for ref in ref_list_parsed]
 
@@ -1943,50 +1952,81 @@ def map_requirements(
             frontmatter["requirement_refs"] = merged_refs
             write_frontmatter(wp_file, frontmatter, body)
 
+        # Detect stale/invalid refs across all WPs (warning, not error)
         all_wp_raw = read_all_wp_raw_requirement_refs(tasks_dir)
         all_raw_refs: list[str] = []
         for ref_list in all_wp_raw.values():
             all_raw_refs.extend(ref_list)
 
-        _, post_merge_malformed = validate_ref_format(all_raw_refs)
-        _, post_merge_unknown = validate_refs(all_raw_refs, all_spec_ids)
+        # Raw tokens preserve case; uppercase for comparison
+        uppercased_raw = [r.upper() for r in all_raw_refs if not r.startswith("<")]
+        _, post_merge_malformed = validate_ref_format(uppercased_raw)
+        _, post_merge_unknown = validate_refs(uppercased_raw, all_spec_ids)
         stale_refs: dict[str, list[str]] = {}
         if post_merge_malformed or post_merge_unknown:
             bad = set(post_merge_malformed) | set(post_merge_unknown)
             for wp_id, ref_list in all_wp_raw.items():
-                wp_bad = sorted(set(ref_list) & bad)
+                wp_bad = sorted(
+                    token for token in ref_list if token.upper() in bad or token.startswith("<")
+                )
                 if wp_bad:
                     stale_refs[wp_id] = wp_bad
-
-        if stale_refs:
-            payload = {
-                "error": "Stale or invalid refs in WP frontmatter",
-                "stale_refs": stale_refs,
-                "hint": (
-                    "Re-run with --replace to correct, e.g.: "
-                    "map-requirements --wp WP01 --refs FR-001 --replace"
-                ),
-            }
-            if json_output:
-                print(json.dumps(payload))
-            else:
-                console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
-                for wp_id, bad_refs in sorted(stale_refs.items()):
-                    console.print(f"  {wp_id}: {', '.join(bad_refs)}")
-                console.print("  Use --replace to correct mappings")
-            raise typer.Exit(1)
 
         all_wp_refs = read_all_wp_requirement_refs(tasks_dir)
         coverage = compute_coverage(all_wp_refs, functional_ids)
 
-        payload = {
+        # Auto-commit written WP files (consistent with move-task / update-subtasks)
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(main_repo_root)
+
+        committed = False
+        if auto_commit:
+            written_files: list[Path] = []
+            for wp_id in new_mappings:
+                wp_file = next(
+                    (f for f in tasks_dir.glob(f"{wp_id}*.md")), None
+                )
+                if wp_file is not None:
+                    written_files.append(wp_file.resolve())
+            if written_files:
+                spec_number = (
+                    feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
+                )
+                commit_msg = (
+                    f"chore: Map requirements for "
+                    f"{', '.join(sorted(new_mappings))} on spec {spec_number}"
+                )
+                try:
+                    committed = safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=written_files,
+                        commit_message=commit_msg,
+                        allow_empty=True,
+                    )
+                except Exception as exc_commit:
+                    if not json_output:
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}"
+                        )
+
+        payload: dict[str, object] = {
             "result": "success",
             "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
             "total_mappings": {
                 wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs
             },
             "coverage": coverage,
+            "committed": committed,
         }
+        if stale_refs:
+            payload["warnings"] = {
+                "stale_refs": stale_refs,
+                "hint": (
+                    "Re-run with --replace to correct, e.g.: "
+                    "map-requirements --wp WP01 --refs FR-001 --replace"
+                ),
+            }
+
         if json_output:
             print(json.dumps(payload))
         else:
@@ -2000,6 +2040,15 @@ def map_requirements(
                 console.print(
                     f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}"
                 )
+            if stale_refs:
+                console.print(
+                    "\n  [yellow]Warning:[/yellow] Stale or invalid refs in WP frontmatter:"
+                )
+                for wp_id, bad_refs in sorted(stale_refs.items()):
+                    console.print(f"    {wp_id}: {', '.join(bad_refs)}")
+                console.print("    Use --replace to correct mappings")
+            if committed:
+                console.print("[cyan]→ Committed mapping changes[/cyan]")
 
     except typer.Exit:
         raise

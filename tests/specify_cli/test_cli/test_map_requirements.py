@@ -460,7 +460,7 @@ class TestMapRequirementsValidation:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_reports_stale_invalid_refs(
+    def test_reports_stale_invalid_refs_as_warning(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
@@ -484,10 +484,10 @@ class TestMapRequirementsValidation:
             ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--json"],
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 0, result.stdout
         payload = json.loads(result.stdout.strip())
-        assert payload["error"] == "Stale or invalid refs in WP frontmatter"
-        assert "WP02" in payload["stale_refs"]
+        assert payload["result"] == "success"
+        assert "WP02" in payload["warnings"]["stale_refs"]
 
 
 class TestFinalizeTasksWithFrontmatterRefs:

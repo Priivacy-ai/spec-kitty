@@ -2064,15 +2064,10 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     return requirement_refs
 
 
-def _normalize_requirement_refs_value(raw_value: object) -> list[str]:
-    """Normalize requirement_refs frontmatter values to canonical IDs."""
-    from specify_cli.requirement_mapping import normalize_requirement_refs_value
-
-    return normalize_requirement_refs_value(raw_value)
-
-
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
     """Parse requirement refs directly from WP prompt frontmatter."""
+    from specify_cli.requirement_mapping import normalize_requirement_refs_value
+
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:
         wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
@@ -2084,7 +2079,7 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
         except Exception:
             parsed.setdefault(wp_id, [])
             continue
-        refs = _normalize_requirement_refs_value(frontmatter.get("requirement_refs"))
+        refs = normalize_requirement_refs_value(frontmatter.get("requirement_refs"))
         parsed[wp_id] = refs
     return parsed
 
