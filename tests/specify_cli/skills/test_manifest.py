@@ -52,7 +52,7 @@ def test_add_entry() -> None:
     assert m.entries[0] is entry
 
 
-def test_add_entry_replaces_duplicate_path() -> None:
+def test_add_entry_replaces_duplicate_path_and_agent() -> None:
     m = ManagedSkillManifest()
     entry1 = _make_entry(content_hash="sha256:old")
     entry2 = _make_entry(content_hash="sha256:new")
@@ -60,6 +60,19 @@ def test_add_entry_replaces_duplicate_path() -> None:
     m.add_entry(entry2)
     assert len(m.entries) == 1
     assert m.entries[0].content_hash == "sha256:new"
+
+
+def test_add_entry_preserves_shared_root_entries() -> None:
+    """Shared-root agents share installed_path but have different agent_keys."""
+    m = ManagedSkillManifest()
+    shared_path = ".agents/skills/test-skill/SKILL.md"
+    entry_copilot = _make_entry(installed_path=shared_path, agent_key="copilot")
+    entry_codex = _make_entry(installed_path=shared_path, agent_key="codex")
+    m.add_entry(entry_copilot)
+    m.add_entry(entry_codex)
+    assert len(m.entries) == 2
+    agents = {e.agent_key for e in m.entries}
+    assert agents == {"copilot", "codex"}
 
 
 def test_remove_entries_for_agent() -> None:

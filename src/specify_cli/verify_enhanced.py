@@ -427,7 +427,7 @@ def run_enhanced_verify(
         observations.append(f"Mission integrity: {total_missing} expected files not found")
 
     if skill_has_issues:
-        observations.append("Managed skills: some files are missing or drifted (run spec-kitty skills repair)")
+        observations.append("Managed skills: some files are missing or drifted (run spec-kitty init --here to restore)")
 
     output_data["observations"] = observations
 

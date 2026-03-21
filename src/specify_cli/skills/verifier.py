@@ -49,7 +49,11 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     errors: list[str] = []
 
     for entry in manifest.entries:
-        installed = project_path / entry.installed_path
+        installed = (project_path / entry.installed_path).resolve()
+        # Guard against path traversal — installed path must stay within project
+        if not str(installed).startswith(str(project_path.resolve())):
+            errors.append(f"Unsafe path {entry.installed_path}: escapes project root")
+            continue
         if not installed.exists():
             missing.append(entry)
             continue
@@ -85,6 +89,13 @@ def repair_skills(
     entries_to_repair.extend(entry for entry, _hash in verify_result.drifted)
 
     for entry in entries_to_repair:
+        # Guard against path traversal in installed_path
+        dest = (project_path / entry.installed_path).resolve()
+        if not str(dest).startswith(str(project_path.resolve())):
+            logger.warning("Unsafe path %s: escapes project root", entry.installed_path)
+            failed += 1
+            continue
+
         skill = registry.get_skill(entry.skill_name)
         if skill is None:
             logger.warning(
@@ -95,7 +106,7 @@ def repair_skills(
             failed += 1
             continue
 
-        # Find matching source file within the skill directory
+        # Find matching source file within the skill directory — must stay inside skill_dir
         source_path = _find_source_file(skill.skill_dir, entry.source_file)
         if source_path is None:
             logger.warning(
@@ -106,8 +117,6 @@ def repair_skills(
             )
             failed += 1
             continue
-
-        dest = project_path / entry.installed_path
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source_path, dest)
@@ -139,9 +148,13 @@ def _find_source_file(skill_dir: Path, source_file: str) -> Path | None:
     """Locate a source file within a canonical skill directory.
 
     *source_file* is relative within the skill dir (e.g. ``"SKILL.md"`` or
-    ``"references/agent-path-matrix.md"``).
+    ``"references/agent-path-matrix.md"``).  The resolved path must remain
+    within *skill_dir* to prevent path traversal.
     """
-    candidate = skill_dir / source_file
+    candidate = (skill_dir / source_file).resolve()
+    # Guard against path traversal — source must stay inside skill directory
+    if not str(candidate).startswith(str(skill_dir.resolve())):
+        return None
     if candidate.is_file():
         return candidate
     return None

@@ -40,9 +40,15 @@ class ManagedSkillManifest:
     entries: list[ManagedFileEntry] = field(default_factory=list)
 
     def add_entry(self, entry: ManagedFileEntry) -> None:
-        """Add a new entry, replacing any existing entry with the same installed_path."""
+        """Add a new entry, replacing any existing entry with the same (installed_path, agent_key).
+
+        Shared-root agents intentionally share ``installed_path`` so deduplication
+        must include ``agent_key`` to avoid collapsing entries for different agents.
+        """
         self.entries = [
-            e for e in self.entries if e.installed_path != entry.installed_path
+            e
+            for e in self.entries
+            if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)
         ]
         self.entries.append(entry)
 

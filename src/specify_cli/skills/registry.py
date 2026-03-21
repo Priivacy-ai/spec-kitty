@@ -45,11 +45,28 @@ class SkillRegistry:
 
     @classmethod
     def from_package(cls) -> SkillRegistry:
-        """Create registry from installed package."""
-        from specify_cli.runtime.home import get_package_asset_root
+        """Create registry from installed package.
 
-        pkg_root = get_package_asset_root()
-        return cls(pkg_root / "doctrine" / "skills")
+        ``get_package_asset_root()`` resolves to ``<pkg>/missions`` which is
+        inside ``specify_cli/``.  The doctrine tree is a sibling top-level
+        package (``site-packages/doctrine/skills``), so we resolve it via
+        ``importlib.resources`` directly.  A development-mode fallback walks
+        up from ``specify_cli`` to ``src/doctrine/skills``.
+        """
+        import importlib.resources
+
+        # Installed package: doctrine is a sibling top-level package
+        try:
+            doctrine_root = importlib.resources.files("doctrine")
+            skills_path = Path(str(doctrine_root / "skills"))
+            if skills_path.is_dir():
+                return cls(skills_path)
+        except (ModuleNotFoundError, TypeError):
+            pass
+
+        # Development fallback: src/doctrine/skills relative to specify_cli
+        dev_path = Path(__file__).resolve().parent.parent.parent / "doctrine" / "skills"
+        return cls(dev_path)
 
     def discover_skills(self) -> list[CanonicalSkill]:
         """Discover all valid skills in the skills root.

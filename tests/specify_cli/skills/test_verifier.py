@@ -278,3 +278,27 @@ def test_repair_updates_manifest(tmp_path: Path) -> None:
     expected_hash = compute_content_hash(tmp_path / ".claude/skills/test-skill/SKILL.md")
     assert reloaded.entries[0].content_hash == expected_hash
     assert reloaded.entries[0].content_hash != "sha256:old-stale-hash"
+
+
+def test_verify_rejects_path_traversal(tmp_path: Path) -> None:
+    """Manifest entries with path traversal are reported as errors, not followed."""
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
+    entry = _make_entry(installed_path="../../../etc/passwd")
+    manifest = ManagedSkillManifest(entries=[entry])
+    save_manifest(manifest, tmp_path)
+
+    result = verify_installed_skills(tmp_path)
+    assert not result.ok
+    assert len(result.errors) == 1
+    assert "Unsafe path" in result.errors[0]
+
+
+def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
+    """Repair refuses to write to paths that escape the project root."""
+    registry = SkillRegistry(tmp_path / "_empty_registry")
+    entry = _make_entry(installed_path="../../../tmp/evil")
+    verify_result = VerifyResult(ok=False, missing=[entry])
+
+    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+    assert repaired == 0
+    assert failed == 1

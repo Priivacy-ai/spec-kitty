@@ -17,7 +17,7 @@ skill root directory was manually deleted.
 **Recovery:**
 
 ```bash
-spec-kitty sync --repair-skills
+spec-kitty init --here
 ```
 
 If the skill root directory is entirely absent, re-initialize:
@@ -58,7 +58,7 @@ accidental edits or merge conflicts.
 **Recovery:**
 
 ```bash
-spec-kitty sync --repair-skills
+spec-kitty init --here
 ```
 
 This overwrites drifted files with canonical content from the skill registry and

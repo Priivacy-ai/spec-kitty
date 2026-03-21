@@ -132,10 +132,10 @@ Apply deterministic recovery steps for each identified issue.
 
 | Issue | Recovery Command |
 |-------|-----------------|
-| Missing skill files | `spec-kitty sync --repair-skills` |
+| Missing skill files | `spec-kitty init --here` |
 | Missing wrapper root | `spec-kitty init --here` |
 | Missing skill root | `spec-kitty init --here` |
-| Manifest drift | `spec-kitty sync --repair-skills` |
+| Manifest drift | `spec-kitty init --here` |
 | Runtime not found | `spec-kitty init --here` |
 | Dashboard not starting | `spec-kitty dashboard` |
 | Corrupted config | Remove `.kittify/config.yaml`, re-run `spec-kitty init --here` |
@@ -147,7 +147,7 @@ Apply deterministic recovery steps for each identified issue.
 spec-kitty init --here
 
 # Targeted skill repair (preserves existing config)
-spec-kitty sync --repair-skills
+spec-kitty init --here
 
 # Restart dashboard
 spec-kitty dashboard
