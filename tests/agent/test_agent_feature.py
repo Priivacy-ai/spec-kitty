@@ -90,7 +90,7 @@ class TestCreateFeatureCommand:
         assert output["planning_base_branch"] == "main"
         assert output["merge_target_branch"] == "main"
         assert output["branch_matches_target"] is True
-        assert "Completed worktree changes must merge into main." in output["branch_strategy_summary"]
+        assert "Completed changes must merge into main." in output["branch_strategy_summary"]
         assert output["TARGET_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
 

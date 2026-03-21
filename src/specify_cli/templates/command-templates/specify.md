@@ -48,7 +48,7 @@ Parse the JSON and, in your next reply, explicitly tell the user:
 
 - Current branch at workflow start: `current_branch`
 - Default planning/base branch if you create the feature right now: `planning_base_branch`
-- Final merge target for completed worktree changes: `merge_target_branch`
+- Final merge target for completed changes: `merge_target_branch`
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create-feature`
 
@@ -176,7 +176,7 @@ Given that feature description, do this:
    Immediately restate the branch contract to the user after parsing the JSON:
    - Current branch at start
    - Intended planning/base branch
-   - Final merge target for later worktree changes
+   - Final merge target for later changes
    - Whether that matches the user's intended landing branch
 3. **Stay in the main repository**: No worktree is created during specify.
 

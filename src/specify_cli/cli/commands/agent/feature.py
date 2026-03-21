@@ -113,7 +113,7 @@ def _inject_branch_contract(
     branch_strategy_summary = (
         f"Current branch at workflow start: {resolved_current_branch}. "
         f"Planning/base branch for this feature: {planning_base_branch}. "
-        f"Completed worktree changes must merge into {merge_target_branch}."
+        f"Completed changes must merge into {merge_target_branch}."
     )
     runtime_vars["now_utc_iso"] = now_utc_iso
     runtime_vars["current_branch"] = resolved_current_branch
@@ -657,7 +657,7 @@ lane: "planned"
 dependencies: []
 planning_base_branch: "2.x"
 merge_target_branch: "2.x"
-branch_strategy: "Planning artifacts were generated on 2.x; completed worktree changes must merge back into 2.x."
+branch_strategy: "Planning artifacts were generated on 2.x; completed changes must merge back into 2.x."
 subtasks:
   - "T001"
   - "T002"
@@ -1757,7 +1757,7 @@ def finalize_tasks(
         branch_strategy = (
             f"Planning artifacts for this feature were generated on {planning_base_branch}. "
             f"During /spec-kitty.implement this WP may branch from a dependency-specific base, "
-            f"but completed worktree changes must merge back into {merge_target_branch} unless the human explicitly redirects the landing branch."
+            f"but completed changes must merge back into {merge_target_branch} unless the human explicitly redirects the landing branch."
         )
 
         for wp_file in wp_files:

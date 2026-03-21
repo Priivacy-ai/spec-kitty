@@ -4,7 +4,7 @@ title: "Replace with work package title"
 lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
 dependencies: []
 planning_base_branch: "{{planning_base_branch}}"  # Planning branch active when this WP prompt was generated
-merge_target_branch: "{{merge_target_branch}}"    # Final landing branch for completed worktree changes
+merge_target_branch: "{{merge_target_branch}}"    # Final landing branch for completed changes
 branch_strategy: "{{branch_strategy}}"            # Repeat this branch contract before coding; never guess
 subtasks:
   - "Txxx"

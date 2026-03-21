@@ -205,7 +205,7 @@ lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --
 dependencies: []  # Added by finalize-tasks
 planning_base_branch: "main"
 merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on main; completed worktree changes must merge back into main."
+branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
 subtasks:
   - "T001"
   - "T002"

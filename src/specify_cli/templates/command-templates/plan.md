@@ -106,7 +106,7 @@ Planning requirements (scale to complexity):
    Before proceeding, explicitly state to the user:
    - Current branch at plan start
    - Intended planning/base branch
-   - Final merge target for completed worktree changes
+   - Final merge target for completed changes
    - Whether `branch_matches_target` says the current branch matches that intended target
 
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).

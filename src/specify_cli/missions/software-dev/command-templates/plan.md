@@ -117,7 +117,7 @@ Planning requirements (scale to complexity):
    Before proceeding, explicitly state to the user:
    - Current branch at plan start
    - Intended planning/base branch
-   - Final merge target for completed worktree changes
+   - Final merge target for completed changes
    - Whether `branch_matches_target` says the current branch matches that intended target
 
    **Example**:
