@@ -30,6 +30,30 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Strategy Confirmation (MANDATORY)
+
+Before discovery, resolve branch intent through the Python helper, not by probing git directly:
+
+```bash
+spec-kitty agent feature branch-context --json
+```
+
+If the user already told you the intended landing branch, pass it explicitly:
+
+```bash
+spec-kitty agent feature branch-context --json --target-branch <intended-branch>
+```
+
+Parse the JSON and, in your next reply, explicitly tell the user:
+
+- Current branch at workflow start: `current_branch`
+- Default planning/base branch if you create the feature right now: `planning_base_branch`
+- Final merge target for completed changes: `merge_target_branch`
+- Whether `branch_matches_target` is true or false
+- If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create-feature`
+
+Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git for this prompt.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
@@ -141,11 +165,19 @@ Given that feature description, do this:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
    - `feature_dir`: Absolute path to the feature directory inside the main repo
+   - `current_branch`: the branch you started from
    - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
+   - `planning_base_branch` / `merge_target_branch`: explicit landing-branch aliases
+   - `branch_strategy_summary`: human-readable summary of the branch contract
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
    **IMPORTANT**: You must only ever run this command once. The JSON is provided in the terminal output - always refer to it to get the actual paths you're looking for.
+   Immediately restate the branch contract to the user after parsing the JSON:
+   - Current branch at start
+   - Intended planning/base branch
+   - Final merge target for later changes
+   - Whether that matches the user's intended landing branch
 3. **Stay in the main repository**: No worktree is created during specify.
 
 4. Read the files created by `create-feature`:

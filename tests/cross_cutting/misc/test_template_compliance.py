@@ -143,6 +143,78 @@ def test_templates_require_flat_structure():
     assert "tasks/WP01" in content or "tasks/WPxx" in content, "tasks.md must show correct flat path examples"
 
 
+def test_task_prompt_templates_include_branch_contract_metadata():
+    """Every bundled WP prompt template should carry explicit branch-intent metadata."""
+    templates = [
+        path
+        for path in find_mission_templates()
+        if path.name == "task-prompt-template.md"
+    ]
+
+    assert templates, "No task-prompt-template.md files found"
+
+    missing = []
+    for template_path in templates:
+        content = template_path.read_text(encoding="utf-8")
+        required_tokens = [
+            "planning_base_branch",
+            "merge_target_branch",
+            "branch_strategy",
+            "## Branch Strategy",
+        ]
+        absent = [token for token in required_tokens if token not in content]
+        if absent:
+            missing.append((template_path, absent))
+
+    if missing:
+        msg = "\n\nTask prompt templates missing explicit branch contract metadata:\n"
+        for template_path, absent in missing:
+            msg += f"\n{template_path}\n  Missing: {', '.join(absent)}\n"
+        pytest.fail(msg)
+
+
+def test_planning_templates_use_deterministic_branch_helpers():
+    """Planning-stage templates should rely on Python helpers, not manual git probing."""
+    spec_kitty_root = Path(__file__).parent.parent.parent.parent
+    template_paths = [
+        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "specify.md",
+        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "plan.md",
+        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "tasks.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "specify.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "specify.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "plan.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "tasks.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "specify.md",
+        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "tasks.md",
+    ]
+
+    missing_branch_helper = []
+    forbidden_git_probes = []
+
+    for template_path in template_paths:
+        content = template_path.read_text(encoding="utf-8")
+
+        if template_path.name == "specify.md" and "branch-context --json" not in content:
+            missing_branch_helper.append(template_path)
+
+        if "git branch --show-current" in content or "git rev-parse --abbrev-ref HEAD" in content:
+            forbidden_git_probes.append(template_path)
+
+    if missing_branch_helper:
+        msg = "\n\nSpecify templates missing deterministic branch-context helper:\n"
+        for template_path in missing_branch_helper:
+            msg += f"\n{template_path}\n"
+        pytest.fail(msg)
+
+    if forbidden_git_probes:
+        msg = "\n\nPlanning templates still probe git directly instead of helper JSON:\n"
+        for template_path in forbidden_git_probes:
+            msg += f"\n{template_path}\n"
+        pytest.fail(msg)
+
+
 def test_agents_md_shows_flat_structure():
     """AGENTS.md must document the flat tasks/ structure."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent

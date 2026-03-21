@@ -17,6 +17,41 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+class TestBranchContextCommand:
+    """Tests for branch-context command."""
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    def test_branch_context_json_output(
+        self,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """Should resolve deterministic branch contract in JSON."""
+        mock_locate.return_value = tmp_path
+        mock_is_git.return_value = True
+        mock_branch.return_value = "2.x"
+
+        result = runner.invoke(
+            app,
+            ["branch-context", "--json", "--target-branch", "release/2.x"],
+        )
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["repo_root"] == str(tmp_path.resolve())
+        assert output["current_branch"] == "2.x"
+        assert output["target_branch"] == "release/2.x"
+        assert output["planning_base_branch"] == "release/2.x"
+        assert output["merge_target_branch"] == "release/2.x"
+        assert output["branch_matches_target"] is False
+        assert output["target_branch_source"] == "cli_arg"
+
+
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
@@ -49,8 +84,13 @@ class TestCreateFeatureCommand:
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
         assert "feature_dir" in output
+        assert output["current_branch"] == "main"
         assert output["target_branch"] == "main"
         assert output["base_branch"] == "main"
+        assert output["planning_base_branch"] == "main"
+        assert output["merge_target_branch"] == "main"
+        assert output["branch_matches_target"] is True
+        assert "Completed changes must merge into main." in output["branch_strategy_summary"]
         assert output["TARGET_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
 
@@ -285,6 +325,9 @@ class TestCheckPrerequisitesCommand:
         assert "errors" in output
         assert "warnings" in output
         assert "paths" in output
+        assert output["current_branch"] == "main"
+        assert output["target_branch"] == "main"
+        assert output["branch_matches_target"] is True
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
@@ -393,8 +436,10 @@ class TestCheckPrerequisitesCommand:
         assert result.exit_code == 0
         output = json.loads(result.stdout)
         assert output["spec_file"] == paths["spec_file"]
+        assert output["current_branch"] == "main"
         assert output["target_branch"] == "main"
         assert output["base_branch"] == "main"
+        assert output["branch_matches_target"] is True
         assert output["TARGET_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
         assert "runtime_vars" in output
@@ -788,6 +833,10 @@ requirement_refs:
         payload = json.loads(json_lines[-1])
         assert payload["result"] == "success"
         assert payload["requirement_refs_parsed"]["WP01"] == ["FR-001"]
+        updated = (tasks_dir / "WP01-test.md").read_text(encoding="utf-8")
+        assert 'planning_base_branch: main' in updated
+        assert 'merge_target_branch: main' in updated
+        assert 'branch_strategy: Planning artifacts for this feature were generated on main.' in updated
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
@@ -830,8 +879,12 @@ class TestSetupPlanCommand:
         assert "plan_file" in output
         assert "feature_dir" in output
         assert output["spec_file"] == str(feature_dir / "spec.md")
+        assert output["current_branch"] == "main"
         assert output["target_branch"] == "main"
         assert output["base_branch"] == "main"
+        assert output["planning_base_branch"] == "main"
+        assert output["merge_target_branch"] == "main"
+        assert output["branch_matches_target"] is True
         assert output["TARGET_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
 

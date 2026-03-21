@@ -30,6 +30,16 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Strategy Confirmation (MANDATORY)
+
+Before asking planning questions or generating artifacts, you must make the branch contract explicit.
+
+- Never describe the landing branch vaguely. Always name the actual branch value.
+- If the user says the feature should land somewhere else, stop and resolve that before writing `plan.md`.
+- You must repeat the branch contract twice during this command:
+  1. immediately after parsing `setup-plan --json`
+  2. again in the final report before suggesting `/spec-kitty.tasks`
+
 ## Constitution Context Bootstrap (required)
 
 Before planning interrogation, load constitution context for this action:
@@ -47,8 +57,8 @@ This command runs in the **planning repository**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
-  - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
-  - Treat that payload as canonical branch context; do not probe branch state manually inside the prompt
+  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
+  - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/###-feature/`
 - The plan template is committed to the target branch after generation
 
@@ -87,38 +97,28 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Detect feature context** (CRITICAL - prevents wrong feature selection):
+2. **Resolve feature context deterministically** (CRITICAL - prevents wrong feature selection):
+   - Prefer an explicit feature slug from user direction or from the current directory path (`kitty-specs/<feature-slug>/...`)
+   - If you do not yet have an explicit feature slug, run `spec-kitty agent feature setup-plan --json` once without `--feature`
+   - If that call succeeds, treat its JSON as the canonical setup payload and skip step 3
+   - If that call returns an ambiguity error with `available_features`, stop and resolve one explicit feature slug before continuing
 
-   Before running any commands, detect which feature you're working on:
-
-   a. **Check git branch name**:
-      - Run: `git rev-parse --abbrev-ref HEAD`
-      - If branch matches pattern `###-feature-name` or `###-feature-name-WP##`, extract the feature slug (strip `-WP##` suffix if present)
-      - Example: Branch `020-my-feature` or `020-my-feature-WP01` → Feature `020-my-feature`
-
-   b. **Check current directory**:
-      - Look for `###-feature-name` pattern in the current path
-      - Examples:
-        - Inside `kitty-specs/020-my-feature/` → Feature `020-my-feature`
-        - Not in a worktree during planning (worktrees only used during implement): If detection runs from `.worktrees/020-my-feature-WP01/` → Feature `020-my-feature`
-
-   c. **Prioritize features without plan.md** (if multiple exist):
-      - If multiple features exist and none detected from branch/path, list all features in `kitty-specs/`
-      - Prefer features that don't have `plan.md` yet (unplanned features)
-      - If ambiguous, ask the user which feature to plan
-
-   d. **Extract feature slug**:
-      - Feature slug format: `###-feature-name` (e.g., `020-my-feature`)
-      - You MUST pass this explicitly to the setup-plan command using `--feature` flag
-      - **DO NOT** rely on auto-detection by the CLI (prevents wrong feature selection)
-
-3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `feature_slug`: Resolved feature slug
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
+   - `current_branch`: branch checked out when planning started
    - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
+   - `planning_base_branch` / `merge_target_branch`: explicit aliases for planning and merge intent
+   - `branch_strategy_summary`: canonical sentence describing the branch strategy
+
+   Before proceeding, explicitly state to the user:
+   - Current branch at plan start
+   - Intended planning/base branch
+   - Final merge target for completed changes
+   - Whether `branch_matches_target` says the current branch matches that intended target
 
    **Example**:
    ```bash

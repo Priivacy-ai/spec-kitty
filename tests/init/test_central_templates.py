@@ -44,6 +44,18 @@ def test_central_specify_template_workspace_per_wp() -> None:
     content_lower = content.lower()
     assert "main" in content_lower, "specify.md should mention main repository workflow"
     assert "commit" in content_lower, "specify.md should mention committing artifacts"
+    assert "branch strategy confirmation" in content_lower, (
+        "specify.md should require explicit branch strategy confirmation"
+    )
+    assert "branch-context --json" in content, (
+        "specify.md should resolve branch strategy from the Python helper"
+    )
+    assert "git branch --show-current" not in content, (
+        "specify.md should not ask the LLM to rediscover branch state via git"
+    )
+    assert "merge_target_branch" in content, (
+        "specify.md should mention the explicit merge target alias from helper JSON"
+    )
 
 
 def test_central_plan_template_workspace_per_wp() -> None:
@@ -52,6 +64,18 @@ def test_central_plan_template_workspace_per_wp() -> None:
     content_lower = content.lower()
     assert "main" in content_lower, "plan.md should mention main repository workflow"
     assert "worktree" in content_lower, "plan.md should mention worktree context (as negative or deferred)"
+    assert "branch strategy confirmation" in content_lower, (
+        "plan.md should require explicit branch strategy confirmation"
+    )
+    assert "git branch --show-current" not in content, (
+        "plan.md should use deterministic JSON instead of probing git branch state"
+    )
+    assert "git rev-parse --abbrev-ref HEAD" not in content, (
+        "plan.md should not ask the LLM to derive branch context from git directly"
+    )
+    assert "merge_target_branch" in content, (
+        "plan.md should mention the final merge target explicitly"
+    )
 
 
 def test_central_tasks_template_dependency_workflow() -> None:
@@ -61,6 +85,26 @@ def test_central_tasks_template_dependency_workflow() -> None:
     assert "dependencies" in content_lower, "tasks.md should mention dependencies field"
     assert "--base" in content, "tasks.md should document --base flag for dependencies"
     assert "implement" in content_lower, "tasks.md should mention implement command"
+    assert "planning_base_branch" in content, (
+        "tasks.md should require persisting the planning branch into each WP prompt"
+    )
+    assert "merge_target_branch" in content, (
+        "tasks.md should require persisting the merge target into each WP prompt"
+    )
+    assert "git branch --show-current" not in content, (
+        "tasks.md should rely on helper JSON for branch context"
+    )
+
+
+def test_central_task_prompt_template_carries_branch_metadata() -> None:
+    """WP prompt template should make branch intent explicit in frontmatter and body."""
+    content = (Path("src/specify_cli/templates/task-prompt-template.md")).read_text(
+        encoding="utf-8"
+    )
+    assert "planning_base_branch" in content
+    assert "merge_target_branch" in content
+    assert "branch_strategy" in content
+    assert "## Branch Strategy" in content
 
 
 def test_central_implement_template_workspace_creation() -> None:

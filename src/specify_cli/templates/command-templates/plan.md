@@ -30,14 +30,24 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Strategy Confirmation (MANDATORY)
+
+Before asking planning questions or generating artifacts, you must make the branch contract explicit.
+
+- Never describe the landing branch vaguely. Always name the actual branch value.
+- If the user says the feature should land somewhere else, stop and resolve that before writing `plan.md`.
+- You must repeat the branch contract twice during this command:
+  1. immediately after parsing `setup-plan --json`
+  2. again in the final report before suggesting `/spec-kitty.tasks`
+
 ## Location Check (0.11.0+)
 
 This command runs in the **planning repository**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
-  - Use `target_branch` / `base_branch` (and uppercase aliases) from that payload
-  - Ensure `git branch --show-current` matches `target_branch`
+  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
+  - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/###-feature/`
 - The plan template is committed to the target branch after generation
 
@@ -76,20 +86,28 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Detect feature context** (mandatory in new sessions):
-   - Determine feature slug from one of:
-     - explicit user direction
-     - current branch (`git rev-parse --abbrev-ref HEAD`)
-     - current directory path (`kitty-specs/<feature-slug>/...`)
-   - If context is still ambiguous, run setup-plan once without `--feature`, parse the candidate list from JSON error, and pick one explicit feature slug before continuing.
+2. **Resolve feature context deterministically** (mandatory in new sessions):
+   - Prefer an explicit feature slug from user direction or the current directory path (`kitty-specs/<feature-slug>/...`)
+   - If you do not have an explicit feature slug yet, run `spec-kitty agent feature setup-plan --json` once without `--feature`
+   - If that call succeeds, treat its JSON as the canonical setup payload and skip step 3
+   - If that call returns an ambiguity error with `available_features`, pick one explicit feature slug before continuing
 
-3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `feature_slug`: resolved feature slug
    - `spec_file`: absolute path to resolved spec.md
    - `plan_file`: absolute path to created plan.md
    - `feature_dir`: absolute path to feature directory
+   - `current_branch`: branch checked out when planning started
    - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
+   - `planning_base_branch` / `merge_target_branch`: explicit aliases for planning and merge intent
+   - `branch_strategy_summary`: canonical sentence describing the branch strategy
+
+   Before proceeding, explicitly state to the user:
+   - Current branch at plan start
+   - Intended planning/base branch
+   - Final merge target for completed changes
+   - Whether `branch_matches_target` says the current branch matches that intended target
 
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
