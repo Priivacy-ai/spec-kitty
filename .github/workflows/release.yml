@@ -84,8 +84,10 @@ jobs:
         run: |
           echo "::group::Verifying migration files in wheel"
 
-          # Count migration files in source
-          SOURCE_COUNT=$(find src/specify_cli/upgrade/migrations -name "m_*.py" -type f | wc -l | tr -d ' ')
+          # Count tracked migration files in source. The test suite may generate
+          # temporary files in the workspace, so verify against the repository
+          # contents rather than the mutated working tree.
+          SOURCE_COUNT=$(git ls-files src/specify_cli/upgrade/migrations | grep '/m_.*\.py$' | wc -l | tr -d ' ')
           echo "Source migrations count: $SOURCE_COUNT"
 
           # Extract wheel to temp directory
@@ -117,14 +119,15 @@ jobs:
 
           echo "::group::Verifying doctrine payload in wheel"
 
-          # Count all source doctrine files, including skills and extensionless templates.
-          SOURCE_DOCTRINE_COUNT=$(find src/doctrine -type f | wc -l | tr -d ' ')
+          # Count tracked doctrine files in source. Release tests can mutate the
+          # checkout, so use the tracked tree as the source of truth here too.
+          SOURCE_DOCTRINE_COUNT=$(git ls-files src/doctrine | wc -l | tr -d ' ')
           echo "Source doctrine file count: $SOURCE_DOCTRINE_COUNT"
 
           WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/doctrine -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel doctrine file count: $WHEEL_DOCTRINE_COUNT"
 
-          SOURCE_SKILL_COUNT=$(find src/doctrine/skills -path '*/SKILL.md' -type f | wc -l | tr -d ' ')
+          SOURCE_SKILL_COUNT=$(git ls-files src/doctrine/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
           echo "Source bundled skill count: $SOURCE_SKILL_COUNT"
 
           WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/doctrine/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
