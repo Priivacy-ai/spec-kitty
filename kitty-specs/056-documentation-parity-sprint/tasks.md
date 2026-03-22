@@ -146,11 +146,11 @@
 **Estimated size**: ~300 lines
 
 **Subtasks**:
-- [ ] T038: Create `docs/explanation/runtime-loop.md` explaining what spec-kitty next does and when to use it
-- [ ] T039: Document the 4 decision kinds (step, blocked, terminal, decision_required) with user-facing examples
-- [ ] T040: Document the agent loop pattern at conceptual level
-- [ ] T041: Document known issues (#335, #336) as user-facing notes with workarounds
-- [ ] T042: Update `docs/explanation/toc.yml` to include new guide
+- [x] T038: Create `docs/explanation/runtime-loop.md` explaining what spec-kitty next does and when to use it
+- [x] T039: Document the 4 decision kinds (step, blocked, terminal, decision_required) with user-facing examples
+- [x] T040: Document the agent loop pattern at conceptual level
+- [x] T041: Document known issues (#335, #336) as user-facing notes with workarounds
+- [x] T042: Update `docs/explanation/toc.yml` to include new guide
 
 **Implementation**: `spec-kitty implement WP08 --base WP01`
 
