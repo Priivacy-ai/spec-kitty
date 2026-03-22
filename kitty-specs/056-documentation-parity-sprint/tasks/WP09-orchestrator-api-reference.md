@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Orchestrator API Reference Update
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 requirement_refs: [FR-005]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,8 +11,8 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:59:00.879725+00:00'
 subtasks: [T043, T044, T045, T046, T047, T048]
-shell_pid: "21973"
-agent: "coordinator"
+agent: coordinator
+shell_pid: '21973'
 history:
 - date: '2026-03-22'
   action: created
@@ -127,3 +127,4 @@ spec-kitty implement WP09 --base WP01
 ## Activity Log
 
 - 2026-03-22T14:59:01Z – coordinator – shell_pid=21973 – lane=doing – Assigned agent via workflow command
+- 2026-03-22T15:05:00Z – coordinator – shell_pid=21973 – lane=for_review – Orchestrator API reference expanded with all 9 commands verified against --help, real JSON output examples, complete error code catalog, policy metadata schema, and host boundary rules
