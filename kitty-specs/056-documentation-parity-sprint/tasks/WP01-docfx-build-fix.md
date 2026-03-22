@@ -1,13 +1,17 @@
 ---
 work_package_id: WP01
 title: DocFX Build Fix and Navigation
-lane: planned
+lane: "doing"
 dependencies: []
 requirement_refs: [FR-001, FR-010, FR-012, FR-013, FR-014]
 planning_base_branch: fix/skill-audit-and-expansion
 merge_target_branch: fix/skill-audit-and-expansion
 branch_strategy: Planning artifacts for this feature were generated on fix/skill-audit-and-expansion. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/skill-audit-and-expansion unless the human explicitly redirects the landing branch.
+base_branch: fix/skill-audit-and-expansion
+base_commit: dd425f9c4c453cdb215c8ecedd4798a38ecd7eca
+created_at: '2026-03-22T14:50:35.943533+00:00'
 subtasks: [T001, T002, T003, T004, T005]
+shell_pid: "19406"
 history:
 - date: '2026-03-22'
   action: created
