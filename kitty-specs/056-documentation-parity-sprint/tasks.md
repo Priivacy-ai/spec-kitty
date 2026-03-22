@@ -17,11 +17,11 @@
 **Estimated size**: ~250 lines
 
 **Subtasks**:
-- [ ] T001: Update `docs/docfx.json` to include tutorials/, how-to/, reference/, explanation/ in build output
-- [ ] T002: Update `docs/toc.yml` top-level navigation to link to all 4 Divio categories
-- [ ] T003: Update `docs/index.md` homepage with category links and descriptions
-- [ ] T004: Create missing `docs/how-to/use-operation-history.md` (referenced in toc.yml)
-- [ ] T005: Verify all toc.yml files in subdirectories have correct file references
+- [x] T001: Update `docs/docfx.json` to include tutorials/, how-to/, reference/, explanation/ in build output
+- [x] T002: Update `docs/toc.yml` top-level navigation to link to all 4 Divio categories
+- [x] T003: Update `docs/index.md` homepage with category links and descriptions
+- [x] T004: Create missing `docs/how-to/use-operation-history.md` (referenced in toc.yml)
+- [x] T005: Verify all toc.yml files in subdirectories have correct file references
 
 **Implementation**: `spec-kitty implement WP01`
 
