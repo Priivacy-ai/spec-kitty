@@ -20,6 +20,152 @@ loop or repairing an installation.
 
 ---
 
+## How the Glossary Works
+
+The glossary is a **semantic integrity runtime** — a 5-layer middleware pipeline
+that intercepts mission step execution, extracts terms from inputs/outputs,
+checks them against stored definitions, and can **block generation** if
+terminology conflicts are unresolved.
+
+### Data Model
+
+**Terms** have a `surface` (normalized to lowercase), `definition`, `scope`,
+`confidence` (0.0–1.0), and `status` (draft/active/deprecated).
+
+**Seed files** (`.kittify/glossaries/{scope}.yaml`) provide initial definitions.
+**Event logs** (`.kittify/events/glossary/*.events.jsonl`) record all runtime
+mutations as append-only JSONL. State is reconstructed by replaying seed files
+then events.
+
+### 4 Scopes (narrowest wins)
+
+| Precedence | Scope | Use For |
+|:---:|---|---|
+| 0 (highest) | `mission_local` | Feature-specific jargon |
+| 1 | `team_domain` | Team/org conventions |
+| 2 | `audience_domain` | Industry/domain standards |
+| 3 (lowest) | `spec_kitty_core` | Framework terms (lane, work package, mission) |
+
+### The 5-Layer Middleware Pipeline
+
+When a mission primitive executes (via `@glossary_enabled` decorator or
+`GlossaryAwarePrimitiveRunner`), this pipeline processes the step:
+
+**Layer 1 — Term Extraction.** Scans step input/output for terminology using
+multiple methods (in priority order):
+
+| Method | Confidence | Example |
+|---|:---:|---|
+| Metadata hints (`glossary_watch_terms`) | 1.0 | Explicit list of terms to monitor |
+| Quoted phrases | 0.8 | `"work package"` in text |
+| Acronyms (2-5 uppercase) | 0.8 | `WP`, `API` |
+| Casing patterns (snake_case, CamelCase) | 0.8 | `worktree_node`, `WorkspaceManager` |
+| Repeated nouns (3+ occurrences) | 0.5 | Frequent domain words |
+
+Emits `TermCandidateObserved` events.
+
+**Layer 2 — Semantic Check.** Resolves each extracted term against the scope
+hierarchy and classifies conflicts:
+
+| Conflict Type | Trigger | Severity |
+|---|---|---|
+| `UNKNOWN` | Term not in any scope | Varies by confidence + criticality |
+| `AMBIGUOUS` | 2+ active senses for same surface | HIGH in critical steps |
+| `INCONSISTENT` | Output contradicts glossary definition | LOW (informational) |
+| `UNRESOLVED_CRITICAL` | Unknown term in critical step, low confidence | HIGH |
+
+Emits `SemanticCheckEvaluated` events.
+
+**Layer 3 — Clarification (runs BEFORE the gate).** Users get a chance to
+resolve conflicts before generation is blocked:
+
+- In interactive mode: prompts user to select a candidate sense, provide a
+  custom definition, or defer
+- In non-interactive mode (CI/headless): auto-defers all conflicts
+- Resolved conflicts are removed; deferred ones pass to Layer 4
+
+Emits `GlossaryClarificationRequested`, `GlossaryClarificationResolved`,
+and `GlossarySenseUpdated` events.
+
+**Layer 4 — Generation Gate.** Evaluates whether to block based on strictness:
+
+| Strictness | Behavior |
+|---|---|
+| `off` | Never block |
+| `medium` (default) | Block only HIGH severity conflicts |
+| `max` | Block any unresolved conflict |
+
+Strictness resolved via 4-tier precedence: runtime flag > step metadata >
+mission config > global default (`.kittify/config.yaml`).
+
+If blocking: saves a **checkpoint** (SHA256 input hash, scope versions, retry
+token), emits `StepCheckpointed` and `GenerationBlockedBySemanticConflict`
+events, then raises `BlockedByConflict`.
+
+**Layer 5 — Resume.** For retry after a block:
+
+- Loads checkpoint from event log
+- Verifies input hash hasn't changed (detects context drift)
+- Prompts user if context changed
+- Restores execution state
+
+### Step-Level Configuration
+
+Individual mission steps can control glossary behavior via metadata:
+
+```yaml
+# In step definition
+glossary_check: enabled          # or "disabled" to skip this step
+glossary_check_strictness: max   # override strictness for this step
+glossary_watch_terms:            # explicit terms to monitor (confidence 1.0)
+  - work package
+  - lane
+glossary_aliases:                # map synonyms to canonical forms
+  task: work package
+  status: lane
+glossary_exclude_terms:          # terms to ignore
+  - the
+  - a
+```
+
+### 8 Event Types
+
+| Event | When | Effect |
+|---|---|---|
+| `GlossaryScopeActivated` | Scope loaded at runtime | Informational |
+| `TermCandidateObserved` | Term extracted from text | Records extraction |
+| `SemanticCheckEvaluated` | Semantic check completes | Records findings |
+| `GlossaryClarificationRequested` | Conflict needs resolution | Creates pending conflict |
+| `GlossaryClarificationResolved` | User selects a sense | Promotes selected sense |
+| `GlossarySenseUpdated` | Term added/definition changed | Updates store |
+| `GenerationBlockedBySemanticConflict` | Gate blocks generation | Records block |
+| `StepCheckpointed` | State saved before block | Enables resume |
+
+All events are append-only in `.kittify/events/glossary/{mission-id}.events.jsonl`.
+
+### Integration Patterns
+
+```python
+# 1. Decorator (simplest)
+@glossary_enabled(repo_root=Path("."))
+def my_primitive(context):
+    return {"result": "ok"}
+
+# 2. Function processor
+processor = attach_glossary_pipeline(repo_root, runtime_strictness, interaction_mode)
+processed_context = processor(context)  # May raise BlockedByConflict
+
+# 3. Runner class
+runner = GlossaryAwarePrimitiveRunner(repo_root, runtime_strictness)
+result = runner.execute(primitive_fn, context)
+```
+
+The `BlockedByConflict` exception carries the `conflicts` list, `strictness`
+mode, and a user-facing message. Callers should catch it, present the conflicts,
+and offer resolution before retrying.
+
+---
+
 ## Step 1: Locate Glossary Context
 
 Identify the glossary state for the current project.
@@ -38,28 +184,14 @@ spec-kitty glossary list --scope spec_kitty_core
 spec-kitty glossary list --status active --json
 ```
 
-**Scopes** (highest to lowest precedence): `mission_local`, `team_domain`,
-`audience_domain`, `spec_kitty_core`. When the same surface appears in
-multiple scopes, the narrower scope wins. See `references/glossary-field-guide.md`
-for full scope details.
-
 **Expected outcome:** You know which scopes are populated and whether event
 logs contain runtime mutations.
 
 ---
 
-## Step 2: Understand How the Glossary Affects Runtime
+## Step 2: Check Conflicts and Strictness
 
 The glossary gates mission execution through the strictness system.
-
-**Strictness modes:** `off` (never block), `medium` (block HIGH severity only),
-`max` (block any conflict). Resolved via four-tier precedence: global config,
-mission override, step override, runtime override.
-
-**Conflict types:** `unknown` (not in any scope), `ambiguous` (2+ active senses),
-`inconsistent` (output contradicts definition), `unresolved_critical` (critical
-step, low confidence). See `references/glossary-field-guide.md` for severity
-scoring and the full conflict resolution flow.
 
 **Commands:**
 
@@ -77,7 +209,6 @@ can confirm no blocking conflicts exist.
 ## Step 3: Update Terms and Resolve Conflicts
 
 **Adding or editing terms:** Edit the seed file for the appropriate scope.
-See `references/glossary-field-guide.md` for the seed file schema.
 
 Choose the scope by term ownership:
 
@@ -87,7 +218,21 @@ Choose the scope by term ownership:
 - Spec Kitty concepts: `spec_kitty_core.yaml` (rarely edited)
 
 Rules: `surface` must be lowercase/trimmed; `status` is `active`, `deprecated`,
-or `draft`; `confidence` is 0.0--1.0.
+or `draft`; `confidence` is 0.0–1.0.
+
+**Seed file format:**
+
+```yaml
+terms:
+  - surface: <lowercase trimmed string>
+    definition: <non-empty string>
+    confidence: <float 0.0-1.0>       # default 1.0
+    status: <active|deprecated|draft>  # default draft
+```
+
+**Status lifecycle:** `draft` → (promote) → `active` → (retire) → `deprecated`
+→ (re-draft) → `draft`. Deprecated senses are excluded from resolution but
+remain in event history.
 
 **Resolving conflicts interactively:**
 
@@ -99,9 +244,6 @@ spec-kitty glossary resolve <conflict_id> --mission 012-docs
 The resolver presents candidate senses. You can select one, enter a custom
 definition, or defer. Custom definitions emit both a
 `GlossaryClarificationResolved` and a `GlossarySenseUpdated` event.
-
-**Deprecating a term:** Set `status: deprecated` in the seed file. Deprecated
-senses are excluded from resolution but remain in event history.
 
 **Expected outcome:** The glossary reflects intended terminology and runtime-
 blocking conflicts are resolved.
@@ -132,6 +274,8 @@ See `references/semantic-drift-examples.md` for six concrete drift patterns.
 
 - Set strictness to `medium` or `max` so the runtime catches conflicts early
 - Add domain terms to the glossary before writing specs that use them
+- Use `glossary_watch_terms` in step metadata for high-value terms
+- Use `glossary_aliases` to map known synonyms to canonical forms
 - Review the conflict log after each completed mission
 
 **Consistency checklist:**
