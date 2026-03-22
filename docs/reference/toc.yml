@@ -14,5 +14,7 @@
   href: file-structure.md
 - name: Missions
   href: missions.md
+- name: Event Envelope
+  href: event-envelope.md
 - name: Supported Agents
   href: supported-agents.md
