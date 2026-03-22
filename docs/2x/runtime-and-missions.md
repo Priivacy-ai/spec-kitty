@@ -1,35 +1,97 @@
 # 2.x Runtime and Missions
 
-## Canonical Agent Loop
+Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. Each mission defines the phases, required artifacts, validation guards, and agent context for a specific work type. You select a mission once per feature at creation time and it governs the entire lifecycle of that feature.
 
-2.x treats `spec-kitty next --agent <name>` as the canonical loop entrypoint for agent execution.
+The runtime is the engine that drives mission execution. It resolves which mission assets to load, determines what the next action should be, and enforces guard conditions before transitions.
 
-ADR reference:
+## The 4 Built-In Missions
 
-1. `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
+| Mission | Purpose | Key Phases | Default? |
+|---------|---------|------------|----------|
+| **software-dev** | Full development lifecycle | specify, plan, tasks, implement, review, accept | Yes |
+| **research** | Systematic evidence-gated investigation | scoping, methodology, gathering, synthesis, output | No |
+| **plan** | Goal-oriented strategic planning | discovery, specify, plan, refine | No |
+| **documentation** | Divio-based documentation creation | specify, plan, audit, create, validate | No |
 
-## Mission Discovery Ownership
-
-Mission discovery and loading are runtime-owned and resolved through explicit precedence rather than duplicated ad hoc loaders.
-
-ADR and implementation references:
-
-1. `architecture/2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
-2. `src/specify_cli/runtime/home.py`
-3. `src/specify_cli/runtime/resolver.py`
+Each mission defines its own step DAG (directed acyclic graph of phases), its own required artifacts, and its own guard conditions for phase transitions.
 
 ## Mission Assets
 
 Packaged mission defaults for 2.x live under doctrine:
 
-1. `src/doctrine/missions/software-dev/`
-2. `src/doctrine/missions/plan/`
-3. `src/doctrine/missions/research/`
-4. `src/doctrine/missions/documentation/`
+1. `src/doctrine/missions/software-dev/` -- software development workflow
+2. `src/doctrine/missions/plan/` -- planning workflow
+3. `src/doctrine/missions/research/` -- research workflow
+4. `src/doctrine/missions/documentation/` -- documentation workflow
 
-## Status/Event Model Alignment
+Each mission directory contains a `mission-runtime.yaml` (step DAG, guards, artifacts) and a set of command templates that are deployed to agent directories.
 
-2.x status behavior is event-driven with canonical transition semantics and reducer materialization.
+## The Hierarchy: Mission, Feature, Work Package, Workspace
+
+Understanding how the pieces nest is key to understanding Spec Kitty:
+
+```
+Mission (reusable workflow blueprint, e.g. software-dev)
+  |
+  +-- Feature (concrete thing being built, in kitty-specs/###-name/)
+        |
+        +-- Work Package (one parallelizable slice, tasks/WP01.md)
+              |
+              +-- Workspace (isolated git worktree, .worktrees/###-name-WP01/)
+```
+
+- **Mission** -- selected per feature at creation time; determines phases, artifacts, and guards.
+- **Feature** -- stored in `kitty-specs/###-feature-name/`; linked to its mission via `meta.json`.
+- **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
+- **Workspace** -- one git worktree per work package; agents work in isolation without merge conflicts.
+
+Different features in the same project can use different missions simultaneously.
+
+## Canonical Agent Loop: `spec-kitty next`
+
+2.x treats `spec-kitty next --agent <name>` as the canonical loop entrypoint for agent execution. The command inspects the current feature's mission state and WP statuses, then returns exactly one actionable instruction: which phase to advance, which WP to implement, or what is blocking progress.
+
+The loop works with two orthogonal state machines:
+
+- **Mission state** -- which phase of the workflow are we in? (specify, plan, implement, ...)
+- **WP status** -- where is each work package in its lifecycle? (planned, claimed, in_progress, for_review, done)
+
+Together they determine the next action. For example: "We are in the implement phase, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
+
+Agents call `spec-kitty next` in a loop, executing whatever it returns until the feature is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
+
+ADR reference: `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
+
+## Mission Discovery and Loading
+
+Mission discovery and loading are runtime-owned and resolved through explicit precedence rather than duplicated ad-hoc loaders.
+
+The resolution order is:
+
+1. Project override (`.kittify/missions/<name>/`)
+2. Project legacy location
+3. User-global mission-specific location (`~/.spec-kitty/missions/<name>/`)
+4. User-global location (`~/.spec-kitty/`)
+5. Packaged doctrine mission defaults
+
+ADR reference: `architecture/2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
+
+Implementation references:
+
+1. `src/specify_cli/runtime/home.py`
+2. `src/specify_cli/runtime/resolver.py`
+
+## Status and Event Model
+
+2.x status behavior is event-driven with canonical transition semantics and reducer materialization. Every lane transition is an immutable event appended to `status.events.jsonl`. The reducer deterministically produces a snapshot from the event log.
+
+The 7-lane state machine:
+
+```
+planned --> claimed --> in_progress --> for_review --> done
+```
+
+Plus `blocked` (reachable from planned/claimed/in_progress/for_review) and `canceled` (reachable from all non-terminal lanes).
 
 ADR references:
 
@@ -47,3 +109,12 @@ ADR references:
 3. Provider implementations should not directly mutate lane/frontmatter state files.
 
 See [Orchestration and API Boundary](orchestration-and-api.md) for operator and provider guidance.
+
+---
+
+## Learn More
+
+- **Deep dive on missions**: [The Mission System Explained](../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
+- **Kanban workflow**: [Kanban Workflow Explained](../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
+- **Workspace model**: [Workspace-per-Work-Package Explained](../explanation/workspace-per-wp.md) -- the isolation model for parallel development
+- **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details
