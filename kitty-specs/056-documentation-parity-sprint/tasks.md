@@ -189,11 +189,11 @@
 **Estimated size**: ~250 lines
 
 **Subtasks**:
-- [ ] T049: Expand `docs/2x/doctrine-and-constitution.md` (currently 60 lines) with constitution workflow summary
-- [ ] T050: Expand `docs/2x/glossary-system.md` (currently 37 lines) with glossary concepts and CLI usage
-- [ ] T051: Expand `docs/2x/runtime-and-missions.md` (currently 49 lines) with mission overview and runtime loop
-- [ ] T052: Add cross-references from 2x/ docs to new how-to and explanation guides
-- [ ] T053: Update `docs/2x/toc.yml` if new entries needed
+- [x] T049: Expand `docs/2x/doctrine-and-constitution.md` (currently 60 lines) with constitution workflow summary
+- [x] T050: Expand `docs/2x/glossary-system.md` (currently 37 lines) with glossary concepts and CLI usage
+- [x] T051: Expand `docs/2x/runtime-and-missions.md` (currently 49 lines) with mission overview and runtime loop
+- [x] T052: Add cross-references from 2x/ docs to new how-to and explanation guides
+- [x] T053: Update `docs/2x/toc.yml` if new entries needed
 
 **Implementation**: `spec-kitty implement WP10 --base WP06`
 
