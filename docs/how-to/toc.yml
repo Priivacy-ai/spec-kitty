@@ -40,3 +40,5 @@
   href: upgrade-to-0-11-0.md
 - name: Non-Interactive Init
   href: non-interactive-init.md
+- name: Set Up Project Governance
+  href: setup-governance.md
