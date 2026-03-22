@@ -12,6 +12,7 @@ base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:58:53.695123+00:00'
 subtasks: [T027, T028, T029, T030, T031]
 shell_pid: "21973"
+agent: "coordinator"
 history:
 - date: '2026-03-22'
   action: created
@@ -99,3 +100,7 @@ primitive syntax.
 ```bash
 spec-kitty implement WP06 --base WP01
 ```
+
+## Activity Log
+
+- 2026-03-22T14:58:53Z – coordinator – shell_pid=21973 – lane=doing – Assigned agent via workflow command
