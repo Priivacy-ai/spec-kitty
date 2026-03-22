@@ -128,12 +128,12 @@
 **Estimated size**: ~300 lines
 
 **Subtasks**:
-- [ ] T032: Create `docs/explanation/git-workflow.md` with the core boundary (Python vs agent git operations)
-- [ ] T033: Document worktree lifecycle (creation → active → review → merged → cleanup)
-- [ ] T034: Document auto-commit behavior and configuration
-- [ ] T035: Document what agents must do manually (implementation commits, rebases, conflict resolution)
-- [ ] T036: Add anti-patterns section (manual worktree creation, committing in wrong repo)
-- [ ] T037: Update `docs/explanation/toc.yml` to include new guide
+- [x] T032: Create `docs/explanation/git-workflow.md` with the core boundary (Python vs agent git operations)
+- [x] T033: Document worktree lifecycle (creation → active → review → merged → cleanup)
+- [x] T034: Document auto-commit behavior and configuration
+- [x] T035: Document what agents must do manually (implementation commits, rebases, conflict resolution)
+- [x] T036: Add anti-patterns section (manual worktree creation, committing in wrong repo)
+- [x] T037: Update `docs/explanation/toc.yml` to include new guide
 
 **Implementation**: `spec-kitty implement WP07 --base WP01`
 
