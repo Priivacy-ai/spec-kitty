@@ -1,13 +1,17 @@
 ---
 work_package_id: WP08
 title: Runtime Loop Explanation
-lane: planned
+lane: "doing"
 dependencies: [WP01]
 requirement_refs: [FR-004]
 planning_base_branch: fix/skill-audit-and-expansion
 merge_target_branch: fix/skill-audit-and-expansion
 branch_strategy: Planning artifacts for this feature were generated on fix/skill-audit-and-expansion. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/skill-audit-and-expansion unless the human explicitly redirects the landing branch.
+base_branch: 056-documentation-parity-sprint-WP01
+base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
+created_at: '2026-03-22T14:58:58.362388+00:00'
 subtasks: [T038, T039, T040, T041, T042]
+shell_pid: "21973"
 history:
 - date: '2026-03-22'
   action: created
