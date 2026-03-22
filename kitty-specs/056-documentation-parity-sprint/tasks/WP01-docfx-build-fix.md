@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: DocFX Build Fix and Navigation
-lane: "doing"
+lane: "for_review"
 dependencies: []
 requirement_refs: [FR-001, FR-010, FR-012, FR-013, FR-014]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,8 +11,8 @@ base_branch: fix/skill-audit-and-expansion
 base_commit: dd425f9c4c453cdb215c8ecedd4798a38ecd7eca
 created_at: '2026-03-22T14:50:35.943533+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "19406"
-agent: "coordinator"
+agent: coordinator
+shell_pid: '19406'
 history:
 - date: '2026-03-22'
   action: created
@@ -129,3 +129,4 @@ spec-kitty implement WP01
 ## Activity Log
 
 - 2026-03-22T14:50:36Z – coordinator – shell_pid=19406 – lane=doing – Assigned agent via workflow command
+- 2026-03-22T14:54:27Z – coordinator – shell_pid=19406 – lane=for_review – DocFX build config updated with all 4 Divio categories, top-level navigation and homepage rewritten, missing use-operation-history.md created, all toc.yml references verified
