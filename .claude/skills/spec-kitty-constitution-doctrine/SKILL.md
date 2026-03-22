@@ -6,9 +6,8 @@ description: >-
   Triggers: "interview for constitution", "generate constitution",
   "sync constitution", "use doctrine", "set up governance",
   "constitution status", "extract governance config".
-  Does NOT handle: generic spec writing not tied to governance,
-  direct runtime loop advancement, setup/repair diagnostics,
-  or editorial glossary maintenance.
+  Does NOT handle: generic spec writing not tied to governance, direct runtime
+  loop advancement, setup/repair diagnostics, or editorial glossary maintenance.
 ---
 
 # spec-kitty-constitution-doctrine
@@ -20,27 +19,234 @@ directives.yaml, references.yaml) is derived from it.
 
 ---
 
-## Step 1: Understand the Governance Model
+## How the Constitution System Works
 
-Three layers:
+The constitution is a **governance-as-code** framework. A human-written markdown
+document captures project policy, and the runtime extracts structured YAML from
+it to constrain what agents see and do during workflow actions.
 
-1. **Constitution** -- human-readable markdown capturing project policy
-   (testing, quality, branching, directives, tools). Lives at
-   `.kittify/constitution/constitution.md`.
+### The 3-Layer Model
 
-2. **Extracted config** -- structured YAML derived deterministically by sync.
-   Machine-readable, consumed by the runtime at each workflow action.
+1. **Constitution** (`constitution.md`) — Human-editable markdown. The single
+   authoritative source. Created via interview or written by hand.
 
-3. **Doctrine references** -- library documents providing detailed guidance
-   for selected paradigms, directives, and tools. Stored under
-   `.kittify/constitution/library/`.
+2. **Extracted config** — Machine-readable YAML derived deterministically by
+   sync. Never edit these directly — they are overwritten on every sync.
+   - `governance.yaml` — Testing, quality, performance, branching, doctrine selections
+   - `directives.yaml` — Numbered project rules with severity and scope
+   - `metadata.yaml` — Hash, timestamp, extraction mode
 
-The constitution constrains runtime behavior. When the runtime loads context
-for a workflow action (specify, plan, implement, review), it reads governance
-config and injects policy into the agent prompt. Doctrine is not advisory --
-it shapes what the agent sees and does.
+3. **Doctrine references** (`library/*.md`) — Detailed guidance documents for
+   selected paradigms, directives, and tools. Copied from `src/doctrine/` during
+   generation.
 
-See `references/doctrine-artifact-structure.md` for the file layout.
+### Data Flow
+
+```
+Interview Answers (answers.yaml)
+        ↓
+  [generate command]  ← doctrine templates, mission config
+        ↓
+Constitution (constitution.md)  ← authoritative source
+        ↓
+  [auto-sync triggered]
+        ↓
+    ├→ governance.yaml      ← extracted structured config
+    ├→ directives.yaml      ← extracted numbered rules
+    ├→ metadata.yaml        ← hash, timestamp, extraction mode
+    └→ library/*.md         ← copied doctrine reference docs
+        ↓
+  [context command]  at each workflow action
+        ↓
+    Text injected into agent prompt
+```
+
+### How Sync Extraction Works
+
+The sync command parses `constitution.md` by classifying section headings
+against a keyword map:
+
+| Heading keyword | Target schema |
+|---|---|
+| `testing`, `test`, `coverage` | `governance.testing` |
+| `quality`, `lint` | `governance.quality` |
+| `commit` | `governance.commits` |
+| `performance` | `governance.performance` |
+| `branch` | `governance.branch_strategy` |
+| `paradigm`, `tool`, `template` | `governance.doctrine` |
+| `directive`, `constraint`, `rule` | `directives.directives` |
+
+For each matched section, the parser extracts structured data from:
+1. **Markdown tables** — rows parsed as key-value dicts
+2. **YAML code blocks** — parsed directly
+3. **Numbered lists** — extracted as directive items
+4. **Keyword patterns** — regex matching for quantitative values:
+   - `90%+ coverage` → `testing.min_coverage: 90`
+   - `TDD required` → `testing.tdd_required: true`
+   - `< 2 seconds` → `performance.cli_timeout_seconds: 2.0`
+   - `mypy --strict` → `testing.type_checking: "mypy --strict"`
+   - `1 approval` → `quality.pr_approvals: 1`
+   - `conventional commits` → `commits.convention: "conventional"`
+   - `pre-commit hooks` → `quality.pre_commit_hooks: true`
+
+Doctrine selections (paradigms, directives, tools, template_set) are merged
+from YAML blocks and tables that contain keys like `selected_paradigms`,
+`available_tools`, or `template_set`.
+
+### governance.yaml Schema
+
+```yaml
+testing:
+  min_coverage: 90              # Minimum test coverage %
+  tdd_required: false           # TDD mandatory
+  framework: pytest             # Test framework
+  type_checking: "mypy --strict" # Type checker
+quality:
+  linting: ruff                 # Linter
+  pr_approvals: 1               # Required approvals before merge
+  pre_commit_hooks: false       # Pre-commit hooks required
+commits:
+  convention: conventional      # Commit convention (or null)
+performance:
+  cli_timeout_seconds: 2.0      # Max CLI command duration
+  dashboard_max_wps: 100        # Max work packages dashboard displays
+branch_strategy:
+  main_branch: main             # Primary branch
+  dev_branch: null              # Development branch (optional)
+  rules: []                     # Branch naming/protection rules
+doctrine:
+  selected_paradigms: []        # Active paradigm IDs
+  selected_directives: []       # Active directive IDs
+  available_tools: []           # Active tool IDs
+  template_set: null            # Mission template set
+enforcement: {}                 # Enforcement policy by domain
+```
+
+### directives.yaml Schema
+
+```yaml
+directives:
+  - id: DIR-001                 # Auto-generated or custom ID
+    title: "Short title"        # First 50 chars
+    description: "Full text"    # Full description
+    severity: warn              # error (blocks), warn (displayed), info (logged)
+    applies_to: [implement, review]  # Actions where directive fires
+```
+
+### Hash-Based Staleness Detection
+
+Sync uses SHA-256 to detect changes. The hash of `constitution.md` content
+(whitespace-normalized) is stored in `metadata.yaml`. On sync:
+- If hashes match and `--force` not set → skip (idempotent)
+- If hashes differ → re-extract
+- If no `metadata.yaml` exists → always stale
+
+### How Context Gets Injected Into Workflow Actions
+
+When you run `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.implement`,
+or `/spec-kitty.review`, the runtime automatically calls
+`spec-kitty constitution context --action <action>`. The returned text is
+injected into the agent prompt.
+
+**Three context modes:**
+
+| Mode | When | Content |
+|---|---|---|
+| `bootstrap` | First load for an action | Full policy summary (up to 8 bullets) + reference doc list (up to 10) |
+| `compact` | Subsequent loads | Resolved paradigms, directives, tools, template_set only |
+| `missing` | No constitution exists | Instructions to create one |
+
+First-load state is tracked in `.kittify/constitution/context-state.json`.
+Each action (specify, plan, implement, review) has an independent first-load
+timestamp.
+
+### Available Doctrine Assets
+
+**Paradigms** (from `src/doctrine/paradigms/`):
+- `test-first` — Prefer acceptance-first and red-green-refactor loops
+
+**Directives** (from `src/doctrine/directives/`):
+- `TEST_FIRST` — Require test-first behavior across acceptance and implementation.
+  References tactics: acceptance-test-first, tdd-red-green-refactor, zombies-tdd.
+
+**Template sets** (from `src/doctrine/missions/`):
+- `software-dev-default` — Core development workflow
+- `plan-default` — Goal-oriented planning
+- `documentation-default` — Documentation creation (Divio)
+- `research-default` — Research and evidence gathering
+
+**Styleguides** (from `src/doctrine/styleguides/`):
+- `python-implementation` — Python coding principles
+- `kitty-glossary-writing` — Glossary authoring style
+
+**Default tool registry:** spec-kitty, git, python, pytest, ruff, mypy, poetry
+
+### Interview Profiles
+
+**Minimal** (8 questions — fast bootstrap):
+
+| Question | Governance use |
+|---|---|
+| `project_intent` | Policy summary, preamble |
+| `languages_frameworks` | Styleguide selection (e.g., Python) |
+| `testing_requirements` | `testing.framework`, `testing.min_coverage` |
+| `quality_gates` | Quality Gates section |
+| `review_policy` | `quality.pr_approvals`, Branch Strategy |
+| `performance_targets` | `performance.cli_timeout_seconds` |
+| `deployment_constraints` | `branch_strategy.rules` |
+
+**Comprehensive** (11 questions — adds 4 more):
+
+| Question | Governance use |
+|---|---|
+| `documentation_policy` | Added to Project Directives |
+| `risk_boundaries` | Added to Project Directives |
+| `amendment_process` | Amendment Process section |
+| `exception_policy` | Exception Policy section |
+
+### answers.yaml Schema
+
+```yaml
+schema_version: "1.0.0"
+mission: "software-dev"
+profile: "minimal"
+answers:
+  project_intent: "..."
+  languages_frameworks: "..."
+  testing_requirements: "..."
+  quality_gates: "..."
+  review_policy: "..."
+  performance_targets: "..."
+  deployment_constraints: "..."
+  # comprehensive only:
+  documentation_policy: "..."
+  risk_boundaries: "..."
+  amendment_process: "..."
+  exception_policy: "..."
+selected_paradigms:
+  - "test-first"
+selected_directives:
+  - "TEST_FIRST"
+available_tools:
+  - "spec-kitty"
+  - "git"
+  - "python"
+  - "pytest"
+  - "ruff"
+  - "mypy"
+  - "poetry"
+```
+
+---
+
+## Step 1: Check Current State
+
+```bash
+spec-kitty constitution status --json
+```
+
+Reports `synced` or `stale`, current and stored hashes, library doc count,
+and per-file sizes. If `stale`, run sync before relying on governance config.
 
 ---
 
@@ -72,12 +278,13 @@ See `references/constitution-command-map.md` for all flags.
 spec-kitty constitution generate --from-interview --json
 ```
 
-Key flags: `--mission`, `--force`, `--from-interview`, `--json`.
+Key flags: `--mission`, `--template-set`, `--force`, `--from-interview`, `--json`.
 
 Generation triggers an automatic sync, so governance.yaml and directives.yaml
 are written immediately.
 
-**Output:** `.kittify/constitution/constitution.md` plus extracted YAML files.
+**Output:** `.kittify/constitution/constitution.md` plus extracted YAML files
+and `library/*.md` reference documents.
 
 ---
 
@@ -92,14 +299,8 @@ spec-kitty constitution context --action implement --json
 spec-kitty constitution context --action review --json
 ```
 
-| Mode | When | Content |
-|------|------|---------|
-| `bootstrap` | First load for an action | Full policy summary + reference doc list |
-| `compact` | Subsequent loads | Resolved paradigms, directives, tools |
-| `missing` | No constitution exists | Instructions to create one |
-
-The runtime calls context automatically. Manual invocation is useful for
-debugging what governance policy an action will receive.
+The runtime calls context automatically during slash commands. Manual
+invocation is useful for debugging what governance policy an action receives.
 
 ---
 
@@ -110,20 +311,8 @@ spec-kitty constitution sync --json
 spec-kitty constitution sync --force --json   # re-extract even if unchanged
 ```
 
-Sync produces `governance.yaml`, `directives.yaml`, and `metadata.yaml`.
-It is idempotent -- skips extraction when the constitution hash is unchanged
+Sync is idempotent — skips extraction when the constitution hash is unchanged
 unless `--force` is passed.
-
----
-
-## Step 6: Check Status
-
-```bash
-spec-kitty constitution status --json
-```
-
-Reports `synced` or `stale`, current and stored hashes, library doc count,
-and per-file sizes.
 
 ---
 
@@ -145,13 +334,13 @@ Doctrine does NOT constrain when:
 
 ## Governance Anti-Patterns
 
-1. **Editing derived files** -- `governance.yaml`, `directives.yaml`, and
+1. **Editing derived files** — `governance.yaml`, `directives.yaml`, and
    `library/*.md` are overwritten by sync/generate. Edit `constitution.md`.
-2. **Skipping the interview** -- produces generic defaults; the constitution
+2. **Skipping the interview** — produces generic defaults; the constitution
    is most valuable with project-specific decisions.
-3. **Stale constitution** -- an outdated constitution silently injects wrong
+3. **Stale constitution** — an outdated constitution silently injects wrong
    policy. Run `status` to check, `sync` to fix.
-4. **Legacy path assumptions** -- canonical path is
+4. **Legacy path assumptions** — canonical path is
    `.kittify/constitution/constitution.md`, not `.kittify/memory/`.
 
 See `references/doctrine-artifact-structure.md` for the full anti-pattern table.
