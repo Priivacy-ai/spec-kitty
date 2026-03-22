@@ -12,6 +12,7 @@ base_commit: c2e0ca9d75e42e104483b8d54f408f4a55d82f9c
 created_at: '2026-03-22T15:07:16.088509+00:00'
 subtasks: [T049, T050, T051, T052, T053]
 shell_pid: "26483"
+agent: "coordinator"
 history:
 - date: '2026-03-22'
   action: created
@@ -94,3 +95,7 @@ files were created (unlikely — we're expanding existing files).
 ```bash
 spec-kitty implement WP10 --base WP06
 ```
+
+## Activity Log
+
+- 2026-03-22T15:07:16Z – coordinator – shell_pid=26483 – lane=doing – Assigned agent via workflow command
