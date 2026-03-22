@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: 2x Versioned Docs Expansion
-lane: "for_review"
+lane: "approved"
 dependencies: [WP02, WP03, WP06]
 requirement_refs: [FR-011]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -13,6 +13,8 @@ created_at: '2026-03-22T15:07:16.088509+00:00'
 subtasks: [T049, T050, T051, T052, T053]
 agent: coordinator
 shell_pid: '26483'
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
@@ -100,3 +102,4 @@ spec-kitty implement WP10 --base WP06
 
 - 2026-03-22T15:07:16Z – coordinator – shell_pid=26483 – lane=doing – Assigned agent via workflow command
 - 2026-03-22T15:15:15Z – coordinator – shell_pid=26483 – lane=for_review – 2x docs expanded: doctrine 60->121 lines, glossary 37->103 lines, runtime 49->120 lines. Cross-references to how-to/explanation/reference guides added. toc.yml verified, all relative links validated.
+- 2026-03-22T15:16:34Z – coordinator – shell_pid=26483 – lane=approved – Review passed: all 3 stubs expanded with content and cross-references
