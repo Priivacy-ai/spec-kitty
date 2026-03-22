@@ -76,7 +76,7 @@ history:
 |-------|------|-------------|
 | `work_package_id` | string | WP identifier (e.g., "WP01") |
 | `title` | string | Work package title |
-| `lane` | string | Current lane: `planned`, `doing`, `for_review`, `done` |
+| `lane` | string | Current lane: `planned`, `claimed`, `in_progress`, `for_review`, `approved`, `done`, `blocked`, `canceled`. Alias: `doing` → `in_progress`. |
 | `dependencies` | list | WP IDs this WP depends on |
 | `subtasks` | list | Task IDs belonging to this WP |
 | `phase` | string | Development phase |

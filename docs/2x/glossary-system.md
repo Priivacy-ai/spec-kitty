@@ -50,10 +50,10 @@ The glossary runtime supports three enforcement levels:
 | Mode | Behavior |
 |------|----------|
 | `off` | Glossary checks are disabled entirely |
-| `warn` | Inconsistencies are reported but do not block generation |
-| `strict` | Inconsistencies block artifact generation until resolved |
+| `medium` | Only HIGH severity conflicts block generation |
+| `max` | Any unresolved conflict blocks generation |
 
-Strictness is configured per-project in `.kittify/config.yaml` or via the constitution interview. The default is `warn`.
+Strictness is configured per-project in `.kittify/config.yaml` or via the constitution interview. The default is `medium`.
 
 ## Conflict Resolution
 

@@ -171,16 +171,25 @@ The `gathering <--> synthesis` loop allows iterative evidence collection. You ca
 
 Goal-oriented planning with iterative refinement.
 
-**Step sequence:**
+**Step sequence (runtime DAG):**
 ```
 specify --> research --> plan --> review
 ```
 
-This is the lightest mission -- four steps, no guards, no work packages. It produces planning artifacts (architecture documents, roadmaps, design proposals) without any implementation.
+**State machine (v1):**
+```
+goals --> research --> structure --> draft --> review --> done
+```
 
-**Required artifacts:** `spec.md`, `plan.md`
+Produces planning artifacts (architecture documents, roadmaps, design proposals) without implementation.
 
-**Guards:** None -- transitions are manual.
+**Required artifacts:** `goals.md`, `plan.md`
+
+**Guards:**
+- `goals → research`: `artifact_exists("goals.md")`
+- `research → structure`: `artifact_exists("research.md")`
+- `structure → draft`: `artifact_exists("plan.md")`
+- `review → done`: `gate_passed("plan_approved")`
 
 **Use when:** Planning architecture, creating roadmaps, designing systems before implementation begins, writing design proposals.
 
@@ -243,7 +252,7 @@ discover --> audit --> design --> generate --> validate --> publish
 
 ```bash
 # List available missions
-spec-kitty list-missions
+spec-kitty mission list
 
 # Start a feature with a specific mission
 spec-kitty specify --mission research "What are the best auth patterns?"

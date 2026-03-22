@@ -222,7 +222,7 @@ Spec Kitty validates that the worktree has implementation commits before allowin
 
 ## No Git Hooks
 
-Spec Kitty does not install or manage git hooks. The pre-commit hook that previously handled UTF-8 encoding validation was replaced with a Python codec layer (`src/specify_cli/codec/`). There are no `.git/hooks/` files to worry about.
+Spec Kitty does not install or manage git hooks. The pre-commit hook that previously handled UTF-8 encoding validation was replaced with a Python text sanitization layer. There are no `.git/hooks/` files to worry about.
 
 ---
 

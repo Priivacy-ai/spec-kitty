@@ -8,7 +8,7 @@ the runtime reports errors -- use this guide to identify the problem and recover
 Start every investigation with `verify-setup`:
 
 ```bash
-spec-kitty verify-setup
+spec-kitty verify-setup-setup
 ```
 
 The output is divided into three sections:
@@ -34,13 +34,13 @@ The output is divided into three sections:
 To get machine-readable output for scripting or agent consumption:
 
 ```bash
-spec-kitty verify-setup --json
+spec-kitty verify-setup-setup --json
 ```
 
 For extended diagnostics including dashboard health:
 
 ```bash
-spec-kitty verify-setup --diagnostics
+spec-kitty verify-setup-setup --diagnostics
 ```
 
 ---
@@ -54,7 +54,7 @@ root cause, and recovery steps.
 
 **Symptoms:**
 - Agent reports "skill not found" when running slash commands.
-- `spec-kitty verify` lists missing skill files.
+- `spec-kitty verify-setup` lists missing skill files.
 
 **Cause:**  The skill root directory for your agent was deleted, or
 `spec-kitty init` ran before the current skill pack was available.
@@ -92,7 +92,7 @@ This regenerates wrapper files for every configured agent.
 ### 3. Manifest drift
 
 **Symptoms:**
-- `spec-kitty verify` reports one or more "drifted" skill files.
+- `spec-kitty verify-setup` reports one or more "drifted" skill files.
 - Hash mismatches appear in the verification output.
 
 **Cause:**  Managed skill files under `.kittify/skills-manifest.json` were
@@ -114,7 +114,7 @@ back them up first.
 ### 4. Runtime not found
 
 **Symptoms:**
-- `spec-kitty status` reports `.kittify/` is missing.
+- `spec-kitty verify-setup` reports `.kittify/` is missing.
 - Errors like "next is blocked" or "runtime can't find missions" appear.
 
 **Cause:**  The `.kittify/` directory was deleted, the repo was freshly cloned

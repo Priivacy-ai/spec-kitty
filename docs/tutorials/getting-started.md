@@ -29,7 +29,7 @@ spec-kitty --version
 Expected output (abridged):
 
 ```
-Spec Kitty ... v0.11.0
+spec-kitty-cli version 2.1.1
 ```
 
 ## Step 2: Initialize a Project

@@ -180,7 +180,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 # "doing" is accepted as alias, persists as "in_progress" in the event log
 ```
 
-## 7-Lane State Machine
+## 8-Lane State Machine
 
 ### Canonical Lanes
 
@@ -190,32 +190,48 @@ spec-kitty agent tasks move-task WP01 --to doing
 | `claimed` | WP assigned to an actor, not yet started | No |
 | `in_progress` | Active implementation underway | No |
 | `for_review` | Implementation complete, awaiting review | No |
-| `done` | Reviewed and accepted | Yes (unless forced) |
+| `approved` | Review passed, awaiting merge | No |
+| `done` | Merged and accepted | Yes (unless forced) |
 | `blocked` | Blocked by external dependency or issue | No |
 | `canceled` | Permanently abandoned | Yes |
 
 **Alias**: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events)
 
-### Allowed Transitions
+**Display**: The kanban board shows 5 columns (Planned, Doing, For Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
+
+### Allowed Transitions (24 pairs)
 
 ```
+# Normal flow
 planned     -> claimed         (requires actor)
 claimed     -> in_progress     (workspace context)
 in_progress -> for_review      (subtasks check)
-for_review  -> done            (requires reviewer evidence)
+in_progress -> approved        (direct approval path)
+for_review  -> approved        (reviewer approves)
+for_review  -> done            (direct to done with evidence)
+approved    -> done            (merge verified)
+
+# Feedback loops
 for_review  -> in_progress     (changes requested, requires review_ref)
+for_review  -> planned         (rejection with feedback, requires review_ref)
+approved    -> in_progress     (rework after approval, requires review_ref)
+approved    -> planned         (rejection after approval, requires review_ref)
 in_progress -> planned         (abandon/reassign, requires reason)
 
+# Blocking
 planned     -> blocked
 claimed     -> blocked
 in_progress -> blocked
 for_review  -> blocked
+approved    -> blocked
 blocked     -> in_progress
 
+# Cancellation
 planned     -> canceled
 claimed     -> canceled
 in_progress -> canceled
 for_review  -> canceled
+approved    -> canceled
 blocked     -> canceled
 ```
 

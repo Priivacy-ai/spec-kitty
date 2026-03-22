@@ -29,7 +29,7 @@ cd .worktrees/001-my-feature-WP02/
 ### 2. Run Sync
 
 ```bash
-spec-kitty sync
+spec-kitty sync workspace
 ```
 
 You'll see output like:
@@ -65,7 +65,7 @@ Sync may **fail** if conflicts are detected. You must resolve conflicts before p
 Add `--verbose` to see detailed sync information:
 
 ```bash
-spec-kitty sync --verbose
+spec-kitty sync workspace --verbose
 ```
 
 Output includes:
@@ -79,7 +79,7 @@ Output includes:
 If your workspace is in a broken state (corrupted worktree, detached HEAD), use `--repair`:
 
 ```bash
-spec-kitty sync --repair
+spec-kitty sync workspace --repair
 ```
 
 > **Warning**: `--repair` may lose uncommitted changes. Commit your work first when possible.
