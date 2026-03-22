@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Glossary Management Guide
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 requirement_refs: [FR-002]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,8 +11,8 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:58:44.302666+00:00'
 subtasks: [T006, T007, T008, T009, T010]
-shell_pid: "21973"
-agent: "coordinator"
+agent: coordinator
+shell_pid: '21973'
 history:
 - date: '2026-03-22'
   action: created
@@ -101,3 +101,4 @@ spec-kitty implement WP02 --base WP01
 ## Activity Log
 
 - 2026-03-22T14:58:44Z – coordinator – shell_pid=21973 – lane=doing – Assigned agent via workflow command
+- 2026-03-22T15:03:46Z – coordinator – shell_pid=21973 – lane=for_review – Glossary guide created with concepts, CLI examples, strictness modes, seed file editing, and toc.yml updated
