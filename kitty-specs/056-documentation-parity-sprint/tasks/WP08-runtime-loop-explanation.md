@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Runtime Loop Explanation
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 requirement_refs: [FR-004]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,8 +11,8 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:58:58.362388+00:00'
 subtasks: [T038, T039, T040, T041, T042]
-shell_pid: "21973"
-agent: "coordinator"
+agent: coordinator
+shell_pid: '21973'
 history:
 - date: '2026-03-22'
   action: created
@@ -108,3 +108,4 @@ spec-kitty implement WP08 --base WP01
 ## Activity Log
 
 - 2026-03-22T14:58:58Z – coordinator – shell_pid=21973 – lane=doing – Assigned agent via workflow command
+- 2026-03-22T15:03:40Z – coordinator – shell_pid=21973 – lane=for_review – Runtime loop explanation created
