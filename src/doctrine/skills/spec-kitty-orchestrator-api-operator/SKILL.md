@@ -1,12 +1,12 @@
 ---
 name: spec-kitty-orchestrator-api-operator
 description: >-
-  Teach external orchestration systems how to drive spec-kitty workflows through
-  the orchestrator-api subcommand. Covers contract versioning, feature state
-  queries, work package transitions, policy metadata, and merge operations.
+  Teach agents and external systems how to use spec-kitty orchestrator-api to
+  drive workflows from outside the host CLI.
   Triggers: "use orchestrator-api", "build a custom orchestrator",
-  "automate externally", "integrate CI with spec-kitty", "call spec-kitty from
-  another tool", "orchestrator contract", "external automation".
+  "automate externally", "integrate CI with spec-kitty",
+  "call spec-kitty from another tool", "orchestrator contract",
+  "external automation".
   Does NOT handle: host-internal lane mutation (use the host CLI directly),
   runtime loop advancement (use spec-kitty next), mission sequencing logic
   (the mission state machine owns that), or setup/repair diagnostics.
@@ -35,6 +35,100 @@ mission sequencing (the state machine owns that).
 
 ---
 
+## How the Orchestrator API Works
+
+The orchestrator-api is a **stable JSON contract** — every command returns a
+canonical JSON envelope. External systems parse `success` first, then
+`error_code` for programmatic handling, then `data` for command-specific
+results. No command returns prose or mixed text/JSON.
+
+### JSON Envelope (All Commands)
+
+```json
+{
+  "contract_version": "1.0.0",
+  "command": "orchestrator-api.<subcommand>",
+  "timestamp": "2026-03-22T10:00:00+00:00",
+  "correlation_id": "corr-<uuid>",
+  "success": true,
+  "error_code": null,
+  "data": { ... }
+}
+```
+
+- `success=true` → `error_code` is always `null`
+- `success=false` → `error_code` is a machine-readable string, exit code is 1
+- `correlation_id` is unique per invocation — use for audit trails and log
+  correlation
+
+### The 9 Commands
+
+| Command | Purpose | Mutates State |
+|---|---|:---:|
+| `contract-version` | Verify API compatibility | No |
+| `feature-state` | Query full feature state | No |
+| `list-ready` | List WPs ready to start | No |
+| `start-implementation` | Claim + begin WP (atomic) | Yes |
+| `start-review` | Reviewer rollback (for_review → in_progress) | Yes |
+| `transition` | Explicit single lane change | Yes |
+| `append-history` | Add note to WP activity log | Yes |
+| `accept-feature` | Mark feature as accepted | Yes |
+| `merge-feature` | Merge WP branches into target | Yes |
+
+### Policy Metadata (Required for Run-Affecting Lanes)
+
+Transitions to `claimed`, `in_progress`, or `for_review` require `--policy`
+with a JSON object containing **7 required fields**:
+
+```json
+{
+  "orchestrator_id": "my-ci-bot",
+  "orchestrator_version": "1.0.0",
+  "agent_family": "claude",
+  "approval_mode": "manual",
+  "sandbox_mode": "container",
+  "network_mode": "restricted",
+  "dangerous_flags": []
+}
+```
+
+| Field | Purpose |
+|---|---|
+| `orchestrator_id` | Who is driving the workflow |
+| `orchestrator_version` | Version of the orchestrator |
+| `agent_family` | Agent type (claude, codex, gemini, cursor, etc.) |
+| `approval_mode` | manual, auto, or supervised |
+| `sandbox_mode` | container, none, vm, etc. |
+| `network_mode` | restricted, full, none |
+| `dangerous_flags` | Array of dangerous flags enabled (can be `[]`) |
+
+Optional: `tool_restrictions` (string or null).
+
+Policy is recorded in the append-only event log for every run-affecting
+transition, enabling post-incident review of exactly what orchestrator drove
+each state change.
+
+**Validation:** Fields cannot contain secret-like values (pattern:
+`token|secret|key|password|credential`). Invalid JSON or missing fields
+returns `POLICY_VALIDATION_FAILED`.
+
+### Error Codes
+
+| Code | Cause |
+|---|---|
+| `CONTRACT_VERSION_MISMATCH` | Provider version below minimum |
+| `FEATURE_NOT_FOUND` | Feature slug doesn't resolve |
+| `WP_NOT_FOUND` | WP ID doesn't exist in feature |
+| `TRANSITION_REJECTED` | Invalid transition or guard failure |
+| `WP_ALREADY_CLAIMED` | Another actor owns the WP |
+| `POLICY_METADATA_REQUIRED` | Policy missing on run-affecting lane |
+| `POLICY_VALIDATION_FAILED` | Policy JSON invalid or contains secrets |
+| `FEATURE_NOT_READY` | Not all WPs in done lane |
+| `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
+| `UNSUPPORTED_STRATEGY` | Merge strategy not in {merge, squash, rebase} |
+
+---
+
 ## Step 1: Verify the API Contract
 
 ```bash
@@ -53,47 +147,92 @@ Check that `api_version` matches your orchestrator's expected version and
 
 ```bash
 spec-kitty orchestrator-api feature-state --feature <slug>
+```
+
+Returns summary counts and per-WP details:
+
+```json
+{
+  "feature_slug": "042-test-feature",
+  "summary": {
+    "planned": 2, "claimed": 0, "in_progress": 1,
+    "for_review": 1, "approved": 0, "done": 3,
+    "blocked": 0, "canceled": 0
+  },
+  "work_packages": [
+    {"wp_id": "WP01", "lane": "done", "dependencies": [], "last_actor": "claude"},
+    {"wp_id": "WP02", "lane": "in_progress", "dependencies": ["WP01"], "last_actor": "codex"}
+  ]
+}
+```
+
+```bash
 spec-kitty orchestrator-api list-ready --feature <slug>
 ```
 
-`feature-state` returns summary counts and per-WP lane details. `list-ready`
-returns only WPs whose dependencies are satisfied, each with a
-`recommended_base` value. Both are query-only and safe to poll.
+Returns only WPs whose dependencies are satisfied (in `planned` lane with all
+deps in `done`). Each entry includes `recommended_base` — the branch to use
+with `--base` when creating the worktree.
+
+```json
+{
+  "feature_slug": "042-test-feature",
+  "ready_work_packages": [
+    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "042-test-feature-WP01"}
+  ]
+}
+```
+
+Both commands are query-only and safe to poll.
 
 ---
 
 ## Step 3: Respect the Host Boundary
 
 The orchestrator-api is the ONLY supported interface for external systems.
-Do not write frontmatter directly, invoke internal CLI commands, or create
-worktrees manually. See `references/host-boundary-rules.md` for the full
-boundary specification, decision matrix, and anti-patterns.
+
+**Anti-patterns (do NOT do):**
+
+- Edit frontmatter directly (`lane: in_progress` in WP files)
+- Call internal CLI commands (`spec-kitty agent tasks move-task`)
+- Create worktrees manually (`git worktree add`)
+- Poll by reading files (`grep "lane:" kitty-specs/...`)
+- Skip `contract-version` check
+- Skip `--policy` on run-affecting transitions
+
+See `references/host-boundary-rules.md` for the full boundary specification.
 
 ---
 
 ## Step 4: Start Implementation with Policy
 
-Claim and start a work package by providing policy metadata.
-
 ```bash
 spec-kitty orchestrator-api start-implementation \
   --feature <slug> --wp WP01 --actor "ci-bot" \
-  --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0",...}'
+  --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0","agent_family":"claude","approval_mode":"auto","sandbox_mode":"container","network_mode":"restricted","dangerous_flags":[]}'
 ```
 
-The `--policy` flag takes a JSON object with required fields: `orchestrator_id`,
-`orchestrator_version`, `agent_family`, `approval_mode`, `sandbox_mode`,
-`network_mode`, `dangerous_flags`, `tool_restrictions`. See
-`references/orchestrator-api-contract.md` for all field definitions.
+This transitions `planned → claimed → in_progress` **atomically** (two events
+in one call). The response includes:
 
-The WP transitions planned -> claimed -> in_progress atomically. The response
-includes `workspace_path` and `prompt_path`.
+- `workspace_path` — The computed worktree path. **The caller must create the
+  worktree** — `start-implementation` does not create it.
+- `prompt_path` — Path to the WP task file to present to the agent.
+- `no_op` — `true` if the WP is already `in_progress` by the same actor
+  (idempotent, no new events emitted).
+
+**Idempotency behavior:**
+
+| Current state | Same actor | Different actor |
+|---|---|---|
+| `planned` | Transitions to `in_progress` | Transitions to `in_progress` |
+| `claimed` by this actor | Transitions to `in_progress` | `WP_ALREADY_CLAIMED` error |
+| `in_progress` by this actor | `no_op=true`, success | `WP_ALREADY_CLAIMED` error |
+| Other lane | `TRANSITION_REJECTED` | `TRANSITION_REJECTED` |
 
 ---
 
 ## Step 5: Transition Work Packages
-
-Use `transition` for explicit lane changes after implementation or review.
 
 ```bash
 spec-kitty orchestrator-api transition \
@@ -101,29 +240,43 @@ spec-kitty orchestrator-api transition \
   --policy '{"orchestrator_id":"my-orch",...}'
 ```
 
-**Target lanes:** `planned`, `claimed`, `in_progress`, `for_review`,
-`approved`, `done`.
+**Valid target lanes:** `planned`, `claimed`, `in_progress`, `for_review`,
+`approved`, `done`, `blocked`, `canceled`.
 
 **Rules:**
 
 - Run-affecting lanes (`claimed`, `in_progress`, `for_review`) require `--policy`
 - Use `--force` only when recovering from a known-bad state
 - Use `--note` to record transition reasoning in the audit trail
-- Use `--review-ref` when transitioning to `for_review`
-
-For `start-review`, use the dedicated composite command instead of `transition`.
-See `references/orchestrator-api-contract.md` for all 9 commands.
+- Use `--review-ref` when transitioning from `for_review` or `approved` back
+  to `in_progress` or `planned` (required guard for these rollback transitions)
 
 ---
 
-## Step 6: Record History and Complete
+## Step 6: Start Review
+
+For reviewer rollback (not the same as `transition --to in_progress`):
+
+```bash
+spec-kitty orchestrator-api start-review \
+  --feature <slug> --wp WP01 --actor "reviewer-bot" \
+  --review-ref "PR#42" \
+  --policy '{"orchestrator_id":"my-orch",...}'
+```
+
+`--review-ref` is **required** — it records the review feedback reference.
+This is the guard condition for the `for_review → in_progress` transition.
+
+---
+
+## Step 7: Record History and Complete
 
 ```bash
 # Append a history note
 spec-kitty orchestrator-api append-history \
   --feature <slug> --wp WP01 --actor "ci-bot" --note "Tests passed"
 
-# Accept feature (all WPs must be done)
+# Accept feature (validates all WPs in done lane via dependency graph)
 spec-kitty orchestrator-api accept-feature --feature <slug> --actor "ci-bot"
 
 # Merge feature
@@ -131,15 +284,19 @@ spec-kitty orchestrator-api merge-feature \
   --feature <slug> --target main --strategy squash --push
 ```
 
-`accept-feature` returns `FEATURE_NOT_READY` if any WP is not in `done`.
+`accept-feature` returns `FEATURE_NOT_READY` if any WP from the dependency
+graph is not in `done`.
 
----
+`merge-feature` runs **4 preflight checks** before merging:
+1. All expected WPs have worktrees
+2. All worktrees are clean (no uncommitted changes)
+3. Target branch is not behind origin
+4. Missing WPs in done lane are handled (skipped with warnings)
 
-## JSON Envelope
+On preflight failure, returns `PREFLIGHT_FAILED` with detailed error list.
 
-Every command returns a canonical JSON envelope with `contract_version`,
-`command`, `timestamp`, `correlation_id`, `success`, `error_code`, and `data`.
-Parse `success` first. On failure, read `error_code` for programmatic handling.
+Supports 3 merge strategies: `merge` (--no-ff, default), `squash`, `rebase`.
+Use `--push` to push the target branch after merge.
 
 ---
 
