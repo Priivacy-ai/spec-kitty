@@ -300,7 +300,7 @@ git checkout -b feature-WP01  # Create and switch to branch
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
-- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 
 ## Reference

@@ -283,4 +283,4 @@ spec-kitty constitution status --json
 
 ## Background
 
-- [Governance Model](../explanation/governance-model.md) -- Architecture of the constitution system
+- [Mission System](../explanation/mission-system.md) -- How missions use governance context

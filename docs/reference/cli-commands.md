@@ -481,7 +481,7 @@ spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 
 **See also**: [Managing AI Agents](../how-to/manage-agents.md) for task-oriented guidance on agent management workflows.
 
-> **Note**: Starting in 0.12.0, agent configuration is config-driven. `.kittify/config.yaml` is the single source of truth, and migrations respect your configuration choices. See [Upgrading to 0.12.0](../how-to/upgrade-to-0-11-0.md#upgrading-to-0120) for migration details.
+> **Note**: Starting in 0.12.0, agent configuration is config-driven. `.kittify/config.yaml` is the single source of truth, and migrations respect your configuration choices. See [Upgrading to 0.12.0](../how-to/upgrade-to-0-12-0.md) for migration details.
 
 #### spec-kitty agent config list
 
@@ -787,4 +787,4 @@ No changes needed - filesystem matches config
 ## Practical Usage
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
-- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)

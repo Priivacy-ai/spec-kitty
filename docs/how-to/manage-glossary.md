@@ -391,4 +391,4 @@ Over time, artifacts may gradually diverge from glossary definitions. Catch drif
 
 ## Background
 
-- [Glossary Architecture](../explanation/glossary-architecture.md) -- Internal pipeline, event model, and scope resolution mechanics
+- [Spec-Driven Development](../explanation/spec-driven-development.md) -- The philosophy behind terminology-driven workflows

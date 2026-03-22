@@ -506,4 +506,4 @@ If you see this file in older projects, it will be ignored. The mission in each 
 
 ## Practical Usage
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
-- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)

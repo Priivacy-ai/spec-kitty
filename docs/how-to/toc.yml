@@ -38,8 +38,8 @@
   href: use-dashboard.md
 - name: Manage the Glossary
   href: manage-glossary.md
-- name: Upgrade to 0.11.0
-  href: upgrade-to-0-11-0.md
+- name: Upgrade to 0.12.0
+  href: upgrade-to-0-12-0.md
 - name: Non-Interactive Init
   href: non-interactive-init.md
 - name: Set Up Project Governance

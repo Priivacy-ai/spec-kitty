@@ -426,7 +426,7 @@ Usage:
 
 ## See Also
 - [Install Spec Kitty](install-spec-kitty.md)
-- [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](install-and-upgrade.md)
 
 ## Background
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)

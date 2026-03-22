@@ -65,7 +65,7 @@ spec-kitty --version
 
 ## See Also
 
-- [Upgrade to 0.11.0](upgrade-to-0-11-0.md) - Breaking changes in v0.11.0
+- [Upgrade to 0.11.0](install-and-upgrade.md) - Breaking changes in v0.11.0
 - [Non-Interactive Init](non-interactive-init.md) - Scripted project setup
 
 ## Background

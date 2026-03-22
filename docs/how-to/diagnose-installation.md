@@ -177,7 +177,7 @@ spec-kitty agent config status
 spec-kitty agent config sync
 ```
 
-See the [safety warning about --remove-orphaned](#safety-warning-remove-orphaned-and-shared-directories)
+See the [safety warning about --remove-orphaned](#safety-warning---remove-orphaned-and-shared-directories)
 below before running sync with orphan removal.
 
 ---

@@ -117,7 +117,7 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 - [Merge a Feature](merge-feature.md) - Detailed merge workflow
 - [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
 - [Review a Work Package](review-work-package.md) - Required before accept
-- [Upgrade to 0.11.0](upgrade-to-0-11-0.md) - Breaking changes in v0.11.0
+- [Upgrade to 0.11.0](install-and-upgrade.md) - Breaking changes in v0.11.0
 
 ## Background
 
