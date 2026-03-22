@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Mission System Explanation Update
-lane: "for_review"
+lane: "approved"
 dependencies: [WP01]
 requirement_refs: [FR-008]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -13,6 +13,8 @@ created_at: '2026-03-22T14:58:53.695123+00:00'
 subtasks: [T027, T028, T029, T030, T031]
 agent: coordinator
 shell_pid: '21973'
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
@@ -105,3 +107,4 @@ spec-kitty implement WP06 --base WP01
 
 - 2026-03-22T14:58:53Z – coordinator – shell_pid=21973 – lane=doing – Assigned agent via workflow command
 - 2026-03-22T15:03:46Z – coordinator – shell_pid=21973 – lane=for_review – Mission explanation expanded with 4 missions, hierarchy, selection guide, template resolution, guards
+- 2026-03-22T15:06:40Z – coordinator – shell_pid=21973 – lane=approved – Review passed: docs-only changes, correct files, toc updated

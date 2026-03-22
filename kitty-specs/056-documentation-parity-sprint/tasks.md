@@ -225,7 +225,7 @@
 - WP03: approved
 - WP04: approved
 - WP05: approved
-- WP06: for_review
+- WP06: approved
 - WP07: for_review
 - WP08: for_review
 - WP09: for_review
