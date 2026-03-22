@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 2.0.9
+  version: 2.1.1
   initialized_at: '2026-03-03T20:25:04.326543'
-  last_upgraded_at: '2026-03-15T11:38:51.807022'
+  last_upgraded_at: '2026-03-22T11:16:26.270423'
 environment:
   python_version: 3.11.14
   platform: darwin
@@ -42,9 +42,9 @@ migrations:
       012-documentation-mission: normalized 10 work package files; 013-fix-and-test-dashboard:
       wrote baseline meta.json; 013-fix-and-test-dashboard: normalized 1 work package
       files; 014-comprehensive-end-user-documentation: wrote baseline meta.json; 014-comprehensive-end-user-documentation:
-      normalized 10 work package files; 017-smarter-feature-merge-with-preflight: wrote
-      baseline meta.json; 017-smarter-feature-merge-with-preflight: normalized 6 work
-      package files; 018-merge-preflight-documentation: wrote baseline meta.json;
+      normalized 10 work package files; 017-smarter-feature-merge-with-preflight:
+      wrote baseline meta.json; 017-smarter-feature-merge-with-preflight: normalized
+      6 work package files; 018-merge-preflight-documentation: wrote baseline meta.json;
       018-merge-preflight-documentation: normalized 4 work package files; 019-autonomous-multi-agent-orchestration-research:
       wrote baseline meta.json; 019-autonomous-multi-agent-orchestration-research:
       normalized 8 work package files; 020-autonomous-multi-agent-orchestrator: wrote
@@ -83,5 +83,17 @@ migrations:
       wrote baseline meta.json'
   - id: 2.0.7_fix_stale_overrides
     applied_at: '2026-03-11T08:08:20.305456'
+    result: skipped
+    notes: Not applicable
+  - id: 2.0.11_install_skills
+    applied_at: '2026-03-22T11:16:26.250510'
+    result: success
+    notes: Installed 6 skill(s) for 3 agent(s) (51 managed files); Created .kittify/skills-manifest.json
+  - id: 2.0.11_remove_clarify_command
+    applied_at: '2026-03-22T11:16:26.256865'
+    result: skipped
+    notes: Not applicable
+  - id: 2.1.1_repair_skill_pack
+    applied_at: '2026-03-22T11:16:26.266382'
     result: skipped
     notes: Not applicable
