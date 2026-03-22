@@ -1,13 +1,17 @@
 ---
 work_package_id: WP10
 title: 2x Versioned Docs Expansion
-lane: planned
+lane: "doing"
 dependencies: [WP02, WP03, WP06]
 requirement_refs: [FR-011]
 planning_base_branch: fix/skill-audit-and-expansion
 merge_target_branch: fix/skill-audit-and-expansion
 branch_strategy: Planning artifacts for this feature were generated on fix/skill-audit-and-expansion. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/skill-audit-and-expansion unless the human explicitly redirects the landing branch.
+base_branch: 056-documentation-parity-sprint-WP10-merge-base
+base_commit: c2e0ca9d75e42e104483b8d54f408f4a55d82f9c
+created_at: '2026-03-22T15:07:16.088509+00:00'
 subtasks: [T049, T050, T051, T052, T053]
+shell_pid: "26483"
 history:
 - date: '2026-03-22'
   action: created
