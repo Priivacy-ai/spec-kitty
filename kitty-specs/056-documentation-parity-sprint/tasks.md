@@ -73,11 +73,11 @@
 **Estimated size**: ~250 lines
 
 **Subtasks**:
-- [ ] T017: Create `docs/how-to/diagnose-installation.md` covering verify-setup command and output interpretation
-- [ ] T018: Document common failure patterns (missing skills, missing wrappers, manifest drift, corrupted config)
-- [ ] T019: Document recovery steps for each pattern with exact commands
-- [ ] T020: Add --remove-orphaned safety warning about shared directories
-- [ ] T021: Update `docs/how-to/toc.yml` to include new guide
+- [x] T017: Create `docs/how-to/diagnose-installation.md` covering verify-setup command and output interpretation
+- [x] T018: Document common failure patterns (missing skills, missing wrappers, manifest drift, corrupted config)
+- [x] T019: Document recovery steps for each pattern with exact commands
+- [x] T020: Add --remove-orphaned safety warning about shared directories
+- [x] T021: Update `docs/how-to/toc.yml` to include new guide
 
 **Implementation**: `spec-kitty implement WP04 --base WP01`
 
