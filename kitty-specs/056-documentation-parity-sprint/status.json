@@ -1,15 +1,15 @@
 {
-  "event_count": 25,
+  "event_count": 26,
   "feature_slug": "056-documentation-parity-sprint",
-  "last_event_id": "01KMB1AYY2FB1BRYVK3NBDAZ0J",
-  "materialized_at": "2026-03-22T15:06:39.938771+00:00",
+  "last_event_id": "01KMB1AZXYF7A49JJVEQNY0BEE",
+  "materialized_at": "2026-03-22T15:06:40.959642+00:00",
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 0,
     "planned": 0
   },
@@ -58,10 +58,10 @@
     },
     "WP07": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KMB147SB1J9VX74HSNAEYRY3",
-      "last_transition_at": "2026-03-22T15:02:59.627319+00:00"
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KMB1AZXYF7A49JJVEQNY0BEE",
+      "last_transition_at": "2026-03-22T15:06:40.958837+00:00"
     },
     "WP08": {
       "actor": "user",
