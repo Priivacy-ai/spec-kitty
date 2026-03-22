@@ -55,12 +55,12 @@
 **Estimated size**: ~350 lines
 
 **Subtasks**:
-- [ ] T011: Create `docs/how-to/setup-governance.md` with the 3-layer model (constitution → config → references)
-- [ ] T012: Document interview workflow (minimal vs comprehensive profiles, --defaults flag)
-- [ ] T013: Document generation and sync workflow with example commands
-- [ ] T014: Document context loading and how it affects workflow actions
-- [ ] T015: Add governance anti-patterns section (editing derived files, skipping interview, stale constitution)
-- [ ] T016: Update `docs/how-to/toc.yml` to include new guide
+- [x] T011: Create `docs/how-to/setup-governance.md` with the 3-layer model (constitution → config → references)
+- [x] T012: Document interview workflow (minimal vs comprehensive profiles, --defaults flag)
+- [x] T013: Document generation and sync workflow with example commands
+- [x] T014: Document context loading and how it affects workflow actions
+- [x] T015: Add governance anti-patterns section (editing derived files, skipping interview, stale constitution)
+- [x] T016: Update `docs/how-to/toc.yml` to include new guide
 
 **Implementation**: `spec-kitty implement WP03 --base WP01`
 
