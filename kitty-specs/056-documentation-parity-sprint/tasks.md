@@ -167,12 +167,12 @@
 **Estimated size**: ~350 lines
 
 **Subtasks**:
-- [ ] T043: Expand `docs/reference/orchestrator-api.md` with all 9 commands, flags, and output fields
-- [ ] T044: Add JSON output examples for feature-state and list-ready
-- [ ] T045: Add complete error code catalog with causes and recovery
-- [ ] T046: Add policy metadata schema with all 7 required fields explained
-- [ ] T047: Add host boundary rules summary (what external systems must not do)
-- [ ] T048: Update `docs/reference/toc.yml` if needed
+- [x] T043: Expand `docs/reference/orchestrator-api.md` with all 9 commands, flags, and output fields
+- [x] T044: Add JSON output examples for feature-state and list-ready
+- [x] T045: Add complete error code catalog with causes and recovery
+- [x] T046: Add policy metadata schema with all 7 required fields explained
+- [x] T047: Add host boundary rules summary (what external systems must not do)
+- [x] T048: Update `docs/reference/toc.yml` if needed
 
 **Implementation**: `spec-kitty implement WP09 --base WP01`
 
