@@ -38,11 +38,11 @@
 **Estimated size**: ~300 lines
 
 **Subtasks**:
-- [ ] T006: Create `docs/how-to/manage-glossary.md` with glossary concepts (4 scopes, terms, status lifecycle)
-- [ ] T007: Document CLI commands (list, conflicts, resolve) with examples and expected output
-- [ ] T008: Add strictness modes explanation and when to use each
-- [ ] T009: Add seed file editing instructions with YAML schema example
-- [ ] T010: Update `docs/how-to/toc.yml` to include new guide
+- [x] T006: Create `docs/how-to/manage-glossary.md` with glossary concepts (4 scopes, terms, status lifecycle)
+- [x] T007: Document CLI commands (list, conflicts, resolve) with examples and expected output
+- [x] T008: Add strictness modes explanation and when to use each
+- [x] T009: Add seed file editing instructions with YAML schema example
+- [x] T010: Update `docs/how-to/toc.yml` to include new guide
 
 **Implementation**: `spec-kitty implement WP02 --base WP01`
 
