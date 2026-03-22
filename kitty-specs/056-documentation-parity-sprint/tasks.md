@@ -111,11 +111,11 @@
 **Estimated size**: ~350 lines
 
 **Subtasks**:
-- [ ] T027: Expand `docs/explanation/mission-system.md` with 4 built-in missions (software-dev, research, plan, documentation)
-- [ ] T028: Add mission → feature → WP → workspace hierarchy explanation
-- [ ] T029: Add mission selection guide (when to use which mission)
-- [ ] T030: Add template resolution chain explanation (override → global → package)
-- [ ] T031: Add guard primitives overview at user level
+- [x] T027: Expand `docs/explanation/mission-system.md` with 4 built-in missions (software-dev, research, plan, documentation)
+- [x] T028: Add mission → feature → WP → workspace hierarchy explanation
+- [x] T029: Add mission selection guide (when to use which mission)
+- [x] T030: Add template resolution chain explanation (override → global → package)
+- [x] T031: Add guard primitives overview at user level
 
 **Implementation**: `spec-kitty implement WP06 --base WP01`
 
