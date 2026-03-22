@@ -227,6 +227,6 @@
 - WP05: approved
 - WP06: approved
 - WP07: approved
-- WP08: for_review
+- WP08: approved
 - WP09: for_review
 <!-- status-model:end -->
