@@ -90,11 +90,11 @@
 **Estimated size**: ~200 lines
 
 **Subtasks**:
-- [ ] T022: Add discovery step (finding reviewable WPs with list-tasks --lane for_review)
-- [ ] T023: Add --feature flag guidance for multi-feature repos
-- [ ] T024: Add governance context loading step
-- [ ] T025: Add downstream impact checking with list-dependents command
-- [ ] T026: Preserve existing content, extend rather than rewrite
+- [x] T022: Add discovery step (finding reviewable WPs with list-tasks --lane for_review)
+- [x] T023: Add --feature flag guidance for multi-feature repos
+- [x] T024: Add governance context loading step
+- [x] T025: Add downstream impact checking with list-dependents command
+- [x] T026: Preserve existing content, extend rather than rewrite
 
 **Implementation**: `spec-kitty implement WP05 --base WP01`
 
