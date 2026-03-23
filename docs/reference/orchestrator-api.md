@@ -52,7 +52,7 @@ Every command returns a single JSON object:
 
 **Rules:**
 - `success=true` means `error_code` is always `null`.
-- `success=false` means `error_code` is a machine-readable string and exit code is 1.
+- `success=false` means `error_code` is a machine-readable string. Exit code is 1 for operational errors, 2 for usage/parse errors.
 - Use `error_code` as the stable failure discriminator. Do not parse human-readable messages for control flow.
 
 ---
@@ -289,7 +289,7 @@ Options:
 | `ready_work_packages[].wp_id` | string | Work package identifier |
 | `ready_work_packages[].lane` | string | Current lane (always `planned` for returned WPs) |
 | `ready_work_packages[].dependencies_satisfied` | bool | Always `true` for returned WPs |
-| `ready_work_packages[].recommended_base` | string or null | Recommended `--base` value for `spec-kitty implement` |
+| `ready_work_packages[].recommended_base` | string or null | WP ID to pass as `--base` to `spec-kitty implement` (e.g., `WP01`, not a branch name) |
 
 **Example output** (feature with ready WPs):
 
@@ -308,7 +308,7 @@ Options:
         "wp_id": "WP03",
         "lane": "planned",
         "dependencies_satisfied": true,
-        "recommended_base": "042-test-feature-WP01"
+        "recommended_base": "WP01"
       }
     ]
   }
@@ -703,7 +703,7 @@ Complete list of all error codes returned by orchestrator-api commands.
 | `FEATURE_NOT_FOUND` | `feature-state`, `list-ready`, `append-history`, `accept-feature`, `merge-feature` | Feature slug does not resolve to a directory in `kitty-specs/` |
 | `WP_NOT_FOUND` | `start-implementation`, `start-review`, `transition`, `append-history` | WP ID does not exist in the feature |
 | `TRANSITION_REJECTED` | `start-implementation`, `start-review`, `transition` | Invalid lane transition or guard failure (dependency not met, invalid state) |
-| `WP_ALREADY_CLAIMED` | `start-implementation`, `start-review` | Another actor has already claimed the WP |
+| `WP_ALREADY_CLAIMED` | `start-implementation` | Another actor has already claimed the WP |
 | `POLICY_METADATA_REQUIRED` | `start-implementation`, `start-review`, `transition` | Policy missing on run-affecting lane (`claimed`, `in_progress`, `for_review`) |
 | `POLICY_VALIDATION_FAILED` | `start-implementation`, `start-review`, `transition` | Invalid JSON, missing required fields, non-array `dangerous_flags`, or secret-like values detected |
 | `FEATURE_NOT_READY` | `accept-feature` | Not all WPs are in the `done` lane |
@@ -832,7 +832,7 @@ spec-kitty orchestrator-api start-implementation \
   --feature 017-my-feature --wp WP01 --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0","agent_family":"claude","approval_mode":"auto","sandbox_mode":"container","network_mode":"restricted","dangerous_flags":[]}'
 
-# 4. (Agent executes the prompt_file in the worktree the orchestrator created)
+# 4. (Agent executes the prompt_path in the worktree the orchestrator created)
 
 # 5. Record history
 spec-kitty orchestrator-api append-history \
