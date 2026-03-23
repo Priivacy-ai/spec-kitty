@@ -45,7 +45,7 @@ class FixOrchestratorApiSkillMigration(BaseMigration):
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         files_found = find_skill_files(project_path, _SKILL_NAME)
         if not files_found:
-            return False, "No orchestrator-api skill files found"
+            return True, ""  # apply() handles missing files gracefully
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:

@@ -52,12 +52,8 @@ class InstallGitWorkflowSkillMigration(BaseMigration):
         return len(find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"])) == 0
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        """Check that at least one skill root exists."""
-        for root in SKILL_ROOTS:
-            parent = project_path / root
-            if parent.parent.is_dir():
-                return True, ""
-        return False, "No skill root directories found"
+        """Always applicable — apply() handles missing roots gracefully."""
+        return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Install git-workflow skill to all configured agent skill roots."""

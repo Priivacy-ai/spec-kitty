@@ -56,7 +56,7 @@ class FixGlossaryContextSkillMigration(BaseMigration):
         """Check if project has glossary-context skill files."""
         files_found = find_skill_files(project_path, _SKILL_NAME)
         if not files_found:
-            return False, "No glossary-context skill files found in any skill root"
+            return True, ""  # apply() handles missing files gracefully
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
