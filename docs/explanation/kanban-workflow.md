@@ -2,90 +2,220 @@
 
 Spec Kitty uses a kanban-style workflow to track work package progress. This document explains how lanes work, why we track status this way, and what happens when work moves between lanes.
 
-## The Four Lanes
+## The Eight Lanes
 
-Work packages move through four lanes during their lifecycle:
+Work packages move through eight lanes during their lifecycle. Six lanes form the main progression, and two lanes handle exceptional states:
+
+### Main progression
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   PLANNED   │ →  │    DOING    │ →  │  FOR_REVIEW │ →  │    DONE     │
-├─────────────┤    ├─────────────┤    ├─────────────┤    ├─────────────┤
-│ Ready to    │    │ Agent is    │    │ Waiting for │    │ Reviewed    │
-│ start       │    │ implementing│    │ review      │    │ and merged  │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+planned -> claimed -> in_progress -> for_review -> approved -> done
 ```
 
-### planned
+### Exceptional states
+
+```
+blocked    (reachable from planned, claimed, in_progress, for_review, approved)
+canceled   (reachable from planned, claimed, in_progress, for_review, approved, blocked)
+```
+
+### Lane definitions
+
+#### planned
 
 **Meaning**: Work package is defined and ready to start.
 
 **How it gets here**:
 - `/spec-kitty.tasks` creates WPs in `planned` lane
+- Returned from review with feedback (`for_review -> planned`, `approved -> planned`)
+- Voluntarily un-claimed (`in_progress -> planned`, with reason required)
 
 **What happens**:
 - WP waits for an agent to claim it
 - Dependencies are satisfied (or WP is independent)
 
-### doing
+#### claimed
 
-**Meaning**: An agent is actively implementing this work package.
+**Meaning**: An agent has claimed this work package but has not yet started a workspace.
 
 **How it gets here**:
-- Agent claims WP with `spec-kitty agent tasks move-task WP01 --to doing`
-- Or automatically when running `spec-kitty implement WP01`
+- Agent claims WP with `spec-kitty agent tasks move-task WP01 --to doing --assignee claude`
+- Guard: requires actor identity
+
+**What happens**:
+- WP is reserved for the claiming agent
+- No workspace exists yet
+- Next step: create a workspace and transition to `in_progress`
+
+#### in_progress
+
+**Meaning**: An agent is actively implementing this work package in a workspace.
+
+**How it gets here**:
+- From `claimed` when a workspace is created (`claimed -> in_progress`)
+- Automatically when running `spec-kitty implement WP01`
+- Returned from review/approval for rework (`for_review -> in_progress`, `approved -> in_progress`)
+- Unblocked (`blocked -> in_progress`)
+- Guard: `claimed -> in_progress` requires workspace context
 
 **What happens**:
 - Agent works in the WP's worktree
 - Makes commits to the WP branch
-- Only ONE agent should have a WP in `doing` at a time
+- Only ONE agent should have a WP in `in_progress` at a time
 
-### for_review
+**Alias**: `doing` is accepted as input and resolved to `in_progress` at input boundaries. The alias is never persisted in events or frontmatter.
+
+#### for_review
 
 **Meaning**: Implementation is complete, waiting for review.
 
 **How it gets here**:
 - Agent moves WP with `spec-kitty agent tasks move-task WP01 --to for_review`
+- Guard: requires completed subtasks and implementation evidence (or `--force`)
 
 **What happens**:
 - Review agent examines the implementation
 - Compares against spec and acceptance criteria
-- Either approves (→ done) or requests changes (→ planned with feedback)
+- Either approves (`-> approved` or `-> done`) or requests changes (`-> in_progress` or `-> planned` with feedback)
 
-### done
+#### approved
 
-**Meaning**: Work package has been reviewed and accepted.
+**Meaning**: Work package has passed review and is approved for completion.
 
 **How it gets here**:
-- Reviewer moves WP after approval: `spec-kitty agent tasks move-task WP01 --to done`
+- Reviewer approves: `spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42`
+- Can come from `for_review` or directly from `in_progress` (skipping explicit review)
+- Guard: requires reviewer approval evidence (reviewer identity + approval reference)
+
+**What happens**:
+- WP is approved and ready to be marked done
+- Can still be sent back for rework if issues arise (`-> in_progress` or `-> planned`)
+
+#### done
+
+**Meaning**: Work package is complete and accepted.
+
+**How it gets here**:
+- From `approved` or `for_review` with reviewer approval evidence
+- Guard: requires reviewer approval evidence
 
 **What happens**:
 - WP branch is ready for merging
 - No further changes expected
+- `done` is a terminal lane (force required to leave)
 - Once ALL WPs are in `done`, run `/spec-kitty.accept` to validate the entire feature
+
+#### blocked
+
+**Meaning**: Work package cannot proceed due to an external dependency or issue.
+
+**How it gets here**:
+- Any non-terminal lane can transition to `blocked` (planned, claimed, in_progress, for_review, approved)
+
+**What happens**:
+- WP is parked until the blocker is resolved
+- Can transition to `in_progress` when unblocked
+- Can be canceled if the blocker is permanent
+
+#### canceled
+
+**Meaning**: Work package has been abandoned and will not be completed.
+
+**How it gets here**:
+- Any non-done lane can transition to `canceled` (planned, claimed, in_progress, for_review, approved, blocked)
+
+**What happens**:
+- WP is removed from active work
+- `canceled` is a terminal lane (force required to leave)
+- Does not count toward feature completion
+
+## Allowed Transitions (24 pairs)
+
+The state machine enforces exactly 24 legal transitions. Any transition not in this list is rejected unless `--force` is used (which requires actor + reason for audit).
+
+### Forward progression (7)
+
+| From | To | Guard |
+|------|----|-------|
+| planned | claimed | Actor identity required |
+| claimed | in_progress | Workspace context required |
+| in_progress | for_review | Subtasks complete + evidence (or force) |
+| in_progress | approved | Reviewer approval evidence |
+| for_review | approved | Reviewer approval evidence |
+| for_review | done | Reviewer approval evidence |
+| approved | done | Reviewer approval evidence |
+
+### Rework / rollback (5)
+
+| From | To | Guard |
+|------|----|-------|
+| for_review | in_progress | Review reference required |
+| for_review | planned | Review reference required |
+| approved | in_progress | Review reference required |
+| approved | planned | Review reference required |
+| in_progress | planned | Reason required |
+
+### Blocking (6)
+
+| From | To | Guard |
+|------|----|-------|
+| planned | blocked | (none) |
+| claimed | blocked | (none) |
+| in_progress | blocked | (none) |
+| for_review | blocked | (none) |
+| approved | blocked | (none) |
+| blocked | in_progress | (none) |
+
+### Cancellation (6)
+
+| From | To | Guard |
+|------|----|-------|
+| planned | canceled | (none) |
+| claimed | canceled | (none) |
+| in_progress | canceled | (none) |
+| for_review | canceled | (none) |
+| approved | canceled | (none) |
+| blocked | canceled | (none) |
+
+### Force overrides
+
+Any transition not in the 24 allowed pairs can still be performed with `--force`, which requires both `actor` and `reason`. Force also bypasses guard conditions on allowed transitions. This is designed for administrative recovery, not normal workflow.
+
+### Terminal lanes
+
+`done` and `canceled` are terminal. Transitioning out of a terminal lane requires `--force` with actor + reason.
 
 ## How Work Moves Between Lanes
 
-### Normal Flow: planned → doing → for_review → done
+### Normal Flow: planned -> claimed -> in_progress -> for_review -> approved -> done
 
 ```
 1. WP created by /spec-kitty.tasks
-   └── lane: planned
+   lane: planned
 
 2. Agent claims WP
-   └── spec-kitty agent tasks move-task WP01 --to doing --assignee claude
-   └── lane: doing
+   spec-kitty agent tasks move-task WP01 --to doing --assignee claude
+   lane: claimed (resolved from "doing" alias at input, but actual transition is planned -> claimed)
 
-3. Agent completes implementation
-   └── spec-kitty agent tasks move-task WP01 --to for_review --note "Ready"
-   └── lane: for_review
+3. Agent creates workspace
+   spec-kitty implement WP01
+   lane: in_progress
 
-4. Reviewer approves and moves WP
-   └── spec-kitty agent tasks move-task WP01 --to done
-   └── lane: done
-   └── (Once ALL WPs are done: /spec-kitty.accept validates entire feature)
+4. Agent completes implementation
+   spec-kitty agent tasks move-task WP01 --to for_review
+   lane: for_review
+
+5. Reviewer approves
+   spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
+   lane: approved
+
+6. Reviewer marks done
+   spec-kitty agent tasks move-task WP01 --to done
+   lane: done
+   (Once ALL WPs are done: /spec-kitty.accept validates entire feature)
 ```
 
-### Review Feedback: for_review → planned (with feedback)
+### Review Feedback: for_review -> planned (with feedback)
 
 When review finds issues:
 
@@ -93,32 +223,93 @@ When review finds issues:
 1. WP in for_review, reviewer examines code
 
 2. Reviewer finds problems
-   └── /spec-kitty.review WP01
-   └── Writes feedback file and runs move-task with --review-feedback-file
-   └── Feedback persisted to git common-dir as feedback://<feature>/<wp>/<artifact>.md
-   └── lane: planned (reset)
-   └── review_status: has_feedback
-   └── review_feedback: feedback://<feature>/<wp>/<artifact>.md
+   /spec-kitty.review WP01
+   Writes feedback file and runs move-task with --review-feedback-file
+   Feedback persisted to git common-dir as feedback://<feature>/<wp>/<artifact>.md
+   lane: planned (reset)
+   review_status: has_feedback
+   review_feedback: feedback://<feature>/<wp>/<artifact>.md
 
 3. Agent re-claims WP
-   └── Reads review_feedback pointer from frontmatter
-   └── Addresses issues
-   └── lane: doing → for_review
+   Reads review_feedback pointer from frontmatter
+   Addresses issues
+   lane: claimed -> in_progress -> for_review
 
 4. Reviewer re-reviews
-   └── If good: lane: done
-   └── If issues remain: repeat
+   If good: lane: approved -> done
+   If issues remain: repeat
 ```
+
+### Blocking and Unblocking
+
+```
+1. WP hits an external blocker
+   spec-kitty agent tasks move-task WP01 --to blocked --note "Waiting for API key"
+   lane: blocked
+
+2. Blocker resolved
+   spec-kitty agent tasks move-task WP01 --to in_progress
+   lane: in_progress (resumes work)
+```
+
+## Event Log (Canonical Status Tracking)
+
+Lane transitions are tracked in an append-only event log stored at `kitty-specs/<feature>/status.events.jsonl`. Each line is a JSON object representing one `StatusEvent`:
+
+```json
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+```
+
+### StatusEvent fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_id` | string | ULID (globally unique, time-sortable) |
+| `feature_slug` | string | Feature identifier (e.g., "034-feature-name") |
+| `wp_id` | string | Work package ID (e.g., "WP01") |
+| `from_lane` | string | Lane before transition (canonical name) |
+| `to_lane` | string | Lane after transition (canonical name) |
+| `at` | string | ISO 8601 UTC timestamp |
+| `actor` | string | Who made the transition (agent name or "system") |
+| `force` | boolean | Whether force override was used |
+| `execution_mode` | string | "worktree" or "direct_repo" |
+| `reason` | string/null | Reason for forced or rollback transitions |
+| `review_ref` | string/null | Review feedback reference |
+| `evidence` | object/null | DoneEvidence payload (for done transitions) |
+
+### Why an event log?
+
+**Immutability**: Events are append-only. No event is ever modified or deleted.
+
+**Deterministic replay**: The `reduce()` function replays all events to produce a `StatusSnapshot` (materialized as `status.json`). Same events always produce the same snapshot.
+
+**Debugging**: If something goes wrong, you can trace the full history of transitions.
+
+**Metrics**: Calculate time-in-lane, cycle time, throughput from the event stream.
+
+**Audit trail**: Know who did what, when, and why.
+
+**Coordination**: Multiple agents can see what others are doing.
+
+### Materialization
+
+The current state of all WPs is derived from the event log by the deterministic reducer:
+
+```bash
+spec-kitty agent status materialize
+```
+
+This produces `status.json` (the `StatusSnapshot`), which contains the current lane, actor, and timestamp for every WP.
 
 ## Lane Status in Frontmatter
 
-Lane status is stored in each work package's YAML frontmatter:
+Lane status is also reflected in each work package's YAML frontmatter for backward compatibility:
 
 ```yaml
 ---
 work_package_id: "WP01"
 title: "Database Schema"
-lane: "doing"
+lane: "in_progress"
 assignee: "claude"
 agent: "claude"
 shell_pid: "12345"
@@ -131,7 +322,7 @@ review_feedback: ""
 
 | Field | Purpose |
 |-------|---------|
-| `lane` | Current status (planned/doing/for_review/done) |
+| `lane` | Current status (canonical lane name) |
 | `assignee` | Who is working on this WP |
 | `agent` | Which AI agent claimed this |
 | `shell_pid` | Process ID of the agent (for tracking) |
@@ -140,25 +331,59 @@ review_feedback: ""
 
 ### Not Directories, Just a Field
 
-In many kanban systems, you move cards between columns (directories). In Spec Kitty, the WP file stays in the same place—only the `lane:` field changes.
+In many kanban systems, you move cards between columns (directories). In Spec Kitty, the WP file stays in the same place -- only the `lane:` field changes.
 
 ```
 kitty-specs/012-feature/tasks/
-├── WP01-database.md      # lane: done
-├── WP02-api.md           # lane: for_review
-├── WP03-frontend.md      # lane: doing
-└── WP04-tests.md         # lane: planned
+  WP01-database.md      # lane: done
+  WP02-api.md           # lane: for_review
+  WP03-frontend.md      # lane: in_progress
+  WP04-tests.md         # lane: planned
 ```
 
 This design keeps all WP files in one location for easier discovery.
+
+## Kanban Board Display
+
+### CLI board (`spec-kitty agent tasks status`)
+
+The CLI status command displays a **5-column** kanban board:
+
+```
+Feature: 012-user-authentication
+Kanban Board
+  Planned       Doing         For Review    Approved      Done
+  WP04-tests    WP03-front..  WP02-api      WP05-docs     WP01-database
+                (stale: 15m)
+
+  1 WPs         1 WPs         1 WPs         1 WPs         1 WPs
+Progress: 1/5 (20.0%)
+```
+
+The display maps the 8 internal lanes to 5 board columns:
+
+| Display Column | Internal Lane(s) |
+|----------------|------------------|
+| Planned | `planned` (claimed WPs are grouped here in the CLI view) |
+| Doing | `in_progress` (display name for the `in_progress` lane) |
+| For Review | `for_review` |
+| Approved | `approved` |
+| Done | `done` |
+
+`blocked` and `canceled` WPs are not shown in the main board columns. They appear in separate sections below the board when present.
+
+### Python API board (`agent_utils/status.py`)
+
+The Python API (`show_kanban_status()`) displays all 8 lanes as separate columns, giving full visibility into every state.
 
 ## Who Moves Work?
 
 ### Agents Move Work Forward
 
 Agents are responsible for:
-- `planned → doing` - Claiming a WP to work on
-- `doing → for_review` - Signaling completion
+- `planned -> claimed` (or `doing` alias) - Claiming a WP to work on
+- `claimed -> in_progress` - Starting work in a workspace
+- `in_progress -> for_review` - Signaling completion
 
 Commands:
 ```bash
@@ -172,19 +397,25 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Implementation com
 ### Reviewers Make Accept/Reject Decisions
 
 Reviewers are responsible for:
-- `for_review → done` - Approving work
-- `for_review → planned` - Requesting changes (adds feedback)
+- `for_review -> approved` - Approving work
+- `approved -> done` - Marking complete
+- `for_review -> done` - Approving and completing in one step
+- `for_review -> planned` - Requesting changes (adds feedback)
+- `for_review -> in_progress` - Requesting minor changes (keeps workspace)
 
 Commands:
 ```bash
 # Review a WP (opens review workflow)
 /spec-kitty.review WP01
 
-# Move WP to done after review passes
+# Approve
+spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
+
+# Move WP to done after approval
 spec-kitty agent tasks move-task WP01 --to done
 
 # Request changes with feedback file
-spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file /tmp/spec-kitty-review-feedback-WP01.md
+spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file feedback.md
 
 # Once ALL WPs are done, validate entire feature
 /spec-kitty.accept
@@ -194,78 +425,24 @@ spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file /tmp/s
 
 Users can override lane transitions when needed:
 ```bash
-# Force move (e.g., to un-block stuck work)
-spec-kitty agent tasks move-task WP01 --to planned
+# Force move (e.g., to un-block stuck work or leave a terminal lane)
+spec-kitty agent tasks move-task WP01 --to planned --force --note "Reopening after hotfix"
 ```
 
 External orchestrators should request equivalent transitions through `spec-kitty orchestrator-api transition ...` so host validation and audit history stay consistent.
 
-## Activity Log
-
-Every lane transition is logged in the WP file's `history` field:
-
-```yaml
-history:
-  - timestamp: "2026-01-15T10:00:00Z"
-    lane: "planned"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
-
-  - timestamp: "2026-01-15T11:00:00Z"
-    lane: "doing"
-    agent: "claude"
-    shell_pid: "12345"
-    action: "Claimed for implementation"
-
-  - timestamp: "2026-01-15T14:00:00Z"
-    lane: "for_review"
-    agent: "claude"
-    shell_pid: "12345"
-    action: "Implementation complete, ready for review"
-
-  - timestamp: "2026-01-15T15:00:00Z"
-    lane: "done"
-    agent: "reviewer"
-    action: "Approved and moved to done"
-```
-
-### Why Track Activity?
-
-**Debugging**: If something goes wrong, you can trace what happened.
-
-**Metrics**: Calculate time-in-lane, cycle time, throughput.
-
-**Audit trail**: Know who did what and when.
-
-**Coordination**: Multiple agents can see what others are doing.
-
-## Kanban Board Visualization
-
-Use `/spec-kitty.status` to see the current board state:
-
-```
-Feature: 012-user-authentication
-═══════════════════════════════════════════════════════════════════════════════
- PLANNED         │ DOING           │ FOR_REVIEW      │ DONE
-─────────────────┼─────────────────┼─────────────────┼─────────────────
- WP04-tests      │ WP03-frontend   │ WP02-api        │ WP01-database
-                 │ (claude)        │                 │
-─────────────────┴─────────────────┴─────────────────┴─────────────────
-Progress: ████████░░░░░░░░ 25% (1/4 done)
-```
-
 ## Rules and Constraints
 
-### One Agent Per WP in Doing
+### One Agent Per WP in Progress
 
-When a WP is in `doing`:
+When a WP is in `claimed` or `in_progress`:
 - Only the assigned agent should work on it
 - Other agents should work on different WPs
 - This prevents conflicts and wasted work
 
 ### Dependencies Must Be Satisfied
 
-Before moving a WP to `doing`:
+Before moving a WP to `claimed` or `in_progress`:
 - All dependencies must be in `done` lane (or at least `for_review`)
 - If WP02 depends on WP01, WP01 should be complete first
 
@@ -276,16 +453,16 @@ spec-kitty implement WP02 --base WP01  # Ensures WP01 code is available
 
 ### Review Before Done
 
-WPs cannot skip directly to `done`:
-- Must pass through `for_review`
-- Even self-review requires the transition
+WPs cannot skip directly from `in_progress` to `done`:
+- Must pass through `for_review` or `approved` first
+- Guard requires reviewer approval evidence for done transitions
 - This ensures all work is validated
 
 ### Subtask Validation
 
 Before moving to `for_review`:
 - All subtasks in the WP must be marked `[x]`
-- The system blocks moves if subtasks are unchecked
+- The system blocks moves if subtasks are unchecked (unless `--force` is used)
 - Ensures nothing is forgotten
 
 ## Common Patterns
@@ -293,7 +470,7 @@ Before moving to `for_review`:
 ### Linear Workflow
 
 ```
-WP01 → WP02 → WP03 → WP04
+WP01 -> WP02 -> WP03 -> WP04
 ```
 
 Each WP moves through lanes sequentially. One agent handles everything.
@@ -303,20 +480,30 @@ Each WP moves through lanes sequentially. One agent handles everything.
 ```
         WP01 (done)
        /    \
-WP02 (doing)  WP03 (doing)
+WP02 (in_progress)  WP03 (in_progress)
 ```
 
-Multiple WPs in `doing` simultaneously. Different agents work in parallel.
+Multiple WPs in `in_progress` simultaneously. Different agents work in parallel.
 
 ### Review Feedback Loop
 
 ```
-planned → doing → for_review → planned → doing → for_review → done
-                                   ↑                            ↑
-                              (feedback)                   (approved)
+planned -> claimed -> in_progress -> for_review -> planned -> claimed -> in_progress -> for_review -> approved -> done
+                                                       ^                                                           ^
+                                                  (feedback)                                                  (approved)
 ```
 
 Work returned from review goes back to `planned` with feedback.
+
+### Blocking Pattern
+
+```
+planned -> claimed -> in_progress -> blocked -> in_progress -> for_review -> approved -> done
+                                        ^            ^
+                                   (blocker)    (unblocked)
+```
+
+Work paused due to external dependency, then resumed.
 
 ## See Also
 

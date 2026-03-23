@@ -35,13 +35,13 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 2. **Refresh Claude’s long-term context after planning**
    ```bash
    cd <feature worktree>
-   .kittify/scripts/bash/update-agent-context.sh claude
+   spec-kitty agent context update-context --agent-type claude
    ```
-   The script injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
+   This injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
 
 ## Running Claude Against Prompts
 
-Prompt files live under `kitty-specs/<feature>/tasks/<lane>/WPxx-slug.md`. Each contains:
+Prompt files live under `kitty-specs/<feature>/tasks/WPxx-slug.md` (flat directory, no lane subdirectories). Lane state is tracked via the `lane:` field in each file's YAML frontmatter. Each file contains:
 
 - Mission-aligned context.
 - Checklist of subtasks.
@@ -51,14 +51,14 @@ Launch Claude against a prompt:
 
 ```bash
 cd .worktrees/001-systematic-recognizer-enhancement
-claude prompt kitty-specs/001-systematic-recognizer-enhancement/tasks/doing/WP02-synthetic-benchmark.md
+claude prompt kitty-specs/001-systematic-recognizer-enhancement/tasks/WP02-synthetic-benchmark.md
 ```
 
 Claude will use the template metadata to understand scope, file boundaries, and Definition of Done.
 
 ## Dashboard Integration
 
-- Lane transitions triggered by workflow commands (`spec-kitty agent workflow implement/review`) surface instantly on the kanban dashboard.
+- Lane transitions triggered by workflow commands (`spec-kitty agent workflow implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `done`, `blocked`, and `canceled`.
 - Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
   ```bash
@@ -76,16 +76,16 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Claude asks for missing context | Prompt not in `doing` lane yet | Move prompt to `doing` so scripts inject metadata |
+| Claude asks for missing context | Prompt not in `in_progress` lane yet | Move prompt to `in_progress` (or `doing` alias) via workflow commands so metadata is injected |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
 | Dashboard shows stale lane | Prompt moved manually | Always use `spec-kitty agent workflow` commands for lane transitions |
-| Claude session interrupted | CLI lost connection | Resume using the prompt transcript stored under `.claude/history/` |
+| Claude session interrupted | CLI lost connection | Resume by re-running Claude against the same prompt file; the activity log in the WP frontmatter tracks prior progress |
 
 ## Merge and Cleanup
 
 Once Claude (and any partner agents) finish the feature:
 
-1. Ensure `tasks/for_review/` is empty and all checklists are complete.
+1. Ensure all WPs have `lane: done` in their frontmatter and all checklists are complete.
 2. Run the guided merge:
  ```bash
   spec-kitty merge --remove-worktree

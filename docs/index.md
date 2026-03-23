@@ -1,22 +1,24 @@
 # Spec Kitty Documentation
 
-This site is versioned by product line.
+Spec-kitty is a spec-driven development tool that coordinates AI agents through structured workflows. This documentation is organised using the [Divio documentation system](explanation/divio-documentation.md).
 
-## Choose Your Track
+## Documentation Categories
+
+| Category | Purpose | Start here |
+|---|---|---|
+| **Tutorials** | Step-by-step lessons to learn spec-kitty from scratch. | [Getting Started](tutorials/getting-started.md) |
+| **How-To Guides** | Task-oriented recipes for solving specific problems. | [Install & Upgrade](how-to/install-spec-kitty.md) |
+| **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
+| **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
+
+## Version Tracks
+
+Spec-kitty ships two major version lines. Choose the track that matches the version you have installed.
 
 | Track | Use when | Entry point |
 |---|---|---|
 | `1.x` | You are maintaining a deprecated legacy workflow that is now maintenance-only. | [Open 1.x docs](1x/index.md) |
 | `2.x` | You are building on the current stable line published from `main` and PyPI. | [Open 2.x docs](2x/index.md) |
-
-## Documentation Scope for This Release
-
-The versioned tracks on this site cover local-first workflow and architecture only.
-
-Both tracks include the external orchestration boundary model:
-
-1. Host API in `spec-kitty orchestrator-api`.
-2. Optional external providers such as `spec-kitty-orchestrator`.
 
 ## Verification Notes
 

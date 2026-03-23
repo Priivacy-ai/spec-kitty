@@ -210,7 +210,7 @@ spec-kitty init my-project --ai kilocode
 |----------|-------|
 | Directory | `.augment/` |
 | Commands subdirectory | `commands/` |
-| CLI flag | `--ai augment` |
+| CLI flag | `--ai auggie` |
 | Status | Supported |
 
 **Usage**:

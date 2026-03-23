@@ -115,7 +115,7 @@ As of v0.10.0, all automation uses cross-platform Python CLI commands (`spec-kit
 
 The legacy `--script` option is no longer needed - all commands work identically across Windows, macOS, and Linux.
 
-> **Migration Note:** Projects created before v0.10.0 had bash/PowerShell scripts. Run `spec-kitty upgrade` to migrate to Python CLI commands. See [Upgrade to 0.11.0](upgrade-to-0-11-0.md) for details.
+> **Migration Note:** Projects created before v0.10.0 had bash/PowerShell scripts. Run `spec-kitty upgrade` to migrate to Python CLI commands. See [Upgrade to 0.11.0](install-and-upgrade.md) for details.
 
 ### Ignore Agent Tools Check
 
@@ -160,7 +160,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## See Also
 - [Non-Interactive Init](non-interactive-init.md)
-- [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](install-and-upgrade.md)
 - [Use the Dashboard](use-dashboard.md)
 
 ## Background

@@ -2,7 +2,7 @@
 
 **Divio type**: Tutorial
 
-Spec Kitty supports three mission types that tailor the workflow and artifacts to your goal.
+Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal.
 
 **Time**: ~45 minutes
 **Prerequisites**: Completed [Getting Started](getting-started.md)
@@ -45,14 +45,14 @@ Example use cases:
 
 ## Try It: Create a Research Feature
 
-Create a project with the research mission:
+Create a project and select the research mission when specifying a feature:
 
 ```bash
-spec-kitty init my-research-project --mission research --ai claude
+spec-kitty init my-research-project --ai claude
 cd my-research-project
 ```
 
-Run a research workflow.
+Use `/spec-kitty.specify` with the research mission to start a research workflow.
 
 In your agent:
 
@@ -73,7 +73,7 @@ Expected results (abridged):
 
 ## Troubleshooting
 
-- **"Unknown mission"**: Use `spec-kitty mission` to list available missions.
+- **"Unknown mission"**: Use `spec-kitty mission list` to list available missions.
 - **Missing `/spec-kitty.research`**: Re-run `spec-kitty init --mission research` or refresh agent context with `spec-kitty agent context update-context`.
 
 ## What's Next?

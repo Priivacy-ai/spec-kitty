@@ -6,6 +6,8 @@
   href: workspace-per-wp.md
 - name: Git Worktrees
   href: git-worktrees.md
+- name: Git Workflow
+  href: git-workflow.md
 - name: Mission System
   href: mission-system.md
 - name: Kanban Workflow
@@ -16,3 +18,5 @@
   href: documentation-mission.md
 - name: Multi-Agent Orchestration
   href: multi-agent-orchestration.md
+- name: Runtime Loop
+  href: runtime-loop.md

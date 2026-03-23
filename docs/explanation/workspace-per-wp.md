@@ -606,7 +606,7 @@ git merge ###-feature-WP02
 
 ## Migration from Legacy Model
 
-See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration guide.
+See [Upgrading to 0.11.0](../how-to/install-and-upgrade.md) for detailed migration guide.
 
 **Quick checklist**:
 - [ ] Complete or delete all in-progress features (legacy worktrees)
@@ -624,7 +624,7 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 - [Mission System](mission-system.md) - How missions shape artifacts
 
 ### Migration and Reference
-- [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) - Migration guide
+- [Upgrading to 0.11.0](../how-to/install-and-upgrade.md) - Migration guide
 
 ## Try It
 - [Your First Feature](../tutorials/your-first-feature.md)
@@ -635,7 +635,7 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 - [Handle Dependencies](../how-to/handle-dependencies.md)
 - [Sync Workspaces](../how-to/sync-workspaces.md)
 - [Parallel Development](../how-to/parallel-development.md)
-- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 
 ## Reference
 - [CLI Commands](../reference/cli-commands.md)

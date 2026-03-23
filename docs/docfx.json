@@ -8,7 +8,15 @@
           "1x/*.md",
           "1x/toc.yml",
           "2x/*.md",
-          "2x/toc.yml"
+          "2x/toc.yml",
+          "tutorials/*.md",
+          "tutorials/toc.yml",
+          "how-to/*.md",
+          "how-to/toc.yml",
+          "reference/*.md",
+          "reference/toc.yml",
+          "explanation/*.md",
+          "explanation/toc.yml"
         ],
         "exclude": [
           "**/_*.md"
@@ -48,9 +56,9 @@
     "cleanupCacheHistory": false,
     "disableGitFeatures": false,
     "globalMetadata": {
-      "_appTitle": "Spec Kitty Documentation (1.x and 2.x)",
+      "_appTitle": "Spec Kitty Documentation",
       "_appName": "Spec Kitty",
-      "_appFooter": "Spec Kitty documentation tracks for 1.x and 2.x",
+      "_appFooter": "Spec Kitty documentation — tutorials, how-to guides, reference, and explanations",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {

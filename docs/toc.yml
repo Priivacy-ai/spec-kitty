@@ -1,5 +1,13 @@
 - name: Home
   href: index.md
+- name: Tutorials
+  href: tutorials/
+- name: How-To Guides
+  href: how-to/
+- name: Reference
+  href: reference/
+- name: Explanation
+  href: explanation/
 - name: 1.x Docs
   href: 1x/
 - name: 2.x Docs

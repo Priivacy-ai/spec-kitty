@@ -40,7 +40,7 @@ claude
 # Claude implements first task, moves it through kanban lanes
 
 # 5. Watch live dashboard
-# Open http://localhost:33333 to see real-time progress
+# Open the dashboard URL shown after init to see real-time progress
 ```
 
 ---
@@ -190,7 +190,7 @@ Claude: [implements exactly what's in spec]
 **How It Works:**
 ```bash
 # Spec Kitty automatically creates:
-.worktrees/001-auth-system/     # Separate directory
+.worktrees/001-auth-system-WP01/   # One worktree per work package
 ├── src/                         # Your code (on 001-auth-system branch)
 ├── kitty-specs/001-auth-system/ # Specs for THIS feature
 └── .claude/commands/            # Slash commands work here
@@ -207,11 +207,17 @@ Claude: [implements exactly what's in spec]
 
 **Rationale**: "Are we done?" is impossible to answer without systematic tracking.
 
-**The Four Lanes:**
+**The Kanban Lanes (8 internal, 5 displayed):**
 1. **planned** - Ready to implement (backlog)
-2. **doing** - Currently being worked on
-3. **for_review** - Code complete, needs review
-4. **done** - Reviewed and accepted
+2. **claimed** - Assigned to an agent, not yet started
+3. **in_progress** (displayed as "Doing") - Currently being worked on
+4. **for_review** - Code complete, needs review
+5. **approved** - Review passed, awaiting merge
+6. **done** - Merged and accepted
+7. **blocked** - Blocked by dependency or issue
+8. **canceled** - Permanently abandoned
+
+The dashboard displays 5 columns: Planned, Doing, For Review, Approved, Done.
 
 **How Enforced**: Every WP has `lane:` in frontmatter. Commands auto-update lanes.
 
@@ -310,7 +316,7 @@ and WebSocket for live reload. Dark mode toggle.
 
 ### Automatic Dashboard Startup
 
-When you run `spec-kitty init`, the dashboard automatically starts on `http://localhost:33333`.
+When you run `spec-kitty init`, the dashboard automatically starts on `the dashboard URL shown after init`.
 
 ### What You See in Real-Time
 

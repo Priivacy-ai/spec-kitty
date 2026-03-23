@@ -67,7 +67,7 @@ spec-kitty upgrade
 
 ### CODEX_HOME
 
-Configure GitHub Codex CLI to find project prompts.
+Configure GitHub Codex CLI to find project prompts. This is a **Codex CLI convention**, not a spec-kitty environment variable — spec-kitty does not read this variable.
 
 **Purpose**: Point the Codex CLI to the project's `.codex/` directory for slash commands.
 
@@ -110,7 +110,7 @@ spec-kitty init my-project
 
 ### SPEC_KITTY_DEBUG
 
-Enable debug logging.
+Enable debug logging. **Note**: This variable is planned but not yet implemented in the current codebase. Use `--verbose` flags on individual commands instead.
 
 **Purpose**: Output verbose debug information for troubleshooting.
 
@@ -127,7 +127,7 @@ spec-kitty agent tasks status
 
 ### SPEC_KITTY_NO_COLOR
 
-Disable colored output.
+Disable colored output. **Note**: This variable is planned but not yet implemented. Rich library controls are used directly.
 
 **Purpose**: Remove ANSI color codes from terminal output.
 
