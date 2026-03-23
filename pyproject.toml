@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "2.1.1"
+version = "2.1.2"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }

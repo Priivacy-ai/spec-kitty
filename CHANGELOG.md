@@ -11,6 +11,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.1.2] - 2026-03-23
+
+### 🔧 Improved
+
+**Skills audit and expansion**: All 6 distributed skills audited, command-verified, and expanded with full architecture documentation. Skills now document internal systems (glossary pipeline, constitution extraction, runtime DAG, git workflow boundary) so agents can operate effectively.
+
+- setup-doctor: Fixed wrong CLI commands (`verify` → `verify-setup`, `status` → `agent tasks status`), added `--remove-orphaned` safety warning
+- runtime-review: Added discovery step, `--feature` flags, empty-lane guidance
+- glossary-context: Added 5-layer middleware pipeline, extraction methods, checkpoint/resume, step config
+- constitution-doctrine: Added extraction rules, governance.yaml schema, interview profiles, answers.yaml schema
+- runtime-next: Added decision algorithm, WP iteration logic, 6 guard primitives, agent loop pattern
+- orchestrator-api: Added JSON output examples, error code catalog, idempotency behavior, preflight details
+
+### ✨ Added
+
+**2 new skills**: `spec-kitty-mission-system` (explains missions, 4 types, template resolution, guards) and `spec-kitty-git-workflow` (documents Python vs agent git operation boundary).
+
+**Reusable skill update utility**: `src/specify_cli/upgrade/skill_update.py` for finding and patching skill files across all 13 agent skill roots.
+
+**10 upgrade migrations** for consumer projects: 6 skill fixes, 1 release skill removal, 2 new skill installations, 1 glossary skill expansion.
+
+**Documentation parity sprint (Feature 056)**: DocFX build now includes all 4 Divio categories (was only building 1x/ and 2x/). 5 new user guides distilled from skills, 4 existing docs expanded, 22 fact-check corrections across 20 files.
+
+### 🐛 Fixed
+
+**DocFX build gap**: 56 docs files (tutorials, how-to, reference, explanation) were in the repo but excluded from the docs.spec-kitty.ai build. Now included via updated `docfx.json`.
+
+**8-lane state machine documentation**: All docs updated from outdated 4-lane model (planned/doing/for_review/done) to correct 8-lane model (planned/claimed/in_progress/for_review/approved/done/blocked/canceled) with 24 allowed transitions.
+
+**CLI reference completeness**: Added 12 missing commands to cli-commands.md, 7 missing subcommands to agent-subcommands.md. Fixed `spec-kitty sync` (documented as flat command, actually a group with 6 subcommands).
+
+### 🧹 Maintenance
+
+- Removed `release` skill from distribution (spec-kitty development only, not for consumers)
+- Removed obsolete `docs/how-to/upgrade-to-0-11-0.md`
+- Fixed all cross-reference links in new docs (0 new DocFX build warnings)
+
 ## [2.1.1] - 2026-03-21
 
 ### 🐛 Fixed
