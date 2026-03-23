@@ -1,9 +1,4 @@
-"""Tests for sync status --check using real auth tokens.
-
-Validates the _check_server_connection function which replaces
-the old hardcoded test-token WebSocket probe with a real
-auth-token-based HTTP batch endpoint probe.
-"""
+"""Tests for sync status --check using real auth tokens."""
 
 from __future__ import annotations
 
@@ -22,16 +17,32 @@ pytestmark = pytest.mark.fast
 SERVER_URL = "https://spec-kitty-dev.fly.dev"
 
 
-def _mock_httpx_client(status_code=200, side_effect=None):
-    """Create a mock httpx.Client context manager returning a given status code."""
+def _mock_response(status_code=200, text=""):
     mock_response = MagicMock()
     mock_response.status_code = status_code
+    mock_response.text = text
+    return mock_response
 
+
+def _mock_httpx_client(
+    *,
+    get_status=200,
+    get_text="",
+    get_side_effect=None,
+    post_status=200,
+    post_text="",
+    post_side_effect=None,
+):
+    """Create a mock httpx.Client context manager with get/post responses."""
     mock_client = MagicMock()
-    if side_effect:
-        mock_client.post.side_effect = side_effect
+    if get_side_effect:
+        mock_client.get.side_effect = get_side_effect
     else:
-        mock_client.post.return_value = mock_response
+        mock_client.get.return_value = _mock_response(get_status, get_text)
+    if post_side_effect:
+        mock_client.post.side_effect = post_side_effect
+    else:
+        mock_client.post.return_value = _mock_response(post_status, post_text)
     mock_client.__enter__ = MagicMock(return_value=mock_client)
     mock_client.__exit__ = MagicMock(return_value=False)
     return mock_client
@@ -76,7 +87,7 @@ class TestCheckServerConnectionExpiredToken:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_expired_token_refresh_succeeds(self, mock_exists, mock_get_token, MockClient):
         """When access token expired but refresh succeeds, probe with new token."""
-        MockClient.return_value = _mock_httpx_client(status_code=200)
+        MockClient.return_value = _mock_httpx_client(get_status=200)
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -109,7 +120,7 @@ class TestCheckServerConnectionValidToken:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_server_returns_200(self, mock_exists, mock_get_token, MockClient):
         """When server returns 200, report connected and auth valid."""
-        mock_client = _mock_httpx_client(status_code=200)
+        mock_client = _mock_httpx_client(get_status=200)
         MockClient.return_value = mock_client
 
         status, note = _check_server_connection(SERVER_URL)
@@ -118,7 +129,7 @@ class TestCheckServerConnectionValidToken:
         assert "authentication valid" in note
 
         # Verify it used real token, not a hardcoded test token
-        call_args = mock_client.post.call_args
+        call_args = mock_client.get.call_args
         auth_header = call_args.kwargs.get("headers", {}).get("Authorization", "")
         assert auth_header == "Bearer valid-access-token"
 
@@ -127,7 +138,7 @@ class TestCheckServerConnectionValidToken:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_server_returns_401(self, mock_exists, mock_get_token, MockClient):
         """When server returns 401, report authentication failed."""
-        MockClient.return_value = _mock_httpx_client(status_code=401)
+        MockClient.return_value = _mock_httpx_client(get_status=401)
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -139,7 +150,7 @@ class TestCheckServerConnectionValidToken:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_server_returns_403(self, mock_exists, mock_get_token, MockClient):
         """When server returns 403, report permission denied."""
-        MockClient.return_value = _mock_httpx_client(status_code=403)
+        MockClient.return_value = _mock_httpx_client(get_status=403)
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -151,7 +162,7 @@ class TestCheckServerConnectionValidToken:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_server_returns_unexpected_status(self, mock_exists, mock_get_token, MockClient):
         """When server returns an unexpected status code, report it."""
-        MockClient.return_value = _mock_httpx_client(status_code=500)
+        MockClient.return_value = _mock_httpx_client(get_status=500)
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -167,7 +178,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_timeout(self, mock_exists, mock_get_token, MockClient):
         """When server times out, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(side_effect=httpx.TimeoutException("Connection timed out"))
+        MockClient.return_value = _mock_httpx_client(get_side_effect=httpx.TimeoutException("Connection timed out"))
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -179,7 +190,7 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_connection_refused(self, mock_exists, mock_get_token, MockClient):
         """When connection is refused, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(side_effect=httpx.ConnectError("Connection refused"))
+        MockClient.return_value = _mock_httpx_client(get_side_effect=httpx.ConnectError("Connection refused"))
 
         status, note = _check_server_connection(SERVER_URL)
 
@@ -195,13 +206,13 @@ class TestCheckServerConnectionNoHardcodedTokens:
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
     def test_no_test_token_in_request(self, mock_exists, mock_get_token, MockClient):
         """Verify that the probe never sends a hardcoded 'test-token'."""
-        mock_client = _mock_httpx_client(status_code=200)
+        mock_client = _mock_httpx_client(get_status=200)
         MockClient.return_value = mock_client
 
         _check_server_connection(SERVER_URL)
 
         # Verify the Authorization header uses the real token
-        call_args = mock_client.post.call_args
+        call_args = mock_client.get.call_args
         auth_header = call_args.kwargs.get("headers", {}).get("Authorization", "")
         assert "test-token" not in auth_header
         assert "real-user-jwt-token" in auth_header
@@ -209,15 +220,34 @@ class TestCheckServerConnectionNoHardcodedTokens:
     @patch("httpx.Client")
     @patch("specify_cli.sync.auth.AuthClient.get_access_token", return_value="valid-token")
     @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
-    def test_probes_batch_endpoint_not_websocket(self, mock_exists, mock_get_token, MockClient):
-        """Verify probe hits the HTTP batch endpoint, not a WebSocket URL."""
-        mock_client = _mock_httpx_client(status_code=200)
+    def test_probes_health_endpoint_not_websocket(self, mock_exists, mock_get_token, MockClient):
+        """Verify probe hits the HTTP health endpoint, not a WebSocket URL."""
+        mock_client = _mock_httpx_client(get_status=200)
         MockClient.return_value = mock_client
 
         _check_server_connection(SERVER_URL)
 
-        call_args = mock_client.post.call_args
+        call_args = mock_client.get.call_args
         probe_url = call_args.args[0] if call_args.args else call_args.kwargs.get("url", "")
-        assert "api/v1/events/batch" in probe_url
+        assert "api/v1/sync/health" in probe_url
         assert "wss://" not in probe_url
         assert "ws://" not in probe_url
+
+    @patch("httpx.Client")
+    @patch("specify_cli.sync.auth.AuthClient.get_access_token", return_value="valid-token")
+    @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
+    def test_falls_back_to_legacy_batch_probe_when_health_endpoint_missing(self, mock_exists, mock_get_token, MockClient):
+        """404 health probes should fall back to the legacy batch probe."""
+        mock_client = _mock_httpx_client(
+            get_status=404,
+            post_status=400,
+            post_text='{"error":"No events provided"}',
+        )
+        MockClient.return_value = mock_client
+
+        status, note = _check_server_connection(SERVER_URL)
+
+        assert "Connected" in status
+        assert "legacy batch probe" in note
+        assert mock_client.get.called
+        assert mock_client.post.called

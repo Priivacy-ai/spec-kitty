@@ -425,7 +425,7 @@ def sync_workspace(
 
 
 def _check_server_connection(server_url: str) -> tuple[str, str]:
-    """Probe the batch endpoint using the user's real auth token.
+    """Probe sync health using the user's real auth token.
 
     Returns:
         Tuple of (rich-formatted status string, detail message).
@@ -466,7 +466,8 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
             "Run `spec-kitty auth login` to re-authenticate.",
         )
 
-    # Step 3: Probe the batch endpoint with an empty events list
+    # Step 3: Probe the authenticated sync health endpoint.
+    health_url = f"{server_url.rstrip('/')}/api/v1/sync/health/"
     batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -476,7 +477,15 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
 
     try:
         with httpx.Client(timeout=5.0) as client:
-            response = client.post(batch_url, content=payload, headers=headers)
+            response = client.get(health_url, headers=headers)
+
+            if response.status_code in {404, 405}:
+                response = client.post(batch_url, content=payload, headers=headers)
+                if response.status_code == 400 and "No events provided" in response.text:
+                    return (
+                        "[green]Connected[/green]",
+                        "Server reachable, authentication valid (legacy batch probe).",
+                    )
 
         if response.status_code == 200:
             return (
