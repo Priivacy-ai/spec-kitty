@@ -372,6 +372,209 @@ def _get_structure_templates_dir() -> Path | None:
     return None
 
 
+# =============================================================================
+# Doctrine stack init helpers (FR-001–FR-005, FR-015, FR-020)
+# =============================================================================
+
+
+def _load_doctrine_defaults() -> dict[str, object]:
+    """Load src/doctrine/constitution/defaults.yaml, returning {} on any failure."""
+    try:
+        from constitution.catalog import resolve_doctrine_root  # noqa: PLC0415
+
+        defaults_path = resolve_doctrine_root() / "constitution" / "defaults.yaml"
+        if not defaults_path.exists():
+            return {}
+        yaml = YAML(typ="safe")
+        return yaml.load(defaults_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+
+
+def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
+    """Generate a constitution using the predefined doctrine defaults.
+
+    Returns True on success, False on failure (non-fatal — user can run
+    ``spec-kitty constitution interview`` later).
+    """
+    try:
+        from constitution.interview import default_interview, apply_answer_overrides  # noqa: PLC0415
+        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+
+        defaults = _load_doctrine_defaults()
+        mission: str = str(defaults.get("mission", "software-dev"))
+        profile: str = str(defaults.get("profile", "minimal"))
+
+        interview_data = default_interview(mission=mission, profile=profile)
+
+        raw_paradigms = defaults.get("selected_paradigms")
+        raw_directives = defaults.get("selected_directives")
+        raw_tools = defaults.get("available_tools")
+
+        if raw_paradigms or raw_directives or raw_tools:
+            interview_data = apply_answer_overrides(
+                interview_data,
+                selected_paradigms=raw_paradigms if isinstance(raw_paradigms, list) else None,
+                selected_directives=raw_directives if isinstance(raw_directives, list) else None,
+                available_tools=raw_tools if isinstance(raw_tools, list) else None,
+            )
+
+        draft = build_constitution_draft(mission=mission, interview=interview_data)
+
+        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        constitution_path.parent.mkdir(parents=True, exist_ok=True)
+        write_constitution(constitution_path, draft.markdown)
+        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        return True
+    except Exception as exc:
+        console.print(f"[yellow]Warning:[/yellow] Could not apply doctrine defaults: {exc}")
+        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        return False
+
+
+def _run_inline_interview(project_path: Path, console: Console) -> bool:
+    """Run the constitution interview interactively during init.
+
+    Returns True on success or skip, False if interrupted without completing.
+    Satisfies C-002: this function calls the existing interview machinery;
+    ``spec-kitty constitution interview`` continues to work independently.
+    """
+    try:
+        from constitution.interview import (  # noqa: PLC0415
+            MINIMAL_QUESTION_ORDER,
+            QUESTION_ORDER,
+            QUESTION_PROMPTS,
+            apply_answer_overrides,
+            default_interview,
+            write_interview_answers,
+        )
+        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+        from kernel.atomic import atomic_write  # noqa: PLC0415
+
+        checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
+
+        console.print()
+        console.print(
+            "[cyan]This interview will configure your constitution[/cyan] — which paradigms, "
+            "directives, and tool settings govern your project. "
+            "You can customise further after init by running "
+            "[cyan]spec-kitty constitution interview[/cyan]."
+        )
+
+        depth_raw = typer.prompt(
+            "Interview depth",
+            default="minimal",
+        )
+        depth = depth_raw.strip().lower()
+        if depth not in ("minimal", "comprehensive"):
+            depth = "minimal"
+
+        interview_data = default_interview(mission="software-dev", profile=depth)
+        question_order = MINIMAL_QUESTION_ORDER if depth == "minimal" else QUESTION_ORDER
+
+        import io as _io  # noqa: PLC0415
+
+        checkpoint_yaml = YAML()
+        checkpoint_yaml.default_flow_style = False
+
+        answers_override: dict[str, str] = {}
+        try:
+            for question_id in question_order:
+                # Checkpoint after each answer so an interrupt is resumable.
+                buf = _io.StringIO()
+                checkpoint_yaml.dump(
+                    {"phase": "interview", "depth": depth, "answers_so_far": answers_override},
+                    buf,
+                )
+                atomic_write(checkpoint_path, buf.getvalue(), mkdir=True)
+
+                prompt_text = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
+                default_value = interview_data.answers.get(question_id, "")
+                answers_override[question_id] = typer.prompt(prompt_text, default=default_value)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interview interrupted. Progress saved.[/yellow]")
+            console.print("[dim]Re-run `spec-kitty init` to resume or restart.[/dim]")
+            return False
+
+        interview_data = apply_answer_overrides(interview_data, answers=answers_override)
+        draft = build_constitution_draft(mission="software-dev", interview=interview_data)
+
+        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        constitution_path.parent.mkdir(parents=True, exist_ok=True)
+        write_constitution(constitution_path, draft.markdown)
+
+        # Persist answers for future re-generation.
+        answers_path = project_path / ".kittify" / "constitution" / "interview" / "answers.yaml"
+        write_interview_answers(answers_path, interview_data)
+
+        # Remove checkpoint — interview completed successfully.
+        if checkpoint_path.exists():
+            checkpoint_path.unlink()
+
+        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        return True
+    except Exception as exc:
+        console.print(f"[yellow]Warning:[/yellow] Could not complete interview: {exc}")
+        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        return False
+
+
+def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console: Console) -> bool:
+    """Run the doctrine stack setup step during ``spec-kitty init``.
+
+    Decision tree
+    -------------
+    1. Constitution already exists → skip (FR-004).
+    2. Checkpoint exists → offer resume / restart (FR-020).
+    3. ``--non-interactive`` → apply defaults silently (FR-005, NFR-001).
+    4. Interactive → prompt for defaults / manual / skip (FR-001–FR-003).
+
+    Returns True if the step completed, was skipped, or was deferred.
+    """
+    constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+
+    # FR-004: skip if constitution already exists.
+    if constitution_path.exists():
+        console.print("[dim]Constitution already exists — skipping doctrine stack setup.[/dim]")
+        return True
+
+    checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
+
+    # FR-020: offer resume/restart if a previous session was interrupted.
+    if checkpoint_path.exists():
+        console.print()
+        console.print("[yellow]A previous init session was interrupted.[/yellow]")
+        resume_raw = typer.prompt(
+            "Resume the previous interview session?",
+            default="resume",
+        )
+        if resume_raw.strip().lower() == "resume":
+            return _run_inline_interview(project_path, console)
+        else:
+            checkpoint_path.unlink()
+
+    # FR-005 / NFR-001: non-interactive → apply defaults (≤2 s target).
+    if non_interactive:
+        console.print("[dim]Applying doctrine defaults (non-interactive mode)...[/dim]")
+        return _apply_doctrine_defaults(project_path, console)
+
+    # FR-001–FR-003: interactive choice.
+    console.print()
+    choice_raw = typer.prompt(
+        "Doctrine stack: How would you like to configure project governance?",
+        default="defaults",
+    )
+    choice = choice_raw.strip().lower()
+
+    if choice == "defaults":
+        return _apply_doctrine_defaults(project_path, console)
+    elif choice == "manual":
+        return _run_inline_interview(project_path, console)
+    else:
+        console.print("[dim]Skipping doctrine stack setup. Run `spec-kitty constitution interview` later.[/dim]")
+        return True
+
+
 def _maybe_generate_structure_templates(project_path: Path, non_interactive: bool, console: Console) -> None:
     """Optionally generate REPO_MAP.md and SURFACES.md for a project."""
     structure_dir = _get_structure_templates_dir()
@@ -1128,6 +1331,7 @@ def init(  # noqa: C901
     _console.print(tracker.render())
     _console.print("\n[bold green]Project ready.[/bold green]")
     _maybe_generate_structure_templates(project_path, non_interactive, _console)
+    _run_doctrine_stack_init(project_path, non_interactive, _console)
 
     # Agent folder security notice
     agent_folder_map = {
