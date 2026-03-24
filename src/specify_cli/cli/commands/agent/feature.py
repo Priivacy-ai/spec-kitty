@@ -1755,6 +1755,29 @@ def finalize_tasks(  # noqa: C901
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
 
+        # Profile suggestion — add agent_profile hints to WPs that lack one
+        try:
+            import yaml as _yaml  # noqa: PLC0415
+
+            from specify_cli.task_profile import (  # noqa: PLC0415
+                apply_profile_suggestions,
+                display_profile_suggestions,
+            )
+
+            mission_key = get_feature_mission_key(feature_dir)
+            _mission_yaml = Path(__file__).resolve().parents[3] / "specify_cli" / "missions" / mission_key / "mission.yaml"
+            _mission_config: dict[str, object] = {}
+            if _mission_yaml.exists():
+                _mission_config = _yaml.safe_load(_mission_yaml.read_text(encoding="utf-8")) or {}
+
+            _profile_suggestions = apply_profile_suggestions(list(tasks_dir.glob("WP*.md")), _mission_config)
+
+            if _profile_suggestions and not json_output:
+                display_profile_suggestions(_profile_suggestions, console)
+        except Exception as _profile_exc:  # noqa: BLE001
+            if not json_output:
+                console.print(f"[dim]Profile suggestion skipped: {_profile_exc}[/dim]")
+
         # Prepare metadata for event emission
         feature_slug = feature_dir.name
         meta_path = feature_dir / "meta.json"

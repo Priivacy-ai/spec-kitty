@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Profile-Context Upgrade Migration
-lane: "approved"
+lane: "done"
 dependencies: [WP07]
 requirement_refs:
 - FR-010
@@ -212,3 +212,4 @@ rtk ruff check src/specify_cli/upgrade/migrations/
 - 2026-03-24T05:46:15Z – claude – shell_pid=389073 – lane=for_review – Ready for review: 4 ATDD tests pass, ruff clean, mypy clean (no new errors), migration is idempotent and config-aware.
 - 2026-03-24T05:51:31Z – claude – shell_pid=392808 – lane=doing – Started review via workflow command
 - 2026-03-24T05:52:48Z – claude – shell_pid=392808 – lane=approved – Review passed: 4/4 ATDD tests pass, ruff clean, mypy clean (no new errors). Migration follows config-aware pattern correctly — skips unconfigured agents, respects missing dirs, idempotent. Template load uses importlib.resources with local fallback.
+- 2026-03-25T04:24:37Z – claude – shell_pid=392808 – lane=done – Done override: WP08 code merged into feature/agent-profile-implementation via WP09 chain

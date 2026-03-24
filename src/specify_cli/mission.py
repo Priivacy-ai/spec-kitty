@@ -37,6 +37,7 @@ MISSION_ROOT_FIELDS: tuple[str, ...] = (
     "mcp_tools",
     "agent_context",
     "task_metadata",
+    "task_types",
     "commands",
 )
 
@@ -116,6 +117,15 @@ class TaskMetadataConfig(BaseModel):
     optional: List[str] = Field(default_factory=list)
 
 
+class TaskTypeConfig(BaseModel):
+    """Agent role hint for a task type."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_role: Optional[str] = Field(default=None, description="Agent role hint for this task type")
+    description: Optional[str] = Field(default=None, description="Human-readable description")
+
+
 class MissionConfig(BaseModel):
     """Complete mission configuration schema."""
 
@@ -137,6 +147,7 @@ class MissionConfig(BaseModel):
     mcp_tools: Optional[MCPToolsConfig] = Field(default=None, description="MCP tool recommendations")
     agent_context: Optional[str] = Field(default=None, description="Agent instructions/personality")
     task_metadata: Optional[TaskMetadataConfig] = Field(default=None, description="Task metadata definitions")
+    task_types: Optional[Dict[str, TaskTypeConfig]] = Field(default=None, description="Agent role hints per task type")
     commands: Optional[Dict[str, CommandConfig]] = Field(default=None, description="Command-specific prompts")
 
     def model_post_init(self, __context: Any) -> None:  # pragma: no cover - simple warning logic

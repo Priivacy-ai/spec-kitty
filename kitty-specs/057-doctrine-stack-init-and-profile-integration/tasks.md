@@ -322,11 +322,11 @@
 
 ### Included Subtasks
 
-- [ ] T037 Write acceptance tests in `tests/specify_cli/test_task_profile_suggestion.py` (FR-013/FR-014: role hint in template, suggestion written to WP frontmatter, user confirmation in finalize)
-- [ ] T038 Add `agent_role` field to mission template task definitions in YAML mission configs — update software-dev, research, documentation, and plan mission templates with role hints per task type (implementer, reviewer, planner, researcher, writer, curator)
-- [ ] T039 Update task generation logic: read `agent_role` from mission template, determine the most appropriate concrete `agent_profile` based on role hint + WP task content, write the suggestion into generated WP frontmatter as `agent_profile`
-- [ ] T040 Update `finalize-tasks` to display a profile suggestion confirmation step — show each WP's suggested `agent_profile`, allow user to confirm (`y`), override (type a different profile name), or skip (leave blank = no profile)
-- [ ] T041 Update mission templates for software-dev, research, documentation, plan to include `agent_role` hints for all standard task types (implement→implementer, review→reviewer, plan→planner, research→researcher, document→writer)
+- [x] T037 Write acceptance tests in `tests/specify_cli/test_task_profile_suggestion.py` (FR-013/FR-014: role hint in template, suggestion written to WP frontmatter, user confirmation in finalize)
+- [x] T038 Add `agent_role` field to mission template task definitions in YAML mission configs — update software-dev, research, documentation, and plan mission templates with role hints per task type (implementer, reviewer, planner, researcher, writer, curator)
+- [x] T039 Update task generation logic: read `agent_role` from mission template, determine the most appropriate concrete `agent_profile` based on role hint + WP task content, write the suggestion into generated WP frontmatter as `agent_profile`
+- [x] T040 Update `finalize-tasks` to display a profile suggestion confirmation step — show each WP's suggested `agent_profile`, allow user to confirm (`y`), override (type a different profile name), or skip (leave blank = no profile)
+- [x] T041 Update mission templates for software-dev, research, documentation, plan to include `agent_role` hints for all standard task types (implement→implementer, review→reviewer, plan→planner, research→researcher, document→writer)
 
 ### Implementation Notes
 
@@ -406,6 +406,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP07: approved
-- WP08: approved
+- WP07: done
+- WP08: done
+- WP09: done
 <!-- status-model:end -->
