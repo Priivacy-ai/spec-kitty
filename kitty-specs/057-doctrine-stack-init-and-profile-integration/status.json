@@ -1,10 +1,10 @@
 {
-  "event_count": 5,
+  "event_count": 10,
   "feature_slug": "057-doctrine-stack-init-and-profile-integration",
-  "last_event_id": "01KMF57DDYQ5PPJCNACC5B022V",
-  "materialized_at": "2026-03-24T05:31:35.742929+00:00",
+  "last_event_id": "01KMF6E7ZP2WTG7NG8CNH9SX6W",
+  "materialized_at": "2026-03-24T05:52:48.118355+00:00",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -25,6 +25,18 @@
       "lane": "approved",
       "last_event_id": "01KMF57DDYQ5PPJCNACC5B022V",
       "last_transition_at": "2026-03-24T05:31:35.742624+00:00"
+    },
+    "WP08": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KMF6E7ZP2WTG7NG8CNH9SX6W",
+      "last_transition_at": "2026-03-24T05:52:48.118162+00:00"
     }
   }
 }

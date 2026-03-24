@@ -288,10 +288,10 @@
 
 ### Included Subtasks
 
-- [ ] T033 Write ATDD acceptance tests in `tests/specify_cli/test_profile_context_migration.py` (US-4 scenarios: migration deploys to configured agents, skips unconfigured agents, idempotent on re-run, correct template content deployed)
-- [ ] T034 Create `src/specify_cli/upgrade/migrations/m_2_2_0_profile_context_deployment.py` — uses `get_agent_dirs_for_project()` from `m_0_9_1_complete_lane_migration`, copies `profile-context.md` from `src/doctrine/templates/command-templates/profile-context.md` to each configured agent's command directory
-- [ ] T035 Make migration idempotent: check if destination file already exists; if it does and content matches source, skip; if stale (content differs), overwrite and log
-- [ ] T036 Register migration and verify it runs during `spec-kitty upgrade` — study `__init__.py` autodiscovery pattern; ensure file naming convention is followed (`m_{version}_{name}.py`)
+- [x] T033 Write ATDD acceptance tests in `tests/specify_cli/test_profile_context_migration.py` (US-4 scenarios: migration deploys to configured agents, skips unconfigured agents, idempotent on re-run, correct template content deployed)
+- [x] T034 Create `src/specify_cli/upgrade/migrations/m_2_2_0_profile_context_deployment.py` — uses `get_agent_dirs_for_project()` from `m_0_9_1_complete_lane_migration`, copies `profile-context.md` from `src/doctrine/templates/command-templates/profile-context.md` to each configured agent's command directory
+- [x] T035 Make migration idempotent: check if destination file already exists; if it does and content matches source, skip; if stale (content differs), overwrite and log
+- [x] T036 Register migration and verify it runs during `spec-kitty upgrade` — study `__init__.py` autodiscovery pattern; ensure file naming convention is followed (`m_{version}_{name}.py`)
 
 ### Implementation Notes
 
@@ -407,4 +407,5 @@
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP07: approved
+- WP08: approved
 <!-- status-model:end -->
