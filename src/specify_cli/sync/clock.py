@@ -7,7 +7,7 @@ import hashlib
 import json
 import socket
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
@@ -64,7 +64,7 @@ class LamportClock:
         data = {
             "value": self.value,
             "node_id": self.node_id,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         content = json.dumps(data, indent=2)

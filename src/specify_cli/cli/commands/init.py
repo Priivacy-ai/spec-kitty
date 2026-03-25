@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from pathlib import Path
 from collections.abc import Callable
 
@@ -1113,7 +1113,7 @@ def init(  # noqa: C901
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
 
-            _now_iso = datetime.now(timezone.utc).isoformat()
+            _now_iso = datetime.now(UTC).isoformat()
             skill_manifest = ManagedSkillManifest(
                 created_at=_now_iso,
                 updated_at=_now_iso,

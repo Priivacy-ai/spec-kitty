@@ -14,9 +14,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from specify_cli.core.atomic import atomic_write
 
@@ -50,12 +49,12 @@ class WorkspaceContext:
     created_by: str  # Command that created this (e.g., "implement-command")
     vcs_backend: str  # "git" or "jj"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> WorkspaceContext:
+    def from_dict(cls, data: dict[str, Any]) -> WorkspaceContext:
         """Create from dictionary (JSON deserialization)."""
         return cls(**data)
 

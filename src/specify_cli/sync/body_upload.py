@@ -44,9 +44,7 @@ def _is_supported_surface(relative_path: str) -> bool:
         return True
     if any(relative_path.startswith(prefix) for prefix in _DIRECTORY_PREFIXES):
         return True
-    if _WP_PATTERN.match(relative_path):
-        return True
-    return False
+    return bool(_WP_PATTERN.match(relative_path))
 
 
 def _check_format(relative_path: str) -> UploadOutcome | None:

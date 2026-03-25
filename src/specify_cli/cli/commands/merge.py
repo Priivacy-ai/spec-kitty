@@ -453,7 +453,7 @@ def merge_workspace_per_wp(
         console.print(f"  - {wp_id}: {branch}")
 
     # Validate all WP workspaces are ready
-    console.print(f"\n[cyan]Validating all WP workspaces...[/cyan]")
+    console.print("\n[cyan]Validating all WP workspaces...[/cyan]")
     errors = []
     for wt_path, wp_id, branch in wp_workspaces:
         is_valid, error_msg = validate_wp_ready_for_merge(main_repo, wt_path, branch)
@@ -463,12 +463,12 @@ def merge_workspace_per_wp(
     if errors:
         tracker.error("verify", "WP workspaces not ready")
         console.print(tracker.render())
-        console.print(f"\n[red]Cannot merge:[/red] WP workspaces not ready")
+        console.print("\n[red]Cannot merge:[/red] WP workspaces not ready")
         for err in errors:
             console.print(err)
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] All WP workspaces validated")
+    console.print("[green]✓[/green] All WP workspaces validated")
 
     merge_plan = _build_workspace_per_wp_merge_plan(
         main_repo,
@@ -628,7 +628,7 @@ def merge_workspace_per_wp(
         except Exception as exc:
             tracker.error("merge", str(exc))
             console.print(tracker.render())
-            console.print(f"\n[red]Merge failed.[/red] Resolve conflicts and try again.")
+            console.print("\n[red]Merge failed.[/red] Resolve conflicts and try again.")
             raise typer.Exit(1)
 
         # Push if requested
@@ -640,7 +640,7 @@ def merge_workspace_per_wp(
             except Exception as exc:
                 tracker.error("push", str(exc))
                 console.print(tracker.render())
-                console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
+                console.print("\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
                 console.print(f"Run manually: git push origin {target_branch}")
 
     # Remove worktrees (always run — cleanup is needed even when all branches are already integrated)
@@ -660,7 +660,7 @@ def merge_workspace_per_wp(
         if failed_removals:
             tracker.error("worktree", f"could not remove {len(failed_removals)} worktrees")
             console.print(tracker.render())
-            console.print(f"\n[yellow]Warning:[/yellow] Could not remove some worktrees:")
+            console.print("\n[yellow]Warning:[/yellow] Could not remove some worktrees:")
             for wp_id, wt_path in failed_removals:
                 console.print(f"  {wp_id}: git worktree remove {wt_path}")
         else:
@@ -685,7 +685,7 @@ def merge_workspace_per_wp(
         if failed_deletions:
             tracker.error("branch", f"could not delete {len(failed_deletions)} branches")
             console.print(tracker.render())
-            console.print(f"\n[yellow]Warning:[/yellow] Could not delete some branches:")
+            console.print("\n[yellow]Warning:[/yellow] Could not delete some branches:")
             for wp_id, branch in failed_deletions:
                 console.print(f"  {wp_id}: git branch -D {branch}")
         else:
@@ -1015,7 +1015,7 @@ def merge(
         pass
 
     # Show VCS backend info
-    console.print(f"[dim]VCS Backend: git[/dim]")
+    console.print("[dim]VCS Backend: git[/dim]")
 
     feature_worktree_path = merge_root = repo_root
     tracker.start("detect")
@@ -1153,7 +1153,7 @@ def merge(
         if status_output.strip():
             tracker.error("verify", "uncommitted changes")
             console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Working directory has uncommitted changes.")
+            console.print("\n[red]Error:[/red] Working directory has uncommitted changes.")
             console.print("Commit or stash your changes before merging.")
             raise typer.Exit(1)
         tracker.complete("verify", "clean working directory")
@@ -1252,7 +1252,7 @@ def merge(
     except Exception as exc:
         tracker.error("merge", str(exc))
         console.print(tracker.render())
-        console.print(f"\n[red]Merge failed.[/red] You may need to resolve conflicts.")
+        console.print("\n[red]Merge failed.[/red] You may need to resolve conflicts.")
         raise typer.Exit(1)
 
     if push:
@@ -1263,7 +1263,7 @@ def merge(
         except Exception as exc:
             tracker.error("push", str(exc))
             console.print(tracker.render())
-            console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
+            console.print("\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
             console.print(f"Run manually: git push origin {target_branch}")
 
     if in_worktree and remove_worktree:
@@ -1277,7 +1277,7 @@ def merge(
         except Exception as exc:
             tracker.error("worktree", str(exc))
             console.print(tracker.render())
-            console.print(f"\n[yellow]Warning:[/yellow] Could not remove worktree.")
+            console.print("\n[yellow]Warning:[/yellow] Could not remove worktree.")
             console.print(f"Run manually: git worktree remove {feature_worktree_path}")
 
     if delete_branch:

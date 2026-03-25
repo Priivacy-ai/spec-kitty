@@ -23,7 +23,7 @@ import json
 import re
 import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
@@ -750,7 +750,7 @@ def append_history(
     raw = wp_path.read_text(encoding="utf-8")
     fm, body, padding = split_frontmatter(raw)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry_text = f"- [{timestamp}] {actor}: {note}"
     new_body = append_activity_log(body, entry_text)
 
@@ -819,7 +819,7 @@ def accept_feature(
     # Write acceptance record via centralized metadata writer
     from specify_cli.feature_metadata import record_acceptance
 
-    accepted_at = datetime.now(timezone.utc).isoformat()
+    accepted_at = datetime.now(UTC).isoformat()
     record_acceptance(
         feature_dir,
         accepted_by=actor,

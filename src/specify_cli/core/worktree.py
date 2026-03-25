@@ -14,10 +14,10 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
+import contextlib
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -57,10 +57,8 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     # Read existing exclusions
     existing = set()
     if exclude_file.exists():
-        try:
+        with contextlib.suppress(OSError):
             existing = set(exclude_file.read_text().splitlines())
-        except OSError:
-            pass
 
     # Add new patterns if not already present
     new_patterns = [p for p in patterns if p not in existing]
@@ -128,8 +126,8 @@ def get_next_feature_number(repo_root: Path) -> int:
 def create_feature_worktree(
     repo_root: Path,
     feature_slug: str,
-    feature_number: Optional[int] = None
-) -> Tuple[Path, Path]:
+    feature_number: int | None = None
+) -> tuple[Path, Path]:
     """Create workspace (git worktree) for feature development.
 
     Creates a new workspace with a feature branch and sets up the

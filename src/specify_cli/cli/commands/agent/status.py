@@ -10,12 +10,12 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.feature_detection import (
@@ -116,23 +116,23 @@ def emit(
         str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")
     ] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
-    reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
+    reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[
-        Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")
+        str | None, typer.Option("--evidence-json", help="JSON string with done evidence")
     ] = None,
-    review_ref: Annotated[Optional[str], typer.Option("--review-ref", help="Review feedback reference")] = None,
+    review_ref: Annotated[str | None, typer.Option("--review-ref", help="Review feedback reference")] = None,
     workspace_context: Annotated[
-        Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")
+        str | None, typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")
     ] = None,
     subtasks_complete: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
     ] = None,
     implementation_evidence_present: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--implementation-evidence-present",
             help="Whether implementation evidence exists for in_progress->for_review",
@@ -240,8 +240,8 @@ def emit(
 
 @app.command()
 def materialize(
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -335,11 +335,11 @@ def materialize(
 @app.command()
 def doctor(
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", help="Mission slug"),
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     stale_claimed: Annotated[
@@ -440,9 +440,9 @@ def doctor(
         # Project-specific section
         console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
-            console.print(f"  [green]Healthy[/green]")
+            console.print("  [green]Healthy[/green]")
         else:
-            console.print(f"  [yellow]Issues found[/yellow]")
+            console.print("  [yellow]Issues found[/yellow]")
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
             table.add_column("Category")
@@ -542,11 +542,11 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 @app.command()
 def migrate(
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", "-f", help="Single mission slug to migrate"),
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     all_features: Annotated[
@@ -660,11 +660,11 @@ def migrate(
 @app.command()
 def validate(
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", help="Mission slug (auto-detected if omitted)"),
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     json_output: Annotated[
@@ -823,11 +823,11 @@ def validate(
 @app.command()
 def reconcile(
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", "-f", help="Mission slug (auto-detected if omitted)"),
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     dry_run: Annotated[
@@ -835,7 +835,7 @@ def reconcile(
         typer.Option("--dry-run/--apply", help="Preview vs persist reconciliation events"),
     ] = True,
     target_repo: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option("--target-repo", "-t", help="Target repo path(s) to scan"),
     ] = None,
     json_output: Annotated[

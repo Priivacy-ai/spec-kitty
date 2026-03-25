@@ -10,8 +10,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +33,12 @@ from task_helpers import (  # noqa: E402
     append_activity_log,
     activity_entries,
     build_document,
-    detect_conflicting_wp_status,
     ensure_lane,
     find_repo_root,
     get_lane_from_frontmatter,
-    git_status_lines,
     is_legacy_format,
     normalize_note,
     now_utc,
-    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -51,7 +46,6 @@ from task_helpers import (  # noqa: E402
 )
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
-    AcceptanceResult,
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
@@ -108,7 +102,7 @@ def _collect_summary_with_encoding(
             feature,
             strict_metadata=strict_metadata,
         )
-    except ArtifactEncodingError as exc:
+    except ArtifactEncodingError:
         if not normalize_encoding:
             raise
         cleaned = normalize_feature_encoding(repo_root, feature)
@@ -390,14 +384,14 @@ def rollback_command(args: argparse.Namespace) -> None:
     update_command(args_for_update)
 
 
-def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
+def _resolve_feature(repo_root: Path, requested: str | None) -> str:
     if requested:
         return requested
     return detect_feature_slug(repo_root)
 
 
-def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
-    lines: List[str] = []
+def _summary_to_text(summary: AcceptanceSummary) -> list[str]:
+    lines: list[str] = []
     lines.append(f"Feature: {summary.feature}")
     lines.append(f"Branch: {summary.branch or 'N/A'}")
     lines.append(f"Worktree: {summary.worktree_root}")
@@ -544,7 +538,7 @@ def _prepare_merge_metadata(
     target: str,
     strategy: str,
     pushed: bool,
-) -> Optional[Path]:
+) -> Path | None:
     from specify_cli.feature_metadata import record_merge
 
     feature_dir = repo_root / "kitty-specs" / feature
@@ -570,7 +564,7 @@ def _prepare_merge_metadata(
     return meta_path
 
 
-def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> None:
+def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
     if not meta_path or not meta_path.exists():
         return
 
@@ -661,7 +655,7 @@ def merge_command(args: argparse.Namespace) -> None:
         print("\n".join(steps))
         return
 
-    def git(cmd: List[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
+    def git(cmd: list[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
         return run_git(cmd, cwd=cwd, check=check)
 
     git(["checkout", args.target])
@@ -681,8 +675,8 @@ def merge_command(args: argparse.Namespace) -> None:
             "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
         )
 
-    meta_path: Optional[Path] = None
-    meta_rel: Optional[str] = None
+    meta_path: Path | None = None
+    meta_rel: str | None = None
 
     if args.strategy == "squash":
         merge_proc = git(["merge", "--squash", feature], check=False)
@@ -721,9 +715,8 @@ def merge_command(args: argparse.Namespace) -> None:
     elif args.push and not has_remote:
         print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
 
-    if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git(["worktree", "remove", str(repo_root), "--force"])
 
     if args.delete_branch:
         delete = git(["branch", "-d", feature], check=False)
@@ -822,7 +815,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

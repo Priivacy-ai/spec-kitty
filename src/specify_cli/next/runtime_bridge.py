@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,6 @@ from specify_cli.next.decision import (
     DecisionKind,
     _build_prompt_safe,
     _compute_wp_progress,
-    _find_first_wp_by_lane,
     _state_to_action,
 )
 
@@ -109,9 +108,8 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
         if step_id == "implement":
             if lane not in ("done", "approved", "for_review"):
                 return False
-        elif step_id == "review":
-            if lane not in ("done", "approved"):
-                return False
+        elif step_id == "review" and lane not in ("done", "approved"):
+            return False
 
     return True
 
@@ -168,9 +166,8 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
                 "Not all work packages have required status (for_review, approved, or done)"
             )
 
-    elif step_id == "review":
-        if not _should_advance_wp_step("review", feature_dir):
-            failures.append("Not all work packages are approved or done")
+    elif step_id == "review" and not _should_advance_wp_step("review", feature_dir):
+        failures.append("Not all work packages are approved or done")
 
     return failures
 
@@ -386,7 +383,7 @@ def decide_next_via_runtime(
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
     feature_dir = repo_root / "kitty-specs" / feature_slug
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
         return Decision(

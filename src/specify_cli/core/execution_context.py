@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal, Mapping, cast, get_args
+from typing import Literal, cast, get_args
+from collections.abc import Mapping
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.feature_detection import (

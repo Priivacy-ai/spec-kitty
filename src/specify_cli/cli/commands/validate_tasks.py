@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -14,22 +13,20 @@ from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.task_metadata_validation import (
-    detect_lane_mismatch,
     repair_lane_mismatch,
     scan_all_tasks_for_mismatches,
-    validate_task_metadata,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def validate_tasks(
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None, "--feature", help="Feature slug to validate (auto-detected when omitted)"
     ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
-    agent: Optional[str] = typer.Option(None, "--agent", help="Agent name for activity log"),
-    shell_pid: Optional[str] = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
+    agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
+    shell_pid: str | None = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
 ) -> None:
     """Validate and optionally fix task metadata inconsistencies.
 
@@ -147,7 +144,7 @@ def _validate_feature_tasks(
     mismatches_dict = scan_all_tasks_for_mismatches(feature_dir)
 
     if not mismatches_dict:
-        console.print(f"  [green]✓[/green] No metadata mismatches")
+        console.print("  [green]✓[/green] No metadata mismatches")
         return 0, 0
 
     # Display mismatches in a table

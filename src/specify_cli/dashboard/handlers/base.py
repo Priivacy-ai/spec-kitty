@@ -7,7 +7,7 @@ import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
-from typing import Any, Dict, Optional
+from typing import Any
 
 __all__ = ["DashboardHandler"]
 
@@ -15,14 +15,14 @@ __all__ = ["DashboardHandler"]
 class DashboardHandler(BaseHTTPRequestHandler):
     """Base class that provides shared helpers for router/endpoint handlers."""
 
-    project_dir: Optional[str] = None
-    project_token: Optional[str] = None
+    project_dir: str | None = None
+    project_token: str | None = None
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003 - signature from BaseHTTPRequestHandler
         """Suppress default HTTP handler logging noise."""
         del format, args
 
-    def _send_json(self, status_code: int, payload: Dict[str, Any]) -> None:
+    def _send_json(self, status_code: int, payload: dict[str, Any]) -> None:
         """Write a JSON response with common headers."""
         self.send_response(status_code)
         self.send_header('Content-type', 'application/json')

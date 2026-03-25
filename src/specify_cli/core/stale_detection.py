@@ -12,10 +12,9 @@ period, the WP is considered stale.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
-from specify_cli.core.vcs import get_vcs, VCSError
 
 
 @dataclass
@@ -222,10 +221,10 @@ def check_wp_staleness(
                 error=None if not has_own_commits else "Could not determine last commit time",
             )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Ensure last_commit is timezone-aware
         if last_commit.tzinfo is None:
-            last_commit = last_commit.replace(tzinfo=timezone.utc)
+            last_commit = last_commit.replace(tzinfo=UTC)
 
         delta = now - last_commit
         minutes_since = delta.total_seconds() / 60

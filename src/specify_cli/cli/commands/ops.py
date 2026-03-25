@@ -92,12 +92,12 @@ def log(
 
     # Get VCS implementation
     try:
-        vcs = get_vcs(workspace_path)
+        get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"\n[cyan]Backend:[/cyan] git")
+    console.print("\n[cyan]Backend:[/cyan] git")
     console.print()
 
     # Get operation history (git reflog only)

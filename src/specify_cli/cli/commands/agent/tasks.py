@@ -9,22 +9,20 @@ import shutil
 import subprocess
 import traceback
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional, Tuple, List
 
 import typer
 from rich.console import Console
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.sync.events import (
-    emit_wp_status_changed,
     emit_history_added,
     emit_error_logged,
 )
 
-from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 
@@ -32,7 +30,6 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
-    get_feature_target_branch,
     FeatureDetectionError,
 )
 from specify_cli.mission import get_feature_mission_key
@@ -53,8 +50,6 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 from specify_cli.tasks_support import (
     LANES,
-    WorkPackage,
-    activity_entries,
     append_activity_log,
     build_document,
     ensure_lane,
@@ -63,6 +58,7 @@ from specify_cli.tasks_support import (
     set_scalar,
     split_frontmatter,
 )
+import contextlib
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +163,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         raise typer.Exit(1)
 
 
-def _output_result(json_mode: bool, data: dict, success_message: Optional[str] = None):
+def _output_result(json_mode: bool, data: dict, success_message: str | None = None):
     """Output result in JSON or human-readable format.
 
     Args:
@@ -238,7 +234,7 @@ def _persist_review_feedback(
     feedback_dir = git_common_dir / "spec-kitty" / "feedback" / feature_slug / task_id
     feedback_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     unique_id = uuid.uuid4().hex[:8]
     suffix = feedback_source.suffix or ".md"
     filename = f"{timestamp}-{unique_id}{suffix}"
@@ -367,7 +363,7 @@ def _check_dependent_warnings(
             continue
 
     if incomplete:
-        console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
+        console.print("\n[yellow]⚠️  Dependency Alert[/yellow]")
         console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
         console.print("\nIf changes are requested during review:")
         console.print("  1. Notify dependent WP agents")
@@ -439,7 +435,7 @@ def _validate_ready_for_review(
     feature_slug: str,
     wp_id: str,
     force: bool
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
     For research missions: Checks for uncommitted research artifacts in planning repo.
@@ -460,7 +456,7 @@ def _validate_ready_for_review(
     if force:
         return True, []
 
-    guidance: List[str] = []
+    guidance: list[str] = []
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
@@ -676,10 +672,8 @@ def _validate_ready_for_review(
             )
             commit_count = 0
             if result.returncode == 0 and result.stdout.strip():
-                try:
+                with contextlib.suppress(ValueError):
                     commit_count = int(result.stdout.strip())
-                except ValueError:
-                    pass
 
             if commit_count == 0:
                 guidance.append("No implementation commits on WP branch!")
@@ -723,7 +717,7 @@ def _validate_ready_for_review(
 def _get_hic_marker(
     agent_profile: str | None,
     repo_root: Path,
-    repo: "Any | None" = None,
+    repo: Any | None = None,
 ) -> str:
     """Return '👤 ' if the profile is a sentinel (human-in-charge), else empty string.
 
@@ -801,7 +795,7 @@ def _wp_branch_merged_into_target(
     )
 
 
-def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -> List[str]:
+def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
     """Return kitty-specs/ files changed on the WP branch compared to its base."""
     merge_base_result = subprocess.run(
         ["git", "merge-base", "HEAD", base_branch],
@@ -832,7 +826,7 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
         return []
 
     seen: set[str] = set()
-    files: List[str] = []
+    files: list[str] = []
     for raw in diff_result.stdout.splitlines():
         path = raw.strip()
         if not path or not path.startswith("kitty-specs/"):
@@ -848,18 +842,18 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
-    assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
-    shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
-    note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
-    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
-    approval_ref: Annotated[Optional[str], typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
-    reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
-    done_override_reason: Annotated[Optional[str], typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    assignee: Annotated[str | None, typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
+    shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
+    note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
+    review_feedback_file: Annotated[Path | None, typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")] = None,
+    approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
+    reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
+    done_override_reason: Annotated[str | None, typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
-    auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")] = None,
+    auto_commit: Annotated[bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
@@ -893,21 +887,20 @@ def move_task(
 
         # Informational: Let user know we're using planning repo's kitty-specs
         cwd = Path.cwd().resolve()
-        if is_worktree_context(cwd) and not json_output:
-            if cwd != main_repo_root:
-                # Check if worktree has its own kitty-specs (stale copy)
-                worktree_kitty = None
-                current = cwd
-                while current != current.parent and ".worktrees" in str(current):
-                    if (current / "kitty-specs").exists():
-                        worktree_kitty = current / "kitty-specs"
-                        break
-                    current = current.parent
+        if is_worktree_context(cwd) and not json_output and cwd != main_repo_root:
+            # Check if worktree has its own kitty-specs (stale copy)
+            worktree_kitty = None
+            current = cwd
+            while current != current.parent and ".worktrees" in str(current):
+                if (current / "kitty-specs").exists():
+                    worktree_kitty = current / "kitty-specs"
+                    break
+                current = current.parent
 
-                if worktree_kitty and (worktree_kitty / feature_slug / "tasks").exists():
-                    console.print(
-                        f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]"
-                    )
+            if worktree_kitty and (worktree_kitty / feature_slug / "tasks").exists():
+                console.print(
+                    f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]"
+                )
 
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)
@@ -929,13 +922,10 @@ def move_task(
             _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
             raise typer.Exit(1)
 
-        resolved_feedback_source: Optional[Path] = None
+        resolved_feedback_source: Path | None = None
         if review_feedback_file is not None:
             feedback_candidate = review_feedback_file.expanduser()
-            if not feedback_candidate.is_absolute():
-                feedback_candidate = (Path.cwd() / feedback_candidate).resolve()
-            else:
-                feedback_candidate = feedback_candidate.resolve()
+            feedback_candidate = (Path.cwd() / feedback_candidate).resolve() if not feedback_candidate.is_absolute() else feedback_candidate.resolve()
 
             if not feedback_candidate.exists():
                 _output_error(
@@ -953,7 +943,7 @@ def move_task(
 
             resolved_feedback_source = feedback_candidate
 
-        review_feedback_pointer: Optional[str] = None
+        review_feedback_pointer: str | None = None
 
         # Strictly enforce deterministic review feedback capture on planned rollbacks.
         # This requirement is never bypassed, including with --force.
@@ -989,11 +979,11 @@ def move_task(
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
                 for task in unchecked:
                     error_msg += f"  - [ ] {task}\n"
-                error_msg += f"\nMark these complete first:\n"
+                error_msg += "\nMark these complete first:\n"
                 for task in unchecked[:3]:  # Show first 3 examples
                     task_clean = task.split()[0] if ' ' in task else task
                     error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
-                error_msg += f"\nOr use --force to override (not recommended)"
+                error_msg += "\nOr use --force to override (not recommended)"
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
@@ -1035,10 +1025,7 @@ def move_task(
                     raise typer.Exit(1)
 
                 override_note = f"Done override: {override_reason}"
-                if note_text:
-                    note_text = f"{note_text} | {override_note}"
-                else:
-                    note_text = override_note
+                note_text = f"{note_text} | {override_note}" if note_text else override_note
                 if not json_output:
                     console.print(
                         "[yellow]⚠️  Proceeding with done override; reason recorded in history/events.[/yellow]"
@@ -1057,7 +1044,7 @@ def move_task(
                 effective_approval_ref = user_note
             if not effective_approval_ref:
                 effective_approval_ref = (
-                    f"auto-approval:{task_id}:{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+                    f"auto-approval:{task_id}:{datetime.now(UTC).strftime('%Y%m%d')}"
                 )
             evidence_dict = {
                 "review": {
@@ -1071,9 +1058,8 @@ def move_task(
         emit_review_ref = None
         if target_lane == "planned" and review_feedback_pointer:
             emit_review_ref = review_feedback_pointer
-        elif old_lane == "for_review" and resolve_lane_alias(target_lane) in ("in_progress", "planned"):
-            if force:
-                emit_review_ref = "force-override"
+        elif old_lane == "for_review" and resolve_lane_alias(target_lane) in ("in_progress", "planned") and force:
+            emit_review_ref = "force-override"
 
         # Map --agent to actor; default to "user" if not provided
         actor = agent or "user"
@@ -1092,10 +1078,7 @@ def move_task(
         # Keep force semantics strict: only user-requested --force should bypass guards.
         emit_force = force
         if not emit_reason:
-            if force:
-                emit_reason = f"Force move to {target_lane}"
-            else:
-                emit_reason = f"move-task: {old_lane} -> {target_lane}"
+            emit_reason = f"Force move to {target_lane}" if force else f"move-task: {old_lane} -> {target_lane}"
 
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
@@ -1113,7 +1096,6 @@ def move_task(
             transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
 
         with feature_status_lock(main_repo_root, feature_slug):
-            event = None
             current_canonical_lane = resolve_lane_alias(old_lane)
             current_event_lane = None
             for existing_event in reversed(read_events(feature_dir)):
@@ -1150,7 +1132,7 @@ def move_task(
                 )
 
             for target in transition_targets:
-                event = emit_status_transition(
+                emit_status_transition(
                     feature_dir=feature_dir,
                     feature_slug=feature_slug,
                     wp_id=task_id,
@@ -1217,7 +1199,7 @@ def move_task(
                 updated_front = set_scalar(updated_front, "review_status", "approved")
 
             # Build history entry
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
             shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
             note_text = note_text or f"Moved to {target_lane}"
@@ -1261,7 +1243,7 @@ def move_task(
                             console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
                     else:
                         if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
+                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
 
                 except Exception as e:
                     if not file_written:
@@ -1311,9 +1293,9 @@ def move_task(
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
-    auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    auto_commit: Annotated[bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Update task checkbox status in tasks.md for one or more tasks.
@@ -1402,7 +1384,6 @@ def mark_status(
 
             # Auto-commit to TARGET branch (detects from feature meta.json)
             if auto_commit:
-                import subprocess
 
                 # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
                 spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
@@ -1429,7 +1410,7 @@ def mark_status(
                             console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
                     else:
                         if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
+                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
 
                 except Exception as e:
                     if not json_output:
@@ -1495,9 +1476,9 @@ def mark_status(
 
 @app.command(name="list-tasks")
 def list_tasks(
-    lane: Annotated[Optional[str], typer.Option("--lane", help="Filter by lane")] = None,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    lane: Annotated[str | None, typer.Option("--lane", help="Filter by lane")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -1570,10 +1551,10 @@ def list_tasks(
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
-    shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Append history entry to task activity log.
@@ -1601,7 +1582,7 @@ def add_history(
         current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
 
         # Build history entry
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         agent_name = agent or extract_scalar(wp.frontmatter, "agent") or "unknown"
         shell_pid_val = shell_pid or extract_scalar(wp.frontmatter, "shell_pid") or ""
 
@@ -1656,8 +1637,8 @@ def add_history(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Parse tasks.md and inject dependencies into WP frontmatter.
@@ -1774,27 +1755,25 @@ def finalize_tasks(
 
     except Exception as e:
         # Emit ErrorLogged event (T016)
-        try:
+        with contextlib.suppress(Exception):
             emit_error_logged(
                 error_type="runtime",
                 error_message=str(e),
                 stack_trace=traceback.format_exc(),
             )
-        except Exception:
-            pass
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
 
 @app.command(name="map-requirements")
 def map_requirements(
-    wp: Annotated[Optional[str], typer.Option("--wp", help="WP ID (e.g., WP04)")] = None,
+    wp: Annotated[str | None, typer.Option("--wp", help="WP ID (e.g., WP04)")] = None,
     refs: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--refs", help="Comma-separated requirement refs (e.g., FR-001,FR-002)"),
     ] = None,
     batch: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--batch",
             help='JSON batch mapping (e.g., \'{"WP01":["FR-001"],"WP02":["FR-003"]}\')',
@@ -1808,16 +1787,16 @@ def map_requirements(
         ),
     ] = False,
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", help="Mission slug (auto-detected if omitted)"),
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--auto-commit/--no-auto-commit",
             help="Automatically commit WP file changes (default: from project config)",
@@ -2115,8 +2094,8 @@ def map_requirements(
 @app.command(name="validate-workflow")
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -2186,21 +2165,19 @@ def validate_workflow(
                     console.print(f"  [red]Error:[/red] {error}")
 
             if warnings:
-                console.print(f"\n[yellow]Warnings:[/yellow]")
+                console.print("\n[yellow]Warnings:[/yellow]")
                 for warning in warnings:
                     console.print(f"  [yellow]•[/yellow] {warning}")
 
     except Exception as e:
         # Emit ErrorLogged event (T016)
-        try:
+        with contextlib.suppress(Exception):
             emit_error_logged(
                 error_type="validation",
                 error_message=str(e),
                 wp_id=task_id if 'task_id' in dir() else None,
                 stack_trace=traceback.format_exc(),
             )
-        except Exception:
-            pass
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
@@ -2208,11 +2185,11 @@ def validate_workflow(
 @app.command(name="status")
 def status(
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", "-f", help="Mission slug (e.g., 012-documentation-mission). Auto-detected if not provided.")
     ] = None,
     feature: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")
     ] = None,
     json_output: Annotated[
@@ -2374,7 +2351,7 @@ def status(
 
         # Create title panel
         title_text = Text()
-        title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+        title_text.append("📊 Work Package Status: ", style="bold cyan")
         title_text.append(feature_slug, style="bold white")
 
         console.print()
@@ -2382,7 +2359,7 @@ def status(
 
         # Progress bar
         progress_text = Text()
-        progress_text.append(f"Progress: ", style="bold")
+        progress_text.append("Progress: ", style="bold")
         progress_text.append(f"{done_count}/{total}", style="bold green")
         progress_text.append(f" ({progress_pct}%)", style="dim")
 
@@ -2518,8 +2495,8 @@ def status(
 @app.command(name="list-dependents")
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).

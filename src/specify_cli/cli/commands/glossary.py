@@ -202,10 +202,7 @@ def _extract_conflicts_from_events(  # noqa: C901
                 check_event_index[step_id] = event
                 for finding in event.get("findings", []):
                     term_data = finding.get("term", {})
-                    if isinstance(term_data, dict):
-                        term_text = term_data.get("surface_text", "unknown")
-                    else:
-                        term_text = str(term_data)
+                    term_text = term_data.get("surface_text", "unknown") if isinstance(term_data, dict) else str(term_data)
                     finding_index[(step_id, term_text)] = finding
 
         elif event_type == "GlossaryClarificationRequested":

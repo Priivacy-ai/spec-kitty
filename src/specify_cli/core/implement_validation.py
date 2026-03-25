@@ -75,19 +75,18 @@ def validate_and_resolve_base(
     if len(declared_deps) > 1:
         if base is None:
             if not quiet:
-                console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+                console.print("\n[cyan]Multi-parent dependency detected:[/cyan]")
                 console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
                 console.print("  Auto-creating merge base combining all dependencies...")
             return (None, True)  # Auto-merge mode
         else:
             # User provided explicit base - validate it's in dependencies
-            if base not in declared_deps:
-                if not quiet:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} "
-                        f"as dependency"
-                    )
-                    console.print(f"Declared dependencies: {declared_deps}")
+            if base not in declared_deps and not quiet:
+                console.print(
+                    f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} "
+                    f"as dependency"
+                )
+                console.print(f"Declared dependencies: {declared_deps}")
                 # Allow but warn (user might know better than parser)
             return (base, False)  # Use provided base, no auto-merge
 
@@ -115,13 +114,12 @@ def validate_and_resolve_base(
                 )
 
         # Validate provided base matches dependency
-        if base not in declared_deps:
-            if not quiet:
-                console.print(
-                    f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency "
-                    f"on {base}"
-                )
-                console.print(f"Declared dependencies: {declared_deps}")
+        if base not in declared_deps and not quiet:
+            console.print(
+                f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency "
+                f"on {base}"
+            )
+            console.print(f"Declared dependencies: {declared_deps}")
             # Allow but warn (user might know better than parser)
 
         return (base, False)  # Use provided base

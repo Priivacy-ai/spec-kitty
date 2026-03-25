@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -21,8 +20,8 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug to target (auto-detected when omitted)"),
-    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug to target (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
@@ -41,7 +40,7 @@ def research(
 
     tracker = StepTracker("Research Phase Setup")
     tracker.add("project", "Locate project root")
-    tracker.add("feature", "Resolve feature directory")
+    tracker.add("feature", "Resolve mission directory")
     tracker.add("research-md", "Ensure research.md")
     tracker.add("data-model", "Ensure data-model.md")
     tracker.add("research-csv", "Ensure research CSV stubs")
@@ -155,15 +154,14 @@ def research(
         )
 
         trigger_feature_dossier_sync_if_enabled(
-            feature_dir, feature_slug, repo_root,
+            feature_dir,
+            feature_slug,
+            repo_root,
         )
     except Exception:
         pass
 
-    relative_paths = [
-        str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path)
-        for path in created_paths
-    ]
+    relative_paths = [str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path) for path in created_paths]
     summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
     console.print()
     console.print(
