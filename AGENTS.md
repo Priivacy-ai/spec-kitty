@@ -113,7 +113,6 @@ Spec Kitty CLI supports multiple AI agents by generating agent-specific command 
 | **Windsurf** | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows |
 | **Amazon Q Developer CLI** | `.amazonq/prompts/` | Markdown | `q` | Amazon Q Developer CLI |
 
-
 ### Step-by-Step Integration Guide
 
 Follow these steps to add a new agent (using Windsurf as an example):
@@ -174,12 +173,14 @@ Update the **Supported AI Agents** section in `README.md` to include the new age
 
 Modify `.github/workflows/scripts/create-release-packages.sh`:
 
-##### Add to ALL_AGENTS array:
+##### Add to ALL_AGENTS array
+
 ```bash
 ALL_AGENTS=(claude gemini copilot cursor qwen opencode windsurf q)
 ```
 
-##### Add case statement for directory structure:
+##### Add case statement for directory structure
+
 ```bash
 case $agent in
   # ... existing cases ...
@@ -244,6 +245,7 @@ elif selected_ai == "windsurf":
 ## Agent Categories
 
 ### CLI-Based Agents
+
 Require a command-line tool to be installed:
 - **Claude Code**: `claude` CLI
 - **Gemini CLI**: `gemini` CLI  
@@ -252,6 +254,7 @@ Require a command-line tool to be installed:
 - **opencode**: `opencode` CLI
 
 ### IDE-Based Agents
+
 Work within integrated development environments:
 - **GitHub Copilot**: Built into VS Code/compatible editors
 - **Windsurf**: Built into Windsurf IDE
@@ -259,6 +262,7 @@ Work within integrated development environments:
 ## Command File Formats
 
 ### Markdown Format
+
 Used by: Claude, Cursor, opencode, Windsurf, Amazon Q Developer
 
 ```markdown
@@ -270,6 +274,7 @@ Command content with {SCRIPT} and $ARGUMENTS placeholders.
 ```
 
 ### TOML Format
+
 Used by: Gemini, Qwen
 
 ```toml
@@ -343,7 +348,6 @@ Rules:
 - If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
 - Runbook source of truth: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`.
-
 
 ---
 

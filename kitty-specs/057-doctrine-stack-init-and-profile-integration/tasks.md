@@ -183,7 +183,7 @@
 
 - `sentinel: bool = False` default means existing profiles are unaffected (no YAML change needed for shipped profiles).
 - `human-in-charge.agent.yaml` must pass schema validation even with minimal fields — ensure `purpose`, `specialization`, `name`, `profile-id` are present (required fields). `initialization-declaration` may be empty or omitted if schema allows.
-- Kanban rendering: the kanban loop reads WP frontmatter; add a step that, if `agent_profile` field is present, resolves it via `AgentProfileRepository` and checks `.sentinel`. If `True`, prefix the WP ID display with `👤 `. This should be a soft failure — if the profile cannot be resolved, skip the marker silently.
+- Kanban rendering: the kanban loop reads WP frontmatter; add a step that, if `agent_profile` field is present, resolves it via `AgentProfileRepository` and checks `.sentinel`. If `True`, prefix the WP ID display with `👤`. This should be a soft failure — if the profile cannot be resolved, skip the marker silently.
 - The glossary entry for "Human-in-Charge WP" was already added in a prior commit (architecture docs phase). No glossary work needed in this WP.
 
 ### Parallel Opportunities
@@ -406,6 +406,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP07: done
 - WP08: done
 - WP09: done

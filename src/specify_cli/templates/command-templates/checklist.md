@@ -6,9 +6,7 @@ scripts:
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-
 *Path: [templates/commands/checklist.md](templates/commands/checklist.md)*
-
 
 ## Checklist Purpose: "Unit Tests for English"
 
@@ -132,7 +130,7 @@ Your checklist will be created at:
    - spec.md: Feature requirements and scope
    - plan.md (if exists): Technical details, dependencies
    - tasks.md (if exists): Implementation tasks
-   
+
    **Context Loading Strategy**:
    - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
    - Prefer summarizing long sections into concise scenario/requirement bullets
@@ -143,7 +141,7 @@ Your checklist will be created at:
    - Create `feature_dir/checklists/` directory if it doesn't exist
    - Generate unique checklist filename:
      - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`)
-     - Format: `[domain].md` 
+     - Format: `[domain].md`
      - If file exists, append to existing file
    - Number items sequentially starting from CHK001
    - Each `/spec-kitty.checklist` run creates a NEW file (never overwrites existing checklists)
@@ -155,7 +153,7 @@ Your checklist will be created at:
    - **Consistency**: Do requirements align with each other?
    - **Measurability**: Can requirements be objectively verified?
    - **Coverage**: Are all scenarios/edge cases addressed?
-   
+
    **Category Structure** - Group items by requirement quality dimensions:
    - **Requirement Completeness** (Are all necessary requirements documented?)
    - **Requirement Clarity** (Are requirements specific and unambiguous?)
@@ -166,14 +164,14 @@ Your checklist will be created at:
    - **Non-Functional Requirements** (Performance, Security, Accessibility, etc. - are they specified?)
    - **Dependencies & Assumptions** (Are they documented and validated?)
    - **Ambiguities & Conflicts** (What needs clarification?)
-   
+
    **HOW TO WRITE CHECKLIST ITEMS - "Unit Tests for English"**:
-   
+
    ❌ **WRONG** (Testing implementation):
    - "Verify landing page displays 3 episode cards"
    - "Test hover states work on desktop"
    - "Confirm logo click navigates home"
-   
+
    ✅ **CORRECT** (Testing requirements quality):
    - "Are the exact number and layout of featured episodes specified?" [Completeness]
    - "Is 'prominent display' quantified with specific sizing/positioning?" [Clarity]
@@ -182,7 +180,7 @@ Your checklist will be created at:
    - "Is the fallback behavior specified when logo image fails to load?" [Edge Cases]
    - "Are loading states defined for asynchronous episode data?" [Completeness]
    - "Does the spec define visual hierarchy for competing UI elements?" [Clarity]
-   
+
    **ITEM STRUCTURE**:
    Each item should follow this pattern:
    - Question format asking about requirement quality
@@ -190,28 +188,28 @@ Your checklist will be created at:
    - Include quality dimension in brackets [Completeness/Clarity/Consistency/etc.]
    - Reference spec section `[Spec §X.Y]` when checking existing requirements
    - Use `[Gap]` marker when checking for missing requirements
-   
+
    **EXAMPLES BY QUALITY DIMENSION**:
-   
+
    Completeness:
    - "Are error handling requirements defined for all API failure modes? [Gap]"
    - "Are accessibility requirements specified for all interactive elements? [Completeness]"
    - "Are mobile breakpoint requirements defined for responsive layouts? [Gap]"
-   
+
    Clarity:
    - "Is 'fast loading' quantified with specific timing thresholds? [Clarity, Spec §NFR-2]"
    - "Are 'related episodes' selection criteria explicitly defined? [Clarity, Spec §FR-5]"
    - "Is 'prominent' defined with measurable visual properties? [Ambiguity, Spec §FR-4]"
-   
+
    Consistency:
    - "Do navigation requirements align across all pages? [Consistency, Spec §FR-10]"
    - "Are card component requirements consistent between landing and detail pages? [Consistency]"
-   
+
    Coverage:
    - "Are requirements defined for zero-state scenarios (no episodes)? [Coverage, Edge Case]"
    - "Are concurrent user interaction scenarios addressed? [Coverage, Gap]"
    - "Are requirements specified for partial data loading failures? [Coverage, Exception Flow]"
-   
+
    Measurability:
    - "Are visual hierarchy requirements measurable/testable? [Acceptance Criteria, Spec §FR-1]"
    - "Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"
@@ -247,7 +245,7 @@ Your checklist will be created at:
    - ❌ "Click", "navigate", "render", "load", "execute"
    - ❌ Test cases, test plans, QA procedures
    - ❌ Implementation details (frameworks, APIs, algorithms)
-   
+
    **✅ REQUIRED PATTERNS** - These test requirements quality:
    - ✅ "Are [requirement type] defined/specified/documented for [scenario]?"
    - ✅ "Is [vague term] quantified/clarified with specific criteria?"
@@ -338,5 +336,5 @@ Sample items:
 - Correct: Tests if the requirements are written correctly
 - Wrong: Verification of behavior
 - Correct: Validation of requirement quality
-- Wrong: "Does it do X?" 
+- Wrong: "Does it do X?"
 - Correct: "Is X clearly specified?"

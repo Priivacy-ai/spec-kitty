@@ -495,6 +495,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
 
 ### Added
+
 - Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
 - Empty branch detection in merge-base creation - warns when dependencies have no commits
 - Git commit workflow section in documentation mission template (consistency with software-dev/research)
@@ -502,11 +503,13 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
 
 ### Changed
+
 - `move-task --to done` now validates git status (same checks as "for_review")
 - Use `--force` flag to bypass validation (not recommended)
 - Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
 
 ### Fixed (Non-Critical)
+
 - WP agents can no longer mark tasks as "done" without committing implementation files
 - Multi-parent merge-bases no longer silently accept empty dependency branches
 - Documentation mission now instructs agents to commit work before review
@@ -568,7 +571,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Unit tests: `test_implement_validation.py` (11 tests)
   - Integration tests: `test_agent_command_wrappers.py` (11 tests)
 - Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
-  - Verifies all m_*.py migration files are imported in __init__.py
+  - Verifies all m_*.py migration files are imported in `__init__.py`
   - Prevents silent bugs where migrations exist but never run
 - Added integration tests for merge with untracked branches
 - Added unit tests for `has_tracking_branch()` function
@@ -995,9 +998,9 @@ The migration will remove mission-specific constitution directories:
   - `signal.SIGKILL` and `signal.SIGTERM` don't exist on Windows
   - Added `psutil>=5.9.0` dependency for cross-platform process management
   - Refactored `src/specify_cli/dashboard/lifecycle.py`:
-    * `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
-    * `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
-    * `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
+    - `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
+    - `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
+    - `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
   - Added proper exception handling (NoSuchProcess, AccessDenied, TimeoutExpired)
   - Dashboard now starts, serves HTML, and stops cleanly on Windows 10/11
   - All 41 dashboard tests passing

@@ -181,7 +181,7 @@ The `human-in-charge` value is a **workflow sentinel**, not an agent identity. I
 ### Authority Notes
 
 1. Runtime decisioning and status mutation are separate responsibilities.
-2. Runtime decides what should happen next; executor assignment communicates *who* acts.
+2. Runtime decides what should happen next; executor assignment communicates _who_ acts.
 3. Status engine validates and persists what did happen — authority is independent of executor.
 4. Lifecycle persistence is host-authoritative and event-sourced.
 5. External projections do not own canonical lifecycle state.

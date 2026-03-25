@@ -186,6 +186,7 @@ agents:
 *Auto-generated from all feature plans. Last updated: 2025-11-10*
 
 ## Active Technologies
+
 - Python 3.12+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
 - Python 3.12+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
 - File system (no database) (004-modular-code-refactoring)
@@ -204,14 +205,15 @@ agents:
 - Python 3.12+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
 - Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
 
-
 - Markdown (documentation only) + None (pure documentation) (023-documentation-sprint-agent-management-cleanup)
 - Python 3.12+ (existing spec-kitty codebase) + typer, rich, ruamel.yaml, pydantic (057-doctrine-stack-init-and-profile-integration)
 - Filesystem only (YAML profiles, markdown constitution, doctrine defaults) (057-doctrine-stack-init-and-profile-integration)
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
 - Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
+
 ## Project Structure
+
 ```
 architecture/           # Architectural design decisions and technical specifications
   ├── README.md        # Overview of architecture documentation
@@ -237,6 +239,7 @@ docs/                 # User documentation
 - Reference from code comments for major components
 
 ## Commands
+
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
 
 ## Testing
@@ -252,6 +255,7 @@ pytest tests/ --browser-channel=chromium --headed=false
 ```
 
 ## Code Style
+
 Python 3.12+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Branching Strategy
@@ -260,6 +264,7 @@ Python 3.12+ (existing spec-kitty codebase): Follow standard conventions
 - For **1.x** work, the reference branch is `main`.
 
 ## Recent Changes
+
 - 057-doctrine-stack-init-and-profile-integration: Init-time doctrine setup, profile inheritance (merge + excluding), workflow profile injection, --feature→--mission rename
 - 047-namespace-aware-artifact-body-sync: Added Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
@@ -550,8 +555,6 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
-
-
 ## Merge & Preflight Patterns (0.11.0+)
 
 When merging workspace-per-WP features, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
@@ -735,7 +738,6 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
 
-
 ## Status Model Patterns (034+)
 
 The canonical status model replaces scattered frontmatter authority with an append-only event log per feature. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`.
@@ -833,7 +835,6 @@ phase, source = resolve_phase(repo_root, "034-feature")
 - Operator docs: [docs/status-model.md](docs/status-model.md)
 - Data model: [kitty-specs/034-feature-status-state-model-remediation/data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
 - Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
-
 
 ## Agent Utilities for Work Package Status
 

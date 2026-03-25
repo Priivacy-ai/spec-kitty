@@ -200,10 +200,10 @@ Given that feature description, do this:
     - For empty invocations, treat the synthesized interview summary as the canonical feature description
     - Identify: actors, actions, data, constraints, motivations, success metrics
     - For any remaining ambiguity:
-      * Ask the user a focused follow-up question immediately and halt work until they answer
-      * Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
-      * Record any interim assumption in the Assumptions section
-      * Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
+      - Ask the user a focused follow-up question immediately and halt work until they answer
+      - Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
+      - Record any interim assumption in the Assumptions section
+      - Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
     - Fill User Scenarios & Testing section (ERROR if no clear user flow can be determined)
     - Generate Functional Requirements (each requirement must be testable)
     - Define Success Criteria (measurable, technology-agnostic outcomes)
@@ -214,23 +214,23 @@ Given that feature description, do this:
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `feature_dir/checklists/requirements.md` using the checklist template structure with these validation items:
-   
+
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
-      
+
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
       **Feature**: [Link to spec.md]
-      
+
       ## Content Quality
-      
+
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
-      
+
       ## Requirement Completeness
-      
+
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
       - [ ] Success criteria are measurable
@@ -239,38 +239,38 @@ Given that feature description, do this:
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
-      
+
       ## Feature Readiness
-      
+
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
-      
+
       ## Notes
-      
+
       - Items marked incomplete require spec updates before `/spec-kitty.plan`
       ```
-   
+
    b. **Run Validation Check**: Review the spec against each checklist item:
       - For each item, determine if it passes or fails
       - Document specific issues found (quote relevant spec sections)
-   
+
    c. **Handle Validation Results**:
-      
+
       - **If all items pass**: Mark checklist complete and proceed to step 6
-      
+
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
         2. Update the spec to address each issue
         3. Re-run validation until all items pass (max 3 iterations)
         4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
-      
+
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. Re-confirm with the user whether each outstanding decision truly needs to stay unresolved. Do not assume away critical gaps.
         3. For each clarification the user has explicitly deferred, present options using plain text—no tables:
-        
+
            ```
            Question [N]: [Topic]
            Context: [Quote relevant spec section]
@@ -278,13 +278,13 @@ Given that feature description, do this:
            Options: (A) [First answer — implications] · (B) [Second answer — implications] · (C) [Third answer — implications] · (D) Custom (describe your own answer)
            Reply with a letter or a custom answer.
            ```
-        
+
         4. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
         5. Present all questions together before waiting for responses
         6. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
         7. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
-   
+
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
 9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
@@ -322,7 +322,7 @@ When creating this spec from a user prompt:
    - Feature scope and boundaries (include/exclude specific use cases)
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)
-   
+
 **Examples of reasonable defaults** (don't ask about these):
 
 - Data retention: Industry-standard practices for the domain
