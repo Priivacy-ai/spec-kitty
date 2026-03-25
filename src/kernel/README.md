@@ -13,6 +13,9 @@ Zero-dependency shared utilities for the spec-kitty ecosystem.
 Currently it contains:
 
 - **`kernel.atomic`** — `atomic_write(path, content, *, mkdir=False)`: writes files atomically via a temp file + rename, preventing partial writes on crashes or power loss.
+- **`kernel.glossary_types`** — canonical glossary primitive value types (`Strictness`, `ExtractedTerm`, `SemanticConflict`, `ScopeRef`, `GlossaryScope`); re-exported by `specify_cli.glossary` and `doctrine.shared`.
+- **`kernel.paths`** — `get_kittify_home()` and `get_package_asset_root()`: path resolution utilities used by both `specify_cli` and `constitution`. `specify_cli.runtime.home` re-exports these for backward compatibility.
+- **`kernel.glossary_runner`** — plugin registry for the glossary runner. Defines `GlossaryRunnerProtocol`, `register()`, `get_runner()`, and `clear_registry()` (test-only). `specify_cli.glossary` registers the concrete `GlossaryAwarePrimitiveRunner` at import time; `doctrine` calls `get_runner()` without importing `specify_cli`.
 
 ## Why it exists
 

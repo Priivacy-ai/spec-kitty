@@ -17,4 +17,14 @@ glossary_types
     ``SemanticConflict``, ``ScopeRef``, ``GlossaryScope``, and related
     supporting types. Canonical definitions; consumed as re-exports by
     ``specify_cli.glossary`` and ``doctrine.shared``.
+paths
+    Path resolution utilities: ``get_kittify_home()`` and
+    ``get_package_asset_root()``. Canonical implementations; re-exported
+    by ``specify_cli.runtime.home`` for backward compatibility.
+glossary_runner
+    Plugin registry for the glossary runner. Defines
+    ``GlossaryRunnerProtocol``, ``register()``, ``get_runner()``, and
+    ``clear_registry()`` (test-only). ``specify_cli.glossary`` registers
+    the concrete ``GlossaryAwarePrimitiveRunner`` at import time; doctrine
+    calls ``get_runner()`` without importing ``specify_cli``.
 """
