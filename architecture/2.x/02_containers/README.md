@@ -4,8 +4,9 @@
 |---|---|
 | Status | Draft |
 | Date | 2026-03-04 |
+| Last Updated | 2026-03-25 |
 | Scope | C4 Level 2 container model |
-| Related ADRs | `2026-01-29-13`, `2026-02-09-1..4`, `2026-02-17-1..3`, `2026-02-23-1..3`, `2026-02-27-1..3` |
+| Related ADRs | `2026-01-29-13`, `2026-02-09-1..4`, `2026-02-17-1..3`, `2026-02-23-1..3`, `2026-02-27-1..3`, `2026-03-25-glossary-type-ownership` |
 
 ## Purpose
 
@@ -83,6 +84,11 @@ flowchart TB
             const_compile[Constitution Compiler]
             const_ctx[Action Context Resolver]
         end
+
+        subgraph Kernel["Kernel"]
+            ker_atomic[Atomic Write Utility]
+            ker_types[Shared Primitive Types\ne.g. glossary_types]
+        end
     end
 
     agents[Agent Tools\nClaude / Codex / Copilot / etc.]
@@ -125,6 +131,11 @@ flowchart TB
     %% Constitution uses Doctrine
     Constitution -. "uses" .-> Doctrine
 
+    %% All containers consume Kernel (zero-dependency layer)
+    Doctrine -. "imports" .-> Kernel
+    Constitution -. "imports" .-> Kernel
+    KittyCore -. "imports" .-> Kernel
+
     %% External persistence
     Host <--> repo
     Orchestration -->|optional projection| tracker
@@ -142,6 +153,7 @@ flowchart TB
 | **Agent Tool Connectors** | Pluggable execution providers | Receives dispatched work from Orchestration; executes through SDK/prompt/shell; consumes Doctrine and Constitution at execution time |
 | **Doctrine** | Knowledge store, action governance indexes, skill distribution, and curation pipeline | Loads and validates governance artifacts (directives, tactics, procedures, paradigms, styleguides, toolguides, agent profiles, skill packs, mission templates); provides per-action governance indexes (`actions/<action>/index.yaml`) that scope which artifacts apply to each execution phase; provides glossary checks; deploys canonical skill packs into agent directories at init time via the Skills Installer; owns the `_reference/` → `_proposed/` → `shipped/` promotion pipeline |
 | **Constitution** | Governance rules | Compiles governance bundles from Doctrine via interview flow; provides action context for runtime use |
+| **Kernel** | Zero-dependency shared layer | Provides stdlib-only utilities and primitive types (atomic file writes, glossary value types) consumed by all higher-level containers. Has no imports from any other container — the dependency arrow always points inward. |
 
 ## Container-Internal Component Mapping
 
@@ -159,6 +171,7 @@ to which landscape container.
 | Agent Tool Connectors | Execution Dispatch, Agent Adapters (per-agent SDK/prompt/shell implementations) |
 | Doctrine | Doctrine Catalog Loader, Schema Validation Gate, Glossary Hook Coordinator, Action Index, Skills Installer, Curation Pipeline (`engine.py`, `state.py`, `workflow.py`) |
 | Constitution | Constitution Interview Flow, Constitution Compiler, Action Context Resolver, Context Bootstrap |
+| Kernel | Atomic Write Utility (`atomic.py`), Shared Primitive Types (`glossary_types.py`) |
 
 ## Behavioral Collaboration Loops
 

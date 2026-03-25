@@ -1,4 +1,4 @@
-"""Glossary pipeline hook for mission primitive execution.
+"""Bridge module: defers specify_cli imports to call time. See ADR 2026-03-25-glossary-type-ownership.
 
 This module provides the concrete integration point between the mission
 framework and the glossary middleware pipeline. Mission executors use
@@ -31,11 +31,7 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
-from specify_cli.glossary.attachment import (
-    GlossaryAwarePrimitiveRunner,
-    read_glossary_check_metadata,
-)
-from specify_cli.glossary.strictness import Strictness
+from kernel.glossary_types import Strictness
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +77,14 @@ def execute_with_glossary(
         DeferredToAsync: If user deferred conflict resolution.
         AbortResume: If user aborted resume.
     """
+    # Lazy imports: specify_cli is available at call time but not at module load time.
+    # This is the only sanctioned lazy cross-boundary import in the codebase.
+    # See ADR 2026-03-25-glossary-type-ownership.
+    from specify_cli.glossary.attachment import (  # noqa: PLC0415
+        GlossaryAwarePrimitiveRunner,
+        read_glossary_check_metadata,
+    )
+
     # Check metadata to decide if glossary checks should run
     step_metadata = getattr(context, "metadata", {}) or {}
     if not read_glossary_check_metadata(step_metadata):

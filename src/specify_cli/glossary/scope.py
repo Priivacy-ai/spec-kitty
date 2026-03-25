@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -11,14 +10,8 @@ from ruamel.yaml import YAML
 
 from .models import Provenance, SenseStatus, TermSense, TermSurface
 
-
-class GlossaryScope(Enum):
-    """Glossary scope levels in the hierarchy."""
-
-    MISSION_LOCAL = "mission_local"
-    TEAM_DOMAIN = "team_domain"
-    AUDIENCE_DOMAIN = "audience_domain"
-    SPEC_KITTY_CORE = "spec_kitty_core"
+# GlossaryScope canonical definition moved to doctrine; re-exported here for backward compat.
+from kernel.glossary_types import GlossaryScope  # noqa: F401
 
 
 # Resolution order (highest to lowest precedence)
