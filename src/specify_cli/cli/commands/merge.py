@@ -607,6 +607,20 @@ def merge_workspace_per_wp(
                 _mark_wp_merged_done(merge_root, feature_slug, wp_id, target_branch)
                 merged_count += 1
 
+            # Mark ancestor-skipped WPs as done: their code arrived via a
+            # dependent branch that was just merged.
+            branch_to_wp: dict[str, str] = {
+                branch: wid for _, wid, branch in merge_plan["all_wp_workspaces"]  # type: ignore[index]
+            }
+            skipped_ancestor_of: dict[str, list[str]] = merge_plan["skipped_ancestor_of"]  # type: ignore[index]
+            for skipped_branch in skipped_ancestor_of:
+                skipped_wp_id = branch_to_wp.get(skipped_branch)
+                if skipped_wp_id:
+                    console.print(
+                        f"[cyan]Marking {skipped_wp_id} done (code arrived via dependent branch)[/cyan]"
+                    )
+                    _mark_wp_merged_done(merge_root, feature_slug, skipped_wp_id, target_branch)
+
             summary = f"merged {merged_count} work packages"
             if skipped_count:
                 summary += f", skipped {skipped_count} redundant/already-integrated"

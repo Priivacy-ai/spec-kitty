@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Task Template Role Hints + Profile Suggestion
-lane: "approved"
+lane: done
 dependencies: [WP08]
 requirement_refs:
 - FR-013
@@ -22,8 +22,8 @@ phase: Phase C - Init-Time Doctrine
 assignee: ''
 agent: claude
 shell_pid: '502315'
-review_status: "approved"
-reviewed_by: "Stijn Dejongh"
+review_status: approved
+reviewed_by: Stijn Dejongh
 history:
 - timestamp: '2026-03-22T11:50:00Z'
   lane: planned

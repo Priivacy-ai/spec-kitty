@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -194,7 +195,7 @@ def _load_references(path: Path) -> list[dict[str, str]]:
     return refs
 
 
-def _load_state(path: Path) -> dict[str, object]:
+def _load_state(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {"schema_version": "1.0.0", "actions": {}}
 
@@ -213,6 +214,6 @@ def _load_state(path: Path) -> dict[str, object]:
     return data
 
 
-def _write_state(path: Path, state: dict[str, object]) -> None:
+def _write_state(path: Path, state: dict[str, Any]) -> None:
     content = json.dumps(state, indent=2, sort_keys=True)
     atomic_write(path, content, mkdir=True)
