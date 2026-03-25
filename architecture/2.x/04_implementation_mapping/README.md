@@ -7,7 +7,7 @@
 | Last Updated | 2026-03-25 |
 | Scope | Maps C4 architecture views and doctrine stack to current codebase |
 | Parent | [System Landscape](../00_landscape/README.md) |
-| Related ADRs | `2026-03-25-glossary-type-ownership` |
+| Related ADRs | `2026-03-25-1-glossary-type-ownership` |
 
 ## Purpose
 
@@ -180,7 +180,7 @@ Orchestration lifecycle event triggers:
 | **Execution Dispatch** | `doctrine/missions/*/command-templates/implement.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
 | **Path Resolver** | `src/kernel/paths.py` | `get_kittify_home()`, `get_package_asset_root()` — zero-dependency path resolution shared across all packages (moved from `specify_cli.runtime.home` in WP09, 2026-03-25; re-export shim at `specify_cli/runtime/home.py` preserves backward compatibility). **Dependency note (Windows):** `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily in `kernel/paths.py` for platform-appropriate home directory resolution. This is the only sanctioned third-party import in `kernel/`. |
-| **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (architecture/2.x/adr/2026-03-25-glossary-type-ownership.md). |
+| **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (architecture/2.x/adr/2026-03-25-1-glossary-type-ownership.md). |
 
 ---
 
@@ -312,7 +312,7 @@ update and a valid fixture update.
 | MissionRepository package relocation | 🟡 In Progress | `src/doctrine/missions/` is the authoritative source. `src/specify_cli/missions/` still exists as a legacy resolution fallback and has not been fully removed. Full cleanup is a deferred task. |
 | Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 6 canonical skills in `src/doctrine/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
 | Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (feature 055). |
-| `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-glossary-type-ownership`. |
+| `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-1-glossary-type-ownership`. |
 | `--mission-type` flag on type-selection commands | ✅ Complete | 5 commands renamed from `--mission` to `--mission-type` (2026-03-25). Old `--mission` alias on those commands raises `typer.Exit(1)`. `--mission` (slug selector) and `--feature` (hidden deprecated alias) unchanged on all other commands. |
 
 ### What is emerging or aspirational

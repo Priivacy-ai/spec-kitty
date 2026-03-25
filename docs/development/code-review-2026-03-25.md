@@ -235,7 +235,7 @@ This is false:
 - `src/constitution/catalog.py:25` lazy-imports
   `from specify_cli.runtime.home import get_package_asset_root` at call time.
 
-The `glossary_hook.py` case is partially addressed in ADR `2026-03-25-glossary-type-ownership`
+The `glossary_hook.py` case is partially addressed in ADR `2026-03-25-1-glossary-type-ownership`
 and `pr305-review-resolution-plan.md` (Track 2), but the fix is not yet merged. The
 `constitution/catalog.py` reverse dependency has no ADR and is not mentioned in the
 implementation mapping.
