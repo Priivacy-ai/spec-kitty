@@ -39,6 +39,9 @@ def get_kittify_home() -> Path:
         return Path(env_home)
 
     if _is_windows():
+        # platformdirs is the only sanctioned third-party import in kernel/.
+        # It is imported lazily here for Windows-only home directory resolution.
+        # On Linux/macOS this branch is never executed. See architecture/2.x docs.
         from platformdirs import user_data_dir  # noqa: PLC0415
 
         return Path(user_data_dir("kittify"))

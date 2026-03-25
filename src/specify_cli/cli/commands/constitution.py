@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -187,6 +188,8 @@ def interview(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}, indent=2))
@@ -328,6 +331,8 @@ def generate(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         prefix = "Aborted" if isinstance(e, _OverwriteAborted) else "Error"
         if json_output:
@@ -458,6 +463,8 @@ def generate_for_agent(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         prefix = "Aborted" if isinstance(e, _OverwriteAborted) else "Error"
         if json_output:
