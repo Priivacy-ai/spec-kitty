@@ -28,6 +28,7 @@ from pathlib import Path
 
 import typer
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.git.commit_helpers import safe_commit
 from specify_cli.merge import run_preflight, get_merge_order
 
@@ -78,12 +79,14 @@ class _JSONErrorGroup(TyperGroup):
 
     def _emit_error(self, message: str) -> None:
         """Emit a USAGE_ERROR JSON envelope to stdout."""
-        _emit(make_envelope(
-            command="unknown",
-            success=False,
-            data={"message": message},
-            error_code="USAGE_ERROR",
-        ))
+        _emit(
+            make_envelope(
+                command="unknown",
+                success=False,
+                data={"message": message},
+                error_code="USAGE_ERROR",
+            )
+        )
 
     def make_context(self, info_name, args, parent=None, **extra):
         """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
@@ -283,9 +286,14 @@ def contract_version(
 
 @app.command(name="feature-state")
 def feature_state(
-    feature: str = typer.Option(..., "--feature", help="Feature slug (e.g. 034-my-feature)"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g. 034-my-feature)"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
 ) -> None:
     """Return the full state of a feature (all WPs, lanes, dependencies)."""
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail("feature-state", "USAGE_ERROR", "--mission is required")
+        return
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
     if feature_dir is None:
@@ -346,9 +354,14 @@ def feature_state(
 
 @app.command(name="list-ready")
 def list_ready(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail("list-ready", "USAGE_ERROR", "--mission is required")
+        return
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
     if feature_dir is None:
@@ -376,10 +389,7 @@ def list_ready(
             continue
 
         # Check all dependencies are done
-        all_deps_done = all(
-            wp_states.get(dep, {}).get("lane") == "done"
-            for dep in deps
-        )
+        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
 
         recommended_base = deps[-1] if deps else None
 
@@ -411,13 +421,18 @@ def list_ready(
 
 @app.command(name="start-implementation")
 def start_implementation(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
 ) -> None:
     """Composite transition: planned→claimed→in_progress (idempotent)."""
     cmd = "start-implementation"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     # Policy required
     if not policy:
@@ -547,7 +562,8 @@ def start_implementation(
 
 @app.command(name="start-review")
 def start_review(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
@@ -555,6 +571,10 @@ def start_review(
 ) -> None:
     """Transition a WP from for_review back to in_progress (reviewer rollback)."""
     cmd = "start-review"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     if not policy:
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-review")
@@ -627,7 +647,8 @@ def start_review(
 
 @app.command(name="transition")
 def transition(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     to: str = typer.Option(..., "--to", help="Target lane"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
@@ -638,6 +659,10 @@ def transition(
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     from specify_cli.status.transitions import resolve_lane_alias
 
@@ -722,13 +747,18 @@ def transition(
 
 @app.command(name="append-history")
 def append_history(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     note: str = typer.Option(..., "--note", help="History note to append"),
 ) -> None:
     """Append a history entry to a WP prompt file."""
     cmd = "append-history"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
@@ -782,11 +812,16 @@ def append_history(
 
 @app.command(name="accept-feature")
 def accept_feature(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
 ) -> None:
     """Accept a feature after all WPs are done."""
     cmd = "accept-feature"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
@@ -802,11 +837,7 @@ def accept_feature(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"
-    ]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
     if incomplete:
         _fail(
             cmd,
@@ -844,13 +875,18 @@ def accept_feature(
 
 @app.command(name="merge-feature")
 def merge_feature(
-    feature: str = typer.Option(..., "--feature", help="Feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
     cmd = "merge-feature"
+    feature = resolve_mission_or_feature(mission, feature)
+    if not feature:
+        _fail(cmd, "USAGE_ERROR", "--mission is required")
+        return
 
     _SUPPORTED_STRATEGIES = frozenset(["merge", "squash", "rebase"])
     if strategy not in _SUPPORTED_STRATEGIES:
@@ -871,6 +907,7 @@ def merge_feature(
     # Auto-detect target branch from meta.json if not specified
     if target is None:
         from specify_cli.core.feature_detection import get_feature_target_branch
+
         target = get_feature_target_branch(main_repo_root, feature)
 
     # Discover worktrees for this feature
@@ -880,7 +917,7 @@ def merge_feature(
         for wt_path in sorted(worktrees_root.iterdir()):
             if wt_path.name.startswith(f"{feature}-") and wt_path.is_dir():
                 # Extract WP ID from directory name: e.g. "034-feature-WP01" → "WP01"
-                suffix = wt_path.name[len(feature) + 1:]
+                suffix = wt_path.name[len(feature) + 1 :]
                 if suffix.startswith("WP"):
                     wp_id = suffix
                     branch_name = wt_path.name
@@ -925,8 +962,12 @@ def merge_feature(
                 # squash leaves staged changes; commit them
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "commit",
-                        "-m", f"squash merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "commit",
+                        "-m",
+                        f"squash merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
@@ -957,9 +998,14 @@ def merge_feature(
                 # Default: --no-ff merge
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "merge",
-                        "--no-ff", branch_name,
-                        "-m", f"merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "merge",
+                        "--no-ff",
+                        branch_name,
+                        "-m",
+                        f"merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
