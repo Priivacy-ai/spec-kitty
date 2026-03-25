@@ -10,7 +10,7 @@ import re
 
 import typer
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature, resolve_mission_type
 from specify_cli.cli.commands.agent import feature as agent_feature
 
 
@@ -24,12 +24,14 @@ def _slugify_feature_input(value: str) -> str:
 
 def specify(
     feature: str = typer.Argument(..., help="Mission name or slug (e.g., user-authentication)"),
-    mission: str | None = typer.Option(None, "--mission", help="Mission type (e.g., software-dev, research)"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
+    mission_legacy: str | None = typer.Option(None, "--mission", hidden=True, help="[Removed] Use --mission-type"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a mission scaffold in kitty-specs/."""
     slug = _slugify_feature_input(feature)
-    agent_feature.create_feature(feature_slug=slug, mission_type=mission, json_output=json_output)
+    resolved_type = resolve_mission_type(mission_type, mission_legacy)
+    agent_feature.create_feature(feature_slug=slug, mission_type=resolved_type, json_output=json_output)
 
 
 def plan(

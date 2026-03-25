@@ -11,6 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_type
 from specify_cli.tasks_support import find_repo_root
 
 console = Console()
@@ -22,14 +23,21 @@ def config(
         "--show-origin",
         help="Show where each resolved asset comes from (tier label + path)",
     ),
-    mission: str = typer.Option(
-        "software-dev",
-        "--mission",
+    mission_type: str | None = typer.Option(
+        None,
+        "--mission-type",
         "-m",
-        help="Mission to resolve assets for",
+        help="Mission type to resolve assets for (e.g., software-dev, research)",
+    ),
+    mission_legacy: str | None = typer.Option(
+        None,
+        "--mission",
+        hidden=True,
+        help="[Removed] Use --mission-type",
     ),
 ) -> None:
     """Display project configuration and asset resolution information."""
+    mission = resolve_mission_type(mission_type, mission_legacy) or "software-dev"
     if not show_origin:
         console.print("[yellow]Use --show-origin to display asset resolution details.[/yellow]")
         raise typer.Exit(0)
