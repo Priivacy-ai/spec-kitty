@@ -15,8 +15,33 @@ from specify_cli.glossary.models import (
     Severity,
     SenseRef,
 )
+from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+from kernel.glossary_runner import clear_registry, get_runner, register
 
 _THIS_DIR = Path(__file__).parent
+
+
+@pytest.fixture(autouse=True)
+def _ensure_glossary_runner_registered():
+    """Ensure GlossaryAwarePrimitiveRunner is registered for tests in this package.
+
+    The kernel registry is cleared by tests/kernel/test_glossary_runner.py to
+    prevent pollution between those unit tests. When those tests run before
+    this package, the registry is left empty and production-hook tests fail
+    because execute_with_glossary falls back to the no-runner path.
+
+    This fixture re-registers the runner if the registry was cleared, and
+    restores the original state after the test so the kernel unit tests
+    remain unaffected when they run in the same session.
+    """
+    prior = get_runner()
+    if prior is None:
+        register(GlossaryAwarePrimitiveRunner)
+    yield
+    # Restore: if registry was empty before we entered, clear it again so
+    # the test session is left in the same state we found it.
+    if prior is None:
+        clear_registry()
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
