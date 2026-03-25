@@ -18,7 +18,7 @@ from rich.console import Console
 from typing import Annotated, Optional
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature, resolve_mission_type
 from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
@@ -501,8 +501,11 @@ def branch_context(
 @app.command(name="create-feature")
 def create_feature(  # noqa: C901
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
-    mission: Annotated[
-        str | None, typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")
+    mission_type: Annotated[
+        str | None, typer.Option("--mission-type", help="Mission type (e.g., 'documentation', 'software-dev')")
+    ] = None,
+    mission_legacy: Annotated[
+        str | None, typer.Option("--mission", help="Deprecated: use --mission-type instead.", hidden=True)
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[
@@ -517,6 +520,9 @@ def create_feature(  # noqa: C901
     Examples:
         spec-kitty agent create-feature "new-dashboard" --json
     """
+    # Resolve --mission-type (canonical) vs --mission (deprecated alias for type selection).
+    mission = resolve_mission_type(mission_type, mission_legacy)
+
     # Validate kebab-case format early (before any operations)
     KEBAB_CASE_PATTERN = r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     if not re.match(KEBAB_CASE_PATTERN, feature_slug):

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import importlib.resources
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
+
+_log = logging.getLogger(__name__)
 
 
 def _get_package_asset_root() -> Path:
@@ -136,10 +139,11 @@ def resolve_doctrine_root() -> Path:
         if doctrine_root.is_dir():
             return doctrine_root
     except (ModuleNotFoundError, TypeError):
-        pass
+        _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 
     dev_root = Path(__file__).parent.parent.parent / "doctrine"
     if dev_root.is_dir():
+        _log.debug("doctrine: resolved via dev layout at %s", dev_root)
         return dev_root
 
     # 3. Installed layout: doctrine is not a separate package on PyPI.
@@ -147,7 +151,9 @@ def resolve_doctrine_root() -> Path:
     #    discover missions/ (via get_package_asset_root) and receive empty
     #    sets for paradigms/directives which don't ship in the wheel.
     try:
-        return _get_package_asset_root().parent
+        result = _get_package_asset_root().parent
+        _log.debug("doctrine: resolved via package asset root fallback")
+        return result
     except FileNotFoundError:
         pass
 

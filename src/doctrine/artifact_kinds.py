@@ -8,6 +8,30 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+_PLURALS: dict[str, str] = {
+    "directive": "directives",
+    "tactic": "tactics",
+    "styleguide": "styleguides",
+    "toolguide": "toolguides",
+    "paradigm": "paradigms",
+    "procedure": "procedures",
+    "agent_profile": "agent_profiles",
+    "mission_step_contract": "mission_step_contracts",
+    "template": "templates",
+}
+
+_PATTERNS: dict[str, str] = {
+    "directive": "*.directive.yaml",
+    "tactic": "*.tactic.yaml",
+    "styleguide": "*.styleguide.yaml",
+    "toolguide": "*.toolguide.yaml",
+    "paradigm": "*.paradigm.yaml",
+    "procedure": "*.procedure.yaml",
+    "agent_profile": "*.agent.yaml",
+    "mission_step_contract": "*.step-contract.yaml",
+    "template": "",
+}
+
 
 class ArtifactKind(StrEnum):
     """All doctrine artifact types.
@@ -29,17 +53,6 @@ class ArtifactKind(StrEnum):
     @property
     def plural(self) -> str:
         """Plural directory name (e.g. ``"directives"``, ``"agent_profiles"``)."""
-        _PLURALS: dict[str, str] = {
-            "directive": "directives",
-            "tactic": "tactics",
-            "styleguide": "styleguides",
-            "toolguide": "toolguides",
-            "paradigm": "paradigms",
-            "procedure": "procedures",
-            "agent_profile": "agent_profiles",
-            "mission_step_contract": "mission_step_contracts",
-            "template": "templates",
-        }
         return _PLURALS[self.value]
 
     @property
@@ -48,17 +61,6 @@ class ArtifactKind(StrEnum):
 
         Returns an empty string for ``TEMPLATE`` (no dedicated extension).
         """
-        _PATTERNS: dict[str, str] = {
-            "directive": "*.directive.yaml",
-            "tactic": "*.tactic.yaml",
-            "styleguide": "*.styleguide.yaml",
-            "toolguide": "*.toolguide.yaml",
-            "paradigm": "*.paradigm.yaml",
-            "procedure": "*.procedure.yaml",
-            "agent_profile": "*.agent.yaml",
-            "mission_step_contract": "*.step-contract.yaml",
-            "template": "",
-        }
         return _PATTERNS[self.value]
 
     @classmethod

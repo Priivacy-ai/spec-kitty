@@ -6,6 +6,23 @@ import warnings
 import typer
 
 
+def resolve_mission_type(
+    mission_type: str | None,
+    mission: str | None,
+) -> str | None:
+    """Resolve --mission-type (canonical) vs --mission (deprecated alias for type selection).
+
+    Returns mission_type if set; returns mission with deprecation warning if only mission set;
+    returns None if neither set.
+    """
+    if mission_type is not None:
+        return mission_type
+    if mission is not None:
+        typer.echo("Warning: --mission is deprecated for type selection; use --mission-type instead", err=True)
+        return mission
+    return None
+
+
 def resolve_mission_or_feature(
     mission: str | None,
     feature: str | None,

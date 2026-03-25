@@ -9,6 +9,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from constitution.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
@@ -427,7 +428,7 @@ def _load_references(path: Path) -> list[dict[str, str]]:
     yaml = YAML(typ="safe")
     try:
         data = yaml.load(path.read_text(encoding="utf-8")) or {}
-    except Exception:
+    except (YAMLError, UnicodeDecodeError, OSError):
         return []
 
     raw_references = data.get("references") if isinstance(data, dict) else []
@@ -456,7 +457,7 @@ def _load_state(path: Path) -> dict[str, object]:
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
         return {"schema_version": "1.0.0", "actions": {}}
 
     if not isinstance(data, dict):
