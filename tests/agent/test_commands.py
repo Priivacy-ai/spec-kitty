@@ -70,9 +70,9 @@ def test_verify_setup_command_runs() -> None:
 def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_create_feature(feature_slug: str, mission=None, json_output: bool = False):
+    def fake_create_feature(feature_slug: str, mission_type=None, json_output: bool = False):
         captured["feature_slug"] = feature_slug
-        captured["mission"] = mission
+        captured["mission"] = mission_type
         captured["json_output"] = json_output
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "create_feature", fake_create_feature)
