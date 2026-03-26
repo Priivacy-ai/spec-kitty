@@ -63,6 +63,15 @@ Use language identifiers in code blocks: ````python`,````bash`
 - **Evidence Log**: All findings MUST be recorded in `research/evidence-log.csv`
 - **Citations**: Every claim must link to evidence rows
 
+## Branch Strategy
+
+- **Strategy**: {{branch_strategy}}
+- **Planning base branch**: {{planning_base_branch}}
+- **Merge target branch**: {{merge_target_branch}}
+
+> These fields are populated automatically by `spec-kitty agent feature tasks`.
+> Do NOT change them manually unless you are certain the branch topology has changed.
+
 ## Subtasks & Detailed Guidance
 
 ### Subtask TXXX – Replace with summary

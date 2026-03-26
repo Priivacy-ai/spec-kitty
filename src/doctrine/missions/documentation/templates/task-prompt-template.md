@@ -57,6 +57,15 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
 
+## Branch Strategy
+
+- **Strategy**: {{branch_strategy}}
+- **Planning base branch**: {{planning_base_branch}}
+- **Merge target branch**: {{merge_target_branch}}
+
+> These fields are populated automatically by `spec-kitty agent feature tasks`.
+> Do NOT change them manually unless you are certain the branch topology has changed.
+
 ## Subtasks & Detailed Guidance
 
 ### Subtask TXXX – Replace with summary

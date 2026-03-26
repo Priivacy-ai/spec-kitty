@@ -57,14 +57,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before proceeding, verify you are in the planning repository:
 
-**Check your current branch:**
+**Check your current branch context:**
 
 ```bash
-git branch --show-current
+spec-kitty agent mission branch-context --json
 ```
 
-**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
+**Expected output:** JSON with `planning_base_branch` and `merge_target_branch` pointing to the target branch (typically `main` or `2.x`).
+**If you are on a feature branch:** You're in the wrong place. Return to the target branch:
 
 ```bash
 cd $(git rev-parse --show-toplevel)

@@ -235,7 +235,7 @@ class TestWriteMeta:
         _write_meta_file(tmp_path, _minimal_meta())
 
         with (
-            patch("specify_cli.core.atomic.os.replace", side_effect=OSError("boom")),
+            patch("kernel.atomic.os.replace", side_effect=OSError("boom")),
             pytest.raises(OSError, match="boom"),
         ):
             write_meta(tmp_path, _minimal_meta())
@@ -279,7 +279,7 @@ class TestAtomicWrite:
         target.write_text("original", encoding="utf-8")
 
         with (
-            patch("specify_cli.core.atomic.os.replace", side_effect=OSError("disk full")),
+            patch("kernel.atomic.os.replace", side_effect=OSError("disk full")),
             pytest.raises(OSError),
         ):
             atomic_write(target, "new content")
