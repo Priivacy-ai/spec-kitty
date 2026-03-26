@@ -122,8 +122,9 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import specify_cli.next.runtime_bridge as runtime_bridge
+        from doctrine.missions.repository import MissionRepository
 
-        builtin_root = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
+        builtin_root = MissionRepository.default_missions_root()
 
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.
@@ -138,7 +139,7 @@ class TestRuntimeTemplateKey:
         )
 
         result = runtime_bridge._runtime_template_key("software-dev", repo_root)
-        assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
+        assert result.endswith("missions/software-dev/mission-runtime.yaml")
 
     def test_project_legacy_used_when_override_absent(self, tmp_path: Path) -> None:
         """Legacy .kittify/missions path remains supported after override tier."""

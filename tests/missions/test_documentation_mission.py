@@ -1,22 +1,24 @@
-"""Tests for documentation mission configuration."""
+"""Tests for documentation mission configuration.
 
-from pathlib import Path
+Uses MissionRepository to locate the canonical mission YAML in doctrine.
+"""
+
 
 import pytest
 
+from doctrine.missions.repository import MissionRepository
 from specify_cli.mission import Mission
 
 pytestmark = pytest.mark.fast
 
-# Get source missions directory for testing
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_MISSIONS_DIR = REPO_ROOT / "src" / "specify_cli"
+# Canonical missions root is doctrine, accessed via MissionRepository.
+_MISSIONS_ROOT = MissionRepository.default_missions_root()
 
 
 # T054: Test mission.yaml Loading
 def test_documentation_mission_loads():
-    """Test documentation mission loads from src/specify_cli/missions/."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    """Test documentation mission loads from doctrine missions root."""
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
 
     assert mission.name == "Documentation Kitty"
@@ -25,8 +27,8 @@ def test_documentation_mission_loads():
 
 
 def test_documentation_mission_in_list():
-    """Test documentation mission directory exists in source."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    """Test documentation mission directory exists in doctrine."""
+    mission_dir = _MISSIONS_ROOT / "documentation"
 
     assert mission_dir.exists()
     assert (mission_dir / "mission.yaml").exists()
@@ -34,7 +36,7 @@ def test_documentation_mission_in_list():
 
 def test_documentation_mission_config_valid():
     """Test mission.yaml passes pydantic validation."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
 
     # Access config to trigger validation
@@ -48,7 +50,7 @@ def test_documentation_mission_config_valid():
 # T055: Test Workflow Phases
 def test_documentation_mission_workflow_phases():
     """Test documentation mission has 6 workflow phases."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
     phases = mission.get_workflow_phases()
 
@@ -61,7 +63,7 @@ def test_documentation_mission_workflow_phases():
 
 def test_documentation_mission_phase_descriptions():
     """Test each phase has description."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
     phases = mission.get_workflow_phases()
 
@@ -73,7 +75,7 @@ def test_documentation_mission_phase_descriptions():
 # T056: Test Artifacts and Paths
 def test_documentation_mission_required_artifacts():
     """Test documentation mission requires appropriate artifacts."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
     required = mission.get_required_artifacts()
 
@@ -85,7 +87,7 @@ def test_documentation_mission_required_artifacts():
 
 def test_documentation_mission_optional_artifacts():
     """Test documentation mission has optional artifacts."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
     optional = mission.get_optional_artifacts()
 
@@ -96,7 +98,7 @@ def test_documentation_mission_optional_artifacts():
 
 def test_documentation_mission_path_conventions():
     """Test documentation mission defines path conventions."""
-    mission_dir = SOURCE_MISSIONS_DIR / "missions" / "documentation"
+    mission_dir = _MISSIONS_ROOT / "documentation"
     mission = Mission(mission_dir)
     paths = mission.get_path_conventions()
 

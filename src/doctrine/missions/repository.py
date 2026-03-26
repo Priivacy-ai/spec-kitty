@@ -125,3 +125,19 @@ class MissionRepository:
         """
         path = self._root / mission / "mission.yaml"
         return path if path.is_file() else None
+
+    def get_expected_artifacts(self, mission: str) -> Path | None:
+        """Return the path to a mission's ``expected-artifacts.yaml``.
+
+        The expected-artifacts manifest defines step-aware, class-tagged,
+        blocking-semantics artifact requirements used by the dossier
+        ``ManifestRegistry``.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+
+        Returns:
+            Path if the file exists, else ``None``.
+        """
+        path = self._root / mission / "expected-artifacts.yaml"
+        return path if path.is_file() else None

@@ -29,20 +29,20 @@ spec-kitty agent tasks status
 
 ### SPEC_KITTY_TEMPLATE_ROOT
 
-Use local templates instead of fetching from GitHub.
+Override the package asset root for mission discovery.
 
-**Purpose**: Point to a local directory containing Spec Kitty templates. Useful for template development or air-gapped environments.
+**Purpose**: Point to a local directory containing mission assets (used by `get_package_asset_root()`). The directory should contain mission subdirectories (e.g. `software-dev/`, `research/`). Useful for CI/testing or air-gapped environments.
 
 **Example**:
 ```bash
-export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty/src/specify_cli/templates
+export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty/src/doctrine/missions
 spec-kitty init my-project --ai claude
 ```
 
 **When to use**:
-- Developing or testing template changes
+- CI/testing to bypass `importlib.resources` discovery
 - Environments without internet access
-- Custom template workflows
+- Custom mission asset workflows
 
 ### SPECIFY_TEMPLATE_REPO
 

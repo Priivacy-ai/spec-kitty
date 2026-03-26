@@ -1030,7 +1030,6 @@ def setup_plan(  # noqa: C901
         # Find plan template
         plan_template_candidates = [
             repo_root / ".kittify" / "templates" / "plan-template.md",
-            repo_root / "src" / "specify_cli" / "templates" / "plan-template.md",
             repo_root / "templates" / "plan-template.md",
         ]
 
@@ -1043,7 +1042,7 @@ def setup_plan(  # noqa: C901
         if plan_template is not None:
             shutil.copy2(plan_template, plan_file)
         else:
-            package_template = files("specify_cli").joinpath("templates", "plan-template.md")
+            package_template = files("doctrine").joinpath("templates", "plan-template.md")
             if not package_template.exists():
                 raise FileNotFoundError("Plan template not found in repository or package")
             with package_template.open("rb") as src, open(plan_file, "wb") as dst:

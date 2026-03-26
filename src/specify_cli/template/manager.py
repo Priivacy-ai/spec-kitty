@@ -59,13 +59,7 @@ def copy_constitution_templates(project_path: Path, repo_root: Path | None = Non
     except ModuleNotFoundError:
         pass
 
-    # Legacy fallback while older packages still ship this under templates/
-    try:
-        specify_root = files("specify_cli")
-        legacy_toolguide = specify_root.joinpath("templates", "POWERSHELL_SYNTAX.md")
-        _copy_constitution_toolguide_from_resource(legacy_toolguide, project_path)
-    except ModuleNotFoundError:
-        pass
+    # Legacy fallback removed -- doctrine/toolguides/ is the sole canonical location.
 
 
 def get_local_repo_root(override_path: str | None = None) -> Path | None:
@@ -224,7 +218,16 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
                 with resource_file.open("rb") as src, open(scripts_dest / resource_file.name, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
-    templates_resource = data_root.joinpath("templates")
+    # Prefer doctrine templates (canonical location)
+    templates_resource = None
+    try:
+        doctrine_templates = files("doctrine").joinpath("templates")
+        if _resource_exists(doctrine_templates):
+            templates_resource = doctrine_templates
+    except ModuleNotFoundError:
+        pass
+    if templates_resource is None:
+        templates_resource = data_root.joinpath("templates")
     if _resource_exists(templates_resource):
         templates_dest = specify_root / "templates"
         copy_package_tree(templates_resource, templates_dest)
@@ -236,8 +239,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     # Build missions resource candidates, preferring doctrine.missions
     missions_resource_candidates = []
     try:
-        from importlib.resources import files as _files
-        doctrine_missions = _files("doctrine").joinpath("missions")
+        doctrine_missions = files("doctrine").joinpath("missions")
         missions_resource_candidates.append(doctrine_missions)
     except ModuleNotFoundError:
         pass

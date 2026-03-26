@@ -13,7 +13,13 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from collections.abc import Generator
 
+from doctrine.missions.repository import MissionRepository
+
 pytestmark = pytest.mark.fast
+
+# Canonical repository -- tests resolve assets through the public API,
+# never via hardcoded filesystem paths.
+_repo = MissionRepository(MissionRepository.default_missions_root())
 # ============================================================================
 # Fixtures
 # ============================================================================
@@ -183,7 +189,11 @@ class TestPlanMissionIntegration:
         assert meta["mission"] == "plan", "Feature must have mission=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
-        mission_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime_path = _repo.get_mission_config_path("plan")
+        assert runtime_path is not None, "plan mission.yaml must be resolvable"
+
+        # Also verify mission-runtime.yaml via the doctrine root
+        mission_runtime = _repo._root / "plan" / "mission-runtime.yaml"
         assert mission_runtime.exists(), "mission-runtime.yaml must exist"
 
         # 3. Verify it parses as valid YAML
@@ -257,11 +267,11 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify software-dev mission exists and is intact
-        sd_runtime = Path("src/specify_cli/missions/software-dev/mission-runtime.yaml")
-        assert sd_runtime.exists(), "software-dev mission-runtime.yaml must exist"
+        sd_runtime_path = _repo._root / "software-dev" / "mission-runtime.yaml"
+        assert sd_runtime_path.exists(), "software-dev mission-runtime.yaml must exist"
 
         # Load and parse
-        data = yaml.safe_load(sd_runtime.read_text())
+        data = yaml.safe_load(sd_runtime_path.read_text())
         assert "mission" in data, "software-dev must have 'mission' key at top level"
         assert data["mission"]["key"] == "software-dev", "Mission key must be software-dev"
 
@@ -282,11 +292,11 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify research mission exists and is intact
-        r_mission = Path("src/specify_cli/missions/research/mission.yaml")
-        assert r_mission.exists(), "research mission.yaml must exist"
+        r_mission_path = _repo.get_mission_config_path("research")
+        assert r_mission_path is not None, "research mission.yaml must exist"
 
         # Load and parse
-        data = yaml.safe_load(r_mission.read_text())
+        data = yaml.safe_load(r_mission_path.read_text())
         assert "mission" in data, "research must have 'mission' key at top level"
 
         # Research mission has states at top level - verify it has the expected structure
@@ -310,7 +320,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Load plan mission-runtime.yaml
-        plan_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        plan_runtime = _repo._root / "plan" / "mission-runtime.yaml"
         assert plan_runtime.exists(), "plan mission-runtime.yaml must exist"
 
         content = plan_runtime.read_text()
@@ -410,7 +420,7 @@ class TestPlanMissionWorkflow:
         import yaml
 
         # Load mission definition
-        mission_yaml = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        mission_yaml = _repo._root / "plan" / "mission-runtime.yaml"
         mission = yaml.safe_load(mission_yaml.read_text())
         steps = mission["mission"]["steps"]
 

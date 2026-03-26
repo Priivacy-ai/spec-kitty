@@ -13,6 +13,7 @@ import pytest
 from pathlib import Path
 from pydantic import ValidationError
 
+from doctrine.missions.repository import MissionRepository
 from specify_cli.dossier.manifest import (
     ArtifactClassEnum,
     ExpectedArtifactSpec,
@@ -323,7 +324,7 @@ class TestManifestValidation:
             mission_type="software-dev",
             required_by_step={"specify": []},
         )
-        mission_dir = Path(__file__).parent.parent.parent / "missions" / "software-dev"
+        mission_dir = MissionRepository.default_missions_root() / "software-dev"
         is_valid, errors = ManifestRegistry.validate_manifest(manifest, mission_dir)
         # Should pass or only have minor warnings
         assert isinstance(is_valid, bool)
@@ -437,36 +438,24 @@ class TestManifestYAMLFormat:
 
     def test_from_yaml_file_software_dev(self):
         """Load software-dev manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "missions"
-            / "software-dev"
-            / "expected-artifacts.yaml"
-        )
-        assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
+        repo = MissionRepository(MissionRepository.default_missions_root())
+        yaml_path = repo.get_expected_artifacts("software-dev")
+        assert yaml_path is not None, "software-dev expected-artifacts.yaml not found via MissionRepository"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "software-dev"
 
     def test_from_yaml_file_research(self):
         """Load research manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "missions"
-            / "research"
-            / "expected-artifacts.yaml"
-        )
-        assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
+        repo = MissionRepository(MissionRepository.default_missions_root())
+        yaml_path = repo.get_expected_artifacts("research")
+        assert yaml_path is not None, "research expected-artifacts.yaml not found via MissionRepository"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "research"
 
     def test_from_yaml_file_documentation(self):
         """Load documentation manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "missions"
-            / "documentation"
-            / "expected-artifacts.yaml"
-        )
-        assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
+        repo = MissionRepository(MissionRepository.default_missions_root())
+        yaml_path = repo.get_expected_artifacts("documentation")
+        assert yaml_path is not None, "documentation expected-artifacts.yaml not found via MissionRepository"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "documentation"

@@ -200,8 +200,11 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     """Build a DiscoveryContext that finds the runtime mission template."""
-    # Point at the missions directory so the runtime can discover mission-runtime.yaml
-    package_root = Path(__file__).resolve().parent.parent / "missions"
+    # Resolve the canonical missions root from the doctrine package so the
+    # runtime can discover mission-runtime.yaml via importlib.resources.
+    from doctrine.missions.repository import MissionRepository
+
+    package_root = MissionRepository.default_missions_root()
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],

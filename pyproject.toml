@@ -316,7 +316,7 @@ also_copy = [
     "src/specify_cli/dashboard/",  # Copy dashboard
     "src/specify_cli/orchestrator_api/",  # Copy orchestrator API
     "src/specify_cli/spec_kitty_events/",  # Copy spec kitty events
-    "src/specify_cli/templates/",  # Copy templates
+
     "src/specify_cli/mission_v1/",  # Copy mission v1
     "src/specify_cli/scripts/",  # Copy scripts
     "src/specify_cli/skills/",  # Copy skills distribution runtime

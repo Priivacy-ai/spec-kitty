@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _require_build() -> None:
@@ -76,28 +76,31 @@ def test_wheel_contains_no_filled_constitution(build_artifacts: dict[str, Path])
 
 
 def test_wheel_contains_templates(build_artifacts: dict[str, Path]) -> None:
-    """Verify wheel does contain templates and missions."""
+    """Verify wheel does contain doctrine templates and specify_cli missions."""
     wheel_path = build_artifacts["wheel"]
 
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = zf.namelist()
 
-    template_files = [f for f in all_files if "specify_cli/templates/" in f]
+    doctrine_template_files = [f for f in all_files if "doctrine/templates/" in f]
     mission_files = [f for f in all_files if "specify_cli/missions/" in f]
 
-    assert template_files, "Wheel missing template files"
-    assert mission_files, "Wheel missing mission files"
+    assert doctrine_template_files, "Wheel missing doctrine template files"
+    assert mission_files, "Wheel missing specify_cli mission files (Python shims)"
 
 
-def test_wheel_contains_only_src_package(build_artifacts: dict[str, Path]) -> None:
-    """Verify wheel only contains specify_cli package files."""
+ALLOWED_PREFIXES = ("specify_cli/", "doctrine/", "kernel/", "constitution/")
+
+
+def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) -> None:
+    """Verify wheel only contains the expected top-level packages."""
     wheel_path = build_artifacts["wheel"]
 
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = [f for f in zf.namelist() if ".dist-info/" not in f]
 
     for file_path in all_files:
-        assert file_path.startswith("specify_cli/"), f"File outside package directory: {file_path}"
+        assert file_path.startswith(ALLOWED_PREFIXES), f"File outside known packages: {file_path}"
 
 
 def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
