@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Workspace Strategy Rewrite
-lane: "doing"
+lane: "for_review"
 dependencies: [WP03]
 requirement_refs:
 - FR-006
@@ -21,8 +21,8 @@ subtasks:
 - T022
 phase: Phase A - Foundation
 assignee: ''
-agent: "coordinator"
-shell_pid: "10241"
+agent: coordinator
+shell_pid: '10241'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -137,3 +137,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T18:17:39Z – coordinator – shell_pid=10241 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T18:35:55Z – coordinator – shell_pid=10241 – lane=for_review – Workspace strategy rewritten, sparse checkout deleted. All 5 subtasks done: T018-T022. 19 new tests passing. grep -r sparse src/specify_cli/ --include=*.py returns only explanatory comments.
