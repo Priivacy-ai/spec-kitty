@@ -1,15 +1,15 @@
 {
-  "event_count": 38,
+  "event_count": 40,
   "feature_slug": "057-canonical-context-architecture-cleanup",
-  "last_event_id": "01KMREGSRYKG19HTAMB9FH4WDE",
-  "materialized_at": "2026-03-27T20:07:10.367406+00:00",
+  "last_event_id": "01KMREVVJT9980QK71KCKVFYHB",
+  "materialized_at": "2026-03-27T20:13:12.666769+00:00",
   "summary": {
     "approved": 12,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
     "planned": 0
   },
@@ -97,6 +97,13 @@
       "lane": "approved",
       "last_event_id": "01KMRE2XQWAHH9WK5HXGBE58QV",
       "last_transition_at": "2026-03-27T19:59:35.676136+00:00"
+    },
+    "WP13": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KMREVVJT9980QK71KCKVFYHB",
+      "last_transition_at": "2026-03-27T20:13:12.666337+00:00"
     }
   }
 }

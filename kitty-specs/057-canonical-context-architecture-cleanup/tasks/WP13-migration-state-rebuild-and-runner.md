@@ -1,7 +1,7 @@
 ---
 work_package_id: WP13
 title: One-Shot Migration — State Rebuild and Runner
-lane: "doing"
+lane: "for_review"
 dependencies: [WP09, WP11, WP12]
 requirement_refs:
 - C-006
@@ -22,8 +22,8 @@ subtasks:
 - T069
 phase: Phase D - Surface and Migration
 assignee: ''
-agent: "coordinator"
-shell_pid: "10965"
+agent: coordinator
+shell_pid: '10965'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -221,3 +221,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:59:52Z – coordinator – shell_pid=10965 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T20:13:12Z – coordinator – shell_pid=10965 – lane=for_review – State rebuild and atomic migration runner complete. All 97 migration tests pass (28 rebuild state + 69 runner). Implemented: rebuild_state.py (cross-validates event log/status.json/frontmatter, deduplicates, identity-enriches, builds mid-flight chains), runner.py (10-step atomic orchestrator with rollback), m_3_0_0_canonical_context.py (upgrade registry entry), .gitignore updates.
