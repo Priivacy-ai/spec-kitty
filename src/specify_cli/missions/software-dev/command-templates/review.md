@@ -16,7 +16,23 @@ Use JSON `text` as governance context. On first load (`mode=bootstrap`), follow 
 
 **You MUST scroll to the BOTTOM** to see the completion commands!
 
-Resolve canonical action context first:
+Resolve canonical action context first.
+
+Explicit slash-command argument from the caller (may be empty; only explicit WP IDs are supported here):
+
+{ARGS}
+
+If the explicit caller argument above is non-empty:
+
+- Treat it as the required work package id for this review run.
+- Forward it to `spec-kitty agent context resolve` as `--wp-id <value>`.
+- Do not run the default resolver command below unchanged when an explicit WP is present.
+- Do not interpret it as a prompt path in resolver-first review prompts.
+- Do not rely on raw argument text appended elsewhere in the prompt for correctness.
+- Example with explicit WP: `spec-kitty agent context resolve --action review --agent <your-name> --wp-id WP02 --json`
+- Example without explicit WP: `spec-kitty agent context resolve --action review --agent <your-name> --json`
+
+Default resolver command:
 
 ```bash
 spec-kitty agent context resolve --action review --agent <your-name> --json

@@ -196,7 +196,7 @@ After a plan is created **and Phase 0 research is complete**, this command analy
 
 Provides a structured hand-off gate for work packages with `lane: "for_review"`:
 
-1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts explicit WP ID).
+1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts an explicit WP ID passed through the slash command).
 2. **Auto-move to doing**: Moves WP to `lane: "doing"` and displays full prompt with review instructions.
 3. **Deep Review**: Agent reviews prompt, supporting docs, and code changes before rendering findings.
 4. **Decision Flow**: Agent uses workflow commands to update `lane` to "done" (approved) or "planned" (changes requested), which updates frontmatter and activity logs with agent + PID data.

@@ -43,7 +43,24 @@ If a file/path is uncertain, verify first with `ls` or `test -f` before reading 
 
 **You MUST scroll to the BOTTOM** to see the completion command!
 
-Resolve canonical action context first:
+Resolve canonical action context first.
+
+Explicit slash-command argument from the caller (may be empty, and may include `--base WP##`):
+
+{ARGS}
+
+If the explicit caller argument above is non-empty:
+
+- Treat it as the canonical slash-command input for this run.
+- Forward the explicit WP selector to `spec-kitty agent context resolve` via `--wp-id`.
+- If a `--base WP##` flag is present, pass it through to the resolver too.
+- Do not run the default resolver command below unchanged when explicit args are present.
+- Do not rely on raw argument text appended elsewhere in the prompt for correctness.
+- Example with explicit WP and base: `spec-kitty agent context resolve --action implement --agent <your-name> --wp-id WP03 --base WP01 --json`
+- Example with explicit WP only: `spec-kitty agent context resolve --action implement --agent <your-name> --wp-id WP03 --json`
+- Example without explicit args: `spec-kitty agent context resolve --action implement --agent <your-name> --json`
+
+Default resolver command:
 
 ```bash
 spec-kitty agent context resolve --action implement --agent <your-name> --json
