@@ -1,8 +1,8 @@
-# ADR: PyTestArch for Architectural Dependency Testing
+# ADR: Architectural Dependency Testing & Graph Infrastructure
 
 **Date**: 2026-03-27
 **Status**: Accepted
-**Scope**: CI enforcement of package boundary invariants across `kernel`, `doctrine`, `constitution`, and `specify_cli`
+**Scope**: CI enforcement of package boundary invariants; graph infrastructure consolidation across `kernel`, `doctrine`, `constitution`, and `specify_cli`
 
 ---
 
@@ -54,7 +54,7 @@ Adopt **PyTestArch** (v4.0.1, Apache 2.0, [github.com/zyskarch/pytestarch](https
 
 - `importlib.import_module()` dynamic imports (rare in our codebase)
 - Non-Python dependency references (YAML cross-references, etc.)
-- Circular dependency cycles (no built-in API; addressable via networkx separately)
+- Circular dependency cycles (no built-in API; addressed by networkx — see Decision 2 below)
 
 ### Alternatives considered
 
@@ -87,7 +87,81 @@ tests/
 
 Tests are marked `@pytest.mark.architectural` and run at the same priority as kernel tests: fast, every PR, fail-fast. A single violation blocks the PR.
 
+## Decision 2: networkx for Graph Infrastructure Consolidation
+
+### Context
+
+The codebase contains **4 independent graph implementations**, each hand-rolling the same fundamental algorithms:
+
+| Domain | Location | Algorithms | Lines |
+|--------|----------|------------|-------|
+| WP dependencies | `specify_cli/core/dependency_graph.py` | DFS 3-color cycle detection, Kahn's topo sort | ~170 |
+| Doctrine references | `constitution/reference_resolver.py` | DFS path-tracking cycle detection | ~90 |
+| Event causation | `specify_cli/spec_kitty_events/topology.py` | Kahn's topo sort + cycle detection | ~60 |
+| Worktree stacking | `specify_cli/core/worktree_topology.py` | Delegates to WP dependency graph | ~80 |
+
+All four domains model directed acyclic graphs. All four need cycle detection. Three need topological ordering. None share code.
+
+Additionally, PyTestArch (Decision 1) explicitly lacks cycle detection — a gap networkx fills.
+
+### Decision
+
+Adopt **networkx** (BSD license, [github.com/networkx/networkx](https://github.com/networkx/networkx)) as a runtime dependency at the **kernel** level (zero domain-specific dependencies).
+
+### Why networkx
+
+| Criterion | Assessment |
+|-----------|-----------|
+| **API fit** | `DiGraph` maps directly to all 4 existing adjacency-list graphs |
+| **Algorithm coverage** | `topological_sort`, `topological_generations`, `simple_cycles`, `descendants`, `ancestors`, `dag_longest_path` — all currently hand-rolled or missing |
+| **Parallel wave scheduling** | `topological_generations()` yields groups of independent nodes — directly models WP parallel execution waves |
+| **Impact analysis** | `ancestors()` / `descendants()` enable "what depends on this?" queries for doctrine artifacts and glossary terms |
+| **Visualization** | `nx.drawing.nx_pydot.write_dot()` exports to Graphviz for debugging doctrine DAGs and dependency trees |
+| **Maturity** | 11k+ GitHub stars, NumFOCUS sponsored, Python 3.10-3.13, BSD license |
+| **Size** | ~4MB installed, pure Python (no C extensions required) |
+
+### What it consolidates
+
+The 4 existing implementations (~400 lines total) reduce to domain-specific wrappers around `nx.DiGraph`:
+
+```python
+# Before: 170 lines of Kahn's + DFS in dependency_graph.py
+# After:
+G = nx.DiGraph(adjacency)
+order = list(nx.topological_sort(G))
+cycles = list(nx.simple_cycles(G))
+waves = list(nx.topological_generations(G))  # NEW: parallel scheduling
+```
+
+Each domain retains its own error types (`MergeOrderError`, `DoctrineResolutionCycleError`, `CyclicDependencyError`) wrapping networkx exceptions.
+
+### What it enables (not currently possible)
+
+- **WP parallel wave scheduling**: `topological_generations()` computes independent groups directly — currently inferred manually from the dependency summary
+- **Doctrine blast radius**: "If I change this tactic, which directives are affected?" — `nx.ancestors(G, tactic_id)`
+- **Glossary orphan detection**: Terms with in-degree 0 (referenced by nothing)
+- **Critical path analysis**: `nx.dag_longest_path(G)` for WP dependency chains — identifies the bottleneck sequence
+- **Subgraph extraction**: Isolate a feature's dependency neighborhood for focused analysis
+
+### Alternatives considered
+
+| Alternative | Why not |
+|-------------|---------|
+| Keep hand-rolled implementations | 4 independent copies of the same algorithms; no path to wave scheduling or impact analysis |
+| `igraph` | C extension dependency, harder to install, overkill for our graph sizes |
+| `graphlib` (stdlib) | Python 3.9+ `TopologicalSorter` only — no cycle detection, no descendants/ancestors, no visualization |
+
+### Rollout
+
+1. **Phase 1**: Add `networkx` as a runtime dependency. Refactor `dependency_graph.py` to use `nx.DiGraph`. This is the lowest-risk entry point — WP dependency graphs are small and well-tested.
+2. **Phase 2**: Migrate doctrine `reference_resolver.py` and event `topology.py`. Add visualization export for debugging.
+3. **Phase 3**: Expose `topological_generations()` in the implement workflow for automated parallel wave scheduling.
+
+Phase 1 can be scoped as a WP within mission 058 or as a standalone follow-up mission.
+
 ## Consequences
+
+### Decision 1 (PyTestArch)
 
 **Positive**:
 - Package boundary violations are caught before merge, not during architectural review
@@ -101,3 +175,19 @@ Tests are marked `@pytest.mark.architectural` and run at the same priority as ke
 
 **Neutral**:
 - The evaluable architecture is rebuilt per test session. If the codebase grows significantly (>5000 files), the session fixture may need `level_limit` tuning.
+
+### Decision 2 (networkx)
+
+**Positive**:
+- Eliminates ~400 lines of duplicated graph algorithms across 4 modules
+- Unlocks parallel wave scheduling, impact analysis, and visualization — none currently possible
+- Battle-tested algorithms replace hand-rolled implementations
+- kernel-level placement means all containers can use it without violating dependency direction
+
+**Negative**:
+- One new runtime dependency (~4MB)
+- Developers must learn networkx API (well-documented, widely known)
+
+**Neutral**:
+- Existing domain error types and public APIs remain unchanged — only internal implementations change
+- Graph sizes in spec-kitty are small (typically <50 nodes) — networkx performance characteristics are irrelevant at this scale
