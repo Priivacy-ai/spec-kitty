@@ -219,11 +219,11 @@
 **Requirement Refs**: FR-012, FR-013
 
 ### Included Subtasks
-- [ ] T034 Create `src/specify_cli/merge/workspace.py` — Dedicated merge worktree lifecycle at `.kittify/runtime/merge/<mission_id>/workspace/`
-- [ ] T035 Rewrite `src/specify_cli/merge/state.py` — MergeState with per-mission scoping, new location, lock file support
-- [ ] T036 Simplify `src/specify_cli/merge/preflight.py` — Use MissionContext instead of heuristic feature detection
-- [ ] T037 Delete `src/specify_cli/merge/executor.py` (~450 lines), `merge/forecast.py` (~200 lines), `merge/status_resolver.py` (~150 lines)
-- [ ] T038 [P] Tests for merge workspace lifecycle and state persistence
+- [x] T034 Create `src/specify_cli/merge/workspace.py` — Dedicated merge worktree lifecycle at `.kittify/runtime/merge/<mission_id>/workspace/`
+- [x] T035 Rewrite `src/specify_cli/merge/state.py` — MergeState with per-mission scoping, new location, lock file support
+- [x] T036 Simplify `src/specify_cli/merge/preflight.py` — Use MissionContext instead of heuristic feature detection
+- [x] T037 Delete `src/specify_cli/merge/executor.py` (~450 lines), `merge/forecast.py` (~200 lines), `merge/status_resolver.py` (~150 lines)
+- [x] T038 [P] Tests for merge workspace lifecycle and state persistence
 
 ### Implementation Notes
 - Merge workspace uses `git worktree add` under `.kittify/runtime/merge/<mid>/workspace/`
