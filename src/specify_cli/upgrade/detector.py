@@ -1,256 +1,74 @@
-"""Version detection for Spec Kitty projects."""
+"""Version detection for Spec Kitty projects.
+
+Primary detection reads ``spec_kitty.schema_version`` from
+``.kittify/metadata.yaml``.  Legacy projects without that field are treated as
+schema version 0 (needs migration).  All heuristic file/directory checks have
+been removed — the schema version integer is the sole source of truth.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.migration.schema_version import get_project_schema_version
+
 from .metadata import ProjectMetadata
 
 
 class VersionDetector:
-    """Detects project version through heuristics when metadata is missing."""
+    """Detects the schema version of a project from its metadata."""
 
-    # Agent directories that should be in .gitignore (v0.4.8+)
-    EXPECTED_AGENTS = [
-        ".claude/",
-        ".codex/",
-        ".opencode/",
-        ".windsurf/",
-        ".gemini/",
-        ".cursor/",
-        ".qwen/",
-        ".kilocode/",
-        ".augment/",
-        ".roo/",
-        ".amazonq/",
-        ".github/copilot/",
-    ]
-
-    def __init__(self, project_path: Path):
-        """Initialize the detector.
+    def __init__(self, project_path: Path) -> None:
+        """Initialise the detector.
 
         Args:
-            project_path: Root of the project
+            project_path: Root of the project (parent of ``.kittify/``).
         """
         self.project_path = project_path
         self.kittify_dir = project_path / ".kittify"
-        self.specify_dir = project_path / ".specify"  # Old name
 
     def detect_version(self) -> str:
-        """Detect the approximate version of a project.
+        """Return the project version string from metadata.yaml.
 
         Returns:
-            A version string like "0.1.0" (oldest detectable)
-            or "0.6.7" (current).
+            The ``spec_kitty.version`` string stored in metadata, or
+            ``"unknown"`` when the file is absent or unreadable.
         """
-        # First try to load from metadata
-        if self.kittify_dir.exists():
-            metadata = ProjectMetadata.load(self.kittify_dir)
-            if metadata:
-                return metadata.version
-
-        # Heuristic detection based on directory structure
-        return self._detect_from_structure()
-
-    def _detect_from_structure(self) -> str:  # noqa: C901
-        """Detect version from project structure."""
-        # v0.1.x: Uses .specify/ directory and /specs/
-        if self.specify_dir.exists():
-            return "0.1.0"
-
-        # No .kittify at all - not initialized or very old
         if not self.kittify_dir.exists():
-            return "0.0.0"
+            return "unknown"
 
-        # Check for command-templates vs commands directory
-        # v0.6.5+ uses command-templates/
-        templates_dir = self.kittify_dir / "templates"
-        missions_dir = self.kittify_dir / "missions"
+        metadata = ProjectMetadata.load(self.kittify_dir)
+        if metadata is not None:
+            return metadata.version
 
-        # Check templates location
-        has_command_templates = (templates_dir / "command-templates").exists()
-        has_old_commands = (templates_dir / "commands").exists()
+        return "unknown"
 
-        # Check missions for command-templates
-        has_mission_command_templates = False
-        has_mission_commands = False
-        if missions_dir.exists():
-            for mission in missions_dir.iterdir():
-                if mission.is_dir():
-                    if (mission / "command-templates").exists():
-                        has_mission_command_templates = True
-                    if (mission / "commands").exists():
-                        has_mission_commands = True
+    def detect_schema_version(self) -> int:
+        """Return the integer schema version of the project.
 
-        # v0.13.0+: Has research CSV schema files
-        research_mission = missions_dir / "research" if missions_dir.exists() else None
-        if research_mission and research_mission.exists():
-            evidence_schema = research_mission / "evidence-log-schema.csv"
-            if evidence_schema.exists():
-                return "0.13.0"
-
-        # v0.12.0+: Has documentation mission
-        doc_mission = missions_dir / "documentation" if missions_dir.exists() else None
-        if doc_mission and doc_mission.exists():
-            return "0.12.0"
-
-        # v0.11.0+: Has workspace-per-WP structure (.worktrees)
-        worktrees_dir = self.project_path / ".worktrees"
-        if worktrees_dir.exists():
-            return "0.11.0"
-
-        # v0.7.0+: Has missions in .kittify (modernized structure)
-        if missions_dir.exists() and not (has_command_templates or has_mission_command_templates):
-            # Has missions but not the command-templates structure (0.6.5)
-            # This means it's between 0.7.0 and pre-command-templates era
-            return "0.7.0"
-
-        # v0.6.5+: Has command-templates (not commands)
-        if has_command_templates or has_mission_command_templates:  # noqa: SIM102
-            if not has_old_commands and not has_mission_commands:
-                return "0.6.5"
-
-        # v0.6.4 and earlier: Has old commands/ directory
-        if has_old_commands or has_mission_commands:
-            return "0.6.4"
-
-        # Check for git hooks (v0.5.0+)
-        git_hooks = self.project_path / ".git" / "hooks"
-        if git_hooks.exists() and (git_hooks / "pre-commit").exists():
-            try:
-                hook_content = (git_hooks / "pre-commit").read_text(encoding="utf-8", errors="ignore")
-                if "spec-kitty" in hook_content.lower() or "encoding" in hook_content.lower():
-                    return "0.5.0"
-            except OSError:
-                pass
-
-        # Check .gitignore for agent directories (v0.4.8+)
-        gitignore = self.project_path / ".gitignore"
-        if gitignore.exists():
-            try:
-                content = gitignore.read_text(encoding="utf-8-sig", errors="ignore")
-                agent_dirs = [".claude/", ".codex/", ".gemini/", ".cursor/"]
-                agent_count = sum(1 for d in agent_dirs if d in content)
-                if agent_count >= 4:
-                    return "0.4.8"
-            except OSError:
-                pass
-
-        # Check for missions directory (v0.2.0+)
-        if missions_dir.exists():
-            return "0.2.0"
-
-        # Default to oldest .kittify-based version
-        return "0.2.0"
+        Returns:
+            The ``spec_kitty.schema_version`` integer from metadata.yaml, or
+            ``0`` when the field is absent (legacy / uninitialized project).
+        """
+        schema_version = get_project_schema_version(self.project_path)
+        if schema_version is None:
+            # Legacy project: .kittify/ exists but no schema_version field.
+            # Treat as version 0 — needs migration.
+            return 0 if self.kittify_dir.exists() else 0
+        return schema_version
 
     def get_needed_migrations(self, target_version: str) -> list[str]:
-        """Get list of migration IDs needed to reach target version.
+        """Get list of migration IDs needed to reach *target_version*.
 
         Args:
-            target_version: Version to upgrade to
+            target_version: Version string to upgrade to (e.g. ``"2.1.3"``).
 
         Returns:
-            List of migration IDs in order
+            List of migration IDs in application order.
         """
         from .registry import MigrationRegistry
 
         current = self.detect_version()
-        migrations = MigrationRegistry.get_applicable(current, target_version)
+        from_version = "0.0.0" if current == "unknown" else current
+        migrations = MigrationRegistry.get_applicable(from_version, target_version)
         return [m.migration_id for m in migrations]
-
-    def has_old_commands_structure(self) -> bool:
-        """Check if the project uses old commands/ directories.
-
-        Returns:
-            True if old commands/ directories exist
-        """
-        templates_commands = self.kittify_dir / "templates" / "commands"
-        if templates_commands.exists():
-            return True
-
-        missions_dir = self.kittify_dir / "missions"
-        if missions_dir.exists():
-            for mission in missions_dir.iterdir():
-                if mission.is_dir() and (mission / "commands").exists():
-                    return True
-
-        return False
-
-    def has_old_specify_structure(self) -> bool:
-        """Check if the project uses old .specify/ structure.
-
-        Returns:
-            True if .specify/ directory exists
-        """
-        return self.specify_dir.exists()
-
-    def count_missing_agent_gitignore_entries(self) -> int:
-        """Count how many agent directories are missing from .gitignore.
-
-        Returns:
-            Number of missing entries
-        """
-        gitignore = self.project_path / ".gitignore"
-        if not gitignore.exists():
-            return len(self.EXPECTED_AGENTS)
-
-        try:
-            content = gitignore.read_text(encoding="utf-8-sig", errors="ignore")
-        except OSError:
-            return len(self.EXPECTED_AGENTS)
-
-        missing = [d for d in self.EXPECTED_AGENTS if d not in content]
-        return len(missing)
-
-    @classmethod
-    def detect_broken_mission_system(cls, project_path: Path) -> bool:
-        """Detect if the mission system has corrupted files.
-
-        Checks for:
-        1. Missing mission.yaml files in mission directories
-        2. Invalid YAML syntax in mission.yaml files
-        3. Missing required fields (name)
-
-        Args:
-            project_path: Path to the project root
-
-        Returns:
-            True if mission system is broken/corrupted, False if healthy
-        """
-        import yaml
-
-        missions_dir = project_path / ".kittify" / "missions"
-
-        # No missions directory at all is broken
-        if not missions_dir.exists():
-            return True
-
-        # Check each mission directory
-        has_any_mission = False
-        for mission_dir in missions_dir.iterdir():
-            if not mission_dir.is_dir():
-                continue
-
-            has_any_mission = True
-            mission_yaml = mission_dir / "mission.yaml"
-
-            # Check if mission.yaml exists
-            if not mission_yaml.exists():
-                return True
-
-            # Check if mission.yaml is valid YAML with required fields
-            try:
-                with open(mission_yaml, encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
-
-                # Check required fields
-                if not data or "name" not in data:
-                    return True
-
-            except yaml.YAMLError:
-                return True
-            except OSError:
-                return True
-
-        # If no mission directories found, that's broken
-        return bool(not has_any_mission)
