@@ -118,11 +118,11 @@
 **Requirement Refs**: FR-006, FR-007, NFR-006
 
 ### Included Subtasks
-- [ ] T018 Update `src/specify_cli/core/worktree.py` — Route workspace creation by execution_mode from ownership manifest
-- [ ] T019 Implement planning-artifact workspace strategy: in-repo work or dedicated planning worktree with full file access (no sparse checkout)
-- [ ] T020 Delete sparse checkout policy code from `src/specify_cli/core/vcs/git.py` (`sparse_exclude` parameter and all callers)
-- [ ] T021 Delete kitty-specs/ special-case handling in worktree creation code
-- [ ] T022 [P] Tests for workspace strategy changes (`tests/specify_cli/core/test_worktree.py`)
+- [x] T018 Update `src/specify_cli/core/worktree.py` — Route workspace creation by execution_mode from ownership manifest
+- [x] T019 Implement planning-artifact workspace strategy: in-repo work or dedicated planning worktree with full file access (no sparse checkout)
+- [x] T020 Delete sparse checkout policy code from `src/specify_cli/core/vcs/git.py` (`sparse_exclude` parameter and all callers)
+- [x] T021 Delete kitty-specs/ special-case handling in worktree creation code
+- [x] T022 [P] Tests for workspace strategy changes (`tests/specify_cli/core/test_worktree.py`)
 
 ### Implementation Notes
 - `workspace_strategy.py` from ownership module provides the routing logic
