@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-03-27T16:49:52.531575+00:00",
+  "feature_number": "057",
+  "feature_slug": "057-canonical-context-architecture-cleanup",
+  "friendly_name": "canonical context architecture cleanup",
+  "mission": "software-dev",
+  "slug": "057-canonical-context-architecture-cleanup",
+  "target_branch": "main"
+}
