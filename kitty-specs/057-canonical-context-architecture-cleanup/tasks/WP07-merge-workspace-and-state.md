@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Merge Engine v2 — Workspace and State
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP02
 requirement_refs:
@@ -21,8 +21,8 @@ subtasks:
 - T038
 phase: Phase C - Merge
 assignee: ''
-agent: "coordinator"
-shell_pid: "91988"
+agent: coordinator
+shell_pid: '91988'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -151,3 +151,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:42:47Z – coordinator – shell_pid=91988 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T19:57:10Z – coordinator – shell_pid=91988 – lane=for_review – Merge workspace and state rewritten, old executor/forecast/status_resolver deleted
