@@ -150,12 +150,12 @@
 **Requirement Refs**: FR-008, FR-009, C-004, NFR-006
 
 ### Included Subtasks
-- [ ] T023 Simplify `src/specify_cli/status/emit.py` — Remove dual-write path, phase checks, frontmatter update calls. Emit writes only to event log.
-- [ ] T024 Create `src/specify_cli/status/views.py` — Derived view generation: produce status.json, board-summary.json from event log (replaces legacy_bridge output-only functionality)
-- [ ] T025 Delete `src/specify_cli/status/legacy_bridge.py` (~300 lines)
-- [ ] T026 Delete `src/specify_cli/status/phase.py` (~150 lines), `status/reconcile.py` (~200 lines), `status/migrate.py` (~150 lines)
-- [ ] T027 Strip ALL frontmatter lane/review_status/reviewed_by/progress reads and writes from entire codebase (grep and remove)
-- [ ] T028 [P] Tests for simplified status module, verify no dual-write paths remain
+- [x] T023 Simplify `src/specify_cli/status/emit.py` — Remove dual-write path, phase checks, frontmatter update calls. Emit writes only to event log.
+- [x] T024 Create `src/specify_cli/status/views.py` — Derived view generation: produce status.json, board-summary.json from event log (replaces legacy_bridge output-only functionality)
+- [x] T025 Delete `src/specify_cli/status/legacy_bridge.py` (~300 lines)
+- [x] T026 Delete `src/specify_cli/status/phase.py` (~150 lines), `status/reconcile.py` (~200 lines), `status/migrate.py` (~150 lines)
+- [x] T027 Strip ALL frontmatter lane/review_status/reviewed_by/progress reads and writes from entire codebase (grep and remove)
+- [x] T028 [P] Tests for simplified status module, verify no dual-write paths remain
 
 ### Implementation Notes
 - T027 is a codebase-wide sweep — grep for `lane`, `review_status`, `reviewed_by` in frontmatter read/write contexts
