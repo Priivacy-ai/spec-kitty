@@ -354,11 +354,11 @@
 **Requirement Refs**: FR-019, FR-020, C-003, C-005
 
 ### Included Subtasks
-- [ ] T054 Create `src/specify_cli/migration/schema_version.py` — Schema version detection from `metadata.yaml`, compatibility check (project vs CLI)
-- [ ] T055 Create `src/specify_cli/migration/gate.py` — Upgrade gate: check_schema_version() called before every CLI command, refuse unmigrated, refuse newer-than-CLI
-- [ ] T056 Rewrite `src/specify_cli/upgrade/detector.py` — Replace ~15 heuristic checks with single schema_version integer check
-- [ ] T057 Simplify `src/specify_cli/upgrade/runner.py` — Schema-version-based migration selection instead of heuristic-based
-- [ ] T058 [P] Tests for schema version gate, both directions (too old, too new)
+- [x] T054 Create `src/specify_cli/migration/schema_version.py` — Schema version detection from `metadata.yaml`, compatibility check (project vs CLI)
+- [x] T055 Create `src/specify_cli/migration/gate.py` — Upgrade gate: check_schema_version() called before every CLI command, refuse unmigrated, refuse newer-than-CLI
+- [x] T056 Rewrite `src/specify_cli/upgrade/detector.py` — Replace ~15 heuristic checks with single schema_version integer check
+- [x] T057 Simplify `src/specify_cli/upgrade/runner.py` — Schema-version-based migration selection instead of heuristic-based
+- [x] T058 [P] Tests for schema version gate, both directions (too old, too new)
 
 ### Implementation Notes
 - Schema version: integer in `metadata.yaml` under `spec_kitty.schema_version`
