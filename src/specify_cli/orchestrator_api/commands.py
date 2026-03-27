@@ -635,6 +635,9 @@ def transition(
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required for run-affecting lanes)"),
     force: bool = typer.Option(False, "--force", help="Force the transition"),
     review_ref: str = typer.Option(None, "--review-ref", help="Review reference"),
+    evidence_json: str = typer.Option(None, "--evidence-json", help="JSON string with done evidence"),
+    subtasks_complete: bool = typer.Option(None, "--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
+    implementation_evidence_present: bool = typer.Option(None, "--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review"),
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
@@ -668,6 +671,18 @@ def transition(
             _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
             return
 
+    evidence: dict | None = None
+    if evidence_json is not None:
+        try:
+            parsed_evidence = json.loads(evidence_json)
+        except json.JSONDecodeError as exc:
+            _fail(cmd, "USAGE_ERROR", f"Invalid JSON in --evidence-json: {exc}")
+            return
+        if not isinstance(parsed_evidence, dict):
+            _fail(cmd, "USAGE_ERROR", "--evidence-json must decode to a JSON object")
+            return
+        evidence = parsed_evidence
+
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
     if feature_dir is None:
@@ -695,7 +710,10 @@ def transition(
             actor,
             reason=note,
             force=force,
+            evidence=evidence,
             review_ref=review_ref,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
             execution_mode="worktree",
             policy_metadata=policy_dict,
         )
