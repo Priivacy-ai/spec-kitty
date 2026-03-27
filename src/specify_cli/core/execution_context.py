@@ -100,18 +100,33 @@ def _tasks_commands(feature_slug: str) -> dict[str, str]:
 
 
 def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
+    """Find the first WP with the given lane from the canonical event log."""
+    import re as _re
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
 
+    try:
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+
+        events = read_events(feature_dir)
+        snapshot = reduce(events)
+        event_log_lanes: dict[str, str] = {
+            wp_id_: resolve_lane_alias(str(state.get("lane", "planned")))
+            for wp_id_, state in snapshot.work_packages.items()
+        }
+    except Exception:
+        event_log_lanes = {}
+
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        content = wp_file.read_text(encoding="utf-8-sig")
-        frontmatter, _, _ = split_frontmatter(content)
-        wp_lane = resolve_lane_alias(extract_scalar(frontmatter, "lane") or "planned")
+        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        if wp_match is None:
+            continue
+        wp_id = wp_match.group(1)
+        wp_lane = event_log_lanes.get(wp_id, "planned")
         if wp_lane == lane:
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
-                return wp_id
+            return wp_id
     return None
 
 
@@ -186,7 +201,18 @@ def resolve_action_context(
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
     dependencies = parse_wp_dependencies(wp.path)
-    lane = resolve_lane_alias(wp.lane or "planned")
+    # Lane is event-log-only; read from canonical event log not frontmatter
+    try:
+        from specify_cli.status.store import read_events as _ec_read_events
+        from specify_cli.status.reducer import reduce as _ec_reduce
+
+        _ec_events = _ec_read_events(feature_dir)
+        _ec_snapshot = _ec_reduce(_ec_events) if _ec_events else None
+        _ec_state = _ec_snapshot.work_packages.get(normalized_wp_id) if _ec_snapshot else None
+        _ec_raw_lane = str(_ec_state.get("lane", "planned")) if _ec_state else "planned"
+    except Exception:
+        _ec_raw_lane = "planned"
+    lane = resolve_lane_alias(_ec_raw_lane)
     workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{normalized_wp_id}"
 
     context.wp_id = normalized_wp_id

@@ -11,8 +11,34 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 
 from specify_cli.core.dependency_resolver import check_dependency_status
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
+
+pytestmark = pytest.mark.fast
+
+
+def _write_wp_event(feature_dir: Path, feature_slug: str, wp_id: str, to_lane: str) -> None:
+    """Write a single forced event to the event log to set a WP's lane.
+
+    Uses force=True with from_lane="planned" so the reducer materialises
+    the WP at the requested lane without requiring the full transition chain.
+    """
+    event = StatusEvent(
+        event_id=f"01TEST{wp_id.replace('WP', '').zfill(20)}",
+        feature_slug=feature_slug,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(to_lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test-fixture",
+        force=True,
+        execution_mode="direct_repo",
+        reason="test fixture bootstrap",
+    )
+    append_event(feature_dir, event)
 
 
 class TestSingleParentMergedDependency:
@@ -25,17 +51,19 @@ class TestSingleParentMergedDependency:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        # Create WP01 in 'done' lane
+        # Create WP01 file (no lane in frontmatter — event log is sole authority)
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
             "---\n"
             "work_package_id: WP01\n"
             "title: Event Infrastructure\n"
-            "lane: done\n"
             "dependencies: []\n"
             "---\n"
             "# Content\n"
         )
+
+        # Emit event to put WP01 in 'done' lane
+        _write_wp_event(feature_dir, "025-cli-event-log-integration", "WP01", "done")
 
         # Create WP02 depending on WP01
         wp02_file = tasks_dir / "WP02-event-logger.md"
@@ -43,7 +71,6 @@ class TestSingleParentMergedDependency:
             "---\n"
             "work_package_id: WP02\n"
             "title: Event Logger\n"
-            "lane: planned\n"
             "dependencies: [WP01]\n"
             "---\n"
             "# Content\n"
@@ -65,23 +92,25 @@ class TestSingleParentMergedDependency:
         assert "--base" in recommendation
 
     def test_dependency_in_progress_uses_workspace(self, tmp_path: Path):
-        """When base WP is in 'doing' lane, should branch from workspace branch."""
-        # Setup: Create feature directory with WP01 in 'doing' lane
+        """When base WP is in 'in_progress' lane, should branch from workspace branch."""
+        # Setup: Create feature directory with WP01 in 'in_progress' lane
         feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        # Create WP01 in 'doing' lane (in-progress)
+        # Create WP01 file (no lane in frontmatter — event log is sole authority)
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
             "---\n"
             "work_package_id: WP01\n"
             "title: Event Infrastructure\n"
-            "lane: doing\n"
             "dependencies: []\n"
             "---\n"
             "# Content\n"
         )
+
+        # Emit event to put WP01 in 'in_progress' lane
+        _write_wp_event(feature_dir, "025-cli-event-log-integration", "WP01", "in_progress")
 
         # Create WP02 depending on WP01
         wp02_file = tasks_dir / "WP02-event-logger.md"
@@ -89,7 +118,6 @@ class TestSingleParentMergedDependency:
             "---\n"
             "work_package_id: WP02\n"
             "title: Event Logger\n"
-            "lane: planned\n"
             "dependencies: [WP01]\n"
             "---\n"
             "# Content\n"
@@ -101,7 +129,7 @@ class TestSingleParentMergedDependency:
         # Assertions
         assert status.wp_id == "WP02"
         assert status.all_done is False
-        assert status.lanes == {"WP01": "doing"}
+        assert status.lanes == {"WP01": "in_progress"}
         assert status.is_multi_parent is False
 
         # Recommendation should indicate cannot implement (but this is for testing logic)
@@ -119,18 +147,18 @@ class TestMultiParentAllDoneDependencies:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        # Create WP01, WP02, WP03 all in 'done' lane
+        # Create WP01, WP02, WP03 all in 'done' lane via event log
         for i in range(1, 4):
             wp_file = tasks_dir / f"WP0{i}-component-{i}.md"
             wp_file.write_text(
                 f"---\n"
                 f"work_package_id: WP0{i}\n"
                 f"title: Component {i}\n"
-                f"lane: done\n"
                 f"dependencies: []\n"
                 f"---\n"
                 f"# Content\n"
             )
+            _write_wp_event(feature_dir, "010-workspace-per-wp", f"WP0{i}", "done")
 
         # Create WP04 depending on all three
         wp04_file = tasks_dir / "WP04-integration.md"
@@ -138,7 +166,6 @@ class TestMultiParentAllDoneDependencies:
             "---\n"
             "work_package_id: WP04\n"
             "title: Integration\n"
-            "lane: planned\n"
             "dependencies: [WP01, WP02, WP03]\n"
             "---\n"
             "# Content\n"
@@ -166,19 +193,19 @@ class TestMultiParentAllDoneDependencies:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        # Create WP01 in 'done', WP02 in 'doing', WP03 in 'done'
-        statuses = [("WP01", "done"), ("WP02", "doing"), ("WP03", "done")]
+        # Create WP01 in 'done', WP02 in 'in_progress', WP03 in 'done' via event log
+        statuses = [("WP01", "done"), ("WP02", "in_progress"), ("WP03", "done")]
         for wp_id, lane in statuses:
             wp_file = tasks_dir / f"{wp_id}-component.md"
             wp_file.write_text(
                 f"---\n"
                 f"work_package_id: {wp_id}\n"
                 f"title: Component {wp_id}\n"
-                f"lane: {lane}\n"
                 f"dependencies: []\n"
                 f"---\n"
                 f"# Content\n"
             )
+            _write_wp_event(feature_dir, "010-workspace-per-wp", wp_id, lane)
 
         # Create WP04 depending on all three
         wp04_file = tasks_dir / "WP04-integration.md"
@@ -186,7 +213,6 @@ class TestMultiParentAllDoneDependencies:
             "---\n"
             "work_package_id: WP04\n"
             "title: Integration\n"
-            "lane: planned\n"
             "dependencies: [WP01, WP02, WP03]\n"
             "---\n"
             "# Content\n"
@@ -198,7 +224,7 @@ class TestMultiParentAllDoneDependencies:
         # Assertions
         assert status.wp_id == "WP04"
         assert status.all_done is False
-        assert status.lanes == {"WP01": "done", "WP02": "doing", "WP03": "done"}
+        assert status.lanes == {"WP01": "done", "WP02": "in_progress", "WP03": "done"}
         assert status.is_multi_parent is True
 
         # Should NOT suggest merge-first (WP02 not done)

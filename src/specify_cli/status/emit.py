@@ -2,8 +2,10 @@
 
 Single entry point for ALL state changes in the canonical status model.
 Validates a transition, appends an event to the JSONL log, materializes
-a status snapshot, updates legacy compatibility views, and emits SaaS
-telemetry.
+a status snapshot, and emits SaaS telemetry.
+
+The event log is the sole authority for mutable WP state. No frontmatter
+writes occur in this pipeline.
 
 Pipeline order (critical -- do not reorder):
     1. resolve_lane_alias(to_lane)
@@ -12,9 +14,8 @@ Pipeline order (critical -- do not reorder):
     4. Create StatusEvent with ULID event_id
     5. store.append_event(feature_dir, event)
     6. reducer.materialize(feature_dir)
-    7. legacy_bridge.update_all_views(feature_dir, snapshot)  [non-critical]
-    8. _saas_fan_out(event, feature_slug, repo_root)
-    9. Return the event
+    7. _saas_fan_out(event, feature_slug, repo_root)
+    8. Return the event
 """
 
 from __future__ import annotations
@@ -36,7 +37,6 @@ from .models import (
     VerificationResult,
 )
 from .transitions import resolve_lane_alias, validate_transition
-from .legacy_bridge import update_all_views as _update_all_views
 from . import store as _store
 from . import reducer as _reducer
 
@@ -277,30 +277,18 @@ def emit_status_transition(
 
     # Step 6: Materialize snapshot from event log
     try:
-        snapshot = _reducer.materialize(feature_dir)
+        _reducer.materialize(feature_dir)
     except Exception:
         logger.warning(
             "Materialization failed after event %s was persisted; "
             "run 'status materialize' to recover",
             event.event_id,
         )
-        snapshot = None
 
-    # Step 7: Update legacy compatibility views
-    if snapshot is not None:
-        try:
-            _update_all_views(feature_dir, snapshot)
-        except Exception:
-            logger.warning(
-                "Legacy bridge update failed for event %s; "
-                "canonical log and snapshot are unaffected",
-                event.event_id,
-            )
-
-    # Step 8: SaaS fan-out (never blocks canonical persistence)
+    # Step 7: SaaS fan-out (never blocks canonical persistence)
     _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)
 
-    # Step 9: Dossier sync (fire-and-forget, never blocks)
+    # Step 8: Dossier sync (fire-and-forget, never blocks)
     if repo_root is not None:
         try:
             from specify_cli.sync.dossier_pipeline import (
@@ -313,7 +301,7 @@ def emit_status_transition(
         except Exception:
             pass  # Never block status transitions
 
-    # Step 10: Return the event
+    # Step 9: Return the event
     return event
 
 

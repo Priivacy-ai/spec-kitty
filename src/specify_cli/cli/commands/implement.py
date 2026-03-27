@@ -47,6 +47,23 @@ from specify_cli.core.agent_config import get_auto_commit_default
 console = Console()
 
 
+def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
+    """Get WP lane from the canonical event log. Returns 'planned' if not found."""
+    try:
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+
+        events = read_events(feature_dir)
+        if events:
+            snapshot = reduce(events)
+            state = snapshot.work_packages.get(wp_id)
+            if state:
+                return str(state.get("lane", "planned"))
+    except Exception:
+        pass
+    return "planned"
+
+
 def _json_safe_output(func):
     """Ensure --json mode remains machine-parseable on both success and failure."""
 
@@ -650,6 +667,10 @@ def implement(
             console.print(f"\n[cyan]Auto-detected:[/cyan] {wp_id} depends on {base}")
             console.print(f"Using --base {base} automatically")
 
+        # Ensure feature_dir is set (may not be set if we took the single-dep or --base path above)
+        if "feature_dir" not in dir():
+            feature_dir = repo_root / "kitty-specs" / feature_slug
+
         # If --base provided, validate it matches declared dependencies
         if base:
             if base not in declared_deps and declared_deps:
@@ -659,8 +680,8 @@ def implement(
 
             # Check if base is merged (ADR-18: Auto-detect merged dependencies)
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
-                base_lane = base_wp.lane or "planned"
+                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception:
                 # Base WP file not found - error
                 tracker.error("validate", f"base WP {base} not found")
@@ -872,8 +893,8 @@ def implement(
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
-                base_lane = base_wp.lane or "planned"
+                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception as e:
                 # Base WP file not found
                 tracker.error("create", f"base WP {base} not found")
@@ -1022,14 +1043,14 @@ def implement(
         lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
-        current_lane = wp.lane or "planned"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
         if current_lane == "planned":
             # Capture current shell PID for audit trail
             shell_pid = str(os.getppid())
 
-            # Update lane and shell_pid in frontmatter
-            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
-            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+            # Update shell_pid in frontmatter (lane is event-log-only)
+            updated_front = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
 
             # Build updated document (write after ensuring target branch)
             updated_doc = build_document(updated_front, wp.body, wp.padding)

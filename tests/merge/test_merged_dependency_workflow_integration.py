@@ -13,12 +13,39 @@ This validates the fix in ADR-18 (Auto-Detect Merged Single-Parent Dependencies)
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.git_repo
+
+
+def _write_done_event(feature_dir: Path, feature_slug: str, wp_id: str) -> None:
+    """Write a forced 'done' event to the event log for a dependency WP.
+
+    After WP05, lane state is read from the event log (not frontmatter).
+    Tests that simulate a WP being 'done' must write an event.
+    """
+    event = {
+        "event_id": f"01TEST{wp_id.replace('WP', '').zfill(20)}",
+        "feature_slug": feature_slug,
+        "wp_id": wp_id,
+        "from_lane": "planned",
+        "to_lane": "done",
+        "at": "2026-01-01T00:00:00+00:00",
+        "actor": "test-fixture",
+        "force": True,
+        "execution_mode": "direct_repo",
+        "reason": "test fixture bootstrap",
+        "review_ref": None,
+        "evidence": None,
+        "policy_metadata": None,
+    }
+    events_file = feature_dir / "status.events.jsonl"
+    with events_file.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(event, sort_keys=True) + "\n")
 
 @pytest.fixture
 def feature_with_merged_dependency(test_project: Path, run_cli):
@@ -96,7 +123,10 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         encoding="utf-8",
     )
 
-    # Commit feature files
+    # Write event log entry for WP01 in 'done' lane (event log is sole authority)
+    _write_done_event(feature_dir, "025-cli-event-log-integration", "WP01")
+
+    # Commit feature files (including event log)
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(
         ["git", "commit", "-m", "Add Feature 025 with WP01 done, WP02/WP08 planned"], cwd=test_project, check=True
@@ -226,7 +256,11 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
         encoding="utf-8",
     )
 
-    # Commit feature files
+    # Write event log entries for WP01-WP03 in 'done' lane (event log is sole authority)
+    for i in range(1, 4):
+        _write_done_event(feature_dir, feature_slug, f"WP0{i}")
+
+    # Commit feature files (including event log)
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(["git", "commit", "-m", "Add Feature 010 with all deps done"], cwd=test_project, check=True)
 
@@ -335,6 +369,9 @@ def test_implement_single_dependency_done_but_unmerged_uses_dependency_branch(te
         encoding="utf-8",
     )
 
+    # Write event log entry for WP01 in 'done' lane (event log is sole authority)
+    _write_done_event(feature_dir, feature_slug, "WP01")
+
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(
         ["git", "commit", "-m", "Add feature 026 with single dependency"],
@@ -393,6 +430,10 @@ def test_implement_multi_parent_done_but_unmerged_creates_merge_base(test_projec
         "# Integration\n",
         encoding="utf-8",
     )
+
+    # Write event log entries for WP01 and WP02 in 'done' lane (event log is sole authority)
+    _write_done_event(feature_dir, feature_slug, "WP01")
+    _write_done_event(feature_dir, feature_slug, "WP02")
 
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(

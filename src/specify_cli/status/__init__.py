@@ -1,6 +1,9 @@
 """Canonical status engine for spec-kitty work package lifecycle.
 
 Public API surface — all consumers import from this package.
+
+The event log (status.events.jsonl) is the sole authority for mutable
+WP state. No frontmatter reads or writes occur in this module.
 """
 
 from .models import (
@@ -12,12 +15,6 @@ from .models import (
     StatusSnapshot,
     ULID_PATTERN,
     VerificationResult,
-)
-from .phase import (
-    DEFAULT_PHASE,
-    VALID_PHASES,
-    is_01x_branch,
-    resolve_phase,
 )
 from .reducer import (
     SNAPSHOT_FILENAME,
@@ -45,10 +42,9 @@ from .emit import (
     TransitionError,
     emit_status_transition,
 )
-from .legacy_bridge import (
-    update_all_views,
-    update_frontmatter_views,
-    update_tasks_md_views,
+from .views import (
+    generate_status_view,
+    write_derived_views,
 )
 from .validate import (
     ValidationResult,
@@ -62,7 +58,6 @@ from .validate import (
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "CANONICAL_LANES",
-    "DEFAULT_PHASE",
     "DoneEvidence",
     "EVENTS_FILENAME",
     "Lane",
@@ -76,12 +71,11 @@ __all__ = [
     "TERMINAL_LANES",
     "TransitionError",
     "ULID_PATTERN",
-    "VALID_PHASES",
     "ValidationResult",
     "VerificationResult",
     "append_event",
     "emit_status_transition",
-    "is_01x_branch",
+    "generate_status_view",
     "is_terminal",
     "materialize",
     "materialize_to_json",
@@ -89,14 +83,11 @@ __all__ = [
     "read_events_raw",
     "reduce",
     "resolve_lane_alias",
-    "resolve_phase",
-    "update_all_views",
-    "update_frontmatter_views",
-    "update_tasks_md_views",
     "validate_derived_views",
     "validate_done_evidence",
     "validate_event_schema",
     "validate_materialization_drift",
     "validate_transition",
     "validate_transition_legality",
+    "write_derived_views",
 ]

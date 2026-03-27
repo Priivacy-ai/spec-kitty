@@ -36,7 +36,6 @@ from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_feature_mission_key
-from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.next.decision import (
     Decision,
@@ -104,8 +103,18 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
+    # Get canonical lane state from event log
+    from specify_cli.status.store import read_events
+    from specify_cli.status.reducer import reduce
+
+    events = read_events(feature_dir)
+    snapshot = reduce(events)
+    import re as _re
     for wp_file in wp_files:
-        lane = resolve_lane_alias(_read_lane_from_frontmatter(wp_file) or "planned")
+        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
+        wp_state = snapshot.work_packages.get(wp_id, {})
+        lane = resolve_lane_alias(str(wp_state.get("lane", "planned")))
         if step_id == "implement":
             if lane not in ("done", "approved", "for_review"):
                 return False

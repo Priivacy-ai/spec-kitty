@@ -261,32 +261,36 @@ GUARD_REGISTRY: dict[str, Callable[..., Callable[..., bool]]] = {
 
 
 def _read_lane_from_frontmatter(file_path: Path) -> str | None:
-    """Read the ``lane`` field from a YAML frontmatter block.
+    """Read the canonical lane for a WP from the event log.
 
-    Returns None if the file cannot be read or has no lane field.
-    This is a minimal parser that avoids importing the full frontmatter module
-    to keep the guard system self-contained.
+    The feature_dir is derived from the WP file path:
+    tasks/WP##-*.md is inside kitty-specs/<feature-slug>/tasks/.
+
+    Falls back to "planned" if the event log does not exist or the WP
+    has no events yet. Returns None only on unrecoverable IO errors.
     """
     try:
-        text = file_path.read_text(encoding="utf-8")
-    except OSError:
+        feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
+        wp_id_match = __import__("re").match(r"(WP\d+)", file_path.stem)
+        if wp_id_match is None:
+            return None
+        wp_id = wp_id_match.group(1)
+
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+
+        events = read_events(feature_dir)
+        if not events:
+            return "planned"
+
+        snapshot = reduce(events)
+        wp_state = snapshot.work_packages.get(wp_id)
+        if wp_state is None:
+            return "planned"
+
+        return str(wp_state.get("lane", "planned"))
+    except Exception:
         return None
-
-    if not text.startswith("---"):
-        return None
-
-    end = text.find("---", 3)
-    if end == -1:
-        return None
-
-    frontmatter_text = text[3:end]
-    for line in frontmatter_text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("lane:"):
-            value = stripped[5:].strip().strip('"').strip("'")
-            return value
-
-    return None
 
 
 # ---------------------------------------------------------------------------

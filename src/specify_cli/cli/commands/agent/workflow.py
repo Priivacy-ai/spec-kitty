@@ -324,14 +324,28 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
+    # Load lanes from canonical event log (lane is event-log-only)
+    feature_dir = tasks_dir.parent
+    try:
+        from specify_cli.status.store import read_events as _fp_read_events
+        from specify_cli.status.reducer import reduce as _fp_reduce
+
+        _fp_events = _fp_read_events(feature_dir)
+        _fp_snapshot = _fp_reduce(_fp_events) if _fp_events else None
+        _fp_lanes: dict = {}
+        if _fp_snapshot:
+            for _fp_wp_id, _fp_state in _fp_snapshot.work_packages.items():
+                _fp_lanes[_fp_wp_id] = str(_fp_state.get("lane", "planned"))
+    except Exception:
+        _fp_lanes = {}
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
-        lane = extract_scalar(frontmatter, "lane")
-
-        if lane == "planned":
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id:
+            lane = _fp_lanes.get(wp_id, "planned")
+            if lane == "planned":
                 return wp_id
 
     return None
@@ -444,7 +458,18 @@ def implement(
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        _wf_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _wf_read_events
+            from specify_cli.status.reducer import reduce as _wf_reduce
+
+            _wf_events = _wf_read_events(_wf_feature_dir)
+            _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
+            _wf_state = _wf_snapshot.work_packages.get(normalized_wp_id) if _wf_snapshot else None
+            current_lane = str(_wf_state.get("lane", "planned")) if _wf_state else "planned"
+        except Exception:
+            current_lane = "planned"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
 
@@ -469,10 +494,8 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Update lane, agent, and shell_pid in frontmatter
+            # Update operational metadata in frontmatter (lane is event-log-only)
             updated_front = wp.frontmatter
-            if current_lane != "doing":
-                updated_front = set_scalar(updated_front, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
@@ -525,21 +548,31 @@ def implement(
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
 
-        # Check review status
-        review_status = extract_scalar(wp.frontmatter, "review_status")
-        has_feedback = review_status == "has_feedback"
-        review_feedback_ref = (
-            extract_scalar(wp.frontmatter, "review_feedback")
-            or extract_scalar(wp.frontmatter, "review_feedback_file")
-        )
-        review_feedback_file = (
-            _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
-            if review_feedback_ref
-            else None
-        )
+        # Check review feedback from canonical event log (review_ref stored in events)
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        has_feedback = False
+        review_feedback_ref = None
+        review_feedback_file = None
+        try:
+            from specify_cli.status.store import read_events as _read_status_events
+
+            _events = _read_status_events(feature_dir)
+            # Find the most recent rejection event for this WP (for_review -> planned/in_progress with review_ref)
+            for _ev in reversed(_events):
+                if (
+                    _ev.wp_id == normalized_wp_id
+                    and str(_ev.from_lane) == "for_review"
+                    and _ev.review_ref is not None
+                ):
+                    has_feedback = True
+                    review_feedback_ref = _ev.review_ref
+                    break
+        except Exception:
+            pass
+        if review_feedback_ref:
+            review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
 
         # Detect mission type and get deliverables_path for research missions
-        feature_dir = repo_root / "kitty-specs" / feature_slug
         mission_key = get_feature_mission_key(feature_dir)
         deliverables_path = None
         if mission_key == "research":
@@ -856,14 +889,28 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
+    # Load lanes from canonical event log (lane is event-log-only)
+    feature_dir = tasks_dir.parent
+    try:
+        from specify_cli.status.store import read_events as _fr_read_events
+        from specify_cli.status.reducer import reduce as _fr_reduce
+
+        _fr_events = _fr_read_events(feature_dir)
+        _fr_snapshot = _fr_reduce(_fr_events) if _fr_events else None
+        _fr_lanes: dict = {}
+        if _fr_snapshot:
+            for _fr_wp_id, _fr_state in _fr_snapshot.work_packages.items():
+                _fr_lanes[_fr_wp_id] = str(_fr_state.get("lane", "planned"))
+    except Exception:
+        _fr_lanes = {}
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
-        lane = extract_scalar(frontmatter, "lane")
-
-        if lane == "for_review":
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id:
+            lane = _fr_lanes.get(wp_id, "planned")
+            if lane == "for_review":
                 return wp_id
 
     return None
@@ -915,7 +962,18 @@ def review(
 
         # Move to "doing" lane if not already there.
         # Explicit WP review requests must target for_review (or already-claimed doing).
-        current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "for_review"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _rv_read_events
+            from specify_cli.status.reducer import reduce as _rv_reduce
+
+            _rv_events = _rv_read_events(feature_dir)
+            _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
+            _rv_state = _rv_snapshot.work_packages.get(normalized_wp_id) if _rv_snapshot else None
+            current_lane_raw = str(_rv_state.get("lane", "for_review")) if _rv_state else "for_review"
+        except Exception:
+            current_lane_raw = "for_review"
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
@@ -940,34 +998,7 @@ def review(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # --- Route through canonical emit pipeline (#211) ---
-            feature_dir = main_repo_root / "kitty-specs" / feature_slug
-
             with feature_status_lock(main_repo_root, feature_slug):
-                # Sync canonical event log if frontmatter lane disagrees
-                current_canonical = resolve_lane_alias(current_lane_raw)
-                current_event_lane = None
-                for existing_event in reversed(read_events(feature_dir)):
-                    if existing_event.wp_id == normalized_wp_id:
-                        current_event_lane = str(existing_event.to_lane)
-                        break
-
-                if (
-                    current_canonical != "planned"
-                    and current_event_lane != current_canonical
-                ):
-                    emit_status_transition(
-                        feature_dir=feature_dir,
-                        feature_slug=feature_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=current_canonical,
-                        actor=agent,
-                        force=True,
-                        reason="sync from frontmatter before workflow review claim",
-                        workspace_context=f"workflow-review:{main_repo_root}",
-                        repo_root=main_repo_root,
-                    )
-
                 # Emit the actual for_review -> in_progress transition
                 emit_status_transition(
                     feature_dir=feature_dir,
@@ -982,10 +1013,9 @@ def review(
                     repo_root=main_repo_root,
                 )
 
-                # Post-emit: apply metadata fields to WP file
+                # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")
                 updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-                updated_front = set_scalar(updated_front, "lane", "doing")
                 updated_front = set_scalar(updated_front, "agent", agent)
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
@@ -1106,13 +1136,23 @@ def review(
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
+            # Load lanes from event log (lane is event-log-only)
+            try:
+                from specify_cli.status.store import read_events as _rw_read_events
+                from specify_cli.status.reducer import reduce as _rw_reduce
+
+                _rw_events = _rw_read_events(feature_dir)
+                _rw_snapshot = _rw_reduce(_rw_events) if _rw_events else None
+                _rw_lanes: dict = {}
+                if _rw_snapshot:
+                    for _rw_wp_id, _rw_state in _rw_snapshot.work_packages.items():
+                        _rw_lanes[_rw_wp_id] = str(_rw_state.get("lane", "planned"))
+            except Exception:
+                _rw_lanes = {}
+
             incomplete: list[str] = []
             for dependent_id in dependents:
-                try:
-                    dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
-                except FileNotFoundError:
-                    continue
-                lane = extract_scalar(dependent_wp.frontmatter, "lane")
+                lane = _rw_lanes.get(dependent_id, "planned")
                 if lane in {"planned", "doing", "for_review"}:
                     incomplete.append(dependent_id)
             if incomplete:
