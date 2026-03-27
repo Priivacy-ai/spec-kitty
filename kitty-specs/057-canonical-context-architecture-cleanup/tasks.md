@@ -184,11 +184,11 @@
 **Requirement Refs**: FR-010, FR-011, FR-022, FR-023
 
 ### Included Subtasks
-- [ ] T029 Create `src/specify_cli/status/progress.py` — Weighted progress computation: configurable weights per WP, compute from snapshot lane counts, return structured JSON
-- [ ] T030 Create `src/specify_cli/cli/commands/materialize.py` — `spec-kitty materialize` command for CI/debugging/external consumers
-- [ ] T031 Add lazy regeneration: `materialize_if_stale(feature_dir)` checks event log mtime vs derived file mtime, regenerates if needed
-- [ ] T032 Create `.kittify/derived/` directory structure; update `.gitignore` for `.kittify/derived/` and `.kittify/runtime/`
-- [ ] T033 [P] Tests for progress computation, materialization, lazy regeneration
+- [x] T029 Create `src/specify_cli/status/progress.py` — Weighted progress computation: configurable weights per WP, compute from snapshot lane counts, return structured JSON
+- [x] T030 Create `src/specify_cli/cli/commands/materialize.py` — `spec-kitty materialize` command for CI/debugging/external consumers
+- [x] T031 Add lazy regeneration: `materialize_if_stale(feature_dir)` checks event log mtime vs derived file mtime, regenerates if needed
+- [x] T032 Create `.kittify/derived/` directory structure; update `.gitignore` for `.kittify/derived/` and `.kittify/runtime/`
+- [x] T033 [P] Tests for progress computation, materialization, lazy regeneration
 
 ### Implementation Notes
 - Lane-weighted model, NOT done-only: each lane has a fractional weight (planned=0.0, claimed=0.05, in_progress=0.3, for_review=0.6, approved=0.8, done=1.0, blocked=0.0, canceled=0.0)
