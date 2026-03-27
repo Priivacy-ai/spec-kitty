@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Context CLI Integration
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 requirement_refs:
 - FR-002
@@ -20,8 +20,8 @@ subtasks:
 - T011
 phase: Phase A - Foundation
 assignee: ''
-agent: "coordinator"
-shell_pid: "5530"
+agent: coordinator
+shell_pid: '5530'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -159,3 +159,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T18:10:53Z – coordinator – shell_pid=5530 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T18:32:39Z – coordinator – shell_pid=5530 – lane=for_review – Context CLI integration complete: mission-resolve/mission-show commands added, feature_detection.py deleted (668 lines), all callers migrated to fail-fast require_explicit_feature pattern, 19 tests added
