@@ -323,10 +323,10 @@
 **Requirement Refs**: NFR-006
 
 ### Included Subtasks
-- [ ] T050 Delete all `src/specify_cli/missions/*/command-templates/*.md` files (~56 files across 4 missions)
-- [ ] T051 Delete `src/specify_cli/core/agent_context.py` (~300 lines — tech-stack parsing from plan.md)
-- [ ] T052 Delete/simplify migration code that copies or patches markdown command files into agent directories
-- [ ] T053 [P] Tests verifying templates are gone, agent_context references are removed, shim-only agent surface
+- [x] T050 Delete all `src/specify_cli/missions/*/command-templates/*.md` files (~56 files across 4 missions)
+- [x] T051 Delete `src/specify_cli/core/agent_context.py` (~300 lines — tech-stack parsing from plan.md)
+- [x] T052 Delete/simplify migration code that copies or patches markdown command files into agent directories
+- [x] T053 [P] Tests verifying templates are gone, agent_context references are removed, shim-only agent surface
 
 ### Implementation Notes
 - Search for all imports of `agent_context` and update callers
