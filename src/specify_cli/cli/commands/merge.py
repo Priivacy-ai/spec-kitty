@@ -24,7 +24,6 @@ from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.merge.executor import execute_legacy_merge, execute_merge
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order
 from specify_cli.merge.preflight import (
     display_preflight_result,
