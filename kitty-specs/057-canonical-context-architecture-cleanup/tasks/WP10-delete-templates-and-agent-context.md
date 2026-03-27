@@ -1,13 +1,16 @@
 ---
 work_package_id: WP10
 title: Delete Command Templates and Agent Context
-lane: planned
+lane: "doing"
 dependencies: [WP09]
 requirement_refs:
 - NFR-006
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP09
+base_commit: 194bf77749ef77a7b73290131ff36dccd1f3b7fa
+created_at: '2026-03-27T18:18:17.598805+00:00'
 subtasks:
 - T050
 - T051
@@ -16,7 +19,7 @@ subtasks:
 phase: Phase D - Surface and Migration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "10711"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
