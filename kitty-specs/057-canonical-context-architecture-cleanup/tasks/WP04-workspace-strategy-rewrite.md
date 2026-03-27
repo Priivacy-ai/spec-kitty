@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Workspace Strategy Rewrite
-lane: planned
+lane: "doing"
 dependencies: [WP03]
 requirement_refs:
 - FR-006
@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP03
+base_commit: 13d557839a5e27b17c4005649dc5af63c97f975c
+created_at: '2026-03-27T18:17:38.958038+00:00'
 subtasks:
 - T018
 - T019
@@ -19,7 +22,7 @@ subtasks:
 phase: Phase A - Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "10241"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
