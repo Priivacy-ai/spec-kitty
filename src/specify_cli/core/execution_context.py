@@ -12,11 +12,7 @@ from pathlib import Path
 from typing import Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
-from specify_cli.core.feature_detection import (
-    FeatureContext,
-    detect_feature,
-    get_feature_target_branch,
-)
+from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
 from specify_cli.core.implement_validation import (
     BaseResolutionError,
     validate_and_resolve_base,
@@ -65,30 +61,30 @@ class ActionContext:
         return asdict(self)
 
 
-def _resolve_feature_context(
+def _resolve_feature_slug(
     repo_root: Path,
     *,
     feature: str | None,
-    cwd: Path | None,
-    env: Mapping[str, str] | None,
-) -> FeatureContext:
+    cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
+    env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
+) -> tuple[str, Path]:
+    """Resolve feature slug and directory from an explicit --feature value.
+
+    Raises ActionContextError if feature is not provided or directory doesn't exist.
+    """
     try:
-        ctx = detect_feature(
-            repo_root,
-            explicit_feature=feature,
-            cwd=cwd,
-            env=env,
-            mode="strict",
-            allow_latest_incomplete=True,
-        )
-    except Exception as exc:
+        slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+    except ValueError as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
-    if ctx is None:
+
+    feature_dir = repo_root / "kitty-specs" / slug
+    if not feature_dir.exists():
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            "Could not resolve feature context.",
+            f"Feature directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct feature slug.",
         )
-    return ctx
+    return slug, feature_dir
 
 
 def _tasks_commands(feature_slug: str) -> dict[str, str]:
@@ -162,9 +158,7 @@ def resolve_action_context(
             f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
         )
 
-    feature_ctx = _resolve_feature_context(repo_root, feature=feature, cwd=cwd, env=env)
-    feature_slug = feature_ctx.slug
-    feature_dir = feature_ctx.directory
+    feature_slug, feature_dir = _resolve_feature_slug(repo_root, feature=feature, cwd=cwd, env=env)
     target_branch = get_feature_target_branch(repo_root, feature_slug)
 
     context = ActionContext(
@@ -172,7 +166,7 @@ def resolve_action_context(
         feature_slug=feature_slug,
         feature_dir=str(feature_dir),
         target_branch=target_branch,
-        detection_method=feature_ctx.detection_method,
+        detection_method="explicit",
         commands=_tasks_commands(feature_slug),
     )
 

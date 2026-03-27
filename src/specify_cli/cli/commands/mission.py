@@ -19,9 +19,6 @@ from specify_cli.mission import (
     get_mission_for_feature,
     list_available_missions,
 )
-from specify_cli.core.feature_detection import (
-    detect_feature,
-)
 
 app = typer.Typer(
     name="mission",
@@ -161,26 +158,15 @@ def list_cmd() -> None:
 
 
 def _detect_current_feature(project_root: Path) -> str | None:
-    """Detect feature slug from current working directory using centralized detection.
-
-    This function uses lenient mode to return None on failure (UI convenience).
+    """Return None — no auto-detection (requires explicit --feature).
 
     Args:
-        project_root: Project root path
+        project_root: Project root path (unused)
 
     Returns:
-        Feature slug if detected, None otherwise
+        Always None; caller must provide --feature explicitly.
     """
-    try:
-        ctx = detect_feature(
-            project_root,
-            cwd=Path.cwd(),
-            mode="lenient",  # Return None instead of raising error
-        )
-        return ctx.slug if ctx else None
-    except Exception:
-        # Catch any unexpected errors and return None (lenient behavior)
-        return None
+    return None
 
 
 @app.command("current")

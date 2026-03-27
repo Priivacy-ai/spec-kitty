@@ -29,10 +29,9 @@ from specify_cli.status.store import read_events
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
+from specify_cli.core.paths import (
     get_feature_target_branch,
-    FeatureDetectionError,
+    require_explicit_feature,
 )
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
@@ -137,31 +136,20 @@ def _ensure_target_branch_checked_out(
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Find the current feature slug using centralized detection.
+    """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_feature: Feature slug provided via --feature flag.
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If feature slug cannot be determined
+        typer.Exit: If feature slug is not provided.
     """
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        raise typer.Exit(1)
-
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
+        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
@@ -575,7 +563,6 @@ def _validate_ready_for_review(
 
             # Check if worktree branch is behind its base branch
             # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
-            from specify_cli.core.feature_detection import get_feature_target_branch
             from specify_cli.workspace_context import load_context
             target_branch = get_feature_target_branch(repo_root, feature_slug)
 

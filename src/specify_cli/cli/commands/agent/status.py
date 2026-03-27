@@ -17,10 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
 
@@ -36,36 +33,21 @@ console = Console()
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Find the current feature slug using centralized detection.
+    """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_feature: Feature slug provided via --feature flag.
 
     Returns:
         Feature slug (e.g., "034-feature-name")
 
     Raises:
-        typer.Exit: If feature slug cannot be determined
+        typer.Exit: If feature slug is not provided.
     """
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        console.print("[red]Error:[/red] Could not locate project root")
-        raise typer.Exit(1)
-
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
+        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
-        console.print(
-            "\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]"
-        )
         raise typer.Exit(1)
 
 

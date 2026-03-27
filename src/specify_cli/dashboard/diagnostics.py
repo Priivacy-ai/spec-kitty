@@ -34,15 +34,15 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
-        from ..acceptance import detect_feature_slug, AcceptanceError
+        from ..acceptance import AcceptanceError
     except (ImportError, ValueError):
         try:
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.acceptance import AcceptanceError
         except ImportError:
             _ensure_specify_cli_on_path()
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.acceptance import AcceptanceError
 
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
@@ -122,12 +122,11 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
         })
 
     try:
-        # When feature_dir is provided by the caller, derive the slug from it
-        # to stay consistent with the mission resolution above.
+        # feature_slug from provided feature_dir only; no auto-detection
         if feature_dir is not None:
-            feature_slug = feature_dir.name
+            feature_slug: str | None = feature_dir.name
         else:
-            feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
+            feature_slug = None
         if feature_slug:
             feature_status = worktree_status.get_feature_status(feature_slug.strip())
             diagnostics['current_feature'] = {

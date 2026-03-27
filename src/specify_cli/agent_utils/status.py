@@ -16,10 +16,6 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
-)
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 console = Console()
@@ -50,13 +46,14 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print("[red]Error:[/red] Not in a spec-kitty project")
             return {"error": "Not in a spec-kitty project"}
 
-        # Auto-detect feature if not provided
+        # feature_slug is required; no auto-detection
         if not feature_slug:
-            try:
-                feature_slug = detect_feature_slug(repo_root, cwd=cwd, mode="strict")
-            except FeatureDetectionError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                return {"error": str(e)}
+            msg = (
+                "feature_slug is required. "
+                "Pass it explicitly: show_kanban_status('057-my-feature')"
+            )
+            console.print(f"[red]Error:[/red] {msg}")
+            return {"error": msg}
 
         # Get main repo root for correct path resolution
         main_repo_root = get_main_repo_root(repo_root)

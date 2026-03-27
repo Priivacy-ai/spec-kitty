@@ -10,7 +10,8 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.acceptance import AcceptanceError, detect_feature_slug
+from specify_cli.acceptance import AcceptanceError
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.task_metadata_validation import (
@@ -102,8 +103,8 @@ def validate_tasks(
 
     # Validate single feature
     try:
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
-    except AcceptanceError as exc:
+        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+    except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 

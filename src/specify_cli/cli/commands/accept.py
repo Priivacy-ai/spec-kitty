@@ -14,9 +14,9 @@ from specify_cli.acceptance import (
     AcceptanceSummary,
     choose_mode,
     collect_feature_summary,
-    detect_feature_slug,
     perform_acceptance,
 )
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
@@ -144,11 +144,8 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        feature_slug = (
-            feature
-            or detect_feature_slug(repo_root)
-        ).strip()
-    except AcceptanceError as exc:
+        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+    except ValueError as exc:
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))

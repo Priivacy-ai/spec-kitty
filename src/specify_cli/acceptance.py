@@ -26,10 +26,7 @@ from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
-from specify_cli.core.feature_detection import (
-    detect_feature_slug as centralized_detect_feature_slug,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.core.agent_config import get_auto_commit_default
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
@@ -242,37 +239,29 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
 def detect_feature_slug(
     repo_root: Path,
     *,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    announce_fallback: bool = True,  # noqa: ARG001 -- kept for backward compat
+    explicit_feature: Optional[str] = None,
+    env: Optional[Mapping[str, str]] = None,  # noqa: ARG001 -- kept for signature compat
+    cwd: Optional[Path] = None,  # noqa: ARG001 -- kept for signature compat
+    announce_fallback: bool = True,  # noqa: ARG001 -- kept for signature compat
 ) -> str:
-    """Detect feature slug using centralized detection.
-
-    This function maintains backward compatibility while delegating
-    to the centralized feature detection module.
+    """Require an explicit feature slug; no auto-detection.
 
     Args:
-        repo_root: Repository root path
-        env: Environment variables (defaults to os.environ)
-        cwd: Current working directory (defaults to Path.cwd())
-        announce_fallback: Whether to announce fallback detection (unused,
-            kept for backward compatibility with standalone callers)
+        repo_root: Repository root path (unused — kept for signature compatibility)
+        explicit_feature: Feature slug to use (required).
+        env: Unused; kept for backward-compatible call sites.
+        cwd: Unused; kept for backward-compatible call sites.
+        announce_fallback: Unused; kept for backward-compatible call sites.
 
     Returns:
         Feature slug (e.g., "020-my-feature")
 
     Raises:
-        AcceptanceError: If feature slug cannot be determined
+        AcceptanceError: If no explicit feature slug is provided.
     """
     try:
-        return centralized_detect_feature_slug(
-            repo_root,
-            env=env,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
-        # Convert to AcceptanceError for backward compatibility
+        return _require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         raise AcceptanceError(str(e)) from e
 
 
