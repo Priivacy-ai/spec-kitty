@@ -22,7 +22,7 @@ subtasks:
 - T033
 phase: Phase B - State
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "91906"
 review_status: ''
 reviewed_by: ''
@@ -145,3 +145,4 @@ history:
 ## Activity Log
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
+- 2026-03-27T19:42:45Z – coordinator – shell_pid=91906 – lane=doing – Assigned agent via workflow command
