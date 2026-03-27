@@ -172,17 +172,6 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         console.print(f"[cyan]Workspace for {wp_id} already exists[/cyan]")
         console.print(f"Reusing: {workspace_path}")
 
-        # SECURITY CHECK: Detect symlinks to kitty-specs/ (bypass attempt)
-        kitty_specs_path = workspace_path / "kitty-specs"
-        if kitty_specs_path.is_symlink():
-            console.print()
-            console.print("[bold red]⚠️  SECURITY WARNING: kitty-specs/ is a symlink![/bold red]")
-            console.print(f"   Target: {kitty_specs_path.resolve()}")
-            console.print("   This bypasses sparse-checkout isolation and can corrupt main repo state.")
-            console.print(f"   Remove with: rm {kitty_specs_path}")
-            console.print()
-            raise typer.Exit(1)
-
         return True  # Reuse existing
 
     # Directory exists but not a worktree
@@ -941,14 +930,12 @@ def implement(
                     console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
                     raise typer.Exit(1)
 
-        # Create workspace using VCS abstraction
-        # sparse_exclude excludes kitty-specs/ from worktree
+        # Create workspace using VCS abstraction (full checkout, no sparse exclusions)
         create_result = vcs.create_workspace(
             workspace_path=workspace_path,
             workspace_name=workspace_name,
             base_branch=base_branch,
             repo_root=repo_root,
-            sparse_exclude=["kitty-specs/"],
         )
 
         if not create_result.success:
@@ -957,9 +944,6 @@ def implement(
             console.print(f"\n[red]Error:[/red] Failed to create workspace")
             console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
-
-        # Confirm sparse-checkout was applied
-        console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         # Step 3.5: Get base commit SHA for tracking
         result = subprocess.run(

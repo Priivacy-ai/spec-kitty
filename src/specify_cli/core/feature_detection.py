@@ -535,8 +535,7 @@ def detect_feature(
         return None
 
     # Build FeatureContext using the MAIN repo root so that the directory
-    # path always points to the real kitty-specs/ location (even when
-    # called from a worktree that lacks kitty-specs/ via sparse checkout).
+    # path always points to the real kitty-specs/ location (main branch is authoritative).
     main_repo_root = _get_main_repo_root(repo_root)
     try:
         return FeatureContext.from_slug(detected_slug, main_repo_root, detection_method)

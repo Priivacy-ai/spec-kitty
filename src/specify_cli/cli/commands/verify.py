@@ -146,9 +146,8 @@ def verify_setup(
 def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
     """Run diagnostics mode with detailed health information."""
     try:
-        # Resolve the MAIN repo root, not CWD.  In worktrees CWD lacks
-        # kitty-specs/ (sparse checkout), so feature detection would fail
-        # if we passed CWD directly.
+        # Resolve the MAIN repo root, not CWD. Main branch is authoritative
+        # for kitty-specs/ (planning artifacts), so feature detection uses it.
         project_path = locate_project_root() or Path.cwd()
         feature_dir = _resolve_feature_dir(project_path, feature)
         diag = run_diagnostics(project_path, feature_dir=feature_dir)

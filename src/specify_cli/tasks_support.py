@@ -298,7 +298,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     """Locate a work package by ID, supporting both legacy and new formats.
 
     Always uses main repo's kitty-specs/ regardless of current directory.
-    Worktrees should not contain kitty-specs/ (excluded via sparse checkout).
+    Main branch is authoritative for planning artifacts.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter

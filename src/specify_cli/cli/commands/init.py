@@ -264,7 +264,7 @@ def _detect_default_vcs() -> VCSBackend:
     Returns VCSBackend.GIT if git is available.
     Raises VCSNotFoundError if git is not available.
 
-    Note: jj support removed due to sparse checkout incompatibility.
+    Note: Only git is supported.
     """
     if is_git_available():
         return VCSBackend.GIT
