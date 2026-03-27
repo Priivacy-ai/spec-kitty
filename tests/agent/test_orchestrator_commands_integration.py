@@ -463,6 +463,97 @@ class TestTransition:
         data = json.loads(result.output)
         assert data["error_code"] == "POLICY_METADATA_REQUIRED"
 
+    def test_transition_passes_review_handoff_flags_to_status_emit(self, tmp_path):
+        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        emit_mock = MagicMock()
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ), patch(
+            "specify_cli.status.emit.emit_status_transition",
+            emit_mock,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature", feature_slug,
+                    "--wp", "WP01",
+                    "--to", "for_review",
+                    "--actor", "claude",
+                    "--policy", _valid_policy_json(),
+                    "--subtasks-complete",
+                    "--implementation-evidence-present",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        kwargs = emit_mock.call_args.kwargs
+        assert kwargs["subtasks_complete"] is True
+        assert kwargs["implementation_evidence_present"] is True
+
+    def test_transition_passes_done_evidence_to_status_emit(self, tmp_path):
+        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        emit_mock = MagicMock()
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ), patch(
+            "specify_cli.status.emit.emit_status_transition",
+            emit_mock,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature", feature_slug,
+                    "--wp", "WP01",
+                    "--to", "done",
+                    "--actor", "reviewer",
+                    "--review-ref", "review-001",
+                    "--evidence-json", '{"review":{"reviewer":"reviewer","verdict":"approved","reference":"review-001"}}',
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        kwargs = emit_mock.call_args.kwargs
+        assert kwargs["review_ref"] == "review-001"
+        assert kwargs["evidence"] == {
+            "review": {
+                "reviewer": "reviewer",
+                "verdict": "approved",
+                "reference": "review-001",
+            }
+        }
+
+    def test_transition_rejects_invalid_evidence_json(self, tmp_path):
+        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature", feature_slug,
+                    "--wp", "WP01",
+                    "--to", "done",
+                    "--actor", "reviewer",
+                    "--evidence-json", '{"review":',
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "USAGE_ERROR"
+
 # ── append-history ────────────────────────────────────────────────
 
 class TestAppendHistory:

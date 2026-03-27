@@ -51,11 +51,14 @@ Use returned `workspace_path` and `prompt_path` to run your agent process.
 # implementation complete
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to for_review \
-  --actor my-orchestrator --policy '<json>'
+  --actor my-orchestrator --policy '<json>' \
+  --subtasks-complete --implementation-evidence-present
 # review approved
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to done \
-  --actor reviewer-bot
+  --actor reviewer-bot \
+  --review-ref review/WP01/attempt-1 \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
 # review rejected -> rework
 spec-kitty orchestrator-api start-review \
   --feature <slug> --wp WP01 --actor my-orchestrator \

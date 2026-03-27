@@ -450,6 +450,9 @@ Options:
   --policy      TEXT  Policy metadata JSON (required for run-affecting lanes)
   --force             Force the transition
   --review-ref  TEXT  Review reference
+  --evidence-json  TEXT  JSON string with done evidence
+  --subtasks-complete  BOOLEAN  Whether required subtasks are complete for in_progress->for_review
+  --implementation-evidence-present  BOOLEAN  Whether implementation evidence exists for in_progress->for_review
 ```
 
 **Flags:**
@@ -464,6 +467,9 @@ Options:
 | `--policy` | TEXT | Conditional | none | JSON policy metadata (required for run-affecting lanes) |
 | `--force` | FLAG | No | off | Override guard checks (recovery only) |
 | `--review-ref` | TEXT | No | none | Review artifact reference |
+| `--evidence-json` | TEXT | No | none | JSON object recorded as done evidence |
+| `--subtasks-complete` | FLAG | No | off | Satisfy the `in_progress` -> `for_review` subtask completion guard |
+| `--implementation-evidence-present` | FLAG | No | off | Satisfy the `in_progress` -> `for_review` implementation evidence guard |
 
 **Valid target lanes and policy requirement:**
 
@@ -498,6 +504,8 @@ Options:
 - Use `--force` only for recovery from known-bad state, never in normal flow.
 - Use `--note` to record reasoning in the audit trail.
 - Use `--review-ref` when transitioning from `for_review` or `approved` back to `in_progress` or `planned` (review rollback guard).
+- Use `--subtasks-complete` and `--implementation-evidence-present` when an external orchestrator submits completed implementation for review.
+- Use `--review-ref` together with `--evidence-json` when an external orchestrator records `done` after review approval.
 
 ---
 
