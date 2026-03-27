@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Schema Version and Upgrade Gate
-lane: "doing"
+lane: "for_review"
 dependencies: [WP05]
 requirement_refs:
 - C-003
@@ -22,8 +22,8 @@ subtasks:
 - T058
 phase: Phase D - Surface and Migration
 assignee: ''
-agent: "coordinator"
-shell_pid: "92070"
+agent: coordinator
+shell_pid: '92070'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -161,3 +161,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:42:49Z – coordinator – shell_pid=92070 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T19:48:21Z – coordinator – shell_pid=92070 – lane=for_review – Schema version gate implemented, heuristic detector replaced
