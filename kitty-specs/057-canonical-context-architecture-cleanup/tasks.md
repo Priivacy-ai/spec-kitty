@@ -85,12 +85,12 @@
 **Requirement Refs**: FR-004, FR-005
 
 ### Included Subtasks
-- [ ] T012 Create `src/specify_cli/ownership/__init__.py` with public API exports
-- [ ] T013 Create `src/specify_cli/ownership/models.py` — `ExecutionMode` enum (`code_change`, `planning_artifact`), `OwnershipManifest` dataclass
-- [ ] T014 Create `src/specify_cli/ownership/validation.py` — Overlap detection across WPs, completeness checks, authoritative_surface prefix validation
-- [ ] T015 Create `src/specify_cli/ownership/inference.py` — Infer execution_mode and owned_files from WP description, file paths, and task content
-- [ ] T016 Update task finalization (`finalize-tasks`) to require ownership manifest fields in frontmatter
-- [ ] T017 [P] Tests for ownership module (`tests/specify_cli/ownership/`)
+- [x] T012 Create `src/specify_cli/ownership/__init__.py` with public API exports
+- [x] T013 Create `src/specify_cli/ownership/models.py` — `ExecutionMode` enum (`code_change`, `planning_artifact`), `OwnershipManifest` dataclass
+- [x] T014 Create `src/specify_cli/ownership/validation.py` — Overlap detection across WPs, completeness checks, authoritative_surface prefix validation
+- [x] T015 Create `src/specify_cli/ownership/inference.py` — Infer execution_mode and owned_files from WP description, file paths, and task content
+- [x] T016 Update task finalization (`finalize-tasks`) to require ownership manifest fields in frontmatter
+- [x] T017 [P] Tests for ownership module (`tests/specify_cli/ownership/`)
 
 ### Implementation Notes
 - `planning_artifact` WPs: owned_files should be `kitty-specs/` paths or documentation paths
