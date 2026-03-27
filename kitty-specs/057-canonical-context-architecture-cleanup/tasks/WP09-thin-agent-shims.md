@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Thin Agent Shims
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 requirement_refs:
 - C-007
@@ -22,8 +22,8 @@ subtasks:
 - T049
 phase: Phase D - Surface and Migration
 assignee: ''
-agent: "coordinator"
-shell_pid: "5682"
+agent: coordinator
+shell_pid: '5682'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -195,3 +195,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T18:10:57Z – coordinator – shell_pid=5682 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T18:17:20Z – coordinator – shell_pid=5682 – lane=for_review – Thin agent shim module complete with generator, registry, entrypoints, and tests
