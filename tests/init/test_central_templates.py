@@ -8,6 +8,8 @@ from pathlib import Path
 pytestmark = pytest.mark.fast
 
 TEMPLATE_DIR = Path("src/specify_cli/templates/command-templates")
+MISSION_TEMPLATE_DIR = Path("src/specify_cli/missions/software-dev/command-templates")
+SLASH_COMMAND_DOC = Path("docs/reference/slash-commands.md")
 EXPECTED_TEMPLATES = {
     "accept.md",
     "analyze.md",
@@ -123,3 +125,25 @@ def test_central_review_template_dependency_checks() -> None:
     content_lower = content.lower()
     assert "dependencies" in content_lower, "review.md should mention dependencies"
     assert "rebase" in content_lower, "review.md should mention rebase warnings"
+
+
+def test_central_workflow_templates_preserve_explicit_argument_slots() -> None:
+    """Software-dev overrides must surface caller args for resolver-first flows."""
+    implement_content = (MISSION_TEMPLATE_DIR / "implement.md").read_text(encoding="utf-8")
+    review_content = (MISSION_TEMPLATE_DIR / "review.md").read_text(encoding="utf-8")
+
+    assert "{ARGS}" in implement_content, "implement.md should preserve explicit caller args"
+    assert "{ARGS}" in review_content, "review.md should preserve explicit caller args"
+    assert "--base WP01" in implement_content, "implement.md should document forwarding explicit base args"
+    assert "only explicit WP IDs are supported here" in review_content, (
+        "review.md should make the explicit WP-only contract clear"
+    )
+
+
+def test_slash_command_reference_matches_resolver_first_contract() -> None:
+    """Public slash-command docs must match the resolver-first implement/review contract."""
+    content = SLASH_COMMAND_DOC.read_text(encoding="utf-8")
+
+    assert "**Syntax**: `/spec-kitty.implement [WP_ID] [--base WP_ID]`" in content
+    assert "**Syntax**: `/spec-kitty.review [WP_ID]`" in content
+    assert "prompt path" not in content.lower()

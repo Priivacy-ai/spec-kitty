@@ -84,7 +84,7 @@ Syntax format in this reference:
 
 ## /spec-kitty.implement
 
-**Syntax**: `/spec-kitty.implement [WP_ID]`
+**Syntax**: `/spec-kitty.implement [WP_ID] [--base WP_ID]`
 
 **Purpose**: Create a worktree and start implementation for a specific work package.
 
@@ -93,6 +93,7 @@ Syntax format in this reference:
 - Run from main repository for the workflow prompt; worktree is created by CLI.
 
 **What it does**:
+- If explicit slash-command args are provided, forwards the WP/base selection into the resolver-first workflow.
 - Step 1: `spec-kitty agent workflow implement WP## --agent <agent>` to show the prompt and move the WP to `doing`.
 - Step 2: `spec-kitty implement WP## [--base WP##]` to create the worktree.
 - Implementation happens inside the created worktree.
@@ -107,7 +108,7 @@ Syntax format in this reference:
 
 ## /spec-kitty.review
 
-**Syntax**: `/spec-kitty.review [WP_ID or prompt path]`
+**Syntax**: `/spec-kitty.review [WP_ID]`
 
 **Purpose**: Review a completed work package and update its lane status.
 
@@ -116,6 +117,7 @@ Syntax format in this reference:
 - WP must be in `lane: "for_review"`.
 
 **What it does**:
+- If `WP_ID` is provided, forwards it to the resolver-first workflow as an explicit `--wp-id`.
 - Loads the WP prompt, supporting artifacts, and code changes.
 - Performs structured review and records feedback via `--review-feedback-file`.
 - Persists feedback in shared git common-dir and writes frontmatter `review_feedback` pointer (`feedback://...`) in the WP file.
