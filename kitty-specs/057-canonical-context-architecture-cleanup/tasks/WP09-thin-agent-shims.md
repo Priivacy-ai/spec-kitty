@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Thin Agent Shims
-lane: planned
+lane: "doing"
 dependencies: [WP01]
 requirement_refs:
 - C-007
@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP01
+base_commit: c59fdb7be18bffff79d158144cd072fca7673135
+created_at: '2026-03-27T18:10:56.955315+00:00'
 subtasks:
 - T044
 - T045
@@ -20,7 +23,7 @@ subtasks:
 phase: Phase D - Surface and Migration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "5682"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
