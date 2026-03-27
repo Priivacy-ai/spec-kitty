@@ -387,12 +387,12 @@
 **Requirement Refs**: FR-018, FR-021, C-006
 
 ### Included Subtasks
-- [ ] T059 Create `src/specify_cli/migration/__init__.py` with public API exports
-- [ ] T060 Create `src/specify_cli/migration/backfill_identity.py` — Assign project_uuid to metadata.yaml, mission_id to each feature's meta.json, work_package_id + wp_code to each WP frontmatter
-- [ ] T061 Create `src/specify_cli/migration/backfill_ownership.py` — Infer execution_mode and owned_files from WP content, file paths, git branch diffs
-- [ ] T062 Create `src/specify_cli/migration/strip_frontmatter.py` — Remove mutable fields (lane, review_status, reviewed_by, progress) from all WP frontmatter and tasks.md
-- [ ] T063 Create `src/specify_cli/migration/rewrite_shims.py` — Replace agent command files with thin shims using shim generator
-- [ ] T064 [P] Tests for identity backfill, ownership inference, frontmatter stripping, shim rewriting
+- [x] T059 Create `src/specify_cli/migration/__init__.py` with public API exports
+- [x] T060 Create `src/specify_cli/migration/backfill_identity.py` — Assign project_uuid to metadata.yaml, mission_id to each feature's meta.json, work_package_id + wp_code to each WP frontmatter
+- [x] T061 Create `src/specify_cli/migration/backfill_ownership.py` — Infer execution_mode and owned_files from WP content, file paths, git branch diffs
+- [x] T062 Create `src/specify_cli/migration/strip_frontmatter.py` — Remove mutable fields (lane, review_status, reviewed_by, progress) from all WP frontmatter and tasks.md
+- [x] T063 Create `src/specify_cli/migration/rewrite_shims.py` — Replace agent command files with thin shims using shim generator
+- [x] T064 [P] Tests for identity backfill, ownership inference, frontmatter stripping, shim rewriting
 
 ### Implementation Notes
 - project_uuid: generate ULID, write to metadata.yaml `spec_kitty.project_uuid`
