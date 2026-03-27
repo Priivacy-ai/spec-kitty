@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Delete Command Templates and Agent Context
-lane: "doing"
+lane: "for_review"
 dependencies: [WP09]
 requirement_refs:
 - NFR-006
@@ -18,8 +18,8 @@ subtasks:
 - T053
 phase: Phase D - Surface and Migration
 assignee: ''
-agent: "coordinator"
-shell_pid: "10711"
+agent: coordinator
+shell_pid: '10711'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -123,3 +123,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T18:18:17Z – coordinator – shell_pid=10711 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T18:54:06Z – coordinator – shell_pid=10711 – lane=for_review – Deleted ~56 command templates, agent_context.py, and template-copying migration logic. Also updated init.py to call generate_all_shims() instead of copying templates. Pre-existing test failure (test_single_dependency_with_base_calls_toplevel) confirmed not caused by WP10.
