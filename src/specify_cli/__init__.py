@@ -107,6 +107,13 @@ def main_callback(
     if project_root is not None:
         check_version_pin(project_root)
 
+    # FR-019 / FR-020: Schema version gate — refuse unmigrated or newer-than-CLI
+    # projects before any command runs.  Exempt upgrade/init/--version/--help.
+    if project_root is not None:
+        from specify_cli.migration.gate import check_schema_version
+
+        check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
+
 
 def _compute_execute_mode(mode: int) -> int:
     new_mode = mode
