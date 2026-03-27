@@ -1,6 +1,6 @@
 # Consumer Analysis: Mission Asset Path Construction
 
-**Feature**: 058 - Mission Repository Encapsulation
+**Mission**: 058 - Mission Repository Encapsulation
 **Date**: 2026-03-27
 **Purpose**: Catalog all production files that construct mission asset paths directly, bypassing the `MissionRepository` API, and classify them by remediation priority.
 

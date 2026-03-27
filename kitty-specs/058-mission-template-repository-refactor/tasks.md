@@ -88,36 +88,38 @@
 
 ---
 
-## Work Package WP03: Config + Resolver Public Methods (Priority: P0)
+## Work Package WP03: Config Methods on Repository + ConstitutionTemplateResolver (Priority: P0)
 
-**Goal**: Add the YAML-returning config methods and the 5-tier resolver integration methods. These complete the public API surface.
-**Independent Test**: `repo.get_action_index("software-dev", "implement")` returns a `ConfigResult` with parsed dict. `repo.resolve_command_template("software-dev", "implement")` returns a `TemplateResult` from the package default tier.
+**Goal**: Add the YAML-returning config methods to `MissionTemplateRepository` (doctrine-level). Create `ConstitutionTemplateResolver` in `src/constitution/template_resolver.py` for 5-tier project-aware resolution. This preserves doctrine's zero-dependency invariant while placing override resolution in the constitution module (where it belongs — constitution is the concretization of doctrine into local context-aware legislation).
+**Independent Test**: `repo.get_action_index("software-dev", "implement")` returns a `ConfigResult` with parsed dict. `ConstitutionTemplateResolver(...).resolve_command_template("software-dev", "implement")` returns a `TemplateResult` from the package default tier.
 **Prompt**: `/tasks/WP03-config-resolver-methods.md`
 **Requirement Refs**: FR-004, FR-005, FR-009, FR-010, FR-011, FR-012, FR-018, NFR-003, NFR-004
-**Estimated Size**: ~400 lines
+**Estimated Size**: ~450 lines
 
 ### Included Subtasks
 
-- [ ] T010 [P] Add `get_action_index(mission, action)` → `ConfigResult | None` (reads + parses YAML with ruamel.yaml)
-- [ ] T011 [P] Add `get_action_guidelines(mission, action)` → `TemplateResult | None` (reads markdown)
-- [ ] T012 [P] Add `get_mission_config(mission)` → `ConfigResult | None` (reads + parses mission.yaml)
-- [ ] T013 [P] Add `get_expected_artifacts(mission)` → `ConfigResult | None` (reads + parses expected-artifacts.yaml)
-- [ ] T014 Add `resolve_command_template(mission, name, project_dir?)` → `TemplateResult` (lazy import of resolver, wraps `ResolutionResult`)
-- [ ] T015 Add `resolve_content_template(mission, name, project_dir?)` → `TemplateResult` (same pattern)
+- [ ] T010 [P] Add `get_action_index(mission, action)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses YAML with ruamel.yaml)
+- [ ] T011 [P] Add `get_action_guidelines(mission, action)` → `TemplateResult | None` on `MissionTemplateRepository` (reads markdown)
+- [ ] T012 [P] Add `get_mission_config(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses mission.yaml)
+- [ ] T013 [P] Add `get_expected_artifacts(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses expected-artifacts.yaml)
+- [ ] T014 Create `src/constitution/template_resolver.py` with `ConstitutionTemplateResolver` class. Method: `resolve_command_template(mission, name, project_dir?)` → `TemplateResult`. Composes `MissionTemplateRepository` (tier 5) + `specify_cli.runtime.resolver` (tiers 1-4). Raises `FileNotFoundError` if not found at any tier.
+- [ ] T015 Add `resolve_content_template(mission, name, project_dir?)` → `TemplateResult` on `ConstitutionTemplateResolver` (same pattern as T014)
 
 ### Implementation Notes
 
+- Config methods (T010-T013) go on `MissionTemplateRepository` in `src/doctrine/missions/repository.py` — these are doctrine-level reads with zero external imports
 - Config methods use `ruamel.yaml` with `YAML(typ="safe")` -- matching `action_index.py` pattern
 - `get_action_index` should construct a `ConfigResult` with raw text + parsed dict, NOT return an `ActionIndex` dataclass (that's a separate concern)
-- `resolve_*` methods use lazy import: `from specify_cli.runtime.resolver import resolve_command_template as _resolve` inside method body
-- The resolver returns `ResolutionResult(path, tier, mission)`. Read `path.read_text()`, map `tier` to origin label, wrap in `TemplateResult(content, origin, tier)`
+- **`ConstitutionTemplateResolver`** (T014-T015) lives in `src/constitution/template_resolver.py` — constitution may import from `specify_cli.runtime` per 2.x landscape
+- The resolver wraps `specify_cli.runtime.resolver.resolve_command_template()` → `ResolutionResult(path, tier, mission)`. Read `path.read_text()`, map `tier` to origin label, wrap in `TemplateResult(content, origin, tier)`
 - If resolver raises `FileNotFoundError`, re-raise (per contract)
 - `resolve_*` with `project_dir=None` should still work by falling back to package-default tier only
+- **Package boundary invariant**: `MissionTemplateRepository` (doctrine) must have ZERO imports from `specify_cli` or `constitution`. Verify with `grep` after implementation.
 
 ### Parallel Opportunities
 
 - T010-T013 (config methods) are all independent
-- T014-T015 (resolver methods) depend on understanding the resolver but are independent of each other
+- T014-T015 (resolver in constitution) depend on understanding the resolver but are independent of each other
 
 ### Dependencies
 
@@ -125,7 +127,7 @@
 
 ### Risks & Mitigations
 
-- **Risk**: Circular import between `doctrine` and `specify_cli.runtime.resolver`. **Mitigation**: Lazy import inside method body, tested in WP04.
+- **Risk**: ~~Circular import between `doctrine` and `specify_cli.runtime.resolver`~~ **Eliminated**: resolve methods now live in `constitution`, not `doctrine`. Constitution's dependency on `specify_cli.runtime` is architecturally permitted.
 - **Risk**: `ruamel.yaml` parse failure on malformed YAML. **Mitigation**: Try/except returning `None` with warning log per contract.
 - **Risk**: Resolver expects different calling convention. **Mitigation**: Read resolver source carefully; the `resolve()` function in `resolver.py` needs to be understood before calling.
 
@@ -141,7 +143,7 @@
 
 ### Included Subtasks
 
-- [ ] T017 Verify existing `test_mission_repository.py` passes unchanged via alias (run before/after)
+- [ ] T017 Verify existing `test_mission_repository.py` passes unchanged via alias (run before/after). Also verify `list_missions()` signature and return type match FR-008 (sorted `list[str]`).
 - [ ] T018 Create `tests/doctrine/test_mission_template_repository.py` with test categories:
   - Value object construction and properties (`TemplateResult`, `ConfigResult`)
   - Doctrine-level reads: all `get_*` methods against real doctrine assets
@@ -149,7 +151,7 @@
   - Enumeration: `list_missions()`, `list_command_templates()`, `list_content_templates()`
   - YAML parsing: `get_action_index()`, `get_mission_config()`, `get_expected_artifacts()`
   - Backward compat: `MissionRepository` alias resolves correctly, `isinstance` check
-  - Resolver integration: `resolve_command_template()` without project_dir (package default)
+  - Resolver integration: `ConstitutionTemplateResolver.resolve_command_template()` without project_dir (package default)
   - Edge cases: empty missions root, missing directories, malformed YAML
 
 ### Implementation Notes
@@ -292,11 +294,119 @@
 
 ---
 
+## Work Package WP08: Boyscouting – Terminology Consistency (Priority: P2)
+
+**Goal**: Align the `agent feature` CLI surface with the constitution's Mission terminology canon. The `agent mission` alias already exists (canonical registration in `__init__.py` line 16), but user-facing strings, subcommand names, docstrings, documentation, and command templates still reference "feature." This WP cleans up the residual drift while already working in these files.
+**Independent Test**: `spec-kitty agent mission --help` shows clean "Mission" terminology. `spec-kitty agent feature` still works as hidden alias. Documentation references use `agent mission`.
+**Prompt**: `/tasks/WP08-boyscouting-terminology-consistency.md`
+**Requirement Refs**: Constitution terminology canon (lines 302–308)
+**Estimated Size**: ~300 lines
+
+### Included Subtasks
+
+- [ ] T031 Rename `create-feature` subcommand to `create-mission` (add hidden `create-feature` alias for backward compat)
+- [ ] T032 Update module docstring in `feature.py` (line 1: `"""Feature lifecycle commands…"""` → `"""Mission lifecycle commands…"""`) and all user-facing help strings / `rich.print` output that say "feature" when they mean "mission"
+- [ ] T033 Mark the `agent feature` registration in `__init__.py` as `hidden=True` so it still works but doesn't appear in `--help`
+- [ ] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
+- [ ] T035 [P] Update `docs/reference/slash-commands.md` — replace `spec-kitty agent feature` invocations with `spec-kitty agent mission`
+- [ ] T036 [P] Update `README.md` CLI examples (lines ~866–902) — replace `agent feature` with `agent mission`
+- [ ] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
+- [ ] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
+- [ ] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
+
+### Implementation Notes
+
+- **Do NOT rename the Python file** `feature.py` → `mission.py`. That's a large import-chain change with no user-facing benefit. The module name is internal.
+- **Hidden alias pattern**: Use `app.add_typer(feature.app, name="feature", hidden=True)` in `__init__.py` to keep backward compat without polluting `--help`.
+- **`create-feature` → `create-mission`**: Add `@app.command(name="create-mission")` and keep a hidden alias via a thin wrapper or typer's `deprecated` flag.
+- **Scope guard**: Only touch strings/docs where "feature" means "mission" (the domain object). Don't touch `--feature` flag renames (that's tracked in feature 057 WP02) or internal variable names.
+
+### Parallel Opportunities
+
+- T034–T038 (doc/template updates) are all independent and can proceed in parallel.
+- T031–T033 (code changes) should be sequential.
+
+### Dependencies
+
+- Depends on WP07 (which already fixes the stale path in `feature.py`; avoids merge conflicts in same file).
+
+### Risks & Mitigations
+
+- **Risk**: Agents or CI scripts hard-code `spec-kitty agent feature`. **Mitigation**: Hidden alias preserves the old name. No breaking change.
+- **Risk**: Overlap with feature 057 WP02 (`--feature` → `--mission` flag rename). **Mitigation**: This WP scopes to subcommand/doc/template terminology only; `--feature` flag deprecation stays in 057.
+
+---
+
+## Work Package WP09: Project-Local Mission Path Indirection (Priority: P2)
+
+**Goal**: Centralize project-local mission path construction (`manifest.py`, `mission.py`, `config.py`) behind a constitution-module indirection to prepare for future constitution-aware resolution. This is an "add indirection" refactor — the behavior stays identical, but all `.kittify/missions/` path construction flows through one place.
+**Independent Test**: All existing tests for manifest, mission, and config pass unchanged. The new `ProjectMissionPaths` helper is importable and produces identical paths.
+**Prompt**: `/tasks/WP09-project-local-mission-path-indirection.md`
+**Requirement Refs**: FR-019
+**Estimated Size**: ~250 lines
+
+### Included Subtasks
+
+- [ ] T039 Create `src/specify_cli/constitution/mission_paths.py` with `ProjectMissionPaths` class: `mission_dir(project_dir, mission)`, `mission_config(project_dir, mission)`, `command_templates_dir(project_dir, mission)`, `templates_dir(project_dir, mission)`, `missions_root(project_dir)`
+- [ ] T040 [P] Reroute `src/specify_cli/manifest.py` (4 patterns: lines ~22, 43, 48, 72) to use `ProjectMissionPaths`
+- [ ] T041 [P] Reroute `src/specify_cli/mission.py` (9 patterns: lines ~276, 457, 467, 470, 493, 500, 522, 714, 722) to use `ProjectMissionPaths`
+- [ ] T042 [P] Reroute `src/specify_cli/cli/commands/agent/config.py` (2 patterns: lines ~145, 365) to use `ProjectMissionPaths`
+
+### Implementation Notes
+
+- **Pure indirection**: No behavior change. Each path construction is replaced with the equivalent `ProjectMissionPaths` call.
+- **Location**: `src/specify_cli/constitution/mission_paths.py` — sits in the constitution module because future work will make this resolution constitution-aware (e.g., constitution-defined mission overrides).
+- **Static methods**: All methods are `@staticmethod` — no state needed yet. Future work may add project context.
+- **`config.py` hardcoded mission**: Lines 145 and 365 hardcode `"software-dev"`. The reroute preserves this — fixing the hardcode is a separate concern.
+
+### Parallel Opportunities
+
+- T040–T042 are independent and can proceed in parallel after T039.
+
+### Dependencies
+
+- Depends on WP07 (avoid merge conflicts with consumer reroutes). Can run in parallel with WP08.
+
+### Risks & Mitigations
+
+- **Risk**: Import cycle from `specify_cli.constitution` → `specify_cli.manifest`. **Mitigation**: `mission_paths.py` has zero imports from `specify_cli` — it only uses `pathlib.Path`.
+- **Risk**: Future constitution-aware resolution changes the interface. **Mitigation**: The static methods are the stable interface; internals can change freely.
+
+---
+
+---
+
+## Work Package WP10: Architectural Dependency Tests — PyTestArch (Priority: P0)
+
+**Goal**: Encode the 2.x package boundary invariants as executable pytest tests using PyTestArch. Run in CI on every PR to prevent dependency direction violations. See ADR `2026-03-27-1`.
+**Independent Test**: `pytest tests/architectural/ -v` passes. Introducing `from specify_cli import X` into any `src/doctrine/` file causes test failure.
+**Prompt**: `/tasks/WP10-architectural-dependency-tests.md`
+**Requirement Refs**: FR-018, ADR 2026-03-27-1
+**Estimated Size**: ~150 lines
+
+### Included Subtasks
+
+- [ ] T044 Add `pytestarch>=4.0.0` dev dependency to `pyproject.toml`
+- [ ] T045 Create `tests/architectural/conftest.py` with session-scoped `evaluable` and `landscape` fixtures
+- [ ] T046 Create `tests/architectural/test_layer_rules.py` encoding all 3 invariants (kernel isolation, doctrine isolation, constitution boundary)
+- [ ] T047 Validate tests pass on current codebase; smoke-test negative case
+
+### Dependencies
+
+- Depends on WP03 (ConstitutionTemplateResolver must exist for tests to pass — validates resolve methods are in constitution, not doctrine).
+
+### Parallel Opportunities
+
+- T044-T046 are sequential. T047 runs after all three.
+- WP10 can run in parallel with WP04.
+
+---
+
 ## Dependency & Execution Summary
 
-- **Sequence**: WP01 → WP02 → WP03 → WP04 → WP05 → WP06 → WP07
-- **Parallelization**: WP02 and WP03 can potentially run in parallel once WP01 is done (though WP03 references WP02 patterns). WP05 and WP06 can run in parallel. Within each WP, most subtasks are parallel-safe.
-- **MVP Scope**: WP01 + WP02 + WP03 + WP04 constitute the minimal viable release (class renamed, full API exists, tests pass, alias works). WP05-WP07 are the consumer rerouting which can be shipped incrementally.
+- **Sequence**: WP01 → WP02 → WP03 → WP04/WP10 → WP05 → WP06 → WP07 → WP08/WP09
+- **Parallelization**: WP02 → WP03 is sequential (WP03 depends on WP02 for established patterns). WP04 and WP10 can run in parallel (both depend on WP03). WP05 and WP06 can run in parallel. WP08 and WP09 can run in parallel (both depend on WP07). Within each WP, most subtasks are parallel-safe.
+- **MVP Scope**: WP01 + WP02 + WP03 + WP04 + WP10 constitute the minimal viable release (class renamed, full API exists, tests pass, alias works, architectural invariants enforced). WP05-WP07 are the consumer rerouting which can be shipped incrementally. WP08 (boyscouting) and WP09 (project-local indirection) can be deferred.
 
 ---
 
@@ -320,8 +430,9 @@
 | FR-014 (private _content_template_path) | WP01 |
 | FR-015 (private _missions_root) | WP01 |
 | FR-016 (MissionRepository alias) | WP01 |
-| FR-017 (reroute 14 consumers) | WP05, WP06, WP07 |
-| FR-018 (lazy import in resolve_*) | WP03 |
+| FR-017 (reroute doctrine-asset consumers) | WP05, WP06, WP07 |
+| FR-019 (project-local path indirection) | WP09 |
+| FR-018 (package boundary invariants) | WP03, WP10 |
 | NFR-001 (no circular imports) | WP03, WP04 |
 | NFR-002 (existing tests pass) | WP04 |
 | NFR-003 (no caching) | WP02, WP03 |
@@ -351,8 +462,8 @@
 | T011 | Add get_action_guidelines() method | WP03 | P0 | Yes |
 | T012 | Add get_mission_config() config method | WP03 | P0 | Yes |
 | T013 | Add get_expected_artifacts() config method | WP03 | P0 | Yes |
-| T014 | Add resolve_command_template() with lazy import | WP03 | P0 | No |
-| T015 | Add resolve_content_template() with lazy import | WP03 | P0 | No |
+| T014 | Create ConstitutionTemplateResolver in src/constitution/ with resolve_command_template() | WP03 | P0 | No |
+| T015 | Add resolve_content_template() on ConstitutionTemplateResolver | WP03 | P0 | No |
 | T016 | Update __init__.py exports + alias | WP01 | P0 | No |
 | T017 | Verify existing tests pass via alias | WP04 | P0 | No |
 | T018 | Create comprehensive test module | WP04 | P0 | No |
@@ -368,3 +479,20 @@
 | T028 | Reroute specify_cli/constitution/compiler.py | WP07 | P2 | Yes |
 | T029 | Fix stale path in feature.py | WP07 | P2 | Yes |
 | T030 | Full test suite + validation grep | WP07 | P2 | No |
+| T031 | Rename create-feature → create-mission subcommand | WP08 | P2 | No |
+| T032 | Update feature.py docstrings + help strings to Mission | WP08 | P2 | No |
+| T033 | Mark agent feature alias as hidden in __init__.py | WP08 | P2 | No |
+| T034 | Update docs/reference/agent-subcommands.md | WP08 | P2 | Yes |
+| T035 | Update docs/reference/slash-commands.md | WP08 | P2 | Yes |
+| T036 | Update README.md CLI examples | WP08 | P2 | Yes |
+| T037 | Update CLAUDE.md reference | WP08 | P2 | Yes |
+| T038 | Update doctrine command templates | WP08 | P2 | Yes |
+| T043 | Update glossary: "Feature Branch" accepted VCS term, "Mission Specification" replaces "Feature Specification" | WP08 | P2 | Yes |
+| T039 | Create ProjectMissionPaths in constitution module | WP09 | P2 | No |
+| T040 | Reroute specify_cli/manifest.py to ProjectMissionPaths | WP09 | P2 | Yes |
+| T041 | Reroute specify_cli/mission.py to ProjectMissionPaths | WP09 | P2 | Yes |
+| T042 | Reroute specify_cli/cli/commands/agent/config.py to ProjectMissionPaths | WP09 | P2 | Yes |
+| T044 | Add pytestarch>=4.0.0 dev dependency | WP10 | P0 | No |
+| T045 | Create tests/architectural/conftest.py fixtures (evaluable, landscape) | WP10 | P0 | No |
+| T046 | Create tests/architectural/test_layer_rules.py (3 invariants) | WP10 | P0 | No |
+| T047 | Validate architectural tests pass; smoke-test negative case | WP10 | P0 | No |

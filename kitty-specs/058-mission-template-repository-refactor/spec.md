@@ -1,4 +1,4 @@
-# Feature Specification: Mission Repository Encapsulation
+# Mission Specification: Mission Repository Encapsulation
 
 **Feature Branch**: `feature/agent-profile-implementation`
 **Created**: 2026-03-27
@@ -139,32 +139,33 @@ After the refactor, no production code outside `MissionTemplateRepository` itsel
 | ID | Requirement | Priority | Status |
 |----|------------|----------|--------|
 | FR-001 | Rename `MissionRepository` to `MissionTemplateRepository` in `src/doctrine/missions/repository.py` | P1 | Proposed |
-| FR-002 | Public `get_command_template(mission, name)` returns `str` content or `None` | P1 | Proposed |
-| FR-003 | Public `get_content_template(mission, name)` returns `str` content or `None` | P1 | Proposed |
-| FR-004 | Public `resolve_command_template(mission, name, project_dir?)` returns `str` content through 5-tier chain, raises `FileNotFoundError` if not found | P1 | Proposed |
-| FR-005 | Public `resolve_content_template(mission, name, project_dir?)` returns `str` content through 5-tier chain | P1 | Proposed |
+| FR-002 | Public `get_command_template(mission, name)` returns `TemplateResult` (content + origin + tier) or `None` | P1 | Proposed |
+| FR-003 | Public `get_content_template(mission, name)` returns `TemplateResult` or `None` | P1 | Proposed |
+| FR-004 | `resolve_command_template(mission, name, project_dir?)` on `ConstitutionTemplateResolver` (in `src/constitution/`) returns `TemplateResult` through 5-tier chain, raises `FileNotFoundError` if not found. Composes `MissionTemplateRepository` (tier 5) + resolver. | P1 | Proposed |
+| FR-005 | `resolve_content_template(mission, name, project_dir?)` on `ConstitutionTemplateResolver` returns `TemplateResult` through 5-tier chain, raises `FileNotFoundError` if not found | P1 | Proposed |
 | FR-006 | Public `list_command_templates(mission)` returns sorted `list[str]` of template names (without .md extension) | P2 | Proposed |
 | FR-007 | Public `list_content_templates(mission)` returns sorted `list[str]` of template filenames | P2 | Proposed |
 | FR-008 | Public `list_missions()` returns sorted `list[str]` of mission names | P2 | Proposed |
-| FR-009 | Public `get_action_index(mission, action)` returns parsed YAML `dict` or `None` | P2 | Proposed |
-| FR-010 | Public `get_action_guidelines(mission, action)` returns `str` content or `None` | P2 | Proposed |
-| FR-011 | Public `get_mission_config(mission)` returns parsed YAML `dict` or `None` | P2 | Proposed |
-| FR-012 | Public `get_expected_artifacts(mission)` returns parsed YAML data or `None` | P2 | Proposed |
+| FR-009 | Public `get_action_index(mission, action)` returns `ConfigResult` (content + origin + parsed dict) or `None` | P2 | Proposed |
+| FR-010 | Public `get_action_guidelines(mission, action)` returns `TemplateResult` or `None` | P2 | Proposed |
+| FR-011 | Public `get_mission_config(mission)` returns `ConfigResult` or `None` | P2 | Proposed |
+| FR-012 | Public `get_expected_artifacts(mission)` returns `ConfigResult` or `None` | P2 | Proposed |
 | FR-013 | Private `_command_template_path(mission, name)` returns `Path` or `None` for internal callers | P1 | Proposed |
 | FR-014 | Private `_content_template_path(mission, name)` returns `Path` or `None` for internal callers | P1 | Proposed |
 | FR-015 | Private `_missions_root()` returns `Path` for internal callers needing directory access | P1 | Proposed |
 | FR-016 | Backward-compatible `MissionRepository` alias exported from `doctrine.missions` | P1 | Proposed |
-| FR-017 | Reroute all 14 consumer files to use `MissionTemplateRepository` public API | P1 | Proposed |
-| FR-018 | Project-aware `resolve_*` methods lazily import `specify_cli.runtime.resolver` to avoid circular dependencies | P1 | Proposed |
+| FR-017 | Reroute doctrine-asset consumers (11 files) to use `MissionTemplateRepository` public API | P1 | Proposed |
+| FR-019 | Reroute project-local mission path construction in `manifest.py`, `mission.py`, `config.py` through a constitution-module indirection (`ProjectMissionPaths`) to prepare for future constitution-aware resolution | P2 | Proposed |
+| FR-018 | `ConstitutionTemplateResolver` in `src/constitution/` imports `specify_cli.runtime.resolver` (constitution may depend on specify_cli.runtime per 2.x landscape). `MissionTemplateRepository` in `doctrine` depends only on `kernel` (the true zero-dependency root) — no imports from `specify_cli` or `constitution`. | P1 | Proposed |
 
 ## Non-Functional Requirements
 
 | ID | Requirement | Threshold | Status |
 |----|------------|-----------|--------|
 | NFR-001 | No circular imports between `doctrine` and `specify_cli` at module load time | Zero `ImportError` on `import doctrine.missions` | Proposed |
-| NFR-002 | Existing test suite passes without modification to test files (backward compat) | 0 regressions from rename | Proposed |
+| NFR-002 | Existing test suite passes after Phase 1 complete (WP04). Temporary breakage between WP01-WP03 is expected during incremental refactor. | 0 regressions after WP04 | Proposed |
 | NFR-003 | Content-returning methods must not cache file reads (templates may change during runtime via overrides) | Each call reads fresh from disk | Proposed |
-| NFR-004 | YAML-returning methods must parse using `yaml.safe_load` only (no unsafe deserialization) | Zero use of `yaml.load` without SafeLoader | Proposed |
+| NFR-004 | YAML-returning methods must parse using `ruamel.yaml` with `YAML(typ="safe")` only (no unsafe deserialization, no stdlib `yaml.load`) | Zero use of unsafe YAML loading | Proposed |
 
 ## Constraints
 

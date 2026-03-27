@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-03-27
-**Feature**: `kitty-specs/058-mission-template-repository-refactor/spec.md`
+**Mission**: `kitty-specs/058-mission-template-repository-refactor/spec.md`
 
 ## Content Quality
 
@@ -30,11 +30,11 @@ Notes: The spec includes a "Proposed API" section with Python signatures -- this
 
 Notes: 18 FRs, 4 NFRs, 5 Constraints. All have status "Proposed". NFRs have concrete thresholds (zero ImportError, zero regressions, fresh reads, safe_load only). Edge cases covered: nonexistent missions, nonexistent templates, missing project_dir, no overrides present.
 
-## Feature Readiness
+## Mission Readiness
 
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] Mission meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
 Notes: 9 user stories with 26 acceptance scenarios total. Stories cover: content reads, resolution, enumeration, action assets, mission config, expected artifacts, backward compat, and consumer rerouting.

@@ -1,6 +1,6 @@
 # API Contract: MissionTemplateRepository
 
-**Feature**: 058 - Mission Repository Encapsulation
+**Mission**: 058 - Mission Repository Encapsulation
 **Date**: 2026-03-27
 **Status**: Draft
 **Module**: `src/doctrine/missions/repository.py`

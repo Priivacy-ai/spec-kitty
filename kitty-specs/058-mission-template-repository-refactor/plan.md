@@ -1,7 +1,7 @@
 # Implementation Plan: Mission Repository Encapsulation
 
 **Branch**: `feature/agent-profile-implementation` | **Date**: 2026-03-27 | **Spec**: `kitty-specs/058-mission-template-repository-refactor/spec.md`
-**Input**: Feature specification from `kitty-specs/058-mission-template-repository-refactor/spec.md`
+**Input**: Mission specification from `kitty-specs/058-mission-template-repository-refactor/spec.md`
 
 ## Summary
 
@@ -39,7 +39,7 @@ No violations. No complexity tracking needed.
 
 ```
 kitty-specs/058-mission-template-repository-refactor/
-  spec.md                                    # Feature specification
+  spec.md                                    # Mission specification
   plan.md                                    # This file
   research/
     consumer-analysis.md                   # Phase 0: consumer analysis
@@ -115,8 +115,8 @@ All methods are instance methods on `MissionTemplateRepository` (renamed from `M
 **Template methods** (return `TemplateResult | None`):
 - `get_command_template(mission, name)` -- doctrine-level lookup
 - `get_content_template(mission, name)` -- doctrine-level lookup
-- `resolve_command_template(mission, name, project_dir)` -- 5-tier resolution
-- `resolve_content_template(mission, name, project_dir)` -- 5-tier resolution
+
+**Note**: `resolve_command_template()` and `resolve_content_template()` (5-tier project-aware resolution) live on `ConstitutionTemplateResolver` in `src/constitution/`, NOT on `MissionTemplateRepository`. Doctrine has zero dependencies on `specify_cli` or `constitution` (2.x landscape invariant). The constitution module is the concretization of doctrine into local context-aware legislation — the override chain is its responsibility.
 
 **Enumeration methods** (return `list[str]`):
 - `list_command_templates(mission)` -- sorted names without .md
@@ -146,9 +146,11 @@ All methods are instance methods on `MissionTemplateRepository` (renamed from `M
 
 ### Interaction with Existing Resolver
 
-The `resolve_*` methods on `MissionTemplateRepository` lazily import and delegate to `specify_cli.runtime.resolver`. The resolver's `ResolutionResult` (which contains `path` and `tier`) is wrapped into a `TemplateResult` by reading the file content and mapping the tier.
+`ConstitutionTemplateResolver` (new class in `src/constitution/template_resolver.py`) composes `MissionTemplateRepository` (for tier-5 doctrine-level lookups) with the 5-tier resolver in `specify_cli.runtime.resolver`. The resolver's `ResolutionResult` (which contains `path` and `tier`) is wrapped into a `TemplateResult` by reading the file content and mapping the tier.
 
 The resolver module itself (`resolver.py`) is rerouted to use `MissionTemplateRepository._*_path()` for its tier-5 (PACKAGE_DEFAULT) lookups instead of calling `get_package_asset_root()` directly.
+
+**Package boundary enforcement**: `MissionTemplateRepository` (in `doctrine`) has zero imports from `specify_cli` or `constitution`. `ConstitutionTemplateResolver` (in `constitution`) may import from `specify_cli.runtime` per the 2.x landscape dependency direction. This preserves doctrine as a standalone distributable package.
 
 ## Implementation Phases
 
@@ -198,3 +200,17 @@ Consumers rerouted in dependency order:
 | Test regressions from rename | Alias makes old import path work; before/after test runs on each change |
 | `ruamel.yaml` vs `yaml.safe_load` inconsistency | Standardize on `YAML(typ="safe")` from ruamel.yaml (matches existing `action_index.py`) |
 | `bootstrap.py` and `migrate.py` need bulk directory access | These may retain `_missions_root` usage -- evaluate during Phase 2 |
+
+## HiC Decisions (from /analyze review, 2026-03-27)
+
+| ID | Finding | Decision | Rationale |
+|----|---------|----------|-----------|
+| F1 | Return type mismatch: spec said `str`/`dict`, plan uses `TemplateResult`/`ConfigResult` | **Update spec to match plan** | Value objects are the correct design; spec now reflects `TemplateResult`/`ConfigResult` return types |
+| F4 | FR-005 missing error behavior | **Aligned with FR-004** | `resolve_content_template` now specifies `raises FileNotFoundError` (same as `resolve_command_template`) |
+| F2 | NFR-002 sequencing: tests break between WP01-WP03 | **Reword NFR-002** | Accept temporary breakage as normal for incremental refactor. NFR-002 now scopes to "after WP04" not "without modification" |
+| F3 | NFR-004 names stdlib `yaml.safe_load` instead of `ruamel.yaml` | **Update NFR-004** | Aligned with constitution and plan: `ruamel.yaml YAML(typ="safe")` is the correct library |
+| F5 | Consumer count: spec says "14", actual reroutes differ | **Split FR-017 + add FR-019** | `kernel/paths.py` stays excluded (circular). `manifest.py`, `mission.py`, `config.py` rerouted through constitution-module indirection (`ProjectMissionPaths`) to prepare for future constitution-aware resolution. FR-017 scoped to doctrine-asset consumers (11). FR-019 added for project-local reroutes (3 files). |
+| F6 | WP02/WP03 parallel vs sequential contradiction | **Keep sequential** | WP03 depends on WP02 for established patterns. Removed "can potentially run in parallel" claim from dependency summary. |
+| F7 | FR-008 `list_missions()` has no explicit verification subtask | **Add to WP04/T017** | T017 now includes verifying `list_missions()` signature and return type match FR-008 |
+| F8 | Constitution terminology: "Feature" in spec artifacts | **Rename to "Mission Specification" + glossary update** | "Feature Specification" → "Mission Specification" in all artifacts. "Feature Branch" is an accepted VCS concept and stays. Glossary updated with distinction (T043 in WP08). |
+| AR-1 | `resolve_*` methods on `MissionTemplateRepository` violate doctrine → specify_cli dependency ban | **Move to `ConstitutionTemplateResolver` in `src/constitution/`** | Constitution is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's constitution by definition. Doctrine depends only on kernel (the true zero-dependency root). |
