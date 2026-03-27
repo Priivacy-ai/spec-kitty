@@ -1,7 +1,7 @@
 ---
 work_package_id: WP13
 title: One-Shot Migration — State Rebuild and Runner
-lane: planned
+lane: "doing"
 dependencies: [WP09, WP11, WP12]
 requirement_refs:
 - C-006
@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP12
+base_commit: 423e76a78c50edf2b13aa7b020628786d4446c2e
+created_at: '2026-03-27T19:59:52.639995+00:00'
 subtasks:
 - T065
 - T066
@@ -20,7 +23,7 @@ subtasks:
 phase: Phase D - Surface and Migration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "10965"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
