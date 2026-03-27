@@ -620,7 +620,7 @@ def test_resolve_target_branch_meta_overrides_detected_primary(tmp_path):
 @pytest.mark.usefixtures("_git_identity")
 def test_get_feature_target_branch_master_repo_no_meta(tmp_path):
     """In a master-based repo with no meta.json, fallback should be 'master'."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
@@ -635,7 +635,7 @@ def test_get_feature_target_branch_master_repo_no_meta(tmp_path):
 @pytest.mark.usefixtures("_git_identity")
 def test_get_feature_target_branch_custom_primary_no_meta(tmp_path):
     """In a repo with a custom primary branch and no meta.json, fallback should match."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
 
@@ -651,7 +651,7 @@ def test_get_feature_target_branch_custom_primary_no_meta(tmp_path):
 def test_get_feature_target_branch_meta_overrides_custom_primary(tmp_path):
     """meta.json target_branch wins over custom primary branch detection."""
     import json
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = _init_repo_with_branch(tmp_path, "master")
 

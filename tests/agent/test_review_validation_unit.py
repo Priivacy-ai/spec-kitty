@@ -87,7 +87,7 @@ class TestValidateReadyForReview:
     @patch("subprocess.run")
     @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_uncommitted_worktree_blocks_review(
         self,
         mock_target: Mock,
@@ -152,7 +152,7 @@ class TestValidateReadyForReview:
     @patch("subprocess.run")
     @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_no_commits_blocks_review(
         self,
         mock_target: Mock,

@@ -312,7 +312,7 @@ def test_get_feature_target_branch_reads_explicit_value(tmp_path):
     - Returns explicit value (not default)
     - Works for both "main" and "2.x"
     """
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = init_test_repo(tmp_path)
 
@@ -345,7 +345,7 @@ def test_legacy_features_still_work_with_default(tmp_path):
     - get_feature_target_branch returns "main" as safe default
     - No crashes or errors
     """
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = init_test_repo(tmp_path)
 
@@ -396,7 +396,7 @@ def test_explicit_fields_prevent_ambiguity(tmp_path):
         meta_file.write_text(json.dumps(meta, indent=2) + "\n")
 
     # Read both features
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     target_007 = get_feature_target_branch(repo, "007-feature")
     target_008 = get_feature_target_branch(repo, "008-feature")
@@ -522,7 +522,7 @@ def test_comparison_implicit_vs_explicit(tmp_path):
     - Debugging: Can see config by reading file
     - Dual-branch: Can grep for target_branch: "2.x"
     """
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = init_test_repo(tmp_path)
 
