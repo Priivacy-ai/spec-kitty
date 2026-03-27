@@ -632,3 +632,8 @@ Wave 7:                             WP14
 | T072 | E2E test: merge engine v2 with resume | WP14 | Yes |
 | T073 | Dead code sweep | WP14 | No |
 | T074 | Final validation: mypy --strict + coverage | WP14 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->

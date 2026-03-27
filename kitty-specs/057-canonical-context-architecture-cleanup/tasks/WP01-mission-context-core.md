@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: MissionContext Core
-lane: "doing"
+lane: "for_review"
 dependencies: []
 requirement_refs:
 - FR-001
@@ -22,8 +22,8 @@ subtasks:
 - T006
 phase: Phase A - Foundation
 assignee: ''
-agent: "coordinator"
-shell_pid: "2308"
+agent: coordinator
+shell_pid: '2308'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -227,3 +227,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T17:59:15Z – coordinator – shell_pid=2308 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T18:07:43Z – coordinator – shell_pid=2308 – lane=for_review – MissionContext core implemented with models, store, resolver, middleware, and tests. 68 tests pass, mypy --strict clean on context/ module.
