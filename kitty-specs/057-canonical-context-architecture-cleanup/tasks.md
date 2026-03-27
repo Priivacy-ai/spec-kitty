@@ -284,12 +284,12 @@
 **Requirement Refs**: FR-016, FR-017, C-007
 
 ### Included Subtasks
-- [ ] T044 Create `src/specify_cli/shims/__init__.py` with public API exports
-- [ ] T045 Create `src/specify_cli/shims/models.py` — ShimTemplate and AgentShimConfig dataclasses
-- [ ] T046 Create `src/specify_cli/shims/generator.py` — Generate thin shim markdown files for all configured agents (3-line format: invariant + prohibition + CLI call)
-- [ ] T047 Create `src/specify_cli/shims/registry.py` — Skill allowlist: consumer-facing vs internal-only skills
-- [ ] T048 Create `src/specify_cli/shims/entrypoints.py` and `src/specify_cli/cli/commands/shim.py` — `spec-kitty agent shim <command>` handlers that resolve-if-missing → persist → execute
-- [ ] T049 [P] Tests for shim generation, registry, entrypoints
+- [x] T044 Create `src/specify_cli/shims/__init__.py` with public API exports
+- [x] T045 Create `src/specify_cli/shims/models.py` — ShimTemplate and AgentShimConfig dataclasses
+- [x] T046 Create `src/specify_cli/shims/generator.py` — Generate thin shim markdown files for all configured agents (3-line format: invariant + prohibition + CLI call)
+- [x] T047 Create `src/specify_cli/shims/registry.py` — Skill allowlist: consumer-facing vs internal-only skills
+- [x] T048 Create `src/specify_cli/shims/entrypoints.py` and `src/specify_cli/cli/commands/shim.py` — `spec-kitty agent shim <command>` handlers that resolve-if-missing → persist → execute
+- [x] T049 [P] Tests for shim generation, registry, entrypoints
 
 ### Implementation Notes
 - Shim template (generated markdown):
