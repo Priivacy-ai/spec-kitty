@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Canonical State — Event Log Authority
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02]
 requirement_refs:
 - C-004
@@ -23,8 +23,8 @@ subtasks:
 - T028
 phase: Phase B - State
 assignee: ''
-agent: "coordinator"
-shell_pid: "31099"
+agent: coordinator
+shell_pid: '31099'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -171,3 +171,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T18:33:03Z – coordinator – shell_pid=31099 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T19:42:16Z – coordinator – shell_pid=31099 – lane=for_review – Event log is sole authority. Deleted: legacy_bridge, phase, reconcile, migrate. Fixed implement.py NameError in single-dep path. 988 tests pass, 3 pre-existing failures in test_implement_multi_parent_integration.py unrelated to WP05.
