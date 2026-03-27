@@ -640,5 +640,5 @@ Wave 7:                             WP14
 - WP03: approved
 - WP04: approved
 - WP09: approved
-- WP10: for_review
+- WP10: approved
 <!-- status-model:end -->
