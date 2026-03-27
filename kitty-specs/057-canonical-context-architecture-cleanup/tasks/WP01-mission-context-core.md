@@ -22,7 +22,7 @@ subtasks:
 - T006
 phase: Phase A - Foundation
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "2308"
 review_status: ''
 reviewed_by: ''
@@ -226,3 +226,4 @@ history:
 ## Activity Log
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
+- 2026-03-27T17:59:15Z – coordinator – shell_pid=2308 – lane=doing – Assigned agent via workflow command
