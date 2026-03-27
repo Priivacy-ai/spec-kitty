@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Weighted Progress and Materialization
-lane: planned
+lane: "doing"
 dependencies: [WP05]
 requirement_refs:
 - FR-010
@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP05
+base_commit: 7ccd2228ac14a48836a544379477d5c32336ef07
+created_at: '2026-03-27T19:42:45.543325+00:00'
 subtasks:
 - T029
 - T030
@@ -20,7 +23,7 @@ subtasks:
 phase: Phase B - State
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "91906"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
