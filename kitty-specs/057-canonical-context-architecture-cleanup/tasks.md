@@ -637,5 +637,5 @@ Wave 7:                             WP14
 ## Canonical Status (Generated)
 - WP01: approved
 - WP03: approved
-- WP09: for_review
+- WP09: approved
 <!-- status-model:end -->
