@@ -3,6 +3,7 @@ vcs:
 agents:
   available:
   - claude
+  - codex
   selection:
     preferred_implementer: claude
     preferred_reviewer: claude
