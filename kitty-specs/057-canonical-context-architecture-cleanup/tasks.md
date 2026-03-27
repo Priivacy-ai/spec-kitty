@@ -53,11 +53,11 @@
 **Requirement Refs**: FR-002, FR-003
 
 ### Included Subtasks
-- [ ] T007 Create `src/specify_cli/cli/commands/context.py` — `spec-kitty agent context resolve` and `spec-kitty agent context show` commands
-- [ ] T008 Add `--context <token>` parameter to all workflow CLI commands (implement, review, move-task, mark-status, accept, merge, status)
-- [ ] T009 Delete `src/specify_cli/core/feature_detection.py` (668 lines)
-- [ ] T010 Update all callers of `detect_feature()` across CLI commands to use context middleware
-- [ ] T011 [P] Tests for context CLI commands and integration (`tests/specify_cli/cli/commands/test_context.py`)
+- [x] T007 Create `src/specify_cli/cli/commands/context.py` — `spec-kitty agent context resolve` and `spec-kitty agent context show` commands
+- [x] T008 Add `--context <token>` parameter to all workflow CLI commands (implement, review, move-task, mark-status, accept, merge, status)
+- [x] T009 Delete `src/specify_cli/core/feature_detection.py` (668 lines)
+- [x] T010 Update all callers of `detect_feature()` across CLI commands to use context middleware
+- [x] T011 [P] Tests for context CLI commands and integration (`tests/specify_cli/cli/commands/test_context.py`)
 
 ### Implementation Notes
 - T009 is the most impactful deletion — search for all `from specify_cli.core.feature_detection import` and `detect_feature` calls
