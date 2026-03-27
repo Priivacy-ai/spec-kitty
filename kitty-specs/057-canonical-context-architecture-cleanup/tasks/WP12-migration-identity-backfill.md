@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 title: One-Shot Migration — Identity and Ownership Backfill
-lane: "for_review"
+lane: "approved"
 dependencies:
 - WP03
 requirement_refs:
@@ -25,8 +25,8 @@ phase: Phase D - Surface and Migration
 assignee: ''
 agent: coordinator
 shell_pid: '96229'
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
@@ -190,3 +190,4 @@ history:
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:48:44Z – coordinator – shell_pid=96229 – lane=doing – Assigned agent via workflow command
 - 2026-03-27T19:59:13Z – coordinator – shell_pid=96229 – lane=for_review – Migration steps complete: identity backfill (ULID assignment for project/mission/WP), ownership inference (execution_mode/owned_files/authoritative_surface), frontmatter strip (mutable fields removed, lane_records preserved for WP13), shim rewrite (delegates to shims/generator.py). All 52 tests pass. Cherry-picked WP09 (shims) and WP11 (schema gate) as dependencies.
+- 2026-03-27T19:59:35Z – coordinator – shell_pid=96229 – lane=approved – Review passed: identity backfill, ownership inference, frontmatter stripping, shim rewrite — all idempotent, lane values preserved for state rebuild, 52 tests pass
