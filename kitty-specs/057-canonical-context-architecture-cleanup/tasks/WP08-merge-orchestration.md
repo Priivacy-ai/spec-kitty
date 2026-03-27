@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Merge Engine v2 — Orchestration
-lane: "for_review"
+lane: "approved"
 dependencies: [WP07]
 requirement_refs:
 - FR-013
@@ -24,8 +24,8 @@ phase: Phase C - Merge
 assignee: ''
 agent: coordinator
 shell_pid: '9348'
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
@@ -169,3 +169,4 @@ history:
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:57:39Z – coordinator – shell_pid=9348 – lane=doing – Assigned agent via workflow command
 - 2026-03-27T20:06:51Z – coordinator – shell_pid=9348 – lane=for_review – Merge engine v2 complete with resume, conflict resolution, and post-merge reconciliation
+- 2026-03-27T20:07:10Z – coordinator – shell_pid=9348 – lane=approved – Review passed: merge engine v2 with resume/abort/dry-run, conflict resolver (event log append-merge, metadata take-theirs, derived=error), reconciliation from git ancestry, 37 tests pass
