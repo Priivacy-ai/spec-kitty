@@ -252,11 +252,11 @@
 **Requirement Refs**: FR-013, FR-014, FR-015, NFR-005
 
 ### Included Subtasks
-- [ ] T039 Create `src/specify_cli/merge/engine.py` — Merge orchestrator: load context, compute merge order, iterate WPs, persist state per step, support --resume/--abort/--dry-run
-- [ ] T040 Create `src/specify_cli/merge/conflict_resolver.py` — Managed resolution for spec-kitty-owned files (status.events.jsonl: append-merge, derived files: regenerate, WP frontmatter: take-theirs for static metadata)
-- [ ] T041 Create `src/specify_cli/merge/reconciliation.py` — Post-merge: emit `done` events for merged WPs, verify merged ancestry, update event log
-- [ ] T042 Wire merge CLI commands to new engine: `spec-kitty merge --feature`, `--resume`, `--abort`, `--dry-run`, `--context`
-- [ ] T043 [P] Tests for merge orchestration, resume flow, conflict resolution, reconciliation
+- [x] T039 Create `src/specify_cli/merge/engine.py` — Merge orchestrator: load context, compute merge order, iterate WPs, persist state per step, support --resume/--abort/--dry-run
+- [x] T040 Create `src/specify_cli/merge/conflict_resolver.py` — Managed resolution for spec-kitty-owned files (status.events.jsonl: append-merge, derived files: regenerate, WP frontmatter: take-theirs for static metadata)
+- [x] T041 Create `src/specify_cli/merge/reconciliation.py` — Post-merge: emit `done` events for merged WPs, verify merged ancestry, update event log
+- [x] T042 Wire merge CLI commands to new engine: `spec-kitty merge --feature`, `--resume`, `--abort`, `--dry-run`, `--context`
+- [x] T043 [P] Tests for merge orchestration, resume flow, conflict resolution, reconciliation
 
 ### Implementation Notes
 - Engine flow: preflight → create workspace → checkout target → for each WP: merge branch → auto-resolve owned conflicts → update state → push → reconcile
