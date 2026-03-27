@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Schema Version and Upgrade Gate
-lane: planned
+lane: "doing"
 dependencies: [WP05]
 requirement_refs:
 - C-003
@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 057-canonical-context-architecture-cleanup-WP05
+base_commit: 7ccd2228ac14a48836a544379477d5c32336ef07
+created_at: '2026-03-27T19:42:49.515732+00:00'
 subtasks:
 - T054
 - T055
@@ -20,7 +23,7 @@ subtasks:
 phase: Phase D - Surface and Migration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "92070"
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
