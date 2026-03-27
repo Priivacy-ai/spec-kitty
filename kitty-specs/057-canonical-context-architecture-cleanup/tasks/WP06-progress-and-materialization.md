@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Weighted Progress and Materialization
-lane: "doing"
+lane: "for_review"
 dependencies: [WP05]
 requirement_refs:
 - FR-010
@@ -22,8 +22,8 @@ subtasks:
 - T033
 phase: Phase B - State
 assignee: ''
-agent: "coordinator"
-shell_pid: "91906"
+agent: coordinator
+shell_pid: '91906'
 review_status: ''
 reviewed_by: ''
 review_feedback: ''
@@ -146,3 +146,4 @@ history:
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:42:45Z – coordinator – shell_pid=91906 – lane=doing – Assigned agent via workflow command
+- 2026-03-27T19:50:32Z – coordinator – shell_pid=91906 – lane=for_review – Lane-weighted progress and materialization complete: status/progress.py (pure function, DEFAULT_LANE_WEIGHTS), spec-kitty materialize CLI command, materialize_if_stale lazy regen, .kittify/derived/ gitignored, 34 tests all passing

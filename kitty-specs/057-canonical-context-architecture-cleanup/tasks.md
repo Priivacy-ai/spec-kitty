@@ -640,6 +640,7 @@ Wave 7:                             WP14
 - WP03: approved
 - WP04: approved
 - WP05: approved
+- WP06: for_review
 - WP09: approved
 - WP10: approved
 - WP11: approved
