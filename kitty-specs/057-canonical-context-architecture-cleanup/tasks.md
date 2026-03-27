@@ -423,11 +423,11 @@
 **Requirement Refs**: FR-018, NFR-001, NFR-002, C-006
 
 ### Included Subtasks
-- [ ] T065 Create `src/specify_cli/migration/rebuild_state.py` — Rebuild canonical event log from legacy artifacts (precedence: existing event log > status.json > frontmatter)
-- [ ] T066 Create `src/specify_cli/migration/runner.py` — Orchestrate migration steps atomically: backup → identity → ownership → state rebuild → strip frontmatter → rewrite shims → update schema version → gitignore → commit
-- [ ] T067 Add `src/specify_cli/upgrade/migrations/m_3_0_0_canonical_context.py` — Entry point in existing migration registry
-- [ ] T068 Update `.gitignore` comprehensively for new filesystem layout (`.kittify/derived/`, `.kittify/runtime/`, remove obsolete entries)
-- [ ] T069 [P] Tests for state rebuild (critical: mid-flight features, conflicting sources), atomic runner, rollback
+- [x] T065 Create `src/specify_cli/migration/rebuild_state.py` — Rebuild canonical event log from legacy artifacts (precedence: existing event log > status.json > frontmatter)
+- [x] T066 Create `src/specify_cli/migration/runner.py` — Orchestrate migration steps atomically: backup → identity → ownership → state rebuild → strip frontmatter → rewrite shims → update schema version → gitignore → commit
+- [x] T067 Add `src/specify_cli/upgrade/migrations/m_3_0_0_canonical_context.py` — Entry point in existing migration registry
+- [x] T068 Update `.gitignore` comprehensively for new filesystem layout (`.kittify/derived/`, `.kittify/runtime/`, remove obsolete entries)
+- [x] T069 [P] Tests for state rebuild (critical: mid-flight features, conflicting sources), atomic runner, rollback
 
 ### Implementation Notes
 - State rebuild precedence: if event log exists and has events, keep as-is. If no event log, read status.json. If no status.json, read frontmatter `lane` fields. Generate synthetic events for each WP's current state.
