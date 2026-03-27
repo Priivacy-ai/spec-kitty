@@ -1,8 +1,7 @@
 """Migration helpers for Spec Kitty canonical context architecture.
 
-Provides schema version gate (WP11) and one-shot migration steps (WP12):
-identity backfill, ownership inference, frontmatter stripping, and shim
-rewriting.
+Provides schema version gate (WP11), one-shot migration steps (WP12), and
+the state rebuild + atomic runner (WP13).
 """
 
 # WP11: schema version gate
@@ -26,6 +25,10 @@ from .backfill_ownership import backfill_ownership
 from .strip_frontmatter import StripResult, strip_mutable_fields
 from .rewrite_shims import RewriteResult, rewrite_agent_shims
 
+# WP13: state rebuild and atomic runner
+from .rebuild_state import RebuildResult, rebuild_event_log
+from .runner import MigrationReport, run_migration
+
 __all__ = [
     # schema version (WP11)
     "REQUIRED_SCHEMA_VERSION",
@@ -47,4 +50,10 @@ __all__ = [
     # shim rewrite (WP12)
     "RewriteResult",
     "rewrite_agent_shims",
+    # state rebuild (WP13)
+    "RebuildResult",
+    "rebuild_event_log",
+    # atomic runner (WP13)
+    "MigrationReport",
+    "run_migration",
 ]
