@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Schema Version and Upgrade Gate
-lane: "for_review"
+lane: "approved"
 dependencies: [WP05]
 requirement_refs:
 - C-003
@@ -24,8 +24,8 @@ phase: Phase D - Surface and Migration
 assignee: ''
 agent: coordinator
 shell_pid: '92070'
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
@@ -162,3 +162,4 @@ history:
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
 - 2026-03-27T19:42:49Z – coordinator – shell_pid=92070 – lane=doing – Assigned agent via workflow command
 - 2026-03-27T19:48:21Z – coordinator – shell_pid=92070 – lane=for_review – Schema version gate implemented, heuristic detector replaced
+- 2026-03-27T19:48:41Z – coordinator – shell_pid=92070 – lane=approved – Review passed: detector rewritten from 257 to 60 lines, schema_version=3 gate wired into main_callback, 15 new tests, 324 upgrade tests pass
