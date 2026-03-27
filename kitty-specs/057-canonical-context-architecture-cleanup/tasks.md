@@ -456,11 +456,11 @@
 **Requirement Refs**: NFR-004, NFR-006, C-001
 
 ### Included Subtasks
-- [ ] T070 End-to-end integration test: full WP lifecycle with context tokens (resolve → implement → review → merge) — no heuristic resolution triggered
-- [ ] T071 End-to-end integration test: migration of legacy project with mid-flight features in mixed states, verify zero status information loss
-- [ ] T072 End-to-end integration test: merge engine v2 with resume after interruption and spec-kitty-owned file conflict resolution
-- [ ] T073 Sweep for remaining dead code: stale imports, unused test fixtures, orphan references to deleted modules
-- [ ] T074 Final validation: `mypy --strict` on all new modules, `pytest` with coverage report, verify 90%+ on new code
+- [x] T070 End-to-end integration test: full WP lifecycle with context tokens (resolve → implement → review → merge) — no heuristic resolution triggered
+- [x] T071 End-to-end integration test: migration of legacy project with mid-flight features in mixed states, verify zero status information loss
+- [x] T072 End-to-end integration test: merge engine v2 with resume after interruption and spec-kitty-owned file conflict resolution
+- [x] T073 Sweep for remaining dead code: stale imports, unused test fixtures, orphan references to deleted modules
+- [x] T074 Final validation: `mypy --strict` on all new modules, `pytest` with coverage report, verify 90%+ on new code
 
 ### Implementation Notes
 - Integration tests should use real git repos (not mocks) per constitution
