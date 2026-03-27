@@ -19,12 +19,12 @@
 **Requirement Refs**: FR-001, FR-021, NFR-003
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/context/__init__.py` with public API exports
-- [ ] T002 Create `src/specify_cli/context/models.py` — MissionContext and ContextToken dataclasses with all identity fields (project_uuid, mission_id, work_package_id, wp_code, feature_slug, target_branch, authoritative_repo, authoritative_ref, owned_files, execution_mode, dependency_mode, completion_commands)
-- [ ] T003 Create `src/specify_cli/context/store.py` — Read/write context token JSON files to `.kittify/runtime/contexts/<token>.json`
-- [ ] T004 Create `src/specify_cli/context/resolver.py` — Resolve context from raw args (wp_code, feature_slug) → build MissionContext → persist → return opaque token
-- [ ] T005 Create `src/specify_cli/context/middleware.py` — CLI middleware that loads context from `--context <token>` or fails fast with actionable error
-- [ ] T006 [P] Tests for all context module components (`tests/specify_cli/context/`)
+- [x] T001 Create `src/specify_cli/context/__init__.py` with public API exports
+- [x] T002 Create `src/specify_cli/context/models.py` — MissionContext and ContextToken dataclasses with all identity fields (project_uuid, mission_id, work_package_id, wp_code, feature_slug, target_branch, authoritative_repo, authoritative_ref, owned_files, execution_mode, dependency_mode, completion_commands)
+- [x] T003 Create `src/specify_cli/context/store.py` — Read/write context token JSON files to `.kittify/runtime/contexts/<token>.json`
+- [x] T004 Create `src/specify_cli/context/resolver.py` — Resolve context from raw args (wp_code, feature_slug) → build MissionContext → persist → return opaque token
+- [x] T005 Create `src/specify_cli/context/middleware.py` — CLI middleware that loads context from `--context <token>` or fails fast with actionable error
+- [x] T006 [P] Tests for all context module components (`tests/specify_cli/context/`)
 
 ### Implementation Notes
 - ULID generation for tokens: use `ulid` library or generate from timestamp+random
