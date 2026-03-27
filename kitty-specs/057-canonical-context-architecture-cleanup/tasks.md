@@ -191,8 +191,10 @@
 - [ ] T033 [P] Tests for progress computation, materialization, lazy regeneration
 
 ### Implementation Notes
-- Default weight: equal per WP (1.0 each)
-- Progress formula: `sum(weight for done WPs) / sum(all weights) * 100`
+- Lane-weighted model, NOT done-only: each lane has a fractional weight (planned=0.0, claimed=0.05, in_progress=0.3, for_review=0.6, approved=0.8, done=1.0, blocked=0.0, canceled=0.0)
+- Per-WP weights configurable (default: equal, 1.0 each)
+- Progress formula: `sum(wp_weight * lane_weight[wp.lane] for each WP) / sum(wp_weight for each WP) * 100`
+- A mission with 3 WPs all in `in_progress` shows ~30%, not 0%
 - `materialize` outputs: `status.json`, `progress.json`, `board-summary.json`
 - Lazy check: `os.path.getmtime(event_log) > os.path.getmtime(derived_file)`
 - Machine-readable JSON schema should be documented for future SaaS consumption
@@ -437,7 +439,7 @@
 - T065 (state rebuild) and T068 (gitignore) can proceed in parallel
 
 ### Dependencies
-- Depends on WP12 (needs identity/ownership backfill steps).
+- Depends on WP09 (shim generator used by rewrite_shims), WP11 (schema version written by runner), WP12 (identity/ownership backfill steps).
 
 ### Risks & Mitigations
 - Data loss during migration: atomic rollback is mandatory
@@ -495,8 +497,8 @@ Wave 4: WP06 ──────── WP07 ──────── WP11
 Wave 5:               WP08 ──────── WP12
                       (Merge Orch)   (Migration Identity)
                                       │
-Wave 6:                             WP13
-                                    (Migration Runner)
+Wave 6:                      WP09 + WP11 + WP12 ──▶ WP13
+                                    (Migration Runner — needs shims, schema, identity)
                                       │
 Wave 7:                             WP14
                                     (Integration Tests)

@@ -62,10 +62,12 @@ history:
 - **Purpose**: Single shared implementation of weighted progress.
 - **Steps**:
   1. Create `src/specify_cli/status/progress.py`
-  2. Implement `compute_weighted_progress(snapshot: StatusSnapshot, weights: dict[str, float] | None = None) -> ProgressResult`:
-     - Default: equal weight per WP (1.0)
-     - Compute: `sum(weight for done WPs) / sum(all weights) * 100`
-     - Return `ProgressResult` dataclass with: percentage, done_count, total_count, done_weight, total_weight, per_wp breakdown
+  2. Implement `compute_weighted_progress(snapshot: StatusSnapshot, wp_weights: dict[str, float] | None = None, lane_weights: dict[str, float] | None = None) -> ProgressResult`:
+     - Default lane weights: `{"planned": 0.0, "claimed": 0.05, "in_progress": 0.3, "for_review": 0.6, "approved": 0.8, "done": 1.0, "blocked": 0.0, "canceled": 0.0}`
+     - Default WP weight: equal per WP (1.0 each)
+     - Compute: `sum(wp_weight * lane_weight[wp.lane] for each WP) / sum(wp_weight for each WP) * 100`
+     - This is a lane-weighted model, NOT done-only. A mission with all WPs in `in_progress` shows ~30%, not 0%.
+     - Return `ProgressResult` dataclass with: percentage, per_lane_counts, per_wp breakdown (wp_code, lane, fractional_progress), done_count, total_count
   3. `ProgressResult` must be JSON-serializable for machine consumption
   4. Implement `generate_progress_json(feature_dir: Path, derived_dir: Path) -> None`:
      - Materialize snapshot → compute progress → write to `derived_dir/<slug>/progress.json`

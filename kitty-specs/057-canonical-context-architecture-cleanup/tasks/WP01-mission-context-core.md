@@ -87,11 +87,10 @@ history:
          feature_slug: str             # Display alias: "057-canonical-context..."
          target_branch: str            # From meta.json
          authoritative_repo: str       # Absolute path to repo root
-         authoritative_ref: str        # Git ref (branch name) for this WP
+         authoritative_ref: str | None # Git ref (branch name) for code_change WPs; None for planning_artifact WPs that work in-repo
          owned_files: tuple[str, ...]  # Glob patterns from WP frontmatter
          execution_mode: str           # "code_change" or "planning_artifact"
          dependency_mode: str          # "independent" or "chained"
-         completion_commands: tuple[str, ...]  # CLI commands to run on WP completion
          created_at: str               # ISO 8601 UTC
          created_by: str               # Agent name
      ```
@@ -137,9 +136,9 @@ history:
 - **Purpose**: Resolve context from raw arguments (wp_code, feature_slug, agent name) into a persisted MissionContext.
 - **Steps**:
   1. Create `src/specify_cli/context/resolver.py`
-  2. Implement `resolve_context(wp_code: str, feature_slug: str | None, agent: str, repo_root: Path) -> MissionContext`:
+  2. Implement `resolve_context(wp_code: str, feature_slug: str, agent: str, repo_root: Path) -> MissionContext`:
+     - Both `wp_code` and `feature_slug` are REQUIRED. If either is missing, raise `ContextResolutionError` with an actionable message telling the caller to provide both. NO scanning, NO heuristic fallback, NO single-feature auto-detection. This is the core architectural constraint — the resolver must never re-discover identity.
      - Read `project_uuid` from `.kittify/metadata.yaml`
-     - If `feature_slug` not provided: scan `kitty-specs/` for single incomplete feature (simple fallback only)
      - Read `mission_id` and `target_branch` from `kitty-specs/<feature_slug>/meta.json`
      - Find WP by `wp_code` in `kitty-specs/<feature_slug>/tasks/`
      - Read `work_package_id`, `execution_mode`, `owned_files`, `authoritative_surface`, `dependencies` from WP frontmatter
@@ -153,11 +152,12 @@ history:
      - `ContextResolutionError` — base class
      - `FeatureNotFoundError` — feature slug doesn't match any kitty-specs/ dir
      - `WorkPackageNotFoundError` — wp_code not found in tasks/
-     - `AmbiguousFeatureError` — multiple features, none specified
+     - `MissingArgumentError` — wp_code or feature_slug not provided (fail-fast, no fallback)
      - `MissingIdentityError` — project_uuid or mission_id not assigned
   4. Implement `resolve_or_load(token: str | None, wp_code: str | None, feature_slug: str | None, agent: str, repo_root: Path) -> MissionContext`:
      - If `token` is provided: `load_context(token)` directly
-     - Otherwise: `resolve_context(wp_code, feature_slug, agent, repo_root)`
+     - If `token` is None but both `wp_code` and `feature_slug` are provided: `resolve_context(wp_code, feature_slug, agent, repo_root)`
+     - If `token` is None and either `wp_code` or `feature_slug` is missing: raise `MissingArgumentError` — never scan or guess
      - This is the main entry point used by shim entrypoints
 - **Files**: `src/specify_cli/context/resolver.py` (new, ~120 lines)
 - **Notes**: Resolver reads frontmatter via `ruamel.yaml`. It does NOT use `detect_feature()`, branch parsing, env vars, or cwd walking. Those old paths are deleted in WP02.

@@ -96,7 +96,7 @@ One per work package. Identity assigned at task finalization.
 | `wp_code` | `str` | Display alias (e.g., "WP03") |
 | `mission_id` | `str` (ULID) | Parent mission reference |
 | `title` | `str` | Human-readable WP title |
-| `dependencies` | `list[str]` | List of `wp_code` values this WP depends on |
+| `dependencies` | `list[str]` | List of `work_package_id` ULIDs this WP depends on. Human-readable aliases (`wp_code`) may appear in `tasks.md` for readability but are resolved to immutable IDs at finalization. |
 | `execution_mode` | `str` | `"code_change"` or `"planning_artifact"` |
 | `owned_files` | `list[str]` | Glob patterns for files this WP owns |
 | `authoritative_surface` | `str` | Path prefix for this WP's canonical location |
@@ -111,7 +111,7 @@ work_package_id: "01HVXYZ..."
 wp_code: "WP03"
 mission_id: "01HVXYZ..."
 title: "Implement MissionContext resolver"
-dependencies: ["WP01", "WP02"]
+dependencies: ["01HVXYZ-wp01-id...", "01HVXYZ-wp02-id..."]  # Immutable work_package_id ULIDs, not wp_code aliases
 execution_mode: code_change
 owned_files:
   - "src/specify_cli/context/**"
@@ -149,11 +149,10 @@ Ephemeral bound-identity object. Created by context resolution, consumed by work
 | `feature_slug` | `str` | Display alias for mission |
 | `target_branch` | `str` | From MissionIdentity |
 | `authoritative_repo` | `str` (path) | Absolute path to repo root |
-| `authoritative_ref` | `str` | Git ref (branch name) for this WP |
+| `authoritative_ref` | `str \| None` | Git ref (branch name) for this WP. Present for `code_change` WPs. `None` for `planning_artifact` WPs that operate in-repo without a dedicated branch. |
 | `owned_files` | `list[str]` | From WorkPackage ownership manifest |
 | `execution_mode` | `str` | From WorkPackage |
 | `dependency_mode` | `str` | "independent" or "chained" |
-| `completion_commands` | `list[str]` | CLI commands to run on WP completion |
 | `created_at` | `str` (ISO 8601) | When context was resolved |
 | `created_by` | `str` | Agent name that created this context |
 
@@ -173,7 +172,6 @@ Ephemeral bound-identity object. Created by context resolution, consumed by work
   "owned_files": ["src/specify_cli/context/**", "tests/specify_cli/context/**"],
   "execution_mode": "code_change",
   "dependency_mode": "chained",
-  "completion_commands": ["spec-kitty agent tasks move-task --to for_review"],
   "created_at": "2026-03-27T17:00:00+00:00",
   "created_by": "claude"
 }

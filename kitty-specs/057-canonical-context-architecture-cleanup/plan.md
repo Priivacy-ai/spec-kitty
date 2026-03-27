@@ -290,9 +290,11 @@ status.events.jsonl (TRACKED, append-only)
 
 **Weighted progress** (`status/progress.py`):
 - Single shared implementation used by CLI and exposable to SaaS
-- Weights configurable per-mission (default: equal weight per WP)
-- Computed from snapshot lane counts: `done_weight / total_weight * 100`
-- Returns structured JSON for machine consumption
+- Lane-weighted model: each lane has a fractional weight reflecting how far toward done that lane is. Default lane weights: `planned=0.0`, `claimed=0.05`, `in_progress=0.3`, `for_review=0.6`, `approved=0.8`, `done=1.0`, `blocked=0.0`, `canceled=0.0`
+- Per-WP weights configurable per-mission (default: equal weight per WP, 1.0 each)
+- Computed from snapshot: `sum(wp_weight * lane_weight[wp.lane] for each WP) / sum(wp_weight for each WP) * 100`
+- This means a mission with 3 WPs in `in_progress` shows ~30% progress, not 0%. The old done-only model is explicitly rejected.
+- Returns structured JSON for machine consumption: overall percentage, per-lane counts, per-WP lane + fractional progress
 
 **Lazy regeneration**: CLI commands that need derived state call `materialize_if_stale(feature_dir)` which checks event log mtime vs derived file mtime. `spec-kitty materialize` forces regeneration for CI/debugging.
 
@@ -464,12 +466,14 @@ Every CLI command calls `migration.gate.check_schema_version(repo_root)` before 
       - Set `authoritative_surface` from owned_files
       - Strip mutable frontmatter: remove `lane`, `review_status`, `reviewed_by`, `progress`, etc.
       - Keep static frontmatter: `title`, `dependencies`, `execution_mode`, `owned_files`, `authoritative_surface`, `work_package_id`, `wp_code`, `mission_id`
-   c. Rebuild event log:
-      - Read existing `status.events.jsonl` (if exists, keep as-is)
-      - If no event log: infer state from frontmatter `lane` fields and `status.json`
-      - Precedence: existing event log > status.json > frontmatter
-      - Generate synthetic events for any state not already in event log
-      - Log warnings for conflicts
+   c. Rebuild event log (canonical reconciliation, not blind trust):
+      - Read ALL available sources: existing `status.events.jsonl`, `status.json`, frontmatter `lane` fields
+      - Cross-validate: for each WP, compare the lane implied by each source. If sources disagree, log the conflict and use the most-recently-timestamped source (event log events have timestamps; status.json has `materialized_at`; frontmatter has no timestamp, so it loses ties)
+      - Backfill identity: add `mission_id` and `work_package_id` to existing events that lack them
+      - Remove duplicate or contradictory events (same event_id, different payloads)
+      - If no event log exists: generate synthetic events from status.json or frontmatter
+      - Write the reconciled, deduplicated, identity-enriched event log as the new canonical source
+      - Log all conflict resolutions and dropped events as migration warnings
    d. Move derived artifacts to `.kittify/derived/<feature_slug>/`
    e. Remove `status.json` from tracked paths (add to `.gitignore`)
 4. **Rewrite agent shims**: Replace all agent command files with thin shims

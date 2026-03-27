@@ -119,7 +119,7 @@ A maintainer with an existing Spec Kitty project runs any CLI command. The CLI d
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | MissionContext object | As an agent, I want a persisted context object with immutable IDs (project_uuid, mission_id, wp_id, feature_slug, target_branch, authoritative_repo, authoritative_ref, owned_files, execution_mode, dependency_mode, completion_commands) so that every workflow command operates on bound identity without re-resolution. | High | Open |
+| FR-001 | MissionContext object | As an agent, I want a persisted context object with immutable IDs (project_uuid, mission_id, work_package_id, wp_code, feature_slug, target_branch, authoritative_repo, authoritative_ref (optional for planning_artifact WPs), owned_files, execution_mode, dependency_mode) so that every workflow command operates on bound identity without re-resolution. | High | Open |
 | FR-002 | Context token CLI interface | As an agent, I want every workflow command to accept `--context <token>` so that I never trigger heuristic slug/branch/WP resolution after initial binding. | High | Open |
 | FR-003 | Fail-fast on missing context | As an agent, I want commands to fail immediately with an actionable error when invoked without sufficient context rather than falling back to heuristic resolution. | High | Open |
 | FR-004 | WP execution_mode declaration | As a project maintainer, I want each WP to declare `execution_mode` (code_change or planning_artifact) at task-finalization time so that the system uses the correct workspace strategy. | High | Open |

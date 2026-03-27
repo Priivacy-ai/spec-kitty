@@ -93,17 +93,17 @@ history:
   1. Create `src/specify_cli/merge/conflict_resolver.py`
   2. Implement `resolve_owned_conflicts(workspace_path: Path, conflicted_files: list[str]) -> ResolutionResult`:
      - For `status.events.jsonl`: append-merge (concatenate both sides, dedup by event_id, sort by timestamp)
-     - For derived files (status.json, etc.): take-theirs and regenerate
      - For WP frontmatter (static metadata): take-theirs (latest version wins)
      - For human-authored files: do NOT auto-resolve — return as unresolved
+     - **Derived files should NEVER appear as merge conflicts** because they are gitignored. If a derived file somehow conflicts, that indicates a .gitignore misconfiguration — flag it as an error, do not silently resolve.
   3. Implement `classify_conflict(file_path: str) -> ConflictType`:
      - `OWNED_EVENT_LOG` → append-merge
-     - `OWNED_DERIVED` → regenerate
      - `OWNED_METADATA` → take-theirs
      - `HUMAN_AUTHORED` → manual resolution required
+     - `UNEXPECTED_DERIVED` → error (should be gitignored, not in merge)
   4. Classification heuristics:
      - `*.events.jsonl` → event log
-     - Files under `.kittify/derived/` → derived
+     - Files under `.kittify/derived/` or `.kittify/runtime/` → UNEXPECTED_DERIVED (flag error)
      - `meta.json`, WP frontmatter → metadata
      - Everything else → human-authored
 - **Files**: `src/specify_cli/merge/conflict_resolver.py` (new, ~100 lines)

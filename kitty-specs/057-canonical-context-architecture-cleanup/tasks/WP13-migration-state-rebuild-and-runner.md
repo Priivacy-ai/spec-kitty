@@ -2,7 +2,7 @@
 work_package_id: WP13
 title: One-Shot Migration — State Rebuild and Runner
 lane: planned
-dependencies: [WP12]
+dependencies: [WP09, WP11, WP12]
 requirement_refs:
 - C-006
 - FR-018
@@ -55,7 +55,7 @@ history:
 - **Spec**: FR-018, NFR-001, NFR-002, C-006
 - **Plan**: Migration Design section — state rebuild precedence, atomic runner
 - **Depends on**: WP12 (identity/ownership backfill steps must exist)
-- **Key constraint**: State rebuild precedence: existing event log > status.json > frontmatter `lane` fields
+- **Key constraint**: State rebuild cross-validates ALL sources (event log, status.json, frontmatter). Existing event logs are NOT blindly trusted — they are reconciled, deduplicated, and identity-enriched.
 
 ## Subtasks & Detailed Guidance
 
@@ -65,15 +65,21 @@ history:
 - **Steps**:
   1. Create `src/specify_cli/migration/rebuild_state.py`
   2. Implement `rebuild_event_log(feature_dir: Path, feature_slug: str, wp_id_map: dict[str, str]) -> RebuildResult`:
-     - **Check existing event log**: if `status.events.jsonl` exists with events, keep as-is (already canonical). Add `mission_id` and `work_package_id` to events that lack them.
-     - **If no event log**: check for `status.json` in feature dir
-     - **If status.json exists**: read snapshot, generate synthetic events for each WP's current lane:
+     - **Read ALL available sources**: existing `status.events.jsonl`, `status.json`, frontmatter `lane` fields
+     - **Cross-validate per WP**: for each WP, determine the lane each source implies. If sources disagree:
+       - Use the most-recently-timestamped source (events have `at`, status.json has `materialized_at`, frontmatter has no timestamp and loses ties)
+       - Log the conflict and resolution as a migration warning
+     - **If event log exists**: do NOT blindly trust it. Reconcile:
+       - Backfill `mission_id` and `work_package_id` on events that lack them
+       - Remove duplicate events (same `event_id`, different payloads)
+       - If the event log's terminal state for a WP contradicts status.json or frontmatter, emit a corrective synthetic event with `actor="migration"` and `reason="reconciled from <source>"`
+     - **If no event log**: generate synthetic events from status.json or frontmatter:
        ```python
        StatusEvent(
            event_id=generate_ulid(),
            mission_id=mission_id,
            work_package_id=wp_id_map[wp_code],
-           wp_id=wp_code,  # backward-compat field
+           wp_id=wp_code,
            feature_slug=feature_slug,
            from_lane="planned",
            to_lane=current_lane,
@@ -81,12 +87,13 @@ history:
            actor="migration",
            force=False,
            execution_mode="unknown",
+           reason="bootstrapped from legacy state",
        )
        ```
-     - **If no status.json**: read frontmatter `lane` field from each WP file, generate synthetic events
-     - **Precedence**: event log > status.json > frontmatter
-     - Log warnings for conflicts between sources
-     - Return: events generated, events kept, conflicts found
+     - **If no status.json and no event log**: read frontmatter `lane` field, generate synthetic events
+     - Write the reconciled, deduplicated, identity-enriched event log as the new canonical source
+     - Log all conflict resolutions, dropped events, and corrective emissions as migration warnings
+     - Return: events generated, events kept, events corrected, conflicts found
   3. The `wp_id_map` comes from identity backfill (WP12) — maps wp_code → work_package_id
   4. For mid-flight features: generate a full event chain (planned → claimed → in_progress → current_lane) to have a realistic history, not just a single jump
 - **Files**: `src/specify_cli/migration/rebuild_state.py` (new, ~120 lines)
@@ -198,7 +205,7 @@ history:
 
 - **Data loss during state rebuild**: Test exhaustively with mid-flight features. Log every decision.
 - **Backup space**: Backup may double `.kittify/` size temporarily. Cleanup after successful migration.
-- **Atomic commit failure**: If git commit fails (hooks, etc.), the migration should still be considered successful for filesystem state. The commit can be retried manually.
+- **Atomic commit failure**: If the git commit fails (hooks, etc.), the migration MUST roll back to pre-migration state. An uncommitted rewrite leaves the project in an inconsistent state that is not atomic from the operator's perspective. The migration runner should retry the commit once (skipping hooks with `--no-verify` only for the migration commit), and if it still fails, roll back and report the specific commit error.
 
 ## Review Guidance
 

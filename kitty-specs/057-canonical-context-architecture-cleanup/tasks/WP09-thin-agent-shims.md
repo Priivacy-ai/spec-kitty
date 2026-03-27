@@ -95,14 +95,20 @@ history:
 - **Purpose**: Generate thin shim markdown files for all configured agents.
 - **Steps**:
   1. Create `src/specify_cli/shims/generator.py`
-  2. Implement `generate_shim_content(command: str, agent_name: str) -> str`:
+  2. Implement `generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -> str`:
+     - The argument placeholder varies by agent runtime:
+       - Claude Code: `"$ARGUMENTS"` (slash-command args)
+       - Codex: `"$PROMPT"` (prompt text)
+       - Other agents: `"$ARGUMENTS"` (default)
+     - Define an `AGENT_ARG_PLACEHOLDERS` mapping for known agent-specific patterns
      - Return the 3-line shim format:
        ```
        Run this exact command and treat its output as authoritative.
        Do not rediscover context from branches, files, or prompt contents.
 
-       `spec-kitty agent shim {command} --agent {agent_name} --raw-args "$ARGUMENTS"`
+       `spec-kitty agent shim {command} --agent {agent_name} --raw-args "{arg_placeholder}"`
        ```
+     - The CLI shim entrypoint normalizes all argument formats internally, so the placeholder is the only agent-specific variation. All workflow logic stays in the CLI.
   3. Implement `generate_all_shims(repo_root: Path) -> list[Path]`:
      - Get configured agents via `get_agent_dirs_for_project(repo_root)`
      - Get consumer-facing skills from registry (T047)
