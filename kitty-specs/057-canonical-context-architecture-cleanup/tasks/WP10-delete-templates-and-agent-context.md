@@ -18,7 +18,7 @@ subtasks:
 - T053
 phase: Phase D - Surface and Migration
 assignee: ''
-agent: ''
+agent: "coordinator"
 shell_pid: "10711"
 review_status: ''
 reviewed_by: ''
@@ -122,3 +122,4 @@ history:
 ## Activity Log
 
 - 2026-03-27T17:23:39Z – system – lane=planned – Prompt created.
+- 2026-03-27T18:18:17Z – coordinator – shell_pid=10711 – lane=doing – Assigned agent via workflow command
