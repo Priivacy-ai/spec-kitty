@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.1.3] - 2026-03-27
+
+### 🐛 Fixed
+
+**Preserve explicit WP args in workflow prompts**: Slash-command arguments passed to `/spec-kitty.implement` and `/spec-kitty.review` are now forwarded into the resolver-first flow instead of being silently dropped. Agents receiving explicit WP selectors (e.g., `WP03`, `--base WP01`) will correctly pass them to `spec-kitty agent context resolve` via `--wp-id` and `--base` flags.
+
+- `implement.md` and `review.md` mission templates now include an `{ARGS}` placeholder with conditional forwarding instructions
+- Public slash-command docs updated: `/spec-kitty.implement` documents `[--base WP_ID]` support; `/spec-kitty.review` is now WP-only (removed stale "or prompt path" syntax)
+- Regression tests added across Markdown and TOML agent formats to ensure argument placeholders survive rendering
+
 ## [2.1.2] - 2026-03-23
 
 ### 🔧 Improved
