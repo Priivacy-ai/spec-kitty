@@ -54,6 +54,7 @@ env/
 .kittify/missions/
 .kittify/scripts/
 .kittify/runtime/
+.kittify/derived/
 .kittify/merge-state.json
 .kittify/events/
 .kittify/dossiers/

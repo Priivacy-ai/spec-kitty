@@ -44,7 +44,15 @@ from .emit import (
 )
 from .views import (
     generate_status_view,
+    materialize_if_stale,
     write_derived_views,
+)
+from .progress import (
+    DEFAULT_LANE_WEIGHTS,
+    ProgressResult,
+    WPProgress,
+    compute_weighted_progress,
+    generate_progress_json,
 )
 from .validate import (
     ValidationResult,
@@ -57,6 +65,12 @@ from .validate import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "DEFAULT_LANE_WEIGHTS",
+    "ProgressResult",
+    "WPProgress",
+    "compute_weighted_progress",
+    "generate_progress_json",
+    "materialize_if_stale",
     "CANONICAL_LANES",
     "DoneEvidence",
     "EVENTS_FILENAME",
