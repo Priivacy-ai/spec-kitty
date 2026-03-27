@@ -37,28 +37,21 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
     TEMPLATE_FILE = "constitution.md"
     SLASH_COMMAND_FILE = "spec-kitty.constitution.md"
 
-    def detect(self, project_path: Path) -> bool:
-        """Check if any agent has old /spec-kitty.plan reference."""
-        agent_dirs = get_agent_dirs_for_project(project_path)
-        for agent_dir, subdir in agent_dirs:
-            slash_cmd = project_path / agent_dir / subdir / self.SLASH_COMMAND_FILE
-            if slash_cmd.exists():
-                content = slash_cmd.read_text(encoding="utf-8")
-                # Look for the wrong reference in the Next steps context
-                if "run /spec-kitty.plan" in content and "Next steps" in content:
-                    return True
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
+
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
+        """
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
-        """Check if we can read the template from packaged missions."""
-        try:
-            data_root = files("specify_cli")
-            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
-            if template_path.is_file():
-                return True, ""
-        except Exception as e:
-            return False, f"Cannot access packaged missions: {e}"
-        return False, "Template not found in packaged missions"
+        """Always returns False — command templates removed in WP10."""
+        return (
+            False,
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
+        )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update constitution slash command across all agent directories."""

@@ -47,11 +47,10 @@ from specify_cli.template import (
     copy_constitution_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
-    generate_agent_assets,
     get_local_repo_root,
     parse_repo_slug,
-    prepare_command_templates,
 )
+from specify_cli.shims.generator import generate_all_shims
 from specify_cli.template.github_client import (
     download_and_extract_template as download_and_extract_template_github,
 )
@@ -682,8 +681,6 @@ def init(  # noqa: C901
     if template_mode in ("local", "package") and not here and not project_path.exists():
         project_path.mkdir(parents=True)
 
-    command_templates_dir: Path | None = None
-    render_templates_dir: Path | None = None
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
     if template_mode == "remote" and (repo_owner is None or repo_name is None):
@@ -735,61 +732,27 @@ def init(  # noqa: C901
                                 pkg_templates = _get_package_templates_root()
                                 if pkg_templates is not None:
                                     templates_root = pkg_templates
-                                    # Copy base command templates to a writable
-                                    # scratch dir so prepare_command_templates()
-                                    # can create the merged output alongside them.
-                                    # Use .kittify/.scratch/ (hidden) so the 4-tier
-                                    # resolver's legacy tier scan of
-                                    # .kittify/command-templates doesn't pick this
-                                    # up and emit spurious DeprecationWarnings.
-                                    scratch = project_path / ".kittify" / ".scratch"
-                                    scratch.mkdir(parents=True, exist_ok=True)
-                                    scratch_cmd = scratch / "command-templates"
-                                    if scratch_cmd.exists():
-                                        shutil.rmtree(scratch_cmd)
-                                    shutil.copytree(
-                                        pkg_templates / "command-templates",
-                                        scratch_cmd,
-                                    )
-                                    command_templates_dir = scratch_cmd
                                 else:
                                     # Package templates not found -- fall back to full copy
                                     use_global = False
                             if not use_global:
                                 if template_mode == "local":
                                     assert local_repo is not None
-                                    command_templates_dir = copy_specify_base_from_local(
+                                    copy_specify_base_from_local(
                                         local_repo, project_path, selected_script
                                     )
                                 else:
-                                    command_templates_dir = copy_specify_base_from_package(
+                                    copy_specify_base_from_package(
                                         project_path, selected_script
                                     )
                                 # Track templates root for later use (AGENTS.md, .claudeignore)
-                                if command_templates_dir:
-                                    templates_root = command_templates_dir.parent
+                                pkg_templates = _get_package_templates_root()
+                                if pkg_templates is not None:
+                                    templates_root = pkg_templates
+                            # WP10: Generate thin 3-line shim files for all configured agents.
+                            # Shim generation replaces the old command-template copy + render flow.
+                            generate_all_shims(project_path)
                             base_prepared = True
-                        if command_templates_dir is None:
-                            raise RuntimeError("Command templates directory was not prepared")
-                        if render_templates_dir is None:
-                            # Resolve mission command templates through the
-                            # full 4-tier precedence chain (override > legacy
-                            # > global > package) so that user overrides and
-                            # global customizations are honoured during init.
-                            # Use .kittify/ as scratch parent -- always writable,
-                            # unlike the package templates dir in global mode.
-                            scratch = project_path / ".kittify"
-                            scratch.mkdir(parents=True, exist_ok=True)
-                            mission_templates_dir = _resolve_mission_command_templates_dir(
-                                project_path,
-                                selected_mission,
-                                scratch_parent=scratch,
-                            )
-                            render_templates_dir = prepare_command_templates(
-                                command_templates_dir,
-                                mission_templates_dir,
-                            )
-                        generate_agent_assets(render_templates_dir, project_path, agent_key, selected_script)
                     except Exception as exc:
                         tracker.error(f"{agent_key}-extract", str(exc))
                         raise

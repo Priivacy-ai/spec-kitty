@@ -28,42 +28,21 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
     description = "Update workflow templates with end-of-output instructions and --agent requirement"
     target_version = "0.11.2"
 
-    def detect(self, project_path: Path) -> bool:
-        """Check if slash commands need updating with improved guidance."""
-        # Check if any agent directory has the old templates (without scroll warning)
-        agent_dirs = get_agent_dirs_for_project(project_path)
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
 
-        for agent_root, subdir in agent_dirs:
-            agent_dir = project_path / agent_root / subdir
-
-            if not agent_dir.exists():
-                continue
-
-            # Check implement.md for new structure
-            implement_file = agent_dir / "spec-kitty.implement.md"
-            if implement_file.exists():
-                content = implement_file.read_text(encoding="utf-8")
-                # New template has warning about scrolling to bottom
-                if "scroll to the BOTTOM" not in content.lower():
-                    return True
-
-            # Check review.md for new structure
-            review_file = agent_dir / "spec-kitty.review.md"
-            if review_file.exists():
-                content = review_file.read_text(encoding="utf-8")
-                # New template has warning about scrolling to bottom
-                if "scroll to the BOTTOM" not in content.lower():
-                    return True
-
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
+        """
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        """Check if we can apply this migration."""
-        kittify_dir = project_path / ".kittify"
-        if not kittify_dir.exists():
-            return False, "No .kittify directory (not a spec-kitty project)"
-
-        return True, ""
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10."""
+        return (
+            False,
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
+        )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update implement and review slash commands with improved templates."""

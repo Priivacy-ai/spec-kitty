@@ -150,39 +150,30 @@ class WorkspacePerWPMigration(BaseMigration):
     description = MIGRATION_DESCRIPTION
     target_version = MIGRATION_VERSION
 
-    def detect(self, project_path: Path) -> bool:
-        """Detect if mission templates need workspace-per-WP updates."""
-        templates_dir = project_path / ".kittify" / "missions" / MISSION_NAME / "command-templates"
-        if not templates_dir.exists():
-            return False
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
 
-        source_templates = _resolve_template_sources()
-        if not source_templates:
-            return False
-
-        for name, content in source_templates.items():
-            dest_path = templates_dir / name
-            if not dest_path.exists():
-                return True
-            if dest_path.read_text(encoding="utf-8") != content:
-                return True
-
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
+        """
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        """Block upgrade when legacy worktrees exist."""
+        """Block upgrade when legacy worktrees exist; otherwise no-op."""
         is_valid, errors = validate_upgrade(project_path)
         if not is_valid:
             return False, "\n".join(errors)
-        return True, ""
+        return (
+            False,
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
+        )
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Apply the workspace-per-WP migration."""
-        changes, errors = update_template_sources(project_path, dry_run=dry_run)
-        success = len(errors) == 0
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
+        """No-op — command templates removed in WP10."""
         return MigrationResult(
-            success=success,
-            changes_made=changes,
-            errors=errors,
+            success=True,
+            changes_made=["No-op: command templates removed in WP10 (shims replace templates)"],
+            errors=[],
             warnings=[],
         )

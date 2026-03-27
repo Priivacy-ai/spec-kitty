@@ -40,29 +40,21 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
     TEMPLATE_FILE = "implement.md"
     SLASH_COMMAND_FILE = "spec-kitty.implement.md"
 
-    def detect(self, project_path: Path) -> bool:
-        """Check if any agent needs updated implement template."""
-        agent_dirs = get_agent_dirs_for_project(project_path)
-        for agent_dir, subdir in agent_dirs:
-            slash_cmd = project_path / agent_dir / subdir / self.SLASH_COMMAND_FILE
-            if slash_cmd.exists():
-                content = slash_cmd.read_text(encoding="utf-8")
-                # Check if missing commit workflow section
-                if "Commit Workflow" not in content:
-                    return True
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
+
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
+        """
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
-        """Check if we can read templates from packaged missions."""
-        try:
-            data_root = files("specify_cli")
-            for mission in ["software-dev", "documentation"]:
-                template_path = data_root.joinpath("missions", mission, "command-templates", self.TEMPLATE_FILE)
-                if not template_path.exists():
-                    return False, f"Template not found: missions/{mission}/command-templates/{self.TEMPLATE_FILE}"
-            return True, ""
-        except Exception as e:
-            return False, f"Cannot access packaged missions: {e}"
+        """Always returns False — command templates removed in WP10."""
+        return (
+            False,
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
+        )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Update implement slash commands across all agent directories."""
