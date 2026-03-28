@@ -1,16 +1,16 @@
 {
-  "event_count": 13,
+  "event_count": 15,
   "feature_slug": "058-mission-template-repository-refactor",
-  "last_event_id": "01KMSG8GG8S8ZT542Z30XMKX9K",
-  "materialized_at": "2026-03-28T05:56:50.313066+00:00",
+  "last_event_id": "01KMSGE5QYMZZ0RT83WJF21DJN",
+  "materialized_at": "2026-03-28T05:59:55.903083+00:00",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "planned": 0
   },
   "work_packages": {
@@ -43,12 +43,12 @@
         "model": "unknown",
         "profile": "unknown",
         "role": "unknown",
-        "tool": "claude-opus-4-6"
+        "tool": "user"
       },
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KMSG8GG8S8ZT542Z30XMKX9K",
-      "last_transition_at": "2026-03-28T05:56:50.312854+00:00"
+      "lane": "approved",
+      "last_event_id": "01KMSGE5QYMZZ0RT83WJF21DJN",
+      "last_transition_at": "2026-03-28T05:59:55.902732+00:00"
     }
   }
 }
