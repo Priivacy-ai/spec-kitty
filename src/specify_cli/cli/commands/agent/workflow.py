@@ -639,6 +639,7 @@ def implement(
         lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append(f"   📚 Reference docs (doctrine, constitution, etc.) are in {repo_root}/kitty-specs/")
         lines.append("=" * 80)
         lines.append("")
 
@@ -1145,6 +1146,9 @@ def review(
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
         lines.append("")
+        lines.append(f"📚 REFERENCE DOCUMENTS: kitty-specs/ is excluded from this worktree (sparse-checkout).")
+        lines.append(f"   Read reference docs from main repo: {repo_root}/kitty-specs/")
+        lines.append("")
         lines.append(_render_constitution_context(repo_root, "review"))
         lines.append("")
 
@@ -1229,6 +1233,7 @@ def review(
         lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append(f"   📚 Reference docs (doctrine, constitution, etc.) are in {repo_root}/kitty-specs/")
         lines.append("=" * 80)
         lines.append("")
         lines.append("Review the implementation against the requirements below.")
