@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Review Workflow Metadata & Dashboard Visibility
-lane: "for_review"
+lane: "doing"
 dependencies: [WP03]
 requirement_refs:
 - FR-020
@@ -26,7 +26,7 @@ subtasks:
 phase: Phase 1 - New API Foundation
 assignee: ''
 agent: "opencode"
-shell_pid: '26986'
+shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
 history:
@@ -230,3 +230,4 @@ print(f'Lane.IN_REVIEW = {Lane.IN_REVIEW}')
 
 - 2026-03-28T07:11:41Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T07:34:39Z – opencode – shell_pid=26986 – lane=for_review – Implementation complete: all subtasks T049-T054 done
+- 2026-03-28T07:34:44Z – opencode – shell_pid=26986 – lane=doing – Started review via workflow command
