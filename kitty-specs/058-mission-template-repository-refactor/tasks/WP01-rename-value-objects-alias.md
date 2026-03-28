@@ -27,7 +27,7 @@ subtasks:
 - T016
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
+agent: "claude"
 shell_pid: "9762"
 review_status: ''
 reviewed_by: ''
@@ -318,3 +318,4 @@ assert MissionRepository is MissionTemplateRepository
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T04:42:52Z – claude – shell_pid=9762 – lane=doing – Assigned agent via workflow command
