@@ -8,16 +8,35 @@ Modules:
     preflight: Pre-flight validation before merge
     ordering: Dependency-based merge ordering
     state: Per-mission merge state persistence and resume
+    engine: Merge orchestrator (v2) — execute_merge / resume_merge / abort_merge
+    conflict_resolver: Auto-resolution of spec-kitty-owned merge conflicts
+    reconciliation: Post-merge reconciliation via git ancestry
 """
 
 from __future__ import annotations
 
+from specify_cli.merge.conflict_resolver import (
+    ConflictType,
+    ResolutionResult,
+    classify_conflict,
+    resolve_owned_conflicts,
+)
+from specify_cli.merge.engine import (
+    MergeResult,
+    abort_merge,
+    execute_merge,
+    resume_merge,
+)
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
 from specify_cli.merge.preflight import (
     PreflightResult,
     WPStatus,
     run_preflight,
     run_preflight_from_context,
+)
+from specify_cli.merge.reconciliation import (
+    get_merged_branches,
+    reconcile_done_state,
 )
 from specify_cli.merge.state import (
     MergeState,
@@ -37,6 +56,19 @@ from specify_cli.merge.workspace import (
 )
 
 __all__ = [
+    # Engine (v2)
+    "MergeResult",
+    "execute_merge",
+    "resume_merge",
+    "abort_merge",
+    # Conflict resolution
+    "ConflictType",
+    "ResolutionResult",
+    "classify_conflict",
+    "resolve_owned_conflicts",
+    # Reconciliation
+    "get_merged_branches",
+    "reconcile_done_state",
     # Ordering
     "get_merge_order",
     "MergeOrderError",

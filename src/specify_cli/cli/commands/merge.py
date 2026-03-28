@@ -705,6 +705,8 @@ def merge(
     feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
+    context_token: str = typer.Option(None, "--context", help="MissionContext token for engine-v2 merge"),
+    keep_workspace: bool = typer.Option(False, "--keep-workspace", help="Keep merge workspace after completion (for debugging)"),
 ) -> None:
     """Merge a completed feature branch into the target branch and clean up resources.
 
@@ -715,6 +717,7 @@ def merge(
 
     Use --resume to continue an interrupted merge from saved state.
     Use --abort to clear merge state and abort any in-progress git merge.
+    Use --keep-workspace to preserve the merge workspace for debugging.
     """
     if not json_output:
         show_banner()
@@ -728,22 +731,23 @@ def merge(
             raise typer.Exit(1)
 
         main_repo = get_main_repo_root(repo_root)
-        state = load_state(main_repo)
 
+        # Use engine v2 abort (handles workspace cleanup + lock release)
+        from specify_cli.merge.engine import abort_merge as engine_abort_merge
+
+        state = load_state(main_repo)
         if state is None:
             console.print("[yellow]No merge state to abort[/yellow]")
         else:
-            clear_state(main_repo)
-            console.print(f"[green]✓[/green] Merge state cleared for {state.feature_slug}")
+            console.print(f"[cyan]Aborting merge of {state.feature_slug}...[/cyan]")
             console.print(f"  Progress was: {len(state.completed_wps)}/{len(state.wp_order)} WPs complete")
 
-        # Also abort git merge if in progress
-        if abort_git_merge(main_repo):
-            console.print("[green]✓[/green] Git merge aborted")
+        engine_abort_merge(main_repo)
+        console.print(f"[green]✓[/green] Merge aborted and state cleared")
 
         raise typer.Exit(0)
 
-    # Handle --resume flag
+    # Handle --resume flag (engine v2 path)
     resume_state: MergeState | None = None
     if resume:
         try:
@@ -768,13 +772,38 @@ def merge(
         console.print(f"  Progress: {len(resume_state.completed_wps)}/{len(resume_state.wp_order)} WPs")
         console.print(f"  Remaining: {', '.join(resume_state.remaining_wps)}")
 
-        # Check for pending git merge
-        if detect_git_merge_state(main_repo):
+        # Check for pending git merge in workspace or main repo
+        workspace_path_str = resume_state.workspace_path
+        check_root = Path(workspace_path_str) if workspace_path_str else main_repo
+        if detect_git_merge_state(check_root):
             console.print("[yellow]⚠ Git merge in progress - resolve conflicts first[/yellow]")
             console.print("Then run 'spec-kitty merge --resume' again.")
             raise typer.Exit(1)
 
-        # Set feature from state and override options
+        # Use engine v2 resume
+        from specify_cli.merge.engine import resume_merge as engine_resume_merge
+
+        eng_result = engine_resume_merge(main_repo, keep_workspace=keep_workspace)
+        if eng_result.success:
+            console.print(f"[bold green]✓ Merge resumed and completed successfully.[/bold green]")
+            if eng_result.merged_wps:
+                console.print(f"  Merged: {', '.join(eng_result.merged_wps)}")
+            if eng_result.skipped_wps:
+                console.print(f"  Skipped (already done): {', '.join(eng_result.skipped_wps)}")
+        else:
+            if eng_result.conflicts:
+                console.print(f"[yellow]Merge paused — unresolved conflicts:[/yellow]")
+                for f in eng_result.conflicts:
+                    console.print(f"  {f}")
+                console.print("Resolve conflicts, then run 'spec-kitty merge --resume'.")
+            else:
+                console.print(f"[red]Merge failed:[/red]")
+                for err in eng_result.errors:
+                    console.print(f"  {err}")
+            raise typer.Exit(1)
+        raise typer.Exit(0)
+
+        # Set feature from state and override options (kept for legacy paths below)
         feature = resume_state.feature_slug
         target_branch = resume_state.target_branch
         strategy = resume_state.strategy
