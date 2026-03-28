@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Rename Class + Value Objects + Alias
-lane: planned
+lane: "doing"
 dependencies: []
 requirement_refs:
 - FR-001
@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: aef99db5f1041002957292eeda0714ece7ef4e1f
+created_at: '2026-03-28T04:42:52.035837+00:00'
 subtasks:
 - T001
 - T002
@@ -25,7 +28,7 @@ subtasks:
 phase: Phase 1 - New API Foundation
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "9762"
 review_status: ''
 reviewed_by: ''
 history:
