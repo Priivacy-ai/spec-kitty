@@ -1,7 +1,7 @@
 """Tests for tasks_support module, particularly git worktree handling."""
 
 import pytest
-from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
+from specify_cli.tasks_support import find_repo_root, activity_entries, populate_review_feedback, TaskCliError
 
 pytestmark = pytest.mark.fast
 
@@ -270,7 +270,73 @@ This is not an activity log.
         entries = activity_entries(body)
         assert entries == []
 
-    def test_parse_all_lanes(self):
+class TestPopulateReviewFeedback:
+    """Tests for populate_review_feedback() body section writer."""
+
+    BODY_WITH_PLACEHOLDER = (
+        "## Review Feedback\n"
+        "\n"
+        "> **Populated by `/spec-kitty.review`**\n"
+        "\n"
+        "*[This section is empty initially.]*\n"
+        "\n"
+        "---\n"
+        "\n"
+        "## Activity Log\n"
+    )
+
+    def test_approval_replaces_placeholder(self):
+        result = populate_review_feedback(
+            self.BODY_WITH_PLACEHOLDER, "All tests pass", "approved", "reviewer-agent",
+        )
+        assert "*[This section is empty initially.]*" not in result
+        assert "approved" in result
+        assert "All tests pass" in result
+        assert "reviewer-agent" in result
+
+    def test_rejection_replaces_placeholder(self):
+        feedback = "**Issue 1**: Missing error handling\n**Issue 2**: No tests"
+        result = populate_review_feedback(
+            self.BODY_WITH_PLACEHOLDER, feedback, "changes_requested", "bob",
+        )
+        assert "*[This section is empty initially.]*" not in result
+        assert "changes_requested" in result
+        assert "Missing error handling" in result
+        assert "bob" in result
+
+    def test_preserves_surrounding_sections(self):
+        result = populate_review_feedback(
+            self.BODY_WITH_PLACEHOLDER, "LGTM", "approved", "rev",
+        )
+        assert "## Review Feedback" in result
+        assert "## Activity Log" in result
+
+    def test_body_without_placeholder_appends_under_header(self):
+        body = (
+            "## Review Feedback\n"
+            "\n"
+            "> **Populated by `/spec-kitty.review`**\n"
+            "\n"
+            "## Activity Log\n"
+        )
+        result = populate_review_feedback(body, "Looks good", "approved", "rev")
+        assert "Looks good" in result
+        assert "## Activity Log" in result
+
+    def test_body_without_section_returns_unchanged(self):
+        body = "## Some Other Section\n\nContent\n"
+        result = populate_review_feedback(body, "note", "approved", "rev")
+        assert result == body
+
+    def test_includes_timestamp(self):
+        result = populate_review_feedback(
+            self.BODY_WITH_PLACEHOLDER, "note", "approved", "rev",
+        )
+        # Timestamp format: YYYY-MM-DDTHH:MM:SSZ
+        import re
+        assert re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", result)
+
+
         """Test parsing entries with all possible lane values."""
         body = """
 - 2026-01-26T10:00:00Z – agent – shell_pid=1 – lane=planned – Planned
