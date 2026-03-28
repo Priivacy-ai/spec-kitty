@@ -43,6 +43,7 @@ from specify_cli.core.worktree import (
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_feature_mission_key
+from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
 app = typer.Typer(
@@ -1825,10 +1826,54 @@ def finalize_tasks(
                 frontmatter["requirement_refs"] = requirement_refs
                 frontmatter_changed = True
 
+            # Ownership manifest: infer missing fields, write to frontmatter
+            if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
+                wp_raw_content = wp_file.read_text(encoding="utf-8")
+                ownership = infer_ownership(wp_raw_content, feature_slug)
+                if not frontmatter.get("execution_mode"):
+                    frontmatter["execution_mode"] = str(ownership.execution_mode)
+                    frontmatter_changed = True
+                if not frontmatter.get("owned_files"):
+                    frontmatter["owned_files"] = list(ownership.owned_files)
+                    frontmatter_changed = True
+                if not frontmatter.get("authoritative_surface"):
+                    frontmatter["authoritative_surface"] = ownership.authoritative_surface
+                    frontmatter_changed = True
+
             if frontmatter_changed:
                 # Write updated frontmatter
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
+
+        # Validate ownership manifests across all WPs (hard errors block finalization)
+        wp_manifests: dict[str, object] = {}
+        for wp_file in wp_files:
+            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            if not wp_id_match:
+                continue
+            wp_id = wp_id_match.group(1)
+            try:
+                fm, _ = read_frontmatter(wp_file)
+                if fm.get("execution_mode") and fm.get("owned_files"):
+                    from specify_cli.ownership.models import OwnershipManifest
+                    wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm)
+            except Exception:
+                pass  # Skip WPs with unreadable frontmatter
+
+        if wp_manifests:
+            ownership_result = validate_ownership(wp_manifests)  # type: ignore[arg-type]
+            for warning in ownership_result.warnings:
+                if not json_output:
+                    console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
+            if not ownership_result.passed:
+                error_msg = "Ownership validation failed"
+                if json_output:
+                    _emit_json({"error": error_msg, "ownership_errors": ownership_result.errors})
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                    for err in ownership_result.errors:
+                        console.print(f"  - {err}")
+                raise typer.Exit(1)
 
         # Prepare metadata for event emission
         feature_slug = feature_dir.name
