@@ -25,7 +25,7 @@ subtasks:
 - T054
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
+agent: "opencode"
 shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
@@ -225,3 +225,7 @@ print(f'Lane.IN_REVIEW = {Lane.IN_REVIEW}')
 - Verify `agent` field semantics: should contain tool name, not profile name
 - Verify dashboard renders the new lane as a visible column
 - Run dashboard tests + status model tests
+
+## Activity Log
+
+- 2026-03-28T07:11:41Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
