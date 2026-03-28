@@ -134,7 +134,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
      - Add quality validation strategy (documentation-specific)
      - Include Divio compliance checks
      - Add accessibility/inclusivity checklists
-     - Set `lane: "planned"` in frontmatter
+     - Set `lane: "planned"` and `task_type` (implement|review|plan|specify|research) in frontmatter
 
 7. **Report**:
    - Path to tasks.md

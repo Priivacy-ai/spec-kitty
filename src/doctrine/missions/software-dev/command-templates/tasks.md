@@ -148,7 +148,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
       - Use the bundled task prompt template (`src/doctrine/missions/software-dev/templates/task-prompt-template.md`) to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `task_type`, `lane: "planned"`, `dependencies`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
@@ -217,6 +217,7 @@ Each WP prompt file MUST include a `dependencies` field:
 ---
 work_package_id: "WP02"
 title: "Build API"
+task_type: "implement"  # implement | review | plan | specify | research
 lane: "planned"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]
@@ -229,6 +230,31 @@ subtasks: ["T001", "T002"]
 - With dependencies: `spec-kitty implement WP02 --base WP01`
 
 The WP prompt must show the correct command so agents don't branch from the wrong base.
+
+## Task Type Assignment (required)
+
+**Every WP MUST have a `task_type` field in its frontmatter.** This drives automatic agent profile assignment during `finalize-tasks`.
+
+**Valid values** (from mission.yaml `task_types`):
+
+| `task_type` | Agent Profile | Use When |
+|-------------|--------------|----------|
+| `implement` | implementer | Writing code, migrations, infrastructure, refactoring, tests |
+| `review` | reviewer | Code review, audit, validation work packages |
+| `plan` | planner | Design, architecture, planning work packages |
+| `specify` | planner | Specification, requirements work packages |
+| `research` | researcher | Investigation, research, analysis work packages |
+
+**Default**: Most WPs are `implement`. Only change when the WP's primary purpose is different.
+
+**Examples**:
+- WP: "Build API endpoints" → `task_type: "implement"`
+- WP: "Comprehensive tests for new API" → `task_type: "implement"` (tests are implementation)
+- WP: "Architectural dependency tests" → `task_type: "implement"` (writing test code)
+- WP: "Code review + validation" → `task_type: "review"`
+- WP: "Research alternatives" → `task_type: "research"`
+
+The `finalize-tasks` command reads `task_type` and maps it to `agent_profile` via the mission config. If `task_type` is missing, it falls back to heuristic title-keyword inference, which is unreliable. **Always set it explicitly.**
 
 ## Work Package Sizing Guidelines (CRITICAL)
 
@@ -484,6 +510,7 @@ Each WP prompt file MUST include a `dependencies` field:
 ---
 work_package_id: "WP02"
 title: "Build API"
+task_type: "implement"  # implement | review | plan | specify | research
 lane: "planned"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]

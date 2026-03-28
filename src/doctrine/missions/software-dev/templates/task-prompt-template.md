@@ -3,6 +3,7 @@ work_package_id: "WPxx"
 subtasks:
   - "Txxx"
 title: "Replace with work package title"
+task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
 lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""      # Optional friendly name when in doing/for_review

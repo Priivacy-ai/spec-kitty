@@ -127,7 +127,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
      - Full path: `FEATURE_DIR/tasks/WP01-literature-search.md`
      - Use `templates/task-prompt-template.md` to capture:
        - **YAML frontmatter with `lane: "planned"`** (CRITICAL - this is how review finds WPs!)
-       - `work_package_id`, `subtasks` array, `dependencies`, history entry
+       - `work_package_id`, `subtasks` array, `task_type` (implement|review|plan|specify|research), `dependencies`, history entry
        - Objectives, context, methodology guidance per subtask
        - Evidence tracking requirements
        - Quality validation criteria
