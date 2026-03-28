@@ -7,19 +7,19 @@ pytestmark = pytest.mark.fast
 
 
 class TestLaneExpansion:
-    def test_lanes_tuple_has_eight_values(self):
-        """LANES tuple contains exactly eight canonical lane values."""
+    def test_lanes_tuple_has_nine_values(self):
+        """LANES tuple contains exactly nine canonical lane values."""
         # Arrange / Act — LANES is a module constant
         # Assumption check
         assert isinstance(LANES, tuple)
         # Assert
-        assert len(LANES) == 8
+        assert len(LANES) == 9
 
     def test_lanes_tuple_values(self):
         """LANES matches the expected ordered set of canonical lane names."""
         # Arrange / Assumption check — constant from import
         # Act / Assert
-        assert LANES == ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
+        assert LANES == ("planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled")
 
     def test_doing_not_in_lanes(self):
         """'doing' is an alias, not a canonical lane value."""

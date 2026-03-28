@@ -21,10 +21,10 @@ pytestmark = pytest.mark.fast
 
 class TestConstants:
     def test_canonical_lanes_count(self) -> None:
-        assert len(CANONICAL_LANES) == 8
+        assert len(CANONICAL_LANES) == 9
 
     def test_allowed_transitions_count(self) -> None:
-        assert len(ALLOWED_TRANSITIONS) == 24
+        assert len(ALLOWED_TRANSITIONS) == 28
 
     def test_terminal_lanes(self) -> None:
         assert frozenset({"done", "canceled"}) == TERMINAL_LANES
@@ -84,21 +84,28 @@ class TestLegalTransitions:
             ),
             (
                 "for_review",
+                "in_review",
+                {"actor": "reviewer-1"},
+            ),
+            (
+                "in_review",
+                "approved",
+                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
+            ),
+            (
+                "in_progress",
                 "approved",
                 {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
             ),
             (
                 "approved",
-                "done",
-                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
-            ),
-            (
-                "for_review",
                 "done",
                 {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
             ),
             ("for_review", "in_progress", {"review_ref": "feedback-123"}),
             ("for_review", "planned", {"review_ref": "feedback-456"}),
+            ("in_review", "in_progress", {"review_ref": "feedback-ir1"}),
+            ("in_review", "planned", {"review_ref": "feedback-ir2"}),
             ("approved", "in_progress", {"review_ref": "feedback-789"}),
             ("approved", "planned", {"review_ref": "feedback-999"}),
             ("in_progress", "planned", {"reason": "reassigning"}),
@@ -106,12 +113,14 @@ class TestLegalTransitions:
             ("claimed", "blocked", {}),
             ("in_progress", "blocked", {}),
             ("for_review", "blocked", {}),
+            ("in_review", "blocked", {}),
             ("approved", "blocked", {}),
             ("blocked", "in_progress", {}),
             ("planned", "canceled", {}),
             ("claimed", "canceled", {}),
             ("in_progress", "canceled", {}),
             ("for_review", "canceled", {}),
+            ("in_review", "canceled", {}),
             ("approved", "canceled", {}),
             ("blocked", "canceled", {}),
         ],
@@ -139,6 +148,8 @@ class TestIllegalTransitions:
             ("claimed", "approved"),
             ("claimed", "done"),
             ("claimed", "planned"),
+            ("for_review", "done"),
+            ("for_review", "approved"),
             ("done", "planned"),
             ("done", "in_progress"),
             ("done", "for_review"),
@@ -189,9 +200,9 @@ class TestForceOverride:
         assert ok is False
 
     def test_force_on_legal_transition_bypasses_guards(self) -> None:
-        # for_review -> done normally requires evidence, but force bypasses
+        # approved -> done normally requires evidence, but force bypasses
         ok, error = validate_transition(
-            "for_review",
+            "approved",
             "done",
             force=True,
             actor="admin",
@@ -237,13 +248,13 @@ class TestGuardConditions:
         assert "review_ref" in error.lower()
 
     def test_evidence_for_done(self) -> None:
-        ok, error = validate_transition("for_review", "done")
+        ok, error = validate_transition("approved", "done")
         assert ok is False
         assert "evidence" in error.lower()
 
     def test_evidence_for_done_with_evidence(self) -> None:
         evidence = DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))
-        ok, error = validate_transition("for_review", "done", evidence=evidence)
+        ok, error = validate_transition("approved", "done", evidence=evidence)
         assert ok is True
 
     def test_workspace_context_required_for_claimed_to_in_progress(self) -> None:
@@ -428,19 +439,19 @@ class TestExactErrorMessages:
         assert error == self.IMPL_EVIDENCE_MSG
 
     def test_reviewer_approval_no_evidence_exact_message(self) -> None:
-        ok, error = validate_transition("for_review", "done")
+        ok, error = validate_transition("approved", "done")
         assert ok is False
         assert error == self.REVIEWER_APPROVAL_MSG
 
     def test_reviewer_approval_no_reviewer_exact_message(self) -> None:
         evidence = DoneEvidence(review=ReviewApproval(reviewer="", verdict="approved", reference="ref-1"))
-        ok, error = validate_transition("for_review", "done", evidence=evidence)
+        ok, error = validate_transition("approved", "done", evidence=evidence)
         assert ok is False
         assert error == self.REVIEWER_APPROVAL_MSG
 
     def test_reviewer_approval_no_reference_exact_message(self) -> None:
         evidence = DoneEvidence(review=ReviewApproval(reviewer="alice", verdict="approved", reference=""))
-        ok, error = validate_transition("for_review", "done", evidence=evidence)
+        ok, error = validate_transition("approved", "done", evidence=evidence)
         assert ok is False
         assert error == self.REVIEWER_APPROVAL_MSG
 
