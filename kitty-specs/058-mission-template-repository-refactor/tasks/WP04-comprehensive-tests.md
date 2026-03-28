@@ -16,7 +16,7 @@ subtasks:
 - T018
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
+agent: "opencode"
 shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
@@ -336,3 +336,4 @@ Target: 90%+ line coverage on `repository.py`.
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T08:46:06Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
