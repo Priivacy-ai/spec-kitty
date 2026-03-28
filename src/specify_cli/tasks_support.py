@@ -226,6 +226,35 @@ def append_activity_log(body: str, entry: str) -> str:
     return body[: match.start(1)] + section + body[match.end(1) :]
 
 
+def populate_review_feedback(body: str, feedback: str, verdict: str, reviewer: str) -> str:
+    """Replace the Review Feedback placeholder with actual feedback content.
+
+    Works for both approvals (verdict="approved") and rejections (verdict="changes_requested").
+    """
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    header_line = f"**Verdict**: {verdict} | **Reviewer**: {reviewer} | **Date**: {timestamp}"
+    replacement = f"{header_line}\n\n{feedback}"
+
+    # Replace the placeholder text
+    placeholder = "*[This section is empty initially.]*"
+    if placeholder in body:
+        return body.replace(placeholder, replacement)
+
+    # If no placeholder, append under the ## Review Feedback header
+    section_header = "## Review Feedback"
+    if section_header in body:
+        pattern = re.compile(
+            rf"({re.escape(section_header)}\s*\n\s*>\s*\*\*Populated by.*?\*\*\s*\n?)",
+            flags=re.DOTALL,
+        )
+        match = pattern.search(body)
+        if match:
+            insert_pos = match.end()
+            return body[:insert_pos] + "\n" + replacement + "\n" + body[insert_pos:]
+
+    return body
+
+
 def activity_entries(body: str) -> list[dict[str, str]]:
     # Match both en-dash (–) and hyphen (-) as separators
     # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
