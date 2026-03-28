@@ -277,7 +277,7 @@ def _build_chain(
 
     # Build path through canonical lanes
     path: list[str] = ["planned"]
-    if target_lane in _TERMINAL_LANES:
+    if target_lane in _TERMINAL_LANES and target_lane in _LANE_ORDER:
         path = _LANE_ORDER[: _LANE_ORDER.index(min(
             (lane for lane in _LANE_ORDER if lane == target_lane or target_lane in ("done", "approved")),
             default=target_lane,
