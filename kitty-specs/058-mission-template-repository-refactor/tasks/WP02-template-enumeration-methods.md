@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Template + Enumeration Public Methods
-lane: "doing"
+lane: "approved"
 dependencies: [WP01]
 requirement_refs:
 - FR-002
@@ -22,10 +22,10 @@ subtasks:
 - T009
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: "claude-opus-4-6"
-shell_pid: "21445"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus-4-6
+shell_pid: '21445'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -267,3 +267,4 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 - 2026-03-28T05:27:39Z – claude-opus-4-6 – shell_pid=19021 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T05:38:36Z – claude-opus-4-6 – shell_pid=19021 – lane=for_review – Ready for review: 4 public methods added (get_command_template, get_content_template, list_command_templates, list_content_templates). README.md filtered from listings. 105 tests pass.
 - 2026-03-28T05:40:44Z – claude-opus-4-6 – shell_pid=21445 – lane=doing – Started review via workflow command
+- 2026-03-28T05:41:35Z – claude-opus-4-6 – shell_pid=21445 – lane=approved – Review passed: 4 public methods correct, README filtering, graceful error handling, origin labels match contract. 105 tests pass.
