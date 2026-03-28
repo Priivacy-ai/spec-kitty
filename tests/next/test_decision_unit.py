@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.status.store import append_event
+from specify_cli.status.models import StatusEvent, Lane
+
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
@@ -16,6 +19,27 @@ from specify_cli.next.decision import (
     derive_mission_state,
     evaluate_guards,
 )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a WP into a specific lane in the event log."""
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{lane}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
 
 
 # ---------------------------------------------------------------------------
@@ -44,9 +68,9 @@ def feature_with_tasks(feature_dir: Path) -> Path:
         "---\nwork_package_id: WP01\nlane: planned\n---\nContent WP01\n",
         encoding="utf-8",
     )
-    # WP02 - doing
+    # WP02 - doing (in_progress)
     (tasks_dir / "WP02.md").write_text(
-        "---\nwork_package_id: WP02\nlane: doing\n---\nContent WP02\n",
+        "---\nwork_package_id: WP02\nlane: in_progress\n---\nContent WP02\n",
         encoding="utf-8",
     )
     # WP03 - done
@@ -59,6 +83,10 @@ def feature_with_tasks(feature_dir: Path) -> Path:
         "---\nwork_package_id: WP04\nlane: for_review\n---\nContent WP04\n",
         encoding="utf-8",
     )
+    # Seed event log for WPs with non-planned lanes
+    _seed_wp_lane(feature_dir, "WP02", "in_progress")
+    _seed_wp_lane(feature_dir, "WP03", "done")
+    _seed_wp_lane(feature_dir, "WP04", "for_review")
     return feature_dir
 
 

@@ -15,6 +15,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from specify_cli.status.store import append_event
+from specify_cli.status.models import StatusEvent, Lane
+
 from specify_cli.mission_v1.guards import (
     GUARD_REGISTRY,
     compile_guards,
@@ -26,6 +29,25 @@ from specify_cli.mission_v1.schema import MissionValidationError
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a WP into a specific lane in the event log."""
+    # Map legacy aliases to canonical lane names
+    _lane_alias = {"doing": "in_progress"}
+    canonical_lane = _lane_alias.get(lane, lane)
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{canonical_lane}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(canonical_lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
 
 
 def _make_model(feature_dir: Path | None = None, inputs: dict | None = None) -> MagicMock:
@@ -194,6 +216,8 @@ class TestAllWpStatusGuard:
         tasks_dir.mkdir()
         (tasks_dir / "WP01.md").write_text("---\nlane: done\n---\n# WP01\n")
         (tasks_dir / "WP02.md").write_text("---\nlane: done\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP01", "done")
+        _seed_wp_lane(tmp_path, "WP02", "done")
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
         model = _make_model(feature_dir=tmp_path)
@@ -203,7 +227,9 @@ class TestAllWpStatusGuard:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01.md").write_text("---\nlane: done\n---\n# WP01\n")
-        (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
+        (tasks_dir / "WP02.md").write_text("---\nlane: in_progress\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP01", "done")
+        _seed_wp_lane(tmp_path, "WP02", "in_progress")
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
         model = _make_model(feature_dir=tmp_path)
@@ -234,6 +260,7 @@ class TestAllWpStatusGuard:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01.md").write_text('---\nlane: "done"\n---\n# WP01\n')
+        _seed_wp_lane(tmp_path, "WP01", "done")
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
         model = _make_model(feature_dir=tmp_path)
@@ -247,7 +274,9 @@ class TestAnyWpStatusGuard:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01.md").write_text("---\nlane: done\n---\n# WP01\n")
-        (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
+        (tasks_dir / "WP02.md").write_text("---\nlane: in_progress\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP01", "done")
+        _seed_wp_lane(tmp_path, "WP02", "in_progress")
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
         model = _make_model(feature_dir=tmp_path)
@@ -257,7 +286,8 @@ class TestAnyWpStatusGuard:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01.md").write_text("---\nlane: planned\n---\n# WP01\n")
-        (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
+        (tasks_dir / "WP02.md").write_text("---\nlane: in_progress\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP02", "in_progress")
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
         model = _make_model(feature_dir=tmp_path)

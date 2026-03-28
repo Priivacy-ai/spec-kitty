@@ -14,6 +14,26 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.status.store import append_event
+from specify_cli.status.models import StatusEvent, Lane
+
+
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a WP into a specific lane in the event log."""
+    _lane_alias = {"doing": "in_progress"}
+    canonical_lane = _lane_alias.get(lane, lane)
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{canonical_lane}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(canonical_lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
 
 runner = CliRunner()
 
@@ -61,15 +81,19 @@ class TestStatusInProgressLane:
         tasks_dir = repo_root / "kitty-specs" / "042-test" / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        feature_dir = repo_root / "kitty-specs" / "042-test"
+
         # WP with canonical 'in_progress' lane (as persisted by 7-lane model)
         (tasks_dir / "WP01-alpha.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "Alpha"\nlane: "in_progress"\n---\nContent\n'
         )
-        # WP with legacy alias 'doing'
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
+        # WP with legacy alias 'doing' -> seeded as canonical 'in_progress'
         (tasks_dir / "WP02-beta.md").write_text(
             '---\nwork_package_id: "WP02"\ntitle: "Beta"\nlane: "doing"\n---\nContent\n'
         )
-        # WP already planned
+        _seed_wp_lane(feature_dir, "WP02", "doing")
+        # WP already planned (no event seeding needed)
         (tasks_dir / "WP03-gamma.md").write_text(
             '---\nwork_package_id: "WP03"\ntitle: "Gamma"\nlane: "planned"\n---\nContent\n'
         )
@@ -113,9 +137,12 @@ class TestStatusInProgressLane:
         tasks_dir = repo_root / "kitty-specs" / "042-test" / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        feature_dir = repo_root / "kitty-specs" / "042-test"
+
         (tasks_dir / "WP01-alpha.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "Alpha Task"\nlane: "in_progress"\n---\nContent\n'
         )
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "042-test"
