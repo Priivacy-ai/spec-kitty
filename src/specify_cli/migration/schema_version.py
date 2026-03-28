@@ -16,7 +16,9 @@ import yaml
 
 
 # The schema version this build of the CLI requires.
-REQUIRED_SCHEMA_VERSION: int = 3
+# Set to None during development to disable the gate until 3.0.0 ships.
+# Change to 3 when the one-shot migration (m_3_0_0) is part of a release.
+REQUIRED_SCHEMA_VERSION: int | None = None
 
 # Capabilities introduced by each schema version.
 SCHEMA_CAPABILITIES: dict[int, list[str]] = {

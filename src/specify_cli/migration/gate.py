@@ -56,6 +56,10 @@ def check_schema_version(
     if invoked_subcommand in _EXEMPT_COMMANDS:
         return
 
+    # Gate disabled when REQUIRED_SCHEMA_VERSION is None (pre-release development).
+    if REQUIRED_SCHEMA_VERSION is None:
+        return
+
     project_version = get_project_schema_version(repo_root)
     result = check_compatibility(project_version, REQUIRED_SCHEMA_VERSION)
 
