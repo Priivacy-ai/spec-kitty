@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: HIGH Priority Consumer Reroutes
-lane: "doing"
+lane: "approved"
 dependencies:
 - WP01
 requirement_refs:
@@ -19,10 +19,10 @@ subtasks:
 - T022
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: "claude-code"
-shell_pid: "78482"
-review_status: ''
-reviewed_by: ''
+agent: claude-code
+shell_pid: '78482'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -239,3 +239,4 @@ grep -rl "context\|catalog\|show_origin" tests/ --include="*.py"
 - 2026-03-28T08:56:30Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T09:11:06Z – opencode – shell_pid=26986 – lane=for_review – All 4 HIGH priority consumers rerouted to MissionTemplateRepository. Tests updated and passing: constitution 170p/1s, specify_cli 383p/1f(pre-existing)/1s, show_origin 11/11 pass.
 - 2026-03-28T09:18:18Z – claude-code – shell_pid=78482 – lane=doing – Started review via workflow command
+- 2026-03-28T09:42:18Z – claude-code – shell_pid=78482 – lane=approved – Review passed: All 4 HIGH priority consumers correctly rerouted to MissionTemplateRepository. No direct path construction remains. Tests pass (181p/1s). ActionIndex contract preserved via Option A. Cross-WP calls to WP02/WP03 methods will resolve at merge time. Approved by claude-code.
