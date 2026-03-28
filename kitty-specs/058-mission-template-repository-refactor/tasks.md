@@ -549,6 +549,6 @@
 - WP03: done
 - WP04: done
 - WP05: done
-- WP06: approved
+- WP06: done
 - WP11: done
 <!-- status-model:end -->
