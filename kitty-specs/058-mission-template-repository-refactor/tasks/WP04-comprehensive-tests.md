@@ -1,21 +1,23 @@
 ---
 work_package_id: WP04
 title: Comprehensive Tests
-lane: planned
+lane: "doing"
 dependencies: [WP01, WP02, WP03, WP11]
 requirement_refs:
 - NFR-002
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP04-merge-base
+base_commit: 1ce5ab94fbe5db8b797c70f95d05abf8983af3fc
+created_at: '2026-03-28T08:46:00.882991+00:00'
 subtasks:
 - T017
 - T018
 phase: Phase 1 - New API Foundation
 assignee: ''
 agent: ''
-agent_profile: implementer
-shell_pid: ''
+shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
 history:
@@ -24,6 +26,7 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP04 – Comprehensive Tests
