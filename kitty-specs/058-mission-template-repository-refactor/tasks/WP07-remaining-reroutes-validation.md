@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Remaining Reroutes + Bug Fix + Validation
-lane: planned
+lane: "doing"
 dependencies: [WP05, WP06]
 requirement_refs:
 - FR-017
@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: 8eb05adc3d929758c53473e9b6a0ac7dec949a21
+created_at: '2026-03-28T11:09:26.777404+00:00'
 subtasks:
 - T027
 - T028
@@ -17,8 +20,7 @@ subtasks:
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
 agent: ''
-agent_profile: implementer
-shell_pid: ''
+shell_pid: "98083"
 review_status: ''
 reviewed_by: ''
 history:
@@ -27,6 +29,7 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP07 – Remaining Reroutes + Bug Fix + Validation
