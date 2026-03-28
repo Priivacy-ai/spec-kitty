@@ -467,6 +467,8 @@ function renderKanban(lanes) {
             <div class="card-title">${task.title}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${task.agent}</span>` : ''}
+                ${task.agent_profile ? `<span class="badge profile">${task.agent_profile}</span>` : ''}
+                ${task.task_type ? `<span class="badge task-type">${task.task_type}</span>` : ''}
                 ${task.subtasks && task.subtasks.length > 0 ?
                   `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>` : ''}
             </div>
@@ -562,6 +564,8 @@ function showPromptModal(task) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
         if (task.agent) metaItems.push(`<span>Agent: ${escapeHtml(task.agent)}</span>`);
+        if (task.agent_profile) metaItems.push(`<span>Profile: ${escapeHtml(task.agent_profile)}</span>`);
+        if (task.task_type) metaItems.push(`<span>Type: ${escapeHtml(task.task_type)}</span>`);
         if (task.subtasks && task.subtasks.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }

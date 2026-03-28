@@ -535,6 +535,16 @@ body {
     color: #5a3a6e;
 }
 
+.badge.profile {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge.task-type {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
 .empty-state {
     text-align: center;
     color: #9ca3af;

@@ -402,6 +402,8 @@ def _process_wp_file(
             "agent": "",
             "assignee": "",
             "phase": "",
+            "agent_profile": "",
+            "task_type": "",
             "prompt_markdown": f"**Encoding Error**\n\n{error}",
             "prompt_path": str(prompt_file.relative_to(project_dir))
             if prompt_file.is_relative_to(project_dir)
@@ -429,6 +431,8 @@ def _process_wp_file(
         "agent": agent_str,
         "assignee": frontmatter.get("assignee", ""),
         "phase": frontmatter.get("phase", ""),
+        "agent_profile": frontmatter.get("agent_profile", ""),
+        "task_type": frontmatter.get("task_type", ""),
         "prompt_markdown": prompt_body.strip(),
         "prompt_path": str(prompt_file.relative_to(project_dir))
         if prompt_file.is_relative_to(project_dir)
