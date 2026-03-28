@@ -291,7 +291,15 @@ class WorkPackage:
 
     @property
     def lane(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "lane")
+        try:
+            from specify_cli.status.lane_reader import get_wp_lane
+            # WP files are at kitty-specs/<feature_slug>/tasks/WP01.md
+            # feature_dir is the parent of the tasks/ directory
+            feature_dir = self.path.parent.parent
+            wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
+            return get_wp_lane(feature_dir, wp_id)
+        except Exception:
+            return extract_scalar(self.frontmatter, "lane")
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
@@ -371,42 +379,48 @@ def load_meta(meta_path: Path) -> Dict:
 
 
 def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
-    """Extract lane from WP file frontmatter.
+    """Return canonical lane for a WP, reading from the event log first.
 
-    This is the authoritative way to determine a work package's lane
-    in the frontmatter-only lane system.
+    Tries the event log (canonical source of truth) first, falling back to
+    frontmatter only when no event log data exists (migration compatibility).
 
     Args:
         wp_path: Path to the work package markdown file
-        warn_on_missing: If True, print warning when lane field is missing
+        warn_on_missing: Unused; retained for call-site compatibility
 
     Returns:
-        Lane value (planned, doing, for_review, done)
-
-    Raises:
-        ValueError: If lane value is not in LANES
+        Lane value (planned, claimed, in_progress, for_review, approved, done, blocked, canceled)
     """
+    # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
+    feature_dir = wp_path.parent.parent
+
+    # Extract wp_id from filename (e.g. WP01.md -> WP01, WP04-something.md -> WP04)
+    stem = wp_path.stem
+    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
+    wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+
+    try:
+        from specify_cli.status.lane_reader import get_wp_lane
+        lane = get_wp_lane(feature_dir, wp_id)
+        # get_wp_lane returns "planned" as default — check if event log actually
+        # has data for this WP or if it's just the fallback default.
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+        events = read_events(feature_dir)
+        if events:
+            snapshot = reduce(events)
+            if wp_id in snapshot.work_packages:
+                return lane
+            # WP not in event log yet — fall through to frontmatter
+    except Exception:
+        pass
+
+    # Fallback: read from frontmatter (migration / pre-event-log scenario)
     content = wp_path.read_text(encoding="utf-8-sig")
     frontmatter, _, _ = split_frontmatter(content)
-
     lane = extract_scalar(frontmatter, "lane")
 
     if lane is None:
-        if warn_on_missing:
-            # Import here to avoid circular dependency issues
-            try:
-                from rich.console import Console
-                console = Console(stderr=True)
-                console.print(
-                    f"[yellow]Warning: {wp_path.name} missing lane field, "
-                    f"defaulting to 'planned'[/yellow]"
-                )
-            except ImportError:
-                import sys
-                print(
-                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
-                    file=sys.stderr
-                )
         return "planned"
 
     # Resolve aliases (e.g., "doing" -> "in_progress")

@@ -65,7 +65,11 @@ def _mark_wp_merged_done(
         return
 
     frontmatter, _body = read_frontmatter(wp_path)
-    lane = resolve_lane_alias(str(frontmatter.get("lane", "planned")).strip() or "planned")
+    try:
+        from specify_cli.status.lane_reader import get_wp_lane
+        lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+    except Exception:
+        lane = resolve_lane_alias(str(frontmatter.get("lane", "planned")).strip() or "planned")
     if lane == "done":
         return
 

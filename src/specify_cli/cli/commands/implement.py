@@ -375,10 +375,11 @@ def check_for_dependents(
     for dep_id in dependents:
         try:
             dep_file = find_wp_file(repo_root, feature_slug, dep_id)
-            frontmatter, _ = read_frontmatter(dep_file)
-            lane = frontmatter.get("lane", "planned")
+            from specify_cli.status.lane_reader import get_wp_lane
+            dep_feature_dir = repo_root / "kitty-specs" / feature_slug
+            lane = get_wp_lane(dep_feature_dir, dep_id)
 
-            if lane in ["planned", "doing", "for_review"]:
+            if lane in ["planned", "claimed", "in_progress", "doing", "for_review"]:
                 incomplete_deps.append(dep_id)
         except (FileNotFoundError, Exception):
             # If we can't read the dependent's metadata, skip it
