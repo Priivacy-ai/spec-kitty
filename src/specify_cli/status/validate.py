@@ -257,90 +257,26 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
     return findings
 
 
-def validate_derived_views(  # noqa: C901
+def validate_derived_views(
     feature_dir: Path,
     snapshot_wps: dict,
     phase: int,
 ) -> list[str]:
-    """Compare frontmatter lanes with canonical snapshot work package states.
+    """No-op stub: frontmatter lane drift validation has been removed.
+
+    The event log is now the sole authority for WP lane state. Frontmatter
+    no longer carries mutable lane fields, so there is nothing to compare
+    against the canonical snapshot.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/###-feature/).
-        snapshot_wps: The work_packages dict from the StatusSnapshot
-            (mapping wp_id -> state dict with at least a "lane" key).
-        phase: Current status phase (1 or 2). Phase 1 drift is WARNING;
-            Phase 2 drift is ERROR.
+        feature_dir: Path to the feature directory (unused).
+        snapshot_wps: The work_packages dict from the StatusSnapshot (unused).
+        phase: Current status phase (unused).
 
     Returns:
-        List of finding strings. Empty means no drift.
+        Always returns an empty list (no drift findings possible).
     """
-    severity = "ERROR" if phase >= 2 else "WARNING"
-    findings: list[str] = []
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return findings
-
-    for wp_id, wp_state in snapshot_wps.items():
-        canonical_lane = wp_state.get("lane")
-
-        # Find the corresponding WP file
-        wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
-        if not wp_files:
-            findings.append(f"{wp_id}: no WP file found in tasks/ (canonical state: {canonical_lane})")
-            continue
-
-        wp_file = wp_files[0]
-        content = wp_file.read_text(encoding="utf-8-sig")
-
-        # Extract lane from frontmatter
-        lane_match = re.search(r'^lane:\s*["\']?(\S+?)["\']?\s*$', content, re.MULTILINE)
-        if not lane_match:
-            findings.append(f"{wp_id}: no lane field in frontmatter (canonical state: {canonical_lane})")
-            continue
-
-        frontmatter_lane = lane_match.group(1)
-
-        # Resolve alias for comparison (doing -> in_progress)
-        if frontmatter_lane == "doing":
-            frontmatter_lane = "in_progress"
-
-        if frontmatter_lane != canonical_lane:
-            findings.append(
-                f"{severity}: {wp_id} frontmatter lane={frontmatter_lane} but canonical state={canonical_lane}"
-            )
-
-    tasks_md = feature_dir / "tasks.md"
-    if tasks_md.exists():
-        status_lines = _extract_tasks_status_lines(tasks_md.read_text(encoding="utf-8"))
-        if status_lines is None:
-            findings.append(f"{severity}: tasks.md is missing generated canonical status block")
-        else:
-            tasks_status: dict[str, str] = {}
-            for line in status_lines:
-                match = re.match(r"^- (WP\d{2}): ([a-z_]+)$", line.strip())
-                if match is None:
-                    findings.append(f"{severity}: tasks.md status block has malformed line: {line.strip()}")
-                    continue
-                tasks_status[match.group(1)] = match.group(2)
-
-            for wp_id, wp_state in snapshot_wps.items():
-                canonical_lane = wp_state.get("lane")
-                tasks_lane = tasks_status.get(wp_id)
-                if tasks_lane is None:
-                    findings.append(
-                        f"{severity}: tasks.md status block missing {wp_id} (canonical state: {canonical_lane})"
-                    )
-                    continue
-                if tasks_lane != canonical_lane:
-                    findings.append(
-                        f"{severity}: {wp_id} tasks.md lane={tasks_lane} but canonical state={canonical_lane}"
-                    )
-
-            for wp_id in sorted(tasks_status):
-                if wp_id not in snapshot_wps:
-                    findings.append(f"{severity}: tasks.md status block includes unknown {wp_id}")
-
-    return findings
+    return []
 
 
 def _extract_tasks_status_lines(content: str) -> list[str] | None:

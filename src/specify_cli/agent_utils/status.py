@@ -71,20 +71,33 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             return {"error": f"Tasks directory not found: {tasks_dir}"}
 
-        # Collect all work packages with dependencies
+        # Build lane map from event log (canonical source of truth)
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
+        events = read_events(feature_dir)
+        snapshot = reduce(events)
+        # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
+        event_log_lanes: dict[str, str] = {
+            wp_id: str(state.get("lane", "planned"))
+            for wp_id, state in snapshot.work_packages.items()
+        }
+
+        # Collect all work packages with dependencies (static metadata from frontmatter)
+        import re
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
             front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = extract_scalar(front, "lane") or "planned"
             phase = extract_scalar(front, "phase") or "Unknown Phase"
+
+            # Lane comes from event log; default to "planned" for WPs not yet in the log
+            lane = event_log_lanes.get(wp_id or "", "planned")
 
             # Parse dependencies
             dependencies = []
             if "dependencies:" in front:
-                import re
                 dep_match = re.search(r'dependencies:\s*\n((?:\s+-\s+"[^"]+"\s*\n)*)', front, re.MULTILINE)
                 if dep_match:
                     dep_text = dep_match.group(1)
@@ -103,17 +116,13 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
             return {"error": "No work packages found", "work_packages": []}
 
-        # Group by lane (resolve aliases)
-        by_lane = {
+        # Group by lane
+        by_lane: dict[str, list] = {
             "planned": [], "claimed": [], "in_progress": [],
             "for_review": [], "approved": [], "done": [], "blocked": [], "canceled": [],
         }
         for wp in work_packages:
             lane = wp["lane"]
-            # Resolve "doing" alias to "in_progress"
-            if lane == "doing":
-                lane = "in_progress"
-                wp["lane"] = lane
             if lane in by_lane:
                 by_lane[lane].append(wp)
             else:

@@ -1,7 +1,6 @@
 ---
 work_package_id: "WPxx"
 title: "Replace with work package title"
-lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
 dependencies: []
 planning_base_branch: "{{planning_base_branch}}"  # Planning branch active when this WP prompt was generated
 merge_target_branch: "{{merge_target_branch}}"    # Final landing branch for completed changes
@@ -12,9 +11,6 @@ phase: "Phase N - Replace with phase name"
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
-review_status: "" # empty | has_feedback | acknowledged (populated by reviewers/implementers)
-reviewed_by: ""   # Agent ID of the reviewer (if reviewed)
-review_feedback: "" # feedback:// pointer to persisted review feedback artifact
 history:
   - timestamp: "{{TIMESTAMP}}"
     lane: "planned"
@@ -36,22 +32,19 @@ history:
 
 ---
 
-## ⚠️ IMPORTANT: Review Feedback Status
+## ⚠️ IMPORTANT: Review Feedback
 
 **Read this first if you are implementing this task!**
 
-- **Has review feedback?**: Check `review_status`. If it says `has_feedback`, read `review_feedback` first. That pointer is the canonical reviewer feedback artifact.
+- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent status` or the Activity Log below).
 - **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
-- **Mark as acknowledged**: When you understand the feedback and begin addressing it, update `review_status: acknowledged` in the frontmatter.
 - **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
 
 ---
 
-## Review Feedback
+## Review Feedback Details
 
-> **Reference-only section** – Canonical review feedback is stored via frontmatter `review_feedback` (`feedback://...`) and can be read from shared git common-dir.
-
-*[Optional summary only. If present, keep it brief. Canonical feedback remains the `review_feedback` pointer artifact.]*
+*[If this WP was returned from review, the reviewer feedback reference appears in the Activity Log below or in the status event log.]*
 
 ---
 

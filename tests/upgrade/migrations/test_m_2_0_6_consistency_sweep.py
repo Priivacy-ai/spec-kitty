@@ -7,11 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.status.store import EVENTS_FILENAME, read_events
+from specify_cli.status.store import EVENTS_FILENAME
 from specify_cli.status.transitions import CANONICAL_LANES
 from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import (
     ConsistencySweepMigration,
-    _status_events_need_repair,
 )
 
 pytestmark = pytest.mark.fast
@@ -125,17 +124,14 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
 
     tasks_md = (feature_dir / "tasks.md").read_text(encoding="utf-8")
     assert ".claude/prompts/tasks/WP01-upgrade.md" in tasks_md
-    assert "<!-- status-model:start -->" in tasks_md
-    assert "- WP01: in_progress" in tasks_md
 
-    assert (feature_dir / EVENTS_FILENAME).exists()
-    assert read_events(feature_dir)
+    # WP05: Migration no longer bootstraps events from frontmatter.
+    # No event log is created. The orphan status.json (event_count=0,
+    # work_packages={}) is backed up — the event log is the sole authority.
+    assert not (feature_dir / EVENTS_FILENAME).exists()
 
     backup_files = sorted(feature_dir.glob("status.json.orphan.bak.*"))
     assert len(backup_files) == 1
-
-    status = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
-    assert status["work_packages"]["WP01"]["lane"] == "in_progress"
 
 
 def test_apply_quarantines_unreadable_planned_only_event_log(
@@ -210,125 +206,17 @@ def test_apply_cleans_legacy_worktree_assets(
 
 
 # ---------------------------------------------------------------------------
-# _status_events_need_repair
+# _status_events_need_repair — tombstone (WP05 deletion)
 # ---------------------------------------------------------------------------
-
-_DELEGATION_TARGET = (
-    "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep"
-    ".feature_requires_historical_migration"
-)
+# _status_events_need_repair was removed from m_2_0_6_consistency_sweep in
+# WP05 along with the migrate.py module. The migration no longer bootstraps
+# events from frontmatter — the event log is the sole authority.
 
 
-def _make_event_line(
-    *,
-    wp_id: str = "WP01",
-    actor: str = "cli:task:start",
-    reason: str | None = None,
-) -> str:
-    """Build a minimal valid JSONL event line."""
-    event = {
-        "event_id": "01ABCDE000000000000000TEST",
-        "feature_slug": "099-test",
-        "wp_id": wp_id,
-        "from_lane": "planned",
-        "to_lane": "in_progress",
-        "at": "2026-01-01T00:00:00+00:00",
-        "actor": actor,
-        "force": False,
-        "execution_mode": "direct_repo",
-    }
-    if reason is not None:
-        event["reason"] = reason
-    return json.dumps(event)
+def test_status_events_need_repair_removed() -> None:
+    """Verify _status_events_need_repair was removed from the migration module."""
+    from specify_cli.upgrade.migrations import m_2_0_6_consistency_sweep
 
-
-class TestStatusEventsNeedRepair:
-    """Tests for _status_events_need_repair covering all code paths."""
-
-    def test_no_tasks_dir(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        feature_dir.mkdir()
-        assert _status_events_need_repair(feature_dir) is False
-
-    def test_tasks_dir_no_wp_files(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        (tasks_dir / "README.md").write_text("not a WP", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
-
-    def test_no_events_file_delegates_true(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "planned")
-        monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
-
-    def test_no_events_file_delegates_false(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "planned")
-        monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: False)
-        assert _status_events_need_repair(feature_dir) is False
-
-    def test_empty_events_file_delegates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "planned")
-        (feature_dir / EVENTS_FILENAME).write_text("  \n", encoding="utf-8")
-        monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
-
-    def test_corrupt_jsonl_returns_true(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "planned")
-        (feature_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is True
-
-    def test_events_with_historical_marker_returns_false(
-        self, tmp_path: Path
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "in_progress")
-        line = _make_event_line(
-            actor="migration:frontmatter",
-            reason="historical_frontmatter_to_jsonl:v1",
-        )
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
-
-    def test_events_with_non_migration_actor_returns_false(
-        self, tmp_path: Path
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "in_progress")
-        line = _make_event_line(actor="cli:task:start")
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
-
-    def test_all_migration_actors_no_marker_delegates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "in_progress")
-        line = _make_event_line(actor="migration:upgrade", reason="some other reason")
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
-        monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
+    assert not hasattr(m_2_0_6_consistency_sweep, "_status_events_need_repair"), (
+        "_status_events_need_repair must not exist after WP05 deletion of migrate.py"
+    )

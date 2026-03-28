@@ -333,19 +333,24 @@ def _check_dependent_warnings(
         return  # No dependents, no warnings
 
     # Check if any dependents are incomplete (not yet done)
+    # Lane is event-log-only; read from canonical event log
+    try:
+        from specify_cli.status.store import read_events as _dw_read_events
+        from specify_cli.status.reducer import reduce as _dw_reduce
+
+        _dw_events = _dw_read_events(feature_dir)
+        _dw_snapshot = _dw_reduce(_dw_events) if _dw_events else None
+        _dw_lanes: dict = {}
+        if _dw_snapshot:
+            for _dw_wp_id, _dw_state in _dw_snapshot.work_packages.items():
+                _dw_lanes[_dw_wp_id] = str(_dw_state.get("lane", "planned"))
+    except Exception:
+        _dw_lanes = {}
+
     incomplete = []
     for dep_id in dependents:
         try:
-            # Find dependent WP file
-            tasks_dir = feature_dir / "tasks"
-            dep_files = list(tasks_dir.glob(f"{dep_id}-*.md"))
-            if not dep_files:
-                continue
-
-            # Read frontmatter
-            content = dep_files[0].read_text(encoding="utf-8-sig")
-            frontmatter, _, _ = split_frontmatter(content)
-            lane = extract_scalar(frontmatter, "lane") or "planned"
+            lane = _dw_lanes.get(dep_id, "planned")
 
             if resolve_lane_alias(lane) in ["planned", "in_progress", "claimed"]:
                 incomplete.append(dep_id)
@@ -860,7 +865,18 @@ def move_task(
 
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)
-        old_lane = wp.current_lane
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        _mt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _mt_read_events
+            from specify_cli.status.reducer import reduce as _mt_reduce
+
+            _mt_events = _mt_read_events(_mt_feature_dir)
+            _mt_snapshot = _mt_reduce(_mt_events) if _mt_events else None
+            _mt_state = _mt_snapshot.work_packages.get(task_id) if _mt_snapshot else None
+            old_lane = str(_mt_state.get("lane", "planned")) if _mt_state else "planned"
+        except Exception:
+            old_lane = "planned"
 
         # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
         # This helps prevent agents from accidentally modifying WPs they don't own
@@ -1125,16 +1141,11 @@ def move_task(
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 
-            # --- Post-emit: apply metadata fields to WP file ---
-            # The emit pipeline (via legacy_bridge) may have updated the lane
-            # in frontmatter. Re-read the file to get the current state,
-            # then apply additional metadata fields that are NOT part of
-            # the canonical event.
+            # --- Post-emit: apply operational metadata fields to WP file ---
+            # The event log is the sole authority for lane/review state.
+            # Only non-status operational metadata is written to frontmatter.
             wp_content = wp.path.read_text(encoding="utf-8-sig")
             updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-
-            # Ensure lane is set (in case legacy_bridge didn't update it)
-            updated_front = set_scalar(updated_front, "lane", canonical_lane)
 
             # Update assignee if provided
             if assignee:
@@ -1147,23 +1158,6 @@ def move_task(
             # Update shell_pid if provided
             if shell_pid:
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
-
-            # Store canonical review feedback pointer in frontmatter (no body duplication).
-            if target_lane == "planned" and review_feedback_pointer is not None:
-                effective_reviewer = reviewer or _detect_reviewer_name()
-                updated_front = set_scalar(updated_front, "review_status", "has_feedback")
-                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-                updated_front = set_scalar(
-                    updated_front,
-                    "review_feedback",
-                    review_feedback_pointer,
-                )
-
-            # Record approval metadata when review passes.
-            if target_lane in ("approved", "done"):
-                effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
-                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-                updated_front = set_scalar(updated_front, "review_status", "approved")
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1470,6 +1464,21 @@ def list_tasks(
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
+        # Load canonical lanes from event log
+        _lt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _lt_read_events
+            from specify_cli.status.reducer import reduce as _lt_reduce
+
+            _lt_events = _lt_read_events(_lt_feature_dir)
+            _lt_snapshot = _lt_reduce(_lt_events) if _lt_events else None
+            _lt_lanes: dict = {}
+            if _lt_snapshot:
+                for _lt_wp_id, _lt_state in _lt_snapshot.work_packages.items():
+                    _lt_lanes[_lt_wp_id] = str(_lt_state.get("lane", "planned"))
+        except Exception:
+            _lt_lanes = {}
+
         tasks = []
         for task_file in tasks_dir.glob("WP*.md"):
             if task_file.name.lower() == "readme.md":
@@ -1478,9 +1487,10 @@ def list_tasks(
             content = task_file.read_text(encoding="utf-8-sig")
             frontmatter, _, _ = split_frontmatter(content)
 
-            task_lane = extract_scalar(frontmatter, "lane") or "planned"
             task_wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
             task_title = extract_scalar(frontmatter, "title") or ""
+            # Lane is event-log-only
+            task_lane = _lt_lanes.get(task_wp_id, "planned")
 
             # Filter by lane if specified
             if lane and task_lane != lane:
@@ -1540,8 +1550,18 @@ def add_history(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
 
-        # Get current lane from frontmatter
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
+        # Get current lane from canonical event log (lane is event-log-only)
+        _ah_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _ah_read_events
+            from specify_cli.status.reducer import reduce as _ah_reduce
+
+            _ah_events = _ah_read_events(_ah_feature_dir)
+            _ah_snapshot = _ah_reduce(_ah_events) if _ah_events else None
+            _ah_state = _ah_snapshot.work_packages.get(task_id) if _ah_snapshot else None
+            current_lane = str(_ah_state.get("lane", "planned")) if _ah_state else "planned"
+        except Exception:
+            current_lane = "planned"
 
         # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -2078,16 +2098,24 @@ def validate_workflow(
         errors = []
         warnings = []
 
-        # Check required fields
-        required_fields = ["work_package_id", "title", "lane"]
+        # Check required fields (lane is event-log-only, not required in frontmatter)
+        required_fields = ["work_package_id", "title"]
         for field in required_fields:
             if not extract_scalar(wp.frontmatter, field):
                 errors.append(f"Missing required field: {field}")
 
-        # Check lane is valid
-        lane_value = extract_scalar(wp.frontmatter, "lane")
-        if lane_value and lane_value not in LANES:
-            errors.append(f"Invalid lane '{lane_value}'. Must be one of: {', '.join(LANES)}")
+        # Get lane from event log (canonical source)
+        _vw_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _vw_read_events
+            from specify_cli.status.reducer import reduce as _vw_reduce
+
+            _vw_events = _vw_read_events(_vw_feature_dir)
+            _vw_snapshot = _vw_reduce(_vw_events) if _vw_events else None
+            _vw_state = _vw_snapshot.work_packages.get(task_id) if _vw_snapshot else None
+            lane_value = str(_vw_state.get("lane", "planned")) if _vw_state else "planned"
+        except Exception:
+            lane_value = "planned"
 
         # Check work_package_id matches filename
         wp_id = extract_scalar(wp.frontmatter, "work_package_id")
@@ -2199,6 +2227,20 @@ def status(
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
+        # Load canonical lanes from event log (lane is event-log-only)
+        try:
+            from specify_cli.status.store import read_events as _st_read_events
+            from specify_cli.status.reducer import reduce as _st_reduce
+
+            _st_events = _st_read_events(feature_dir)
+            _st_snapshot = _st_reduce(_st_events) if _st_events else None
+            _st_lanes: dict = {}
+            if _st_snapshot:
+                for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
+                    _st_lanes[_st_wp_id] = str(_st_state.get("lane", "planned"))
+        except Exception:
+            _st_lanes = {}
+
         # Collect all work packages
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
@@ -2206,7 +2248,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = resolve_lane_alias(extract_scalar(front, "lane") or "unknown")
+            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, "planned"))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""

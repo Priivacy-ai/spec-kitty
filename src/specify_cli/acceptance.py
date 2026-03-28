@@ -474,35 +474,24 @@ def collect_feature_summary(
         has_lane_entry = canonical_lane is not None
         latest_lane = canonical_lane
 
-        # Use canonical lane for bucketing (authoritative), fall back to
-        # frontmatter only when no canonical state exists (missing event log).
-        bucket_lane = canonical_lane if canonical_lane is not None else wp.current_lane
+        # Use canonical lane for bucketing (event log is sole authority).
+        bucket_lane = canonical_lane if canonical_lane is not None else "planned"
         if bucket_lane in lanes:
             lanes[bucket_lane].append(wp_id)
         else:
-            # Unknown lane value — bucket under frontmatter lane as safety net
-            lanes[wp.current_lane].append(wp_id)
+            lanes["planned"].append(wp_id)
 
         metadata: Dict[str, Optional[str]] = {
-            "lane": wp.lane,
+            "lane": canonical_lane,
             "agent": wp.agent,
             "assignee": wp.assignee,
             "shell_pid": wp.shell_pid,
         }
 
         if strict_metadata:
-            lane_value = (wp.lane or "").strip()
-            if not lane_value:
-                metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
-            elif use_legacy and lane_value != wp.current_lane:
-                # Only check directory/frontmatter mismatch in legacy format
-                metadata_issues.append(
-                    f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
-                )
-
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
+            if canonical_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")

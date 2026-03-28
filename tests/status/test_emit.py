@@ -822,13 +822,8 @@ class TestPipelineOrder:
         assert len(events) == 1
         assert events[0].event_id == event.event_id
 
-    def test_legacy_bridge_is_top_level_import(self):
-        """Verify legacy_bridge is imported at module level, not inside try/except.
-
-        On 2.x, legacy_bridge is in-tree and required. A missing module is a
-        packaging regression that must fail at import time, not silently at
-        runtime.
-        """
+    def test_no_legacy_bridge_in_emit(self):
+        """Verify emit.py does not import legacy_bridge (it was deleted in WP05)."""
         import ast
         import inspect
 
@@ -837,56 +832,12 @@ class TestPipelineOrder:
         source = inspect.getsource(emit_mod)
         tree = ast.parse(source)
 
-        # Collect top-level ImportFrom nodes that reference legacy_bridge
-        top_level_legacy_imports = [
-            node
-            for node in tree.body
-            if isinstance(node, ast.ImportFrom)
-            and node.module is not None
-            and "legacy_bridge" in node.module
-        ]
-        assert len(top_level_legacy_imports) >= 1, (
-            "legacy_bridge must be a top-level import in emit.py, "
-            "not hidden inside a try/except"
-        )
-
-        # Also confirm no ImportFrom for legacy_bridge exists inside
-        # any Try block (i.e., no silent swallow)
+        # Confirm no ImportFrom for legacy_bridge exists anywhere
         for node in ast.walk(tree):
-            if isinstance(node, ast.Try):
-                for child in ast.walk(node):
-                    if (
-                        isinstance(child, ast.ImportFrom)
-                        and child.module is not None
-                        and "legacy_bridge" in child.module
-                    ):
-                        pytest.fail(
-                            "legacy_bridge import found inside a try/except "
-                            "block — must be at module top level"
-                        )
-
-    def test_legacy_bridge_exception_handled(self, feature_dir: Path):
-        """Exception from legacy_bridge update does not block emit.
-
-        Bridge UPDATE failures are non-critical because canonical state
-        (event log + snapshot) is already persisted before Step 7.
-        """
-        with patch(
-            "specify_cli.status.emit._update_all_views",
-            side_effect=RuntimeError("bridge broken"),
-        ):
-            event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-            assert event.to_lane == Lane.CLAIMED
-            # Event was still persisted despite bridge failure
-            events = read_events(feature_dir)
-            assert len(events) == 1
-            assert events[0].event_id == event.event_id
+            if isinstance(node, ast.ImportFrom):
+                assert node.module is None or "legacy_bridge" not in node.module, (
+                    "legacy_bridge was deleted in WP05 — it must not be imported in emit.py"
+                )
 
 
 # ── Review-Ref Guard Tests ───────────────────────────────────

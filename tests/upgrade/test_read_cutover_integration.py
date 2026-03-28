@@ -148,42 +148,40 @@ class TestReadCutoverMaterializeRegeneratesViews:
         assert restored["work_packages"]["WP01"]["lane"] == "claimed"
 
 class TestPhase2ValidateFailsOnDrift:
-    """T076: Phase 2 validation detects frontmatter drift as ERROR."""
+    """T076 tombstone — validate_derived_views is a no-op after WP05.
+
+    In WP05, the phase system and frontmatter lane authority were removed.
+    validate_derived_views() now always returns [] because frontmatter no
+    longer carries lane data (the event log is the sole authority).
+    """
 
     def test_phase2_validate_fails_on_drift(self, tmp_path: Path):
-        """When frontmatter lane differs from canonical, phase 2 reports ERROR."""
+        """After WP05, validate_derived_views always returns [] regardless of phase."""
         feature_dir = _setup_feature(tmp_path, phase=2)
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        # Emit transitions for WP01
         emit_status_transition(
             feature_dir=feature_dir, feature_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
 
-        # Tamper: set frontmatter lane to "in_progress" (canonical is "claimed")
+        # Even with tampered frontmatter, validate_derived_views returns []
         _tamper_frontmatter_lane(feature_dir, "WP01", "in_progress")
-
-        # Read canonical snapshot
         snapshot_data = _read_snapshot_dict(feature_dir)
 
-        # Validate derived views at phase 2
         findings = validate_derived_views(
             feature_dir,
             snapshot_data.get("work_packages", {}),
             phase=2,
         )
 
-        # Should have ERROR findings (not just WARNING)
-        assert len(findings) > 0
-        error_findings = [f for f in findings if f.startswith("ERROR")]
-        assert len(error_findings) > 0
-        assert "WP01" in error_findings[0]
+        # WP05: no-op — frontmatter is not authoritative
+        assert findings == []
 
     def test_phase1_validate_warns_on_drift(self, tmp_path: Path):
-        """At phase 1, frontmatter drift is a WARNING, not ERROR."""
+        """After WP05, validate_derived_views returns [] even at phase 1."""
         feature_dir = _setup_feature(tmp_path, phase=1)
         slug = "099-test"
         repo_root = feature_dir.parent.parent
@@ -194,9 +192,7 @@ class TestPhase2ValidateFailsOnDrift:
             repo_root=repo_root,
         )
 
-        # Tamper frontmatter
         _tamper_frontmatter_lane(feature_dir, "WP01", "in_progress")
-
         snapshot_data = _read_snapshot_dict(feature_dir)
 
         findings = validate_derived_views(
@@ -205,9 +201,8 @@ class TestPhase2ValidateFailsOnDrift:
             phase=1,
         )
 
-        assert len(findings) > 0
-        warning_findings = [f for f in findings if f.startswith("WARNING")]
-        assert len(warning_findings) > 0
+        # WP05: no-op — frontmatter is not authoritative
+        assert findings == []
 
     def test_materialization_drift_detected(self, tmp_path: Path):
         """validate_materialization_drift detects status.json / event mismatch."""

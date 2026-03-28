@@ -562,183 +562,39 @@ class TestValidateMaterializationDrift:
 
 
 class TestValidateDerivedViews:
-    def _write_wp_file(self, tasks_dir: Path, wp_id: str, lane: str, title: str = "Test WP"):
-        """Helper to create a WP markdown file with frontmatter."""
-        content = f"""---
-work_package_id: {wp_id}
-title: {title}
-lane: {lane}
----
+    """Tests for validate_derived_views — now a no-op after WP05.
 
-# {wp_id}: {title}
-"""
-        wp_file = tasks_dir / f"{wp_id}-{title.lower().replace(' ', '-')}.md"
-        wp_file.write_text(content, encoding="utf-8")
+    validate_derived_views was made a no-op in WP05 because frontmatter no
+    longer carries lane state. The event log is the sole authority.
+    All tests verify the function returns an empty list regardless of input.
+    """
 
-    def test_matching_frontmatter_no_drift(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "in_progress")
-
-        snapshot_wps = {
-            "WP01": {"lane": "in_progress"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
+    def test_always_returns_empty_list(self, tmp_path: Path):
+        """validate_derived_views always returns [] after WP05 (no-op)."""
+        findings = validate_derived_views(tmp_path, {"WP01": {"lane": "in_progress"}}, phase=2)
         assert findings == []
 
-    def test_frontmatter_drift_phase1_warning(self, tmp_path: Path):
+    def test_returns_empty_regardless_of_phase(self, tmp_path: Path):
+        """validate_derived_views returns [] for any phase value."""
+        for phase in (0, 1, 2):
+            findings = validate_derived_views(tmp_path, {}, phase=phase)
+            assert findings == [], f"Expected [] for phase={phase}"
+
+    def test_returns_empty_when_drift_exists(self, tmp_path: Path):
+        """Frontmatter drift is ignored — no-op since frontmatter has no lane."""
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "planned")
-
-        snapshot_wps = {
-            "WP01": {"lane": "in_progress"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=1)
-        assert len(findings) == 1
-        assert findings[0].startswith("WARNING:")
-        assert "WP01" in findings[0]
-
-    def test_frontmatter_drift_phase2_error(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "planned")
-
-        snapshot_wps = {
-            "WP01": {"lane": "in_progress"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert len(findings) == 1
-        assert findings[0].startswith("ERROR:")
-
-    def test_doing_alias_resolved(self, tmp_path: Path):
-        """Frontmatter 'doing' should match canonical 'in_progress'."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "doing")
-
-        snapshot_wps = {
-            "WP01": {"lane": "in_progress"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert findings == []
-
-    def test_missing_wp_file(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        # WP01 exists in snapshot but has no file
-        snapshot_wps = {
-            "WP01": {"lane": "planned"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert len(findings) == 1
-        assert "no WP file found" in findings[0]
-
-    def test_no_tasks_dir(self, tmp_path: Path):
-        """No tasks directory: no findings."""
-        snapshot_wps = {
-            "WP01": {"lane": "planned"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert findings == []
-
-    def test_missing_lane_in_frontmatter(self, tmp_path: Path):
-        """WP file without lane field in frontmatter."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
+        # WP file has no lane field (as expected after WP05)
         wp_file = tasks_dir / "WP01-test.md"
         wp_file.write_text(
             "---\nwork_package_id: WP01\ntitle: Test\n---\n# WP01\n",
             encoding="utf-8",
         )
-
-        snapshot_wps = {
-            "WP01": {"lane": "planned"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert len(findings) == 1
-        assert "no lane field in frontmatter" in findings[0]
-
-    def test_multiple_wps_some_drifted(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "done")
-        self._write_wp_file(tasks_dir, "WP02", "planned")  # Wrong!
-
-        snapshot_wps = {
-            "WP01": {"lane": "done"},
-            "WP02": {"lane": "in_progress"},
-        }
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert len(findings) == 1
-        assert "WP02" in findings[0]
-
-    def test_quoted_lane_value(self, tmp_path: Path):
-        """Lane value with quotes in frontmatter should be handled."""
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        wp_file = tasks_dir / "WP01-test.md"
-        wp_file.write_text(
-            '---\nwork_package_id: WP01\ntitle: Test\nlane: "in_progress"\n---\n# WP01\n',
-            encoding="utf-8",
-        )
-
         snapshot_wps = {"WP01": {"lane": "in_progress"}}
         findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
         assert findings == []
 
-    def test_tasks_md_missing_status_block(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "in_progress")
-        (tmp_path / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
-
-        snapshot_wps = {"WP01": {"lane": "in_progress"}}
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert any("tasks.md is missing generated canonical status block" in f for f in findings)
-
-    def test_tasks_md_status_block_matches(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "in_progress")
-        (tmp_path / "tasks.md").write_text(
-            "\n".join(
-                [
-                    "# Tasks",
-                    "",
-                    "<!-- status-model:start -->",
-                    "## Canonical Status (Generated)",
-                    "- WP01: in_progress",
-                    "<!-- status-model:end -->",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        snapshot_wps = {"WP01": {"lane": "in_progress"}}
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
+    def test_returns_empty_with_no_tasks_dir(self, tmp_path: Path):
+        """No tasks directory: returns []."""
+        findings = validate_derived_views(tmp_path, {"WP01": {"lane": "planned"}}, phase=2)
         assert findings == []
-
-    def test_tasks_md_status_block_lane_mismatch(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        self._write_wp_file(tasks_dir, "WP01", "in_progress")
-        (tmp_path / "tasks.md").write_text(
-            "\n".join(
-                [
-                    "# Tasks",
-                    "",
-                    "<!-- status-model:start -->",
-                    "## Canonical Status (Generated)",
-                    "- WP01: planned",
-                    "<!-- status-model:end -->",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-
-        snapshot_wps = {"WP01": {"lane": "in_progress"}}
-        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
-        assert any("tasks.md lane=planned" in f for f in findings)

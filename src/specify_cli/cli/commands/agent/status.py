@@ -252,20 +252,8 @@ def materialize(
             raise typer.Exit(1)
 
         with feature_status_lock(main_repo_root, feature_slug):
-            # Materialize snapshot
+            # Materialize snapshot from event log
             snapshot = do_materialize(feature_dir)
-
-            # Update legacy views (try/except -- don't block on legacy bridge)
-            try:
-                from specify_cli.status.legacy_bridge import update_all_views
-                update_all_views(feature_dir, snapshot)
-            except ImportError:
-                pass  # Legacy bridge not yet available (WP06 not merged)
-            except Exception as exc:
-                if not json_output:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}"
-                    )
 
         # Build output
         if json_output:
@@ -535,97 +523,25 @@ def migrate(
         typer.Option("--actor", help="Actor name for bootstrap events"),
     ] = "migration",
 ) -> None:
-    """Bootstrap canonical event logs from existing frontmatter state.
+    """[REMOVED] Frontmatter-to-event-log bootstrap migration has been removed.
 
-    Reads WP frontmatter lanes and creates bootstrap StatusEvents in
-    status.events.jsonl. Resolves aliases (e.g. ``doing`` -> ``in_progress``).
-    Idempotent: features with existing event logs are skipped.
+    The canonical status model uses the event log as sole authority.
+    One-shot bootstrap migration from frontmatter is handled by the
+    upgrade migration system (``spec-kitty upgrade``), not this command.
 
     Examples:
-        spec-kitty agent status migrate --feature 034-feature-name --dry-run
-        spec-kitty agent status migrate --all
-        spec-kitty agent status migrate --all --json
+        spec-kitty upgrade  # applies all pending migrations
     """
-    from specify_cli.status.migrate import (
-        FeatureMigrationResult,
-        MigrationResult,
-        migrate_feature,
+    msg = (
+        "The migrate command has been removed. "
+        "Bootstrap migration from frontmatter is handled by the upgrade system. "
+        "Run 'spec-kitty upgrade' to apply pending migrations."
     )
-
-    if feature and all_features:
-        _output_error(json_output, "Cannot use both --feature and --all")
-        raise typer.Exit(1)
-
-    if not feature and not all_features:
-        _output_error(json_output, "Specify --feature or --all")
-        raise typer.Exit(1)
-
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-    if repo_root is None:
-        _output_error(json_output, "Could not locate project root")
-        raise typer.Exit(1)
-
-    kitty_specs = repo_root / "kitty-specs"
-    if not kitty_specs.exists():
-        _output_error(json_output, "No kitty-specs/ directory found")
-        raise typer.Exit(1)
-
-    if feature:
-        feature_dir = kitty_specs / feature
-        if not feature_dir.is_dir():
-            _output_error(json_output, f"Feature directory not found: {feature_dir}")
-            raise typer.Exit(1)
-        feature_dirs = [feature_dir]
-    else:
-        feature_dirs = sorted(
-            d for d in kitty_specs.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
-        if not feature_dirs:
-            _output_error(json_output, "No features found to migrate")
-            raise typer.Exit(1)
-
-    result = MigrationResult()
-
-    for fdir in feature_dirs:
-        try:
-            fr = migrate_feature(fdir, actor=actor, dry_run=dry_run)
-        except Exception as exc:
-            fr = FeatureMigrationResult(
-                feature_slug=fdir.name,
-                status="failed",
-                error=str(exc),
-            )
-
-        result.features.append(fr)
-
-        if fr.status == "migrated":
-            result.total_migrated += 1
-        elif fr.status == "skipped":
-            result.total_skipped += 1
-        elif fr.status == "failed":
-            result.total_failed += 1
-
-    result.aliases_resolved = sum(
-        1
-        for f in result.features
-        for wp in f.wp_details
-        if wp.alias_resolved
-    )
-
     if json_output:
-        print(json.dumps(_migration_result_to_dict(result), indent=2))
+        print(json.dumps({"error": msg}))
     else:
-        _print_rich_migrate_output(result, dry_run=dry_run)
-
-    if dry_run:
-        raise typer.Exit(0)
-
-    if result.total_failed > 0:
-        raise typer.Exit(1)
-
-    raise typer.Exit(0)
+        console.print(f"[red]Removed:[/red] {msg}")
+    raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -657,12 +573,10 @@ def validate(
         spec-kitty agent status validate --feature 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.phase import resolve_phase
     from specify_cli.status.reducer import reduce
     from specify_cli.status.store import read_events, read_events_raw
     from specify_cli.status.validate import (
         ValidationResult,
-        validate_derived_views,
         validate_done_evidence,
         validate_event_schema,
         validate_materialization_drift,
@@ -691,10 +605,7 @@ def validate(
             console.print(f"[red]Error:[/red] {msg}")
         raise typer.Exit(1)
 
-    phase, phase_source = resolve_phase(main_repo_root, feature_slug)
-
     result = ValidationResult()
-    result.phase_source = phase_source
 
     raw_events = read_events_raw(feature_dir)
 
@@ -704,8 +615,6 @@ def validate(
                 json.dumps(
                     {
                         "feature_slug": feature_slug,
-                        "phase": phase,
-                        "phase_source": phase_source,
                         "passed": True,
                         "errors": [],
                         "warnings": [],
@@ -716,7 +625,7 @@ def validate(
             )
         else:
             console.print(
-                f"[green]Status Validation: {feature_slug} (Phase {phase})[/green]"
+                f"[green]Status Validation: {feature_slug}[/green]"
             )
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
@@ -728,35 +637,15 @@ def validate(
     result.errors.extend(validate_transition_legality(raw_events))
     result.errors.extend(validate_done_evidence(raw_events))
 
+    # Drift detection: event log is sole authority, drift is always an error
     drift_findings = validate_materialization_drift(feature_dir)
-    if phase >= 2:
-        result.errors.extend(drift_findings)
-    else:
-        result.warnings.extend(drift_findings)
-
-    try:
-        events = read_events(feature_dir)
-        snapshot = reduce(events)
-        view_findings = validate_derived_views(
-            feature_dir, snapshot.work_packages, phase
-        )
-        for finding in view_findings:
-            if finding.startswith("ERROR:"):
-                result.errors.append(finding)
-            elif finding.startswith("WARNING:"):
-                result.warnings.append(finding)
-            else:
-                result.errors.append(finding)
-    except Exception as exc:
-        result.errors.append(f"Failed to validate derived views: {exc}")
+    result.errors.extend(drift_findings)
 
     if json_output:
         print(
             json.dumps(
                 {
                     "feature_slug": feature_slug,
-                    "phase": phase,
-                    "phase_source": phase_source,
                     "passed": result.passed,
                     "errors": result.errors,
                     "warnings": result.warnings,
@@ -767,7 +656,7 @@ def validate(
         )
     else:
         console.print(
-            f"\n[bold]Status Validation: {feature_slug} (Phase {phase})[/bold]"
+            f"\n[bold]Status Validation: {feature_slug}[/bold]"
         )
         console.print("-" * 50)
 
@@ -818,92 +707,23 @@ def reconcile(
         typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
 ) -> None:
-    """Detect planning-vs-implementation drift and suggest reconciliation events.
+    """[REMOVED] Cross-repo reconciliation has been removed.
 
-    Scans target repositories for WP-linked branches and commits, compares
-    against the canonical snapshot state, and generates StatusEvent objects
-    to align planning with implementation reality.
-
-    Default mode is --dry-run which previews without persisting.
-    Use --apply to emit reconciliation events (Phase 1+ required).
+    The canonical status model uses the event log as sole authority.
+    Cross-repo drift detection via frontmatter scanning is no longer
+    supported. Use ``spec-kitty agent status validate`` to check
+    event log integrity.
 
     Examples:
-        spec-kitty agent status reconcile --dry-run
-        spec-kitty agent status reconcile --feature 034-feature-name --json
-        spec-kitty agent status reconcile --apply --target-repo /path/to/repo
+        spec-kitty agent status validate --feature 034-feature-name
     """
-    from specify_cli.status.reconcile import (
-        format_reconcile_report,
-        reconcile as do_reconcile,
-        reconcile_result_to_json,
+    msg = (
+        "The reconcile command has been removed. "
+        "The event log is now the sole authority for WP state. "
+        "Use 'spec-kitty agent status validate' to check event log integrity."
     )
-
-    feature_slug = _find_feature_slug(explicit_feature=feature)
-
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-    if repo_root is None:
-        if json_output:
-            print(json.dumps({"error": "Could not locate project root"}))
-        else:
-            console.print("[red]Error:[/red] Could not locate project root")
-        raise typer.Exit(1)
-
-    main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
-
-    if not feature_dir.exists():
-        msg = f"Feature directory not found: {feature_dir}"
-        if json_output:
-            print(json.dumps({"error": msg}))
-        else:
-            console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(1)
-
-    target_repos: list[Path] = []
-    if target_repo:
-        for repo_path in target_repo:
-            target_repos.append(repo_path.resolve())
-    else:
-        target_repos.append(main_repo_root)
-
-    if not dry_run:
-        from specify_cli.status.phase import resolve_phase
-
-        phase, source = resolve_phase(main_repo_root, feature_slug)
-        if phase < 1:
-            msg = (
-                "Cannot apply reconciliation events at Phase 0. "
-                "Upgrade to Phase 1+ to enable event persistence. "
-                "Use --dry-run to preview without persisting."
-            )
-            if json_output:
-                print(json.dumps({"error": msg}))
-            else:
-                console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(1)
-
-    try:
-        result = do_reconcile(
-            feature_dir=feature_dir,
-            repo_root=main_repo_root,
-            target_repos=target_repos,
-            dry_run=dry_run,
-        )
-    except ValueError as exc:
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-
     if json_output:
-        print(json.dumps(reconcile_result_to_json(result), indent=2))
+        print(json.dumps({"error": msg}))
     else:
-        format_reconcile_report(result)
-
-    if result.errors:
-        raise typer.Exit(2)
-    if result.drift_detected and dry_run:
-        raise typer.Exit(1)
-    raise typer.Exit(0)
+        console.print(f"[red]Removed:[/red] {msg}")
+    raise typer.Exit(1)

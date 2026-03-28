@@ -156,17 +156,21 @@ def materialize_worktree_topology(
     for wp_id, ctx in feature_contexts.items():
         wp_branches[wp_id] = ctx.branch_name
 
-    # Read lane status from WP frontmatter
-    tasks_dir = feature_dir / "tasks"
+    # Read lane status from canonical event log
     wp_lanes: dict[str, str] = {}
-    if tasks_dir.exists():
-        for wp_file in tasks_dir.glob("WP*.md"):
-            try:
-                fm, _ = read_frontmatter(wp_file)
-                wp_id = fm.get("work_package_id", wp_file.stem.split("-")[0])
-                wp_lanes[wp_id] = fm.get("lane", "planned")
-            except Exception:
-                pass
+    try:
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+
+        events = read_events(feature_dir)
+        if events:
+            snapshot = reduce(events)
+            wp_lanes = {
+                wp_id: str(state.get("lane", "planned"))
+                for wp_id, state in snapshot.work_packages.items()
+            }
+    except Exception:
+        pass
 
     # Build topology entries
     entries: list[WPTopologyEntry] = []
