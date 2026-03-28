@@ -29,7 +29,7 @@ subtasks:
 - T015
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
+agent: "claude-opus-4-6"
 shell_pid: "22659"
 review_status: ''
 reviewed_by: ''
@@ -419,3 +419,4 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T05:45:52Z – claude-opus-4-6 – shell_pid=22659 – lane=doing – Assigned agent via workflow command
