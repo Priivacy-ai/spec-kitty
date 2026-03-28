@@ -1,4 +1,4 @@
-"""Migration tests for workspace-per-WP feature (0.11.0) - CORRECTED.
+"""Migration tests for workspace-per-WP capability (0.11.0) - CORRECTED.
 
 Tests validate that template SOURCE files in src/doctrine/missions/software-dev/command-templates/
 are updated correctly for the workspace-per-WP workflow.
@@ -39,7 +39,7 @@ def test_specify_template_updated():
     content = specify_template.read_text()
 
     # Should NOT contain instructions to create worktrees during specify
-    # Check ANY mention of .worktrees (case-insensitive, no gating on "feature" word)
+    # Check ANY mention of .worktrees (case-insensitive, no gating on "mission" word)
     content_lower = content.lower()
 
     if ".worktrees" in content_lower:

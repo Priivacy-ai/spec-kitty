@@ -24,12 +24,12 @@ def mock_project_with_bash(tmp_path: Path) -> Path:
 
     # Create package bash scripts
     scripts = [
-        "create-new-feature.sh",
+        "create-new-mission.sh",
         "check-prerequisites.sh",
         "setup-plan.sh",
         "tasks-move-to-lane.sh",
-        "accept-feature.sh",
-        "merge-feature.sh",
+        "accept-mission.sh",
+        "merge-mission.sh",
         "common.sh",
     ]
 
@@ -41,7 +41,7 @@ def mock_project_with_bash(tmp_path: Path) -> Path:
     kittify_ps.mkdir(parents=True)
 
     ps_scripts = [
-        "create-new-feature.ps1",
+        "create-new-mission.ps1",
         "check-prerequisites.ps1",
     ]
 
@@ -53,12 +53,12 @@ def mock_project_with_bash(tmp_path: Path) -> Path:
     templates_dir.mkdir(parents=True)
 
     (templates_dir / "specify.md").write_text("""---
-description: Create feature
+description: Create mission
 scripts:
-  sh: .kittify/scripts/bash/create-new-feature.sh --json
-  ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json
+  sh: .kittify/scripts/bash/create-new-mission.sh --json
+  ps: .kittify/scripts/powershell/create-new-mission.ps1 -Json
 ---
-Run .kittify/scripts/bash/create-new-feature.sh to create a feature.
+Run .kittify/scripts/bash/create-new-mission.sh to create a mission.
 Use tasks_cli.py move to move tasks.
 """)
 
@@ -79,15 +79,15 @@ def mock_project_with_worktrees(mock_project_with_bash: Path) -> Path:
     worktrees_dir.mkdir()
 
     # Create worktree with bash scripts
-    wt1 = worktrees_dir / "001-feature-one"
+    wt1 = worktrees_dir / "001-mission-one"
     wt1_bash = wt1 / ".kittify" / "scripts" / "bash"
     wt1_bash.mkdir(parents=True)
 
-    (wt1_bash / "create-new-feature.sh").write_text("#!/bin/bash\necho wt1")
+    (wt1_bash / "create-new-mission.sh").write_text("#!/bin/bash\necho wt1")
     (wt1_bash / "common.sh").write_text("#!/bin/bash\necho common")
 
     # Create second worktree
-    wt2 = worktrees_dir / "002-feature-two"
+    wt2 = worktrees_dir / "002-mission-two"
     wt2_bash = wt2 / ".kittify" / "scripts" / "bash"
     wt2_bash.mkdir(parents=True)
 
@@ -158,10 +158,10 @@ def test_cleanup_worktree_scripts(migration, mock_project_with_worktrees):
     assert result.success is True
 
     # Verify worktree bash scripts removed
-    wt1_bash = mock_project_with_worktrees / ".worktrees" / "001-feature-one" / ".kittify" / "scripts" / "bash"
+    wt1_bash = mock_project_with_worktrees / ".worktrees" / "001-mission-one" / ".kittify" / "scripts" / "bash"
     assert not wt1_bash.exists() or not any(wt1_bash.iterdir())
 
-    wt2_bash = mock_project_with_worktrees / ".worktrees" / "002-feature-two" / ".kittify" / "scripts" / "bash"
+    wt2_bash = mock_project_with_worktrees / ".worktrees" / "002-mission-two" / ".kittify" / "scripts" / "bash"
     assert not wt2_bash.exists() or not any(wt2_bash.iterdir())
 
 
@@ -175,8 +175,8 @@ def test_update_command_templates(migration, mock_project_with_bash):
     specify_md = mock_project_with_bash / ".kittify" / "templates" / "command-templates" / "specify.md"
     content = specify_md.read_text()
 
-    assert "spec-kitty agent create-feature" in content
-    assert ".kittify/scripts/bash/create-new-feature.sh" not in content
+    assert "spec-kitty agent create-mission" in content
+    assert ".kittify/scripts/bash/create-new-mission.sh" not in content
     # Migration replaces tasks_cli.py move with spec-kitty agent move-task
     assert "spec-kitty agent move-task" in content
     assert "tasks_cli.py move" not in content
@@ -193,7 +193,7 @@ def test_update_templates_dry_run(migration, mock_project_with_bash):
     specify_md = mock_project_with_bash / ".kittify" / "templates" / "command-templates" / "specify.md"
     content = specify_md.read_text()
 
-    assert ".kittify/scripts/bash/create-new-feature.sh" in content
+    assert ".kittify/scripts/bash/create-new-mission.sh" in content
 
 
 def test_detect_custom_modifications(migration, tmp_path):
@@ -236,7 +236,7 @@ def test_template_replacement_patterns(migration, tmp_path):
 
     test_template = templates_dir / "test.md"
     test_template.write_text("""
-Use .kittify/scripts/bash/create-new-feature.sh for creation.
+Use .kittify/scripts/bash/create-new-mission.sh for creation.
 Run scripts/bash/check-prerequisites.sh for validation.
 Call tasks_cli.py move to move tasks.
 Use tasks_cli.py list to list tasks.
@@ -247,8 +247,8 @@ Use tasks_cli.py list to list tasks.
     assert result.success is True
 
     content = test_template.read_text()
-    assert "spec-kitty agent create-feature" in content
-    assert "spec-kitty agent feature check-prerequisites" in content
+    assert "spec-kitty agent create-mission" in content
+    assert "spec-kitty agent mission check-prerequisites" in content
     # Migration replaces tasks_cli.py move/list with spec-kitty agent commands
     assert "spec-kitty agent move-task" in content
     assert "spec-kitty agent list-tasks" in content
@@ -259,7 +259,7 @@ def test_migration_with_missing_templates_dir(migration, tmp_path):
     bash_dir = tmp_path / ".kittify" / "scripts" / "bash"
     bash_dir.mkdir(parents=True)
 
-    (bash_dir / "create-new-feature.sh").write_text("#!/bin/bash\necho test")
+    (bash_dir / "create-new-mission.sh").write_text("#!/bin/bash\necho test")
 
     result = migration.apply(tmp_path, dry_run=False)
 
@@ -288,12 +288,12 @@ def test_package_scripts_list(migration):
     """Test PACKAGE_SCRIPTS constant is complete."""
     expected_scripts = {
         "common.sh",
-        "create-new-feature.sh",
+        "create-new-mission.sh",
         "check-prerequisites.sh",
         "setup-plan.sh",
         "update-agent-context.sh",
-        "accept-feature.sh",
-        "merge-feature.sh",
+        "accept-mission.sh",
+        "merge-mission.sh",
         "tasks-move-to-lane.sh",
         "tasks-list-lanes.sh",
         "mark-task-status.sh",
@@ -311,7 +311,7 @@ def test_command_replacements_mapping(migration):
     replacements = migration.COMMAND_REPLACEMENTS
 
     # Test key patterns exist
-    assert any("create-new-feature" in pattern for pattern in replacements)
+    assert any("create-new-mission" in pattern for pattern in replacements)
     assert any("check-prerequisites" in pattern for pattern in replacements)
     assert any("tasks-move-to-lane" in pattern for pattern in replacements)
     assert any("tasks_cli" in pattern and "move" in pattern for pattern in replacements)

@@ -250,26 +250,26 @@ def temp_repo(tmp_path: Path) -> Iterator[Path]:
 
 
 @pytest.fixture()
-def feature_repo(temp_repo: Path) -> Path:
-    feature_slug = "001-demo-feature"
-    feature_dir = temp_repo / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "tasks").mkdir(exist_ok=True)
-    (feature_dir / "spec.md").write_text("Spec content", encoding="utf-8")
-    (feature_dir / "plan.md").write_text("Plan content", encoding="utf-8")
-    (feature_dir / "tasks.md").write_text("- [x] Initial task", encoding="utf-8")
-    (feature_dir / "quickstart.md").write_text("Quickstart", encoding="utf-8")
-    (feature_dir / "data-model.md").write_text("Data model", encoding="utf-8")
-    (feature_dir / "research.md").write_text("Research", encoding="utf-8")
-    write_wp(temp_repo, feature_slug, "planned", "WP01")
+def mission_repo(temp_repo: Path) -> Path:
+    mission_slug = "001-demo-mission"
+    mission_dir = temp_repo / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "tasks").mkdir(exist_ok=True)
+    (mission_dir / "spec.md").write_text("Spec content", encoding="utf-8")
+    (mission_dir / "plan.md").write_text("Plan content", encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("- [x] Initial task", encoding="utf-8")
+    (mission_dir / "quickstart.md").write_text("Quickstart", encoding="utf-8")
+    (mission_dir / "data-model.md").write_text("Data model", encoding="utf-8")
+    (mission_dir / "research.md").write_text("Research", encoding="utf-8")
+    write_wp(temp_repo, mission_slug, "planned", "WP01")
     run(["git", "add", "."], cwd=temp_repo)
     run(["git", "commit", "-m", "Initial commit"], cwd=temp_repo)
     return temp_repo
 
 
 @pytest.fixture()
-def feature_slug() -> str:
-    return "001-demo-feature"
+def mission_slug() -> str:
+    return "001-demo-mission"
 
 
 @pytest.fixture()
@@ -288,23 +288,23 @@ def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
     run(["git", "commit", "-m", "initial"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    feature_slug = "002-feature"
-    run(["git", "checkout", "-b", feature_slug], cwd=repo)
-    feature_file = repo / "FEATURE.txt"
-    feature_file.write_text("feature work", encoding="utf-8")
-    feature_dir = repo / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text("{}\n", encoding="utf-8")
+    mission_slug = "002-mission"
+    run(["git", "checkout", "-b", mission_slug], cwd=repo)
+    mission_file = repo / "FEATURE.txt"
+    mission_file.write_text("mission work", encoding="utf-8")
+    mission_dir = repo / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text("{}\n", encoding="utf-8")
     run(["git", "add", "FEATURE.txt", "kitty-specs"], cwd=repo)
-    run(["git", "commit", "-m", "feature work"], cwd=repo)
+    run(["git", "commit", "-m", "mission work"], cwd=repo)
 
     run(["git", "checkout", "main"], cwd=repo)
 
-    worktree_dir = repo / ".worktrees" / feature_slug
+    worktree_dir = repo / ".worktrees" / mission_slug
     worktree_dir.parent.mkdir(exist_ok=True)
-    run(["git", "worktree", "add", str(worktree_dir), feature_slug], cwd=repo)
+    run(["git", "worktree", "add", str(worktree_dir), mission_slug], cwd=repo)
 
-    return repo, worktree_dir, feature_slug
+    return repo, worktree_dir, mission_slug
 
 
 @pytest.fixture
@@ -312,24 +312,24 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     """
     Create temporary worktree structure for testing path resolution.
 
-    Creates a minimal spec-kitty project structure with a feature worktree.
+    Creates a minimal spec-kitty project structure with a mission worktree.
 
     Returns:
-        Dictionary with 'repo_root', 'worktree_path', and 'feature_dir' paths
+        Dictionary with 'repo_root', 'worktree_path', and 'mission_dir' paths
     """
     repo_root = tmp_path
-    worktree = repo_root / ".worktrees" / "test-feature"
+    worktree = repo_root / ".worktrees" / "test-mission"
     worktree.mkdir(parents=True)
 
     # Create .kittify marker in repo root
     kittify = repo_root / ".kittify"
     kittify.mkdir()
 
-    # Create feature directory in worktree
-    feature_dir = worktree / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission directory in worktree
+    mission_dir = worktree / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir(parents=True)
 
-    return {"repo_root": repo_root, "worktree_path": worktree, "feature_dir": feature_dir}
+    return {"repo_root": repo_root, "worktree_path": worktree, "mission_dir": mission_dir}
 
 
 @pytest.fixture
@@ -377,10 +377,10 @@ def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, st
     run(["git", "commit", "-m", "init"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    # Create feature with WP tasks
-    feature_slug = "017-conflict-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    # Create mission with WP tasks
+    mission_slug = "017-conflict-test"
+    mission_dir = repo / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     wp_workspaces = []
@@ -388,7 +388,7 @@ def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, st
     # Create 3 WPs that all modify shared.txt
     for wp_num in [1, 2, 3]:
         wp_id = f"WP{wp_num:02d}"
-        branch_name = f"{feature_slug}-{wp_id}"
+        branch_name = f"{mission_slug}-{wp_id}"
 
         # Create WP task file
         wp_file = tasks_dir / f"{wp_id}.md"
@@ -434,7 +434,7 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     simulating a stale workspace that needs syncing.
 
     Returns:
-        Dictionary with 'repo_root', 'main_branch', 'worktree_path', 'feature_slug' keys
+        Dictionary with 'repo_root', 'main_branch', 'worktree_path', 'mission_slug' keys
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -448,9 +448,9 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     run(["git", "commit", "-m", "initial commit"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    # Create feature branch and worktree
-    feature_slug = "018-stale-test"
-    branch_name = f"{feature_slug}-WP01"
+    # Create mission branch and worktree
+    mission_slug = "018-stale-test"
+    branch_name = f"{mission_slug}-WP01"
     worktree_dir = repo / ".worktrees" / branch_name
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
@@ -469,7 +469,7 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
         "repo_root": repo,
         "main_branch": "main",
         "worktree_path": worktree_dir,
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "branch_name": branch_name,
     }
 
@@ -494,10 +494,10 @@ def dirty_worktree_repo(tmp_path: Path) -> tuple[Path, Path]:
     run(["git", "commit", "-m", "init"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    # Create feature with WP tasks
-    feature_slug = "019-dirty-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    # Create mission with WP tasks
+    mission_slug = "019-dirty-test"
+    mission_dir = repo / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     wp_file = tasks_dir / "WP01.md"
@@ -515,7 +515,7 @@ dependencies: []
     )
 
     # Create worktree
-    branch_name = f"{feature_slug}-WP01"
+    branch_name = f"{mission_slug}-WP01"
     worktree_dir = repo / ".worktrees" / branch_name
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
@@ -602,9 +602,9 @@ def dirty_project(test_project: Path) -> Path:
 @pytest.fixture()
 def project_with_worktree(test_project: Path) -> Path:
     """Return a project with simulated active worktree directories."""
-    worktree_dir = test_project / ".worktrees" / "001-test-feature"
+    worktree_dir = test_project / ".worktrees" / "001-test-mission"
     worktree_dir.mkdir(parents=True)
-    (worktree_dir / "README.md").write_text("feature placeholder\n", encoding="utf-8")
+    (worktree_dir / "README.md").write_text("mission placeholder\n", encoding="utf-8")
     return test_project
 
 

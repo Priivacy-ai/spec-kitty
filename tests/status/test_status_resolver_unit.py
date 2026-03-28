@@ -87,16 +87,16 @@ class TestIsStatusFile:
     """Tests for is_status_file function."""
 
     def test_matches_tasks_md(self):
-        assert is_status_file("kitty-specs/feature/tasks.md")
-        assert is_status_file("kitty-specs/feature/subfolder/tasks.md")
+        assert is_status_file("kitty-specs/mission/tasks.md")
+        assert is_status_file("kitty-specs/mission/subfolder/tasks.md")
 
     def test_matches_task_file(self):
-        assert is_status_file("kitty-specs/feature/tasks/WP01.md")
-        assert is_status_file("kitty-specs/feature/subfolder/tasks/WP02.md")
+        assert is_status_file("kitty-specs/mission/tasks/WP01.md")
+        assert is_status_file("kitty-specs/mission/subfolder/tasks/WP02.md")
 
     def test_rejects_non_status_files(self):
-        assert not is_status_file("kitty-specs/feature/spec.md")
-        assert not is_status_file("kitty-specs/feature/plan.md")
+        assert not is_status_file("kitty-specs/mission/spec.md")
+        assert not is_status_file("kitty-specs/mission/plan.md")
         assert not is_status_file("src/module.py")
         assert not is_status_file("README.md")
 

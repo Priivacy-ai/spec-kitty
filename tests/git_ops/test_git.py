@@ -169,7 +169,7 @@ class TestWorkspaceOperations:
     def test_create_workspace_with_sparse_exclude(self, git_repo, git_vcs):
         """create_workspace should apply sparse-checkout exclusions when specified."""
         # First, create a directory to exclude
-        kitty_specs = git_repo / "kitty-specs" / "001-feature"
+        kitty_specs = git_repo / "kitty-specs" / "001-mission"
         kitty_specs.mkdir(parents=True)
         (kitty_specs / "spec.md").write_text("# Test spec")
         subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
@@ -206,7 +206,7 @@ class TestWorkspaceOperations:
 
     def test_apply_sparse_checkout_removes_orphan_kitty_specs(self, git_repo, git_vcs):
         """_apply_sparse_checkout should physically remove orphan kitty-specs/ paths."""
-        kitty_specs = git_repo / "kitty-specs" / "001-feature"
+        kitty_specs = git_repo / "kitty-specs" / "001-mission"
         kitty_specs.mkdir(parents=True)
         (kitty_specs / "spec.md").write_text("# Test spec")
         subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
@@ -247,12 +247,12 @@ class TestWorkspaceOperations:
 
         # Create a branch to use as base
         subprocess.run(
-            ["git", "checkout", "-b", "feature-base"],
+            ["git", "checkout", "-b", "mission-base"],
             cwd=git_repo,
             capture_output=True,
             check=True,
         )
-        (git_repo / "feature.txt").write_text("feature content")
+        (git_repo / "mission.txt").write_text("mission content")
         subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "-m", "Feature commit"],
@@ -269,21 +269,21 @@ class TestWorkspaceOperations:
             check=True,
         )
 
-        # Create workspace from feature-base branch
+        # Create workspace from mission-base branch
         # Note: git worktree add needs to run from within the repo
         workspace_path = git_repo / ".worktrees" / "test-WP02"
 
         # Run worktree add from the git repo directory
         wt_result = subprocess.run(
-            ["git", "worktree", "add", "-b", "test-WP02", str(workspace_path), "feature-base"],
+            ["git", "worktree", "add", "-b", "test-WP02", str(workspace_path), "mission-base"],
             cwd=git_repo,
             capture_output=True,
             text=True,
         )
 
         assert wt_result.returncode == 0, f"worktree add failed: {wt_result.stderr}"
-        # The workspace should have the feature file from the base branch
-        assert (workspace_path / "feature.txt").exists()
+        # The workspace should have the mission file from the base branch
+        assert (workspace_path / "mission.txt").exists()
 
     def test_create_workspace_returns_error_on_failure(self, tmp_path, git_vcs):
         """create_workspace should return error for non-repo path."""

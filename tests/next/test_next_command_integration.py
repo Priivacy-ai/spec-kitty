@@ -22,7 +22,7 @@ runner = CliRunner()
 # ---------------------------------------------------------------------------
 
 def _init_git_repo(path: Path) -> None:
-    """Initialize a bare git repo at *path* so feature detection works."""
+    """Initialize a bare git repo at *path* so mission detection works."""
     subprocess.run(["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=path, capture_output=True, check=True)
@@ -33,10 +33,10 @@ def _init_git_repo(path: Path) -> None:
 
 def _scaffold_project(
     tmp_path: Path,
-    feature_slug: str = "042-test-feature",
+    mission_slug: str = "042-test-mission",
     mission_key: str = "software-dev",
 ) -> Path:
-    """Scaffold a minimal spec-kitty project with a feature."""
+    """Scaffold a minimal spec-kitty project with a mission."""
     repo_root = tmp_path / "project"
     repo_root.mkdir()
     _init_git_repo(repo_root)
@@ -45,10 +45,10 @@ def _scaffold_project(
     kittify = repo_root / ".kittify"
     kittify.mkdir()
 
-    # Feature directory
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
+    # Mission directory
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps({"mission": mission_key}),
         encoding="utf-8",
     )
@@ -78,9 +78,9 @@ def _write_runtime_input_mission(repo_root: Path, mission_key: str) -> None:
         encoding="utf-8",
     )
 
-def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
+def _add_wp_files(mission_dir: Path, wps: dict[str, str]) -> None:
     """Create WP task files.  wps maps WP ID to lane."""
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
     for wp_id, lane in wps.items():
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -90,19 +90,19 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
 
 def _advance_runtime_to_step(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     target_step_id: str,
     agent: str = "test-agent",
 ) -> None:
     """Advance the runtime run past steps until target_step_id is issued."""
     from specify_cli.next.runtime_bridge import get_or_start_run
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_key
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
     from spec_kitty_runtime.engine import _read_snapshot
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_key = get_mission_key(mission_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
 
     step_order = [
         "discovery",
@@ -128,17 +128,17 @@ def _advance_runtime_to_step(
 
 def _complete_all_steps(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
     from specify_cli.next.runtime_bridge import get_or_start_run
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_key
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_key = get_mission_key(mission_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
 
     for _ in range(20):
         decision = runtime_next_step(run_ref, agent_id=agent, result="success", emitter=NullEmitter())
@@ -153,26 +153,26 @@ class TestNextCommandJSON:
     """Test JSON output mode of the ``next`` command."""
 
     def test_discovery_state_returns_step(self, tmp_path: Path) -> None:
-        """Fresh feature with no events should be in discovery/initial state."""
+        """Fresh mission with no events should be in discovery/initial state."""
         repo_root = _scaffold_project(tmp_path)
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert d["agent"] == "test-agent"
-        assert d["feature_slug"] == "042-test-feature"
+        assert d["mission_slug"] == "042-test-mission"
         assert d["mission"] == "software-dev"
         assert "kind" in d
 
     def test_terminal_state_returns_terminal(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         # Complete all steps via runtime to reach terminal
-        _complete_all_steps(repo_root, "042-test-feature")
+        _complete_all_steps(repo_root, "042-test-mission")
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.terminal
 
     def test_failed_result_flows_through_runtime_as_blocked(self, tmp_path: Path) -> None:
@@ -181,10 +181,10 @@ class TestNextCommandJSON:
         from specify_cli.next.decision import decide_next
 
         # Issue first step so runtime has an issued step to complete as failed.
-        first = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        first = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert first.step_id is not None
 
-        decision = decide_next("test-agent", "042-test-feature", "failed", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "failed", repo_root)
         assert decision.kind == DecisionKind.blocked
         assert "failed" in (decision.reason or "").lower()
         assert decision.run_id is not None
@@ -194,13 +194,13 @@ class TestNextCommandJSON:
 
         from specify_cli.next.decision import decide_next
 
-        first = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        first = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert first.step_id is not None
 
-        decision = decide_next("test-agent", "042-test-feature", "blocked", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "blocked", repo_root)
         assert decision.kind == DecisionKind.blocked
 
-    def test_nonexistent_feature_returns_blocked(self, tmp_path: Path) -> None:
+    def test_nonexistent_mission_returns_blocked(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
         from specify_cli.next.decision import decide_next
@@ -214,9 +214,9 @@ class TestNextCommandImplementState:
 
     def test_implement_state_picks_planned_wp(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "done",
                 "WP02": "planned",
@@ -224,11 +224,11 @@ class TestNextCommandImplementState:
             },
         )
         # Advance runtime to implement step
-        _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
+        _advance_runtime_to_step(repo_root, "042-test-mission", "implement")
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action == "implement"
         assert decision.wp_id == "WP02"
@@ -236,40 +236,40 @@ class TestNextCommandImplementState:
 
     def test_implement_state_no_planned_checks_for_review(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "done",
                 "WP02": "for_review",
             },
         )
         # Advance runtime to implement step
-        _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
+        _advance_runtime_to_step(repo_root, "042-test-mission", "implement")
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action == "review"
         assert decision.wp_id == "WP02"
 
     def test_all_wps_done_advances_to_review(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "done",
                 "WP02": "done",
             },
         )
         # Advance runtime to implement step
-        _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
+        _advance_runtime_to_step(repo_root, "042-test-mission", "implement")
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         # All WPs done => should advance past implement
         assert decision.kind in (DecisionKind.step, DecisionKind.blocked)
 
@@ -278,9 +278,9 @@ class TestNextCommandProgress:
 
     def test_progress_in_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "done",
                 "WP02": "doing",
@@ -290,7 +290,7 @@ class TestNextCommandProgress:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.progress is not None
         assert decision.progress["total_wps"] == 3
         assert decision.progress["done_wps"] == 1
@@ -305,7 +305,7 @@ class TestNextCommandOrigin:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         if decision.origin:
             assert "mission_path" in decision.origin
 
@@ -317,7 +317,7 @@ class TestNextCommandRuntimeFields:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.run_id is not None
         assert len(decision.run_id) > 0
 
@@ -326,7 +326,7 @@ class TestNextCommandRuntimeFields:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         assert decision.step_id is not None
 
     def test_json_output_has_runtime_fields(self, tmp_path: Path) -> None:
@@ -334,7 +334,7 @@ class TestNextCommandRuntimeFields:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert "run_id" in d
         assert "step_id" in d
@@ -351,13 +351,13 @@ class TestNextCommandKnownBlockedMissions:
     def test_plan_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
             tmp_path,
-            feature_slug="043-plan-feature",
+            mission_slug="043-plan-mission",
             mission_key="plan",
         )
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "043-plan-feature", "success", repo_root)
+        decision = decide_next("test-agent", "043-plan-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action is not None
 
@@ -370,13 +370,13 @@ class TestNextCommandKnownBlockedMissions:
     def test_documentation_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
             tmp_path,
-            feature_slug="044-docs-feature",
+            mission_slug="044-docs-mission",
             mission_key="documentation",
         )
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "044-docs-feature", "success", repo_root)
+        decision = decide_next("test-agent", "044-docs-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action is not None
 
@@ -394,12 +394,12 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test-agent", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test-agent", "--mission", "042-test-mission", "--json"],
         )
         assert result.exit_code == 0, f"stderr: {result.output}"
         data = json.loads(result.output)
         assert data["agent"] == "test-agent"
-        assert data["feature_slug"] == "042-test-feature"
+        assert data["mission_slug"] == "042-test-mission"
         assert data["mission"] == "software-dev"
         assert "kind" in data
         assert "mission_state" in data
@@ -416,7 +416,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "bogus"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--result", "bogus"],
         )
         assert result.exit_code == 1
 
@@ -428,13 +428,13 @@ class TestNextCommandCLI:
         # First issue a step so runtime can complete it as blocked.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--json"],
         )
         assert first.exit_code == 0
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "blocked", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--result", "blocked", "--json"],
         )
         assert result.exit_code == 1
         data = json.loads(result.output)
@@ -444,12 +444,12 @@ class TestNextCommandCLI:
         """Terminal state returns exit code 0."""
         repo_root = _scaffold_project(tmp_path)
         # Complete all steps via runtime
-        _complete_all_steps(repo_root, "042-test-feature")
+        _complete_all_steps(repo_root, "042-test-mission")
         monkeypatch.chdir(repo_root)
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--json"],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -462,22 +462,22 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature"],
+            ["next", "--agent", "test", "--mission", "042-test-mission"],
         )
         assert result.exit_code == 0
         # Human output should contain the mission state
         assert "software-dev" in result.output
 
-    def test_nonexistent_feature_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Non-existent feature returns blocked with exit code 1."""
+    def test_nonexistent_mission_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Non-existent mission returns blocked with exit code 1."""
         repo_root = _scaffold_project(tmp_path)
         monkeypatch.chdir(repo_root)
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "999-nonexistent", "--json"],
+            ["next", "--agent", "test", "--mission", "999-nonexistent", "--json"],
         )
-        # Feature detection may fail before decide_next, or decide_next returns blocked
+        # Mission detection may fail before decide_next, or decide_next returns blocked
         assert result.exit_code != 0 or "blocked" in result.output or "not found" in result.output.lower()
 
     def test_state_advancement_persists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -488,7 +488,7 @@ class TestNextCommandCLI:
         # First call — should be in initial state (discovery)
         r1 = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--json"],
         )
         assert r1.exit_code == 0
         d1 = json.loads(r1.output)
@@ -496,7 +496,7 @@ class TestNextCommandCLI:
         # Second call — should have advanced
         r2 = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--json"],
         )
         assert r2.exit_code == 0
         d2 = json.loads(r2.output)
@@ -504,8 +504,8 @@ class TestNextCommandCLI:
         # State should have advanced — run state persisted in .kittify/runtime/
         runtime_dir = repo_root / ".kittify" / "runtime"
         assert runtime_dir.exists(), "Runtime state directory should exist"
-        feature_runs = runtime_dir / "feature-runs.json"
-        assert feature_runs.exists(), "Feature-runs index should exist"
+        mission_runs = runtime_dir / "mission-runs.json"
+        assert mission_runs.exists(), "Mission-runs index should exist"
 
         # Verify the step has progressed
         assert d1["step_id"] != d2["step_id"] or d1["step_id"] is None, "Steps should advance between calls"
@@ -517,7 +517,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test-agent", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test-agent", "--mission", "042-test-mission", "--json"],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -539,7 +539,7 @@ class TestNextCommandAnswerJSON:
         # First call creates a real pending decision.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-mission", "--json"],
         )
         assert first.exit_code == 0, first.output
         first_data = json.loads(first.output)
@@ -553,8 +553,8 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
-                "042-test-feature",
+                "--mission",
+                "042-test-mission",
                 "--answer",
                 "yes",
                 "--json",
@@ -580,8 +580,8 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
-                "042-test-feature",
+                "--mission",
+                "042-test-mission",
                 "--json",
             ],
         )
@@ -593,8 +593,8 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
-                "042-test-feature",
+                "--mission",
+                "042-test-mission",
                 "--answer",
                 "yes",
                 "--json",
@@ -621,7 +621,7 @@ class TestNextCommandDecisionRequired:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert d["kind"] == "decision_required"
         assert "question" in d
@@ -635,7 +635,7 @@ class TestNextCommandDecisionRequired:
 
         from specify_cli.next.decision import decide_next
 
-        decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+        decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert d["decision_id"] == "input:approval"
         assert d["input_key"] == "approval"
@@ -648,15 +648,15 @@ class TestAtomicTaskTransitions:
     def test_plan_to_tasks_outline_to_packages_to_finalize(self, tmp_path: Path) -> None:
         """Advance through all 3 atomic task steps in the correct order."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
 
         # Create artifacts for earlier steps
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         # Create WP files with dependencies for tasks_finalize guard
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
             "---\nwork_package_id: WP01\nlane: done\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
@@ -667,7 +667,7 @@ class TestAtomicTaskTransitions:
 
         seen_steps = []
         for _i in range(40):
-            decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+            decision = decide_next("test-agent", "042-test-mission", "success", repo_root)
             if decision.kind == "terminal":
                 break
             if decision.step_id and decision.step_id not in seen_steps:

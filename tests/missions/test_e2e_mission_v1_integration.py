@@ -47,10 +47,10 @@ def test_v1_mission_e2e(tmp_path: Path):
         },
     )
 
-    feature_dir = tmp_path / "feature"
-    feature_dir.mkdir()
+    mission_dir = tmp_path / "mission"
+    mission_dir.mkdir()
 
-    mission = load_mission(mission_dir, feature_dir=feature_dir)
+    mission = load_mission(mission_dir, mission_dir=mission_dir)
     assert isinstance(mission, StateMachineMission)
     assert mission.state == "alpha"
 
@@ -59,7 +59,7 @@ def test_v1_mission_e2e(tmp_path: Path):
     assert mission.state == "alpha"
 
     # Satisfy guard
-    (feature_dir / "required.txt").write_text("exists", encoding="utf-8")
+    (mission_dir / "required.txt").write_text("exists", encoding="utf-8")
 
     mission.trigger("advance")
     assert mission.state == "beta"

@@ -60,38 +60,38 @@ def _assert_usage_error(output: str, *, substring: str | None = None) -> dict:
 class TestParserErrorsReturnJSON:
     """Missing required args and unknown options must return USAGE_ERROR JSON."""
 
-    def test_feature_state_missing_required_feature(self):
-        """feature-state requires --mission; omitting it should be USAGE_ERROR."""
-        result = runner.invoke(app, ["feature-state"])
+    def test_mission_state_missing_required_mission(self):
+        """mission-state requires --mission; omitting it should be USAGE_ERROR."""
+        result = runner.invoke(app, ["mission-state"])
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--mission")
 
-    def test_list_ready_missing_required_feature(self):
+    def test_list_ready_missing_required_mission(self):
         """list-ready requires --mission; omitting it should be USAGE_ERROR."""
         result = runner.invoke(app, ["list-ready"])
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--mission")
 
     def test_transition_missing_required_args(self):
-        """transition requires --feature, --wp, --to, --actor; omitting all should error."""
+        """transition requires --mission, --wp, --to, --actor; omitting all should error."""
         result = runner.invoke(app, ["transition"])
         assert result.exit_code != 0
         _assert_usage_error(result.output)
 
     def test_start_implementation_missing_all_args(self):
-        """start-implementation requires --feature, --wp, --actor."""
+        """start-implementation requires --mission, --wp, --actor."""
         result = runner.invoke(app, ["start-implementation"])
         assert result.exit_code != 0
         _assert_usage_error(result.output)
 
-    def test_accept_feature_missing_required_args(self):
-        """accept-feature requires --feature and --actor."""
-        result = runner.invoke(app, ["accept-feature"])
+    def test_accept_mission_missing_required_args(self):
+        """accept-mission requires --mission and --actor."""
+        result = runner.invoke(app, ["accept-mission"])
         assert result.exit_code != 0
         _assert_usage_error(result.output)
 
     def test_append_history_missing_required_args(self):
-        """append-history requires --feature, --wp, --actor, --note."""
+        """append-history requires --mission, --wp, --actor, --note."""
         result = runner.invoke(app, ["append-history"])
         assert result.exit_code != 0
         _assert_usage_error(result.output)
@@ -109,10 +109,10 @@ class TestParserErrorsReturnJSON:
         _assert_usage_error(result.output, substring="nonexistent-subcommand")
 
     def test_missing_option_value_returns_json(self):
-        """--feature without a value should return USAGE_ERROR JSON."""
-        result = runner.invoke(app, ["feature-state", "--feature"])
+        """--mission without a value should return USAGE_ERROR JSON."""
+        result = runner.invoke(app, ["mission-state", "--mission"])
         assert result.exit_code != 0
-        _assert_usage_error(result.output, substring="--feature")
+        _assert_usage_error(result.output, substring="--mission")
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ class TestUsageErrorEnvelopeShape:
     """The USAGE_ERROR envelope must have the full canonical shape."""
 
     def test_envelope_has_all_required_keys(self):
-        result = runner.invoke(app, ["feature-state"])
+        result = runner.invoke(app, ["mission-state"])
         env = _parse_envelope(result.output)
         required_keys = {
             "contract_version",
@@ -138,13 +138,13 @@ class TestUsageErrorEnvelopeShape:
         assert required_keys.issubset(set(env.keys())), f"Missing keys: {required_keys - set(env.keys())}"
 
     def test_envelope_command_is_unknown(self):
-        """When --mission is omitted, the command is still identified; command='orchestrator-api.feature-state'."""
-        result = runner.invoke(app, ["feature-state"])
+        """When --mission is omitted, the command is still identified; command='orchestrator-api.mission-state'."""
+        result = runner.invoke(app, ["mission-state"])
         env = _parse_envelope(result.output)
-        assert env["command"] == "orchestrator-api.feature-state"
+        assert env["command"] == "orchestrator-api.mission-state"
 
     def test_correlation_id_present(self):
-        result = runner.invoke(app, ["feature-state"])
+        result = runner.invoke(app, ["mission-state"])
         env = _parse_envelope(result.output)
         assert env["correlation_id"].startswith("corr-")
 
@@ -162,8 +162,8 @@ class TestNoJsonFlagRemoved:
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--no-json")
 
-    def test_no_json_flag_rejected_on_feature_state(self):
-        result = runner.invoke(app, ["feature-state", "--feature", "dummy", "--no-json"])
+    def test_no_json_flag_rejected_on_mission_state(self):
+        result = runner.invoke(app, ["mission-state", "--mission", "dummy", "--no-json"])
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--no-json")
 
@@ -172,7 +172,7 @@ class TestNoJsonFlagRemoved:
             app,
             [
                 "transition",
-                "--feature",
+                "--mission",
                 "dummy",
                 "--wp",
                 "WP01",
@@ -291,7 +291,7 @@ class TestRootCLIPath:
             root_app,
             [
                 "orchestrator-api",
-                "feature-state",
+                "mission-state",
             ],
         )
         assert result.exit_code != 0

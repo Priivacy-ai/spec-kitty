@@ -2,7 +2,7 @@
 
 Covers success criteria SC-001 through SC-006 from the spec:
 - SC-001: Online sync delivers supported bodies
-- SC-002: Namespace isolation across features
+- SC-002: Namespace isolation across missions
 - SC-003: Offline replay survives restart
 - SC-004: Idempotent sync (no duplicates)
 - SC-005: 404 index_entry_not_found retry/recovery
@@ -25,13 +25,13 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 pytestmark = pytest.mark.fast
 
 def _ns(
-    feature_slug: str = "047-feat",
+    mission_slug: str = "047-feat",
     target_branch: str = "main",
     project_uuid: str = "uuid-1",
 ) -> NamespaceRef:
     return NamespaceRef(
         project_uuid=project_uuid,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
         mission_key="software-dev",
         manifest_version="1",
@@ -62,9 +62,9 @@ def _artifact(
     )
 
 
-def _write_file(feature_dir: Path, relative_path: str, content: str) -> str:
+def _write_file(mission_dir: Path, relative_path: str, content: str) -> str:
     """Write file and return its SHA-256 hash."""
-    file_path = feature_dir / relative_path
+    file_path = mission_dir / relative_path
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(content, encoding="utf-8")
     return hashlib.sha256(file_path.read_bytes()).hexdigest()
@@ -103,15 +103,15 @@ def _make_service(
 class TestSC001OnlineSync:
     def test_all_supported_text_artifacts_queued(self, tmp_path: Path) -> None:
         """After prepare_body_uploads, all supported text artifacts are queued."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
-        hash_spec = _write_file(feature_dir, "spec.md", "# Spec\nContent")
-        hash_plan = _write_file(feature_dir, "plan.md", "# Plan\nArch")
-        hash_tasks = _write_file(feature_dir, "tasks.md", "# Tasks\nWP list")
-        hash_wp = _write_file(feature_dir, "tasks/WP01-setup.md", "# WP01")
-        hash_research = _write_file(feature_dir, "research/analysis.md", "# Analysis")
-        hash_contract = _write_file(feature_dir, "contracts/api.yaml", "openapi: '3.0'")
+        hash_spec = _write_file(mission_dir, "spec.md", "# Spec\nContent")
+        hash_plan = _write_file(mission_dir, "plan.md", "# Plan\nArch")
+        hash_tasks = _write_file(mission_dir, "tasks.md", "# Tasks\nWP list")
+        hash_wp = _write_file(mission_dir, "tasks/WP01-setup.md", "# WP01")
+        hash_research = _write_file(mission_dir, "research/analysis.md", "# Analysis")
+        hash_contract = _write_file(mission_dir, "contracts/api.yaml", "openapi: '3.0'")
 
         artifacts = [
             _artifact("spec.md", hash_spec, len(b"# Spec\nContent")),
@@ -123,7 +123,7 @@ class TestSC001OnlineSync:
         ]
 
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads(artifacts, _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads(artifacts, _ns(), queue, mission_dir)
 
         queued = [o for o in outcomes if o.status == UploadStatus.QUEUED]
         assert len(queued) == 6
@@ -172,26 +172,26 @@ class TestSC001OnlineSync:
 
 
 class TestSC002NamespaceIsolation:
-    def test_different_features_isolated(self, tmp_path: Path) -> None:
-        """Two features with same artifact names produce separate queue entries."""
+    def test_different_missions_isolated(self, tmp_path: Path) -> None:
+        """Two missions with same artifact names produce separate queue entries."""
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
 
-        feature_a = tmp_path / "feat_a"
-        feature_a.mkdir()
-        hash_a = _write_file(feature_a, "spec.md", "# Feature A")
+        mission_a = tmp_path / "feat_a"
+        mission_a.mkdir()
+        hash_a = _write_file(mission_a, "spec.md", "# Feature A")
 
-        feature_b = tmp_path / "feat_b"
-        feature_b.mkdir()
-        hash_b = _write_file(feature_b, "spec.md", "# Feature B")
+        mission_b = tmp_path / "feat_b"
+        mission_b.mkdir()
+        hash_b = _write_file(mission_b, "spec.md", "# Feature B")
 
-        ns_a = _ns(feature_slug="feat-a")
-        ns_b = _ns(feature_slug="feat-b")
+        ns_a = _ns(mission_slug="feat-a")
+        ns_b = _ns(mission_slug="feat-b")
 
         art_a = _artifact("spec.md", hash_a, len(b"# Feature A"))
         art_b = _artifact("spec.md", hash_b, len(b"# Feature B"))
 
-        outcomes_a = prepare_body_uploads([art_a], ns_a, queue, feature_a)
-        outcomes_b = prepare_body_uploads([art_b], ns_b, queue, feature_b)
+        outcomes_a = prepare_body_uploads([art_a], ns_a, queue, mission_a)
+        outcomes_b = prepare_body_uploads([art_b], ns_b, queue, mission_b)
 
         assert outcomes_a[0].status == UploadStatus.QUEUED
         assert outcomes_b[0].status == UploadStatus.QUEUED
@@ -200,20 +200,20 @@ class TestSC002NamespaceIsolation:
         assert stats.total_count == 2
 
     def test_different_branches_isolated(self, tmp_path: Path) -> None:
-        """Same feature, different branches produce separate queue entries."""
+        """Same mission, different branches produce separate queue entries."""
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
 
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
-        content_hash = _write_file(feature_dir, "spec.md", "# Spec")
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
+        content_hash = _write_file(mission_dir, "spec.md", "# Spec")
 
         ns_main = _ns(target_branch="main")
         ns_dev = _ns(target_branch="develop")
 
         art = _artifact("spec.md", content_hash, len(b"# Spec"))
 
-        o1 = prepare_body_uploads([art], ns_main, queue, feature_dir)
-        o2 = prepare_body_uploads([art], ns_dev, queue, feature_dir)
+        o1 = prepare_body_uploads([art], ns_main, queue, mission_dir)
+        o2 = prepare_body_uploads([art], ns_dev, queue, mission_dir)
 
         assert o1[0].status == UploadStatus.QUEUED
         assert o2[0].status == UploadStatus.QUEUED
@@ -278,15 +278,15 @@ class TestSC004Idempotent:
         """Second enqueue of same namespace+path+hash is deduplicated."""
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
 
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
-        content_hash = _write_file(feature_dir, "spec.md", "# Spec")
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
+        content_hash = _write_file(mission_dir, "spec.md", "# Spec")
 
         ns = _ns()
         art = _artifact("spec.md", content_hash, len(b"# Spec"))
 
-        o1 = prepare_body_uploads([art], ns, queue, feature_dir)
-        o2 = prepare_body_uploads([art], ns, queue, feature_dir)
+        o1 = prepare_body_uploads([art], ns, queue, mission_dir)
+        o2 = prepare_body_uploads([art], ns, queue, mission_dir)
 
         assert o1[0].status == UploadStatus.QUEUED
         assert o2[0].status == UploadStatus.ALREADY_EXISTS
@@ -587,14 +587,14 @@ class TestSC005RetryRecovery:
 class TestSC006UnsupportedFilesSkip:
     def test_binary_png_skipped(self, tmp_path: Path) -> None:
         """Binary .png file in supported surface is skipped (format filter)."""
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
-        (feature_dir / "research").mkdir()
-        (feature_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
+        (mission_dir / "research").mkdir()
+        (mission_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
 
         art = _artifact("research/image.png", _DUMMY_HASH, 6)
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads([art], _ns(), queue, mission_dir)
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
@@ -602,15 +602,15 @@ class TestSC006UnsupportedFilesSkip:
 
     def test_non_utf8_md_skipped(self, tmp_path: Path) -> None:
         """Markdown file with non-UTF-8 bytes is skipped (re-hash guard)."""
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
         binary_content = b"\x80\x81\x82\xff\xfe"
-        (feature_dir / "spec.md").write_bytes(binary_content)
+        (mission_dir / "spec.md").write_bytes(binary_content)
         actual_hash = hashlib.sha256(binary_content).hexdigest()
 
         art = _artifact("spec.md", actual_hash, len(binary_content))
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads([art], _ns(), queue, mission_dir)
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
@@ -620,12 +620,12 @@ class TestSC006UnsupportedFilesSkip:
         """Oversized .md file is skipped with explicit reason."""
         from specify_cli.sync.body_upload import MAX_INLINE_SIZE_BYTES
 
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
 
         art = _artifact("spec.md", _DUMMY_HASH, MAX_INLINE_SIZE_BYTES + 1)
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads([art], _ns(), queue, mission_dir)
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
@@ -633,12 +633,12 @@ class TestSC006UnsupportedFilesSkip:
 
     def test_unsupported_surface_skipped(self, tmp_path: Path) -> None:
         """File not in supported surfaces list is skipped."""
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
 
         art = _artifact("meta.json", _DUMMY_HASH, 50)
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads([art], _ns(), queue, mission_dir)
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
@@ -646,12 +646,12 @@ class TestSC006UnsupportedFilesSkip:
 
     def test_mixed_supported_and_unsupported(self, tmp_path: Path) -> None:
         """Pipeline handles mix of supported and unsupported artifacts."""
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
-        (feature_dir / "research").mkdir()
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
+        (mission_dir / "research").mkdir()
 
-        hash_spec = _write_file(feature_dir, "spec.md", "# Spec")
-        (feature_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
+        hash_spec = _write_file(mission_dir, "spec.md", "# Spec")
+        (mission_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
 
         artifacts = [
             _artifact("spec.md", hash_spec, len(b"# Spec")),
@@ -660,7 +660,7 @@ class TestSC006UnsupportedFilesSkip:
         ]
 
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        outcomes = prepare_body_uploads(artifacts, _ns(), queue, feature_dir)
+        outcomes = prepare_body_uploads(artifacts, _ns(), queue, mission_dir)
 
         assert len(outcomes) == 3
         statuses = {o.artifact_path: o.status for o in outcomes}
@@ -688,10 +688,10 @@ class TestFullPipeline:
 
         mock_batch.return_value = BatchSyncResult()
 
-        feature_dir = tmp_path / "feat"
-        feature_dir.mkdir()
-        hash_spec = _write_file(feature_dir, "spec.md", "# Spec content")
-        hash_plan = _write_file(feature_dir, "plan.md", "# Plan content")
+        mission_dir = tmp_path / "feat"
+        mission_dir.mkdir()
+        hash_spec = _write_file(mission_dir, "spec.md", "# Spec content")
+        hash_plan = _write_file(mission_dir, "plan.md", "# Plan content")
 
         artifacts = [
             _artifact("spec.md", hash_spec, len(b"# Spec content")),
@@ -703,7 +703,7 @@ class TestFullPipeline:
 
         # Enqueue via pipeline
         outcomes = prepare_body_uploads(
-            artifacts, _ns(), service._body_queue, feature_dir,
+            artifacts, _ns(), service._body_queue, mission_dir,
         )
         assert sum(1 for o in outcomes if o.status == UploadStatus.QUEUED) == 2
 

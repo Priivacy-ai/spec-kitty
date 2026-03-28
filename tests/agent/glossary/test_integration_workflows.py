@@ -8,7 +8,7 @@ Each test scenario creates realistic repo structures with seed files and config,
 constructs PrimitiveExecutionContext objects, and exercises the full middleware
 chain via create_standard_pipeline(). Unlike the existing pipeline integration
 tests (test_pipeline_integration.py) which focus on individual pipeline
-features, these tests validate multi-step cross-module workflows.
+missions, these tests validate multi-step cross-module workflows.
 """
 
 import time
@@ -131,7 +131,7 @@ class TestFullWorkflowSpecifyClarifyResume:
             mission_id="software-dev",
             run_id="run-int-001",
             inputs={
-                "description": ("Implement workspace management feature with artifact storage"),
+                "description": ("Implement workspace management mission with artifact storage"),
             },
             metadata={
                 "glossary_check": "enabled",
@@ -1152,7 +1152,7 @@ class TestProductionCodePath:
             mission_id="software-dev",
             run_id="run-prod-001",
             inputs={
-                "description": "Implement workspace management feature",
+                "description": "Implement workspace management mission",
             },
             metadata={
                 "glossary_check": "enabled",

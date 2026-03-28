@@ -17,7 +17,7 @@ pytestmark = pytest.mark.fast
 def _make_namespace_dict() -> dict[str, str]:
     return {
         "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
-        "feature_slug": "047-feat",
+        "mission_slug": "047-feat",
         "target_branch": "main",
         "mission_key": "software-dev",
         "manifest_version": "1",
@@ -36,7 +36,7 @@ class TestArtifactIndexedNamespace:
 
         ns = _make_namespace_dict()
         emit_artifact_indexed(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             relative_path="spec.md",
@@ -58,7 +58,7 @@ class TestArtifactIndexedNamespace:
         mock_get_emitter.return_value = mock_emitter
 
         emit_artifact_indexed(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             relative_path="spec.md",
@@ -80,7 +80,7 @@ class TestArtifactMissingNamespace:
 
         ns = _make_namespace_dict()
         emit_artifact_missing(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             expected_path_pattern="spec.md",
@@ -101,7 +101,7 @@ class TestArtifactMissingNamespace:
         mock_get_emitter.return_value = mock_emitter
 
         emit_artifact_missing(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             expected_path_pattern="spec.md",
@@ -123,7 +123,7 @@ class TestSnapshotComputedNamespace:
 
         ns = _make_namespace_dict()
         emit_snapshot_computed(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             parity_hash_sha256=VALID_HASH,
             total_artifacts=5,
             required_artifacts=3,
@@ -151,7 +151,7 @@ class TestParityDriftNamespace:
 
         ns = _make_namespace_dict()
         emit_parity_drift_detected(
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             local_parity_hash=VALID_HASH,
             baseline_parity_hash="b" * 64,
             namespace=ns,

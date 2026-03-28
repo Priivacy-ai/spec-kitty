@@ -24,26 +24,26 @@ def _write_wp(path: Path, wp_id: str, lane: str, dependencies: str = "[]") -> No
     )
 
 
-def _make_feature(repo_root: Path, slug: str, *, target_branch: str = "main") -> Path:
-    feature_dir = repo_root / "kitty-specs" / slug
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
+def _make_mission(repo_root: Path, slug: str, *, target_branch: str = "main") -> Path:
+    mission_dir = repo_root / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps({"mission": "software-dev", "target_branch": target_branch}),
         encoding="utf-8",
     )
-    (feature_dir / "tasks").mkdir()
-    return feature_dir
+    (mission_dir / "tasks").mkdir()
+    return mission_dir
 
 
 def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatch) -> None:
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
 
-    feature_a = _make_feature(repo_root, "001-first")
-    _write_wp(feature_a / "tasks" / "WP01.md", "WP01", "done")
+    mission_a = _make_mission(repo_root, "001-first")
+    _write_wp(mission_a / "tasks" / "WP01.md", "WP01", "done")
 
-    feature_b = _make_feature(repo_root, "002-second", target_branch="2.x")
-    _write_wp(feature_b / "tasks" / "WP01.md", "WP01", "planned")
+    mission_b = _make_mission(repo_root, "002-second", target_branch="2.x")
+    _write_wp(mission_b / "tasks" / "WP01.md", "WP01", "planned")
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
@@ -53,7 +53,7 @@ def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatc
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["success"] is True
-    assert payload["feature_slug"] == "002-second"
+    assert payload["mission_slug"] == "002-second"
     assert payload["target_branch"] == "2.x"
     assert payload["commands"]["check_prerequisites"].endswith("--mission 002-second")
     assert payload["commands"]["finalize_tasks"].endswith("--mission 002-second --json")
@@ -63,16 +63,16 @@ def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatc
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
 
-    feature_dir = _make_feature(repo_root, "021-context-test")
-    _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "done")
-    _write_wp(feature_dir / "tasks" / "WP02.md", "WP02", "planned", dependencies="[WP01]")
+    mission_dir = _make_mission(repo_root, "021-context-test")
+    _write_wp(mission_dir / "tasks" / "WP01.md", "WP01", "done")
+    _write_wp(mission_dir / "tasks" / "WP02.md", "WP02", "planned", dependencies="[WP01]")
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
     result = CliRunner().invoke(
         context.app,
-        ["resolve", "--action", "implement", "--feature", "021-context-test", "--agent", "codex", "--json"],
+        ["resolve", "--action", "implement", "--mission", "021-context-test", "--agent", "codex", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -89,15 +89,15 @@ def test_context_resolve_canonicalizes_doing_lane_when_selecting_wp(
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
 
-    feature_dir = _make_feature(repo_root, "021-context-test")
-    _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "doing")
+    mission_dir = _make_mission(repo_root, "021-context-test")
+    _write_wp(mission_dir / "tasks" / "WP01.md", "WP01", "doing")
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
     result = CliRunner().invoke(
         context.app,
-        ["resolve", "--action", "implement", "--feature", "021-context-test", "--json"],
+        ["resolve", "--action", "implement", "--mission", "021-context-test", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -110,15 +110,15 @@ def test_context_resolve_review_returns_approve_command(tmp_path: Path, monkeypa
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
 
-    feature_dir = _make_feature(repo_root, "021-context-test")
-    _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "for_review")
+    mission_dir = _make_mission(repo_root, "021-context-test")
+    _write_wp(mission_dir / "tasks" / "WP01.md", "WP01", "for_review")
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
     result = CliRunner().invoke(
         context.app,
-        ["resolve", "--action", "review", "--feature", "021-context-test", "--agent", "codex", "--json"],
+        ["resolve", "--action", "review", "--mission", "021-context-test", "--agent", "codex", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout

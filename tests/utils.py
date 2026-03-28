@@ -38,7 +38,7 @@ def run_tasks_cli(args: list[str], *, cwd: Path, env: dict[str, str] | None = No
 
 def write_wp(
     repo_root: Path,
-    feature: str,
+    mission: str,
     lane: str,
     wp_id: str,
     *,
@@ -59,12 +59,12 @@ def write_wp(
 
     if legacy:
         # Legacy format: tasks/<lane>/WP01.md
-        lane_dir = repo_root / "kitty-specs" / feature / "tasks" / lane
+        lane_dir = repo_root / "kitty-specs" / mission / "tasks" / lane
         lane_dir.mkdir(parents=True, exist_ok=True)
         path = lane_dir / f"{wp_id}.md"
     else:
         # New format: flat tasks/WP01.md with lane in frontmatter
-        tasks_dir = repo_root / "kitty-specs" / feature / "tasks"
+        tasks_dir = repo_root / "kitty-specs" / mission / "tasks"
         tasks_dir.mkdir(parents=True, exist_ok=True)
         path = tasks_dir / f"{wp_id}.md"
 

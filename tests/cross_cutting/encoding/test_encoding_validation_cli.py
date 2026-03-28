@@ -3,7 +3,7 @@
 Test Suite 2: CLI Encoding Validation Command
 
 Tests the spec-kitty validate-encoding command that users and LLMs interact with
-to check and fix encoding issues in feature markdown files.
+to check and fix encoding issues in mission markdown files.
 
 Coverage Target: 85%+ for cli/commands/validate_encoding.py
 """
@@ -36,19 +36,19 @@ def run_validate_encoding_cli(
     )
 
 
-class TestValidateCleanFeature:
-    """Test 2.1: Validate Clean Feature"""
+class TestValidateCleanMission:
+    """Test 2.1: Validate Clean Mission"""
 
-    def test_validate_clean_feature_exits_0(self):
+    def test_validate_clean_mission_exits_0(self):
         """Verify command exits 0 when no issues found."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create feature structure
-            feature_dir = tmpdir / "kitty-specs" / "001-test-feature"
-            feature_dir.mkdir(parents=True)
-            (feature_dir / "spec.md").write_text("Clean content")
-            (feature_dir / "plan.md").write_text("No issues here")
+            # Create mission structure
+            mission_dir = tmpdir / "kitty-specs" / "001-test-mission"
+            mission_dir.mkdir(parents=True)
+            (mission_dir / "spec.md").write_text("Clean content")
+            (mission_dir / "plan.md").write_text("No issues here")
 
             # Initialize git repo (required for spec-kitty commands)
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
@@ -61,8 +61,8 @@ class TestValidateCleanFeature:
             # Run validate-encoding command
             # Use subprocess instead of CliRunner for proper cwd handling
             result = run_validate_encoding_cli(
-                "--feature",
-                "001-test-feature",
+                "--mission",
+                "001-test-mission",
                 cwd=tmpdir,
             )
 
@@ -82,10 +82,10 @@ class TestDetectIssuesWithoutFix:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create feature with encoding issue
-            feature_dir = tmpdir / "kitty-specs" / "001-test-feature"
-            feature_dir.mkdir(parents=True)
-            (feature_dir / "bad.md").write_text("User\u2019s test")
+            # Create mission with encoding issue
+            mission_dir = tmpdir / "kitty-specs" / "001-test-mission"
+            mission_dir.mkdir(parents=True)
+            (mission_dir / "bad.md").write_text("User\u2019s test")
 
             # Initialize git
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
@@ -95,8 +95,8 @@ class TestDetectIssuesWithoutFix:
 
             # Run without --fix
             result = run_validate_encoding_cli(
-                "--feature",
-                "001-test-feature",
+                "--mission",
+                "001-test-mission",
                 cwd=tmpdir,
             )
 
@@ -120,10 +120,10 @@ class TestFixIssuesWithBackup:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            feature_dir = tmpdir / "kitty-specs" / "001-test-feature"
-            feature_dir.mkdir(parents=True)
+            mission_dir = tmpdir / "kitty-specs" / "001-test-mission"
+            mission_dir.mkdir(parents=True)
 
-            bad_file = feature_dir / "broken.md"
+            bad_file = mission_dir / "broken.md"
             bad_file.write_text("User\u2019s \u201ctest\u201d")
 
             # Initialize git
@@ -134,8 +134,8 @@ class TestFixIssuesWithBackup:
 
             # Run with --fix
             result = run_validate_encoding_cli(
-                "--feature",
-                "001-test-feature",
+                "--mission",
+                "001-test-mission",
                 "--fix",
                 cwd=tmpdir,
             )
@@ -165,10 +165,10 @@ class TestFixWithoutBackup:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            feature_dir = tmpdir / "kitty-specs" / "001-test-feature"
-            feature_dir.mkdir(parents=True)
+            mission_dir = tmpdir / "kitty-specs" / "001-test-mission"
+            mission_dir.mkdir(parents=True)
 
-            bad_file = feature_dir / "test.md"
+            bad_file = mission_dir / "test.md"
             bad_file.write_text("User\u2019s test")
 
             # Initialize git
@@ -179,8 +179,8 @@ class TestFixWithoutBackup:
 
             # Run with --fix --no-backup
             result = run_validate_encoding_cli(
-                "--feature",
-                "001-test-feature",
+                "--mission",
+                "001-test-mission",
                 "--fix",
                 "--no-backup",
                 cwd=tmpdir,
@@ -197,19 +197,19 @@ class TestFixWithoutBackup:
             assert not backup.exists(), "Backup should not be created with --no-backup"
 
 
-class TestValidateAllFeatures:
-    """Test 2.5: Validate All Features"""
+class TestValidateAllMissions:
+    """Test 2.5: Validate All Missions"""
 
-    def test_validate_all_features(self):
-        """Verify --all flag scans multiple features."""
+    def test_validate_all_missions(self):
+        """Verify --all flag scans multiple missions."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create multiple features with issues
+            # Create multiple missions with issues
             for i in range(1, 4):
-                feat_dir = tmpdir / "kitty-specs" / f"00{i}-feature"
-                feat_dir.mkdir(parents=True)
-                (feat_dir / "spec.md").write_text(f"User\u2019s test {i}")
+                mission_dir_tmp = tmpdir / "kitty-specs" / f"00{i}-mission"
+                mission_dir_tmp.mkdir(parents=True)
+                (mission_dir_tmp / "spec.md").write_text(f"User\u2019s test {i}")
 
             # Initialize git
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
@@ -223,30 +223,30 @@ class TestValidateAllFeatures:
                 cwd=tmpdir,
             )
 
-            # Should detect issues in all features
+            # Should detect issues in all missions
             assert result.returncode == 1, f"Should exit 1 with issues, got {result.returncode}"
 
-            # Should mention multiple features or show count
+            # Should mention multiple missions or show count
             output = result.stdout
             assert (
-                "001-feature" in output
-                or "002-feature" in output
-                or "003-feature" in output
+                "001-mission" in output
+                or "002-mission" in output
+                or "003-mission" in output
                 or "3" in output
-                or "features" in output
-            ), f"Should indicate multiple features scanned. Got: {output}"
+                or "missions" in output
+            ), f"Should indicate multiple missions scanned. Got: {output}"
 
-    def test_fix_all_features(self):
-        """Verify --all --fix repairs all features."""
+    def test_fix_all_missions(self):
+        """Verify --all --fix repairs all missions."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create multiple features
+            # Create multiple missions
             files_to_check = []
             for i in range(1, 4):
-                feat_dir = tmpdir / "kitty-specs" / f"00{i}-feature"
-                feat_dir.mkdir(parents=True)
-                test_file = feat_dir / "spec.md"
+                mission_dir_tmp = tmpdir / "kitty-specs" / f"00{i}-mission"
+                mission_dir_tmp.mkdir(parents=True)
+                test_file = mission_dir_tmp / "spec.md"
                 test_file.write_text(f"User\u2019s test {i}")
                 files_to_check.append(test_file)
 
@@ -281,7 +281,7 @@ class TestCLIErrorHandling:
             tmpdir = Path(tmpdir)
 
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 cwd=tmpdir,
             )
@@ -290,8 +290,8 @@ class TestCLIErrorHandling:
             assert result.returncode == 1, "Should exit 1 outside project"
             # Error message should be informative
 
-    def test_command_with_nonexistent_feature(self):
-        """Verify appropriate error for nonexistent feature."""
+    def test_command_with_nonexistent_mission(self):
+        """Verify appropriate error for nonexistent mission."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
@@ -302,18 +302,18 @@ class TestCLIErrorHandling:
             (tmpdir / ".kittify").mkdir()
             (tmpdir / "kitty-specs").mkdir()
 
-            # Try to validate nonexistent feature
+            # Try to validate nonexistent mission
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "999-nonexistent",
                 cwd=tmpdir,
             )
 
             # Should fail with clear message
-            assert result.returncode == 1, "Should exit 1 for nonexistent feature"
+            assert result.returncode == 1, "Should exit 1 for nonexistent mission"
             output = result.stdout + result.stderr
             assert "not found" in output.lower() or "Error" in result.stdout, (
-                f"Should indicate feature not found. Got: {result.stdout}"
+                f"Should indicate mission not found. Got: {result.stdout}"
             )
 
 
@@ -325,11 +325,11 @@ class TestCLIOutputFormatting:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            feature_dir = tmpdir / "kitty-specs" / "001-test"
-            feature_dir.mkdir(parents=True)
+            mission_dir = tmpdir / "kitty-specs" / "001-test"
+            mission_dir.mkdir(parents=True)
 
             # Create file with issues
-            bad_file = feature_dir / "spec.md"
+            bad_file = mission_dir / "spec.md"
             bad_file.write_text("Line 1\nUser\u2019s test on line 2\nLine 3")
 
             # Initialize git
@@ -340,7 +340,7 @@ class TestCLIOutputFormatting:
 
             # Run validation
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 cwd=tmpdir,
             )
@@ -358,10 +358,10 @@ class TestCLIOutputFormatting:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            feature_dir = tmpdir / "kitty-specs" / "001-test"
-            feature_dir.mkdir(parents=True)
-            (feature_dir / "spec.md").write_text("User\u2019s test")
-            (feature_dir / "plan.md").write_text("Another \u201ctest\u201d")
+            mission_dir = tmpdir / "kitty-specs" / "001-test"
+            mission_dir.mkdir(parents=True)
+            (mission_dir / "spec.md").write_text("User\u2019s test")
+            (mission_dir / "plan.md").write_text("Another \u201ctest\u201d")
 
             # Initialize git
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
@@ -371,7 +371,7 @@ class TestCLIOutputFormatting:
 
             # Run with --fix
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 "--fix",
                 cwd=tmpdir,

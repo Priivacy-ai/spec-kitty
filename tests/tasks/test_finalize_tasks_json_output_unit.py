@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.fast
 
@@ -28,16 +28,16 @@ runner = CliRunner()
 _FAKE_SHA = "a" * 40
 
 
-def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
-    """Create a minimal feature + WP structure under tmp_path.
+def _build_mission(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a minimal mission + WP structure under tmp_path.
 
-    Returns (feature_dir, tasks_dir).
+    Returns (mission_dir, tasks_dir).
     """
-    feature_dir = tmp_path / "kitty-specs" / "001-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "001-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
-    (feature_dir / "spec.md").write_text(
+    (mission_dir / "spec.md").write_text(
         "# Spec\n"
         "## Functional Requirements\n"
         "| ID | Requirement | Acceptance Criteria | Status |\n"
@@ -45,7 +45,7 @@ def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
         "| FR-001 | Test requirement | Covered by WP01. | proposed |\n",
         encoding="utf-8",
     )
-    (feature_dir / "tasks.md").write_text(
+    (mission_dir / "tasks.md").write_text(
         "## Work Package WP01\n**Requirement Refs**: FR-001\n\n## Work Package WP02\n**Requirement Refs**: FR-001\n",
         encoding="utf-8",
     )
@@ -54,36 +54,36 @@ def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
             f"---\nwork_package_id: {wp_id}\nlane: planned\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
-    return feature_dir, tasks_dir
+    return mission_dir, tasks_dir
 
 
 def _patch_context(
-    tmp_path: Path, feature_dir: Path, *, commit_success: bool = True, git_status_out: str = "M tasks.md"
+    tmp_path: Path, mission_dir: Path, *, commit_success: bool = True, git_status_out: str = "M tasks.md"
 ):
     """Return a context-manager stack that patches the infrastructure helpers."""
     return (
         patch(
-            "specify_cli.cli.commands.agent.feature.locate_project_root",
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
             return_value=tmp_path,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature._find_feature_directory",
-            return_value=feature_dir,
+            "specify_cli.cli.commands.agent.mission._find_mission_directory",
+            return_value=mission_dir,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature._show_branch_context",
+            "specify_cli.cli.commands.agent.mission._show_branch_context",
             return_value=(None, "main"),
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.safe_commit",
+            "specify_cli.cli.commands.agent.mission.safe_commit",
             return_value=commit_success,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.run_command",
+            "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.get_emitter",
+            "specify_cli.cli.commands.agent.mission.get_emitter",
         ),
     )
 
@@ -110,19 +110,19 @@ class TestFinalizeTasks:
     def test_json_output_commit_hash_is_40_char_hex(self, tmp_path: Path) -> None:
         """commit_hash in JSON output should be a 40-character hex SHA."""
         # Arrange
-        feature_dir, _ = _build_feature(tmp_path)
+        mission_dir, _ = _build_mission(tmp_path)
 
         # Assumption check
-        assert (feature_dir / "tasks.md").exists()
+        assert (mission_dir / "tasks.md").exists()
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_mission_directory", return_value=mission_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -143,19 +143,19 @@ class TestFinalizeTasks:
     def test_json_output_commit_created_true_when_changes_exist(self, tmp_path: Path) -> None:
         """commit_created should be True when relevant files have changes to commit."""
         # Arrange
-        feature_dir, _ = _build_feature(tmp_path)
+        mission_dir, _ = _build_mission(tmp_path)
 
         # Assumption check
-        assert (feature_dir / "tasks.md").exists()
+        assert (mission_dir / "tasks.md").exists()
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_mission_directory", return_value=mission_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -171,19 +171,19 @@ class TestFinalizeTasks:
     def test_json_output_commit_created_false_when_nothing_to_commit(self, tmp_path: Path) -> None:
         """commit_created should be False when git status reports no relevant changes."""
         # Arrange
-        feature_dir, _ = _build_feature(tmp_path)
+        mission_dir, _ = _build_mission(tmp_path)
 
         # Assumption check
-        assert (feature_dir / "tasks.md").exists()
+        assert (mission_dir / "tasks.md").exists()
 
         # Act — git status returns empty output (nothing to commit)
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_mission_directory", return_value=mission_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -198,20 +198,20 @@ class TestFinalizeTasks:
     def test_json_output_files_committed_includes_tasks_and_wp_files(self, tmp_path: Path) -> None:
         """files_committed should list tasks.md and all WP file paths."""
         # Arrange
-        feature_dir, _ = _build_feature(tmp_path)
+        mission_dir, _ = _build_mission(tmp_path)
 
         # Assumption check
-        assert (feature_dir / "tasks" / "WP01-test.md").exists()
-        assert (feature_dir / "tasks" / "WP02-test.md").exists()
+        assert (mission_dir / "tasks" / "WP01-test.md").exists()
+        assert (mission_dir / "tasks" / "WP02-test.md").exists()
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_mission_directory", return_value=mission_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -230,7 +230,7 @@ class TestFinalizeTasks:
     def test_json_output_schema_has_all_required_fields(self, tmp_path: Path) -> None:
         """All 6 required JSON fields must be present with correct types."""
         # Arrange
-        feature_dir, tasks_dir = _build_feature(tmp_path)
+        mission_dir, tasks_dir = _build_mission(tmp_path)
         required_fields = [
             "result",
             "commit_created",
@@ -241,16 +241,16 @@ class TestFinalizeTasks:
         ]
 
         # Assumption check
-        assert (feature_dir / "spec.md").exists()
+        assert (mission_dir / "spec.md").exists()
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_mission_directory", return_value=mission_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 

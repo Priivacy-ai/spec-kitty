@@ -268,7 +268,8 @@ def materialize(
         mission_dir = main_repo_root / "kitty-specs" / mission_slug
 
         # Materialize snapshot
-            snapshot = do_materialize(mission_dir)
+        from specify_cli.status.reducer import materialize as _materialize_snapshot
+        snapshot = _materialize_snapshot(mission_dir)
 
         # Update legacy views (try/except -- don't block on legacy bridge)
         try:

@@ -52,7 +52,7 @@ class RemoveActiveMissionMigration(BaseMigration):
                 try:
                     active_mission.unlink()
                     changes.append("Removed deprecated .kittify/active-mission")
-                changes.append("  -> Missions are now selected per-mission during /spec-kitty.specify")
+                    changes.append("  -> Missions are now selected per-mission during /spec-kitty.specify")
                     changes.append("  -> Existing missions will use 'software-dev' mission by default")
                 except OSError as e:
                     errors.append(f"Failed to remove .kittify/active-mission: {e}")

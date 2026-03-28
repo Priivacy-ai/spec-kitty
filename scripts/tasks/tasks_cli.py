@@ -52,13 +52,13 @@ from acceptance_support import (  # noqa: E402
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
-    collect_feature_summary,
-    detect_feature_slug,
-    normalize_feature_encoding,
+    collect_mission_summary,
+    detect_mission_slug,
+    normalize_mission_encoding,
     perform_acceptance,
 )
 
-from specify_cli.feature_metadata import record_merge, finalize_merge  # noqa: E402
+from specify_cli.mission_metadata import record_merge, finalize_merge  # noqa: E402
 from specify_cli.status.store import append_event  # noqa: E402
 from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
 from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
@@ -113,20 +113,20 @@ def stage_update(
 
     # Derive feature slug and WP ID for canonical event
     wp_id = wp.work_package_id or wp.path.stem
-    feature_dir = wp.path.parent.parent  # tasks/ -> feature_dir
+    mission_dir = wp.path.parent.parent  # tasks/ -> mission_dir
 
     # ── Phase 1: Read-only validation (no mutations yet) ─────────────────
     # Derive from_lane from canonical state.  Raises StoreError if the
     # event log is corrupt, preventing partial state mutation.
-    from_lane = _derive_current_lane(feature_dir, wp_id)
+    from_lane = _derive_current_lane(mission_dir, wp_id)
 
     # Pre-build the canonical event and new WP content before writing anything
-    feature_slug = feature_dir.name
+    mission_slug = mission_dir.name
     canonical_from = resolve_lane_alias(from_lane)
     canonical_to = resolve_lane_alias(target_lane)
     event = StatusEvent(
         event_id=_generate_ulid(),
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(canonical_from),
         to_lane=Lane(canonical_to),
@@ -148,13 +148,13 @@ def stage_update(
     # ── Phase 2: Atomic-ish writes (all validation passed) ───────────────
     wp.frontmatter = updated_frontmatter
     wp.path.write_text(new_content, encoding="utf-8")
-    append_event(feature_dir, event)
-    _materialize(feature_dir)
+    append_event(mission_dir, event)
+    _materialize(mission_dir)
 
     # Stage the WP file and updated status files
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
-    events_path = feature_dir / "status.events.jsonl"
-    status_path = feature_dir / "status.json"
+    events_path = mission_dir / "status.events.jsonl"
+    status_path = mission_dir / "status.json"
     for p in (events_path, status_path):
         if p.exists():
             run_git(["add", str(p.relative_to(repo_root))], cwd=repo_root, check=True)
@@ -170,7 +170,7 @@ def _collect_summary_with_encoding(
     normalize_encoding: bool,
 ) -> AcceptanceSummary:
     try:
-        return collect_feature_summary(
+        return collect_mission_summary(
             repo_root,
             feature,
             strict_metadata=strict_metadata,
@@ -178,7 +178,7 @@ def _collect_summary_with_encoding(
     except ArtifactEncodingError as exc:
         if not normalize_encoding:
             raise
-        cleaned = normalize_feature_encoding(repo_root, feature)
+        cleaned = normalize_mission_encoding(repo_root, feature)
         if cleaned:
             print("[spec-kitty] Normalized artifact encoding for:", file=sys.stderr)
             for path in cleaned:
@@ -192,7 +192,7 @@ def _collect_summary_with_encoding(
                 "[spec-kitty] normalize-encoding enabled but no files required updates.",
                 file=sys.stderr,
             )
-        return collect_feature_summary(
+        return collect_mission_summary(
             repo_root,
             feature,
             strict_metadata=strict_metadata,
@@ -481,7 +481,7 @@ def rollback_command(args: argparse.Namespace) -> None:
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
     if requested:
         return requested
-    return detect_feature_slug(repo_root)
+    return detect_mission_slug(repo_root)
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
@@ -512,7 +512,7 @@ def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
 
 def status_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.feature)
+    feature = _resolve_feature(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
@@ -532,7 +532,7 @@ def status_command(args: argparse.Namespace) -> None:
 
 def verify_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.feature)
+    feature = _resolve_feature(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
@@ -554,7 +554,7 @@ def verify_command(args: argparse.Namespace) -> None:
 
 def accept_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.feature)
+    feature = _resolve_feature(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
@@ -679,12 +679,12 @@ def merge_command(args: argparse.Namespace) -> None:
         check=True,
     ).stdout.strip()
 
-    if args.feature:
-        feature = args.feature
+    if args.mission:
+        feature = args.mission
     elif current_branch and current_branch != "HEAD":
         feature = current_branch
     else:
-        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
+        feature = detect_mission_slug(find_repo_root(), cwd=repo_root)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
@@ -856,8 +856,8 @@ def build_parser() -> argparse.ArgumentParser:
     rollback.add_argument("--dry-run", action="store_true", help="Report planned rollback without modifying files")
     rollback.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
-    status = subparsers.add_parser("status", help="Summarize work packages for a feature")
-    status.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    status = subparsers.add_parser("status", help="Summarize work packages for a mission")
+    status.add_argument("--mission", help="Mission directory slug (auto-detect by default)")
     status.add_argument("--json", action="store_true", help="Emit JSON summary")
     status.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     status.add_argument(
@@ -867,7 +867,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     verify = subparsers.add_parser("verify", help="Run acceptance checks without committing")
-    verify.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    verify.add_argument("--mission", help="Mission directory slug (auto-detect by default)")
     verify.add_argument("--json", action="store_true", help="Emit JSON summary")
     verify.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     verify.add_argument(
@@ -876,8 +876,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Automatically repair non-UTF-8 artifact files",
     )
 
-    accept = subparsers.add_parser("accept", help="Perform feature acceptance workflow")
-    accept.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    accept = subparsers.add_parser("accept", help="Perform mission acceptance workflow")
+    accept.add_argument("--mission", help="Mission directory slug (auto-detect by default)")
     accept.add_argument("--mode", choices=["auto", "pr", "local", "checklist"], default="auto")
     accept.add_argument("--actor", help="Override acceptance author (defaults to system/user)")
     accept.add_argument("--test", action="append", help="Record validation command executed (repeatable)")
@@ -891,8 +891,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Automatically repair non-UTF-8 artifact files before acceptance",
     )
 
-    merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
-    merge.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    merge = subparsers.add_parser("merge", help="Merge a mission branch into the target branch")
+    merge.add_argument("--mission", help="Mission directory slug (auto-detect by default)")
     merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
     merge.add_argument("--target", default=None, help="Target branch to merge into (auto-detected)")
     merge.add_argument("--push", action="store_true", help="Push to origin after merging")

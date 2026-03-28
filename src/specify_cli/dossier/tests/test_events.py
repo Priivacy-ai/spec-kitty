@@ -36,7 +36,7 @@ class TestMissionDossierArtifactIndexedPayload:
     def test_valid_payload_with_all_fields(self):
         """Valid payload with all fields should construct without error."""
         payload = MissionDossierArtifactIndexedPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -46,7 +46,7 @@ class TestMissionDossierArtifactIndexedPayload:
             step_id="planning",
             required_status="required",
         )
-        assert payload.feature_slug == "042-feature"
+        assert payload.mission_slug == "042-mission"
         assert payload.artifact_key == "input.spec.main"
         assert payload.artifact_class == "input"
         assert payload.required_status == "required"
@@ -54,7 +54,7 @@ class TestMissionDossierArtifactIndexedPayload:
     def test_valid_payload_with_minimal_fields(self):
         """Valid payload with only required fields should construct."""
         payload = MissionDossierArtifactIndexedPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -69,7 +69,7 @@ class TestMissionDossierArtifactIndexedPayload:
         """Invalid SHA256 hash format should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierArtifactIndexedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="input.spec.main",
                 artifact_class="input",
                 relative_path="spec.md",
@@ -83,7 +83,7 @@ class TestMissionDossierArtifactIndexedPayload:
         """Invalid artifact_class should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierArtifactIndexedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="input.spec.main",
                 artifact_class="invalid_class",
                 relative_path="spec.md",
@@ -97,7 +97,7 @@ class TestMissionDossierArtifactIndexedPayload:
         """Invalid required_status should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierArtifactIndexedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="input.spec.main",
                 artifact_class="input",
                 relative_path="spec.md",
@@ -111,7 +111,7 @@ class TestMissionDossierArtifactIndexedPayload:
         """Missing required field should raise ValidationError."""
         with pytest.raises(ValidationError):
             MissionDossierArtifactIndexedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="input.spec.main",
                 artifact_class="input",
                 relative_path="spec.md",
@@ -127,7 +127,7 @@ class TestMissionDossierArtifactMissingPayload:
     def test_valid_payload(self):
         """Valid payload should construct without error."""
         payload = MissionDossierArtifactMissingPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="output.tasks.per_wp",
             artifact_class="output",
             expected_path_pattern="tasks/*.md",
@@ -135,14 +135,14 @@ class TestMissionDossierArtifactMissingPayload:
             reason_detail="No tasks directory found",
             blocking=True,
         )
-        assert payload.feature_slug == "042-feature"
+        assert payload.mission_slug == "042-mission"
         assert payload.reason_code == "not_found"
         assert payload.blocking is True
 
     def test_valid_payload_without_detail(self):
         """Valid payload without reason_detail should construct."""
         payload = MissionDossierArtifactMissingPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="output.tasks.per_wp",
             artifact_class="output",
             expected_path_pattern="tasks/*.md",
@@ -155,7 +155,7 @@ class TestMissionDossierArtifactMissingPayload:
         """Invalid reason_code should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierArtifactMissingPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="output.tasks.per_wp",
                 artifact_class="output",
                 expected_path_pattern="tasks/*.md",
@@ -168,7 +168,7 @@ class TestMissionDossierArtifactMissingPayload:
         """All valid reason codes should construct successfully."""
         for reason_code in ["not_found", "unreadable", "invalid_format", "deleted_after_scan"]:
             payload = MissionDossierArtifactMissingPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="output.tasks.per_wp",
                 artifact_class="output",
                 expected_path_pattern="tasks/*.md",
@@ -225,7 +225,7 @@ class TestMissionDossierSnapshotComputedPayload:
     def test_valid_payload(self):
         """Valid payload should construct without error."""
         payload = MissionDossierSnapshotComputedPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             parity_hash_sha256="a" * 64,
             artifact_counts=ArtifactCountsPayload(
                 total=10,
@@ -238,14 +238,14 @@ class TestMissionDossierSnapshotComputedPayload:
             completeness_status="incomplete",
             snapshot_id="snap-001",
         )
-        assert payload.feature_slug == "042-feature"
+        assert payload.mission_slug == "042-mission"
         assert payload.completeness_status == "incomplete"
 
     def test_invalid_parity_hash(self):
         """Invalid parity hash should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierSnapshotComputedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 parity_hash_sha256="invalid_hash",
                 artifact_counts=ArtifactCountsPayload(
                     total=10,
@@ -264,7 +264,7 @@ class TestMissionDossierSnapshotComputedPayload:
         """Invalid completeness_status should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierSnapshotComputedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 parity_hash_sha256="a" * 64,
                 artifact_counts=ArtifactCountsPayload(
                     total=10,
@@ -283,7 +283,7 @@ class TestMissionDossierSnapshotComputedPayload:
         """All valid completeness statuses should construct successfully."""
         for status in ["complete", "incomplete", "unknown"]:
             payload = MissionDossierSnapshotComputedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 parity_hash_sha256="a" * 64,
                 artifact_counts=ArtifactCountsPayload(
                     total=10,
@@ -305,21 +305,21 @@ class TestMissionDossierParityDriftDetectedPayload:
     def test_valid_payload_with_drift(self):
         """Valid payload with drift should construct without error."""
         payload = MissionDossierParityDriftDetectedPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             local_parity_hash="a" * 64,
             baseline_parity_hash="b" * 64,
             missing_in_local=["artifact1", "artifact2"],
             missing_in_baseline=["artifact3"],
             severity="warning",
         )
-        assert payload.feature_slug == "042-feature"
+        assert payload.mission_slug == "042-mission"
         assert payload.severity == "warning"
         assert len(payload.missing_in_local) == 2
 
     def test_valid_payload_without_missing_lists(self):
         """Valid payload with empty missing lists should construct."""
         payload = MissionDossierParityDriftDetectedPayload(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             local_parity_hash="a" * 64,
             baseline_parity_hash="b" * 64,
             severity="error",
@@ -331,7 +331,7 @@ class TestMissionDossierParityDriftDetectedPayload:
         """Invalid local hash should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierParityDriftDetectedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 local_parity_hash="invalid_hash",
                 baseline_parity_hash="b" * 64,
                 severity="warning",
@@ -342,7 +342,7 @@ class TestMissionDossierParityDriftDetectedPayload:
         """Invalid severity should raise ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             MissionDossierParityDriftDetectedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 local_parity_hash="a" * 64,
                 baseline_parity_hash="b" * 64,
                 severity="invalid_severity",
@@ -353,7 +353,7 @@ class TestMissionDossierParityDriftDetectedPayload:
         """All valid severities should construct successfully."""
         for severity in ["info", "warning", "error"]:
             payload = MissionDossierParityDriftDetectedPayload(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 local_parity_hash="a" * 64,
                 baseline_parity_hash="b" * 64,
                 severity=severity,
@@ -377,7 +377,7 @@ class TestEmitArtifactIndexed:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_artifact_indexed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -397,7 +397,7 @@ class TestEmitArtifactIndexed:
     def test_emit_artifact_indexed_invalid_payload(self, caplog):
         """emit_artifact_indexed should reject invalid payload with error log."""
         result = emit_artifact_indexed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="invalid_class",  # Invalid
             relative_path="spec.md",
@@ -418,7 +418,7 @@ class TestEmitArtifactIndexed:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_artifact_indexed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -445,7 +445,7 @@ class TestEmitArtifactMissing:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_artifact_missing(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="output.tasks.per_wp",
             artifact_class="output",
             expected_path_pattern="tasks/*.md",
@@ -460,7 +460,7 @@ class TestEmitArtifactMissing:
         """emit_artifact_missing should skip event when blocking=False."""
         with caplog.at_level(logging.DEBUG):
             result = emit_artifact_missing(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 artifact_key="output.tasks.per_wp",
                 artifact_class="output",
                 expected_path_pattern="tasks/*.md",
@@ -474,7 +474,7 @@ class TestEmitArtifactMissing:
     def test_emit_artifact_missing_invalid_payload(self, caplog):
         """emit_artifact_missing should reject invalid payload."""
         result = emit_artifact_missing(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="output.tasks.per_wp",
             artifact_class="invalid_class",  # Invalid
             expected_path_pattern="tasks/*.md",
@@ -501,7 +501,7 @@ class TestEmitSnapshotComputed:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_snapshot_computed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             parity_hash_sha256="a" * 64,
             total_artifacts=10,
             required_artifacts=7,
@@ -528,7 +528,7 @@ class TestEmitSnapshotComputed:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_snapshot_computed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             parity_hash_sha256="a" * 64,
             total_artifacts=10,
             required_artifacts=7,
@@ -545,7 +545,7 @@ class TestEmitSnapshotComputed:
     def test_emit_snapshot_computed_invalid_payload(self, caplog):
         """emit_snapshot_computed should reject invalid payload."""
         result = emit_snapshot_computed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             parity_hash_sha256="invalid_hash",  # Invalid
             total_artifacts=10,
             required_artifacts=7,
@@ -576,7 +576,7 @@ class TestEmitParityDriftDetected:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_parity_drift_detected(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             local_parity_hash="a" * 64,
             baseline_parity_hash="b" * 64,  # Different hash
             missing_in_local=["artifact1"],
@@ -591,7 +591,7 @@ class TestEmitParityDriftDetected:
         """emit_parity_drift_detected should skip event when hashes match."""
         with caplog.at_level(logging.DEBUG):
             result = emit_parity_drift_detected(
-                feature_slug="042-feature",
+                mission_slug="042-mission",
                 local_parity_hash="a" * 64,
                 baseline_parity_hash="a" * 64,  # Same hash - no drift
                 severity="info",
@@ -603,7 +603,7 @@ class TestEmitParityDriftDetected:
     def test_emit_parity_drift_detected_invalid_payload(self, caplog):
         """emit_parity_drift_detected should reject invalid payload."""
         result = emit_parity_drift_detected(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             local_parity_hash="invalid_hash",  # Invalid
             baseline_parity_hash="b" * 64,
             severity="warning",
@@ -621,7 +621,7 @@ class TestEmitParityDriftDetected:
         mock_get_emitter.return_value = mock_emitter
 
         result = emit_parity_drift_detected(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             local_parity_hash="a" * 64,
             baseline_parity_hash="b" * 64,
             severity="error",
@@ -641,7 +641,7 @@ class TestEventEnvelopeMetadata:
         mock_get_emitter.return_value = mock_emitter
 
         emit_artifact_indexed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -655,13 +655,13 @@ class TestEventEnvelopeMetadata:
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emitter_constructs_aggregate_id(self, mock_get_emitter):
-        """Events should construct aggregate_id from feature_slug and key."""
+        """Events should construct aggregate_id from mission_slug and key."""
         mock_emitter = MagicMock()
         mock_emitter._emit.return_value = {}
         mock_get_emitter.return_value = mock_emitter
 
         emit_artifact_indexed(
-            feature_slug="042-feature",
+            mission_slug="042-mission",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
@@ -671,4 +671,4 @@ class TestEventEnvelopeMetadata:
         )
 
         call_kwargs = mock_emitter._emit.call_args[1]
-        assert call_kwargs["aggregate_id"] == "042-feature:input.spec.main"
+        assert call_kwargs["aggregate_id"] == "042-mission:input.spec.main"

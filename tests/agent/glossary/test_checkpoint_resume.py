@@ -105,7 +105,7 @@ class MockPrimitiveContext:
     conflicts: list[SemanticConflict] = field(default_factory=list)
     inputs: dict[str, Any] = field(
         default_factory=lambda: {
-            "description": "Implement feature X",
+            "description": "Implement mission X",
             "requirements": ["req1", "req2"],
         }
     )
@@ -123,7 +123,7 @@ class MockPrimitiveContext:
 @pytest.fixture
 def sample_inputs():
     return {
-        "description": "Implement feature X",
+        "description": "Implement mission X",
         "requirements": ["req1", "req2"],
     }
 
@@ -295,7 +295,7 @@ class TestResumeMiddlewareContextChange:
         (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
         # Change inputs so hash differs
-        mock_context.inputs = {"description": "Changed feature Y"}
+        mock_context.inputs = {"description": "Changed mission Y"}
         mock_context.retry_token = sample_checkpoint.retry_token
 
         middleware = ResumeMiddleware(
@@ -311,7 +311,7 @@ class TestResumeMiddlewareContextChange:
         payload = _checkpoint_event_dict(sample_checkpoint)
         (events_dir / "m.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
 
-        mock_context.inputs = {"description": "Changed feature Y"}
+        mock_context.inputs = {"description": "Changed mission Y"}
         mock_context.retry_token = sample_checkpoint.retry_token
 
         middleware = ResumeMiddleware(
@@ -558,7 +558,7 @@ class TestCrossSessionResumeFlow:
         # SESSION 1: Generation gate blocks and checkpoints
         context1 = MockPrimitiveContext(
             step_id="step-build-001",
-            mission_id="feature-042",
+            mission_id="mission-042",
             run_id="run-001",
             inputs=inputs,
             conflicts=[
@@ -586,7 +586,7 @@ class TestCrossSessionResumeFlow:
                 gate.process(context1)
 
         # Verify checkpoint was persisted
-        checkpoint_file = tmp_path / ".kittify" / "events" / "glossary" / "feature-042.events.jsonl"
+        checkpoint_file = tmp_path / ".kittify" / "events" / "glossary" / "mission-042.events.jsonl"
         assert checkpoint_file.exists()
 
         saved_checkpoint = context1.checkpoint
@@ -595,7 +595,7 @@ class TestCrossSessionResumeFlow:
         # SESSION 2: New session resumes from checkpoint
         context2 = MockPrimitiveContext(
             step_id="step-build-001",
-            mission_id="feature-042",
+            mission_id="mission-042",
             run_id="run-002",
             inputs=inputs,  # Same inputs
             retry_token=saved_checkpoint.retry_token,
@@ -844,7 +844,7 @@ class TestEdgeCases:
         context = MagicMock()
         context.retry_token = sample_checkpoint.retry_token
         context.step_id = sample_checkpoint.step_id
-        context.inputs = {"description": "Implement feature X", "requirements": ["req1", "req2"]}
+        context.inputs = {"description": "Implement mission X", "requirements": ["req1", "req2"]}
 
         middleware = ResumeMiddleware(project_root=tmp_path)
         result = middleware.process(context)

@@ -51,8 +51,8 @@ class TestReducerParity:
 
         expected = _load_expected_snapshot()
 
-        # Feature slug
-        assert snapshot.feature_slug == expected["feature_slug"]
+        # Mission slug
+        assert snapshot.mission_slug == expected["mission_slug"]
 
         # Event count
         assert snapshot.event_count == expected["event_count"]
@@ -112,10 +112,10 @@ class TestReducerParity:
         events = _load_sample_events()
         expected = _load_expected_snapshot()
 
-        # All events should have the same feature_slug
-        slugs = {e.feature_slug for e in events}
+        # All events should have the same mission_slug
+        slugs = {e.mission_slug for e in events}
         assert len(slugs) == 1
-        assert slugs.pop() == expected["feature_slug"]
+        assert slugs.pop() == expected["mission_slug"]
 
         # All event_ids should be unique
         event_ids = [e.event_id for e in events]
@@ -145,13 +145,13 @@ class TestReducerParity:
         events = _load_sample_events()
         expected = _load_expected_snapshot()
 
-        feature_dir = tmp_path / "kitty-specs" / "099-parity-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "099-parity-test"
+        mission_dir.mkdir(parents=True)
 
         for event in events:
-            append_event(feature_dir, event)
+            append_event(mission_dir, event)
 
-        snapshot = materialize(feature_dir)
+        snapshot = materialize(mission_dir)
 
         # Compare deterministic fields
         assert snapshot.work_packages == expected["work_packages"]

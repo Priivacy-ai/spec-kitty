@@ -23,8 +23,8 @@ _BRANCH_PATTERNS = (
     re.compile(r"(?im)^target repo branch:\s*`?([^\n`]+)`?\s*$"),
     re.compile(r"(?im)^branch:\s*`?([^\n`]+)`?\s*$"),
     re.compile(r"(?i)must be done on .*?`([^`]+)` branch"),
-    re.compile(r"(?i)all work packages branch from and merge back to [`"]?([^`"\n]+)[`"]?"),
-    re.compile(r"(?i)merge back to [`"]?([^`"\n]+)[`"]?"),
+    re.compile(r'(?i)all work packages branch from and merge back to [`"]?([^`"\n]+)[`"]?'),
+    re.compile(r'(?i)merge back to [`"]?([^`"\n]+)[`"]?'),
     re.compile(r"(?i)repository[^\n]*branch [`(]?([A-Za-z0-9._/-]+)"),
 )
 

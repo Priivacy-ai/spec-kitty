@@ -16,7 +16,7 @@ from specify_cli.mission import (
     MissionNotFoundError,
     discover_missions,
     get_mission_by_name,
-    get_mission_for_mission,
+    get_mission_for_mission_dir,
     list_available_missions,
 )
 from specify_cli.core.mission_detection import (
@@ -222,7 +222,7 @@ def current_cmd(
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
-        mission = get_mission_for_mission(mission_dir, project_root)
+        mission = get_mission_for_mission_dir(mission_dir, project_root)
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:

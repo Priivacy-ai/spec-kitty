@@ -27,13 +27,13 @@ def _extract_json(output: str) -> dict[str, object]:
     raise AssertionError(f"No JSON payload found in output:\n{output}")
 
 
-def _write_meta_json(feature_dir: Path, target_branch: str) -> None:
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
+def _write_meta_json(mission_dir: Path, target_branch: str) -> None:
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps(
             {
-                "feature_number": "049",
-                "slug": feature_dir.name,
+                "mission_number": "049",
+                "slug": mission_dir.name,
                 "target_branch": target_branch,
             }
         ),
@@ -73,7 +73,7 @@ def _patch_merge_environment(
         lambda *_args, **_kwargs: "legacy",
     )
     monkeypatch.setattr(
-        "specify_cli.core.feature_detection._get_main_repo_root",
+        "specify_cli.core.mission_detection._get_main_repo_root",
         lambda _repo_root: repo_root,
     )
     monkeypatch.setattr(
@@ -98,7 +98,7 @@ def _patch_merge_environment(
     )
 
 
-def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, tmp_path: Path) -> None:
+def test_merge_without_mission_on_mission_branch_reads_meta_target(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -115,11 +115,11 @@ def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, 
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "2.x"
 
 
-def test_merge_without_feature_on_wp_branch_validates_inferred_target(monkeypatch, tmp_path: Path) -> None:
+def test_merge_without_mission_on_wp_branch_validates_inferred_target(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -165,7 +165,7 @@ def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> Non
     assert payload["target_branch"] == "main"
 
 
-def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) -> None:
+def test_explicit_mission_flag_reads_meta_target(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -180,21 +180,21 @@ def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) ->
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--feature", slug],
+        ["merge", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "2.x"
 
 
-def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, tmp_path: Path) -> None:
+def test_explicit_mission_flag_missing_meta_falls_back_to_primary(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    # No meta.json written — feature dir does not exist
+    # No meta.json written — mission dir does not exist
     _patch_merge_environment(
         monkeypatch,
         repo_root,
@@ -204,16 +204,16 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--feature", slug],
+        ["merge", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "main"
 
 
-def test_no_feature_no_feature_branch_uses_primary_branch(monkeypatch, tmp_path: Path) -> None:
+def test_no_mission_no_mission_branch_uses_primary_branch(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
@@ -231,7 +231,7 @@ def test_no_feature_no_feature_branch_uses_primary_branch(monkeypatch, tmp_path:
     assert payload["target_branch"] == "main"
 
 
-def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
+def test_mission_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -248,16 +248,16 @@ def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "main"
 
 
-def test_merge_template_has_no_agent_feature_merge_references() -> None:
+def test_merge_template_has_no_agent_mission_merge_references() -> None:
     src_root = Path(__file__).resolve().parents[4] / "src"
     merge_templates = list(src_root.glob("**/command-templates/merge.md"))
 
     assert len(merge_templates) >= 2
     for template_path in merge_templates:
         content = template_path.read_text(encoding="utf-8")
-        assert "agent feature merge" not in content.lower()
+        assert "agent mission merge" not in content.lower()
         assert "spec-kitty merge" in content

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI-backed integration tests for mission system (per-feature model v0.8.0+).
+"""CLI-backed integration tests for mission system (per-mission model v0.8.0+).
 
 Tests mission_list/current/info use the 0.x MissionConfig schema.
 On 2.x, mission files use v1 State Machine DSL format which MissionConfig
@@ -15,8 +15,8 @@ import pytest
 pytestmark = pytest.mark.git_repo
 
 def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> None:
-    """Mission switch command should show helpful error about per-feature missions."""
-    result = run_cli(clean_project, "mission", "switch", "research")
+    """Mission switch command should show helpful error about per-mission missions."""
+    result = run_cli(clean_project, "mission-type", "switch", "research")
 
     # Should fail with exit code 1
     assert result.returncode == 1
@@ -27,8 +27,8 @@ def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> Non
     assert "/spec-kitty.specify" in output
 
 def test_mission_switch_blocked_by_worktrees_via_cli(project_with_worktree: Path, run_cli) -> None:
-    """Mission switch should show per-feature error even with worktrees."""
-    result = run_cli(project_with_worktree, "mission", "switch", "research")
+    """Mission switch should show per-mission error even with worktrees."""
+    result = run_cli(project_with_worktree, "mission-type", "switch", "research")
 
     # Should fail (v0.8.0+ switch is removed)
     assert result.returncode != 0

@@ -42,12 +42,12 @@ def git_repo(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def task_repo(git_repo: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, Path]:
-    feature_slug = "001-test-feature"
-    feature_dir = git_repo / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    mission_slug = "001-test-mission"
+    mission_dir = git_repo / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (git_repo / ".kittify").mkdir(exist_ok=True)
-    (feature_dir / "tasks.md").write_text(
+    (mission_dir / "tasks.md").write_text(
         "## WP01 Test Task\n\n- [x] T001 Placeholder task\n",
         encoding="utf-8",
     )
@@ -55,7 +55,7 @@ def task_repo(git_repo: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, st
     wp_path = tasks_dir / "WP01-test-task.md"
     _write_wp(wp_path, lane="for_review")
     monkeypatch.chdir(git_repo)
-    return git_repo, feature_slug, wp_path
+    return git_repo, mission_slug, wp_path
 
 
 def _write_wp(path: Path, *, lane: str) -> None:
@@ -103,7 +103,7 @@ def _git_common_dir(repo: Path) -> Path:
 def _mock_status_event(*, to_lane: str, actor: str, force: bool) -> StatusEvent:
     return StatusEvent(
         event_id="01HZX000000000000000000000",
-        feature_slug="001-test-feature",
+        mission_slug="001-test-mission",
         wp_id="WP01",
         from_lane=Lane("for_review"),
         to_lane=Lane(to_lane),
@@ -123,12 +123,12 @@ def _json_payload(output: str) -> dict:
     raise AssertionError(f"No JSON payload found in output:\n{output}")
 
 
-def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, feature_slug: str) -> Mock:
+def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, mission_slug: str) -> Mock:
     monkeypatch.setattr(tasks_module, "locate_project_root", lambda: repo)
     monkeypatch.setattr(
         tasks_module,
-        "_find_feature_slug",
-        lambda explicit_feature=None: feature_slug,
+        "_find_mission_slug",
+        lambda explicit_mission=None: mission_slug,
     )
     monkeypatch.setattr(
         tasks_module,
@@ -178,14 +178,14 @@ def test_persist_feedback_uses_git_common_dir_and_pointer(git_repo: Path, tmp_pa
 
     persisted_path, pointer = _persist_review_feedback(
         main_repo_root=git_repo,
-        feature_slug="001-test-feature",
+        mission_slug="001-test-mission",
         task_id="WP01",
         feedback_source=source,
     )
 
     common_dir = _git_common_dir(git_repo)
-    assert pointer.startswith("feedback://001-test-feature/WP01/")
-    assert persisted_path.parent == common_dir / "spec-kitty" / "feedback" / "001-test-feature" / "WP01"
+    assert pointer.startswith("feedback://001-test-mission/WP01/")
+    assert persisted_path.parent == common_dir / "spec-kitty" / "feedback" / "001-test-mission" / "WP01"
     assert persisted_path.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
 
 
@@ -195,7 +195,7 @@ def test_resolve_feedback_pointer_from_common_dir(git_repo: Path, tmp_path: Path
 
     persisted_path, pointer = _persist_review_feedback(
         main_repo_root=git_repo,
-        feature_slug="001-test-feature",
+        mission_slug="001-test-mission",
         task_id="WP02",
         feedback_source=source,
     )
@@ -212,8 +212,8 @@ def test_move_task_planned_rejects_missing_absolute_feedback_file(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, _ = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, _ = task_repo
+    _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
 
     missing_path = (repo / "missing-feedback.md").resolve()
     result = runner.invoke(
@@ -239,8 +239,8 @@ def test_move_task_planned_rejects_directory_feedback_path(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, _ = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, _ = task_repo
+    _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
 
     feedback_dir = repo / "feedback-dir"
     feedback_dir.mkdir()
@@ -268,8 +268,8 @@ def test_move_task_planned_rejects_empty_feedback_file(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, _ = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, _ = task_repo
+    _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
 
     feedback_file = repo / "feedback.md"
     feedback_file.write_text("   \n", encoding="utf-8")
@@ -297,8 +297,8 @@ def test_move_task_planned_sets_pointer_reviewer_and_review_ref(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, wp_path = task_repo
-    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, wp_path = task_repo
+    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
     monkeypatch.setattr(tasks_module, "_detect_reviewer_name", lambda: "Detected Reviewer")
 
     feedback_file = repo / "feedback.md"
@@ -322,7 +322,7 @@ def test_move_task_planned_sets_pointer_reviewer_and_review_ref(
     payload = _json_payload(result.stdout)
     pointer = payload["review_feedback"]
     assert payload["new_lane"] == "planned"
-    assert pointer.startswith("feedback://001-test-feature/WP01/")
+    assert pointer.startswith("feedback://001-test-mission/WP01/")
     assert any(call.kwargs.get("review_ref") == pointer for call in emit_mock.call_args_list)
 
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
@@ -335,8 +335,8 @@ def test_move_task_force_reopen_sets_force_override_review_ref(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, _ = task_repo
-    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, _ = task_repo
+    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
 
     result = runner.invoke(
         tasks_app,
@@ -359,8 +359,8 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, wp_path = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, wp_path = task_repo
+    _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
     monkeypatch.setattr(tasks_module, "_detect_reviewer_name", lambda: "Git Reviewer")
 
     result = runner.invoke(
@@ -389,8 +389,8 @@ def test_move_task_warns_when_auto_commit_raises(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    repo, feature_slug, wp_path = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    repo, mission_slug, wp_path = task_repo
+    _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
     monkeypatch.setattr(tasks_module, "safe_commit", Mock(side_effect=RuntimeError("boom")))
 
     result = runner.invoke(tasks_app, ["move-task", "WP01", "--to", "doing"])

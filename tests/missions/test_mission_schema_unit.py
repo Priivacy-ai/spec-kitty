@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for mission schema validation and per-feature mission functions."""
+"""Unit tests for mission schema validation and per-mission mission functions."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from specify_cli.mission import (
     MissionError,
     MissionNotFoundError,
     discover_missions,
-    get_feature_mission_key,
-    get_mission_for_feature,
+    get_mission_key,
+    get_mission_for_mission_dir,
 )
 pytestmark = pytest.mark.fast
 
@@ -112,7 +112,7 @@ def test_hybrid_config_ignores_v1_compatibility_fields(tmp_path: Path) -> None:
 
 
 # =============================================================================
-# Per-Feature Mission Tests (T004, T005)
+# Per-Mission Mission Tests (T004, T005)
 # =============================================================================
 
 
@@ -152,143 +152,143 @@ def sample_kittify_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def feature_with_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature directory with mission field in meta.json."""
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir(parents=True)
+def mission_with_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
+    """Create a mission directory with mission field in meta.json."""
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir(parents=True)
     meta = {
-        "feature_number": "001",
-        "slug": "001-test-feature",
-        "friendly_name": "Test Feature",
+        "mission_number": "001",
+        "slug": "001-test-mission",
+        "friendly_name": "Test Mission",
         "mission": "software-dev",
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
-    return feature_dir
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
+    return mission_dir
 
 
 @pytest.fixture
-def feature_with_research_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature directory with research mission in meta.json."""
-    feature_dir = tmp_path / "kitty-specs" / "002-research-feature"
-    feature_dir.mkdir(parents=True)
+def mission_with_research_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
+    """Create a mission directory with research mission in meta.json."""
+    mission_dir = tmp_path / "kitty-specs" / "002-research-mission"
+    mission_dir.mkdir(parents=True)
     meta = {
-        "feature_number": "002",
-        "slug": "002-research-feature",
+        "mission_number": "002",
+        "slug": "002-research-mission",
         "friendly_name": "Research Feature",
         "mission": "research",
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
-    return feature_dir
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
+    return mission_dir
 
 
 @pytest.fixture
-def legacy_feature(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature directory WITHOUT mission field (legacy)."""
-    feature_dir = tmp_path / "kitty-specs" / "000-legacy"
-    feature_dir.mkdir(parents=True)
+def legacy_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
+    """Create a mission directory WITHOUT mission field (legacy)."""
+    mission_dir = tmp_path / "kitty-specs" / "000-legacy"
+    mission_dir.mkdir(parents=True)
     meta = {
-        "feature_number": "000",
+        "mission_number": "000",
         "slug": "000-legacy",
         "friendly_name": "Legacy Feature",
-        # NO mission field - simulates pre-v0.8.0 feature
+        # NO mission field - simulates pre-v0.8.0 mission
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
-    return feature_dir
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
+    return mission_dir
 
 
 @pytest.fixture
-def feature_with_invalid_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature with a mission that doesn't exist."""
-    feature_dir = tmp_path / "kitty-specs" / "003-invalid"
-    feature_dir.mkdir(parents=True)
+def mission_with_invalid_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
+    """Create a mission with a mission that doesn't exist."""
+    mission_dir = tmp_path / "kitty-specs" / "003-invalid"
+    mission_dir.mkdir(parents=True)
     meta = {
-        "feature_number": "003",
+        "mission_number": "003",
         "slug": "003-invalid",
         "friendly_name": "Invalid Mission Feature",
         "mission": "nonexistent-mission",
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
-    return feature_dir
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
+    return mission_dir
 
 
-class TestGetFeatureMissionKey:
-    """Tests for get_feature_mission_key() helper function."""
+class TestGetMissionKey:
+    """Tests for get_mission_key() helper function."""
 
-    def test_returns_mission_from_meta_json(self, feature_with_mission: Path) -> None:
+    def test_returns_mission_from_meta_json(self, mission_with_mission: Path) -> None:
         """Should extract mission key from meta.json."""
-        assert get_feature_mission_key(feature_with_mission) == "software-dev"
+        assert get_mission_key(mission_with_mission) == "software-dev"
 
-    def test_returns_research_mission(self, feature_with_research_mission: Path) -> None:
+    def test_returns_research_mission(self, mission_with_research_mission: Path) -> None:
         """Should extract research mission key."""
-        assert get_feature_mission_key(feature_with_research_mission) == "research"
+        assert get_mission_key(mission_with_research_mission) == "research"
 
-    def test_defaults_to_software_dev_when_no_mission_field(self, legacy_feature: Path) -> None:
+    def test_defaults_to_software_dev_when_no_mission_field(self, legacy_mission: Path) -> None:
         """Should default to software-dev when mission field is missing."""
-        assert get_feature_mission_key(legacy_feature) == "software-dev"
+        assert get_mission_key(legacy_mission) == "software-dev"
 
     def test_defaults_to_software_dev_when_no_meta_json(self, tmp_path: Path) -> None:
         """Should default to software-dev when meta.json doesn't exist."""
-        empty_feature = tmp_path / "kitty-specs" / "empty"
-        empty_feature.mkdir(parents=True)
-        assert get_feature_mission_key(empty_feature) == "software-dev"
+        empty_mission = tmp_path / "kitty-specs" / "empty"
+        empty_mission.mkdir(parents=True)
+        assert get_mission_key(empty_mission) == "software-dev"
 
     def test_defaults_to_software_dev_on_invalid_json(self, tmp_path: Path) -> None:
         """Should default to software-dev when meta.json is invalid JSON."""
-        feature_dir = tmp_path / "kitty-specs" / "bad-json"
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "meta.json").write_text("{ invalid json }")
-        assert get_feature_mission_key(feature_dir) == "software-dev"
+        mission_dir = tmp_path / "kitty-specs" / "bad-json"
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text("{ invalid json }")
+        assert get_mission_key(mission_dir) == "software-dev"
 
 
-class TestGetMissionForFeature:
-    """Tests for get_mission_for_feature() function (T004)."""
+class TestGetMissionForMission:
+    """Tests for get_mission_for_mission_dir() function (T004)."""
 
-    def test_returns_correct_mission(self, feature_with_mission: Path, sample_kittify_dir: Path) -> None:
+    def test_returns_correct_mission(self, mission_with_mission: Path, sample_kittify_dir: Path) -> None:
         """Should return the mission specified in meta.json."""
-        mission = get_mission_for_feature(feature_with_mission, sample_kittify_dir.parent)
+        mission = get_mission_for_mission_dir(mission_with_mission, sample_kittify_dir.parent)
         assert mission.name == "Software Dev Kitty"
         assert mission.domain == "software"
 
-    def test_returns_research_mission(self, feature_with_research_mission: Path, sample_kittify_dir: Path) -> None:
+    def test_returns_research_mission(self, mission_with_research_mission: Path, sample_kittify_dir: Path) -> None:
         """Should return research mission when specified."""
-        mission = get_mission_for_feature(feature_with_research_mission, sample_kittify_dir.parent)
+        mission = get_mission_for_mission_dir(mission_with_research_mission, sample_kittify_dir.parent)
         assert mission.name == "Deep Research Kitty"
         assert mission.domain == "research"
 
-    def test_falls_back_on_invalid_mission(self, feature_with_invalid_mission: Path, sample_kittify_dir: Path) -> None:
+    def test_falls_back_on_invalid_mission(self, mission_with_invalid_mission: Path, sample_kittify_dir: Path) -> None:
         """Should fall back to software-dev when mission doesn't exist."""
         with pytest.warns(UserWarning, match="not found"):
-            mission = get_mission_for_feature(feature_with_invalid_mission, sample_kittify_dir.parent)
+            mission = get_mission_for_mission_dir(mission_with_invalid_mission, sample_kittify_dir.parent)
         assert mission.domain == "software"
 
     def test_raises_when_no_kittify_dir(self, tmp_path: Path) -> None:
         """Should raise MissionNotFoundError when .kittify not found."""
-        feature_dir = tmp_path / "orphan-feature"
-        feature_dir.mkdir(parents=True)
-        meta = {"feature_number": "999", "slug": "orphan", "mission": "software-dev"}
-        (feature_dir / "meta.json").write_text(json.dumps(meta))
+        mission_dir = tmp_path / "orphan-mission"
+        mission_dir.mkdir(parents=True)
+        meta = {"mission_number": "999", "slug": "orphan", "mission": "software-dev"}
+        (mission_dir / "meta.json").write_text(json.dumps(meta))
 
         with pytest.raises(MissionNotFoundError, match="Could not find .kittify"):
-            get_mission_for_feature(feature_dir)
+            get_mission_for_mission_dir(mission_dir)
 
 
-class TestGetMissionForFeatureLegacy:
-    """Tests for backward compatibility with legacy features (T005)."""
+class TestGetMissionForMissionLegacy:
+    """Tests for backward compatibility with legacy missions (T005)."""
 
-    def test_legacy_feature_defaults_to_software_dev(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
-        """Features without mission field should use software-dev."""
-        mission = get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
+    def test_legacy_mission_defaults_to_software_dev(self, legacy_mission: Path, sample_kittify_dir: Path) -> None:
+        """Missions without mission field should use software-dev."""
+        mission = get_mission_for_mission_dir(legacy_mission, sample_kittify_dir.parent)
         assert mission.domain == "software"
         assert "software" in mission.name.lower()
 
-    def test_legacy_feature_no_warning(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
-        """Legacy features should not produce warning (default is intentional)."""
+    def test_legacy_mission_no_warning(self, legacy_mission: Path, sample_kittify_dir: Path) -> None:
+        """Legacy missions should not produce warning (default is intentional)."""
         import warnings as w
 
 
         with w.catch_warnings(record=True) as caught:
             w.simplefilter("always")
-            get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
+            get_mission_for_mission_dir(legacy_mission, sample_kittify_dir.parent)
             # Should not warn since software-dev exists and is the default
             mission_warnings = [c for c in caught if "mission" in str(c.message).lower()]
             assert len(mission_warnings) == 0

@@ -71,10 +71,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
         )
     )
 
-    # spec_kitty_core: feature (canonical definition)
+    # spec_kitty_core: mission (canonical definition)
     store.add_sense(
         TermSense(
-            surface=TermSurface("feature"),
+            surface=TermSurface("mission"),
             scope=GlossaryScope.SPEC_KITTY_CORE.value,
             definition="A unit of work with specifications and work packages",
             provenance=provenance,
@@ -88,10 +88,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
 
 def test_resolve_term_single_match(glossary_store: GlossaryStore) -> None:
     """Test resolving a term with a single match."""
-    results = resolve_term("feature", SCOPE_RESOLUTION_ORDER, glossary_store)
+    results = resolve_term("mission", SCOPE_RESOLUTION_ORDER, glossary_store)
 
     assert len(results) == 1
-    assert results[0].surface.surface_text == "feature"
+    assert results[0].surface.surface_text == "mission"
     assert results[0].scope == GlossaryScope.SPEC_KITTY_CORE.value
 
 

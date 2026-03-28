@@ -10,7 +10,7 @@ from tests.utils import run
 
 pytestmark = [pytest.mark.adversarial, pytest.mark.git_repo]
 
-FEATURE_SLUG = "024-git-state"
+MISSION_SLUG = "024-git-state"
 WP_ID = "WP01"
 
 
@@ -26,16 +26,16 @@ def _init_repo(tmp_path: Path) -> tuple[Path, Path]:
     run(["git", "commit", "-m", "init"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    feature_dir = repo / "kitty-specs" / FEATURE_SLUG
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text('{"mission": "software-dev"}\n', encoding="utf-8")
+    mission_dir = repo / "kitty-specs" / MISSION_SLUG
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text('{"mission": "software-dev"}\n', encoding="utf-8")
     run(["git", "add", "kitty-specs"], cwd=repo)
-    run(["git", "commit", "-m", "add feature"], cwd=repo)
+    run(["git", "commit", "-m", "add mission"], cwd=repo)
 
-    worktree_dir = repo / ".worktrees" / f"{FEATURE_SLUG}-{WP_ID}"
+    worktree_dir = repo / ".worktrees" / f"{MISSION_SLUG}-{WP_ID}"
     worktree_dir.parent.mkdir(exist_ok=True)
     run(
-        ["git", "worktree", "add", str(worktree_dir), "-b", f"{FEATURE_SLUG}-{WP_ID}"],
+        ["git", "worktree", "add", str(worktree_dir), "-b", f"{MISSION_SLUG}-{WP_ID}"],
         cwd=repo,
     )
 
@@ -99,7 +99,7 @@ class TestDetachedHead:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         _, worktree = detached_head_repo
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -111,7 +111,7 @@ class TestDetachedHead:
 
         _, worktree = detached_head_repo
         (worktree / "dirty.txt").write_text("dirty", encoding="utf-8")
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -125,7 +125,7 @@ class TestMergeState:
         _, worktree = merge_state_repo
         _touch_git_state_marker(worktree, "MERGE_HEAD")
 
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -137,7 +137,7 @@ class TestMergeState:
         _, worktree = merge_state_repo
         _touch_git_state_marker(worktree, "REBASE_HEAD")
 
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -149,7 +149,7 @@ class TestMergeState:
         _, worktree = merge_state_repo
         _touch_git_state_marker(worktree, "CHERRY_PICK_HEAD")
 
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -161,7 +161,7 @@ class TestStagedUncommitted:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         _, worktree = staged_uncommitted_repo
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -174,7 +174,7 @@ class TestMainDivergence:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         _, worktree = diverged_main_repo
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()
@@ -187,7 +187,7 @@ class TestNoCommitsOnBranch:
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         _, worktree = _init_repo(tmp_path)
-        is_valid, guidance = _validate_ready_for_review(worktree, FEATURE_SLUG, WP_ID, force=False)
+        is_valid, guidance = _validate_ready_for_review(worktree, MISSION_SLUG, WP_ID, force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance).lower()

@@ -37,9 +37,9 @@ def _write_wp(tasks_dir: Path, wp_id: str, lane: str) -> Path:
 
 def test_detect_flags_malformed_meta_as_repairable(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / "001-broken-meta"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text("{not-json", encoding="utf-8")
+    mission_dir = repo_root / "kitty-specs" / "001-broken-meta"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{not-json", encoding="utf-8")
 
     migration = ConsistencySweepMigration()
     assert migration.detect(repo_root) is True
@@ -47,12 +47,12 @@ def test_detect_flags_malformed_meta_as_repairable(tmp_path: Path) -> None:
 
 def test_detect_flags_incomplete_meta_as_repairable(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / "001-incomplete-meta"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
+    mission_dir = repo_root / "kitty-specs" / "001-incomplete-meta"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps(
             {
-                "feature_number": "001",
+                "mission_number": "001",
                 "slug": "001-incomplete-meta",
                 "target_branch": "main",
                 "created_at": "2026-01-01T00:00:00+00:00",
@@ -66,17 +66,17 @@ def test_detect_flags_incomplete_meta_as_repairable(tmp_path: Path) -> None:
     assert migration.detect(repo_root) is True
 
 
-def test_apply_repairs_feature_state_and_legacy_prompt_refs(
+def test_apply_repairs_mission_state_and_legacy_prompt_refs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / "001-upgrade-sweep"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "001-upgrade-sweep"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     _write_wp(tasks_dir, "WP01", "doing")
-    (feature_dir / "tasks.md").write_text(
+    (mission_dir / "tasks.md").write_text(
         "\n".join(
             [
                 "# Tasks",
@@ -87,10 +87,10 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
         ),
         encoding="utf-8",
     )
-    (feature_dir / "status.json").write_text(
+    (mission_dir / "status.json").write_text(
         json.dumps(
             {
-                "feature_slug": "",
+                "mission_slug": "",
                 "event_count": 0,
                 "work_packages": {},
                 "summary": dict.fromkeys(CANONICAL_LANES, 0),
@@ -102,7 +102,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
     )
 
     monkeypatch.setattr(
-        "specify_cli.upgrade.feature_meta.resolve_primary_branch",
+        "specify_cli.upgrade.mission_meta.resolve_primary_branch",
         lambda _repo_root: "2.x",
     )
     monkeypatch.setattr(
@@ -115,7 +115,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
 
     assert result.success is True
 
-    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    meta = json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "2.x"
     assert meta["mission"] == "software-dev"
 
@@ -123,18 +123,18 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
     assert 'lane: "doing"' not in wp_text
     assert "lane: in_progress" in wp_text
 
-    tasks_md = (feature_dir / "tasks.md").read_text(encoding="utf-8")
+    tasks_md = (mission_dir / "tasks.md").read_text(encoding="utf-8")
     assert ".claude/prompts/tasks/WP01-upgrade.md" in tasks_md
     assert "<!-- status-model:start -->" in tasks_md
     assert "- WP01: in_progress" in tasks_md
 
-    assert (feature_dir / EVENTS_FILENAME).exists()
-    assert read_events(feature_dir)
+    assert (mission_dir / EVENTS_FILENAME).exists()
+    assert read_events(mission_dir)
 
-    backup_files = sorted(feature_dir.glob("status.json.orphan.bak.*"))
+    backup_files = sorted(mission_dir.glob("status.json.orphan.bak.*"))
     assert len(backup_files) == 1
 
-    status = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
+    status = json.loads((mission_dir / "status.json").read_text(encoding="utf-8"))
     assert status["work_packages"]["WP01"]["lane"] == "in_progress"
 
 
@@ -143,17 +143,17 @@ def test_apply_quarantines_unreadable_planned_only_event_log(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / "001-corrupt-events"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "001-corrupt-events"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     _write_wp(tasks_dir, "WP01", "planned")
-    (feature_dir / "meta.json").write_text(
+    (mission_dir / "meta.json").write_text(
         json.dumps(
             {
-                "feature_number": "001",
+                "mission_number": "001",
                 "slug": "001-corrupt-events",
-                "feature_slug": "001-corrupt-events",
+                "mission_slug": "001-corrupt-events",
                 "mission": "software-dev",
                 "target_branch": "main",
                 "created_at": "2026-01-01T00:00:00+00:00",
@@ -162,7 +162,7 @@ def test_apply_quarantines_unreadable_planned_only_event_log(
         + "\n",
         encoding="utf-8",
     )
-    (feature_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
+    (mission_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
 
     monkeypatch.setattr(
         "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep._migrate_runtime_assets",
@@ -173,11 +173,11 @@ def test_apply_quarantines_unreadable_planned_only_event_log(
     result = migration.apply(repo_root, dry_run=False)
 
     assert result.success is True
-    assert not (feature_dir / EVENTS_FILENAME).exists()
-    assert len(list(feature_dir.glob("status.events.jsonl.unreadable.bak.*"))) == 1
+    assert not (mission_dir / EVENTS_FILENAME).exists()
+    assert len(list(mission_dir.glob("status.events.jsonl.unreadable.bak.*"))) == 1
     assert any("archived unreadable status.events.jsonl" in change for change in result.changes_made)
 
-    status = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
+    status = json.loads((mission_dir / "status.json").read_text(encoding="utf-8"))
     assert status["work_packages"] == {}
     assert status["event_count"] == 0
 
@@ -187,7 +187,7 @@ def test_apply_cleans_legacy_worktree_assets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root = tmp_path / "repo"
-    worktree = repo_root / ".worktrees" / "001-feature-WP01"
+    worktree = repo_root / ".worktrees" / "001-mission-WP01"
     commands_dir = worktree / ".claude" / "commands"
     scripts_dir = worktree / ".kittify" / "scripts"
     commands_dir.mkdir(parents=True)
@@ -215,7 +215,7 @@ def test_apply_cleans_legacy_worktree_assets(
 
 _DELEGATION_TARGET = (
     "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep"
-    ".feature_requires_historical_migration"
+    ".mission_requires_historical_migration"
 )
 
 
@@ -228,7 +228,7 @@ def _make_event_line(
     """Build a minimal valid JSONL event line."""
     event = {
         "event_id": "01ABCDE000000000000000TEST",
-        "feature_slug": "099-test",
+        "mission_slug": "099-test",
         "wp_id": wp_id,
         "from_lane": "planned",
         "to_lane": "in_progress",
@@ -246,89 +246,89 @@ class TestStatusEventsNeedRepair:
     """Tests for _status_events_need_repair covering all code paths."""
 
     def test_no_tasks_dir(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        feature_dir.mkdir()
-        assert _status_events_need_repair(feature_dir) is False
+        mission_dir = tmp_path / "099-test"
+        mission_dir.mkdir()
+        assert _status_events_need_repair(mission_dir) is False
 
     def test_tasks_dir_no_wp_files(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         (tasks_dir / "README.md").write_text("not a WP", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
+        assert _status_events_need_repair(mission_dir) is False
 
     def test_no_events_file_delegates_true(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "planned")
         monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
+        assert _status_events_need_repair(mission_dir) is True
 
     def test_no_events_file_delegates_false(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "planned")
         monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: False)
-        assert _status_events_need_repair(feature_dir) is False
+        assert _status_events_need_repair(mission_dir) is False
 
     def test_empty_events_file_delegates(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "planned")
-        (feature_dir / EVENTS_FILENAME).write_text("  \n", encoding="utf-8")
+        (mission_dir / EVENTS_FILENAME).write_text("  \n", encoding="utf-8")
         monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
+        assert _status_events_need_repair(mission_dir) is True
 
     def test_corrupt_jsonl_returns_true(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "planned")
-        (feature_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is True
+        (mission_dir / EVENTS_FILENAME).write_text("{bad json\n", encoding="utf-8")
+        assert _status_events_need_repair(mission_dir) is True
 
     def test_events_with_historical_marker_returns_false(
         self, tmp_path: Path
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "in_progress")
         line = _make_event_line(
             actor="migration:frontmatter",
             reason="historical_frontmatter_to_jsonl:v1",
         )
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
+        (mission_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
+        assert _status_events_need_repair(mission_dir) is False
 
     def test_events_with_non_migration_actor_returns_false(
         self, tmp_path: Path
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "in_progress")
         line = _make_event_line(actor="cli:task:start")
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
-        assert _status_events_need_repair(feature_dir) is False
+        (mission_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
+        assert _status_events_need_repair(mission_dir) is False
 
     def test_all_migration_actors_no_marker_delegates(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        feature_dir = tmp_path / "099-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "099-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "in_progress")
         line = _make_event_line(actor="migration:upgrade", reason="some other reason")
-        (feature_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
+        (mission_dir / EVENTS_FILENAME).write_text(line + "\n", encoding="utf-8")
         monkeypatch.setattr(_DELEGATION_TARGET, lambda _fd: True)
-        assert _status_events_need_repair(feature_dir) is True
+        assert _status_events_need_repair(mission_dir) is True

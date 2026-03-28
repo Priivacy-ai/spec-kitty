@@ -36,7 +36,7 @@ class TestValidateAndResolveBase:
             wp_id="WP01",
             wp_file=wp_file,
             base=None,
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -61,7 +61,7 @@ class TestValidateAndResolveBase:
             wp_id="WP02",
             wp_file=wp_file,
             base="WP01",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -85,7 +85,7 @@ class TestValidateAndResolveBase:
             wp_id="WP02",
             wp_file=wp_file,
             base=None,
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -114,7 +114,7 @@ class TestValidateAndResolveBase:
             wp_id="WP02",
             wp_file=wp_file,
             base="WP01",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -139,7 +139,7 @@ class TestValidateAndResolveBase:
             wp_id="WP03",
             wp_file=wp_file,
             base="WP02",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -169,7 +169,7 @@ class TestValidateAndResolveBase:
             wp_id="WP04",
             wp_file=wp_file,
             base=None,
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -198,7 +198,7 @@ class TestValidateAndResolveBase:
             wp_id="WP04",
             wp_file=wp_file,
             base="WP03",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -223,7 +223,7 @@ class TestValidateAndResolveBase:
             wp_id="WP04",
             wp_file=wp_file,
             base="WP01",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 
@@ -244,7 +244,7 @@ class TestValidateBaseWorkspaceExists:
         with pytest.raises(typer.Exit):
             validate_base_workspace_exists(
                 base="WP01",
-                feature_slug="001-test",
+                mission_slug="001-test",
                 repo_root=tmp_path
             )
 
@@ -262,7 +262,7 @@ class TestValidateBaseWorkspaceExists:
         with pytest.raises(typer.Exit):
             validate_base_workspace_exists(
                 base="WP01",
-                feature_slug="001-test",
+                mission_slug="001-test",
                 repo_root=tmp_path
             )
 
@@ -285,7 +285,7 @@ class TestValidateBaseWorkspaceExists:
         # Should not raise
         validate_base_workspace_exists(
             base="WP01",
-            feature_slug="001-test",
+            mission_slug="001-test",
             repo_root=tmp_path
         )
 

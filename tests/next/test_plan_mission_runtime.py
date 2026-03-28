@@ -1,5 +1,5 @@
 """
-Tests for plan mission runtime support (Feature 041).
+Tests for plan mission runtime support (Mission 041).
 
 Coverage:
 - Mission discovery integration test
@@ -47,24 +47,24 @@ def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
-    """Create a test feature with mission=plan.
+def plan_mission(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
+    """Create a test mission with mission=plan.
 
     Depends on: temp_project
-    Yields: (feature_slug, feature_dir)
+    Yields: (mission_slug, mission_dir)
     """
-    feature_slug = "001-test-plan-feature"
-    feature_dir = temp_project / "kitty-specs" / feature_slug
-    feature_dir.mkdir()
+    mission_slug = "001-test-plan-mission"
+    mission_dir = temp_project / "kitty-specs" / mission_slug
+    mission_dir.mkdir()
 
     # Create meta.json with mission: "plan"
-    meta = {"feature_number": "001", "slug": feature_slug, "mission": "plan", "created_at": "2026-02-22T00:00:00+00:00"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+    meta = {"mission_number": "001", "slug": mission_slug, "mission": "plan", "created_at": "2026-02-22T00:00:00+00:00"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     # Create spec.md
-    (feature_dir / "spec.md").write_text("# Test Feature\n\nThis is a test feature for plan mission integration.\n")
+    (mission_dir / "spec.md").write_text("# Test Mission\n\nThis is a test mission for plan mission integration.\n")
 
-    yield (feature_slug, feature_dir)
+    yield (mission_slug, mission_dir)
 
 
 @pytest.fixture
@@ -101,12 +101,12 @@ def mock_workspace_context() -> MagicMock:
     """Mock workspace context for testing.
 
     Returns: MagicMock with properties:
-    - feature_slug
+    - mission_slug
     - wp_id
     - base_branch
     """
     context = MagicMock()
-    context.feature_slug = "001-test-plan-feature"
+    context.mission_slug = "001-test-plan-mission"
     context.wp_id = "WP01"
     context.base_branch = "main"
     return context
@@ -118,34 +118,34 @@ def mock_workspace_context() -> MagicMock:
 
 
 class TestPlanMissionIntegration:
-    """Integration tests for plan mission feature creation and runtime."""
+    """Integration tests for plan mission mission creation and runtime."""
 
-    def test_create_plan_feature_with_mission_yaml(self, plan_feature):
-        """Verify plan feature can be created with mission=plan."""
-        feature_slug, feature_dir = plan_feature
+    def test_create_plan_mission_with_mission_yaml(self, plan_mission):
+        """Verify plan mission can be created with mission=plan."""
+        mission_slug, mission_dir = plan_mission
 
-        # Verify feature directory exists
-        assert feature_dir.exists()
+        # Verify mission directory exists
+        assert mission_dir.exists()
 
         # Verify meta.json exists and contains mission=plan
-        meta_file = feature_dir / "meta.json"
+        meta_file = mission_dir / "meta.json"
         assert meta_file.exists()
 
         meta = json.loads(meta_file.read_text())
         assert meta["mission"] == "plan"
-        assert meta["slug"] == feature_slug
+        assert meta["slug"] == mission_slug
 
-    def test_plan_feature_spec_file_created(self, plan_feature):
-        """Verify spec.md is created for plan features."""
-        feature_slug, feature_dir = plan_feature
+    def test_plan_mission_spec_file_created(self, plan_mission):
+        """Verify spec.md is created for plan missions."""
+        mission_slug, mission_dir = plan_mission
 
         # Verify spec.md exists
-        spec_file = feature_dir / "spec.md"
+        spec_file = mission_dir / "spec.md"
         assert spec_file.exists()
 
         # Verify it contains expected content
         content = spec_file.read_text()
-        assert "Test Feature" in content
+        assert "Test Mission" in content
         assert len(content) > 0
 
     def test_runtime_bridge_discovers_plan_mission(self, mock_runtime_bridge):
@@ -175,18 +175,18 @@ class TestPlanMissionIntegration:
             assert steps[i - 1]["id"] == expected_id
             assert steps[i - 1]["order"] == i
 
-    def test_next_command_plan_feature_not_blocked(self, plan_feature):
-        """Verify spec-kitty next doesn't block on plan features (Feature 041 fix).
+    def test_next_command_plan_mission_not_blocked(self, plan_mission):
+        """Verify spec-kitty next doesn't block on plan missions (Mission 041 fix).
 
         This is the core regression test: plan mission should be discoverable
         and should NOT return "Mission 'plan' not found" error.
         """
-        feature_slug, feature_dir = plan_feature
+        mission_slug, mission_dir = plan_mission
         import yaml
 
-        # 1. Verify feature has mission=plan
-        meta = json.loads((feature_dir / "meta.json").read_text())
-        assert meta["mission"] == "plan", "Feature must have mission=plan"
+        # 1. Verify mission has mission=plan
+        meta = json.loads((mission_dir / "meta.json").read_text())
+        assert meta["mission"] == "plan", "Mission must have mission=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
         runtime_path = _repo._mission_config_path("plan")

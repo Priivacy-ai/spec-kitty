@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 
 from specify_cli.dashboard.scanner import (
     read_file_resilient,
-    scan_feature_kanban,
+    scan_mission_kanban,
 )
 
 
@@ -110,13 +110,13 @@ class TestDashboardReadResilience:
 class TestDashboardKanbanScanning:
     """Test 3.3 & 3.4: Dashboard kanban scanning with encoding errors"""
 
-    def test_scan_feature_kanban_creates_error_cards(self):
+    def test_scan_mission_kanban_creates_error_cards(self):
         """Test 3.3: Verify dashboard creates error card for broken files instead of crashing."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)  # Convert to Path
-            # Create feature structure
-            feature_dir = tmpdir / "kitty-specs" / "001-test"
-            tasks_dir = feature_dir / "tasks" / "planned"
+            # Create mission structure
+            mission_dir = tmpdir / "kitty-specs" / "001-test"
+            tasks_dir = mission_dir / "tasks" / "planned"
             tasks_dir.mkdir(parents=True)
 
             # Create bad work package file with Windows-1252
@@ -133,13 +133,13 @@ work_package_id: WP01
                 wp_file.read_text(encoding='utf-8')
 
             # Scan should not crash
-            lanes = scan_feature_kanban(Path(tmpdir), "001-test")
+            lanes = scan_mission_kanban(Path(tmpdir), "001-test")
 
             # Should have lanes dict
             assert isinstance(lanes, dict), "Should return lanes dictionary"
             assert "planned" in lanes, "Should have planned lane"
 
-            # The behavior depends on whether auto_fix is used in scan_feature_kanban
+            # The behavior depends on whether auto_fix is used in scan_mission_kanban
             # If auto-fix is enabled (default), the file will be fixed and loaded normally
             # If auto-fix is disabled, an error card should be created
             # Let's test both scenarios
@@ -157,13 +157,13 @@ work_package_id: WP01
                     # Successfully fixed scenario
                     assert "WP01" in card.get("id", ""), "Should have work package ID"
 
-    def test_scan_feature_kanban_auto_fixes_and_loads(self):
+    def test_scan_mission_kanban_auto_fixes_and_loads(self):
         """Test 3.4: Verify auto-fix allows successful load after initial error."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)  # Convert to Path
-            # Create feature structure
-            feature_dir = tmpdir / "kitty-specs" / "001-test"
-            tasks_dir = feature_dir / "tasks" / "planned"
+            # Create mission structure
+            mission_dir = tmpdir / "kitty-specs" / "001-test"
+            tasks_dir = mission_dir / "tasks" / "planned"
             tasks_dir.mkdir(parents=True)
 
             # Create work package with encoding issue
@@ -179,7 +179,7 @@ Implement authentication with User\u2019s profile support.
             wp_file.write_bytes(wp_content.encode('cp1252'))
 
             # Scan with auto-fix (default behavior)
-            lanes = scan_feature_kanban(Path(tmpdir), "001-test")
+            lanes = scan_mission_kanban(Path(tmpdir), "001-test")
 
             # Should have successfully loaded the card
             assert "planned" in lanes, "Should have planned lane"
@@ -192,28 +192,28 @@ Implement authentication with User\u2019s profile support.
             backup = wp_file.with_suffix('.md.bak')
             assert backup.exists(), "Backup should be created"
 
-    def test_scan_empty_feature(self):
-        """Verify scanning empty feature doesn't crash."""
+    def test_scan_empty_mission(self):
+        """Verify scanning empty mission doesn't crash."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)  # Convert to Path
-            # Create minimal feature structure
-            feature_dir = tmpdir / "kitty-specs" / "001-empty"
-            feature_dir.mkdir(parents=True)
+            # Create minimal mission structure
+            mission_dir = tmpdir / "kitty-specs" / "001-empty"
+            mission_dir.mkdir(parents=True)
 
             # Scan should not crash
-            lanes = scan_feature_kanban(Path(tmpdir), "001-empty")
+            lanes = scan_mission_kanban(Path(tmpdir), "001-empty")
 
             # Should return empty lanes
             assert isinstance(lanes, dict), "Should return lanes dictionary"
             assert all(len(cards) == 0 for cards in lanes.values()), \
                 "All lanes should be empty"
 
-    def test_scan_feature_with_mixed_files(self):
-        """Verify scanning feature with both good and bad files."""
+    def test_scan_mission_with_mixed_files(self):
+        """Verify scanning mission with both good and bad files."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)  # Convert to Path
-            feature_dir = tmpdir / "kitty-specs" / "001-mixed"
-            tasks_dir = feature_dir / "tasks" / "planned"
+            mission_dir = tmpdir / "kitty-specs" / "001-mixed"
+            tasks_dir = mission_dir / "tasks" / "planned"
             tasks_dir.mkdir(parents=True)
 
             # Create good file
@@ -235,7 +235,7 @@ Bad content here.
 """.encode('cp1252'))
 
             # Scan
-            lanes = scan_feature_kanban(Path(tmpdir), "001-mixed")
+            lanes = scan_mission_kanban(Path(tmpdir), "001-mixed")
 
             # Should process both files
             assert "planned" in lanes, "Should have planned lane"
@@ -243,11 +243,11 @@ Bad content here.
             # With auto-fix, both should load (bad one gets fixed)
             # Count may vary depending on frontmatter parsing success
 
-    def test_scan_nonexistent_feature(self):
-        """Verify scanning nonexistent feature doesn't crash."""
+    def test_scan_nonexistent_mission(self):
+        """Verify scanning nonexistent mission doesn't crash."""
         with TemporaryDirectory() as tmpdir:
-            # Scan nonexistent feature
-            lanes = scan_feature_kanban(Path(tmpdir), "999-nonexistent")
+            # Scan nonexistent mission
+            lanes = scan_mission_kanban(Path(tmpdir), "999-nonexistent")
 
             # Should return empty lanes structure
             assert isinstance(lanes, dict), "Should return lanes dictionary"

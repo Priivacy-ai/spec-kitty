@@ -1,4 +1,4 @@
-"""Unit tests for accept and merge feature lifecycle commands."""
+"""Unit tests for accept and merge mission lifecycle commands."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 import typer
 
-from specify_cli.cli.commands.agent.feature import (
-    _find_latest_feature_worktree,
+from specify_cli.cli.commands.agent.mission import (
+    _find_latest_mission_worktree,
     _get_current_branch,
 )
 
@@ -43,10 +43,10 @@ def mock_repo_with_worktrees(tmp_path: Path) -> Path:
     worktrees.mkdir()
 
     # Create mock worktrees
-    (worktrees / "001-first-feature").mkdir()
-    (worktrees / "003-latest-feature").mkdir()
-    (worktrees / "002-middle-feature").mkdir()
-    (worktrees / "not-a-feature").mkdir()  # Should be ignored
+    (worktrees / "001-first-mission").mkdir()
+    (worktrees / "003-latest-mission").mkdir()
+    (worktrees / "002-middle-mission").mkdir()
+    (worktrees / "not-a-mission").mkdir()  # Should be ignored
 
     return repo_root
 
@@ -56,26 +56,26 @@ def mock_repo_with_worktrees(tmp_path: Path) -> Path:
 # =============================================================================
 
 
-def test_find_latest_feature_worktree(mock_repo_with_worktrees: Path):
+def test_find_latest_mission_worktree(mock_repo_with_worktrees: Path):
     """Test finding latest worktree by number."""
-    latest = _find_latest_feature_worktree(mock_repo_with_worktrees)
+    latest = _find_latest_mission_worktree(mock_repo_with_worktrees)
 
     assert latest is not None
-    assert latest.name == "003-latest-feature"
+    assert latest.name == "003-latest-mission"
 
 
-def test_find_latest_feature_worktree_no_worktrees(tmp_path: Path):
+def test_find_latest_mission_worktree_no_worktrees(tmp_path: Path):
     """Test when no worktrees directory exists."""
-    latest = _find_latest_feature_worktree(tmp_path)
+    latest = _find_latest_mission_worktree(tmp_path)
     assert latest is None
 
 
-def test_find_latest_feature_worktree_ignores_non_feature(mock_repo_with_worktrees: Path):
-    """Test that non-feature directories are ignored."""
-    latest = _find_latest_feature_worktree(mock_repo_with_worktrees)
+def test_find_latest_mission_worktree_ignores_non_mission(mock_repo_with_worktrees: Path):
+    """Test that non-mission directories are ignored."""
+    latest = _find_latest_mission_worktree(mock_repo_with_worktrees)
 
     assert latest is not None
-    assert latest.name != "not-a-feature"
+    assert latest.name != "not-a-mission"
 
 
 def test_get_current_branch(mock_repo_with_worktrees: Path):
@@ -97,7 +97,7 @@ def test_get_current_branch_non_git(tmp_path: Path):
 # =============================================================================
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accept: MagicMock, tmp_path: Path):
     """Test that accept command delegates to top-level accept() command."""
@@ -108,13 +108,13 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
     mock_locate.return_value = repo_root
 
     # Import and call directly (avoid CliRunner issues)
-    from specify_cli.cli.commands.agent.feature import accept_feature
+    from specify_cli.cli.commands.agent.mission import accept_mission
 
-    accept_feature(feature=None, mode="auto", json_output=True, lenient=False, no_commit=False)
+    accept_mission(mission=None, mode="auto", json_output=True, lenient=False, no_commit=False)
 
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
-        feature=None,
+        mission=None,
         mode="auto",
         actor=None,
         test=[],
@@ -125,7 +125,7 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
     )
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicMock, tmp_path: Path):
     """Test that accept command passes all flags to top-level accept()."""
@@ -134,13 +134,13 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 
     mock_locate.return_value = repo_root
 
-    from specify_cli.cli.commands.agent.feature import accept_feature
+    from specify_cli.cli.commands.agent.mission import accept_mission
 
-    accept_feature(feature="001-test", mode="checklist", json_output=True, lenient=True, no_commit=True)
+    accept_mission(mission="001-test", mode="checklist", json_output=True, lenient=True, no_commit=True)
 
     # Verify all flags passed to top-level accept
     mock_accept.assert_called_once_with(
-        feature="001-test",
+        mission="001-test",
         mode="checklist",
         actor=None,
         test=[],
@@ -156,8 +156,8 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 # =============================================================================
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_merge_command_delegates_to_toplevel(
     mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
@@ -167,12 +167,12 @@ def test_merge_command_delegates_to_toplevel(
     repo_root.mkdir()
 
     mock_locate.return_value = repo_root
-    mock_get_branch.return_value = "001-test-feature"  # On feature branch
+    mock_get_branch.return_value = "001-test-mission"  # On mission branch
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
-    merge_feature(
-        feature=None,
+    merge_mission(
+        mission=None,
         target="main",
         strategy="merge",
         push=False,
@@ -190,39 +190,39 @@ def test_merge_command_delegates_to_toplevel(
         push=False,
         target_branch="main",
         dry_run=False,
-        feature=None,
+        mission=None,
         resume=False,
         abort=False,
     )
 
 
-@patch("specify_cli.cli.commands.agent.feature._find_feature_worktree")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission._find_mission_worktree")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("subprocess.run")
-@patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+@patch("specify_cli.cli.commands.agent.mission.locate_project_root")
 def test_merge_command_auto_retry_logic(
     mock_locate: MagicMock,
     mock_subprocess: MagicMock,
     mock_get_branch: MagicMock,
-    mock_find_feature_worktree: MagicMock,
+    mock_find_mission_worktree: MagicMock,
     tmp_path: Path,
 ):
-    """Test merge auto-retry when not on feature branch with explicit --feature."""
+    """Test merge auto-retry when not on mission branch with explicit --mission."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    latest_worktree = tmp_path / "repo" / ".worktrees" / "002-feature"
+    latest_worktree = tmp_path / "repo" / ".worktrees" / "002-mission"
     latest_worktree.mkdir(parents=True)
 
     mock_locate.return_value = repo_root
-    mock_get_branch.return_value = "main"  # Not a feature branch
-    mock_find_feature_worktree.return_value = latest_worktree
+    mock_get_branch.return_value = "main"  # Not a mission branch
+    mock_find_mission_worktree.return_value = latest_worktree
     mock_subprocess.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
     with pytest.raises(SystemExit):
-        merge_feature(
-            feature="002-feature",
+        merge_mission(
+            mission="002-mission",
             target="main",
             strategy="merge",
             push=False,
@@ -233,7 +233,7 @@ def test_merge_command_auto_retry_logic(
         )
 
     # Verify deterministic worktree resolution happened
-    mock_find_feature_worktree.assert_called_once_with(repo_root, "002-feature")
+    mock_find_mission_worktree.assert_called_once_with(repo_root, "002-mission")
 
     # Verify command was re-run in worktree
     for call in mock_subprocess.call_args_list:
@@ -244,8 +244,8 @@ def test_merge_command_auto_retry_logic(
             break
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_merge_command_passes_all_flags(
     mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
@@ -255,12 +255,12 @@ def test_merge_command_passes_all_flags(
     repo_root.mkdir()
 
     mock_locate.return_value = repo_root
-    mock_get_branch.return_value = "001-test"  # On feature branch
+    mock_get_branch.return_value = "001-test"  # On mission branch
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
-    merge_feature(
-        feature="001-test",
+    merge_mission(
+        mission="001-test",
         target="develop",
         strategy="squash",
         push=True,
@@ -278,7 +278,7 @@ def test_merge_command_passes_all_flags(
         push=True,
         target_branch="develop",  # Parameter name differs
         dry_run=True,
-        feature="001-test",
+        mission="001-test",
         resume=False,
         abort=False,
     )
@@ -289,7 +289,7 @@ def test_merge_command_passes_all_flags(
 # =============================================================================
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_accept_command_propagates_errors(mock_locate: MagicMock, mock_accept: MagicMock, tmp_path: Path):
     """Test accept command propagates errors from top-level accept()."""
@@ -300,20 +300,20 @@ def test_accept_command_propagates_errors(mock_locate: MagicMock, mock_accept: M
     # Make top-level raise an exception
     mock_accept.side_effect = Exception("Acceptance failed")
 
-    from specify_cli.cli.commands.agent.feature import accept_feature
+    from specify_cli.cli.commands.agent.mission import accept_mission
 
     # Should catch exception and raise typer.Exit
     import typer
 
     with pytest.raises(typer.Exit) as exc_info:
-        accept_feature(feature=None, mode="auto", json_output=True, lenient=False, no_commit=False)
+        accept_mission(mission=None, mode="auto", json_output=True, lenient=False, no_commit=False)
 
     # Should exit with error
     assert exc_info.value.exit_code == 1
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_merge_command_propagates_errors(
     mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
@@ -322,19 +322,19 @@ def test_merge_command_propagates_errors(
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     mock_locate.return_value = repo_root
-    mock_get_branch.return_value = "001-test-feature"
+    mock_get_branch.return_value = "001-test-mission"
 
     # Make top-level raise an exception
     mock_merge.side_effect = Exception("Merge failed")
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
     # Should catch exception and raise typer.Exit
     import typer
 
     with pytest.raises(typer.Exit) as exc_info:
-        merge_feature(
-            feature=None,
+        merge_mission(
+            mission=None,
             target="main",
             strategy="merge",
             push=False,
@@ -348,29 +348,29 @@ def test_merge_command_propagates_errors(
     assert exc_info.value.exit_code == 1
 
 
-@patch("specify_cli.cli.commands.agent.feature._find_feature_worktree")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
-@patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+@patch("specify_cli.cli.commands.agent.mission._find_mission_worktree")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission.locate_project_root")
 def test_merge_command_auto_retry_no_worktree_found(
     mock_locate: MagicMock,
     mock_get_branch: MagicMock,
-    mock_find_feature_worktree: MagicMock,
+    mock_find_mission_worktree: MagicMock,
     tmp_path: Path,
 ):
-    """Test merge when auto-retry enabled but target feature worktree does not exist."""
+    """Test merge when auto-retry enabled but target mission worktree does not exist."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
     mock_locate.return_value = repo_root
-    mock_get_branch.return_value = "main"  # Not a feature branch
-    mock_find_feature_worktree.return_value = None  # No worktree for requested feature
+    mock_get_branch.return_value = "main"  # Not a mission branch
+    mock_find_mission_worktree.return_value = None  # No worktree for requested mission
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
-    with patch("specify_cli.cli.commands.agent.feature.top_level_merge") as mock_merge:
+    with patch("specify_cli.cli.commands.agent.mission.top_level_merge") as mock_merge:
         with pytest.raises(typer.Exit) as exc_info:
-            merge_feature(
-                feature="002-feature",
+            merge_mission(
+                mission="002-mission",
                 target="main",
                 strategy="merge",
                 push=False,
@@ -381,11 +381,11 @@ def test_merge_command_auto_retry_no_worktree_found(
             )
 
         assert exc_info.value.exit_code == 1
-        mock_find_feature_worktree.assert_called_once_with(repo_root, "002-feature")
+        mock_find_mission_worktree.assert_called_once_with(repo_root, "002-mission")
         mock_merge.assert_not_called()
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_accept_command_no_repo_root(mock_locate: MagicMock, mock_accept: MagicMock):
     """Test accept command when repo root cannot be located."""
@@ -396,38 +396,38 @@ def test_accept_command_no_repo_root(mock_locate: MagicMock, mock_accept: MagicM
 
     mock_accept.side_effect = TaskCliError("Not in a git repository")
 
-    from specify_cli.cli.commands.agent.feature import accept_feature
+    from specify_cli.cli.commands.agent.mission import accept_mission
 
     # Should catch exception and raise typer.Exit
     import typer
 
     with pytest.raises(typer.Exit) as exc_info:
-        accept_feature(feature=None, mode="auto", json_output=True, lenient=False, no_commit=False)
+        accept_mission(mission=None, mode="auto", json_output=True, lenient=False, no_commit=False)
 
     assert exc_info.value.exit_code == 1
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-@patch("specify_cli.cli.commands.agent.feature._get_current_branch")
+@patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+@patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_merge_command_no_repo_root(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock):
     """Test merge command when repo root cannot be located."""
     mock_locate.return_value = None
-    mock_get_branch.return_value = "001-test-feature"
+    mock_get_branch.return_value = "001-test-mission"
 
     # Make top-level merge raise TaskCliError (what find_repo_root does)
     from specify_cli.tasks_support import TaskCliError
 
     mock_merge.side_effect = TaskCliError("Not in a git repository")
 
-    from specify_cli.cli.commands.agent.feature import merge_feature
+    from specify_cli.cli.commands.agent.mission import merge_mission
 
     # Should catch exception and raise typer.Exit
     import typer
 
     with pytest.raises(typer.Exit) as exc_info:
-        merge_feature(
-            feature=None,
+        merge_mission(
+            mission=None,
             target="main",
             strategy="merge",
             push=False,
@@ -440,7 +440,7 @@ def test_merge_command_no_repo_root(mock_locate: MagicMock, mock_get_branch: Mag
     assert exc_info.value.exit_code == 1
 
 
-@patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
 @patch("specify_cli.core.paths.locate_project_root")
 def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mock_accept: MagicMock, tmp_path: Path):
     """Test accept command with console output (non-JSON)."""
@@ -449,10 +449,10 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
 
     mock_locate.return_value = repo_root
 
-    from specify_cli.cli.commands.agent.feature import accept_feature
+    from specify_cli.cli.commands.agent.mission import accept_mission
 
-    accept_feature(
-        feature="001-test",
+    accept_mission(
+        mission="001-test",
         mode="checklist",
         json_output=False,  # Console output mode
         lenient=True,
@@ -461,7 +461,7 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
 
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
-        feature="001-test",
+        mission="001-test",
         mode="checklist",
         actor=None,
         test=[],

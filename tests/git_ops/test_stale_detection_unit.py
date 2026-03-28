@@ -148,9 +148,9 @@ def test_get_default_branch_no_origin(git_repo_with_main: Path):
 
 def test_get_last_meaningful_commit_time_fresh_worktree_main(git_repo_with_main: Path):
     """Test that fresh worktree with 'main' branch is NOT stale."""
-    # Create a feature branch (simulating worktree)
+    # Create a mission branch (simulating worktree)
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -167,9 +167,9 @@ def test_get_last_meaningful_commit_time_fresh_worktree_master(
     git_repo_with_master: Path,
 ):
     """Test that fresh worktree with 'master' branch is NOT stale."""
-    # Create a feature branch
+    # Create a mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,
@@ -184,16 +184,16 @@ def test_get_last_meaningful_commit_time_fresh_worktree_master(
 
 def test_get_last_meaningful_commit_time_with_commits_main(git_repo_with_main: Path):
     """Test commit time detection with 'main' branch."""
-    # Create a feature branch
+    # Create a mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
     )
 
-    # Make a commit on the feature branch
-    (git_repo_with_main / "feature.txt").write_text("Feature work")
+    # Make a commit on the mission branch
+    (git_repo_with_main / "mission.txt").write_text("Mission work")
     subprocess.run(
         ["git", "add", "."],
         cwd=git_repo_with_main,
@@ -201,7 +201,7 @@ def test_get_last_meaningful_commit_time_with_commits_main(git_repo_with_main: P
         capture_output=True,
     )
     subprocess.run(
-        ["git", "commit", "-m", "Add feature"],
+        ["git", "commit", "-m", "Add mission"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -219,16 +219,16 @@ def test_get_last_meaningful_commit_time_with_commits_master(
     git_repo_with_master: Path,
 ):
     """Test commit time detection with 'master' branch."""
-    # Create a feature branch
+    # Create a mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,
     )
 
     # Make a commit
-    (git_repo_with_master / "feature.txt").write_text("Feature work")
+    (git_repo_with_master / "mission.txt").write_text("Mission work")
     subprocess.run(
         ["git", "add", "."],
         cwd=git_repo_with_master,
@@ -236,7 +236,7 @@ def test_get_last_meaningful_commit_time_with_commits_master(
         capture_output=True,
     )
     subprocess.run(
-        ["git", "commit", "-m", "Add feature"],
+        ["git", "commit", "-m", "Add mission"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,
@@ -251,9 +251,9 @@ def test_get_last_meaningful_commit_time_with_commits_master(
 
 def test_check_wp_staleness_fresh_worktree(git_repo_with_main: Path):
     """Test that fresh worktree is NOT flagged as stale."""
-    # Create a feature branch (no commits)
+    # Create a mission branch (no commits)
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -271,9 +271,9 @@ def test_check_wp_staleness_old_commit(git_repo_with_main: Path):
     """Test that worktree with old commit IS flagged as stale."""
     import os
 
-    # Create a feature branch
+    # Create a mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -281,7 +281,7 @@ def test_check_wp_staleness_old_commit(git_repo_with_main: Path):
 
     # Make an old commit (12 hours ago)
     # Need to set both GIT_AUTHOR_DATE and GIT_COMMITTER_DATE
-    (git_repo_with_main / "feature.txt").write_text("Old work")
+    (git_repo_with_main / "mission.txt").write_text("Old work")
     subprocess.run(
         ["git", "add", "."],
         cwd=git_repo_with_main,
@@ -318,16 +318,16 @@ def test_check_wp_staleness_recent_commit(git_repo_with_main: Path):
     """Test that worktree with recent commit is NOT stale."""
     import os
 
-    # Create a feature branch
+    # Create a mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
     )
 
     # Make a recent commit (2 minutes ago)
-    (git_repo_with_main / "feature.txt").write_text("Recent work")
+    (git_repo_with_main / "mission.txt").write_text("Recent work")
     subprocess.run(
         ["git", "add", "."],
         cwd=git_repo_with_main,
@@ -376,9 +376,9 @@ def test_stale_detection_with_master_branch_old_commit(git_repo_with_master: Pat
     """Test stale detection works correctly with 'master' branch and old commit."""
     import os
 
-    # Create feature branch
+    # Create mission branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "mission-WP01"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,

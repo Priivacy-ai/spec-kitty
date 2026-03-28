@@ -1,4 +1,4 @@
-"""Test that all templates comply with feature 007 flat tasks/ structure.
+"""Test that all templates comply with mission 007 flat tasks/ structure.
 
 These are black-box tests that verify the interaction between specify_cli and
 doctrine by going through the public doctrine API (MissionTemplateRepository) rather

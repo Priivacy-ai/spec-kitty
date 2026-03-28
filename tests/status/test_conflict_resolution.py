@@ -550,16 +550,16 @@ class TestStatusFilePatterns:
 
     def test_matches_jsonl_event_log(self):
         """JSONL event log files match status file patterns."""
-        assert is_status_file("kitty-specs/017-feature/status.events.jsonl")
+        assert is_status_file("kitty-specs/017-mission/status.events.jsonl")
 
     def test_matches_tasks_md(self):
         """Standard task files still match."""
-        assert is_status_file("kitty-specs/feature/tasks.md")
-        assert is_status_file("kitty-specs/feature/tasks/WP01.md")
+        assert is_status_file("kitty-specs/mission/tasks.md")
+        assert is_status_file("kitty-specs/mission/tasks/WP01.md")
 
     def test_rejects_non_status_files(self):
         """Non-status files are rejected."""
-        assert not is_status_file("kitty-specs/feature/spec.md")
+        assert not is_status_file("kitty-specs/mission/spec.md")
         assert not is_status_file("src/module.py")
 
     def test_rejects_non_kitty_jsonl(self):

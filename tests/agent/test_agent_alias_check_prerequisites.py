@@ -14,8 +14,8 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
-def test_alias_forwards_to_feature_command() -> None:
-    """check-prerequisites alias routes all flags to feature.check_prerequisites."""
+def test_alias_forwards_to_mission_command() -> None:
+    """check-prerequisites alias routes all flags to mission.check_prerequisites."""
     # Arrange
     # (no precondition)
 
@@ -23,12 +23,12 @@ def test_alias_forwards_to_feature_command() -> None:
     # (no precondition)
 
     # Act
-    with patch("specify_cli.cli.commands.agent.feature.check_prerequisites") as mock_cmd:
+    with patch("specify_cli.cli.commands.agent.mission.check_prerequisites") as mock_cmd:
         result = runner.invoke(
             app,
             [
                 "check-prerequisites",
-                "--feature",
+                "--mission",
                 "001-test",
                 "--json",
                 "--paths-only",
@@ -39,7 +39,7 @@ def test_alias_forwards_to_feature_command() -> None:
     # Assert
     assert result.exit_code == 0
     mock_cmd.assert_called_once_with(
-        feature="001-test",
+        mission="001-test",
         json_output=True,
         paths_only=True,
         include_tasks=True,
@@ -56,7 +56,7 @@ def test_alias_passes_deprecated_require_tasks_flag() -> None:
     # (no precondition)
 
     # Act
-    with patch("specify_cli.cli.commands.agent.feature.check_prerequisites") as mock_cmd:
+    with patch("specify_cli.cli.commands.agent.mission.check_prerequisites") as mock_cmd:
         result = runner.invoke(
             app,
             [
@@ -69,7 +69,7 @@ def test_alias_passes_deprecated_require_tasks_flag() -> None:
     # Assert
     assert result.exit_code == 0
     mock_cmd.assert_called_once_with(
-        feature=None,
+        mission=None,
         json_output=True,
         paths_only=False,
         include_tasks=False,

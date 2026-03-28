@@ -638,7 +638,7 @@ def semantic_check_store(tmp_path: Path) -> GlossaryStore:
     # 1. Single sense (no conflict)
     store.add_sense(
         TermSense(
-            surface=TermSurface("feature"),
+            surface=TermSurface("mission"),
             scope=GlossaryScope.SPEC_KITTY_CORE.value,
             definition="A unit of work with specifications",
             provenance=provenance,
@@ -697,10 +697,10 @@ class TestSemanticCheckMiddleware:
             metadata={},
             extracted_terms=[
                 ExtractedTerm(
-                    surface="feature",
+                    surface="mission",
                     source="quoted_phrase",
                     confidence=0.8,
-                    original="feature",
+                    original="mission",
                 )
             ],
         )
@@ -792,7 +792,7 @@ class TestSemanticCheckMiddleware:
         context = MockContext(
             metadata={},
             extracted_terms=[
-                ExtractedTerm("feature", "quoted_phrase", 0.8, "feature"),
+                ExtractedTerm("mission", "quoted_phrase", 0.8, "mission"),
                 ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace"),
                 ExtractedTerm("unknown", "quoted_phrase", 0.5, "unknown"),
             ],
@@ -915,7 +915,7 @@ class TestSemanticCheckIntegration:
 
         context = MockContext(
             metadata={},
-            step_input={"description": 'The "feature" is defined.'},
+            step_input={"description": 'The "mission" is defined.'},
         )
 
         context = extraction_middleware.process(context)
@@ -925,7 +925,7 @@ class TestSemanticCheckIntegration:
         context.conflicts = []
         context = check_middleware.process(context)
 
-        # No conflicts (feature has single sense)
+        # No conflicts (mission has single sense)
         assert len(context.conflicts) == 0
 
     def test_full_pipeline_with_conflicts(self, semantic_check_store: GlossaryStore):
@@ -982,19 +982,19 @@ class TestSemanticCheckIntegration:
 
         # LLM output that contradicts the glossary definition
         llm_output_with_contradiction = (
-            "The feature is not a unit of work. The feature refers to a plugin or extension module."
+            "The mission is not a unit of work. The mission refers to a plugin or extension module."
         )
 
         context = MockContext(
             metadata={},
-            step_input={"description": 'Using the "feature" term.'},
+            step_input={"description": 'Using the "mission" term.'},
             step_output={"result": llm_output_with_contradiction},
             extracted_terms=[
                 ExtractedTerm(
-                    surface="feature",
+                    surface="mission",
                     source="quoted_phrase",
                     confidence=0.8,
-                    original="feature",
+                    original="mission",
                 )
             ],
         )
@@ -1012,16 +1012,16 @@ class TestSemanticCheckIntegration:
         """Middleware can detect all 4 conflict types in a single pass."""
         middleware = SemanticCheckMiddleware(semantic_check_store)
 
-        # Prepare LLM output with contradiction for "feature"
-        llm_output = "The feature is not a unit of work. The feature refers to something else entirely."
+        # Prepare LLM output with contradiction for "mission"
+        llm_output = "The mission is not a unit of work. The mission refers to something else entirely."
 
         context = MockContext(
             metadata={"critical_step": True},
-            step_input={"description": ('Using "feature", "workspace", "unknown_term", and "critical_unknown".')},
+            step_input={"description": ('Using "mission", "workspace", "unknown_term", and "critical_unknown".')},
             step_output={"result": llm_output},
             extracted_terms=[
                 # INCONSISTENT: known term with contradictory usage
-                ExtractedTerm("feature", "quoted_phrase", 0.8, "feature"),
+                ExtractedTerm("mission", "quoted_phrase", 0.8, "mission"),
                 # AMBIGUOUS: multiple active senses
                 ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace"),
                 # UNKNOWN: no match, high confidence

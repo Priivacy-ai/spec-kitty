@@ -44,7 +44,7 @@ def _wp_from_frontmatter(frontmatter_text: str) -> WorkPackage:
     full = f"---\n{frontmatter_text}---\nbody\n"
     front, body, padding = split_frontmatter(full)
     return WorkPackage(
-        feature="test",
+        mission_slug="test",
         path=Path("/fake/WP01.md"),
         current_lane="planned",
         relative_subpath=Path("WP01.md"),

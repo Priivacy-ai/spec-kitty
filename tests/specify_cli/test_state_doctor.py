@@ -62,7 +62,7 @@ def test_absent_runtime_no_warning(tmp_path):
     (tmp_path / ".kittify").mkdir()
     report = check_state_roots(tmp_path)
     runtime_checks = [
-        s for s in report.surfaces if s.surface.name == "runtime_feature_index"
+        s for s in report.surfaces if s.surface.name == "runtime_mission_index"
     ]
     for check in runtime_checks:
         assert check.warning is None  # Absent = no warning
@@ -138,40 +138,40 @@ def test_surfaces_cover_all_state_surfaces(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Regression: Issue 1 -- Feature surfaces must detect presence via parent walk
+# Regression: Issue 1 -- Mission surfaces must detect presence via parent walk
 # ---------------------------------------------------------------------------
 
 
-def test_feature_surface_present_when_kitty_specs_exists(tmp_path):
-    """Feature surfaces report present=True when kitty-specs/ has features.
+def test_mission_surface_present_when_kitty_specs_exists(tmp_path):
+    """Mission surfaces report present=True when kitty-specs/ has missions.
 
     Regression for Codex review finding: _check_surface_present() returned
     False unconditionally for FEATURE root surfaces. The fix resolves the
     path under repo_root and falls through to the wildcard/placeholder
-    parent-walk logic (kitty-specs/<feature>/meta.json -> kitty-specs/ exists).
+    parent-walk logic (kitty-specs/<mission>/meta.json -> kitty-specs/ exists).
     """
-    feature_dir = tmp_path / "kitty-specs" / "test-feature"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text('{"name": "test"}')
+    mission_dir = tmp_path / "kitty-specs" / "test-mission"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text('{"name": "test"}')
 
     report = check_state_roots(tmp_path)
-    feature_meta = next(
-        (s for s in report.surfaces if s.surface.name == "feature_metadata"),
+    mission_meta = next(
+        (s for s in report.surfaces if s.surface.name == "mission_metadata"),
         None,
     )
-    assert feature_meta is not None
-    assert feature_meta.present is True
+    assert mission_meta is not None
+    assert mission_meta.present is True
 
 
-def test_feature_surface_absent_when_no_kitty_specs(tmp_path):
-    """Feature surfaces report present=False when kitty-specs/ does not exist."""
+def test_mission_surface_absent_when_no_kitty_specs(tmp_path):
+    """Mission surfaces report present=False when kitty-specs/ does not exist."""
     report = check_state_roots(tmp_path)
-    feature_meta = next(
-        (s for s in report.surfaces if s.surface.name == "feature_metadata"),
+    mission_meta = next(
+        (s for s in report.surfaces if s.surface.name == "mission_metadata"),
         None,
     )
-    assert feature_meta is not None
-    assert feature_meta.present is False
+    assert mission_meta is not None
+    assert mission_meta.present is False
 
 
 # ---------------------------------------------------------------------------

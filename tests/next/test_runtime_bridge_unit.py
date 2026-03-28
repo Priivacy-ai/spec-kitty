@@ -31,7 +31,7 @@ def _init_git_repo(path: Path) -> None:
 
 def _scaffold_project(
     tmp_path: Path,
-    feature_slug: str = "042-test-feature",
+    mission_slug: str = "042-test-mission",
     mission_key: str = "software-dev",
 ) -> Path:
     repo_root = tmp_path / "project"
@@ -41,9 +41,9 @@ def _scaffold_project(
     kittify = repo_root / ".kittify"
     kittify.mkdir()
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps({"mission": mission_key}),
         encoding="utf-8",
     )
@@ -51,8 +51,8 @@ def _scaffold_project(
     return repo_root
 
 
-def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
-    tasks_dir = feature_dir / "tasks"
+def _add_wp_files(mission_dir: Path, wps: dict[str, str]) -> None:
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
     for wp_id, lane in wps.items():
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -169,7 +169,7 @@ class TestGetOrStartRun:
 
         from specify_cli.next.runtime_bridge import get_or_start_run
 
-        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run_ref = get_or_start_run("042-test-mission", repo_root, "software-dev")
         assert run_ref.run_id is not None
         assert len(run_ref.run_id) > 0
         assert run_ref.mission_key == "software-dev"
@@ -181,33 +181,33 @@ class TestGetOrStartRun:
 
         from specify_cli.next.runtime_bridge import get_or_start_run
 
-        run1 = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        run2 = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run1 = get_or_start_run("042-test-mission", repo_root, "software-dev")
+        run2 = get_or_start_run("042-test-mission", repo_root, "software-dev")
         assert run1.run_id == run2.run_id
         assert run1.run_dir == run2.run_dir
 
-    def test_different_features_get_different_runs(self, tmp_path: Path) -> None:
+    def test_different_missions_get_different_runs(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        # Create second feature
-        feature_dir2 = repo_root / "kitty-specs" / "043-other-feature"
-        feature_dir2.mkdir(parents=True)
-        (feature_dir2 / "meta.json").write_text('{"mission": "software-dev"}', encoding="utf-8")
+        # Create second mission
+        mission_dir2 = repo_root / "kitty-specs" / "043-other-mission"
+        mission_dir2.mkdir(parents=True)
+        (mission_dir2 / "meta.json").write_text('{"mission": "software-dev"}', encoding="utf-8")
 
         from specify_cli.next.runtime_bridge import get_or_start_run
 
-        run1 = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        run2 = get_or_start_run("043-other-feature", repo_root, "software-dev")
+        run1 = get_or_start_run("042-test-mission", repo_root, "software-dev")
+        run2 = get_or_start_run("043-other-mission", repo_root, "software-dev")
         assert run1.run_id != run2.run_id
 
-    def test_feature_runs_index_persisted(self, tmp_path: Path) -> None:
+    def test_mission_runs_index_persisted(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import get_or_start_run, _load_feature_runs
+        from specify_cli.next.runtime_bridge import get_or_start_run, _load_mission_runs
 
-        get_or_start_run("042-test-feature", repo_root, "software-dev")
-        index = _load_feature_runs(repo_root)
-        assert "042-test-feature" in index
-        assert "run_id" in index["042-test-feature"]
+        get_or_start_run("042-test-mission", repo_root, "software-dev")
+        index = _load_mission_runs(repo_root)
+        assert "042-test-mission" in index
+        assert "run_id" in index["042-test-mission"]
 
 
 # ---------------------------------------------------------------------------
@@ -219,9 +219,9 @@ class TestWPIteration:
     def test_wp_iteration_does_not_advance_runtime(self, tmp_path: Path) -> None:
         """When WPs remain, runtime step should not advance."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "planned",
                 "WP02": "planned",
@@ -236,7 +236,7 @@ class TestWPIteration:
         from spec_kitty_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
-        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run_ref = get_or_start_run("042-test-mission", repo_root, "software-dev")
         step_order = ["discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement"]
         for _ in range(len(step_order)):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
@@ -245,21 +245,21 @@ class TestWPIteration:
             runtime_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
 
         # Now decide_next should keep us in implement with WP01
-        decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decision = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action == "implement"
         assert decision.wp_id == "WP01"
 
         # Call again — should still be in implement with same WP (not advanced)
-        decision2 = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decision2 = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert decision2.step_id == "implement"
 
     def test_all_wps_done_advances_runtime(self, tmp_path: Path) -> None:
         """When all WPs are done, runtime should advance past implement."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         _add_wp_files(
-            feature_dir,
+            mission_dir,
             {
                 "WP01": "done",
                 "WP02": "done",
@@ -274,7 +274,7 @@ class TestWPIteration:
         from spec_kitty_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
-        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run_ref = get_or_start_run("042-test-mission", repo_root, "software-dev")
         for _ in range(6):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             if snapshot.issued_step_id == "implement":
@@ -282,7 +282,7 @@ class TestWPIteration:
             runtime_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
 
         # All WPs done — decide_next should advance past implement
-        decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decision = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         # Should either be in review or later step (not implement)
         assert decision.step_id != "implement" or decision.kind != DecisionKind.step
 
@@ -310,14 +310,14 @@ class TestRuntimeResultFlow:
         from specify_cli.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
 
         # Issue a first step so runtime has a prior issued_step_id to complete.
-        first = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        first = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert first.run_id is not None
 
-        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run_ref = get_or_start_run("042-test-mission", repo_root, "software-dev")
         run_dir = Path(run_ref.run_dir)
         before = self._read_run_events(run_dir)
 
-        failed = decide_next_via_runtime("test", "042-test-feature", "failed", repo_root)
+        failed = decide_next_via_runtime("test", "042-test-mission", "failed", repo_root)
         after = self._read_run_events(run_dir)
 
         assert failed.kind == DecisionKind.blocked
@@ -331,14 +331,14 @@ class TestRuntimeResultFlow:
         from specify_cli.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
 
         # Issue a first step so runtime has a prior issued_step_id to complete.
-        first = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        first = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert first.run_id is not None
 
-        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        run_ref = get_or_start_run("042-test-mission", repo_root, "software-dev")
         run_dir = Path(run_ref.run_dir)
         before = self._read_run_events(run_dir)
 
-        blocked = decide_next_via_runtime("test", "042-test-feature", "blocked", repo_root)
+        blocked = decide_next_via_runtime("test", "042-test-mission", "blocked", repo_root)
         after = self._read_run_events(run_dir)
 
         assert blocked.kind == DecisionKind.blocked
@@ -358,48 +358,48 @@ class TestGuardChecks:
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        failures = _check_cli_guards("specify", feature_dir)
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        failures = _check_cli_guards("specify", mission_dir)
         assert len(failures) == 1
         assert "spec.md" in failures[0]
 
     def test_specify_guard_passes_with_spec(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        (mission_dir / "spec.md").write_text("# Spec", encoding="utf-8")
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("specify", feature_dir)
+        failures = _check_cli_guards("specify", mission_dir)
         assert len(failures) == 0
 
     def test_plan_guard_blocks_without_artifacts(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("plan", feature_dir)
+        failures = _check_cli_guards("plan", mission_dir)
         assert len(failures) == 1  # plan.md only (tasks.md moved to tasks_outline guard)
 
     def test_implement_guard_blocks_with_planned_wps(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "planned", "WP02": "done"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "planned", "WP02": "done"})
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("implement", feature_dir)
+        failures = _check_cli_guards("implement", mission_dir)
         assert len(failures) == 1
 
     def test_implement_guard_passes_all_done(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "done", "WP02": "done"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "done", "WP02": "done"})
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("implement", feature_dir)
+        failures = _check_cli_guards("implement", mission_dir)
         assert len(failures) == 0
 
 
@@ -415,13 +415,13 @@ class TestMapRuntimeDecision:
 
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-        decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decision = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
 
         # Original fields
         assert "kind" in d
         assert "agent" in d
-        assert "feature_slug" in d
+        assert "mission_slug" in d
         assert "mission" in d
         assert "mission_state" in d
         assert "timestamp" in d
@@ -451,7 +451,7 @@ class TestAnswerDecision:
 
         with pytest.raises(MissionRuntimeError, match="not found"):
             answer_decision_via_runtime(
-                "042-test-feature",
+                "042-test-mission",
                 "nonexistent",
                 "yes",
                 "test",
@@ -468,14 +468,14 @@ class TestFullLoop:
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
 
         # Create required artifacts so CLI guards pass
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
         # Create WP files with explicit dependencies for tasks_finalize guard
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
             "---\nwork_package_id: WP01\nlane: done\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
@@ -486,7 +486,7 @@ class TestFullLoop:
 
         seen_steps = []
         for _i in range(40):  # 9 steps need more iterations
-            decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+            decision = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
             if decision.kind == DecisionKind.terminal:
                 break
             if decision.step_id:
@@ -502,12 +502,12 @@ class TestFullLoop:
 
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-        decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         # Don't advance — poll again (simulating re-poll)
         # Note: this will advance because each call to decide_next advances
         # The bridge always advances, which is the expected behavior.
         # The important thing is that it produces valid decisions.
-        d2 = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        d2 = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert d2.kind in ("step", "terminal", "blocked", "decision_required")
 
     def test_offline_no_network(self, tmp_path: Path) -> None:
@@ -517,7 +517,7 @@ class TestFullLoop:
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
         # This should work without any network access
-        decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decision = decide_next_via_runtime("test", "042-test-mission", "success", repo_root)
         assert decision.kind in ("step", "terminal", "blocked", "decision_required")
 
 
@@ -542,43 +542,43 @@ class TestWPStepHelpers:
 
     def test_should_advance_all_done(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "done", "WP02": "done"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "done", "WP02": "done"})
 
         from specify_cli.next.runtime_bridge import _should_advance_wp_step
 
-        assert _should_advance_wp_step("implement", feature_dir) is True
-        assert _should_advance_wp_step("review", feature_dir) is True
+        assert _should_advance_wp_step("implement", mission_dir) is True
+        assert _should_advance_wp_step("review", mission_dir) is True
 
     def test_should_not_advance_planned_remain(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "done", "WP02": "planned"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "done", "WP02": "planned"})
 
         from specify_cli.next.runtime_bridge import _should_advance_wp_step
 
-        assert _should_advance_wp_step("implement", feature_dir) is False
+        assert _should_advance_wp_step("implement", mission_dir) is False
 
     def test_implement_allows_for_review(self, tmp_path: Path) -> None:
         """Implement step allows for_review WPs (they're in progress of review)."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "done", "WP02": "for_review"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "done", "WP02": "for_review"})
 
         from specify_cli.next.runtime_bridge import _should_advance_wp_step
 
-        assert _should_advance_wp_step("implement", feature_dir) is True
-        assert _should_advance_wp_step("review", feature_dir) is False
+        assert _should_advance_wp_step("implement", mission_dir) is True
+        assert _should_advance_wp_step("review", mission_dir) is False
 
     def test_review_allows_approved(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "approved", "WP02": "done"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "approved", "WP02": "done"})
 
         from specify_cli.next.runtime_bridge import _should_advance_wp_step
 
-        assert _should_advance_wp_step("implement", feature_dir) is True
-        assert _should_advance_wp_step("review", feature_dir) is True
+        assert _should_advance_wp_step("implement", mission_dir) is True
+        assert _should_advance_wp_step("review", mission_dir) is True
 
 
 # ---------------------------------------------------------------------------
@@ -589,62 +589,62 @@ class TestWPStepHelpers:
 class TestAtomicTaskSteps:
     def test_tasks_outline_guard_blocks_without_tasks_md(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_outline", feature_dir)
+        failures = _check_cli_guards("tasks_outline", mission_dir)
         assert len(failures) == 1
         assert "tasks.md" in failures[0]
 
     def test_tasks_outline_guard_passes_with_tasks_md(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_outline", feature_dir)
+        failures = _check_cli_guards("tasks_outline", mission_dir)
         assert len(failures) == 0
 
     def test_tasks_packages_guard_blocks_without_wp_files(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_packages", feature_dir)
+        failures = _check_cli_guards("tasks_packages", mission_dir)
         assert len(failures) == 1
         assert "WP*.md" in failures[0]
 
     def test_tasks_packages_guard_passes_with_wp_files(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {"WP01": "planned"})
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        _add_wp_files(mission_dir, {"WP01": "planned"})
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_packages", feature_dir)
+        failures = _check_cli_guards("tasks_packages", mission_dir)
         assert len(failures) == 0
 
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files exist but no explicit dependencies: in raw frontmatter."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
         # WP file WITHOUT dependencies field in raw frontmatter
-        _add_wp_files(feature_dir, {"WP01": "planned"})
+        _add_wp_files(mission_dir, {"WP01": "planned"})
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_finalize", feature_dir)
+        failures = _check_cli_guards("tasks_finalize", mission_dir)
         assert len(failures) == 1
         assert "dependencies" in failures[0]
 
     def test_tasks_finalize_guard_passes_with_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files have dependencies: [...] explicitly written."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
             "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
@@ -653,15 +653,15 @@ class TestAtomicTaskSteps:
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_finalize", feature_dir)
+        failures = _check_cli_guards("tasks_finalize", mission_dir)
         assert len(failures) == 0
 
     def test_tasks_finalize_guard_rejects_auto_injected_dependencies(self, tmp_path: Path) -> None:
         """WP file with NO dependencies line — read_frontmatter would inject [],
         but raw check correctly rejects."""
         repo_root = _scaffold_project(tmp_path)
-        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = repo_root / "kitty-specs" / "042-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         # Frontmatter without dependencies field
         (tasks_dir / "WP01.md").write_text(
@@ -671,7 +671,7 @@ class TestAtomicTaskSteps:
 
         from specify_cli.next.runtime_bridge import _check_cli_guards
 
-        failures = _check_cli_guards("tasks_finalize", feature_dir)
+        failures = _check_cli_guards("tasks_finalize", mission_dir)
         assert len(failures) == 1
         assert "dependencies" in failures[0]
 

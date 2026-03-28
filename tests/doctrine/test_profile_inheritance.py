@@ -20,7 +20,7 @@ def inheritance_repo(tmp_path: Path) -> AgentProfileRepository:
     (shipped / "implementer.agent.yaml").write_text(
         """profile-id: implementer
 name: Implementer
-purpose: Build features
+purpose: Build missions
 routing-priority: 70
 specialization:
   primary-focus: implementation
