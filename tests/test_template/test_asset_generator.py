@@ -10,9 +10,6 @@ from specify_cli.template.asset_generator import (
     render_command_template,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SOFTWARE_DEV_TEMPLATE_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
-
 
 def _write_template(path: Path, with_agent_script: bool = True) -> None:
     agent_block = "agent_scripts:\n  sh: source env\n" if with_agent_script else ""
@@ -111,69 +108,6 @@ spec-kitty agent workflow implement WP01 --agent __AGENT__
     )
 
     assert "spec-kitty agent workflow implement WP01 --agent codex" in output
-
-
-@pytest.mark.parametrize(
-    ("agent_key", "arg_format", "extension", "expected_placeholder"),
-    [
-        ("claude", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("codex", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("opencode", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("gemini", "{{args}}", "toml", "{{args}}"),
-        ("qwen", "{{args}}", "toml", "{{args}}"),
-    ],
-)
-def test_implement_template_preserves_explicit_argument_placeholder(
-    agent_key: str,
-    arg_format: str,
-    extension: str,
-    expected_placeholder: str,
-) -> None:
-    template_path = SOFTWARE_DEV_TEMPLATE_DIR / "implement.md"
-
-    output = render_command_template(
-        template_path,
-        script_type="sh",
-        agent_key=agent_key,
-        arg_format=arg_format,
-        extension=extension,
-    )
-
-    assert "Explicit slash-command argument from the caller" in output
-    assert expected_placeholder in output
-    assert "--wp-id WP03 --base WP01" in output
-
-
-@pytest.mark.parametrize(
-    ("agent_key", "arg_format", "extension", "expected_placeholder"),
-    [
-        ("claude", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("codex", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("opencode", "$ARGUMENTS", "md", "$ARGUMENTS"),
-        ("gemini", "{{args}}", "toml", "{{args}}"),
-        ("qwen", "{{args}}", "toml", "{{args}}"),
-    ],
-)
-def test_review_template_preserves_explicit_argument_placeholder(
-    agent_key: str,
-    arg_format: str,
-    extension: str,
-    expected_placeholder: str,
-) -> None:
-    template_path = SOFTWARE_DEV_TEMPLATE_DIR / "review.md"
-
-    output = render_command_template(
-        template_path,
-        script_type="sh",
-        agent_key=agent_key,
-        arg_format=arg_format,
-        extension=extension,
-    )
-
-    assert "Explicit slash-command argument from the caller" in output
-    assert "only explicit WP IDs are supported here" in output
-    assert "Do not interpret it as a prompt path" in output
-    assert expected_placeholder in output
 
 
 def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:

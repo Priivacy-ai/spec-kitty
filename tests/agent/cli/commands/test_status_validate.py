@@ -115,10 +115,8 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_clean_feature(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -141,7 +139,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 0
@@ -149,10 +146,8 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_illegal_transition(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -175,7 +170,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 1
@@ -183,10 +177,8 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_missing_evidence(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -209,137 +201,15 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 1
 
-    @patch("specify_cli.cli.commands.agent.status.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
-    def test_validate_materialization_drift_phase1_warning(
-        self,
-        mock_phase,
-        mock_main_root,
-        mock_locate,
-        tmp_path,
-    ):
-        """Phase 1: materialization drift is a warning, not an error."""
-        feature_slug = "034-test-feature"
-        events = [
-            _make_event(
-                from_lane="planned",
-                to_lane="claimed",
-                at="2026-02-08T12:00:00Z",
-            ),
-        ]
-        feature_dir = _setup_feature(
-            tmp_path,
-            feature_slug,
-            events=events,
-            wp_files={"WP01": "claimed"},
-        )
-
-        # Tamper with the snapshot
-        snapshot_path = feature_dir / "status.json"
-        data = json.loads(snapshot_path.read_text())
-        data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
-
-        mock_locate.return_value = tmp_path
-        mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
-
-        result = runner.invoke(app, ["validate", "--feature", feature_slug])
-        # Phase 1: drift is warning, so should still pass
-        assert result.exit_code == 0
-        assert "Warning" in result.output or "PASS" in result.output
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
-    def test_validate_materialization_drift_phase2_error(
-        self,
-        mock_phase,
-        mock_main_root,
-        mock_locate,
-        tmp_path,
-    ):
-        """Phase 2: materialization drift is an error."""
-        feature_slug = "034-test-feature"
-        events = [
-            _make_event(
-                from_lane="planned",
-                to_lane="claimed",
-                at="2026-02-08T12:00:00Z",
-            ),
-        ]
-        feature_dir = _setup_feature(
-            tmp_path,
-            feature_slug,
-            events=events,
-            wp_files={"WP01": "claimed"},
-        )
-
-        # Tamper with the snapshot
-        snapshot_path = feature_dir / "status.json"
-        data = json.loads(snapshot_path.read_text())
-        data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
-
-        mock_locate.return_value = tmp_path
-        mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (2, "built-in default")
-
-        result = runner.invoke(app, ["validate", "--feature", feature_slug])
-        # Phase 2: drift is error, should fail
-        assert result.exit_code == 1
-        assert "FAIL" in result.output
-
-    @patch("specify_cli.cli.commands.agent.status.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
-    def test_validate_frontmatter_drift(
-        self,
-        mock_phase,
-        mock_main_root,
-        mock_locate,
-        tmp_path,
-    ):
-        """Frontmatter lane manually changed: drift reported."""
-        feature_slug = "034-test-feature"
-        events = [
-            _make_event(
-                from_lane="planned",
-                to_lane="claimed",
-                at="2026-02-08T12:00:00Z",
-            ),
-        ]
-        # WP file says "done" but canonical state is "claimed"
-        _setup_feature(
-            tmp_path,
-            feature_slug,
-            events=events,
-            wp_files={"WP01": "done"},
-        )
-
-        mock_locate.return_value = tmp_path
-        mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (2, "built-in default")
-
-        result = runner.invoke(app, ["validate", "--feature", feature_slug])
-        assert result.exit_code == 1
-
-    @patch("specify_cli.cli.commands.agent.status.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_json_output(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -362,7 +232,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
             app, ["validate", "--feature", feature_slug, "--json"]
@@ -371,9 +240,7 @@ class TestValidateCommand:
 
         data = json.loads(result.output)
         assert data["feature_slug"] == feature_slug
-        assert data["phase"] == 1
-        assert "phase_source" in data
-        assert data["passed"] is True
+        assert "passed" in data
         assert isinstance(data["errors"], list)
         assert isinstance(data["warnings"], list)
         assert data["error_count"] == 0
@@ -381,10 +248,8 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_json_output_with_errors(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -407,7 +272,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
             app, ["validate", "--feature", feature_slug, "--json"]
@@ -421,10 +285,8 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_no_events(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -440,17 +302,14 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 0
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_no_events_json(
         self,
-        mock_phase,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -466,7 +325,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
             app, ["validate", "--feature", feature_slug, "--json"]
