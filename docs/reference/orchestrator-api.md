@@ -442,14 +442,15 @@ Perform an explicit single lane transition on a work package.
 Usage: spec-kitty orchestrator-api transition [OPTIONS]
 
 Options:
-  --feature     TEXT  Feature slug [required]
-  --wp          TEXT  Work package ID [required]
-  --to          TEXT  Target lane [required]
-  --actor       TEXT  Actor identity [required]
-  --note        TEXT  Reason/note for the transition
-  --policy      TEXT  Policy metadata JSON (required for run-affecting lanes)
-  --force             Force the transition
-  --review-ref  TEXT  Review reference
+  --feature          TEXT  Feature slug [required]
+  --wp               TEXT  Work package ID [required]
+  --to               TEXT  Target lane [required]
+  --actor            TEXT  Actor identity [required]
+  --note             TEXT  Reason/note for the transition
+  --policy           TEXT  Policy metadata JSON (required for run-affecting lanes)
+  --force                  Force the transition
+  --review-ref       TEXT  Review reference
+  --evidence-json    TEXT  Evidence JSON (required for done transitions)
 ```
 
 **Flags:**
@@ -464,6 +465,10 @@ Options:
 | `--policy` | TEXT | Conditional | none | JSON policy metadata (required for run-affecting lanes) |
 | `--force` | FLAG | No | off | Override guard checks (recovery only) |
 | `--review-ref` | TEXT | No | none | Review artifact reference |
+| `--evidence-json` | TEXT | Conditional¹ | none | JSON payload recorded with the transition |
+
+**Notes:**
+1. `--evidence-json` is **required** for `done` transitions. Must include `review.verdict` field with value `"approved"` or `"changes_requested"`.
 
 **Valid target lanes and policy requirement:**
 
@@ -498,6 +503,40 @@ Options:
 - Use `--force` only for recovery from known-bad state, never in normal flow.
 - Use `--note` to record reasoning in the audit trail.
 - Use `--review-ref` when transitioning from `for_review` or `approved` back to `in_progress` or `planned` (review rollback guard).
+- Use `--evidence-json` for `done` transitions. Example:
+  ```bash
+  spec-kitty orchestrator-api transition \
+    --feature my-feature --wp WP01 --to done --actor reviewer-bot \
+    --evidence-json '{"review": {"reviewer": "reviewer-bot", "verdict": "approved", "reference": "PR#42"}}'
+  ```
+
+**Example: Review approved transition**
+```bash
+spec-kitty orchestrator-api transition \
+  --feature 042-test-feature --wp WP01 --to done \
+  --actor reviewer-bot \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"PR#42"}}'
+```
+
+Response:
+```json
+{
+  "contract_version": "1.0.0",
+  "command": "transition",
+  "timestamp": "2026-03-28T15:00:00+00:00",
+  "correlation_id": "corr-abc123",
+  "success": true,
+  "error_code": null,
+  "data": {
+    "feature_slug": "042-test-feature",
+    "wp_id": "WP01",
+    "from_lane": "for_review",
+    "to_lane": "done",
+    "policy_metadata_recorded": false,
+    "evidence_recorded": true
+  }
+}
+```
 
 ---
 

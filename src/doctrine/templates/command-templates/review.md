@@ -454,6 +454,24 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
    **Default stance: REJECT.** Only approve when you've actively tried to find problems and found none. "Looks good" is not good enough - you must prove it's good.
 
+### 4.13 EMIT EXPLICIT VERDICT (CRITICAL)
+
+**BEFORE running any command, you MUST emit an explicit verdict line:**
+
+For approval:
+```
+VERDICT: APPROVED
+```
+
+For rejection:
+```
+VERDICT: REJECTED
+```
+
+**This verdict line is REQUIRED.** Without it, the review cycle will be rejected as invalid.
+
+After emitting the verdict, proceed with the appropriate command below.
+
 5. Decide outcome:
 
 - **Needs changes**:

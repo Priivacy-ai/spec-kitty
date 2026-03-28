@@ -67,6 +67,22 @@ from this skill.
 
 ## Step 4: Issue Verdict
 
+**CRITICAL: Before running any command, emit an explicit verdict line:**
+
+For approval:
+```
+VERDICT: APPROVED
+```
+
+For rejection:
+```
+VERDICT: REJECTED
+```
+
+**This verdict line is REQUIRED.** Without it, the review cycle will be rejected.
+
+---
+
 Take exactly one action — never "approve with conditions".
 
 ### Approve (all acceptance criteria met)
