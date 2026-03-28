@@ -21,12 +21,12 @@
 
 ### Included Subtasks
 
-- [ ] T001 Rename class `MissionRepository` → `MissionTemplateRepository` in `src/doctrine/missions/repository.py`
-- [ ] T002 Add `TemplateResult` value object class to `repository.py` (dict-backed, `__slots__`, properties: content, origin, tier)
-- [ ] T003 Add `ConfigResult` value object class to `repository.py` (dict-backed, `__slots__`, properties: content, origin, parsed)
-- [ ] T004 Add `default()` classmethod that returns `MissionTemplateRepository(cls.default_missions_root())`
-- [ ] T005 Rename existing path-returning methods to private `_*_path()` names (`get_command_template` → `_command_template_path`, etc.)
-- [ ] T016 Update `__init__.py`: export `MissionTemplateRepository` + `TemplateResult` + `ConfigResult`, add `MissionRepository = MissionTemplateRepository` alias
+- [x] T001 Rename class `MissionRepository` → `MissionTemplateRepository` in `src/doctrine/missions/repository.py`
+- [x] T002 Add `TemplateResult` value object class to `repository.py` (dict-backed, `__slots__`, properties: content, origin, tier)
+- [x] T003 Add `ConfigResult` value object class to `repository.py` (dict-backed, `__slots__`, properties: content, origin, parsed)
+- [x] T004 Add `default()` classmethod that returns `MissionTemplateRepository(cls.default_missions_root())`
+- [x] T005 Rename existing path-returning methods to private `_*_path()` names (`get_command_template` → `_command_template_path`, etc.)
+- [x] T016 Update `__init__.py`: export `MissionTemplateRepository` + `TemplateResult` + `ConfigResult`, add `MissionRepository = MissionTemplateRepository` alias
 
 ### Implementation Notes
 
