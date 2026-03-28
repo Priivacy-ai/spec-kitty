@@ -33,7 +33,7 @@ Use `spec-kitty orchestrator-api` when:
 **Concrete examples:**
 
 - A GitHub Actions workflow that assigns WPs to agents and tracks completion
-- A custom dashboard that visualizes feature progress and triggers reviews
+- A custom dashboard that visualizes mission progress and triggers reviews
 - A supervisor process that starts multiple agent containers in parallel
 - A Slack bot that lets humans approve work packages
 
@@ -66,7 +66,7 @@ break audit trails, or produce undefined behavior.
 
 ```yaml
 # WRONG: Editing WP frontmatter files directly
-# kitty-specs/017-feature/tasks/WP01-setup.md
+# kitty-specs/017-mission/tasks/WP01-setup.md
 ---
 lane: in_progress  # <-- Do not write this directly!
 ---
@@ -95,7 +95,7 @@ the orchestrator-api.
 
 ```bash
 # WRONG: Creating git worktrees without the API
-git worktree add .worktrees/017-feature-WP01 -b 017-feature-WP01
+git worktree add .worktrees/017-mission-WP01 -b 017-mission-WP01
 ```
 
 **Why it breaks:** The orchestrator-api `start-implementation` command records
@@ -110,20 +110,20 @@ creation skips the state transitions, policy recording, and claim tracking.
 
 ```bash
 # WRONG: Reading frontmatter to determine WP state
-grep "lane:" kitty-specs/017-feature/tasks/WP01-setup.md
+grep "lane:" kitty-specs/017-mission/tasks/WP01-setup.md
 ```
 
 **Why it breaks:** File content may be stale (another worktree committed a
 change), partially written, or in a format that changes between versions.
 
-**Correct approach:** Use `spec-kitty orchestrator-api feature-state` or
+**Correct approach:** Use `spec-kitty orchestrator-api mission-state` or
 `list-ready`.
 
 ### Anti-pattern 5: Skipping contract-version check
 
 ```bash
 # WRONG: Calling commands without verifying contract compatibility
-spec-kitty orchestrator-api start-implementation --feature ...
+spec-kitty orchestrator-api start-implementation --mission ...
 ```
 
 **Why it breaks:** If the host CLI has been upgraded and the contract version
@@ -136,7 +136,7 @@ host ignores or miss fields the host now requires.
 
 ```bash
 # WRONG: Transitioning to in_progress without policy
-spec-kitty orchestrator-api transition --feature 017-feature --wp WP01 \
+spec-kitty orchestrator-api transition --mission 017-mission --wp WP01 \
   --to in_progress --actor "ci-bot"
 ```
 
@@ -159,9 +159,9 @@ and safety enforcement.
 | Agent queries its next step | Host CLI (`spec-kitty next`) | Agent is inside the project |
 | Supervisor queries ready WPs | Orchestrator API (`list-ready`) | Supervisor is external |
 | Agent reads its prompt file | Filesystem (direct read) | Prompt file is a local artifact |
-| External tool reads WP state | Orchestrator API (`feature-state`) | External tool must use API |
-| User accepts a feature from CLI | Host CLI (`spec-kitty accept`) | User is at the terminal |
-| CI accepts a feature after all checks pass | Orchestrator API (`accept-feature`) | CI is external |
+| External tool reads WP state | Orchestrator API (`mission-state`) | External tool must use API |
+| User accepts a mission from CLI | Host CLI (`spec-kitty accept`) | User is at the terminal |
+| CI accepts a mission after all checks pass | Orchestrator API (`accept-mission`) | CI is external |
 
 ---
 

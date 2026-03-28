@@ -1,16 +1,16 @@
 ---
-description: Merge a completed feature into the main branch and clean up worktree
+description: Merge a completed mission into the main branch and clean up worktree
 ---
 
-# Merge Feature Branch
+# Merge Mission Branch
 
-This command merges a completed feature branch into the main/target branch and handles cleanup of worktrees and branches.
+This command merges a completed mission branch into the main/target branch and handles cleanup of worktrees and branches.
 
 ## Prerequisites
 
 Before running this command:
 
-1. ✅ Feature must pass `/spec-kitty.accept` checks
+1. ✅ Mission must pass `/spec-kitty.accept` checks
 2. ✅ All work packages must be in `tasks/`
 3. ✅ Working directory must be clean (no uncommitted changes)
 4. ✅ Run the command from the main repository root (not inside `.worktrees/`)
@@ -44,10 +44,10 @@ git branch --show-current
 3. Then run this merge command again
 
 **Exception (main branch):**
-If you are on `main` and need to merge a workspace-per-WP feature, run:
+If you are on `main` and need to merge a workspace-per-WP mission, run:
 
 ```bash
-spec-kitty merge --feature <feature-slug>
+spec-kitty merge --mission <mission-slug>
 ```
 
 ---
@@ -72,7 +72,7 @@ print('✓ Location verified:', cwd)
 - You're not attempting to run from a worktree directory
 - The validator prints a clear correction when run from `.worktrees/`
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Final Research Integrity Check
 
@@ -84,9 +84,9 @@ python -c "
 from pathlib import Path
 from specify_cli.validators.research import validate_citations, validate_source_register
 
-feature_dir = Path('kitty-specs/$FEATURE_SLUG')
-evidence = feature_dir / 'research' / 'evidence-log.csv'
-sources = feature_dir / 'research' / 'source-register.csv'
+mission_dir = Path('kitty-specs/$MISSION_SLUG')
+evidence = mission_dir / 'research' / 'evidence-log.csv'
+sources = mission_dir / 'research' / 'source-register.csv'
 
 if evidence.exists():
     result = validate_citations(evidence)
@@ -106,18 +106,18 @@ print('✓ Citations validated')
 
 ## What This Command Does
 
-1. **Detects** your current feature branch and worktree status
+1. **Detects** your current mission branch and worktree status
 2. **Runs** pre-flight validation across all worktrees and the target branch
 3. **Determines** merge order based on WP dependencies (workspace-per-WP)
 4. **Forecasts** conflicts during `--dry-run` and flags auto-resolvable status files
 5. **Verifies** working directory is clean (legacy single-worktree)
 6. **Switches** to the target branch (default: `main`)
 7. **Updates** the target branch (`git pull --ff-only`)
-8. **Merges** the feature using your chosen strategy
+8. **Merges** the mission using your chosen strategy
 9. **Auto-resolves** status file conflicts after each WP merge
 10. **Optionally pushes** to origin
-11. **Removes** the feature worktree (if in one)
-12. **Deletes** the feature branch
+11. **Removes** the mission worktree (if in one)
+12. **Deletes** the mission branch
 
 ## Usage
 
@@ -131,7 +131,7 @@ This will:
 
 - Create a merge commit
 - Remove the worktree
-- Delete the feature branch
+- Delete the mission branch
 - Keep changes local (no push)
 
 ### Merge with options
@@ -143,7 +143,7 @@ spec-kitty merge --strategy squash
 # Push to origin after merging
 spec-kitty merge --push
 
-# Keep the feature branch
+# Keep the mission branch
 spec-kitty merge --keep-branch
 
 # Keep the worktree
@@ -155,14 +155,14 @@ spec-kitty merge --target develop
 # See what would happen without doing it
 spec-kitty merge --dry-run
 
-# Run merge from main for a workspace-per-WP feature
-spec-kitty merge --feature 017-feature-slug
+# Run merge from main for a workspace-per-WP mission
+spec-kitty merge --mission 017-mission-slug
 ```
 
 ### Common workflows
 
 ```bash
-# Feature complete, squash and push
+# Mission complete, squash and push
 spec-kitty merge --strategy squash --push
 
 # Keep branch for reference
@@ -176,26 +176,26 @@ spec-kitty merge --target develop --push
 
 ### `merge` (default)
 
-Creates a merge commit preserving all feature branch commits.
+Creates a merge commit preserving all mission branch commits.
 
 ```bash
 spec-kitty merge --strategy merge
 ```
 
 ✅ Preserves full commit history
-✅ Clear feature boundaries in git log
+✅ Clear mission boundaries in git log
 ❌ More commits in main branch
 
 ### `squash`
 
-Squashes all feature commits into a single commit.
+Squashes all mission commits into a single commit.
 
 ```bash
 spec-kitty merge --strategy squash
 ```
 
 ✅ Clean, linear history on main
-✅ Single commit per feature
+✅ Single commit per mission
 ❌ Loses individual commit details
 
 ### `rebase`
@@ -215,12 +215,12 @@ spec-kitty merge --strategy rebase
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--strategy` | Merge strategy: `merge`, `squash`, or `rebase` | `merge` |
-| `--delete-branch` / `--keep-branch` | Delete feature branch after merge | delete |
-| `--remove-worktree` / `--keep-worktree` | Remove feature worktree after merge | remove |
+| `--delete-branch` / `--keep-branch` | Delete mission branch after merge | delete |
+| `--remove-worktree` / `--keep-worktree` | Remove mission worktree after merge | remove |
 | `--push` | Push to origin after merge | no push |
 | `--target` | Target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | off |
-| `--feature` | Feature slug when merging from main branch | none |
+| `--mission` | Mission slug when merging from main branch | none |
 | `--resume` | Resume an interrupted merge | off |
 
 ## Worktree Strategy
@@ -237,7 +237,7 @@ my-project/                              # Main repo (main branch)
 │   ├── 001-auth-system-WP01/           # WP01 worktree
 │   ├── 001-auth-system-WP02/           # WP02 worktree
 │   ├── 001-auth-system-WP03/           # WP03 worktree
-│   └── 002-dashboard-WP01/             # Different feature
+│   └── 002-dashboard-WP01/             # Different mission
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
@@ -255,9 +255,9 @@ my-project/                              # Main repo (main branch)
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
-│   ├── 001-auth-system/      # Feature 1 worktree (single)
-│   ├── 002-dashboard/        # Feature 2 worktree (single)
-│   └── 003-notifications/    # Feature 3 worktree (single)
+│   ├── 001-auth-system/      # Mission 1 worktree (single)
+│   ├── 002-dashboard/        # Mission 2 worktree (single)
+│   └── 003-notifications/    # Mission 3 worktree (single)
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
@@ -266,42 +266,42 @@ my-project/                    # Main repo (main branch)
 ### The Rules
 
 1. **Main branch** stays in the primary repo root
-2. **Feature branches** live in `.worktrees/<feature-slug>/`
-3. **Work on features** happens in their worktrees (isolation)
+2. **Mission branches** live in `.worktrees/<mission-slug>/`
+3. **Work on missions** happens in their worktrees (isolation)
 4. **Run merge from the main repository root** using this command
 5. **Cleanup is automatic** - worktrees removed after merge
 
 ### Why Worktrees?
 
-- ✅ Work on multiple features simultaneously
-- ✅ Each feature has its own sandbox
+- ✅ Work on multiple missions simultaneously
+- ✅ Each mission has its own sandbox
 - ✅ No branch switching in main repo
-- ✅ Easy to compare features
+- ✅ Easy to compare missions
 - ✅ Clean separation of concerns
 
 ### The Flow
 
 ```
 1. /spec-kitty.specify           → Creates branch + worktree
-2. cd .worktrees/<feature>/      → Enter worktree
+2. cd .worktrees/<mission>/      → Enter worktree
 3. /spec-kitty.plan              → Work in isolation
 4. /spec-kitty.tasks
 5. /spec-kitty.implement
 6. /spec-kitty.review
 7. /spec-kitty.accept
 8. cd /path/to/project           → Return to main repository root
-9. /spec-kitty.merge --feature <feature-slug>  → Merge + cleanup worktrees
-10. Ready for next feature
+9. /spec-kitty.merge --mission <mission-slug>  → Merge + cleanup worktrees
+10. Ready for next mission
 ```
 
 ## Error Handling
 
 ### "Already on main branch"
 
-Pass the feature slug explicitly when running from the main repository root:
+Pass the mission slug explicitly when running from the main repository root:
 
 ```bash
-spec-kitty merge --feature <feature-slug>
+spec-kitty merge --mission <mission-slug>
 ```
 
 ### "Working directory has uncommitted changes"
@@ -322,7 +322,7 @@ Your main branch is behind origin:
 ```bash
 git checkout main
 git pull
-git checkout <feature-branch>
+git checkout <mission-branch>
 spec-kitty merge
 ```
 
@@ -335,8 +335,8 @@ Resolve conflicts manually:
 git add <resolved-files>
 git commit
 # Then complete cleanup manually:
-git worktree remove .worktrees/<feature>
-git branch -d <feature-branch>
+git worktree remove .worktrees/<mission>
+git branch -d <mission-branch>
 ```
 
 ## Safety Features
@@ -349,7 +349,7 @@ git branch -d <feature-branch>
 
 ## Examples
 
-### Complete feature and push
+### Complete mission and push
 
 ```bash
 cd .worktrees/001-auth-system
@@ -379,10 +379,10 @@ spec-kitty merge --dry-run
 
 After a successful merge, you're back on the main branch with:
 
-- ✅ Feature code integrated
+- ✅ Mission code integrated
 - ✅ Worktree removed (if it existed)
-- ✅ Feature branch deleted (unless `--keep-branch`)
-- ✅ Ready to start your next feature!
+- ✅ Mission branch deleted (unless `--keep-branch`)
+- ✅ Ready to start your next mission!
 
 ## Integration with Accept
 
@@ -406,8 +406,8 @@ Or combine conceptually:
 /spec-kitty.merge --strategy squash --push
 ```
 
-The `/spec-kitty.accept` command **verifies** your feature is complete.
-The `/spec-kitty.merge` command **integrates** your feature into main.
+The `/spec-kitty.accept` command **verifies** your mission is complete.
+The `/spec-kitty.merge` command **integrates** your mission into main.
 
 Together they complete the workflow:
 
