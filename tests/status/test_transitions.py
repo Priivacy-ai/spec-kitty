@@ -68,102 +68,225 @@ class TestIsTerminal:
         assert is_terminal("doing") is False
 
 
-class TestLegalTransitions:
+# ── Shared evidence helper ───────────────────────────────────────────────────
+
+_VALID_EVIDENCE = DoneEvidence(
+    review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"),
+)
+
+
+# ── Per-source-lane transition tests ─────────────────────────────────────────
+#
+# Each source lane has two parametrized tests:
+#   • test_allowed  — every legal target with the kwargs that satisfy guards
+#   • test_illegal  — every illegal target (including self-transitions)
+
+
+class TestTransitionsFromPlanned:
     @pytest.mark.parametrize(
-        "from_lane,to_lane,kwargs",
+        "to_lane,kwargs",
         [
-            ("planned", "claimed", {"actor": "agent-1"}),
-            ("claimed", "in_progress", {"workspace_context": "worktree:/tmp/wt1"}),
-            (
-                "in_progress",
-                "for_review",
-                {
-                    "subtasks_complete": True,
-                    "implementation_evidence_present": True,
-                },
-            ),
-            (
-                "for_review",
-                "in_review",
-                {"actor": "reviewer-1"},
-            ),
-            (
-                "in_review",
-                "approved",
-                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
-            ),
-            (
-                "in_progress",
-                "approved",
-                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
-            ),
-            (
-                "approved",
-                "done",
-                {"evidence": DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref"))},
-            ),
-            ("for_review", "in_progress", {"review_ref": "feedback-123"}),
-            ("for_review", "planned", {"review_ref": "feedback-456"}),
-            ("in_review", "in_progress", {"review_ref": "feedback-ir1"}),
-            ("in_review", "planned", {"review_ref": "feedback-ir2"}),
-            ("approved", "in_progress", {"review_ref": "feedback-789"}),
-            ("approved", "planned", {"review_ref": "feedback-999"}),
-            ("in_progress", "planned", {"reason": "reassigning"}),
-            ("planned", "blocked", {}),
-            ("claimed", "blocked", {}),
-            ("in_progress", "blocked", {}),
-            ("for_review", "blocked", {}),
-            ("in_review", "blocked", {}),
-            ("approved", "blocked", {}),
-            ("blocked", "in_progress", {}),
-            ("planned", "canceled", {}),
-            ("claimed", "canceled", {}),
-            ("in_progress", "canceled", {}),
-            ("for_review", "canceled", {}),
-            ("in_review", "canceled", {}),
-            ("approved", "canceled", {}),
-            ("blocked", "canceled", {}),
+            ("claimed", {"actor": "agent-1"}),
+            ("blocked", {}),
+            ("canceled", {}),
         ],
     )
-    def test_legal_transition_accepted(
-        self,
-        from_lane: str,
-        to_lane: str,
-        kwargs: dict,
-    ) -> None:
-        ok, error = validate_transition(from_lane, to_lane, **kwargs)
-        assert ok is True, f"Expected ok for {from_lane}->{to_lane}: {error}"
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("planned", to_lane, **kwargs)
+        assert ok is True, f"planned->{to_lane}: {error}"
         assert error is None
 
-
-class TestIllegalTransitions:
     @pytest.mark.parametrize(
-        "from_lane,to_lane",
+        "to_lane",
+        ["planned", "in_progress", "for_review", "in_review", "approved", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("planned", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromClaimed:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
         [
-            ("planned", "done"),
-            ("planned", "in_progress"),
-            ("planned", "for_review"),
-            ("planned", "approved"),
-            ("claimed", "for_review"),
-            ("claimed", "approved"),
-            ("claimed", "done"),
-            ("claimed", "planned"),
-            ("for_review", "done"),
-            ("for_review", "approved"),
-            ("done", "planned"),
-            ("done", "in_progress"),
-            ("done", "for_review"),
-            ("done", "approved"),
-            ("canceled", "planned"),
-            ("canceled", "in_progress"),
-            ("blocked", "planned"),
-            ("blocked", "for_review"),
-            ("blocked", "approved"),
-            ("blocked", "done"),
+            ("in_progress", {"workspace_context": "worktree:/tmp/wt1"}),
+            ("blocked", {}),
+            ("canceled", {}),
         ],
     )
-    def test_illegal_transition_rejected(self, from_lane: str, to_lane: str) -> None:
-        ok, error = validate_transition(from_lane, to_lane)
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("claimed", to_lane, **kwargs)
+        assert ok is True, f"claimed->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["claimed", "planned", "for_review", "in_review", "approved", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("claimed", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromInProgress:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
+        [
+            ("for_review", {"subtasks_complete": True, "implementation_evidence_present": True}),
+            ("approved", {"evidence": _VALID_EVIDENCE}),
+            ("planned", {"reason": "reassigning"}),
+            ("blocked", {}),
+            ("canceled", {}),
+        ],
+    )
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("in_progress", to_lane, **kwargs)
+        assert ok is True, f"in_progress->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["in_progress", "claimed", "in_review", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("in_progress", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromForReview:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
+        [
+            ("in_review", {"actor": "reviewer-1"}),
+            ("in_progress", {"review_ref": "feedback-123"}),
+            ("planned", {"review_ref": "feedback-456"}),
+            ("blocked", {}),
+            ("canceled", {}),
+        ],
+    )
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("for_review", to_lane, **kwargs)
+        assert ok is True, f"for_review->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["for_review", "claimed", "approved", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("for_review", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromInReview:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
+        [
+            ("approved", {"evidence": _VALID_EVIDENCE}),
+            ("in_progress", {"review_ref": "feedback-ir1"}),
+            ("planned", {"review_ref": "feedback-ir2"}),
+            ("blocked", {}),
+            ("canceled", {}),
+        ],
+    )
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("in_review", to_lane, **kwargs)
+        assert ok is True, f"in_review->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["in_review", "claimed", "for_review", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("in_review", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromApproved:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
+        [
+            ("done", {"evidence": _VALID_EVIDENCE}),
+            ("in_progress", {"review_ref": "feedback-789"}),
+            ("planned", {"review_ref": "feedback-999"}),
+            ("blocked", {}),
+            ("canceled", {}),
+        ],
+    )
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("approved", to_lane, **kwargs)
+        assert ok is True, f"approved->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["approved", "claimed", "for_review", "in_review"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("approved", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromDone:
+    """done is terminal — no legal transitions out."""
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["done", "planned", "claimed", "in_progress", "for_review", "in_review", "approved", "blocked", "canceled"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("done", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromBlocked:
+    @pytest.mark.parametrize(
+        "to_lane,kwargs",
+        [
+            ("in_progress", {}),
+            ("canceled", {}),
+        ],
+    )
+    def test_allowed(self, to_lane: str, kwargs: dict) -> None:
+        ok, error = validate_transition("blocked", to_lane, **kwargs)
+        assert ok is True, f"blocked->{to_lane}: {error}"
+        assert error is None
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["blocked", "planned", "claimed", "for_review", "in_review", "approved", "done"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("blocked", to_lane)
+        assert ok is False
+        assert error is not None
+        assert "Illegal transition" in error
+
+
+class TestTransitionsFromCanceled:
+    """canceled is terminal — no legal transitions out."""
+
+    @pytest.mark.parametrize(
+        "to_lane",
+        ["canceled", "planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked"],
+    )
+    def test_illegal(self, to_lane: str) -> None:
+        ok, error = validate_transition("canceled", to_lane)
         assert ok is False
         assert error is not None
         assert "Illegal transition" in error
