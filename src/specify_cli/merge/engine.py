@@ -158,18 +158,38 @@ def _merge_branch(
 
 
 def _checkout_target(target_branch: str, workspace_path: Path) -> None:
-    """Checkout target branch in the workspace and fast-forward if possible."""
-    # Workspace was created via ``git worktree add --detach``, so checkout
-    # the target branch by name first.
-    _run_git(["checkout", target_branch], workspace_path)
-    # Try fast-forward pull; skip gracefully if no remote
+    """Position the workspace at the target branch tip without binding it.
+
+    The workspace was created via ``git worktree add --detach``, so we
+    cannot ``git checkout <branch>`` — that would fail with
+    "fatal: '<branch>' is already used by worktree ..." when the main
+    repo has the same branch checked out.
+
+    Instead we reset the detached HEAD to the branch tip.
+    """
+    # Resolve the target branch tip
+    tip_result = _run_git(
+        ["rev-parse", f"refs/heads/{target_branch}"],
+        workspace_path,
+    )
+    target_tip = tip_result.stdout.strip()
+    # Reset detached HEAD to that tip
+    _run_git(["reset", "--hard", target_tip], workspace_path)
+    # Try fast-forward fetch; skip gracefully if no remote
     ff_result = _run_git(
-        ["pull", "--ff-only"],
+        ["fetch", "origin", target_branch],
         workspace_path,
         check=False,
     )
-    if ff_result.returncode != 0:
-        logger.debug("Could not fast-forward %s: %s", target_branch, ff_result.stderr.strip())
+    if ff_result.returncode == 0:
+        # Update to remote tip if available
+        remote_tip = _run_git(
+            ["rev-parse", f"origin/{target_branch}"],
+            workspace_path,
+            check=False,
+        )
+        if remote_tip.returncode == 0:
+            _run_git(["reset", "--hard", remote_tip.stdout.strip()], workspace_path)
 
 
 # ---------------------------------------------------------------------------

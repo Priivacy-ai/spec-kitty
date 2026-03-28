@@ -66,8 +66,9 @@ _BACKUP_DIR_NAME = ".migration-backup"
 
 
 def _create_backup(repo_root: Path) -> Path | None:
-    """Copy .kittify/ into .kittify/.migration-backup/.
+    """Back up .kittify/, kitty-specs/, and .gitignore into .kittify/.migration-backup/.
 
+    The migration mutates all three locations, so rollback must cover all of them.
     Returns the backup directory path, or None if backup failed.
     """
     kittify = repo_root / ".kittify"
@@ -83,13 +84,24 @@ def _create_backup(repo_root: Path) -> Path | None:
             logger.warning("Could not remove stale backup: %s", exc)
 
     try:
-        # Copy everything except the backup dir itself to avoid recursion
+        # 1. Back up .kittify/ (except the backup dir itself)
         shutil.copytree(
             kittify,
             backup_dir,
             ignore=shutil.ignore_patterns(_BACKUP_DIR_NAME),
         )
-        logger.info("Backup created at %s", backup_dir)
+
+        # 2. Back up kitty-specs/ (migration modifies WP frontmatter and event logs)
+        kitty_specs = repo_root / "kitty-specs"
+        if kitty_specs.is_dir():
+            shutil.copytree(kitty_specs, backup_dir / "kitty-specs-backup")
+
+        # 3. Back up .gitignore (migration modifies it)
+        gitignore = repo_root / ".gitignore"
+        if gitignore.is_file():
+            shutil.copy2(gitignore, backup_dir / "gitignore-backup")
+
+        logger.info("Backup created at %s (includes kitty-specs/ and .gitignore)", backup_dir)
         return backup_dir
     except OSError as exc:
         logger.error("Failed to create backup: %s", exc)
@@ -97,11 +109,26 @@ def _create_backup(repo_root: Path) -> Path | None:
 
 
 def _restore_backup(repo_root: Path, backup_dir: Path) -> None:
-    """Restore .kittify/ from backup_dir (used on rollback)."""
+    """Restore .kittify/, kitty-specs/, and .gitignore from backup (used on rollback)."""
     kittify = repo_root / ".kittify"
     if not backup_dir.exists():
         logger.error("Backup directory %s does not exist — cannot restore", backup_dir)
         return
+
+    # Restore kitty-specs/ if backed up
+    kitty_specs_backup = backup_dir / "kitty-specs-backup"
+    if kitty_specs_backup.is_dir():
+        kitty_specs = repo_root / "kitty-specs"
+        if kitty_specs.is_dir():
+            shutil.rmtree(kitty_specs)
+        shutil.copytree(kitty_specs_backup, kitty_specs)
+        logger.info("Restored kitty-specs/ from backup")
+
+    # Restore .gitignore if backed up
+    gitignore_backup = backup_dir / "gitignore-backup"
+    if gitignore_backup.is_file():
+        shutil.copy2(gitignore_backup, repo_root / ".gitignore")
+        logger.info("Restored .gitignore from backup")
 
     # Remove current .kittify content (except the backup itself)
     for item in kittify.iterdir():

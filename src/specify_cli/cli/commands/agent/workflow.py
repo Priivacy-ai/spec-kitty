@@ -383,6 +383,7 @@ def implement(
             _wf_state = _wf_snapshot.work_packages.get(normalized_wp_id) if _wf_snapshot else None
             current_lane = str(_wf_state.get("lane", "planned")) if _wf_state else "planned"
         except Exception:
+            # Event log missing or unreadable — default to planned (safe: requires --agent)
             current_lane = "planned"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
@@ -463,6 +464,7 @@ def implement(
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
 
         # Check review feedback from canonical event log (review_ref stored in events)
+        # Also check frontmatter review_feedback/review_status as fallback
         feature_dir = repo_root / "kitty-specs" / feature_slug
         has_feedback = False
         review_feedback_ref = None
@@ -483,6 +485,16 @@ def implement(
                     break
         except Exception:
             pass
+
+        # Fallback: check frontmatter review metadata (handles transition period)
+        if not has_feedback:
+            fm_review_status = extract_scalar(wp.frontmatter, "review_status")
+            fm_review_feedback = extract_scalar(wp.frontmatter, "review_feedback")
+            if fm_review_status and str(fm_review_status) == "has_feedback":
+                has_feedback = True
+                if fm_review_feedback and str(fm_review_feedback).startswith("feedback://"):
+                    review_feedback_ref = str(fm_review_feedback)
+
         if review_feedback_ref:
             review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
 
@@ -880,9 +892,19 @@ def review(
             _rv_events = _rv_read_events(feature_dir)
             _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
             _rv_state = _rv_snapshot.work_packages.get(normalized_wp_id) if _rv_snapshot else None
-            current_lane_raw = str(_rv_state.get("lane", "for_review")) if _rv_state else "for_review"
-        except Exception:
-            current_lane_raw = "for_review"
+            if _rv_state is None:
+                # No event log state for this WP — cannot determine lane, fail closed
+                print(f"Error: No canonical status found for {normalized_wp_id}.")
+                print("The event log is missing or does not contain events for this WP.")
+                print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
+                raise typer.Exit(1)
+            current_lane_raw = str(_rv_state.get("lane", "planned"))
+        except typer.Exit:
+            raise
+        except Exception as exc:
+            print(f"Error: Cannot read canonical status for {normalized_wp_id}: {exc}")
+            print("Fix the event log or use move-task to set the correct lane.")
+            raise typer.Exit(1)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
