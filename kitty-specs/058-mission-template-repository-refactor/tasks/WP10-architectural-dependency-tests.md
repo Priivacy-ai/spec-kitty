@@ -2,7 +2,7 @@
 work_package_id: WP10
 title: "Architectural Dependency Tests (PyTestArch)"
 lane: planned
-dependencies: [WP03]
+dependencies: [WP03, WP11]
 requirement_refs:
 - FR-018
 - ADR 2026-03-27-1

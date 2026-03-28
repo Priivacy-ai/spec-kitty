@@ -2,7 +2,7 @@
 work_package_id: WP04
 title: Comprehensive Tests
 lane: planned
-dependencies: [WP01, WP02, WP03]
+dependencies: [WP01, WP02, WP03, WP11]
 requirement_refs:
 - NFR-002
 planning_base_branch: feature/agent-profile-implementation
