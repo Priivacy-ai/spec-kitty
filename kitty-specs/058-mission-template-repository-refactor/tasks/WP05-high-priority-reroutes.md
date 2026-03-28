@@ -19,7 +19,7 @@ subtasks:
 - T022
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: ''
+agent: "opencode"
 shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
@@ -236,3 +236,4 @@ grep -rl "context\|catalog\|show_origin" tests/ --include="*.py"
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T08:56:30Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
