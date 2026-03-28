@@ -18,8 +18,8 @@ from specify_cli.status.models import (
 pytestmark = pytest.mark.fast
 
 class TestLaneEnum:
-    def test_lane_enum_has_eight_values(self) -> None:
-        assert len(Lane) == 8
+    def test_lane_enum_has_nine_values(self) -> None:
+        assert len(Lane) == 9
 
     def test_lane_enum_string_values(self) -> None:
         expected = {
@@ -27,6 +27,7 @@ class TestLaneEnum:
             "claimed",
             "in_progress",
             "for_review",
+            "in_review",
             "approved",
             "done",
             "blocked",
@@ -266,6 +267,7 @@ class TestStatusSnapshot:
             "claimed",
             "in_progress",
             "for_review",
+            "in_review",
             "approved",
             "done",
             "blocked",
@@ -292,6 +294,7 @@ class TestStatusSnapshot:
                 "claimed": 0,
                 "in_progress": 0,
                 "for_review": 0,
+                "in_review": 0,
                 "approved": 0,
                 "done": 0,
                 "blocked": 0,

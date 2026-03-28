@@ -364,6 +364,7 @@ body {
 .status-card.total { border-left-color: var(--baby-blue); }
 .status-card.progress { border-left-color: var(--sunny-yellow); }
 .status-card.review { border-left-color: var(--lavender); }
+.status-card.in-review { border-left-color: #5b9bd5; }
 .status-card.approved { border-left-color: var(--soft-peach); }
 .status-card.completed { border-left-color: var(--grassy-green); }
 .status-card.agents { border-left-color: var(--soft-peach); }
@@ -427,7 +428,7 @@ body {
 /* Kanban board styles */
 .kanban-board {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 20px;
 }
 
@@ -467,6 +468,9 @@ body {
 .lane.for_review { border-top-color: var(--lavender); }
 .lane.for_review .lane-header { border-color: var(--lavender); color: var(--lavender); }
 
+.lane.in_review { border-top-color: #5b9bd5; }
+.lane.in_review .lane-header { border-color: #5b9bd5; color: #5b9bd5; }
+
 .lane.approved { border-top-color: var(--soft-peach); }
 .lane.approved .lane-header { border-color: var(--soft-peach); color: #c07b2a; }
 
@@ -492,6 +496,7 @@ body {
 .lane.planned .card { border-left-color: var(--baby-blue); }
 .lane.doing .card { border-left-color: var(--sunny-yellow); }
 .lane.for_review .card { border-left-color: var(--lavender); }
+.lane.in_review .card { border-left-color: #5b9bd5; }
 .lane.approved .card { border-left-color: var(--soft-peach); }
 .lane.done .card { border-left-color: var(--grassy-green); }
 
@@ -543,6 +548,11 @@ body {
 .badge.task-type {
     background: #e0f2fe;
     color: #0369a1;
+}
+
+.badge.role {
+    background: #dbeafe;
+    color: #1e40af;
 }
 
 .empty-state {

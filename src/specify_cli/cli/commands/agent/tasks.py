@@ -1083,7 +1083,7 @@ def move_task(
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = ["planned", "claimed", "in_progress", "for_review", "approved", "done"]
+            forward = ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done"]
             if current in forward and target in forward:
                 current_idx = forward.index(current)
                 target_idx = forward.index(target)
@@ -1192,10 +1192,15 @@ def move_task(
                     review_feedback_pointer,
                 )
 
+            # Record review role when entering in_review via move-task.
+            if target_lane == "in_review":
+                updated_front = set_scalar(updated_front, "role", "reviewer")
+
             # Record approval metadata when review passes.
             if target_lane in ("approved", "done"):
                 effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
                 updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(updated_front, "approved_by", effective_reviewer)
                 updated_front = set_scalar(updated_front, "review_status", "approved")
 
             # Build history entry
