@@ -43,6 +43,7 @@ _ALLOWED_FILES: frozenset[str] = frozenset({
 # Directories whose contents are excluded from the sweep.
 _EXCLUDED_DIRS: frozenset[str] = frozenset({
     "migrations",
+    "migration",  # Legacy backfill/migration scripts (direct writes are intentional)
 })
 
 

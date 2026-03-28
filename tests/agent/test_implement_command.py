@@ -610,8 +610,7 @@ class TestVCSAbstraction:
                         call_kwargs = mock_vcs.create_workspace.call_args[1]
                         assert call_kwargs["workspace_name"] == "015-feature-WP01"
 
-                        assert "sparse_exclude" in call_kwargs
-                        assert "kitty-specs/" in call_kwargs["sparse_exclude"]
+                        # sparse_exclude removed: sparse-checkout feature was removed
 
     def test_vcs_locking_in_meta_json(self, tmp_path):
         """Test VCS is stored and locked in meta.json on first workspace creation."""

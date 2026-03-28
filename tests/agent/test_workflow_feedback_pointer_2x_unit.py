@@ -178,7 +178,7 @@ def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workfl
     feedback_file.unlink()
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"])
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
@@ -199,7 +199,7 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     )
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"])
 
     assert result.exit_code == 0, result.stdout
     assert "Has review feedback - but no review_feedback reference is set" in result.stdout
@@ -211,16 +211,37 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
 
 
 def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_repo: tuple[Path, str, Path]):
+    import json as _json
+
     repo, feedback_pointer, _feedback_file = workflow_repo
     _write_wp(
         _wp_path(repo),
-        lane="doing",
+        lane="for_review",
         review_status="has_feedback",
         review_feedback=feedback_pointer,
     )
 
+    # Seed event log so review command can read lane=for_review from canonical source
+    feature_slug = "001-test-feature"
+    events_file = repo / "kitty-specs" / feature_slug / "status.events.jsonl"
+    _seed_event = {
+        "actor": "test-agent",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01JTEST00000000000000000002",
+        "evidence": None,
+        "execution_mode": "direct_repo",
+        "feature_slug": feature_slug,
+        "force": False,
+        "from_lane": "planned",
+        "reason": None,
+        "review_ref": None,
+        "to_lane": "for_review",
+        "wp_id": "WP01",
+    }
+    events_file.write_text(_json.dumps(_seed_event, sort_keys=True) + "\n", encoding="utf-8")
+
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", "001-test-feature", "--agent", "reviewer"])
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"

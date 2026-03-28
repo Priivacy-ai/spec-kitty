@@ -116,7 +116,7 @@ def test_implement_respects_current_branch(tmp_path):
     assert get_current_branch(repo) == "feature/new-auth"
 
     # Run implement command
-    result = run_cli(repo, "implement", "WP01")
+    result = run_cli(repo, "implement", "WP01", "--feature", "001-test-feature")
 
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
@@ -160,7 +160,7 @@ def test_worktree_base_branch_is_current(tmp_path):
     subprocess.run(["git", "commit", "-m", "Develop commit"], cwd=repo, check=True, capture_output=True)
 
     # Run implement command from develop
-    result = run_cli(repo, "implement", "WP01")
+    result = run_cli(repo, "implement", "WP01", "--feature", "002-test-feature")
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Check workspace context to verify base branch
@@ -265,7 +265,7 @@ def test_notification_when_current_differs_from_target(tmp_path):
     subprocess.run(["git", "checkout", "-b", "develop"], cwd=repo, check=True, capture_output=True)
 
     # Run implement command
-    result = run_cli(repo, "implement", "WP01")
+    result = run_cli(repo, "implement", "WP01", "--feature", "004-test-feature")
 
     # Should succeed (not error)
     assert result.returncode == 0, f"implement failed: {result.stderr}"

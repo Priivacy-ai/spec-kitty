@@ -105,7 +105,9 @@ def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_pa
     monkeypatch.setattr(diagnostics.subprocess, "run", fake_run)
     monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
-    result = diagnostics.run_diagnostics(project_dir)
+    # Pass feature_dir explicitly (auto-detection removed; must specify feature context)
+    feature_dir = project_dir / "kitty-specs" / "004-modular-code-refactoring"
+    result = diagnostics.run_diagnostics(project_dir, feature_dir=feature_dir)
 
     assert result["git_branch"] == "feature/testing"
     assert result["worktrees_exist"] is True
@@ -131,7 +133,9 @@ def test_run_diagnostics_records_git_branch_errors(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(diagnostics.subprocess, "run", failing_run)
     monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _: "main")
 
-    result = diagnostics.run_diagnostics(project_dir)
+    # Pass feature_dir explicitly (auto-detection removed; must specify feature context)
+    feature_dir = project_dir / "kitty-specs" / "004-modular-code-refactoring"
+    result = diagnostics.run_diagnostics(project_dir, feature_dir=feature_dir)
 
     assert result["git_branch"] is None
     assert "Could not detect git branch" in result["issues"]

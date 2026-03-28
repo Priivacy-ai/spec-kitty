@@ -926,6 +926,26 @@ Test content.
 """
     wp_path.write_text(task_content, encoding="utf-8")
 
+    # Seed event log so review command can read lane=for_review from canonical source
+    import json as _json
+
+    events_file = feature_dir / "status.events.jsonl"
+    _seed_event = {
+        "actor": "test",
+        "at": "2025-01-01T00:00:00+00:00",
+        "event_id": "01JTEST00000000000000000003",
+        "evidence": None,
+        "execution_mode": "direct_repo",
+        "feature_slug": feature_slug,
+        "force": False,
+        "from_lane": "planned",
+        "reason": None,
+        "review_ref": None,
+        "to_lane": "for_review",
+        "wp_id": "WP01",
+    }
+    events_file.write_text(_json.dumps(_seed_event, sort_keys=True) + "\n", encoding="utf-8")
+
     lock_state = {"held": False}
 
     @contextmanager
