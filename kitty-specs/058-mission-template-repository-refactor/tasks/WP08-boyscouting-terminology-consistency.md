@@ -25,7 +25,7 @@ subtasks:
 - T055
 phase: Boyscouting
 assignee: ''
-agent: ''
+agent: "opencode"
 shell_pid: "113162"
 review_status: ''
 reviewed_by: ''
@@ -307,3 +307,4 @@ spec-kitty agent mission create-feature --help  # hidden alias, should still wor
 
 - 2026-03-27T05:00:00Z -- system -- lane=planned -- Prompt added during /spec-kitty.analyze review.
 - 2026-03-28T00:00:00Z -- agent -- lane=planned -- Added subtask T055: rename "feature" to "mission" in detection error messages, status hints, and SPECIFY_FEATURE env var references. Updated objectives, risks, and review guidance to reflect expanded scope.
+- 2026-03-28T12:45:41Z – opencode – shell_pid=113162 – lane=doing – Assigned agent via workflow command
