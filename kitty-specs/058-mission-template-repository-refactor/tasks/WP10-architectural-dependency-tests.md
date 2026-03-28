@@ -17,6 +17,7 @@ subtasks:
 phase: Phase 1 - New API
 assignee: ''
 agent: ''
+agent_profile: architect
 shell_pid: ''
 review_status: ''
 reviewed_by: ''

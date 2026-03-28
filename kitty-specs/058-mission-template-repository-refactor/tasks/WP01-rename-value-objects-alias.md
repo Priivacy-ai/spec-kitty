@@ -28,6 +28,7 @@ subtasks:
 phase: Phase 1 - New API Foundation
 assignee: ''
 agent: claude
+agent_profile: implementer
 shell_pid: '9762'
 review_status: ''
 reviewed_by: ''

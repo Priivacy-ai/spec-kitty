@@ -22,6 +22,7 @@ subtasks:
 phase: Boyscouting
 assignee: ''
 agent: ''
+agent_profile: implementer
 shell_pid: ''
 review_status: ''
 reviewed_by: ''
