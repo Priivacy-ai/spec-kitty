@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Comprehensive Tests
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01, WP02, WP03, WP11]
 requirement_refs:
 - NFR-002
@@ -16,8 +16,8 @@ subtasks:
 - T018
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: opencode
-shell_pid: '26986'
+agent: "opencode"
+shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
 history:
@@ -338,3 +338,4 @@ Target: 90%+ line coverage on `repository.py`.
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
 - 2026-03-28T08:46:06Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T08:51:21Z – opencode – shell_pid=26986 – lane=for_review – 78 new tests covering all public API methods, value objects, enumeration, backward compat, and edge cases. 94% line coverage on repository.py (target 90%+). Full doctrine suite: 948 passed, 3 pre-existing failures (agent profile tests unrelated to WP04).
+- 2026-03-28T08:53:34Z – opencode – shell_pid=26986 – lane=doing – Started review via workflow command
