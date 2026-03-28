@@ -496,3 +496,8 @@
 | T045 | Create tests/architectural/conftest.py fixtures (evaluable, landscape) | WP10 | P0 | No |
 | T046 | Create tests/architectural/test_layer_rules.py (3 invariants) | WP10 | P0 | No |
 | T047 | Validate architectural tests pass; smoke-test negative case | WP10 | P0 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
