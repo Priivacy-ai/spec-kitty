@@ -329,12 +329,27 @@ def feature_state(
             }
         )
 
+    summary_keys = [
+        "planned",
+        "claimed",
+        "in_progress",
+        "for_review",
+        "approved",
+        "done",
+        "blocked",
+        "canceled",
+    ]
+    summary = {lane: 0 for lane in summary_keys}
+    for wp in work_packages:
+        lane = wp["lane"] or "planned"
+        summary[lane] = summary.get(lane, 0) + 1
+
     envelope = make_envelope(
         command="feature-state",
         success=True,
         data={
             "feature_slug": feature,
-            "summary": snapshot.summary,
+            "summary": summary,
             "work_packages": work_packages,
         },
     )

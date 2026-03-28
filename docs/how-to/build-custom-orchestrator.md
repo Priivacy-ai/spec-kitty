@@ -11,9 +11,10 @@ Use this guide to implement your own orchestration strategy while keeping `spec-
 
 Your orchestrator must:
 
-- Call only `spec-kitty orchestrator-api ...` subcommands for workflow state (output is always JSON).
+- Use `spec-kitty orchestrator-api ...` for workflow state, work discovery, review handoff, and completion recording.
 - Treat `spec-kitty` as source of truth for lane state and dependencies.
 - Never write `kitty-specs/<feature>/tasks/*.md` lanes directly.
+- Reconcile task checkboxes separately with `spec-kitty agent tasks mark-status ...` until a dedicated orchestrator-api subcommand exists for subtask mutation.
 
 ## Required Flow
 
@@ -26,12 +27,15 @@ Your orchestrator must:
 ### 1. Check compatibility
 
 ```bash
-spec-kitty orchestrator-api contract-version```
+spec-kitty orchestrator-api contract-version
+```
 
 ### 2. Discover work
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug>spec-kitty orchestrator-api list-ready --feature <slug>```
+spec-kitty orchestrator-api feature-state --feature <slug>
+spec-kitty orchestrator-api list-ready --feature <slug>
+```
 
 ### 3. Start implementation
 
@@ -51,20 +55,28 @@ Use returned `workspace_path` and `prompt_path` to run your agent process.
 # implementation complete
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to for_review \
-  --actor my-orchestrator --policy '<json>'
+  --actor my-orchestrator --policy '<json>' \
+  --subtasks-complete --implementation-evidence-present
+# reconcile subtasks after handoff succeeds
+spec-kitty agent tasks mark-status T001 T002 --status done --feature <slug>
 # review approved
 spec-kitty orchestrator-api transition \
   --feature <slug> --wp WP01 --to done \
-  --actor reviewer-bot
+  --actor reviewer-bot \
+  --review-ref review/WP01/attempt-1 \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
 # review rejected -> rework
 spec-kitty orchestrator-api start-review \
   --feature <slug> --wp WP01 --actor my-orchestrator \
-  --policy '<json>' --review-ref review/WP01/attempt-2```
+  --policy '<json>' --review-ref review/WP01/attempt-2
+```
 
 ### 5. Finalize
 
 ```bash
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestratorspec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge```
+spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestrator
+spec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge
+```
 
 ## Policy JSON Template
 
