@@ -186,10 +186,10 @@
 
 ### Included Subtasks
 
-- [ ] T019 Reroute `src/constitution/context.py` -- replace `resolve_doctrine_root() / "missions"` (line 225), `load_action_index()` call (line 229), `guidelines_path` construction (line 249) with `MissionTemplateRepository.default()` API calls
-- [ ] T020 Reroute `src/constitution/catalog.py` -- replace `_load_template_sets_with_presence()` (lines 256-267) manual missions_root + directory iteration with `MissionTemplateRepository.default().list_missions()` + `get_mission_config()`
-- [ ] T021 Reroute `src/specify_cli/constitution/catalog.py` -- replace `_load_template_sets()` (lines 107-116) same pattern as T020
-- [ ] T022 Reroute `src/specify_cli/runtime/show_origin.py` -- replace `_discover_mission_names()` (lines 68-69), `_discover_command_names()` (lines 85-86), `_discover_template_names()` (lines 103-104) with repository methods
+- [x] T019 Reroute `src/constitution/context.py` -- replace `resolve_doctrine_root() / "missions"` (line 225), `load_action_index()` call (line 229), `guidelines_path` construction (line 249) with `MissionTemplateRepository.default()` API calls
+- [x] T020 Reroute `src/constitution/catalog.py` -- replace `_load_template_sets_with_presence()` (lines 256-267) manual missions_root + directory iteration with `MissionTemplateRepository.default().list_missions()` + `get_mission_config()`
+- [x] T021 Reroute `src/specify_cli/constitution/catalog.py` -- replace `_load_template_sets()` (lines 107-116) same pattern as T020
+- [x] T022 Reroute `src/specify_cli/runtime/show_origin.py` -- replace `_discover_mission_names()` (lines 68-69), `_discover_command_names()` (lines 85-86), `_discover_template_names()` (lines 103-104) with repository methods
 
 ### Implementation Notes
 
