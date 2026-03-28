@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: MEDIUM Priority Consumer Reroutes
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 requirement_refs:
@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: 84df7d9544e1810e322cb27d88724b5560ac6b57
+created_at: '2026-03-28T10:03:08.405033+00:00'
 subtasks:
 - T023
 - T024
@@ -17,8 +20,7 @@ subtasks:
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
 agent: ''
-agent_profile: implementer
-shell_pid: ''
+shell_pid: "84896"
 review_status: ''
 reviewed_by: ''
 history:
@@ -27,6 +29,7 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP06 – MEDIUM Priority Consumer Reroutes
