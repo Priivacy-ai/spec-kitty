@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -197,91 +196,6 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
-def _ensure_sparse_checkout(worktree_path: Path) -> bool:
-    """Ensure worktree has sparse-checkout configured to exclude kitty-specs/.
-
-    This function runs on EVERY implement/review command, not just when creating
-    new worktrees. This fixes legacy worktrees that were created without
-    sparse-checkout or where the setup failed silently.
-
-    Args:
-        worktree_path: Path to the worktree directory
-
-    Returns:
-        True if sparse-checkout is configured correctly, False if not a worktree
-    """
-    # For worktrees, .git is a file pointing to the real git dir
-    git_path = worktree_path / ".git"
-    if not git_path.is_file():
-        return False  # Not a worktree (or doesn't exist yet)
-
-    # Get actual git dir path from the .git file
-    try:
-        git_content = git_path.read_text().strip()
-    except OSError:
-        return False
-
-    if not git_content.startswith("gitdir:"):
-        return False
-
-    git_dir = Path(git_content.split(":", 1)[1].strip())
-    if not git_dir.exists():
-        return False
-
-    sparse_checkout_file = git_dir / "info" / "sparse-checkout"
-    expected_content = "/*\n!/kitty-specs/\n!/kitty-specs/**\n"
-
-    # Check if sparse-checkout needs to be set up or fixed
-    needs_setup = False
-    if not sparse_checkout_file.exists():
-        needs_setup = True
-    else:
-        try:
-            current_content = sparse_checkout_file.read_text()
-            if current_content != expected_content:
-                needs_setup = True
-        except OSError:
-            needs_setup = True
-
-    if needs_setup:
-        # Configure sparse-checkout
-        subprocess.run(
-            ["git", "config", "core.sparseCheckout", "true"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-        subprocess.run(
-            ["git", "config", "core.sparseCheckoutCone", "false"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-        sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-        sparse_checkout_file.write_text(expected_content, encoding="utf-8")
-        subprocess.run(
-            ["git", "read-tree", "-mu", "HEAD"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-
-    # Ensure .git/info/exclude blocks the entire planning tree in WP worktrees.
-    exclude_file = git_dir / "info" / "exclude"
-    exclude_file.parent.mkdir(parents=True, exist_ok=True)
-    existing_exclude = ""
-    if exclude_file.exists():
-        try:
-            existing_exclude = exclude_file.read_text(encoding="utf-8")
-        except OSError:
-            existing_exclude = ""
-    if "kitty-specs/" not in existing_exclude:
-        entry = "# Excluded via sparse-checkout\nkitty-specs/\n"
-        updated = existing_exclude.rstrip() + "\n" + entry
-        exclude_file.write_text(updated.lstrip(), encoding="utf-8")
-
-    # Sparse-checkout metadata can be correct while files still remain on disk.
-    # Remove kitty-specs/ physically so worktree agents cannot touch planning files.
-    orphan_kitty = worktree_path / "kitty-specs"
-    if orphan_kitty.exists():
-        shutil.rmtree(orphan_kitty)
-        print("✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
-
-    return True
 
 
 def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
@@ -545,11 +459,6 @@ def implement(
         if mission_key == "research":
             deliverables_path = get_deliverables_path(feature_dir, feature_slug)
 
-        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
-        # without sparse-checkout or where setup failed silently)
-        if workspace_path.exists():
-            _ensure_sparse_checkout(workspace_path)
-
         # Build full prompt content for file
         lines = []
         lines.append("=" * 80)
@@ -621,7 +530,7 @@ def implement(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
@@ -1027,15 +936,12 @@ def review(
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
 
-        # Ensure workspace exists (create if needed)
+        # Ensure workspace exists (create if needed using full checkout, no sparse exclusions)
         if not workspace_path.exists():
-            import subprocess
-
             # Ensure .worktrees directory exists
             worktrees_dir = repo_root / ".worktrees"
             worktrees_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create worktree with sparse-checkout
             branch_name = workspace_name
             result = subprocess.run(
                 ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
@@ -1050,50 +956,7 @@ def review(
             if result.returncode != 0:
                 print(f"Warning: Could not create workspace: {result.stderr}")
             else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add to .git/info/exclude to block WP status files but allow research artifacts
-                    # Use local git exclude (not .gitignore) to prevent merge pollution (fixes #120)
-                    git_file = workspace_path / ".git"
-                    if git_file.is_file():
-                        # Worktree: .git is a file pointing to the actual git dir
-                        git_content = git_file.read_text().strip()
-                        if git_content.startswith("gitdir:"):
-                            git_dir = Path(git_content.split(":", 1)[1].strip())
-                            exclude_path = git_dir / "info" / "exclude"
-                            exclude_path.parent.mkdir(parents=True, exist_ok=True)
-
-                            exclude_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-
-                            if exclude_path.exists():
-                                exclude_content = exclude_path.read_text(encoding="utf-8")
-                                if "kitty-specs/**/tasks/*.md" not in exclude_content:
-                                    exclude_path.write_text(exclude_content.rstrip() + "\n" + exclude_entry, encoding="utf-8")
-                            else:
-                                exclude_path.write_text(exclude_entry, encoding="utf-8")
-
                 print(f"✓ Created workspace: {workspace_path}")
-
-        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
-        # without sparse-checkout or where setup failed silently)
-        if workspace_path.exists():
-            _ensure_sparse_checkout(workspace_path)
 
         # Resolve git context (branch name, base branch, commit count)
         review_ctx = _resolve_review_context(
@@ -1211,7 +1074,7 @@ def review(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)

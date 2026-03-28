@@ -256,7 +256,7 @@ def _check_unchecked_subtasks(
     Raises:
         typer.Exit: If unchecked tasks found and force=False
     """
-    # Use planning repo root (worktrees have kitty-specs/ sparse-checked out)
+    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
     tasks_md = feature_dir / "tasks.md"
@@ -316,7 +316,7 @@ def _check_dependent_warnings(
     if json_mode:
         return
 
-    # Use planning repo root (worktrees have kitty-specs/ sparse-checked out)
+    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
 

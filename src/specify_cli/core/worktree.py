@@ -5,6 +5,10 @@ for parallel feature development. Uses the VCS abstraction layer.
 
 All functions are location-aware and work correctly whether called from main
 repository or existing worktree/workspace.
+
+Workspace routing by execution_mode (WP04):
+- ``code_change`` WPs  → standard git worktree (full checkout, no sparse exclusions)
+- ``planning_artifact`` WPs → in-repo workspace (``repo_root`` returned directly)
 """
 
 from __future__ import annotations
@@ -14,10 +18,11 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
+from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.workspace_strategy import create_planning_workspace
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -78,6 +83,86 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
             pass
 
 
+def create_wp_workspace(
+    repo_root: Path,
+    workspace_path: Path,
+    workspace_name: str,
+    wp_frontmatter: dict,
+    base_branch: str | None = None,
+    base_commit: str | None = None,
+) -> Path:
+    """Create a workspace for a work package, routing by execution_mode.
+
+    Routes workspace creation based on the WP's ``execution_mode`` field
+    from the ownership manifest embedded in its frontmatter:
+
+    * ``code_change``        → creates a standard git worktree at ``workspace_path``
+    * ``planning_artifact``  → returns ``repo_root`` (work directly in-repo, no
+      worktree created, full repo visible)
+
+    No sparse checkout is applied in either case.
+
+    Args:
+        repo_root: Absolute path to the repository root.
+        workspace_path: Where a ``code_change`` worktree would be created.
+        workspace_name: Branch name for a ``code_change`` worktree.
+        wp_frontmatter: Parsed YAML frontmatter dict for the work package.
+            Must contain ``execution_mode`` (defaults to ``code_change`` if absent).
+        base_branch: Optional branch to base the worktree on.
+        base_commit: Optional commit to base the worktree on.
+
+    Returns:
+        Path to the workspace.  For ``code_change`` this is ``workspace_path``
+        (after creation); for ``planning_artifact`` this is ``repo_root``.
+
+    Raises:
+        RuntimeError: If worktree creation fails for a ``code_change`` WP.
+        FileExistsError: If ``workspace_path`` already exists and is not a
+            valid git worktree (``code_change`` only).
+    """
+    # Determine execution_mode from frontmatter; default to code_change when absent
+    raw_mode = wp_frontmatter.get("execution_mode", ExecutionMode.CODE_CHANGE)
+    try:
+        mode = ExecutionMode(raw_mode)
+    except ValueError:
+        mode = ExecutionMode.CODE_CHANGE
+
+    if mode == ExecutionMode.PLANNING_ARTIFACT:
+        owned_files: list[str] = wp_frontmatter.get("owned_files") or []
+        wp_code = wp_frontmatter.get("work_package_id", "")
+        feature_slug = wp_frontmatter.get("feature_slug", "")
+        return create_planning_workspace(
+            feature_slug=feature_slug,
+            wp_code=wp_code,
+            owned_files=list(owned_files) if isinstance(owned_files, (list, tuple)) else [],
+            repo_root=repo_root,
+        )
+
+    # code_change: create a standard git worktree (full checkout)
+    workspace_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if workspace_path.exists():
+        # Reuse if it is already a valid worktree
+        git_marker = workspace_path / ".git"
+        if git_marker.exists():
+            return workspace_path
+        raise FileExistsError(f"Workspace path already exists but is not a worktree: {workspace_path}")
+
+    vcs = get_vcs(repo_root)
+    result = vcs.create_workspace(
+        workspace_path=workspace_path,
+        workspace_name=workspace_name,
+        base_branch=base_branch,
+        base_commit=base_commit,
+        repo_root=repo_root,
+    )
+
+    if not result.success:
+        raise RuntimeError(f"Failed to create workspace: {result.error}")
+
+    return workspace_path
+
+
 def get_next_feature_number(repo_root: Path) -> int:
     """Determine next sequential feature number.
 
@@ -128,8 +213,8 @@ def get_next_feature_number(repo_root: Path) -> int:
 def create_feature_worktree(
     repo_root: Path,
     feature_slug: str,
-    feature_number: Optional[int] = None
-) -> Tuple[Path, Path]:
+    feature_number: int | None = None
+) -> tuple[Path, Path]:
     """Create workspace (git worktree) for feature development.
 
     Creates a new workspace with a feature branch and sets up the
@@ -189,11 +274,7 @@ def create_feature_worktree(
 
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
-    # Get VCS implementation and create workspace
-    # NOTE: We do NOT use sparse_exclude for kitty-specs/ here because:
-    # - Users need to add research artifacts, patterns, etc. to kitty-specs/
-    # - The locate_work_package() function always uses main repo's kitty-specs/
-    #   for WP operations, so stale copies in worktrees don't affect lane changes
+    # Get VCS implementation and create workspace (full checkout, no sparse exclusions)
     try:
         vcs = get_vcs(repo_root)
         result = vcs.create_workspace(

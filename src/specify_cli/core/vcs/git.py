@@ -8,11 +8,13 @@ conflict detection, and commit operations.
 
 This module wraps existing git operations from git_ops.py where appropriate
 and adds VCS abstraction layer functionality.
+
+Note: sparse checkout support was removed entirely (WP04). Worktrees now
+receive a full checkout; access control is handled at the ownership layer.
 """
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from datetime import datetime, UTC
 from pathlib import Path
@@ -66,10 +68,12 @@ class GitVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
-        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new git worktree for a work package.
+
+        Creates a full-checkout worktree. Sparse checkout is not used; all files
+        are visible in the workspace. Access control is handled at the ownership layer.
 
         Args:
             workspace_path: Where to create the workspace
@@ -77,7 +81,6 @@ class GitVCS:
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Root of the git repository (auto-detected if not provided)
-            sparse_exclude: List of paths to exclude via sparse-checkout (e.g., ["kitty-specs/"])
 
         Returns:
             WorkspaceCreateResult with workspace info or error
@@ -139,14 +142,6 @@ class GitVCS:
                     error=result.stderr.strip() or "Failed to create worktree",
                 )
 
-            # Apply sparse-checkout if exclusions specified
-            if sparse_exclude:
-                sparse_error = self._apply_sparse_checkout(workspace_path, sparse_exclude)
-                if sparse_error:
-                    # Non-fatal: workspace created but sparse-checkout failed
-                    # Log warning but continue
-                    pass
-
             # Get workspace info for the newly created workspace
             workspace_info = self.get_workspace_info(workspace_path)
 
@@ -168,117 +163,6 @@ class GitVCS:
                 workspace=None,
                 error=f"OS error: {e}",
             )
-
-    def _apply_sparse_checkout(
-        self,
-        workspace_path: Path,
-        exclude_paths: list[str],
-    ) -> str | None:
-        """
-        Apply sparse-checkout to exclude specified paths from worktree.
-
-        This mirrors the logic from implement.py to ensure kitty-specs/
-        and other paths can be excluded from worktrees for proper isolation.
-
-        Args:
-            workspace_path: Path to the workspace/worktree
-            exclude_paths: List of paths to exclude (e.g., ["kitty-specs/"])
-
-        Returns:
-            Error message if failed, None if successful
-        """
-        try:
-            # Get sparse-checkout file path via git (works for worktrees)
-            sparse_checkout_result = subprocess.run(
-                ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                cwd=workspace_path,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=10,
-            )
-
-            if sparse_checkout_result.returncode != 0:
-                return "Unable to locate sparse-checkout file"
-
-            sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-
-            # Enable sparse-checkout (disable cone mode for exclusion patterns)
-            subprocess.run(
-                ["git", "config", "core.sparseCheckout", "true"],
-                cwd=workspace_path,
-                capture_output=True,
-                timeout=10,
-            )
-            subprocess.run(
-                ["git", "config", "core.sparseCheckoutCone", "false"],
-                cwd=workspace_path,
-                capture_output=True,
-                timeout=10,
-            )
-
-            # Build sparse-checkout patterns
-            # Pattern: Include everything (/*), then exclude specified paths
-            patterns = ["/*"]
-            for path in exclude_paths:
-                # Normalize path (remove trailing slash if present)
-                normalized = path.rstrip("/")
-                patterns.append(f"!/{normalized}/")
-                patterns.append(f"!/{normalized}/**")
-
-            # Write sparse-checkout patterns
-            sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-            sparse_checkout_file.write_text("\n".join(patterns) + "\n", encoding="utf-8")
-
-            # Apply sparse-checkout (updates working tree)
-            apply_result = subprocess.run(
-                ["git", "read-tree", "-mu", "HEAD"],
-                cwd=workspace_path,
-                capture_output=True,
-                timeout=30,
-            )
-
-            if apply_result.returncode != 0:
-                return "Failed to apply sparse-checkout patterns"
-
-            # Add excluded paths to .git/info/exclude to prevent manual git add
-            # Sparse-checkout only controls checkout, NOT staging.
-            git_dir = self._get_git_dir(workspace_path)
-            if git_dir:
-                exclude_file = git_dir / "info" / "exclude"
-                exclude_file.parent.mkdir(parents=True, exist_ok=True)
-
-                # Read existing exclude content
-                existing_exclude = ""
-                if exclude_file.exists():
-                    existing_exclude = exclude_file.read_text(encoding="utf-8")
-
-                # Add excluded paths if not already present
-                exclude_entries = []
-                for path in exclude_paths:
-                    normalized = path.rstrip("/")
-                    pattern = f"{normalized}/"
-                    if pattern not in existing_exclude:
-                        exclude_entries.append(f"# Excluded via sparse-checkout\n{pattern}\n")
-
-                if exclude_entries:
-                    # Append new entries to existing content
-                    new_content = existing_exclude.rstrip() + "\n" + "".join(exclude_entries)
-                    exclude_file.write_text(new_content.lstrip(), encoding="utf-8")
-
-            # Sparse-checkout can leave excluded paths on disk in some states.
-            # Remove kitty-specs/ physically so agents cannot accidentally edit it.
-            kitty_specs_path = workspace_path / "kitty-specs"
-            if kitty_specs_path.exists():
-                shutil.rmtree(kitty_specs_path)
-
-            return None
-
-        except subprocess.TimeoutExpired:
-            return "Sparse-checkout operation timed out"
-        except OSError as e:
-            return f"OS error during sparse-checkout: {e}"
 
     def _get_git_dir(self, workspace_path: Path) -> Path | None:
         """
