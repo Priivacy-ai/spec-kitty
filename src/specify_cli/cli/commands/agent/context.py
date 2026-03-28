@@ -12,12 +12,6 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.core.paths import locate_project_root
-from specify_cli.core.agent_context import (
-    parse_plan_for_tech_stack,
-    update_agent_context as update_context_file,
-    get_supported_agent_types,
-    get_agent_file_path,
-)
 from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.execution_context import (
     ACTION_NAMES,

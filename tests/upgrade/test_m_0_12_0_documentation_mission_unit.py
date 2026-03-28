@@ -125,7 +125,8 @@ def test_apply_installs_mission(migration: InstallDocumentationMission, tmp_path
     doc_mission = kittify / "missions" / "documentation"
     assert doc_mission.exists()
     assert (doc_mission / "mission.yaml").exists()
-    assert (doc_mission / "command-templates").exists()
+    # WP10: command-templates were deleted; migration copies mission without them
+    assert not (doc_mission / "command-templates").exists()
 
 
 def test_apply_copies_all_files(migration: InstallDocumentationMission, tmp_path: Path) -> None:
@@ -137,12 +138,14 @@ def test_apply_copies_all_files(migration: InstallDocumentationMission, tmp_path
 
     doc_mission = kittify / "missions" / "documentation"
 
-    # Check command templates exist
-    assert (doc_mission / "command-templates" / "specify.md").exists()
-    assert (doc_mission / "command-templates" / "plan.md").exists()
-    assert (doc_mission / "command-templates" / "tasks.md").exists()
-    assert (doc_mission / "command-templates" / "implement.md").exists()
-    assert (doc_mission / "command-templates" / "review.md").exists()
+    # WP10: command-templates were deleted; verify they are NOT copied
+    assert not (doc_mission / "command-templates").exists()
+
+    # mission.yaml must be present
+    assert (doc_mission / "mission.yaml").exists()
+
+    # templates/ directory (Divio templates) must be copied
+    assert (doc_mission / "templates").exists()
 
 
 def test_apply_creates_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:

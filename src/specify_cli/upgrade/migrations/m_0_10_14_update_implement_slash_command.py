@@ -46,23 +46,12 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
     TEMPLATE_FILE = "implement.md"
     SLASH_COMMAND_FILE = "spec-kitty.implement.md"
 
-    def detect(self, project_path: Path) -> bool:
-        """Check if any agent has outdated implement slash command."""
-        # Check for old single-step pattern that's missing the critical step 2
-        old_pattern = "spec-kitty agent workflow implement $ARGUMENTS"
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
 
-        agent_dirs = get_agent_dirs_for_project(project_path)
-        for agent_dir, subdir in agent_dirs:
-            slash_cmd = project_path / agent_dir / subdir / self.SLASH_COMMAND_FILE
-            if slash_cmd.exists():
-                content = slash_cmd.read_text(encoding="utf-8")
-                # If it has the old single-command pattern and NOT the two-step section
-                if old_pattern in content and "CRITICAL: This is a TWO-STEP Command" not in content:
-                    return True
-                # If it's missing step 2 entirely
-                if "spec-kitty implement WP##" not in content:
-                    return True
-
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
+        """
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:

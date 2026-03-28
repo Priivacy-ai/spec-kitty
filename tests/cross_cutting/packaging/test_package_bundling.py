@@ -8,24 +8,25 @@ import tarfile
 import pytest
 
 
-def test_no_bash_script_references_in_bundled_templates():
-    """Ensure bundled templates don't reference deleted bash scripts."""
+def test_command_templates_not_bundled():
+    """WP10: command-templates directories must not exist in src/specify_cli or src/doctrine.
+
+    Shim generation (spec-kitty agent shim) replaces rendered template files.
+    No command-templates should remain to be bundled into the distribution.
+    """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
+    found = []
+    for base in [
+        spec_kitty_root / "src" / "specify_cli",
+        spec_kitty_root / "src" / "doctrine",
+    ]:
+        if base.exists():
+            for d in base.rglob("command-templates"):
+                if d.is_dir():
+                    found.append(str(d.relative_to(spec_kitty_root)))
 
-    if not templates_dir.exists():
-        pytest.skip(f"Templates directory not found: {templates_dir}")
-
-    bash_references = []
-
-    for template in templates_dir.glob("*.md"):
-        content = template.read_text(encoding="utf-8")
-        if "scripts/bash/" in content or ".kittify/scripts/bash/" in content:
-            bash_references.append(template.name)
-
-    assert len(bash_references) == 0, (
-        f"Bash script references found in templates to be bundled: {bash_references}. "
-        "These scripts were removed in v0.10.0 - templates must use Python CLI."
+    assert len(found) == 0, (
+        f"command-templates directories still present (WP10 deletion incomplete): {found}"
     )
 
 
@@ -61,9 +62,11 @@ def test_sdist_bundles_templates():
         templates = [m for m in members if "/src/specify_cli/templates/" in m]
         assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
 
-        # Should have command templates
+        # WP10: command-templates must NOT be in sdist (deleted in favour of shims)
         cmd_templates = [m for m in members if "command-templates" in m and m.endswith(".md")]
-        assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
+        assert len(cmd_templates) == 0, (
+            f"command-templates found in sdist (WP10 deletion incomplete): {cmd_templates[:5]}"
+        )
 
         # Git hooks are intentionally not bundled in 2.x
         git_hooks = [m for m in members if "git-hooks/" in m]
@@ -132,7 +135,10 @@ def test_wheel_bundles_templates_correctly():
 
         assert result.returncode == 0, f"Failed to check templates: {result.stderr}"
         output = result.stdout
-        assert "command-templates" in output, "command-templates not found in bundled package"
+        # WP10: command-templates were deleted — shims replace them
+        assert "command-templates" not in output, (
+            "command-templates should NOT be in bundled package (deleted in WP10)"
+        )
         assert "git-hooks" not in output, "git-hooks should not be bundled in 2.x"
 
         result = subprocess.run(
