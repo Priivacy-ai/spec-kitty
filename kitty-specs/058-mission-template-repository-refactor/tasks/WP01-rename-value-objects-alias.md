@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Rename Class + Value Objects + Alias
-lane: "doing"
+lane: "approved"
 dependencies: []
 requirement_refs:
 - FR-001
@@ -27,10 +27,10 @@ subtasks:
 - T016
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: "claude-opus-4-6"
-shell_pid: "21171"
-review_status: ''
-reviewed_by: ''
+agent: claude-opus-4-6
+shell_pid: '21171'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -322,3 +322,4 @@ assert MissionRepository is MissionTemplateRepository
 - 2026-03-28T04:42:52Z – claude – shell_pid=9762 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T04:46:31Z – claude – shell_pid=9762 – lane=for_review – Ready for review: renamed MissionRepository→MissionTemplateRepository, added TemplateResult/ConfigResult value objects, private _*_path() methods, default() classmethod, backward-compat alias. 37 tests pass.
 - 2026-03-28T05:39:25Z – claude-opus-4-6 – shell_pid=21171 – lane=doing – Started review via workflow command
+- 2026-03-28T05:41:30Z – claude-opus-4-6 – shell_pid=21171 – lane=approved – Review passed: class rename, value objects, private methods, alias, tests all correct. 105 tests pass.
