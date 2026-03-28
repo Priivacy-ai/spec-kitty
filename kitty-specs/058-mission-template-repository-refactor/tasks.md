@@ -62,10 +62,10 @@
 
 ### Included Subtasks
 
-- [ ] T006 [P] Add `get_command_template(mission, name)` → `TemplateResult | None` (reads file from `_command_template_path`, constructs `TemplateResult`)
-- [ ] T007 [P] Add `get_content_template(mission, name)` → `TemplateResult | None` (reads file from `_content_template_path`, constructs `TemplateResult`)
-- [ ] T008 [P] Add `list_command_templates(mission)` → `list[str]` (dir listing, strip .md, sorted)
-- [ ] T009 [P] Add `list_content_templates(mission)` → `list[str]` (dir listing, sorted filenames)
+- [x] T006 [P] Add `get_command_template(mission, name)` → `TemplateResult | None` (reads file from `_command_template_path`, constructs `TemplateResult`)
+- [x] T007 [P] Add `get_content_template(mission, name)` → `TemplateResult | None` (reads file from `_content_template_path`, constructs `TemplateResult`)
+- [x] T008 [P] Add `list_command_templates(mission)` → `list[str]` (dir listing, strip .md, sorted)
+- [x] T009 [P] Add `list_content_templates(mission)` → `list[str]` (dir listing, sorted filenames)
 
 ### Implementation Notes
 
