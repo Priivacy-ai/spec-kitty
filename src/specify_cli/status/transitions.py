@@ -1,6 +1,6 @@
 """Transition matrix, guard conditions, alias resolution, and validation.
 
-Implements the 8-lane state machine, its legal transition pairs,
+Implements the 9-lane state machine, its legal transition pairs,
 guard condition functions, alias resolution, and force-override logic.
 """
 
@@ -16,6 +16,7 @@ CANONICAL_LANES: tuple[str, ...] = (
     "claimed",
     "in_progress",
     "for_review",
+    "in_review",
     "approved",
     "done",
     "blocked",
@@ -32,8 +33,12 @@ ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         ("claimed", "in_progress"),
         ("in_progress", "for_review"),
         ("in_progress", "approved"),
-        ("for_review", "approved"),
-        ("for_review", "done"),
+        ("for_review", "in_review"),
+        ("in_review", "approved"),
+        ("in_review", "planned"),
+        ("in_review", "in_progress"),
+        ("in_review", "blocked"),
+        ("in_review", "canceled"),
         ("approved", "done"),
         ("for_review", "in_progress"),
         ("for_review", "planned"),
@@ -61,8 +66,10 @@ _GUARDED_TRANSITIONS: dict[tuple[str, str], str] = {
     ("claimed", "in_progress"): "workspace_context",
     ("in_progress", "for_review"): "subtasks_complete_or_force",
     ("in_progress", "approved"): "reviewer_approval",
-    ("for_review", "approved"): "reviewer_approval",
-    ("for_review", "done"): "reviewer_approval",
+    ("for_review", "in_review"): "actor_required",
+    ("in_review", "approved"): "reviewer_approval",
+    ("in_review", "planned"): "review_ref_required",
+    ("in_review", "in_progress"): "review_ref_required",
     ("approved", "done"): "reviewer_approval",
     ("for_review", "in_progress"): "review_ref_required",
     ("for_review", "planned"): "review_ref_required",

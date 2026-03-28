@@ -971,7 +971,7 @@ def review(
     This command outputs the full work package prompt (including any review
     feedback from previous reviews) so agents can review the implementation.
 
-    Automatically moves WP from for_review to doing lane (requires --agent to track who is reviewing).
+    Automatically moves WP from for_review to in_review lane (requires --agent to track who is reviewing).
 
     Examples:
         spec-kitty agent workflow review WP01 --agent claude
@@ -1005,17 +1005,17 @@ def review(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there.
-        # Explicit WP review requests must target for_review (or already-claimed doing).
+        # Move to "in_review" lane if not already there.
+        # Explicit WP review requests must target for_review (or already-claimed in_review/doing).
         current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "for_review"
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
-        if current_lane not in {"for_review", "doing"}:
+        if current_lane not in {"for_review", "doing", "in_review"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
             print("Only work packages in 'for_review' can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
             raise typer.Exit(1)
 
-        if current_lane != "doing":
+        if current_lane not in {"doing", "in_review"}:
             # Require --agent parameter to track who is reviewing
             if not agent:
                 print("Error: --agent parameter required when starting review.")
@@ -1060,12 +1060,12 @@ def review(
                         repo_root=main_repo_root,
                     )
 
-                # Emit the actual for_review -> in_progress transition
+                # Emit the actual for_review -> in_review transition
                 emit_status_transition(
                     feature_dir=feature_dir,
                     feature_slug=feature_slug,
                     wp_id=normalized_wp_id,
-                    to_lane="in_progress",
+                    to_lane="in_review",
                     actor=agent,
                     force=True,  # review claim is always allowed
                     reason="Started review via workflow command",
@@ -1077,13 +1077,14 @@ def review(
                 # Post-emit: apply metadata fields to WP file
                 wp_content = wp.path.read_text(encoding="utf-8-sig")
                 updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-                updated_front = set_scalar(updated_front, "lane", "doing")
+                updated_front = set_scalar(updated_front, "lane", "in_review")
                 updated_front = set_scalar(updated_front, "agent", agent)
+                updated_front = set_scalar(updated_front, "role", "reviewer")
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
                 # Build history entry
                 timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=in_review – Started review via workflow command"
 
                 # Add history entry to body
                 updated_body = append_activity_log(updated_body, history_entry)
@@ -1113,7 +1114,7 @@ def review(
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to in_review.")
 
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
@@ -1205,7 +1206,7 @@ def review(
                 except FileNotFoundError:
                     continue
                 lane = extract_scalar(dependent_wp.frontmatter, "lane")
-                if lane in {"planned", "doing", "for_review"}:
+                if lane in {"planned", "doing", "for_review", "in_review"}:
                     incomplete.append(dependent_id)
             if incomplete:
                 dependents_list = ", ".join(sorted(incomplete))

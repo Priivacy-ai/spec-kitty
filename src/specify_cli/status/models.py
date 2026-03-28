@@ -1,6 +1,6 @@
 """Canonical status models for spec-kitty work package lifecycle.
 
-Defines the 8-lane state machine data types: Lane enum, StatusEvent,
+Defines the 9-lane state machine data types: Lane enum, StatusEvent,
 DoneEvidence (with ReviewApproval, RepoEvidence, VerificationResult),
 and StatusSnapshot.
 """
@@ -16,12 +16,13 @@ from specify_cli.identity import ActorIdentity
 
 
 class Lane(StrEnum):
-    """8-lane canonical work package lifecycle states."""
+    """9-lane canonical work package lifecycle states."""
 
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     FOR_REVIEW = "for_review"
+    IN_REVIEW = "in_review"
     APPROVED = "approved"
     DONE = "done"
     BLOCKED = "blocked"

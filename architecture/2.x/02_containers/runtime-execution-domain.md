@@ -53,31 +53,47 @@ stateDiagram-v2
     planned --> claimed: claim (actor)
     claimed --> in_progress: start (workspace_context)
     in_progress --> for_review: ready_for_review (subtasks + evidence)
-    for_review --> done: approve (done evidence)
+    in_progress --> approved: direct_approve (reviewer_approval)
 
+    for_review --> in_review: begin_review (actor)
     for_review --> in_progress: changes_requested (review_ref)
     for_review --> planned: replan (review_ref)
+
+    in_review --> approved: approve (reviewer_approval)
+    in_review --> in_progress: changes_requested (review_ref)
+    in_review --> planned: replan (review_ref)
+    in_review --> blocked: blocked
+    in_review --> canceled: cancel
+
+    approved --> done: finalize (reviewer_approval)
+    approved --> in_progress: reopen (review_ref)
+    approved --> planned: replan (review_ref)
+
     in_progress --> planned: reassign (reason)
 
     planned --> blocked: blocked
     claimed --> blocked: blocked
     in_progress --> blocked: blocked
     for_review --> blocked: blocked
+    approved --> blocked: blocked
     blocked --> in_progress: unblock
 
     planned --> canceled: cancel
     claimed --> canceled: cancel
     in_progress --> canceled: cancel
     for_review --> canceled: cancel
+    approved --> canceled: cancel
     blocked --> canceled: cancel
 ```
 
 ## Transition Guard Summary
 
-1. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`.
+1. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`.
 2. `done` and `canceled` are terminal unless force override is explicitly used.
-3. Guard requirements are transition-specific and include:
-   `actor`, `workspace_context`, `review_ref`, done evidence, and explicit reason fields.
+3. `for_review` cannot transition directly to `done` or `approved`; work must pass through `in_review` before reaching `approved`, and through `approved` before reaching `done`.
+4. Guard requirements are transition-specific and include:
+   `actor`, `workspace_context`, `review_ref`, `reviewer_approval`, and explicit reason fields.
+5. Frontmatter fields `role` and `approved_by` are set during review and approval transitions respectively.
 
 ## Runtime/Execution Container Interaction
 

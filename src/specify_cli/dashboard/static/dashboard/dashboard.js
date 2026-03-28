@@ -417,7 +417,7 @@ function loadKanban() {
 }
 
 function renderKanban(lanes) {
-    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.approved || []).length + lanes.done.length;
+    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.in_review || []).length + (lanes.approved || []).length + lanes.done.length;
     const completed = lanes.done.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -439,8 +439,12 @@ function renderKanban(lanes) {
             <div class="status-value">${lanes.doing.length}</div>
         </div>
         <div class="status-card review">
-            <div class="status-label">Review</div>
+            <div class="status-label">For Review</div>
             <div class="status-value">${lanes.for_review.length}</div>
+        </div>
+        <div class="status-card in-review">
+            <div class="status-label">In Review</div>
+            <div class="status-value">${(lanes.in_review || []).length}</div>
         </div>
         <div class="status-card approved">
             <div class="status-label">Approved</div>
@@ -467,6 +471,7 @@ function renderKanban(lanes) {
             <div class="card-title">${task.title}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${task.agent}</span>` : ''}
+                ${task.role ? `<span class="badge role">${task.role}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${task.agent_profile}</span>` : ''}
                 ${task.task_type ? `<span class="badge task-type">${task.task_type}</span>` : ''}
                 ${task.subtasks && task.subtasks.length > 0 ?
@@ -497,6 +502,13 @@ function renderKanban(lanes) {
             </div>
             <div>${lanes.for_review.length === 0 ? '<div class="empty-state">No tasks</div>' : lanes.for_review.map(createCard).join('')}</div>
         </div>
+        <div class="lane in_review">
+            <div class="lane-header">
+                <span>🔍 In Review</span>
+                <span class="count">${(lanes.in_review || []).length}</span>
+            </div>
+            <div>${(lanes.in_review || []).length === 0 ? '<div class="empty-state">No tasks</div>' : (lanes.in_review || []).map(createCard).join('')}</div>
+        </div>
         <div class="lane approved">
             <div class="lane-header">
                 <span>👍 Approved</span>
@@ -513,10 +525,10 @@ function renderKanban(lanes) {
         </div>
     `;
 
-    ['planned', 'doing', 'for_review', 'approved', 'done'].forEach(laneName => {
+    ['planned', 'doing', 'for_review', 'in_review', 'approved', 'done'].forEach(laneName => {
         const laneCards = document.querySelectorAll(`.lane.${laneName} .card`);
         laneCards.forEach((card, index) => {
-            const task = lanes[laneName][index];
+            const task = (lanes[laneName] || [])[index];
             if (!task) return;
             if (!card.hasAttribute('tabindex')) {
                 card.setAttribute('tabindex', '0');
@@ -564,12 +576,14 @@ function showPromptModal(task) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
         if (task.agent) metaItems.push(`<span>Agent: ${escapeHtml(task.agent)}</span>`);
+        if (task.role) metaItems.push(`<span>Role: ${escapeHtml(task.role)}</span>`);
         if (task.agent_profile) metaItems.push(`<span>Profile: ${escapeHtml(task.agent_profile)}</span>`);
         if (task.task_type) metaItems.push(`<span>Type: ${escapeHtml(task.task_type)}</span>`);
         if (task.subtasks && task.subtasks.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
+        if (task.approved_by) metaItems.push(`<span>Approved By: ${escapeHtml(task.approved_by)}</span>`);
         if (task.prompt_path) metaItems.push(`<span>Source: ${escapeHtml(task.prompt_path)}</span>`);
 
         if (metaItems.length > 0) {

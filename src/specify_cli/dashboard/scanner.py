@@ -292,7 +292,7 @@ def resolve_active_feature(
 
 def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> dict[str, int]:
     """Count work packages by lane from frontmatter (new format)."""
-    counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+    counts = {"planned": 0, "doing": 0, "for_review": 0, "in_review": 0, "approved": 0, "done": 0}
 
     if not tasks_dir.exists():
         return counts
@@ -338,7 +338,7 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
         artifacts = get_feature_artifacts(feature_dir, project_dir)
         workflow = get_workflow_status(artifacts)
 
-        kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+        kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "in_review": 0, "approved": 0, "done": 0}
         if artifacts["kanban"]:
             tasks_dir = feature_dir / "tasks"
             use_legacy = is_legacy_format(feature_dir)
@@ -403,6 +403,8 @@ def _process_wp_file(
             "assignee": "",
             "phase": "",
             "agent_profile": "",
+            "role": "",
+            "approved_by": "",
             "task_type": "",
             "prompt_markdown": f"**Encoding Error**\n\n{error}",
             "prompt_path": str(prompt_file.relative_to(project_dir))
@@ -432,6 +434,8 @@ def _process_wp_file(
         "assignee": frontmatter.get("assignee", ""),
         "phase": frontmatter.get("phase", ""),
         "agent_profile": frontmatter.get("agent_profile", ""),
+        "role": frontmatter.get("role", ""),
+        "approved_by": frontmatter.get("approved_by", ""),
         "task_type": frontmatter.get("task_type", ""),
         "prompt_markdown": prompt_body.strip(),
         "prompt_path": str(prompt_file.relative_to(project_dir))
@@ -450,6 +454,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
         "planned": [],
         "doing": [],
         "for_review": [],
+        "in_review": [],
         "approved": [],
         "done": [],
     }

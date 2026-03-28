@@ -26,7 +26,7 @@ from specify_cli.identity import ActorIdentity
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
+LANES: tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled")
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
