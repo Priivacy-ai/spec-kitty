@@ -49,9 +49,20 @@ def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
         "## Work Package WP01\n**Requirement Refs**: FR-001\n\n## Work Package WP02\n**Requirement Refs**: FR-001\n",
         encoding="utf-8",
     )
+    # Give each WP distinct owned_files to avoid ownership overlap validation errors
+    wp_data = {
+        "WP01": ("src/module_a/**", "src/module_a/"),
+        "WP02": ("src/module_b/**", "src/module_b/"),
+    }
     for wp_id in ("WP01", "WP02"):
+        owned_file, auth_surface = wp_data[wp_id]
         (tasks_dir / f"{wp_id}-test.md").write_text(
-            f"---\nwork_package_id: {wp_id}\nlane: planned\n---\n\n# {wp_id}\n",
+            f"---\n"
+            f"work_package_id: {wp_id}\n"
+            f"execution_mode: code_change\n"
+            f"owned_files:\n  - {owned_file}\n"
+            f"authoritative_surface: {auth_surface}\n"
+            f"---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
     return feature_dir, tasks_dir

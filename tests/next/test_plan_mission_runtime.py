@@ -276,12 +276,10 @@ class TestPlanMissionRegressions:
         steps = data["steps"]
         assert len(steps) > 0, "software-dev must have at least one step"
 
-        # Verify core templates exist for software-dev
-        cmd_dir = Path("src/specify_cli/missions/software-dev/command-templates")
-        core_templates = ["specify.md", "plan.md", "implement.md", "review.md"]
-        for template in core_templates:
-            template_file = cmd_dir / template
-            assert template_file.exists(), f"Missing core template {template} in software-dev"
+        # Verify templates directory exists for software-dev
+        templates_dir = Path("src/specify_cli/missions/software-dev/templates")
+        assert templates_dir.exists(), "software-dev templates directory must exist"
+        assert len(list(templates_dir.glob("*.md"))) > 0, "software-dev must have at least one template"
 
     def test_plan_mission_isolated_from_research(self):
         """Verify plan mission doesn't interfere with research."""
@@ -300,16 +298,10 @@ class TestPlanMissionRegressions:
         states = data["states"]
         assert len(states) > 0, "research must have at least one state"
 
-        # Verify command templates exist
-        cmd_dir = Path("src/specify_cli/missions/research/command-templates")
-        assert cmd_dir.exists(), "research command-templates directory must exist"
-        assert len(list(cmd_dir.glob("*.md"))) > 0, "research must have command templates"
-
-        # Verify core templates for research
-        core_templates = ["specify.md", "plan.md", "review.md"]
-        for template in core_templates:
-            template_file = cmd_dir / template
-            assert template_file.exists(), f"Missing core template {template} in research"
+        # Verify templates directory exists for research
+        templates_dir = Path("src/specify_cli/missions/research/templates")
+        assert templates_dir.exists(), "research templates directory must exist"
+        assert len(list(templates_dir.glob("*.md"))) > 0, "research must have at least one template"
 
     def test_mission_runtime_yaml_validation(self):
         """Verify mission-runtime.yaml is valid YAML and structure is correct."""
@@ -360,43 +352,39 @@ class TestPlanMissionRegressions:
 
 
 class TestPlanMissionSteps:
-    """Tests for individual plan mission steps."""
+    """Tests for individual plan mission steps (YAML-based after command-templates removal)."""
 
-    def test_specify_step_has_deliverables(self):
-        """Verify specify step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/specify.md")
-        assert template.exists(), "specify.md must exist"
+    def test_specify_step_defined_in_mission_runtime(self):
+        """Verify specify step is defined in plan mission-runtime.yaml."""
+        import yaml
+        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        data = yaml.safe_load(runtime.read_text())
+        step_ids = [s["id"] for s in data["mission"]["steps"]]
+        assert "specify" in step_ids, "specify step must be defined in plan mission"
 
-        content = template.read_text()
-        assert "## Deliverables" in content, "specify.md must have Deliverables section"
-        assert len(content) > 100, "specify.md must have meaningful content"
+    def test_research_step_defined_in_mission_runtime(self):
+        """Verify research step is defined in plan mission-runtime.yaml."""
+        import yaml
+        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        data = yaml.safe_load(runtime.read_text())
+        step_ids = [s["id"] for s in data["mission"]["steps"]]
+        assert "research" in step_ids, "research step must be defined in plan mission"
 
-    def test_research_step_has_deliverables(self):
-        """Verify research step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/research.md")
-        assert template.exists(), "research.md must exist"
+    def test_plan_step_defined_in_mission_runtime(self):
+        """Verify plan step is defined in plan mission-runtime.yaml."""
+        import yaml
+        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        data = yaml.safe_load(runtime.read_text())
+        step_ids = [s["id"] for s in data["mission"]["steps"]]
+        assert "plan" in step_ids, "plan step must be defined in plan mission"
 
-        content = template.read_text()
-        assert "## Deliverables" in content, "research.md must have Deliverables section"
-        assert len(content) > 100, "research.md must have meaningful content"
-
-    def test_plan_step_has_deliverables(self):
-        """Verify plan step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/plan.md")
-        assert template.exists(), "plan.md must exist"
-
-        content = template.read_text()
-        assert "## Deliverables" in content, "plan.md must have Deliverables section"
-        assert len(content) > 100, "plan.md must have meaningful content"
-
-    def test_review_step_has_deliverables(self):
-        """Verify review step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/review.md")
-        assert template.exists(), "review.md must exist"
-
-        content = template.read_text()
-        assert "## Deliverables" in content, "review.md must have Deliverables section"
-        assert len(content) > 100, "review.md must have meaningful content"
+    def test_review_step_defined_in_mission_runtime(self):
+        """Verify review step is defined in plan mission-runtime.yaml."""
+        import yaml
+        runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        data = yaml.safe_load(runtime.read_text())
+        step_ids = [s["id"] for s in data["mission"]["steps"]]
+        assert "review" in step_ids, "review step must be defined in plan mission"
 
 
 class TestPlanMissionWorkflow:

@@ -62,6 +62,12 @@ def init_test_repo(tmp_path: Path) -> Path:
         capture_output=True,
     )
 
+    # Create .kittify config (required by implement command)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "vcs:\n  type: git\nagents:\n  available:\n  - claude\n  auto_commit: true\n"
+    )
+
     # Create initial commit
     (tmp_path / "README.md").write_text("Test repo")
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
@@ -150,7 +156,8 @@ def implement_wp(repo: Path, feature_slug: str, wp_id: str, base: str | None = N
         subprocess.run(["git", "checkout", feature_slug], cwd=repo, check=True, capture_output=True)
 
     # Build spec-kitty implement command arguments
-    args = ["implement", wp_id]
+    # --feature is required (auto-detection removed in big-bang refactor)
+    args = ["implement", wp_id, "--feature", feature_slug]
     if base is not None:
         args.extend(["--base", base])
 
@@ -306,9 +313,8 @@ def test_implement_wp_no_dependencies(tmp_path):
     )
     assert "011-test-WP01" in result.stdout
 
-    # Verify sparse-checkout excludes kitty-specs from worktree
-    # (kitty-specs status is tracked in main repo only, preventing state divergence)
-    assert not (workspace / "kitty-specs").exists(), "kitty-specs should be excluded from worktree via sparse-checkout"
+    # Note: sparse-checkout was removed in the big-bang refactor; full checkout is used.
+    # The worktree is a full git worktree (kitty-specs may exist there via git).
 
 # ============================================================================
 # T073 - Implement WP02 with Dependencies
@@ -616,16 +622,17 @@ def test_implement_with_base_flag_success(tmp_path):
     )
 
     # Implement WP01 first (no dependencies)
-    result = run_cli(repo, "implement", "WP01")
-    assert result.returncode == 0, f"WP01 implementation failed: {result.stderr}"
+    # --feature is required (auto-detection removed in big-bang refactor)
+    result = run_cli(repo, "implement", "WP01", "--feature", "011-test")
+    assert result.returncode == 0, f"WP01 implementation failed: {result.stderr}\nStdout: {result.stdout}"
 
     # Verify WP01 workspace exists
     wp01_workspace = repo / ".worktrees" / "011-test-WP01"
     assert wp01_workspace.exists()
 
     # Implement WP02 with correct --base flag
-    result = run_cli(repo, "implement", "WP02", "--base", "WP01")
-    assert result.returncode == 0, f"WP02 implementation failed: {result.stderr}"
+    result = run_cli(repo, "implement", "WP02", "--base", "WP01", "--feature", "011-test")
+    assert result.returncode == 0, f"WP02 implementation failed: {result.stderr}\nStdout: {result.stdout}"
 
     # Verify WP02 workspace exists
     wp02_workspace = repo / ".worktrees" / "011-test-WP02"

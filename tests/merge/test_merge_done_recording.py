@@ -10,11 +10,12 @@ from specify_cli.cli.commands.merge import _mark_wp_merged_done
 
 pytestmark = pytest.mark.fast
 
-def _write_wp(path: Path, *, lane: str, review_status: str, reviewed_by: str) -> None:
+
+def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "") -> None:
+    """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     path.write_text(
         "---\n"
         'work_package_id: "WP01"\n'
-        f'lane: "{lane}"\n'
         f'review_status: "{review_status}"\n'
         f'reviewed_by: "{reviewed_by}"\n'
         "---\n"
@@ -28,15 +29,15 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    _write_wp(
-        tasks_dir / "WP01-test.md",
-        lane="approved",
-        review_status="approved",
-        reviewed_by="reviewer-1",
-    )
+    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    # Lane is event-log-driven; seed it as "approved" via lane_reader
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "approved",
+    )
 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
@@ -56,15 +57,14 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    _write_wp(
-        tasks_dir / "WP01-test.md",
-        lane="approved",
-        review_status="",
-        reviewed_by="",
-    )
+    _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "approved",
+    )
 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
@@ -84,15 +84,14 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    _write_wp(
-        tasks_dir / "WP01-test.md",
-        lane="for_review",
-        review_status="",
-        reviewed_by="",
-    )
+    _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "for_review",
+    )
 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
@@ -107,15 +106,14 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    _write_wp(
-        tasks_dir / "WP01-test.md",
-        lane="for_review",
-        review_status="approved",
-        reviewed_by="reviewer-1",
-    )
+    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "for_review",
+    )
 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 

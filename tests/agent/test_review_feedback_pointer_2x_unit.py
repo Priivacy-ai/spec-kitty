@@ -138,7 +138,14 @@ def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, f
     monkeypatch.setattr(tasks_module, "_check_unchecked_subtasks", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(tasks_module, "_validate_ready_for_review", lambda *_args, **_kwargs: (True, []))
     monkeypatch.setattr(tasks_module, "_wp_branch_merged_into_target", lambda **_kwargs: (True, "ok"))
-    monkeypatch.setattr(tasks_module, "read_events", lambda *_args, **_kwargs: [])
+    # Seed a for_review event so old_lane is detected as for_review (not defaulting to planned).
+    # The code uses a local import from specify_cli.status.store, so patch there directly.
+    seed_event = _mock_status_event(to_lane="for_review", actor="user", force=False)
+    monkeypatch.setattr(tasks_module, "read_events", lambda *_args, **_kwargs: [seed_event])
+    monkeypatch.setattr(
+        "specify_cli.status.store.read_events",
+        lambda *_args, **_kwargs: [seed_event],
+    )
     monkeypatch.setattr(tasks_module, "_check_dependent_warnings", lambda *_args, **_kwargs: None)
     emit_mock = Mock(
         side_effect=lambda **kwargs: _mock_status_event(
@@ -325,10 +332,10 @@ def test_move_task_planned_sets_pointer_reviewer_and_review_ref(
     assert pointer.startswith("feedback://001-test-feature/WP01/")
     assert any(call.kwargs.get("review_ref") == pointer for call in emit_mock.call_args_list)
 
+    # review_status, reviewed_by, and review_feedback are tracked in the event log (not frontmatter)
+    # Verify they are NOT in frontmatter (mutable lane fields removed post-refactor)
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "review_status") == "has_feedback"
-    assert extract_scalar(frontmatter, "reviewed_by") == "Detected Reviewer"
-    assert extract_scalar(frontmatter, "review_feedback") == pointer
+    assert extract_scalar(frontmatter, "review_status") == "", "review_status should not be in frontmatter"
 
 
 def test_move_task_force_reopen_sets_force_override_review_ref(
@@ -360,7 +367,7 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
     monkeypatch: pytest.MonkeyPatch,
 ):
     repo, feature_slug, wp_path = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
     monkeypatch.setattr(tasks_module, "_detect_reviewer_name", lambda: "Git Reviewer")
 
     result = runner.invoke(
@@ -380,9 +387,12 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
     payload = _json_payload(result.stdout)
     assert payload["new_lane"] == "done"
 
-    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "reviewed_by") == "Git Reviewer"
-    assert extract_scalar(frontmatter, "review_status") == "approved"
+    # reviewed_by and review_status are tracked in the event log (not frontmatter) post-refactor
+    # Verify the emit was called with evidence including the detected reviewer
+    assert any(
+        (call.kwargs.get("evidence") or {}).get("review", {}).get("reviewer") == "Git Reviewer"
+        for call in emit_mock.call_args_list
+    ), f"Expected reviewer 'Git Reviewer' in emit evidence, calls: {emit_mock.call_args_list}"
 
 
 def test_move_task_warns_when_auto_commit_raises(
@@ -390,7 +400,7 @@ def test_move_task_warns_when_auto_commit_raises(
     monkeypatch: pytest.MonkeyPatch,
 ):
     repo, feature_slug, wp_path = task_repo
-    _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
+    emit_mock = _patch_move_task_dependencies(monkeypatch, repo, feature_slug)
     monkeypatch.setattr(tasks_module, "safe_commit", Mock(side_effect=RuntimeError("boom")))
 
     result = runner.invoke(tasks_app, ["move-task", "WP01", "--to", "doing"])
@@ -398,5 +408,9 @@ def test_move_task_warns_when_auto_commit_raises(
     assert result.exit_code == 0, result.stdout
     assert "Auto-commit skipped: boom" in result.stdout
 
-    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "lane") == "in_progress"
+    # lane is tracked in the event log (not frontmatter) post-refactor
+    # Verify the emit was called targeting in_progress (doing alias)
+    assert any(
+        str(call.kwargs.get("to_lane", "")) in ("in_progress", "doing")
+        for call in emit_mock.call_args_list
+    ), f"Expected in_progress transition in emit calls, got: {emit_mock.call_args_list}"

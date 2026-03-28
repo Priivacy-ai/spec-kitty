@@ -25,25 +25,17 @@ def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, feat
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
 
 
-def test_detect_feature_slug_prefers_env(
+def test_detect_feature_slug_prefers_explicit(
     feature_repo: Path, feature_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Create the feature directory so centralized detection doesn't reject it
-    env_feature = "999-from-env"
-    (feature_repo / "kitty-specs" / env_feature).mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPECIFY_FEATURE", env_feature)
-    assert acc.detect_feature_slug(feature_repo) == env_feature
+    # Auto-detection removed; must pass explicit_feature
+    assert acc.detect_feature_slug(feature_repo, explicit_feature=feature_slug) == feature_slug
 
 
-def test_detect_feature_slug_from_branch(feature_repo: Path, feature_slug: str) -> None:
-    cwd_before = Path.cwd()
-    os.chdir(feature_repo)
-    try:
-        acc.run_git(["checkout", "-b", feature_slug], cwd=feature_repo)
-        os.environ.pop("SPECIFY_FEATURE", None)
-        assert acc.detect_feature_slug(feature_repo) == feature_slug
-    finally:
-        os.chdir(cwd_before)
+def test_detect_feature_slug_raises_without_explicit(feature_repo: Path, feature_slug: str) -> None:
+    # Without explicit_feature, must raise AcceptanceError (auto-detection removed)
+    with pytest.raises(acc.AcceptanceError, match="Feature slug is required"):
+        acc.detect_feature_slug(feature_repo)
 
 
 def test_perform_acceptance_without_commit(feature_repo: Path, feature_slug: str) -> None:
@@ -144,22 +136,18 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, feature_sl
     )
 
 
-# T041: Test required fields still enforced for all lanes
+# T041: Test required fields still enforced for active lanes
 def test_required_fields_still_enforced(feature_repo: Path, feature_slug: str) -> None:
-    """Lane, agent, and shell_pid should still be required for all lanes."""
+    """Agent and shell_pid should still be required for active lanes.
+
+    Note: lane is now tracked via the event log (not frontmatter), so removing
+    lane: from frontmatter no longer produces a metadata_issue.
+    """
     from tests.utils import run_tasks_cli, run
 
     wp_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "WP01.md"
 
-    # Test missing lane
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines_no_lane = [line for line in front.splitlines() if not line.startswith("lane:")]
-    wp_path.write_text(th.build_document("\n".join(lines_no_lane), body, padding), encoding="utf-8")
-    summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing lane" in issue for issue in summary.metadata_issues), "Lane should still be required"
-
     # Test missing agent - move to doing first, then remove agent field manually
-    wp_path.read_text(encoding="utf-8")
     run_tasks_cli(["update", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
     run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
 

@@ -56,7 +56,9 @@ def feature_repo(tmp_path: Path) -> Path:
     # Create .kittify structure
     kittify = repo / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("vcs: git\n")
+    (kittify / "config.yaml").write_text(
+        "vcs:\n  type: git\nagents:\n  available:\n  - claude\n  auto_commit: true\n"
+    )
     (kittify / "metadata.yaml").write_text("version: 0.11.2\n")
 
     # Create feature structure
@@ -156,8 +158,8 @@ def test_implement_linear_dependency_chain(feature_repo: Path, monkeypatch):
     runner = CliRunner()
 
     # WP01
-    result = runner.invoke(app, ["implement", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
     assert "010-multi-parent-test-WP01" in result.stdout
     assert (feature_repo / ".worktrees" / "010-multi-parent-test-WP01").exists()
 
@@ -187,8 +189,8 @@ def test_implement_linear_dependency_chain(feature_repo: Path, monkeypatch):
     )
 
     # WP02 (depends on WP01)
-    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
     assert "010-multi-parent-test-WP02" in result.stdout
 
     # Verify WP02 base tracking
@@ -212,8 +214,8 @@ def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
     runner = CliRunner()
 
     # Implement WP01
-    result = runner.invoke(app, ["implement", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp01_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP01"
     (wp01_workspace / "database.sql").write_text("CREATE TABLE users;\n")
@@ -226,8 +228,8 @@ def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
     )
 
     # Implement WP02
-    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp02_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP02"
     (wp02_workspace / "user-api.py").write_text("# User API\n")
@@ -240,8 +242,8 @@ def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
     )
 
     # Implement WP03
-    result = runner.invoke(app, ["implement", "WP03", "--base", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP03", "--base", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp03_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP03"
     (wp03_workspace / "auth-api.py").write_text("# Auth API\n")
@@ -255,8 +257,8 @@ def test_implement_multi_parent_auto_merge(feature_repo: Path, monkeypatch):
 
     # Implement WP04 (multi-parent: depends on WP02 AND WP03)
     # Should auto-detect and create merge base
-    result = runner.invoke(app, ["implement", "WP04"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP04", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
     assert "Multi-parent dependency detected" in result.stdout
     assert "Auto-creating merge base" in result.stdout
     assert "010-multi-parent-test-WP04" in result.stdout
@@ -305,8 +307,8 @@ def test_implement_multi_parent_with_conflicts(feature_repo: Path, monkeypatch):
     runner = CliRunner()
 
     # Implement WP01
-    result = runner.invoke(app, ["implement", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp01_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP01"
     (wp01_workspace / "config.py").write_text("# Config from WP01\n")
@@ -319,8 +321,8 @@ def test_implement_multi_parent_with_conflicts(feature_repo: Path, monkeypatch):
     )
 
     # Implement WP02 with conflicting change
-    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP02", "--base", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp02_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP02"
     (wp02_workspace / "config.py").write_text("# Config from WP02 (DIFFERENT)\n")
@@ -333,8 +335,8 @@ def test_implement_multi_parent_with_conflicts(feature_repo: Path, monkeypatch):
     )
 
     # Implement WP03 with different conflicting change
-    result = runner.invoke(app, ["implement", "WP03", "--base", "WP01"])
-    assert result.exit_code == 0
+    result = runner.invoke(app, ["implement", "WP03", "--base", "WP01", "--feature", "010-multi-parent-test"])
+    assert result.exit_code == 0, result.stdout
 
     wp03_workspace = feature_repo / ".worktrees" / "010-multi-parent-test-WP03"
     (wp03_workspace / "config.py").write_text("# Config from WP03 (ALSO DIFFERENT)\n")
@@ -347,7 +349,7 @@ def test_implement_multi_parent_with_conflicts(feature_repo: Path, monkeypatch):
     )
 
     # Implement WP04 - should fail due to conflict
-    result = runner.invoke(app, ["implement", "WP04"])
+    result = runner.invoke(app, ["implement", "WP04", "--feature", "010-multi-parent-test"])
     assert result.exit_code == 1
     assert "Failed to create merge base" in result.stdout
     assert "conflict" in result.stdout.lower()
