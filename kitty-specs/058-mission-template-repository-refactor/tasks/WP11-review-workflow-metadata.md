@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Review Workflow Metadata & Dashboard Visibility
-lane: "approved"
+lane: "done"
 dependencies: [WP03]
 requirement_refs:
 - FR-020
@@ -29,6 +29,7 @@ agent: opencode
 shell_pid: '26986'
 review_status: "approved"
 reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-28T06:30:00Z'
   lane: planned
@@ -232,3 +233,4 @@ print(f'Lane.IN_REVIEW = {Lane.IN_REVIEW}')
 - 2026-03-28T07:34:39Z – opencode – shell_pid=26986 – lane=for_review – Implementation complete: all subtasks T049-T054 done
 - 2026-03-28T07:34:44Z – opencode – shell_pid=26986 – lane=doing – Started review via workflow command
 - 2026-03-28T07:41:23Z – opencode – shell_pid=26986 – lane=approved – Review passed: 9-lane model with in_review correctly implemented. All 704 status tests pass. Transitions properly enforce for_review->in_review->approved->done path. role/approved_by fields visible in dashboard. Test suite updated for new lane counts, removed illegal for_review->done/approved transitions, and added in_review coverage.
+- 2026-03-28T10:02:09Z – opencode – shell_pid=26986 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge
