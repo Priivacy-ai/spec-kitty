@@ -139,7 +139,7 @@ def test_templates_require_flat_structure():
 
     assert tasks_path is not None, "tasks.md command template not found via MissionRepository"
 
-    content = tasks_path.read_text(encoding="utf-8")
+    content = tasks_path.content
 
     # Must have explicit instruction about flat structure
     assert "FLAT" in content.upper() or "flat" in content, "tasks.md must explicitly mention flat structure"
@@ -193,27 +193,27 @@ def test_planning_templates_use_deterministic_branch_helpers():
 
     for mission in missions:
         for cmd_name in ("specify", "plan", "tasks"):
-            path = repo.get_command_template(mission, cmd_name)
-            if path is None:
+            result = repo.get_command_template(mission, cmd_name)
+            if result is None:
                 continue
-            content = path.read_text(encoding="utf-8")
+            content = result.content
 
             if cmd_name == "specify" and "branch-context --json" not in content:
-                missing_branch_helper.append(path)
+                missing_branch_helper.append(result.origin)
 
             if "git branch --show-current" in content or "git rev-parse --abbrev-ref HEAD" in content:
-                forbidden_git_probes.append(path)
+                forbidden_git_probes.append(result.origin)
 
     if missing_branch_helper:
         msg = "\n\nSpecify templates missing deterministic branch-context helper:\n"
-        for path in missing_branch_helper:
-            msg += f"\n{path}\n"
+        for origin in missing_branch_helper:
+            msg += f"\n{origin}\n"
         pytest.fail(msg)
 
     if forbidden_git_probes:
         msg = "\n\nPlanning templates still probe git directly instead of helper JSON:\n"
-        for path in forbidden_git_probes:
-            msg += f"\n{path}\n"
+        for origin in forbidden_git_probes:
+            msg += f"\n{origin}\n"
         pytest.fail(msg)
 
 

@@ -189,7 +189,7 @@ class TestPlanMissionIntegration:
         assert meta["mission"] == "plan", "Feature must have mission=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
-        runtime_path = _repo.get_mission_config_path("plan")
+        runtime_path = _repo._mission_config_path("plan")
         assert runtime_path is not None, "plan mission.yaml must be resolvable"
 
         # Also verify mission-runtime.yaml via the doctrine root
@@ -292,7 +292,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify research mission exists and is intact
-        r_mission_path = _repo.get_mission_config_path("research")
+        r_mission_path = _repo._mission_config_path("research")
         assert r_mission_path is not None, "research mission.yaml must exist"
 
         # Load and parse
