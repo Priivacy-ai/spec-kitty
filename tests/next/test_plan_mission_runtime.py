@@ -13,13 +13,13 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from collections.abc import Generator
 
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 
 pytestmark = pytest.mark.fast
 
 # Canonical repository -- tests resolve assets through the public API,
 # never via hardcoded filesystem paths.
-_repo = MissionRepository(MissionRepository.default_missions_root())
+_repo = MissionTemplateRepository(MissionTemplateRepository.default_missions_root())
 # ============================================================================
 # Fixtures
 # ============================================================================

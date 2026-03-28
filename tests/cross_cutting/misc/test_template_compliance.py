@@ -1,7 +1,7 @@
 """Test that all templates comply with feature 007 flat tasks/ structure.
 
 These are black-box tests that verify the interaction between specify_cli and
-doctrine by going through the public doctrine API (MissionRepository) rather
+doctrine by going through the public doctrine API (MissionTemplateRepository) rather
 than hard-coding internal filesystem paths.
 """
 
@@ -10,12 +10,12 @@ from pathlib import Path
 import pytest
 import re
 
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 
 
 def _missions_root() -> Path:
     """Return the doctrine package's missions root via the public API."""
-    return MissionRepository.default_missions_root()
+    return MissionTemplateRepository.default_missions_root()
 
 
 def find_mission_templates() -> list[Path]:
@@ -134,10 +134,10 @@ def test_no_phase_subdirectories_in_templates():
 
 def test_templates_require_flat_structure():
     """Templates must explicitly require flat tasks/ structure."""
-    repo = MissionRepository(_missions_root())
+    repo = MissionTemplateRepository(_missions_root())
     tasks_path = repo.get_command_template("software-dev", "tasks")
 
-    assert tasks_path is not None, "tasks.md command template not found via MissionRepository"
+    assert tasks_path is not None, "tasks.md command template not found via MissionTemplateRepository"
 
     content = tasks_path.content
 
@@ -185,7 +185,7 @@ def test_task_prompt_templates_include_branch_contract_metadata():
 
 def test_planning_templates_use_deterministic_branch_helpers():
     """Planning-stage templates should rely on Python helpers, not manual git probing."""
-    repo = MissionRepository(_missions_root())
+    repo = MissionTemplateRepository(_missions_root())
     missions = repo.list_missions()
 
     missing_branch_helper = []

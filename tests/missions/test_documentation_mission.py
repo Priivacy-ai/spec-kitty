@@ -1,18 +1,18 @@
 """Tests for documentation mission configuration.
 
-Uses MissionRepository to locate the canonical mission YAML in doctrine.
+Uses MissionTemplateRepository to locate the canonical mission YAML in doctrine.
 """
 
 
 import pytest
 
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.mission import Mission
 
 pytestmark = pytest.mark.fast
 
-# Canonical missions root is doctrine, accessed via MissionRepository.
-_MISSIONS_ROOT = MissionRepository.default_missions_root()
+# Canonical missions root is doctrine, accessed via MissionTemplateRepository.
+_MISSIONS_ROOT = MissionTemplateRepository.default_missions_root()
 
 
 # T054: Test mission.yaml Loading

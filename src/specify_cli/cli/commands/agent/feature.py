@@ -1713,10 +1713,14 @@ def finalize_tasks(  # noqa: C901
             )
 
             mission_key = get_feature_mission_key(feature_dir)
-            from doctrine.missions import MissionTemplateRepository  # noqa: PLC0415
-
-            _config_result = MissionTemplateRepository.default().get_mission_config(mission_key)
-            _mission_config: dict[str, object] = _config_result.parsed if _config_result is not None else {}
+            _mission_config: dict[str, object] = {}
+            try:
+                from doctrine.missions import MissionTemplateRepository
+                _config_result = MissionTemplateRepository.default().get_mission_config(mission_key)
+                if _config_result is not None:
+                    _mission_config = _config_result.parsed
+            except (ImportError, Exception):
+                pass
 
             _profile_suggestions = apply_profile_suggestions(list(tasks_dir.glob("WP*.md")), _mission_config)
 

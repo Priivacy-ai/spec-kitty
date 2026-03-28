@@ -122,9 +122,9 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import specify_cli.next.runtime_bridge as runtime_bridge
-        from doctrine.missions.repository import MissionRepository
+        from doctrine.missions import MissionTemplateRepository
 
-        builtin_root = MissionRepository.default_missions_root()
+        builtin_root = MissionTemplateRepository.default_missions_root()
 
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.

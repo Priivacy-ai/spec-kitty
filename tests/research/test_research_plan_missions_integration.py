@@ -18,7 +18,7 @@ from pathlib import Path
 
 import yaml
 
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.mission_v1.schema import (
 
     is_v1_mission,
@@ -33,7 +33,7 @@ pytestmark = pytest.mark.git_repo
 # Helpers
 # ---------------------------------------------------------------------------
 
-MISSIONS_DIR = MissionRepository.default_missions_root()
+MISSIONS_DIR = MissionTemplateRepository.default_missions_root()
 DOCTRINE_MISSIONS_DIR = MISSIONS_DIR  # canonical missions now live in doctrine
 
 def _load_yaml(mission_name: str) -> dict:

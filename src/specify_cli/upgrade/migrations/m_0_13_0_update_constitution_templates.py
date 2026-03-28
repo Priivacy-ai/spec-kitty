@@ -74,7 +74,7 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
             )
 
         try:
-            template_content = template_path.read_text(encoding="utf-8")
+            template_content = template_path.content
         except Exception as e:
             errors.append(f"Failed to read constitution template: {e}")
             return MigrationResult(

@@ -598,17 +598,18 @@ def _doctrine_yaml_reference(
 
 
 def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> ConstitutionReference:
-    from doctrine.missions import MissionTemplateRepository  # noqa: PLC0415
+    from doctrine.missions import MissionTemplateRepository
 
-    config = MissionTemplateRepository.default().get_mission_config(mission)
+    repo = MissionTemplateRepository.default()
+    config = repo.get_mission_config(mission)
+    mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission / "mission.yaml")
     source = config.parsed if config is not None else {"name": mission}
-    source_display = config.origin if config is not None else f"doctrine/{mission}/mission.yaml"
 
     summary = str(source.get("description") or f"Mission template set for {mission}.")
     content = (
         f"# Template Set: {template_set}\n\n"
         f"- Mission: `{mission}`\n"
-        f"- Source: `{source_display}`\n"
+        f"- Source: `{_trim_source_path(str(mission_path))}`\n"
         f"- Summary: {summary}\n\n"
         "## Mission Definition\n\n"
         "```yaml\n"
@@ -620,7 +621,7 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
         kind="template_set",
         title=template_set,
         summary=summary,
-        source_path=source_display,
+        source_path=_trim_source_path(str(mission_path)),
         local_path=f"_LIBRARY/template-set-{_slugify(template_set)}.md",
         content=content,
     )
