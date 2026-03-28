@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Remaining Reroutes + Bug Fix + Validation
-lane: "doing"
+lane: "for_review"
 dependencies: [WP05, WP06]
 requirement_refs:
 - FR-017
@@ -20,7 +20,7 @@ subtasks:
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
 agent: ''
-shell_pid: "98083"
+shell_pid: '98083'
 review_status: ''
 reviewed_by: ''
 history:
@@ -210,3 +210,4 @@ Expected outcome: All tests pass. Any failures are regressions from WP05-WP06 ch
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T12:51:26Z – unknown – shell_pid=98083 – lane=for_review – Ready for review: rerouted remaining direct mission paths to MissionTemplateRepository, fixed stale path, boyscout test fixes
