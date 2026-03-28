@@ -548,6 +548,6 @@
 - WP02: approved
 - WP03: approved
 - WP04: approved
-- WP05: for_review
+- WP05: in_progress
 - WP11: approved
 <!-- status-model:end -->
