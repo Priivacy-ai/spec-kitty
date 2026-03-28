@@ -21,7 +21,7 @@ from typing import IO
 
 import yaml
 
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.merge import merge_package_assets
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,9 @@ def populate_from_package(target: Path) -> None:
     Args:
         target: Destination directory (typically a temporary staging area).
     """
-    asset_root = get_package_asset_root()
+    from doctrine.missions import MissionTemplateRepository
+
+    asset_root = MissionTemplateRepository.default()._missions_root
     target.mkdir(parents=True, exist_ok=True)
 
     # Copy all missions
@@ -81,6 +83,7 @@ def populate_from_package(target: Path) -> None:
         shutil.copytree(missions_src, missions_dst)
 
     # Copy scripts if they exist
+    # asset_root is doctrine/missions/; parent is doctrine/ package root
     scripts_src = asset_root.parent / "scripts"
     if scripts_src.is_dir():
         shutil.copytree(scripts_src, target / "scripts")

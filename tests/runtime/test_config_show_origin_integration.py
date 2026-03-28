@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.runtime.show_origin import collect_origins
 
 import pytest
@@ -51,8 +52,8 @@ class TestShowOriginLabelsMatchResolution:
         )
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
-            side_effect=FileNotFoundError("no pkg"),
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -77,8 +78,8 @@ class TestShowOriginLabelsMatchResolution:
         )
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
-            return_value=pkg_root,
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -93,15 +94,9 @@ class TestShowOriginLabelsMatchResolution:
         global_home = tmp_path / "global"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
-        with (
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
+        with patch(
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -137,8 +132,8 @@ class TestShowOriginExtendedAssets:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
-            side_effect=FileNotFoundError("no pkg"),
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -158,8 +153,8 @@ class TestShowOriginExtendedAssets:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
-            side_effect=FileNotFoundError("no pkg"),
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -190,17 +185,10 @@ class TestShowOriginExtendedAssets:
         ]:
             (cmd_dir / name).write_text(f"# {name}\n")
 
-        with (
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+        with patch(
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(pkg_root),
         ):
-            # Also patch the discovery function's call to get_package_asset_root
             entries = collect_origins(project)
 
         command_entries = [e for e in entries if e.asset_type == "command"]
@@ -222,15 +210,9 @@ class TestShowOriginExtendedAssets:
             mission_dir.mkdir(parents=True)
             (mission_dir / "mission.yaml").write_text(f"name: {mission}\n")
 
-        with (
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+        with patch(
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -246,15 +228,9 @@ class TestShowOriginExtendedAssets:
         (project / ".kittify").mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
-        with (
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
+        with patch(
+            "doctrine.missions.MissionTemplateRepository.default",
+            return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
