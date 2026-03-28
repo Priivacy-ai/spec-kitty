@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Config + Resolver Public Methods
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP01
 requirement_refs:
@@ -29,8 +29,8 @@ subtasks:
 - T015
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: claude-opus-4-6
-shell_pid: '22659'
+agent: "claude-opus-4-6"
+shell_pid: "25158"
 review_status: ''
 reviewed_by: ''
 history:
@@ -421,3 +421,4 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
 - 2026-03-28T05:45:52Z – claude-opus-4-6 – shell_pid=22659 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T05:56:12Z – claude-opus-4-6 – shell_pid=22659 – lane=for_review – Ready for review: 4 config methods + ConstitutionTemplateResolver, 275 tests pass
+- 2026-03-28T05:56:50Z – claude-opus-4-6 – shell_pid=25158 – lane=doing – Started review via workflow command
