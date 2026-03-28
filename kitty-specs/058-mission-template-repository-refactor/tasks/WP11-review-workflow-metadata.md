@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
-title: "Review Workflow Metadata & Dashboard Visibility"
-lane: planned
+title: Review Workflow Metadata & Dashboard Visibility
+lane: "doing"
 dependencies: [WP03]
 requirement_refs:
 - FR-020
@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP03
+base_commit: 3d6a08becdbddea3f8bfd1d9a57e73cea51488ad
+created_at: '2026-03-28T07:11:41.071872+00:00'
 subtasks:
 - T049
 - T050
@@ -23,8 +26,7 @@ subtasks:
 phase: Phase 1 - New API Foundation
 assignee: ''
 agent: ''
-agent_profile: implementer
-shell_pid: ''
+shell_pid: "26986"
 review_status: ''
 reviewed_by: ''
 history:
@@ -33,6 +35,7 @@ history:
   agent: system
   shell_pid: ''
   action: WP added per HiC feedback on review workflow metadata gaps
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP11 – Review Workflow Metadata & Dashboard Visibility
