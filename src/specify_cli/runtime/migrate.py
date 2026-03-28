@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.home import get_kittify_home
 
 
 class AssetDisposition(Enum):
@@ -174,8 +174,10 @@ def execute_migration(
     # This prevents version-skew: ensure_runtime() may have already updated
     # ~/.kittify/ to the new version, making old defaults look "customized".
     try:
-        package_root = get_package_asset_root()
-    except FileNotFoundError:
+        from doctrine.missions import MissionTemplateRepository
+
+        package_root = MissionTemplateRepository.default()._missions_root
+    except (FileNotFoundError, ImportError):
         package_root = None
 
     for path in sorted(kittify_dir.rglob("*")):

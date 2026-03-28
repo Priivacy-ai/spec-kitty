@@ -60,10 +60,6 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(pkg_root),
             ),
@@ -88,10 +84,6 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
@@ -110,10 +102,6 @@ class TestCollectOriginsBasic:
             patch(
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
                 "doctrine.missions.MissionTemplateRepository.default",
@@ -140,10 +128,6 @@ class TestCollectOriginsBasic:
             patch(
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
                 "doctrine.missions.MissionTemplateRepository.default",
@@ -188,10 +172,6 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(pkg_root),
             ),
@@ -219,10 +199,6 @@ class TestShowOriginTierLabels:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
@@ -247,10 +223,6 @@ class TestShowOriginTierLabels:
             patch(
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
             ),
             patch(
                 "doctrine.missions.MissionTemplateRepository.default",
@@ -291,10 +263,6 @@ class TestShowOriginTierLabels:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(pkg_root),
             ),
@@ -327,10 +295,6 @@ class TestShowOriginTierLabels:
             patch(
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
             ),
             patch(
                 "doctrine.missions.MissionTemplateRepository.default",
@@ -369,10 +333,6 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
                 "doctrine.missions.MissionTemplateRepository.default",
                 return_value=MissionTemplateRepository(pkg_root),
             ),
@@ -407,10 +367,6 @@ class TestShowOriginTierLabels:
             patch(
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
             ),
             patch(
                 "doctrine.missions.MissionTemplateRepository.default",

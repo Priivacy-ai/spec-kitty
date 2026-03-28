@@ -236,12 +236,15 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             with agents_template.open("rb") as src, open(specify_root / "AGENTS.md", "wb") as dst:
                 shutil.copyfileobj(src, dst)
 
-    # Build missions resource candidates, preferring doctrine.missions
+    # Build missions resource candidates, preferring MissionTemplateRepository
     missions_resource_candidates = []
     try:
-        doctrine_missions = files("doctrine").joinpath("missions")
-        missions_resource_candidates.append(doctrine_missions)
-    except ModuleNotFoundError:
+        from doctrine.missions import MissionTemplateRepository
+
+        missions_root = MissionTemplateRepository.default()._missions_root
+        if missions_root.is_dir():
+            missions_resource_candidates.append(missions_root)
+    except (ImportError, Exception):
         pass
     missions_resource_candidates.extend([
         data_root.joinpath("missions"),  # Legacy specify_cli location
@@ -249,7 +252,14 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
         data_root.joinpath("template_data", "missions"),  # Legacy fallback
     ])
     for missions_resource in missions_resource_candidates:
-        if _resource_exists(missions_resource):
+        if isinstance(missions_resource, Path):
+            if missions_resource.is_dir():
+                missions_dest = specify_root / "missions"
+                if missions_dest.exists():
+                    shutil.rmtree(missions_dest)
+                shutil.copytree(missions_resource, missions_dest)
+                break
+        elif _resource_exists(missions_resource):
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 
