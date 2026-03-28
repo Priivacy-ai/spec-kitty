@@ -88,7 +88,12 @@ def feature_dir_with_events(feature_dir: Path) -> Path:
 
 
 def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
-    """Return a dictionary of patches for feature detection and repo root."""
+    """Return a dictionary of patches for repo root lookup.
+
+    After WP02 removed heuristic detection, detect_feature_slug no longer exists
+    on the status module.  All CLI invocations pass --feature explicitly, so
+    _find_feature_slug delegates to require_explicit_feature (no mock needed).
+    """
     return {
         "locate_project_root": patch(
             "specify_cli.cli.commands.agent.status.locate_project_root",
@@ -97,10 +102,6 @@ def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
         "get_main_repo_root": patch(
             "specify_cli.cli.commands.agent.status.get_main_repo_root",
             return_value=tmp_path,
-        ),
-        "detect_feature_slug": patch(
-            "specify_cli.cli.commands.agent.status.detect_feature_slug",
-            return_value=feature_slug,
         ),
         "saas_fan_out": patch(
             "specify_cli.status.emit._saas_fan_out",
@@ -122,7 +123,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -153,7 +154,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -180,7 +181,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -219,7 +220,7 @@ class TestEmitCommand:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
-                patches["detect_feature_slug"],
+
                 patches["saas_fan_out"],
             ):
                 r = runner.invoke(
@@ -248,7 +249,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -278,7 +279,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -306,7 +307,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -336,7 +337,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -373,7 +374,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             result = runner.invoke(
                 app,
@@ -398,7 +399,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             result = runner.invoke(
                 app,
@@ -432,7 +433,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patch("builtins.__import__", side_effect=raising_import),
         ):
             result = runner.invoke(
@@ -450,7 +451,9 @@ class TestMaterializeCommand:
         """Legacy bridge exceptions should warn without failing materialize."""
         patches = _patch_detection(tmp_path)
         mock_bridge = types.ModuleType("specify_cli.status.legacy_bridge")
-        mock_bridge.update_all_views = lambda feature_dir, snapshot: (_ for _ in ()).throw(RuntimeError("bridge broken"))  # type: ignore[attr-defined]
+        mock_bridge.update_all_views = (  # type: ignore[attr-defined]
+            lambda feature_dir, snapshot: (_ for _ in ()).throw(RuntimeError("bridge broken"))
+        )
 
         saved = sys.modules.get("specify_cli.status.legacy_bridge")
         sys.modules["specify_cli.status.legacy_bridge"] = mock_bridge
@@ -458,7 +461,7 @@ class TestMaterializeCommand:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
-                patches["detect_feature_slug"],
+
             ):
                 result = runner.invoke(
                     app,
@@ -482,7 +485,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             result = runner.invoke(
                 app,
@@ -502,7 +505,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             result = runner.invoke(
                 app,
@@ -572,7 +575,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             result = runner.invoke(
                 app,
@@ -608,7 +611,7 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
             patches["saas_fan_out"],
         ):
             emit_result = runner.invoke(
@@ -631,7 +634,7 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+
         ):
             mat_result = runner.invoke(
                 app,

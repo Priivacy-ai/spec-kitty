@@ -73,7 +73,7 @@ def _patch_merge_environment(
         lambda *_args, **_kwargs: "legacy",
     )
     monkeypatch.setattr(
-        "specify_cli.core.feature_detection._get_main_repo_root",
+        "specify_cli.core.paths.get_main_repo_root",
         lambda _repo_root: repo_root,
     )
     monkeypatch.setattr(

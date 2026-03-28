@@ -162,7 +162,8 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
             return {"feature": self.feature, "lanes": self.lanes}
 
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(accept_module, "detect_feature_slug", lambda _repo_root: "001-demo-feature")
+    # After WP02 removed heuristic detection, detect_feature_slug no longer exists.
+    # All callers must pass --feature explicitly.
     monkeypatch.setattr(accept_module, "choose_mode", lambda mode, _repo_root: mode)
     monkeypatch.setattr(accept_module, "collect_feature_summary", lambda *args, **kwargs: DummySummary())
 
@@ -176,39 +177,29 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
     assert data["feature"] == "001-demo-feature"
 
 
-def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Path) -> None:
+def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> None:
+    """After WP02 removed heuristic detection, accept without --feature exits 1.
+
+    The old test_accept_json_suppresses_fallback_announcement was testing that
+    detect_feature_slug auto-detection worked.  Now that auto-detection is gone,
+    accept without --feature is an explicit error.
+    """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    class DummySummary:
-        ok = True
-        lanes = {"done": ["WP01"]}
-        optional_missing: list[str] = []
-        feature = "002-auto-feature"
-
-        def outstanding(self) -> dict[str, list[str]]:
-            return {}
-
-        def to_dict(self) -> dict[str, object]:
-            return {"feature": self.feature, "lanes": self.lanes}
-
-    def fake_detect(_repo_root):
-        return "002-auto-feature"
-
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(accept_module, "detect_feature_slug", fake_detect)
-    monkeypatch.setattr(accept_module, "choose_mode", lambda mode, _repo_root: mode)
-    monkeypatch.setattr(accept_module, "collect_feature_summary", lambda *args, **kwargs: DummySummary())
 
     result = runner.invoke(
         cli_app,
         ["accept", "--mode", "checklist", "--json", "--allow-fail"],
     )
 
-    assert result.exit_code == 0
-    assert result.stdout.lstrip().startswith("{")
-    data = json.loads(result.stdout)
-    assert data["feature"] == "002-auto-feature"
+    # Must fail because --feature is required
+    assert result.exit_code == 1
+    output = result.stdout
+    assert "error" in output.lower() or "feature" in output.lower(), (
+        f"Expected error about missing feature, got: {output}"
+    )
 
 
 def test_merge_dry_run_outputs_steps(monkeypatch, tmp_path: Path) -> None:

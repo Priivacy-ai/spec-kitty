@@ -115,12 +115,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_clean_feature(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -143,7 +141,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -152,12 +149,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_illegal_transition(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -180,7 +175,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -189,12 +183,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_missing_evidence(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -217,7 +209,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -225,12 +216,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_materialization_drift_phase1_warning(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -261,7 +250,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -271,12 +259,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_materialization_drift_phase2_error(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -307,7 +293,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (2, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -317,12 +302,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_frontmatter_drift(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -346,7 +329,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (2, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -354,12 +336,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_json_output(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -382,7 +362,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
@@ -402,12 +381,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_json_output_with_errors(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -430,7 +407,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
@@ -445,12 +421,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_no_events(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -466,7 +440,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(app, ["validate", "--feature", feature_slug])
@@ -474,12 +447,10 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.status.detect_feature_slug")
     @patch("specify_cli.status.phase.resolve_phase")
     def test_validate_no_events_json(
         self,
         mock_phase,
-        mock_detect,
         mock_main_root,
         mock_locate,
         tmp_path,
@@ -495,7 +466,6 @@ class TestValidateCommand:
 
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
-        mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(

@@ -10,13 +10,10 @@ Validates:
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 # --------------------------------------------------------------------------- #
@@ -43,7 +40,7 @@ def test_verify_with_research_feature(tmp_path: Path) -> None:
     meta = {"mission": "research", "feature_slug": "099-research-feature", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
-    console = Console(file=open("/dev/null", "w"))
+    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = types.SimpleNamespace(stdout="main\n", returncode=0)
@@ -73,7 +70,7 @@ def test_verify_without_feature_dir_shows_no_context(tmp_path: Path) -> None:
     kittify_dir = project_root / ".kittify"
     kittify_dir.mkdir()
 
-    console = Console(file=open("/dev/null", "w"))
+    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = types.SimpleNamespace(stdout="main\n", returncode=0)
@@ -107,7 +104,7 @@ def test_verify_resolves_mission_from_feature_slug(tmp_path: Path) -> None:
     meta = {"mission": "documentation", "feature_slug": "042-my-feature", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
-    console = Console(file=open("/dev/null", "w"))
+    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = types.SimpleNamespace(stdout="main\n", returncode=0)
@@ -159,33 +156,28 @@ def test_resolve_feature_dir_with_explicit_feature(tmp_path: Path) -> None:
     feature_dir = project_root / "kitty-specs" / "099-research-feature"
     feature_dir.mkdir(parents=True)
 
-    # Mock detect_feature to return a context with the feature directory
-    mock_ctx = MagicMock()
-    mock_ctx.slug = "099-research-feature"
-    mock_ctx.directory = feature_dir
-
-    with patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx):
-        result = _resolve_feature_dir(project_root, feature="099-research-feature")
+    # No mocking needed: _resolve_feature_dir uses only the explicit feature arg
+    result = _resolve_feature_dir(project_root, feature="099-research-feature")
 
     assert result == feature_dir
 
 
 def test_resolve_feature_dir_returns_none_when_no_feature(tmp_path: Path) -> None:
-    """_resolve_feature_dir returns None when no feature can be detected."""
+    """_resolve_feature_dir returns None when no explicit feature is given."""
     from specify_cli.cli.commands.verify import _resolve_feature_dir
 
-    with patch("specify_cli.cli.commands.verify.detect_feature", return_value=None):
-        result = _resolve_feature_dir(tmp_path)
+    # No feature flag → no auto-detection → returns None
+    result = _resolve_feature_dir(tmp_path)
 
     assert result is None
 
 
-def test_resolve_feature_dir_returns_none_on_exception(tmp_path: Path) -> None:
-    """_resolve_feature_dir returns None when detect_feature raises."""
+def test_resolve_feature_dir_returns_none_when_feature_dir_missing(tmp_path: Path) -> None:
+    """_resolve_feature_dir returns None when the feature directory does not exist."""
     from specify_cli.cli.commands.verify import _resolve_feature_dir
 
-    with patch("specify_cli.cli.commands.verify.detect_feature", side_effect=RuntimeError("boom")):
-        result = _resolve_feature_dir(tmp_path)
+    # Feature slug given but directory doesn't exist on disk
+    result = _resolve_feature_dir(tmp_path, feature="099-nonexistent-feature")
 
     assert result is None
 
@@ -237,16 +229,18 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
     (worktree_root / ".kittify").mkdir()
     # Do NOT create kitty-specs/ here — that's the whole point
 
-    # Mock git branch detection to avoid needing a real git repo
-    with patch("specify_cli.core.feature_detection._detect_from_git_branch", return_value=None):
-        result = _resolve_feature_dir(worktree_root, feature="099-research-feature")
+    # No mocking needed: _resolve_feature_dir uses explicit feature arg only
+    result = _resolve_feature_dir(worktree_root, feature="099-research-feature")
 
-    assert result is not None, (
-        "_resolve_feature_dir returned None; feature detection failed to "
-        "resolve through worktree .git pointer to main repo kitty-specs/"
+    # With an explicit slug, _resolve_feature_dir checks
+    # worktree_root / "kitty-specs" / feature_slug.  The worktree does NOT
+    # have kitty-specs/, so the result is None.
+    # This confirms the contract: resolution does NOT walk up through the
+    # worktree .git pointer (that was feature_detection heuristics, removed).
+    assert result is None, (
+        "_resolve_feature_dir should return None when the feature directory "
+        "does not exist under the given project_root (worktree path)"
     )
-    assert result == feature_dir
-    assert result.is_dir()
 
 
 def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
@@ -283,7 +277,6 @@ def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
     with (
         # locate_project_root returns main repo, not CWD
         patch("specify_cli.cli.commands.verify.locate_project_root", return_value=main_repo),
-        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
         patch("specify_cli.cli.commands.verify.run_diagnostics", side_effect=fake_run_diagnostics),
     ):
         _run_diagnostics_mode(json_output=True, check_tools=False, feature="099-research-feature")
@@ -319,7 +312,6 @@ def test_verify_setup_passes_feature_dir_to_run_enhanced_verify(tmp_path: Path) 
         patch("specify_cli.cli.commands.verify.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.verify.get_project_root_or_exit", return_value=tmp_path),
         patch("specify_cli.cli.commands.verify.check_version_compatibility"),
-        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
         patch("specify_cli.cli.commands.verify.run_enhanced_verify", side_effect=fake_run_enhanced_verify),
     ):
         # Call with json_output to avoid console rendering issues, and skip tool checks
@@ -355,7 +347,7 @@ def test_diagnostics_mode_passes_feature_dir_to_run_diagnostics(tmp_path: Path) 
         }
 
     with (
-        patch("specify_cli.cli.commands.verify.detect_feature", return_value=mock_ctx),
+        patch("specify_cli.cli.commands.verify.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.verify.run_diagnostics", side_effect=fake_run_diagnostics),
     ):
         _run_diagnostics_mode(json_output=True, check_tools=False, feature="099-research-feature")
@@ -367,8 +359,14 @@ def test_diagnostics_mode_passes_feature_dir_to_run_diagnostics(tmp_path: Path) 
 # api.py handle_diagnostics wiring test
 # --------------------------------------------------------------------------- #
 
-def test_api_handle_diagnostics_passes_feature_dir(tmp_path: Path) -> None:
-    """APIHandler.handle_diagnostics should detect active feature and pass feature_dir."""
+def test_api_handle_diagnostics_runs_without_feature_dir(tmp_path: Path) -> None:
+    """APIHandler.handle_diagnostics runs diagnostics with feature_dir=None.
+
+    After auto-detection removal (WP02), the dashboard API no longer attempts
+    to auto-detect the active feature.  handle_diagnostics always passes
+    feature_dir=None to run_diagnostics.  Callers who need per-feature context
+    must supply an explicit feature slug via a separate API endpoint.
+    """
     import io
 
     feature_dir = tmp_path / "kitty-specs" / "099-research-feature"
@@ -378,18 +376,10 @@ def test_api_handle_diagnostics_passes_feature_dir(tmp_path: Path) -> None:
 
     def fake_run_diagnostics(project_path, *, feature_dir=None):
         captured_kwargs["feature_dir"] = feature_dir
-        return {"active_mission": "research" if feature_dir else "no feature context"}
-
-    def fake_scan_all_features(project_path):
-        return [{"id": "099-research-feature", "path": "kitty-specs/099-research-feature"}]
-
-    def fake_resolve_active_feature(project_path, features):
-        return features[0] if features else None
+        return {"active_mission": "no feature context"}
 
     with (
         patch("specify_cli.dashboard.handlers.api.run_diagnostics", side_effect=fake_run_diagnostics),
-        patch("specify_cli.dashboard.handlers.api.scan_all_features", side_effect=fake_scan_all_features),
-        patch("specify_cli.dashboard.handlers.api.resolve_active_feature", side_effect=fake_resolve_active_feature),
     ):
         from specify_cli.dashboard.handlers.api import APIHandler
 
@@ -403,4 +393,5 @@ def test_api_handle_diagnostics_passes_feature_dir(tmp_path: Path) -> None:
         # Call the unbound method with our mock handler
         APIHandler.handle_diagnostics(handler)
 
-    assert captured_kwargs.get("feature_dir") == feature_dir
+    # feature_dir is always None — no auto-detection after WP02
+    assert captured_kwargs.get("feature_dir") is None

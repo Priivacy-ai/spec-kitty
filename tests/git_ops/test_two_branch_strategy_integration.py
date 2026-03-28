@@ -57,7 +57,7 @@ dependencies: []
 
 def test_target_branch_detection_from_meta_json(git_repo_with_2x_feature):
     """Bug #1: Should use target_branch from meta.json for validation."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = git_repo_with_2x_feature
     target = get_feature_target_branch(repo, "025-test-feature")
@@ -67,7 +67,7 @@ def test_target_branch_detection_from_meta_json(git_repo_with_2x_feature):
 
 def test_target_branch_defaults_to_main_for_legacy(git_repo_with_2x_feature):
     """Bug #1: Should default to main for features without target_branch."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
 
     repo = git_repo_with_2x_feature
 
