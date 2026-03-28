@@ -18,6 +18,7 @@ subtasks:
 - T037
 - T038
 - T043
+- T048
 phase: Boyscouting
 assignee: ''
 agent: ''
@@ -67,16 +68,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
 4. All documentation references updated from `agent feature` to `agent mission`
 5. Doctrine command templates emit `spec-kitty agent mission` (not `agent feature`)
 
-**Success gate**: `spec-kitty agent mission --help` output is free of "feature" terminology. Hidden alias `agent feature` still works. All tests pass.
+6. `--mission <slug>` works as the primary flag; `--feature <slug>` works as deprecated alias
+7. `spec-kitty agent workflow implement --mission <slug>` is the documented pattern
+
+**Success gate**: `spec-kitty agent mission --help` output is free of "feature" terminology. Hidden alias `agent feature` still works. `--mission` flag works as primary, `--feature` as alias. All tests pass.
 
 ## Context & Constraints
 
 - **Constitution**: Lines 302-308 mandate "Mission" as the only canonical term; "Feature/Features" are prohibited in user-facing language
 - **Current state**: `agent mission` is already the canonical registration in `__init__.py` line 16; `agent feature` is a backward-compat alias on line 17
 - **Scope guard**: Only touch strings/docs where "feature" means "mission" (the domain object). Do NOT touch:
-  - `--feature` flag renames (tracked in feature 057 WP02)
   - Internal Python variable/function names (e.g., `create_feature()` function can keep its name)
   - The filename `feature.py` (internal, not user-facing)
+- **Scope expansion (2026-03-28)**: The `--feature` → `--mission` flag rename is pulled INTO this WP from 057 scope. The `spec-kitty agent workflow implement --feature <slug>` pattern is the most visible user-facing instance.
 
 ## Branch Strategy
 
@@ -195,6 +199,36 @@ Use language identifiers in code blocks: ````python`, ````bash`
   3. Use `/spec-kitty.glossary-context` or the doctrine glossary curation tactic to add the entries properly
 - **Files**: Glossary artifacts (via doctrine system)
 - **Parallel?**: Yes
+
+### Subtask T048 -- Rename `--feature` flag to `--mission` across CLI surface
+
+- **Purpose**: The `--feature <slug>` flag is the most visible user-facing instance of the prohibited "feature" terminology. Rename it to `--mission` with `--feature` kept as a deprecated alias. Pulled from 057 scope into this WP (2026-03-28).
+- **Steps**:
+  1. **Identify all `--feature` flag declarations** in `src/specify_cli/cli/commands/`:
+     - `agent/feature.py` (primary: `spec-kitty agent workflow implement --feature <slug>`)
+     - `agent/tasks.py` (`spec-kitty agent tasks ... --feature <slug>`)
+     - Any other CLI modules that accept `--feature`
+  2. **For each flag**: Add `--mission` as the primary option name, keep `--feature` as a deprecated alias:
+     ```python
+     # Before:
+     feature: str = typer.Option(None, "--feature", help="Feature slug")
+     # After:
+     feature: str = typer.Option(None, "--mission", "--feature", help="Mission slug")
+     ```
+     Or use typer's Annotated style if the codebase prefers it.
+  3. **Update help text**: Change "Feature slug" to "Mission slug" in all help strings for this flag.
+  4. **Test that `--mission` works as primary**:
+     ```bash
+     spec-kitty agent workflow implement --mission 058-mission-template-repository-refactor --agent test
+     spec-kitty agent tasks status --mission 058-mission-template-repository-refactor
+     ```
+  5. **Test that `--feature` still works as deprecated alias**:
+     ```bash
+     spec-kitty agent workflow implement --feature 058-mission-template-repository-refactor --agent test
+     ```
+  6. **Update existing tests** that use `--feature` flag to also cover `--mission`.
+- **Files**: `src/specify_cli/cli/commands/agent/feature.py`, `src/specify_cli/cli/commands/agent/tasks.py`, and any other CLI modules with `--feature` flags
+- **Parallel?**: Yes, independent of T031-T043
 
 ## Test Strategy
 

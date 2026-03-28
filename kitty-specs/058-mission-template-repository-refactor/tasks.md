@@ -313,13 +313,14 @@
 - [ ] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
 - [ ] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
 - [ ] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
+- [ ] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
 
 ### Implementation Notes
 
 - **Do NOT rename the Python file** `feature.py` → `mission.py`. That's a large import-chain change with no user-facing benefit. The module name is internal.
 - **Hidden alias pattern**: Use `app.add_typer(feature.app, name="feature", hidden=True)` in `__init__.py` to keep backward compat without polluting `--help`.
 - **`create-feature` → `create-mission`**: Add `@app.command(name="create-mission")` and keep a hidden alias via a thin wrapper or typer's `deprecated` flag.
-- **Scope guard**: Only touch strings/docs where "feature" means "mission" (the domain object). Don't touch `--feature` flag renames (that's tracked in feature 057 WP02) or internal variable names.
+- **`--feature` → `--mission` flag rename**: Add `--mission` as primary option, keep `--feature` as deprecated alias via typer's multiple-name feature. The `agent workflow implement --feature <slug>` pattern is the most visible user-facing instance.
 
 ### Parallel Opportunities
 
@@ -333,7 +334,7 @@
 ### Risks & Mitigations
 
 - **Risk**: Agents or CI scripts hard-code `spec-kitty agent feature`. **Mitigation**: Hidden alias preserves the old name. No breaking change.
-- **Risk**: Overlap with feature 057 WP02 (`--feature` → `--mission` flag rename). **Mitigation**: This WP scopes to subcommand/doc/template terminology only; `--feature` flag deprecation stays in 057.
+- **Risk**: `--feature` flag rename affects many CLI entry points. **Mitigation**: `--feature` kept as deprecated alias via typer multi-name; no breaking change. T048 covers the rename systematically.
 
 ---
 
@@ -488,6 +489,7 @@
 | T037 | Update CLAUDE.md reference | WP08 | P2 | Yes |
 | T038 | Update doctrine command templates | WP08 | P2 | Yes |
 | T043 | Update glossary: "Feature Branch" accepted VCS term, "Mission Specification" replaces "Feature Specification" | WP08 | P2 | Yes |
+| T048 | Rename --feature flag to --mission across CLI surface (--feature kept as deprecated alias) | WP08 | P2 | Yes |
 | T039 | Create ProjectMissionPaths in constitution module | WP09 | P2 | No |
 | T040 | Reroute specify_cli/manifest.py to ProjectMissionPaths | WP09 | P2 | Yes |
 | T041 | Reroute specify_cli/mission.py to ProjectMissionPaths | WP09 | P2 | Yes |
