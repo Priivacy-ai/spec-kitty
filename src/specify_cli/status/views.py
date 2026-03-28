@@ -15,10 +15,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .models import StatusSnapshot
 from .reducer import materialize, reduce
-from .store import read_events
+from .store import EVENTS_FILENAME, read_events
 
 BOARD_SUMMARY_FILENAME = "board-summary.json"
+DERIVED_STATUS_FILENAME = "status.json"
+DERIVED_PROGRESS_FILENAME = "progress.json"
 
 
 def generate_status_view(feature_dir: Path) -> dict[str, Any]:
@@ -105,6 +108,50 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
         "lanes": lanes,
         "materialized_at": snapshot.materialized_at,
     }
+
+
+def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
+    """Regenerate derived views when the event log is newer than the derived files.
+
+    Checks whether ``status.json`` and ``progress.json`` exist in
+    ``.kittify/derived/<feature_slug>/`` and whether the event log
+    (``status.events.jsonl``) has a newer mtime than either derived file.
+    If stale (or derived files are missing), regenerates all derived views.
+
+    Returns the current snapshot (whether freshly generated or previously
+    materialised on disk via the event log).
+
+    Args:
+        feature_dir: Path to the feature directory
+            (e.g. ``kitty-specs/034-feature/``).
+        repo_root: Root of the main repository (contains ``.kittify/``).
+    """
+    from .progress import generate_progress_json  # local import to avoid circular
+
+    feature_slug = feature_dir.name
+    derived_dir = repo_root / ".kittify" / "derived"
+    feature_derived = derived_dir / feature_slug
+
+    events_path = feature_dir / EVENTS_FILENAME
+    status_path = feature_derived / DERIVED_STATUS_FILENAME
+    progress_path = feature_derived / DERIVED_PROGRESS_FILENAME
+
+    def _is_stale() -> bool:
+        if not status_path.exists() or not progress_path.exists():
+            return True
+        if not events_path.exists():
+            return False
+        events_mtime = events_path.stat().st_mtime
+        status_mtime = status_path.stat().st_mtime
+        progress_mtime = progress_path.stat().st_mtime
+        return events_mtime > status_mtime or events_mtime > progress_mtime
+
+    if _is_stale():
+        write_derived_views(feature_dir, derived_dir)
+        generate_progress_json(feature_dir, derived_dir)
+
+    # Always return a fresh snapshot from the event log
+    return materialize(feature_dir)
 
 
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
