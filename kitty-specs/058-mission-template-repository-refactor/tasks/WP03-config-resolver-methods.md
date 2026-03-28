@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Config + Resolver Public Methods
-lane: "approved"
+lane: "done"
 dependencies:
 - WP01
 requirement_refs:
@@ -33,6 +33,7 @@ agent: claude-opus-4-6
 shell_pid: '25158'
 review_status: "approved"
 reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -428,3 +429,4 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 - 2026-03-28T05:56:12Z – claude-opus-4-6 – shell_pid=22659 – lane=for_review – Ready for review: 4 config methods + ConstitutionTemplateResolver, 275 tests pass
 - 2026-03-28T05:56:50Z – claude-opus-4-6 – shell_pid=25158 – lane=doing – Started review via workflow command
 - 2026-03-28T05:59:55Z – claude-opus-4-6 – shell_pid=25158 – lane=approved – Architect review passed: boundaries clean, 6 methods match contract, resolver API correctly adapted, NFR-003/004 compliant, 275 tests pass
+- 2026-03-28T10:02:06Z – claude-opus-4-6 – shell_pid=25158 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge
