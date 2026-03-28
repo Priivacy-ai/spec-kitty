@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 2.1.1
+  version: 2.1.3
   initialized_at: '2026-03-03T20:25:04.326543'
-  last_upgraded_at: '2026-03-22T11:16:26.270423'
+  last_upgraded_at: '2026-03-28T07:58:30.159063'
 environment:
   python_version: 3.11.14
   platform: darwin
@@ -95,5 +95,39 @@ migrations:
     notes: Not applicable
   - id: 2.1.1_repair_skill_pack
     applied_at: '2026-03-22T11:16:26.266382'
+    result: skipped
+    notes: Not applicable
+  - id: 2.1.1_repair_skill_pack
+    applied_at: '2026-03-28T07:58:30.119346'
+    result: success
+    notes: Installed 8 skill(s) for 3 agent(s) (63 managed files); Rebuilt .kittify/skills-manifest.json
+  - id: 2.1.2_fix_constitution_doctrine_skill
+    applied_at: '2026-03-28T07:58:30.124331'
+    result: skipped
+    notes: Not applicable
+  - id: 2.1.2_fix_glossary_context_skill
+    applied_at: '2026-03-28T07:58:30.129337'
+    result: success
+    notes: Replaced .claude/skills/spec-kitty-glossary-context/SKILL.md; Replaced
+      .agents/skills/spec-kitty-glossary-context/SKILL.md
+  - id: 2.1.2_fix_orchestrator_api_skill
+    applied_at: '2026-03-28T07:58:30.134681'
+    result: success
+    notes: Replaced .claude/skills/spec-kitty-orchestrator-api-operator/SKILL.md;
+      Replaced .agents/skills/spec-kitty-orchestrator-api-operator/SKILL.md
+  - id: 2.1.2_fix_runtime_next_skill
+    applied_at: '2026-03-28T07:58:30.140135'
+    result: success
+    notes: Replaced .claude/skills/spec-kitty-runtime-next/SKILL.md; Replaced .agents/skills/spec-kitty-runtime-next/SKILL.md
+  - id: 2.1.2_install_git_workflow_skill
+    applied_at: '2026-03-28T07:58:30.144668'
+    result: skipped
+    notes: Not applicable
+  - id: 2.1.2_install_mission_system_skill
+    applied_at: '2026-03-28T07:58:30.149477'
+    result: skipped
+    notes: Not applicable
+  - id: 2.1.2_remove_release_skill
+    applied_at: '2026-03-28T07:58:30.154285'
     result: skipped
     notes: Not applicable
