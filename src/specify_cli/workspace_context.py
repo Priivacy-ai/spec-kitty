@@ -38,7 +38,7 @@ class WorkspaceContext:
     branch_name: str  # Git branch name (e.g., "010-mission-WP02")
 
     # Base tracking
-    base_branch: str  # Branch this was created from (e.g., "010-feature-WP01" or "main")
+    base_branch: str  # Branch this was created from (e.g., "010-mission-WP01" or "main")
     base_commit: str  # Git SHA this was created from
 
     # Dependencies

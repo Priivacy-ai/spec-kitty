@@ -8,7 +8,6 @@ import sys
 import typer
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.mission_detection import (
     MissionDetectionError,
@@ -29,7 +28,6 @@ def next_step(
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[
@@ -44,7 +42,7 @@ def next_step(
 
     Examples:
         spec-kitty next --agent claude --json
-        spec-kitty next --agent codex --mission 034-my-feature
+        spec-kitty next --agent codex --mission 034-my-mission
         spec-kitty next --agent gemini --result failed --json
         spec-kitty next --agent claude --answer "yes" --json
         spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
@@ -54,9 +52,6 @@ def next_step(
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
         raise typer.Exit(1)
 
-    # Resolve --mission / --feature backward compat
-    mission_flag = resolve_mission_or_feature(mission, feature)
-
     # Resolve repo root
     repo_root = locate_project_root()
     if repo_root is None:
@@ -65,7 +60,7 @@ def next_step(
 
     # Resolve mission slug
     try:
-        mission_slug = detect_mission_slug(repo_root, explicit_mission=mission_flag)
+        mission_slug = detect_mission_slug(repo_root, explicit_mission=mission)
     except MissionDetectionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc

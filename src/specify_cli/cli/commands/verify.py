@@ -10,7 +10,6 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.mission_detection import detect_mission
@@ -65,14 +64,13 @@ TOOL_LABELS = [
 
 def verify_setup(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to verify (auto-detected when omitted)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
     check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
     check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show detailed diagnostics with dashboard health"),
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
-    mission_flag = resolve_mission_or_feature(mission, feature)
+    mission_flag = mission
     output_data: dict[str, object] = {}
 
     # If diagnostics mode requested, use diagnostics output

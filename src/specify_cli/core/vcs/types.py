@@ -143,7 +143,7 @@ class WorkspaceInfo:
     """
 
     # Identity
-    name: str  # Workspace name (e.g., "015-feature-WP01")
+    name: str  # Workspace name (e.g., "015-mission-WP01")
     path: Path  # Absolute path to workspace directory
 
     # State

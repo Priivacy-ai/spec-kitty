@@ -8,7 +8,6 @@ from pathlib import Path
 import typer
 from rich.panel import Panel
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.acceptance import AcceptanceError, detect_mission_slug
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
@@ -21,11 +20,9 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 def research(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to target (auto-detected when omitted)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
-    mission_flag = resolve_mission_or_feature(mission, feature)
 
     show_banner()
 
@@ -52,7 +49,7 @@ def research(
 
     tracker.start("mission")
     try:
-        mission_slug = (mission_flag or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
+        mission_slug = (mission or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
         tracker.error("mission", str(exc))
         console.print(tracker.render())

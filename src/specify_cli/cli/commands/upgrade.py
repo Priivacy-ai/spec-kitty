@@ -396,7 +396,7 @@ def upgrade(  # noqa: C901
         raise typer.Exit(1)
 
 
-def list_legacy_features() -> None:
+def list_legacy_worktrees() -> None:
     """List legacy worktrees blocking 0.11.0 upgrade."""
     from specify_cli.tasks_support import find_repo_root
     from specify_cli.upgrade.migrations.m_0_11_0_workspace_per_wp import (
@@ -420,4 +420,4 @@ def list_legacy_features() -> None:
     console.print("  OR Delete: git worktree remove .worktrees/<mission>")
 
 
-__all__ = ["upgrade", "list_legacy_features"]
+__all__ = ["upgrade", "list_legacy_worktrees"]

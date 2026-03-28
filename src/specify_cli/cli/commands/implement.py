@@ -12,7 +12,6 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli import StepTracker
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
@@ -514,7 +513,6 @@ def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
-    feature: str = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     auto_commit: Annotated[
         bool | None,
@@ -543,9 +541,6 @@ def implement(
         # JSON output for scripting
         spec-kitty implement WP01 --json
     """
-    # Resolve --mission / --feature backward compat
-    mission_flag = resolve_mission_or_feature(mission, feature)
-
     # Context validation handled by @require_main_repo decorator
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect mission context")
@@ -560,7 +555,7 @@ def implement(
         # Resolve auto_commit: CLI flag overrides project config
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        mission_number, mission_slug = detect_mission_context(mission_flag)
+        mission_number, mission_slug = detect_mission_context(mission)
         tracker.complete("detect", f"Mission: {mission_slug}")
     except (TaskCliError, typer.Exit) as exc:
         tracker.error("detect", str(exc) if isinstance(exc, TaskCliError) else "failed")

@@ -3,7 +3,7 @@
 Provides:
 - parse_guard_expression(expr): Parse "func_name(args)" into (name, args_list)
 - GUARD_REGISTRY: Maps guard names to factory callables
-- compile_guards(config, feature_dir): Replace expression strings with bound callables
+- compile_guards(config, mission_dir): Replace expression strings with bound callables
 - 6 guard primitives: artifact_exists, gate_passed, all_wp_status,
   any_wp_status, input_provided, event_count
 

@@ -17,7 +17,6 @@ from rich.console import Console
 from rich.table import Table
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.mission_detection import (
     detect_mission_slug,
     MissionDetectionError,
@@ -117,7 +116,6 @@ def emit(
     ] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[
@@ -154,7 +152,6 @@ def emit(
         spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         # Resolve repo root
         cwd = Path.cwd().resolve()
@@ -166,7 +163,7 @@ def emit(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve mission slug
-        mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+        mission_slug = _find_mission_slug(explicit_mission=mission)
 
         # Construct mission directory
         mission_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -241,7 +238,6 @@ def emit(
 @app.command()
 def materialize(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -255,7 +251,6 @@ def materialize(
         spec-kitty agent status materialize --mission 034-my-mission
         spec-kitty agent status materialize --json
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         # Resolve repo root
         cwd = Path.cwd().resolve()
@@ -267,28 +262,12 @@ def materialize(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve mission slug
-        mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+        mission_slug = _find_mission_slug(explicit_mission=mission)
 
         # Construct mission directory
         mission_dir = main_repo_root / "kitty-specs" / mission_slug
 
-        # Lazy import to avoid circular imports
-        from specify_cli.status.reducer import materialize as do_materialize
-        from specify_cli.status.store import EVENTS_FILENAME
-
-        # Check that the events file exists
-        events_path = mission_dir / EVENTS_FILENAME
-        if not events_path.exists():
-            _output_error(
-                json_output,
-                f"No event log found at {events_path}\n"
-                "Run 'spec-kitty agent status emit' to create the first event, "
-                "or run a migration to initialize the event log.",
-            )
-            raise typer.Exit(1)
-
-        with mission_status_lock(main_repo_root, mission_slug):
-            # Materialize snapshot
+        # Materialize snapshot
             snapshot = do_materialize(mission_dir)
 
         # Update legacy views (try/except -- don't block on legacy bridge)
@@ -338,10 +317,6 @@ def doctor(
         str | None,
         typer.Option("--mission", help="Mission slug"),
     ] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
-    ] = None,
     stale_claimed: Annotated[
         int,
         typer.Option("--stale-claimed-days", help="Threshold for stale claims (days)"),
@@ -370,11 +345,10 @@ def doctor(
         spec-kitty agent status doctor --mission 034-my-mission
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
-    mission_dir, mission_slug, repo_root = _resolve_mission_dir(mission_flag)
+    mission_dir, mission_slug, repo_root = _resolve_mission_dir(mission)
 
     # Run global runtime checks BEFORE project-specific checks
     global_checks = run_global_checks(project_dir=repo_root)
@@ -545,11 +519,7 @@ def migrate(
         str | None,
         typer.Option("--mission", "-f", help="Single mission slug to migrate"),
     ] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
-    ] = None,
-    all_features: Annotated[
+    all_missions: Annotated[
         bool,
         typer.Option("--all", help="Migrate all missions in kitty-specs/"),
     ] = False,
@@ -577,18 +547,17 @@ def migrate(
         spec-kitty agent status migrate --all
         spec-kitty agent status migrate --all --json
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.migrate import (
         MissionMigrationResult,
         MigrationResult,
         migrate_mission,
     )
 
-    if mission_flag and all_features:
+    if mission and all_missions:
         _output_error(json_output, "Cannot use both --mission and --all")
         raise typer.Exit(1)
 
-    if not mission_flag and not all_features:
+    if not mission and not all_missions:
         _output_error(json_output, "Specify --mission or --all")
         raise typer.Exit(1)
 
@@ -603,8 +572,8 @@ def migrate(
         _output_error(json_output, "No kitty-specs/ directory found")
         raise typer.Exit(1)
 
-    if mission_flag:
-        mission_dir = kitty_specs / mission_flag
+    if mission:
+        mission_dir = kitty_specs / mission
         if not mission_dir.is_dir():
             _output_error(json_output, f"Mission directory not found: {mission_dir}")
             raise typer.Exit(1)
@@ -663,10 +632,6 @@ def validate(
         str | None,
         typer.Option("--mission", help="Mission slug (auto-detected if omitted)"),
     ] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
-    ] = None,
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
@@ -685,7 +650,6 @@ def validate(
         spec-kitty agent status validate --mission 034-my-mission
         spec-kitty agent status validate --json
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.phase import resolve_phase
     from specify_cli.status.reducer import reduce
     from specify_cli.status.store import read_events, read_events_raw
@@ -698,7 +662,7 @@ def validate(
         validate_transition_legality,
     )
 
-    mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+    mission_slug = _find_mission_slug(explicit_mission=mission)
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
@@ -826,10 +790,6 @@ def reconcile(
         str | None,
         typer.Option("--mission", "-f", help="Mission slug (auto-detected if omitted)"),
     ] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission"),
-    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run/--apply", help="Preview vs persist reconciliation events"),
@@ -857,14 +817,13 @@ def reconcile(
         spec-kitty agent status reconcile --mission 034-mission-name --json
         spec-kitty agent status reconcile --apply --target-repo /path/to/repo
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     from specify_cli.status.reconcile import (
         format_reconcile_report,
         reconcile as do_reconcile,
         reconcile_result_to_json,
     )
 
-    mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+    mission_slug = _find_mission_slug(explicit_mission=mission)
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)

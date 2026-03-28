@@ -11,7 +11,6 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.agent_context import (
     parse_plan_for_tech_stack,
@@ -75,14 +74,12 @@ def resolve_context(
         ),
     ],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     wp_id: Annotated[str | None, typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     base: Annotated[str | None, typer.Option("--base", help="Explicit base WP for implement")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
 ) -> None:
     """Resolve canonical mission/work-package/action context for prompt execution."""
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = locate_project_root()
         if repo_root is None:
@@ -100,7 +97,7 @@ def resolve_context(
         context = resolve_action_context(
             repo_root,
             action=cast(ActionName, action),
-            mission=mission_flag,
+            mission=mission,
             wp_id=wp_id,
             base=base,
             agent=agent,
@@ -130,7 +127,6 @@ def resolve_context(
 @app.command(name="update-context")
 def update_context(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent_type: Annotated[
         str | None,
         typer.Option(
@@ -161,7 +157,6 @@ def update_context(
         cd .worktrees/008-mission
         spec-kitty agent update-context
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         # Locate repository root
         repo_root = locate_project_root()
@@ -179,7 +174,7 @@ def update_context(
 
         # Find mission directory using centralized detection
         try:
-            mission_dir = _find_mission_directory(repo_root, cwd, explicit_mission=mission_flag)
+            mission_dir = _find_mission_directory(repo_root, cwd, explicit_mission=mission)
         except ValueError as e:
             if json_output:
                 print(json.dumps({"error": str(e), "success": False}))

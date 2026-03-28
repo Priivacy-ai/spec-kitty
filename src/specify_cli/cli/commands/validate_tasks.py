@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.acceptance import AcceptanceError, detect_mission_slug
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_mission_dir
 from specify_cli.task_metadata_validation import (
@@ -22,7 +21,6 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 def validate_tasks(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to validate (auto-detected when omitted)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all missions, not just one"),
     agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
@@ -37,7 +35,6 @@ def validate_tasks(
 
     Can automatically fix by updating frontmatter to match directory.
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = find_repo_root()
     except TaskCliError as exc:
@@ -96,7 +93,7 @@ def validate_tasks(
 
     # Validate single mission
     try:
-        mission_slug = (mission_flag or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
+        mission_slug = (mission or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)

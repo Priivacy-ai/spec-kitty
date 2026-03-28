@@ -161,8 +161,8 @@ class APIHandler(DashboardHandler):
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
-        # Extract mission_slug from query params (support legacy 'feature' param too)
-        mission_slug = query.get('mission', query.get('feature', [None]))[0]
+        # Extract mission_slug from query params
+        mission_slug = query.get('mission', [None])[0]
         if not mission_slug:
             self.send_response(400)
             self.send_header('Content-type', 'application/json')

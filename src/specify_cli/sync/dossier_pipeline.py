@@ -68,7 +68,7 @@ def sync_mission_dossier(
     # Step 1: Index
     try:
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(mission_dir, mission_type, step_id)
+        dossier = indexer.index_mission(mission_dir, mission_type, step_id)
     except Exception as e:
         logger.error("Indexer failed for %s: %s", mission_dir, e)
         return DossierSyncResult(
@@ -265,8 +265,3 @@ def trigger_mission_dossier_sync_if_enabled(
     except Exception as e:
         logger.warning("Dossier sync failed for %s: %s", mission_slug, e)
         return None
-
-
-# Backward-compat aliases (to be removed in cord-cutting phase)
-trigger_feature_dossier_sync_if_enabled = trigger_mission_dossier_sync_if_enabled
-sync_feature_dossier = sync_mission_dossier

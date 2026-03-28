@@ -118,8 +118,8 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
     """Check if a surface exists on disk."""
     if surface.root == StateRoot.PROJECT:
         path = repo_root / surface.path_pattern
-    elif surface.root == StateRoot.FEATURE:
-        # Feature surfaces live under repo_root (e.g. kitty-specs/<feature>/...)
+    elif surface.root == StateRoot.MISSION:
+        # Mission surfaces live under repo_root (e.g. kitty-specs/<mission>/...)
         path = repo_root / surface.path_pattern
     elif surface.root == StateRoot.GLOBAL_RUNTIME:
         if surface.path_pattern.startswith("~/"):
@@ -173,7 +173,7 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
             parent = parent.parent
         return any(True for _ in parent.glob(pattern))
     elif "<" in str(path):
-        # Placeholder paths (like <feature>) -- check parent dir existence
+        # Placeholder paths (like <mission>) -- check parent dir existence
         parent = path.parent
         while "<" in str(parent):
             parent = parent.parent

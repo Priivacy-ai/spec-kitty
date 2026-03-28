@@ -28,7 +28,6 @@ from pathlib import Path
 
 import typer
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.git.commit_helpers import safe_commit
 from specify_cli.merge import run_preflight, get_merge_order
 
@@ -287,10 +286,9 @@ def contract_version(
 @app.command(name="mission-state")
 def mission_state(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g. 034-my-mission)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
 ) -> None:
     """Return the full state of a mission (all WPs, lanes, dependencies)."""
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail("mission-state", "USAGE_ERROR", "--mission is required")
         return
@@ -355,10 +353,9 @@ def mission_state(
 @app.command(name="list-ready")
 def list_ready(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail("list-ready", "USAGE_ERROR", "--mission is required")
         return
@@ -422,14 +419,13 @@ def list_ready(
 @app.command(name="start-implementation")
 def start_implementation(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
 ) -> None:
     """Composite transition: planned→claimed→in_progress (idempotent)."""
     cmd = "start-implementation"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
@@ -563,7 +559,6 @@ def start_implementation(
 @app.command(name="start-review")
 def start_review(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
@@ -571,7 +566,7 @@ def start_review(
 ) -> None:
     """Transition a WP from for_review back to in_progress (reviewer rollback)."""
     cmd = "start-review"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
@@ -648,7 +643,6 @@ def start_review(
 @app.command(name="transition")
 def transition(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     to: str = typer.Option(..., "--to", help="Target lane"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
@@ -659,7 +653,7 @@ def transition(
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
@@ -748,14 +742,13 @@ def transition(
 @app.command(name="append-history")
 def append_history(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     note: str = typer.Option(..., "--note", help="History note to append"),
 ) -> None:
     """Append a history entry to a WP prompt file."""
     cmd = "append-history"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
@@ -813,12 +806,11 @@ def append_history(
 @app.command(name="accept-mission")
 def accept_mission(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
 ) -> None:
     """Accept a mission after all WPs are done."""
     cmd = "accept-mission"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
@@ -876,14 +868,13 @@ def accept_mission(
 @app.command(name="merge-mission")
 def merge_mission(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
     cmd = "merge-mission"
-    mission_slug = resolve_mission_or_feature(mission, feature)
+    mission_slug = mission
     if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return

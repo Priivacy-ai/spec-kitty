@@ -50,7 +50,7 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     """
     DEPRECATED: No-op function for backwards compatibility.
 
-    As of v0.8.0, missions are selected per-feature during /spec-kitty.specify,
+    As of v0.8.0, missions are selected per-mission during /spec-kitty.specify,
     not at the project level during init. This function is kept for backwards
     compatibility with existing init code but no longer sets an active mission.
     """
@@ -60,7 +60,7 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     mission_path = missions_dir / mission_key
 
     if mission_path.exists():
-        return f"{mission_display} (per-feature selection)"
+        return f"{mission_display} (per-mission selection)"
     else:
         console.print(
             f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be "

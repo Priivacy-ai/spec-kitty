@@ -10,7 +10,7 @@ import re
 
 import typer
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature, resolve_mission_type
+from specify_cli.cli.commands._flag_utils import resolve_mission_type
 from specify_cli.cli.commands.agent import mission as agent_mission
 
 
@@ -36,12 +36,10 @@ def specify(
 
 def plan(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a mission."""
-    mission_flag = resolve_mission_or_feature(mission, feature)
-    agent_mission.setup_plan(mission=mission_flag, json_output=json_output)
+    agent_mission.setup_plan(mission=mission, json_output=json_output)
 
 
 def tasks(

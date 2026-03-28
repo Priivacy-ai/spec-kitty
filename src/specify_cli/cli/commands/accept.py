@@ -7,7 +7,6 @@ import json
 import typer
 from rich.table import Table
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
@@ -112,7 +111,6 @@ def _emit_acceptance_events(mission_slug: str, wp_ids: list[str]) -> None:
 
 def accept(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to accept (auto-detected by default)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -122,7 +120,6 @@ def accept(
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
     """Validate mission readiness before merging to main."""
-    mission_flag = resolve_mission_or_feature(mission, feature)
 
     if not json_output:
         show_banner()
@@ -147,7 +144,7 @@ def accept(
         tracker.start("detect")
     try:
         mission_slug = (
-            mission_flag
+            mission
             or detect_mission_slug(repo_root)
         ).strip()
     except AcceptanceError as exc:

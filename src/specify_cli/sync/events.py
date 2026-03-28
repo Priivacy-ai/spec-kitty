@@ -139,14 +139,11 @@ def emit_mission_created(
     wp_count: int,
     created_at: str | None = None,
     causation_id: str | None = None,
-    # Deprecated kwargs for backward compatibility
-    feature_slug: str | None = None,
-    feature_number: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionCreated event via singleton."""
     return get_emitter().emit_mission_created(
-        mission_slug=mission_slug or feature_slug or "",
-        mission_number=mission_number or feature_number or "",
+        mission_slug=mission_slug,
+        mission_number=mission_number,
         target_branch=target_branch,
         wp_count=wp_count,
         created_at=created_at,
@@ -160,49 +157,10 @@ def emit_mission_completed(
     completed_at: str | None = None,
     total_duration: str | None = None,
     causation_id: str | None = None,
-    # Deprecated kwargs for backward compatibility
-    feature_slug: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionCompleted event via singleton."""
     return get_emitter().emit_mission_completed(
-        mission_slug=mission_slug or feature_slug or "",
-        total_wps=total_wps,
-        completed_at=completed_at,
-        total_duration=total_duration,
-        causation_id=causation_id,
-    )
-
-
-# Backward-compat aliases (to be removed in cord-cutting phase)
-def emit_feature_created(
-    feature_slug: str,
-    feature_number: str,
-    target_branch: str,
-    wp_count: int,
-    created_at: str | None = None,
-    causation_id: str | None = None,
-) -> dict[str, Any] | None:
-    """Deprecated: use emit_mission_created instead."""
-    return emit_mission_created(
-        mission_slug=feature_slug,
-        mission_number=feature_number,
-        target_branch=target_branch,
-        wp_count=wp_count,
-        created_at=created_at,
-        causation_id=causation_id,
-    )
-
-
-def emit_feature_completed(
-    feature_slug: str,
-    total_wps: int,
-    completed_at: str | None = None,
-    total_duration: str | None = None,
-    causation_id: str | None = None,
-) -> dict[str, Any] | None:
-    """Deprecated: use emit_mission_completed instead."""
-    return emit_mission_completed(
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         total_wps=total_wps,
         completed_at=completed_at,
         total_duration=total_duration,

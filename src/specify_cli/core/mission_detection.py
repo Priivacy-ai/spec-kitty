@@ -14,7 +14,7 @@ Design principles:
 
 Priority order:
 1. Explicit --mission parameter (highest priority)
-2. SPECIFY_MISSION / SPECIFY_FEATURE environment variable
+2. SPECIFY_MISSION environment variable
 3. Git branch name (strips -WP## suffix for worktree branches)
 4. Current directory path (walk up looking for ###-mission-name)
 5. Single mission auto-detect (only if exactly one mission exists)
@@ -355,15 +355,13 @@ def detect_mission(
     mode: Literal["strict", "lenient"] = "strict",
     allow_single_auto: bool = True,
     allow_latest_incomplete: bool = False,
-    # Backward-compat alias — callers using ``explicit_feature=`` keep working.
-    explicit_feature: str | None = None,
 ) -> MissionContext | None:
     """
     Unified mission detection with configurable behavior.
 
     Priority:
     1. explicit_mission parameter
-    2. SPECIFY_MISSION / SPECIFY_FEATURE env var
+    2. SPECIFY_MISSION env var
     3. Git branch name (strips -WP## suffix)
     4. Current directory path (walks up to find ###-mission-name)
     5. Single mission auto-detect (if allow_single_auto=True)
@@ -379,7 +377,6 @@ def detect_mission(
         allow_single_auto: Auto-detect if exactly one mission exists
         allow_latest_incomplete: Auto-select the latest incomplete mission
             when multiple missions exist and no other context is available.
-        explicit_feature: Deprecated alias for explicit_mission (backward compat)
 
     Returns:
         MissionContext with detection details, or None in lenient mode
@@ -405,9 +402,6 @@ def detect_mission(
         >>> ctx is None
         True
     """
-    # Merge deprecated alias into canonical parameter
-    resolved_explicit = explicit_mission or explicit_feature
-
     env = env or os.environ
     cwd = cwd or Path.cwd()
 
@@ -415,8 +409,8 @@ def detect_mission(
     detection_method: str = ""
 
     # Priority 1: Explicit --mission parameter
-    if resolved_explicit:
-        detected_slug = resolved_explicit.strip()
+    if explicit_mission:
+        detected_slug = explicit_mission.strip()
         if re.fullmatch(r"\d{3}", detected_slug):
             resolved = _resolve_numeric_mission_slug(detected_slug, repo_root, mode=mode)
             if resolved is None:
@@ -426,10 +420,9 @@ def detect_mission(
         else:
             detection_method = "explicit"
 
-    # Priority 2: SPECIFY_MISSION env var (primary), SPECIFY_FEATURE (deprecated fallback)
-    elif ("SPECIFY_MISSION" in env and env["SPECIFY_MISSION"].strip()) or \
-         ("SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip()):
-        detected_slug = (env.get("SPECIFY_MISSION", "").strip() or env.get("SPECIFY_FEATURE", "").strip())
+    # Priority 2: SPECIFY_MISSION env var
+    elif "SPECIFY_MISSION" in env and env["SPECIFY_MISSION"].strip():
+        detected_slug = env["SPECIFY_MISSION"].strip()
         if re.fullmatch(r"\d{3}", detected_slug):
             resolved = _resolve_numeric_mission_slug(detected_slug, repo_root, mode=mode)
             if resolved is None:
@@ -654,63 +647,24 @@ def get_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
 
 
 # ============================================================================
-# Backward-compatibility aliases
-# ============================================================================
-
-# These aliases allow existing callers (and test patch paths) to keep working
-# during the transition period.  New code should use the Mission* names.
-FeatureContext = MissionContext
-FeatureDetectionError = MissionDetectionError
-MultipleFeaturesError = MultipleMissionsError
-NoFeatureFoundError = NoMissionFoundError
-detect_feature = detect_mission
-detect_feature_slug = detect_mission_slug
-detect_feature_directory = detect_mission_directory
-get_feature_target_branch = get_mission_target_branch
-is_feature_complete = is_mission_complete
-
-# Internal-function aliases so ``patch("…feature_detection._list_all_features")``
-# style test paths keep resolving.
-_list_all_features = _list_all_missions
-_validate_feature_exists = _validate_mission_exists
-_is_feature_runnable = _is_mission_runnable
-_resolve_numeric_feature_slug = _resolve_numeric_mission_slug
-
-
-# ============================================================================
 # Exports
 # ============================================================================
 
 
 __all__ = [
-    # Core types (canonical)
+    # Core types
     "MissionContext",
-    # Error types (canonical)
+    # Error types
     "MissionDetectionError",
     "MultipleMissionsError",
     "NoMissionFoundError",
-    # Core function (canonical)
+    # Core function
     "detect_mission",
-    # Simplified wrappers (canonical)
+    # Simplified wrappers
     "detect_mission_slug",
     "detect_mission_directory",
-    # Target branch detection (canonical)
+    # Target branch detection
     "get_mission_target_branch",
     # Mission completeness check
     "is_mission_complete",
-    # Backward-compat aliases (deprecated — use Mission* names)
-    "FeatureContext",
-    "FeatureDetectionError",
-    "MultipleFeaturesError",
-    "NoFeatureFoundError",
-    "detect_feature",
-    "detect_feature_slug",
-    "detect_feature_directory",
-    "get_feature_target_branch",
-    "is_feature_complete",
-    # Internal-function backward-compat aliases
-    "_list_all_features",
-    "_validate_feature_exists",
-    "_is_feature_runnable",
-    "_resolve_numeric_feature_slug",
 ]

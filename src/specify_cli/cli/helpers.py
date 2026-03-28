@@ -136,7 +136,7 @@ def get_project_root_or_exit(start: Path | None = None) -> Path:
     if project_root is None:
         console.print("[red]Error:[/red] Unable to locate the Spec Kitty project root (.kittify directory not found).")
         console.print(
-            "[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]"
+            "[dim]Run this command from the project root or from a mission worktree under .worktrees/<mission>/.[/dim]"
         )
         console.print("[dim]Tip: Initialize a project with 'spec-kitty init <name>' if one does not exist.[/dim]")
         raise typer.Exit(1)

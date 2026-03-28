@@ -11,7 +11,6 @@ from pathlib import Path
 import typer
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from constitution.context import build_constitution_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
@@ -421,7 +420,6 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[str | None, typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
     allow_missing_profile: Annotated[bool, typer.Option(
@@ -444,7 +442,6 @@ def implement(
         spec-kitty agent workflow implement wp01 --agent codex
         spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and mission slug
         repo_root = locate_project_root()
@@ -452,7 +449,7 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+        mission_slug = _find_mission_slug(explicit_mission=mission)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
@@ -963,7 +960,6 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
 def review(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -978,7 +974,6 @@ def review(
         spec-kitty agent workflow review wp02 --agent codex
         spec-kitty agent workflow review --agent gemini  # auto-detects first for_review WP
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and mission slug
         repo_root = locate_project_root()
@@ -986,7 +981,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission_flag)
+        mission_slug = _find_mission_slug(explicit_mission=mission)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)

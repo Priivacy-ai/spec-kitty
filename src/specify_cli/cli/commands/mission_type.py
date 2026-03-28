@@ -9,7 +9,6 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.mission import (
     Mission,
@@ -192,16 +191,9 @@ def current_cmd(
         "-m",
         help="Mission slug (auto-detects from current directory if omitted)",
     ),
-    feature: str | None = typer.Option(
-        None,
-        "--feature",
-        "-f",
-        hidden=True,
-        help="[Deprecated] Use --mission",
-    ),
 ) -> None:
     """Show currently active mission (auto-detects mission from cwd)."""
-    mission_slug_arg = resolve_mission_or_feature(mission, feature)
+    mission_slug_arg = mission
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "mission")
 

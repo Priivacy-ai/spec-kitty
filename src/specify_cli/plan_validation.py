@@ -10,11 +10,11 @@ from pathlib import Path
 
 # Template markers that indicate an unfilled plan
 TEMPLATE_MARKERS = [
-    "[FEATURE]",
-    "[###-feature-name]",
+    "[MISSION]",
+    "[###-mission-name]",
     "[DATE]",
     "[link]",
-    "[Extract from feature spec:",
+    "[Extract from mission spec:",
     "ACTION REQUIRED: Replace the content",
     "[e.g., Python 3.11",
     "or NEEDS CLARIFICATION",

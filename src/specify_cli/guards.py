@@ -80,7 +80,7 @@ def validate_worktree_location(project_root: Path | None = None) -> WorktreeVali
     if result.returncode != 0:
         return WorktreeValidationResult(
             current_branch="unknown",
-            is_feature_branch=False,
+            is_mission_branch=False,
             is_main_branch=False,
             worktree_path=None,
             errors=["Not a git repository"],

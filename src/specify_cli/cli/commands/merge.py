@@ -13,7 +13,6 @@ from pathlib import Path
 import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_preflight import (
@@ -714,7 +713,6 @@ def merge(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
-    feature: str = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
 ) -> None:
@@ -728,7 +726,7 @@ def merge(
     Use --resume to continue an interrupted merge from saved state.
     Use --abort to clear merge state and abort any in-progress git merge.
     """
-    mission_flag = resolve_mission_or_feature(mission, feature)
+    mission_flag = mission
 
     if not json_output:
         show_banner()
@@ -1022,7 +1020,7 @@ def merge(
     try:
         _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
         if current_branch == target_branch:
-            # Check if --mission/--feature flag was provided
+            # Check if --mission flag was provided
             if mission_flag:
                 # Validate mission exists by checking for worktrees
                 main_repo = get_main_repo_root(repo_root)

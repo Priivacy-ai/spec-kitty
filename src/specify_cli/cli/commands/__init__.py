@@ -57,7 +57,6 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(migrate_module.migrate)
     app.command(name="next")(next_cmd_module.next_step)
     app.add_typer(mission_type_module.app, name="mission-type")
-    app.add_typer(mission_type_module.app, name="mission", hidden=True)  # backward-compat alias
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
@@ -66,7 +65,7 @@ def register_commands(app: typer.Typer) -> None:
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
     app.command()(upgrade_module.upgrade)
-    app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
+    app.command(name="list-legacy-worktrees")(upgrade_module.list_legacy_worktrees)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)

@@ -1,7 +1,7 @@
-"""Worktree management utilities for spec-kitty feature development.
+"""Worktree management utilities for spec-kitty mission development.
 
 This module provides functions for creating and managing workspaces (git worktrees)
-for parallel feature development. Uses the VCS abstraction layer.
+for parallel mission development. Uses the VCS abstraction layer.
 
 All functions are location-aware and work correctly whether called from main
 repository or existing worktree/workspace.
@@ -123,23 +123,23 @@ def get_next_mission_number(repo_root: Path) -> int:
     return max_number + 1
 
 
-def create_feature_worktree(
+def create_mission_worktree(
     repo_root: Path,
-    feature_slug: str,
-    feature_number: int | None = None
+    mission_slug: str,
+    mission_number: int | None = None
 ) -> tuple[Path, Path]:
-    """Create workspace (git worktree) for feature development.
+    """Create workspace (git worktree) for mission development.
 
-    Creates a new workspace with a feature branch and sets up the
-    feature directory structure. Uses VCS abstraction.
+    Creates a new workspace with a mission branch and sets up the
+    mission directory structure. Uses VCS abstraction.
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature identifier (e.g., "test-feature")
-        feature_number: Optional feature number (auto-detected if None)
+        mission_slug: Mission identifier (e.g., "test-mission")
+        mission_number: Optional mission number (auto-detected if None)
 
     Returns:
-        Tuple of (worktree_path, feature_dir)
+        Tuple of (worktree_path, mission_dir)
 
     Raises:
         RuntimeError: If workspace creation fails
@@ -147,18 +147,18 @@ def create_feature_worktree(
 
     Examples:
         >>> repo_root = Path("/path/to/repo")
-        >>> worktree, feature_dir = create_feature_worktree(repo_root, "new-feature")
+        >>> worktree, mission_dir = create_mission_worktree(repo_root, "new-mission")
         >>> assert worktree.exists()
-        >>> assert feature_dir.exists()
+        >>> assert mission_dir.exists()
     """
-    # Auto-detect feature number if not provided
-    if feature_number is None:
-        feature_number = get_next_feature_number(repo_root)
+    # Auto-detect mission number if not provided
+    if mission_number is None:
+        mission_number = get_next_mission_number(repo_root)
 
-    # Format: 001-test-feature
-    branch_name = f"{feature_number:03d}-{feature_slug}"
+    # Format: 001-test-mission
+    branch_name = f"{mission_number:03d}-{mission_slug}"
 
-    # Create worktree at .worktrees/001-test-feature
+    # Create worktree at .worktrees/001-test-mission
     worktree_path = repo_root / WORKTREES_DIR / branch_name
 
     # Ensure .worktrees directory exists
@@ -182,8 +182,8 @@ def create_feature_worktree(
             is_valid_workspace = git_marker.exists()
 
         if is_valid_workspace:
-            feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
-            return (worktree_path, feature_dir)
+            mission_dir = worktree_path / KITTY_SPECS_DIR / branch_name
+            return (worktree_path, mission_dir)
 
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
@@ -235,23 +235,23 @@ def create_feature_worktree(
                 f"Failed to create workspace: {git_error.stderr}"
             ) from git_error
 
-    # Create feature directory structure
-    feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    # Create mission directory structure
+    mission_dir = worktree_path / KITTY_SPECS_DIR / branch_name
+    mission_dir.mkdir(parents=True, exist_ok=True)
 
-    # Setup feature directory (symlinks, subdirectories, etc.)
-    setup_feature_directory(feature_dir, worktree_path, repo_root)
+    # Setup mission directory (symlinks, subdirectories, etc.)
+    setup_mission_directory(mission_dir, worktree_path, repo_root)
 
-    return (worktree_path, feature_dir)
+    return (worktree_path, mission_dir)
 
 
-def setup_feature_directory(
-    feature_dir: Path,
+def setup_mission_directory(
+    mission_dir: Path,
     worktree_path: Path,
     repo_root: Path,
     create_symlinks: bool = True
 ) -> None:
-    """Setup standard feature directory structure.
+    """Setup standard mission directory structure.
 
     Creates:
     - kitty-specs/###-name/ directory
@@ -261,23 +261,23 @@ def setup_feature_directory(
     - tasks/README.md
 
     Args:
-        feature_dir: Feature directory path
+        mission_dir: Mission directory path
         worktree_path: Worktree root path
         repo_root: Main repository root path
         create_symlinks: If True, create symlinks; else copy files (Windows)
 
     Examples:
-        >>> feature_dir = Path("/path/to/.worktrees/001-feature/kitty-specs/001-feature")
-        >>> setup_feature_directory(feature_dir, feature_dir.parent.parent, repo_root)
-        >>> assert (feature_dir / "checklists").exists()
+        >>> mission_dir = Path("/path/to/.worktrees/001-mission/kitty-specs/001-mission")
+        >>> setup_mission_directory(mission_dir, mission_dir.parent.parent, repo_root)
+        >>> assert (mission_dir / "checklists").exists()
     """
-    # Ensure feature directory exists
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure mission directory exists
+    mission_dir.mkdir(parents=True, exist_ok=True)
 
     # Create subdirectories
-    (feature_dir / "checklists").mkdir(exist_ok=True)
-    (feature_dir / "research").mkdir(exist_ok=True)
-    tasks_dir = feature_dir / "tasks"
+    (mission_dir / "checklists").mkdir(exist_ok=True)
+    (mission_dir / "research").mkdir(exist_ok=True)
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
 
     # Create tasks/.gitkeep and README.md
@@ -363,7 +363,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
     # Setup shared constitution and AGENTS.md via symlink (or copy on Windows)
     # Calculate relative path from worktree to main repo
-    # Worktree: .worktrees/001-feature/.kittify/memory
+    # Worktree: .worktrees/001-mission/.kittify/memory
     # Main:     .kittify/memory
     # Relative: ../../../.kittify/memory
     relative_memory_path = Path("../../../.kittify/memory")
@@ -418,7 +418,7 @@ spec-kitty agent tasks move-task WP01 --to doing
     _exclude_from_git(worktree_path, [".kittify/memory", ".kittify/AGENTS.md"])
 
     # Copy spec template if it exists
-    spec_file = feature_dir / "spec.md"
+    spec_file = mission_dir / "spec.md"
     if not spec_file.exists():
         # Try to find spec template
         spec_template_candidates = [
@@ -483,7 +483,7 @@ def validate_mission_structure(
             "artifact_files": artifact_files,
             "artifact_dirs": artifact_dirs,
             "available_docs": available_docs,
-            "FEATURE_DIR": "",
+            "MISSION_DIR": "",
             "AVAILABLE_DOCS": available_docs,
         }
 
@@ -564,12 +564,6 @@ def validate_mission_structure(
         "artifact_files": artifact_files,
         "artifact_dirs": artifact_dirs,
         "available_docs": available_docs,
-        # Compatibility aliases for older templates/prompts
-        "FEATURE_DIR": mission_dir_str,
+        "MISSION_DIR": mission_dir_str,
         "AVAILABLE_DOCS": available_docs,
     }
-
-
-# Backward-compat aliases (to be removed in cord-cutting phase)
-get_next_feature_number = get_next_mission_number
-validate_feature_structure = validate_mission_structure

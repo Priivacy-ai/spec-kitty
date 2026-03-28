@@ -255,7 +255,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="constitution interview",
         creation_trigger="constitution interview flow",
-        notes="Policy enforced in feature 054: commit answers + library, ignore references",
+        notes="Policy enforced in mission 054: commit answers + library, ignore references",
     ),
     StateSurface(
         name="constitution_references",
@@ -266,7 +266,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="constitution compiler",
         creation_trigger="constitution compile",
-        notes="Policy enforced in feature 054: commit answers + library, ignore references",
+        notes="Policy enforced in mission 054: commit answers + library, ignore references",
     ),
     StateSurface(
         name="constitution_library",
@@ -277,7 +277,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="constitution compiler",
         creation_trigger="constitution compile",
-        notes="Policy enforced in feature 054: commit answers + library, ignore references",
+        notes="Policy enforced in mission 054: commit answers + library, ignore references",
     ),
     StateSurface(
         name="constitution_governance",

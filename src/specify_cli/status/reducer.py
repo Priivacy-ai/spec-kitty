@@ -181,7 +181,7 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
     )
 
 
-def materialize(feature_dir: Path) -> StatusSnapshot:
+def materialize(mission_dir: Path) -> StatusSnapshot:
     """Read events, reduce to snapshot, and write status.json atomically.
 
     Writes to a temporary file first, then uses ``os.replace`` for an
@@ -189,12 +189,12 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
 
     Returns the materialized snapshot.
     """
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     snapshot = reduce(events)
     json_str = materialize_to_json(snapshot)
 
-    out_path = feature_dir / SNAPSHOT_FILENAME
-    tmp_path = feature_dir / (SNAPSHOT_FILENAME + ".tmp")
+    out_path = mission_dir / SNAPSHOT_FILENAME
+    tmp_path = mission_dir / (SNAPSHOT_FILENAME + ".tmp")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path.write_text(json_str, encoding="utf-8")

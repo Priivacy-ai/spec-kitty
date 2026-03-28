@@ -127,7 +127,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
    - Identify MVP scope (typically WP01 + Reference generation)
 
 6. **Generate prompt files**:
-   - Create flat `FEATURE_DIR/tasks/` directory (no subdirectories!)
+   - Create flat `MISSION_DIR/tasks/` directory (no subdirectories!)
    - For each work package:
      - Generate `WPxx-slug.md` using `templates/task-prompt-template.md`
      - Include objectives, context, subtask guidance
