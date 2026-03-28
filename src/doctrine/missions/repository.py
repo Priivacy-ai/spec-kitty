@@ -132,6 +132,92 @@ class MissionTemplateRepository:
         )
 
     # ------------------------------------------------------------------
+    # Public content-returning methods
+    # ------------------------------------------------------------------
+
+    def get_command_template(self, mission: str, name: str) -> TemplateResult | None:
+        """Read a command template's content from doctrine assets.
+
+        Looks for ``<missions_root>/<mission>/command-templates/<name>.md``.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+            name: Template name without ``.md`` extension (e.g. ``"implement"``).
+
+        Returns:
+            TemplateResult with content and origin, or ``None`` if not found.
+        """
+        path = self._command_template_path(mission, name)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/command-templates/{name}.md"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def get_content_template(self, mission: str, name: str) -> TemplateResult | None:
+        """Read a content template's content from doctrine assets.
+
+        Looks for ``<missions_root>/<mission>/templates/<name>``.
+
+        Args:
+            mission: Mission name.
+            name: Template filename with extension (e.g. ``"spec-template.md"``).
+
+        Returns:
+            TemplateResult with content and origin, or ``None`` if not found.
+        """
+        path = self._content_template_path(mission, name)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/templates/{name}"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def list_command_templates(self, mission: str) -> list[str]:
+        """Return names of all command templates for a mission.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+
+        Returns:
+            Sorted list of template names WITHOUT ``.md`` extension
+            (e.g. ``["implement", "plan", "specify", "tasks"]``).
+            Empty list if mission or command-templates dir doesn't exist.
+        """
+        cmd_dir = self._root / mission / "command-templates"
+        if not cmd_dir.is_dir():
+            return []
+        return sorted(
+            p.stem for p in cmd_dir.iterdir()
+            if p.is_file() and p.suffix == ".md" and p.name != "README.md"
+        )
+
+    def list_content_templates(self, mission: str) -> list[str]:
+        """Return filenames of all content templates for a mission.
+
+        Args:
+            mission: Mission name.
+
+        Returns:
+            Sorted list of template filenames WITH extension
+            (e.g. ``["plan-template.md", "spec-template.md"]``).
+            Empty list if mission or templates dir doesn't exist.
+        """
+        tpl_dir = self._root / mission / "templates"
+        if not tpl_dir.is_dir():
+            return []
+        return sorted(
+            p.name for p in tpl_dir.iterdir()
+            if p.is_file() and p.name != "README.md"
+        )
+
+    # ------------------------------------------------------------------
     # Private path methods (internal use only)
     # ------------------------------------------------------------------
 
