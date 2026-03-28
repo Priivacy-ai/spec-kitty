@@ -532,23 +532,23 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
 
 
 # =============================================================================
-# Per-Feature Mission Functions (v0.8.0+)
+# Per-Mission Functions (v0.8.0+)
 # =============================================================================
 
 
-def get_feature_mission_key(feature_dir: Path) -> str:
-    """Extract mission key from feature's meta.json, defaulting to software-dev.
+def get_mission_key(mission_dir: Path) -> str:
+    """Extract mission key from mission's meta.json, defaulting to software-dev.
 
-    This is a helper function for reading the mission field from a feature's
+    This is a helper function for reading the mission field from a mission's
     metadata file. It handles missing files and invalid JSON gracefully.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+        mission_dir: Path to the mission directory (kitty-specs/<mission>/)
 
     Returns:
         Mission key string (e.g., 'software-dev', 'research')
     """
-    meta_file = feature_dir / "meta.json"
+    meta_file = mission_dir / "meta.json"
     if not meta_file.exists():
         return "software-dev"
     try:
@@ -559,16 +559,16 @@ def get_feature_mission_key(feature_dir: Path) -> str:
         return "software-dev"
 
 
-def get_deliverables_path(feature_dir: Path, feature_slug: str | None = None) -> str | None:
-    """Extract deliverables_path from feature's meta.json.
+def get_deliverables_path(mission_dir: Path, mission_slug: str | None = None) -> str | None:
+    """Extract deliverables_path from mission's meta.json.
 
     For research missions, deliverables go in a separate location from
     kitty-specs/ planning artifacts. This function reads that location
     from meta.json.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
-        feature_slug: Feature slug for default path generation (optional)
+        mission_dir: Path to the mission directory (kitty-specs/<mission>/)
+        mission_slug: Mission slug for default path generation (optional)
 
     Returns:
         Deliverables path string if configured, or a default path for research
@@ -578,7 +578,7 @@ def get_deliverables_path(feature_dir: Path, feature_slug: str | None = None) ->
         >>> get_deliverables_path(Path("kitty-specs/001-market-research"))
         'docs/research/001-market-research/'
     """
-    meta_file = feature_dir / "meta.json"
+    meta_file = mission_dir / "meta.json"
 
     # Try to read from meta.json
     if meta_file.exists():
@@ -593,15 +593,15 @@ def get_deliverables_path(feature_dir: Path, feature_slug: str | None = None) ->
             mission = meta.get("mission", "software-dev")
             if mission == "research":
                 # Generate default path using slug from meta or directory name
-                slug = meta.get("slug") or feature_slug or feature_dir.name
+                slug = meta.get("slug") or mission_slug or mission_dir.name
                 return f"docs/research/{slug}/"
         except (json.JSONDecodeError, OSError):
             pass
 
-    # If no meta.json but feature_slug provided, check mission from directory structure
+    # If no meta.json but mission_slug provided, check mission from directory structure
     # and provide default for research missions
-    if feature_slug:
-        return f"docs/research/{feature_slug}/"
+    if mission_slug:
+        return f"docs/research/{mission_slug}/"
 
     return None
 
@@ -629,7 +629,7 @@ def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
 
     # Check if just 'research/' at root
     if path == 'research' or path == 'research/':
-        return False, "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<feature>/' or 'research-outputs/<feature>/' instead."
+        return False, "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<mission>/' or 'research-outputs/<mission>/' instead."
 
     # Check if absolute path
     if path.startswith('/'):
@@ -638,30 +638,30 @@ def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
     return True, ""
 
 
-def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None) -> Mission:
-    """Get the mission for a specific feature.
+def get_mission_for_mission_dir(mission_dir: Path, project_root: Path | None = None) -> Mission:
+    """Get the mission for a specific mission directory.
 
-    Reads the mission key from the feature's meta.json and loads the
+    Reads the mission key from the mission's meta.json and loads the
     corresponding mission. If the mission field is missing or the specified
     mission doesn't exist, falls back to software-dev for backward compatibility.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+        mission_dir: Path to the mission directory (kitty-specs/<mission>/)
         project_root: Optional project root (defaults to finding .kittify)
 
     Returns:
-        Mission object for the feature
+        Mission object for the mission directory
 
     Raises:
-        MissionNotFoundError: If feature meta.json not found and no default available
+        MissionNotFoundError: If mission meta.json not found and no default available
     """
     # Get the mission key from meta.json
-    mission_key = get_feature_mission_key(feature_dir)
+    mission_key = get_mission_key(mission_dir)
 
     # Find project root if not provided
     if project_root is None:
-        # Walk up from feature_dir to find .kittify
-        current = feature_dir.resolve()
+        # Walk up from mission_dir to find .kittify
+        current = mission_dir.resolve()
         while current != current.parent:
             if (current / ".kittify").exists():
                 project_root = current
@@ -670,7 +670,7 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
 
         if project_root is None:
             raise MissionNotFoundError(
-                f"Could not find .kittify directory from {feature_dir}\n"
+                f"Could not find .kittify directory from {mission_dir}\n"
                 f"Is this a Spec Kitty project?"
             )
 
@@ -682,7 +682,7 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
     except MissionNotFoundError:
         # Fall back to software-dev with warning
         warnings.warn(
-            f"Mission '{mission_key}' not found for feature {feature_dir.name}, "
+            f"Mission '{mission_key}' not found for mission {mission_dir.name}, "
             f"using software-dev as default",
             stacklevel=2
         )

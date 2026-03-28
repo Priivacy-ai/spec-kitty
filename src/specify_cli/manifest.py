@@ -12,7 +12,7 @@ class FileManifest:
 
     The mission context must be provided explicitly via *mission_key*.
     There is no project-level fallback -- callers should resolve the
-    mission from feature-level ``meta.json`` before constructing a
+    mission from mission-level ``meta.json`` before constructing a
     manifest.
     """
 
@@ -140,16 +140,16 @@ class FileManifest:
 
 
 class WorktreeStatus:
-    """Manages worktree and feature branch status."""
+    """Manages worktree and mission branch status."""
 
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
 
-    def get_all_features(self) -> list[str]:
-        """Get all feature branches and directories."""
-        features = set()
+    def get_all_missions(self) -> list[str]:
+        """Get all mission branches and directories."""
+        missions = set()
 
-        # Get features from branches
+        # Get missions from branches
         try:
             result = subprocess.run(
                 ["git", "branch", "-a"],
@@ -162,28 +162,28 @@ class WorktreeStatus:
             )
             for line in result.stdout.split('\n'):
                 line = line.strip().replace('* ', '')
-                # Match feature branch pattern (###-name)
+                # Match mission branch pattern (###-name)
                 if line and not line.startswith('remotes/'):
                     parts = line.split('/')
                     branch = parts[-1]
                     if branch and branch[0].isdigit() and '-' in branch:
-                        features.add(branch)
+                        missions.add(branch)
         except subprocess.CalledProcessError:
             pass
 
-        # Get features from kitty-specs
+        # Get missions from kitty-specs
         kitty_specs = self.repo_root / "kitty-specs"
         if kitty_specs.exists():
-            for feature_dir in kitty_specs.iterdir():
-                if feature_dir.is_dir() and feature_dir.name[0].isdigit() and '-' in feature_dir.name:
-                    features.add(feature_dir.name)
+            for mission_dir in kitty_specs.iterdir():
+                if mission_dir.is_dir() and mission_dir.name[0].isdigit() and '-' in mission_dir.name:
+                    missions.add(mission_dir.name)
 
-        return sorted(features)
+        return sorted(missions)
 
-    def get_feature_status(self, feature: str) -> dict[str, any]:
-        """Get comprehensive status for a feature."""
+    def get_mission_status(self, mission_slug: str) -> dict[str, any]:
+        """Get comprehensive status for a mission."""
         status = {
-            "name": feature,
+            "name": mission_slug,
             "branch_exists": False,
             "branch_merged": False,
             "worktree_exists": False,
@@ -197,7 +197,7 @@ class WorktreeStatus:
         # Check if branch exists
         try:
             result = subprocess.run(
-                ["git", "show-ref", f"refs/heads/{feature}"],
+                ["git", "show-ref", f"refs/heads/{mission_slug}"],
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
@@ -222,25 +222,25 @@ class WorktreeStatus:
                     errors="replace",
                     check=True
                 )
-                status["branch_merged"] = feature in result.stdout
+                status["branch_merged"] = mission_slug in result.stdout
             except subprocess.CalledProcessError:
                 pass
 
         # Check worktree
-        worktree_path = self.repo_root / ".worktrees" / feature
+        worktree_path = self.repo_root / ".worktrees" / mission_slug
         if worktree_path.exists():
             status["worktree_exists"] = True
             status["worktree_path"] = str(worktree_path)
 
         # Check artifacts in main
-        main_artifacts_path = self.repo_root / "kitty-specs" / feature
+        main_artifacts_path = self.repo_root / "kitty-specs" / mission_slug
         if main_artifacts_path.exists():
             for artifact in main_artifacts_path.glob("*.md"):
                 status["artifacts_in_main"].append(artifact.name)
 
         # Check artifacts in worktree
         if status["worktree_exists"]:
-            worktree_artifacts_path = worktree_path / "kitty-specs" / feature
+            worktree_artifacts_path = worktree_path / "kitty-specs" / mission_slug
             if worktree_artifacts_path.exists():
                 for artifact in worktree_artifacts_path.glob("*.md"):
                     status["artifacts_in_worktree"].append(artifact.name)
@@ -261,21 +261,21 @@ class WorktreeStatus:
 
     def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
-        features = self.get_all_features()
+        missions = self.get_all_missions()
         summary = {
-            "total_features": len(features),
+            "total_missions": len(missions),
             "active_worktrees": 0,
-            "merged_features": 0,
+            "merged_missions": 0,
             "in_development": 0,
             "not_started": 0
         }
 
-        for feature in features:
-            status = self.get_feature_status(feature)
+        for mission_slug in missions:
+            status = self.get_mission_status(mission_slug)
             if status["worktree_exists"]:
                 summary["active_worktrees"] += 1
             if status["state"] == "merged":
-                summary["merged_features"] += 1
+                summary["merged_missions"] += 1
             elif status["state"] == "in_development":
                 summary["in_development"] += 1
             elif status["state"] == "not_started":

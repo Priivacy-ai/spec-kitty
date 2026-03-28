@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 MAX_INLINE_SIZE_BYTES = 512 * 1024  # 512 KiB
 
-# FR-004: Supported feature-scoped surfaces
+# FR-004: Supported mission-scoped surfaces
 _TOP_LEVEL_ARTIFACTS: frozenset[str] = frozenset({
     "spec.md", "plan.md", "tasks.md", "research.md",
     "quickstart.md", "data-model.md",
@@ -71,7 +71,7 @@ def _check_size_limit(relative_path: str, size_bytes: int) -> UploadOutcome | No
 
 
 def _read_and_rehash(
-    feature_dir: Path,
+    mission_dir: Path,
     relative_path: str,
     expected_hash: str,
 ) -> tuple[str, str] | UploadOutcome:
@@ -82,7 +82,7 @@ def _read_and_rehash(
 
     Returns (content_text, actual_hash) on success, or UploadOutcome on failure.
     """
-    file_path = feature_dir / relative_path
+    file_path = mission_dir / relative_path
     try:
         raw_bytes = file_path.read_bytes()
     except FileNotFoundError:
@@ -125,7 +125,7 @@ def prepare_body_uploads(
     artifacts: list[ArtifactRef],
     namespace_ref: NamespaceRef,
     body_queue: OfflineBodyUploadQueue,
-    feature_dir: Path,
+    mission_dir: Path,
 ) -> list[UploadOutcome]:
     """Filter artifacts, read content, enqueue body uploads.
 
@@ -167,7 +167,7 @@ def prepare_body_uploads(
 
         # Read content + re-hash guard
         result = _read_and_rehash(
-            feature_dir, artifact.relative_path, artifact.content_hash_sha256,
+            mission_dir, artifact.relative_path, artifact.content_hash_sha256,
         )
         if isinstance(result, UploadOutcome):
             outcomes.append(result)
@@ -196,7 +196,7 @@ def prepare_body_uploads(
 
 def log_upload_outcomes(
     outcomes: list[UploadOutcome],
-    feature_slug: str,
+    mission_slug: str,
     log: logging.Logger | None = None,
 ) -> None:
     """Log per-artifact upload outcomes with summary.
@@ -213,7 +213,7 @@ def log_upload_outcomes(
 
     log.info(
         "Body upload results for %s: %s",
-        feature_slug,
+        mission_slug,
         ", ".join(f"{k}={v}" for k, v in sorted(by_status.items())),
     )
 

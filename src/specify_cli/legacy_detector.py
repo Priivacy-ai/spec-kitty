@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Legacy format detection for Spec Kitty lane management.
 
-This module provides utilities to detect whether a feature uses the old
+This module provides utilities to detect whether a mission uses the old
 directory-based lane structure (tasks/planned/, tasks/doing/, etc.) or
 the new frontmatter-only lane system (flat tasks/ directory).
 """
@@ -14,16 +14,16 @@ from pathlib import Path
 LEGACY_LANE_DIRS: list[str] = ["planned", "doing", "for_review", "done"]
 
 
-def is_legacy_format(feature_path: Path) -> bool:
-    """Check if feature uses legacy directory-based lanes.
+def is_legacy_format(mission_path: Path) -> bool:
+    """Check if mission uses legacy directory-based lanes.
 
-    A feature is considered to use legacy format if:
+    A mission is considered to use legacy format if:
     - It has a tasks/ subdirectory
     - Any of the lane subdirectories (planned/, doing/, for_review/, done/)
       exist AND contain at least one .md file
 
     Args:
-        feature_path: Path to the feature directory (e.g., kitty-specs/007-feature/)
+        mission_path: Path to the mission directory (e.g., kitty-specs/007-mission/)
 
     Returns:
         True if legacy directory-based lanes detected, False otherwise.
@@ -32,7 +32,7 @@ def is_legacy_format(feature_path: Path) -> bool:
         Empty lane directories (containing only .gitkeep) are NOT considered
         legacy format - only directories with actual .md work package files.
     """
-    tasks_dir = feature_path / "tasks"
+    tasks_dir = mission_path / "tasks"
     if not tasks_dir.exists():
         return False
 
@@ -47,19 +47,19 @@ def is_legacy_format(feature_path: Path) -> bool:
     return False
 
 
-def get_legacy_lane_counts(feature_path: Path) -> dict[str, int]:
+def get_legacy_lane_counts(mission_path: Path) -> dict[str, int]:
     """Get count of work packages in each legacy lane directory.
 
     Useful for migration reporting and validation.
 
     Args:
-        feature_path: Path to the feature directory
+        mission_path: Path to the mission directory
 
     Returns:
         Dictionary mapping lane names to count of .md files in each.
         Only includes lanes that have files.
     """
-    tasks_dir = feature_path / "tasks"
+    tasks_dir = mission_path / "tasks"
     counts: dict[str, int] = {}
 
     if not tasks_dir.exists():

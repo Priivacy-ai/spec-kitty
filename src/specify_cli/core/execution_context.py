@@ -1,7 +1,7 @@
 """Resolve canonical action context for agent-facing workflows.
 
 Prompts should not discover context on their own. They should call into a
-command-owned resolver that determines the active feature, target branch,
+command-owned resolver that determines the active mission, target branch,
 work package, workspace path, and any action-specific commands to run.
 """
 
@@ -13,10 +13,10 @@ from typing import Literal, cast, get_args
 from collections.abc import Mapping
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
-from specify_cli.core.feature_detection import (
-    FeatureContext,
-    detect_feature,
-    get_feature_target_branch,
+from specify_cli.core.mission_detection import (
+    MissionContext,
+    detect_mission,
+    get_mission_target_branch,
 )
 from specify_cli.core.implement_validation import (
     BaseResolutionError,
@@ -48,8 +48,8 @@ class ActionContextError(RuntimeError):
 @dataclass
 class ActionContext:
     action: str
-    feature_slug: str
-    feature_dir: str
+    mission_slug: str
+    mission_dir: str
     target_branch: str
     detection_method: str
     wp_id: str | None = None
@@ -66,17 +66,17 @@ class ActionContext:
         return asdict(self)
 
 
-def _resolve_feature_context(
+def _resolve_mission_context(
     repo_root: Path,
     *,
-    feature: str | None,
+    mission: str | None,
     cwd: Path | None,
     env: Mapping[str, str] | None,
-) -> FeatureContext:
+) -> MissionContext:
     try:
-        ctx = detect_feature(
+        ctx = detect_mission(
             repo_root,
-            explicit_feature=feature,
+            explicit_mission=mission,
             cwd=cwd,
             env=env,
             mode="strict",
@@ -87,25 +87,25 @@ def _resolve_feature_context(
     if ctx is None:
         raise ActionContextError(
             "MISSION_CONTEXT_UNRESOLVED",
-            "Could not resolve feature context.",
+            "Could not resolve mission context.",
         )
     return ctx
 
 
-def _tasks_commands(feature_slug: str) -> dict[str, str]:
+def _tasks_commands(mission_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (
             "spec-kitty agent mission check-prerequisites "
-            f"--json --paths-only --include-tasks --mission {feature_slug}"
+            f"--json --paths-only --include-tasks --mission {mission_slug}"
         ),
         "finalize_tasks": (
-            f"spec-kitty agent mission finalize-tasks --mission {feature_slug} --json"
+            f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --json"
         ),
     }
 
 
-def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
-    tasks_dir = feature_dir / "tasks"
+def _find_first_wp(mission_dir: Path, lane: str) -> str | None:
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
 
@@ -122,7 +122,7 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
 
 def _resolve_wp_id(
     action: ActionName,
-    feature_dir: Path,
+    mission_dir: Path,
     explicit_wp_id: str | None,
 ) -> str | None:
     if explicit_wp_id:
@@ -130,14 +130,14 @@ def _resolve_wp_id(
 
     if action == "implement":
         for lane in ("planned", "in_progress"):
-            wp_id = _find_first_wp(feature_dir, lane)
+            wp_id = _find_first_wp(mission_dir, lane)
             if wp_id:
                 return wp_id
         return None
 
     if action == "review":
         for lane in ("for_review", "in_progress"):
-            wp_id = _find_first_wp(feature_dir, lane)
+            wp_id = _find_first_wp(mission_dir, lane)
             if wp_id:
                 return wp_id
         return None
@@ -149,52 +149,52 @@ def resolve_action_context(
     repo_root: Path,
     *,
     action: ActionName,
-    feature: str | None = None,
+    mission: str | None = None,
     wp_id: str | None = None,
     base: str | None = None,
     agent: str | None = None,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> ActionContext:
-    """Resolve canonical feature/work-package context for an agent action."""
+    """Resolve canonical mission/work-package context for an agent action."""
     if action not in ACTION_NAMES:
         raise ActionContextError(
             "INVALID_ACTION",
             f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
         )
 
-    feature_ctx = _resolve_feature_context(repo_root, feature=feature, cwd=cwd, env=env)
-    feature_slug = feature_ctx.slug
-    feature_dir = feature_ctx.directory
-    target_branch = get_feature_target_branch(repo_root, feature_slug)
+    mission_ctx = _resolve_mission_context(repo_root, mission=mission, cwd=cwd, env=env)
+    mission_slug = mission_ctx.slug
+    mission_dir = mission_ctx.directory
+    target_branch = get_mission_target_branch(repo_root, mission_slug)
 
     context = ActionContext(
         action=action,
-        feature_slug=feature_slug,
-        feature_dir=str(feature_dir),
+        mission_slug=mission_slug,
+        mission_dir=str(mission_dir),
         target_branch=target_branch,
-        detection_method=feature_ctx.detection_method,
-        commands=_tasks_commands(feature_slug),
+        detection_method=mission_ctx.detection_method,
+        commands=_tasks_commands(mission_slug),
     )
 
     if action in {"tasks", "tasks_outline", "tasks_packages", "tasks_finalize"}:
         return context
 
-    normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)
+    normalized_wp_id = _resolve_wp_id(action, mission_dir, wp_id)
     if normalized_wp_id is None:
         raise ActionContextError(
             "WORK_PACKAGE_UNRESOLVED",
-            f"No work package available for action '{action}' in feature {feature_slug}.",
+            f"No work package available for action '{action}' in mission {mission_slug}.",
         )
 
     try:
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
     except Exception as exc:
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
     dependencies = parse_wp_dependencies(wp.path)
     lane = resolve_lane_alias(wp.lane or "planned")
-    workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{normalized_wp_id}"
+    workspace_path = repo_root / ".worktrees" / f"{mission_slug}-{normalized_wp_id}"
 
     context.wp_id = normalized_wp_id
     context.wp_file = str(wp.path)
@@ -208,7 +208,7 @@ def resolve_action_context(
                 wp_id=normalized_wp_id,
                 wp_file=wp.path,
                 base=base,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 repo_root=repo_root,
                 auto_detect_single_dependency=True,
                 quiet=True,

@@ -416,8 +416,8 @@ def list_legacy_features() -> None:
         console.print(f"  - {worktree.name}")
 
     console.print("\n[cyan]Action required:[/cyan]")
-    console.print("  Complete: spec-kitty merge <feature>")
-    console.print("  OR Delete: git worktree remove .worktrees/<feature>")
+    console.print("  Complete: spec-kitty merge <mission>")
+    console.print("  OR Delete: git worktree remove .worktrees/<mission>")
 
 
 __all__ = ["upgrade", "list_legacy_features"]

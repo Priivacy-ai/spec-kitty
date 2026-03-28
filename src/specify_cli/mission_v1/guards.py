@@ -110,15 +110,15 @@ def _split_args(raw: str) -> list[str]:
 
 
 def _make_artifact_exists_guard(args: list[Any]) -> Callable[..., bool]:
-    """Guard: True when a file at *path* exists relative to feature_dir."""
+    """Guard: True when a file at *path* exists relative to mission_dir."""
     path = str(args[0])
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
-        feature_dir = getattr(model, "feature_dir", None)
-        if feature_dir is None:
+        mission_dir = getattr(model, "mission_dir", None)
+        if mission_dir is None:
             return False
-        return (Path(feature_dir) / path).exists()
+        return (Path(mission_dir) / path).exists()
 
     return guard
 
@@ -129,10 +129,10 @@ def _make_gate_passed_guard(args: list[Any]) -> Callable[..., bool]:
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
-        feature_dir = getattr(model, "feature_dir", None)
-        if feature_dir is None:
+        mission_dir = getattr(model, "mission_dir", None)
+        if mission_dir is None:
             return False
-        log_path = Path(feature_dir) / "mission-events.jsonl"
+        log_path = Path(mission_dir) / "mission-events.jsonl"
         if not log_path.exists():
             return False
         try:
@@ -156,10 +156,10 @@ def _make_all_wp_status_guard(args: list[Any]) -> Callable[..., bool]:
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
-        feature_dir = getattr(model, "feature_dir", None)
-        if feature_dir is None:
+        mission_dir = getattr(model, "mission_dir", None)
+        if mission_dir is None:
             return False
-        tasks_dir = Path(feature_dir) / "tasks"
+        tasks_dir = Path(mission_dir) / "tasks"
         if not tasks_dir.is_dir():
             return False
         wp_files = sorted(tasks_dir.glob("WP*.md"))
@@ -180,10 +180,10 @@ def _make_any_wp_status_guard(args: list[Any]) -> Callable[..., bool]:
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
-        feature_dir = getattr(model, "feature_dir", None)
-        if feature_dir is None:
+        mission_dir = getattr(model, "mission_dir", None)
+        if mission_dir is None:
             return False
-        tasks_dir = Path(feature_dir) / "tasks"
+        tasks_dir = Path(mission_dir) / "tasks"
         if not tasks_dir.is_dir():
             return False
         wp_files = sorted(tasks_dir.glob("WP*.md"))
@@ -219,10 +219,10 @@ def _make_event_count_guard(args: list[Any]) -> Callable[..., bool]:
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
-        feature_dir = getattr(model, "feature_dir", None)
-        if feature_dir is None:
+        mission_dir = getattr(model, "mission_dir", None)
+        if mission_dir is None:
             return False
-        log_path = Path(feature_dir) / "mission-events.jsonl"
+        log_path = Path(mission_dir) / "mission-events.jsonl"
         if not log_path.exists():
             return False
         count = 0
@@ -299,7 +299,7 @@ def _is_guard_expression(s: str) -> bool:
     return "(" in s and s.rstrip().endswith(")")
 
 
-def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> dict[str, Any]:  # noqa: ARG001
+def compile_guards(config: dict[str, Any], mission_dir: Path | None = None) -> dict[str, Any]:  # noqa: ARG001
     """Process a v1 config dict, compiling guard expression strings into callables.
 
     For each transition in ``config["transitions"]``, this function inspects
@@ -315,7 +315,7 @@ def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> d
 
     Args:
         config: A v1 mission config dict (must have ``"transitions"`` key).
-        feature_dir: Optional feature directory for guards that need filesystem
+        mission_dir: Optional mission directory for guards that need filesystem
             access.  Passed through to guard callables at evaluation time via
             the model, not captured at compile time.
 

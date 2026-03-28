@@ -7,8 +7,8 @@ from pathlib import Path
 
 from ..constitution_path import resolve_project_constitution_path
 from ..diagnostics import run_diagnostics
-from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
-from specify_cli.core.feature_detection import detect_feature
+from ..scanner import format_path_for_display, resolve_active_mission, scan_all_missions
+from specify_cli.core.mission_detection import detect_mission
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
 from specify_cli.mission import MissionError, get_mission_by_name
@@ -23,9 +23,9 @@ class APIHandler(DashboardHandler):
         """Return the rendered dashboard HTML shell."""
         project_path = Path(self.project_dir).resolve()
 
-        # Derive active mission from the most active feature (per-feature mission model)
+        # Derive active mission from the most active mission (per-mission mission model)
         mission_context = {
-            'name': 'No active feature',
+            'name': 'No active mission',
             'domain': 'unknown',
             'version': '',
             'slug': '',
@@ -34,14 +34,14 @@ class APIHandler(DashboardHandler):
         }
 
         try:
-            features = scan_all_features(project_path)
+            missions = scan_all_missions(project_path)
 
-            active_feature = resolve_active_feature(project_path, features)
+            active_mission = resolve_active_mission(project_path, missions)
 
-            if active_feature:
-                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+            if active_mission:
+                mission_type_key = active_mission.get('meta', {}).get('mission', 'software-dev')
                 kittify_dir = project_path / ".kittify"
-                mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                mission = get_mission_by_name(mission_type_key, kittify_dir)
                 mission_context = {
                     'name': mission.name,
                     'domain': mission.config.domain,
@@ -51,7 +51,7 @@ class APIHandler(DashboardHandler):
                     'path': format_path_for_display(str(mission.path)),
                 }
         except (MissionError, Exception):
-            pass  # Keep default "No active feature" context
+            pass  # Keep default "No active mission" context
 
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
@@ -89,18 +89,18 @@ class APIHandler(DashboardHandler):
         """Run diagnostics and report JSON payloads (or errors)."""
         try:
             project_path = Path(self.project_dir).resolve()
-            # Detect active feature to resolve per-feature mission context.
-            # Use detect_feature() directly — resolve_active_feature() falls
-            # back to the first scanned feature when detection fails, which
-            # would bind diagnostics to an arbitrary feature on integration branches.
-            feature_dir = None
+            # Detect active mission to resolve per-mission mission context.
+            # Use detect_mission() directly — resolve_active_mission() falls
+            # back to the first scanned mission when detection fails, which
+            # would bind diagnostics to an arbitrary mission on integration branches.
+            mission_dir = None
             try:
-                context = detect_feature(project_path, cwd=project_path, mode="lenient")
+                context = detect_mission(project_path, cwd=project_path, mode="lenient")
                 if context and context.directory and context.directory.is_dir():
-                    feature_dir = context.directory
-            except Exception:  # noqa: S110 – feature detection is best-effort
-                pass  # Diagnostics should still run without feature context
-            diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)
+                    mission_dir = context.directory
+            except Exception:  # noqa: S110 – mission detection is best-effort
+                pass  # Diagnostics should still run without mission context
+            diagnostics = run_diagnostics(project_path, mission_dir=mission_dir)
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')
@@ -149,10 +149,10 @@ class APIHandler(DashboardHandler):
         """Route dossier API requests to appropriate endpoints.
 
         Routes:
-        - /api/dossier/overview?feature={slug} -> GET overview
-        - /api/dossier/artifacts?feature={slug}&class={class}&... -> GET list
-        - /api/dossier/artifacts/{artifact_key}?feature={slug} -> GET detail
-        - /api/dossier/snapshots/export?feature={slug} -> GET export
+        - /api/dossier/overview?mission={slug} -> GET overview
+        - /api/dossier/artifacts?mission={slug}&class={class}&... -> GET list
+        - /api/dossier/artifacts/{artifact_key}?mission={slug} -> GET detail
+        - /api/dossier/snapshots/export?mission={slug} -> GET export
         """
         import urllib.parse
         from specify_cli.dossier.api import DossierAPIHandler
@@ -161,13 +161,13 @@ class APIHandler(DashboardHandler):
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
-        # Extract feature_slug from query params
-        feature_slug = query.get('feature', [None])[0]
-        if not feature_slug:
+        # Extract mission_slug from query params (support legacy 'feature' param too)
+        mission_slug = query.get('mission', query.get('feature', [None]))[0]
+        if not mission_slug:
             self.send_response(400)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'error': 'Missing feature parameter'}).encode())
+            self.wfile.write(json.dumps({'error': 'Missing mission parameter'}).encode())
             return
 
         try:
@@ -177,7 +177,7 @@ class APIHandler(DashboardHandler):
 
             # Route to appropriate endpoint
             if path == '/api/dossier/overview':
-                response = handler.handle_dossier_overview(feature_slug)
+                response = handler.handle_dossier_overview(mission_slug)
             elif path == '/api/dossier/artifacts':
                 # Extract filters from query
                 filters = {}
@@ -189,13 +189,13 @@ class APIHandler(DashboardHandler):
                     filters['step_id'] = query['step_id'][0]
                 if 'required_only' in query:
                     filters['required_only'] = query['required_only'][0]
-                response = handler.handle_dossier_artifacts(feature_slug, **filters)
+                response = handler.handle_dossier_artifacts(mission_slug, **filters)
             elif path.startswith('/api/dossier/artifacts/'):
                 # Extract artifact_key from path
                 artifact_key = path.split('/api/dossier/artifacts/')[-1]
-                response = handler.handle_dossier_artifact_detail(feature_slug, artifact_key)
+                response = handler.handle_dossier_artifact_detail(mission_slug, artifact_key)
             elif path == '/api/dossier/snapshots/export':
-                response = handler.handle_dossier_snapshot_export(feature_slug)
+                response = handler.handle_dossier_snapshot_export(mission_slug)
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'application/json')

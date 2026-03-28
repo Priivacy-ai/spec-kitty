@@ -65,7 +65,7 @@ class ReconcileResult:
 
 def scan_for_wp_commits(
     repo_path: Path,
-    feature_slug: str,
+    mission_slug: str,
 ) -> dict[str, list[CommitInfo]]:
     """Scan a repository for WP-linked branches and commit messages.
 
@@ -78,10 +78,10 @@ def scan_for_wp_commits(
     result_map: dict[str, list[CommitInfo]] = {}
     discovered_wp_ids: set[str] = set()
 
-    # Step 1: Branch detection -- find branches matching the feature slug
+    # Step 1: Branch detection -- find branches matching the mission slug
     try:
         branch_result = subprocess.run(
-            ["git", "branch", "-a", "--list", f"*{feature_slug}*"],
+            ["git", "branch", "-a", "--list", f"*{mission_slug}*"],
             cwd=repo_path,
             capture_output=True,
             text=True,
@@ -140,7 +140,7 @@ def scan_for_wp_commits(
         grep_result = subprocess.run(
             [
                 "git", "log", "--all", "--oneline",
-                f"--grep={feature_slug}",
+                f"--grep={mission_slug}",
                 "--format=%H %s",
             ],
             cwd=repo_path,
@@ -211,7 +211,7 @@ def scan_for_wp_commits(
 
 def _get_merged_wps(
     repo_path: Path,
-    feature_slug: str,
+    mission_slug: str,
 ) -> set[str]:
     """Check which WP branches are merged into main/master."""
     merged: set[str] = set()
@@ -222,7 +222,7 @@ def _get_merged_wps(
             result = subprocess.run(
                 [
                     "git", "branch", "--merged", base_branch,
-                    "--list", f"*{feature_slug}*",
+                    "--list", f"*{mission_slug}*",
                 ],
                 cwd=repo_path,
                 capture_output=True,
@@ -303,7 +303,7 @@ def _lane_advancement_chain(
 
 
 def _generate_reconciliation_events(
-    feature_slug: str,
+    mission_slug: str,
     snapshot: StatusSnapshot,
     commit_map: dict[str, list[CommitInfo]],
     merged_wps: set[str],
@@ -384,7 +384,7 @@ def _generate_reconciliation_events(
         for from_lane, to_lane in chain:
             event = StatusEvent(
                 event_id=str(ulid.ULID()),
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 wp_id=wp_id,
                 from_lane=from_lane,
                 to_lane=to_lane,
@@ -419,7 +419,7 @@ def _generate_reconciliation_events(
 
 
 def reconcile(
-    feature_dir: Path,
+    mission_dir: Path,
     repo_root: Path,
     target_repos: list[Path],
     *,
@@ -428,7 +428,7 @@ def reconcile(
     """Scan target repos for WP-linked commits and generate reconciliation events.
 
     Args:
-        feature_dir: Path to the kitty-specs feature directory.
+        mission_dir: Path to the kitty-specs mission directory.
         repo_root: Root of the main repository.
         target_repos: List of repository paths to scan for evidence.
         dry_run: If True, return suggested events without persisting.
@@ -438,10 +438,10 @@ def reconcile(
         ReconcileResult with suggested events, drift info, and diagnostics.
     """
     result = ReconcileResult()
-    feature_slug = feature_dir.name
+    mission_slug = mission_dir.name
 
     # Load or materialize the current snapshot
-    snapshot_path = feature_dir / SNAPSHOT_FILENAME
+    snapshot_path = mission_dir / SNAPSHOT_FILENAME
     if snapshot_path.exists():
         try:
             data = json.loads(snapshot_path.read_text(encoding="utf-8"))
@@ -449,7 +449,7 @@ def reconcile(
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
             # Re-materialize from events
             try:
-                events = read_events(feature_dir)
+                events = read_events(mission_dir)
                 snapshot = reduce(events)
             except Exception as inner_exc:
                 result.errors.append(
@@ -459,12 +459,12 @@ def reconcile(
     else:
         # No snapshot file -- try materializing from event log
         try:
-            events = read_events(feature_dir)
+            events = read_events(mission_dir)
             snapshot = reduce(events)
         except Exception:
             # No events either -- empty snapshot (all WPs effectively planned)
             snapshot = StatusSnapshot(
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 materialized_at=datetime.now(UTC).isoformat(),
                 event_count=0,
                 last_event_id=None,
@@ -484,7 +484,7 @@ def reconcile(
         result.target_repos_scanned += 1
 
         try:
-            commit_map = scan_for_wp_commits(repo_path, feature_slug)
+            commit_map = scan_for_wp_commits(repo_path, mission_slug)
         except FileNotFoundError as exc:
             result.errors.append(str(exc))
             continue
@@ -498,7 +498,7 @@ def reconcile(
                     existing_shas.add(commit.sha)
 
         # Check merged branches
-        merged = _get_merged_wps(repo_path, feature_slug)
+        merged = _get_merged_wps(repo_path, mission_slug)
         all_merged.update(merged)
 
     result.wps_analyzed = len(all_commits)
@@ -506,7 +506,7 @@ def reconcile(
     # Generate reconciliation events
     if all_commits:
         events, details = _generate_reconciliation_events(
-            feature_slug, snapshot, all_commits, all_merged,
+            mission_slug, snapshot, all_commits, all_merged,
         )
         result.suggested_events = events
         result.details = details
@@ -516,7 +516,7 @@ def reconcile(
 
     # Apply mode
     if not dry_run and result.suggested_events:
-        phase, source = resolve_phase(repo_root, feature_slug)
+        phase, source = resolve_phase(repo_root, mission_slug)
 
         # Phase gating: phase 0 blocks apply
         if phase < 1:
@@ -529,8 +529,8 @@ def reconcile(
         for event in result.suggested_events:
             try:
                 emit_status_transition(
-                    feature_dir=feature_dir,
-                    feature_slug=feature_slug,
+                    mission_dir=mission_dir,
+                    mission_slug=mission_slug,
                     wp_id=event.wp_id,
                     to_lane=str(event.to_lane),
                     actor=event.actor,

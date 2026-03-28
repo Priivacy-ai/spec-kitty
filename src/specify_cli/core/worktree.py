@@ -76,27 +76,27 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
             pass
 
 
-def get_next_feature_number(repo_root: Path) -> int:
-    """Determine next sequential feature number.
+def get_next_mission_number(repo_root: Path) -> int:
+    """Determine next sequential mission number.
 
-    Scans both kitty-specs/ and .worktrees/ directories for existing features
+    Scans both kitty-specs/ and .worktrees/ directories for existing missions
     (###-name format) and returns next number in sequence. This prevents number
-    reuse when features exist only in worktrees.
+    reuse when missions exist only in worktrees.
 
     Args:
         repo_root: Repository root path
 
     Returns:
-        Next feature number (e.g., 9 if highest existing is 008)
+        Next mission number (e.g., 9 if highest existing is 008)
 
     Examples:
         >>> repo_root = Path("/path/to/repo")
-        >>> next_num = get_next_feature_number(repo_root)
+        >>> next_num = get_next_mission_number(repo_root)
         >>> assert next_num > 0
     """
     max_number = 0
 
-    # Scan kitty-specs/ for feature numbers
+    # Scan kitty-specs/ for mission numbers
     specs_dir = repo_root / KITTY_SPECS_DIR
     if specs_dir.exists():
         for item in sorted(specs_dir.iterdir(), key=lambda p: p.name):
@@ -108,7 +108,7 @@ def get_next_feature_number(repo_root: Path) -> int:
                     # Not a valid number, skip
                     continue
 
-    # Also scan .worktrees/ for feature numbers
+    # Also scan .worktrees/ for mission numbers
     worktrees_dir = repo_root / WORKTREES_DIR
     if worktrees_dir.exists():
         for item in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
@@ -435,11 +435,11 @@ spec-kitty agent tasks move-task WP01 --to doing
             spec_file.touch()
 
 
-def validate_feature_structure(
-    feature_dir: Path,
+def validate_mission_structure(
+    mission_dir: Path,
     check_tasks: bool = False
 ) -> dict:
-    """Validate feature directory structure and required files.
+    """Validate mission directory structure and required files.
 
     Checks for:
     - Required files: spec.md
@@ -447,7 +447,7 @@ def validate_feature_structure(
     - Optional: tasks.md (if check_tasks=True)
 
     Args:
-        feature_dir: Feature directory path
+        mission_dir: Mission directory path
         check_tasks: If True, validate tasks.md and task files exist
 
     Returns:
@@ -460,8 +460,8 @@ def validate_feature_structure(
         }
 
     Examples:
-        >>> feature_dir = Path("/path/to/kitty-specs/001-feature")
-        >>> result = validate_feature_structure(feature_dir)
+        >>> mission_dir = Path("/path/to/kitty-specs/001-mission")
+        >>> result = validate_mission_structure(mission_dir)
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
@@ -472,9 +472,9 @@ def validate_feature_structure(
     artifact_dirs: dict[str, str] = {}
     available_docs: list[str] = []
 
-    # Check if feature directory exists
-    if not feature_dir.exists():
-        errors.append(f"Feature directory not found: {feature_dir}")
+    # Check if mission directory exists
+    if not mission_dir.exists():
+        errors.append(f"Mission directory not found: {mission_dir}")
         return {
             "valid": False,
             "errors": errors,
@@ -488,7 +488,7 @@ def validate_feature_structure(
         }
 
     # Check required files exist
-    spec_file = feature_dir / "spec.md"
+    spec_file = mission_dir / "spec.md"
     if not spec_file.exists():
         errors.append("Missing required file: spec.md")
     else:
@@ -497,7 +497,7 @@ def validate_feature_structure(
         artifact_files["spec_file"] = spec_file_str
         available_docs.append("spec.md")
 
-    plan_file = feature_dir / "plan.md"
+    plan_file = mission_dir / "plan.md"
     if plan_file.exists():
         plan_file_str = str(plan_file)
         paths["plan_file"] = plan_file_str
@@ -507,7 +507,7 @@ def validate_feature_structure(
     # Check directory structure
     recommended_dirs = ["checklists", "research", "tasks"]
     for dir_name in recommended_dirs:
-        dir_path = feature_dir / dir_name
+        dir_path = mission_dir / dir_name
         if not dir_path.exists():
             warnings.append(f"Missing recommended directory: {dir_name}/")
         else:
@@ -517,7 +517,7 @@ def validate_feature_structure(
 
     # Check task files if requested
     if check_tasks:
-        tasks_file = feature_dir / "tasks.md"
+        tasks_file = mission_dir / "tasks.md"
         if not tasks_file.exists():
             errors.append("Missing required file: tasks.md")
         else:
@@ -527,29 +527,29 @@ def validate_feature_structure(
             if "tasks.md" not in available_docs:
                 available_docs.append("tasks.md")
     else:
-        tasks_file = feature_dir / "tasks.md"
+        tasks_file = mission_dir / "tasks.md"
         if tasks_file.exists():
             tasks_file_str = str(tasks_file)
             paths["tasks_file"] = tasks_file_str
             artifact_files["tasks_file"] = tasks_file_str
             available_docs.append("tasks.md")
 
-    # Always include feature_dir in paths
-    feature_dir_str = str(feature_dir)
-    paths["feature_dir"] = feature_dir_str
-    artifact_dirs["feature_dir"] = feature_dir_str
+    # Always include mission_dir in paths
+    mission_dir_str = str(mission_dir)
+    paths["mission_dir"] = mission_dir_str
+    artifact_dirs["mission_dir"] = mission_dir_str
 
-    checklists_dir = feature_dir / "checklists"
+    checklists_dir = mission_dir / "checklists"
     if checklists_dir.exists():
         checklists_dir_str = str(checklists_dir)
         artifact_dirs.setdefault("checklists_dir", checklists_dir_str)
 
-    research_dir = feature_dir / "research"
+    research_dir = mission_dir / "research"
     if research_dir.exists():
         research_dir_str = str(research_dir)
         artifact_dirs.setdefault("research_dir", research_dir_str)
 
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if tasks_dir.exists():
         tasks_dir_str = str(tasks_dir)
         artifact_dirs.setdefault("tasks_dir", tasks_dir_str)
@@ -565,6 +565,11 @@ def validate_feature_structure(
         "artifact_dirs": artifact_dirs,
         "available_docs": available_docs,
         # Compatibility aliases for older templates/prompts
-        "FEATURE_DIR": feature_dir_str,
+        "FEATURE_DIR": mission_dir_str,
         "AVAILABLE_DOCS": available_docs,
     }
+
+
+# Backward-compat aliases (to be removed in cord-cutting phase)
+get_next_feature_number = get_next_mission_number
+validate_feature_structure = validate_mission_structure

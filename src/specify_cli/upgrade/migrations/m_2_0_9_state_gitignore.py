@@ -23,7 +23,7 @@ from .base import BaseMigration, MigrationResult
 # in their .gitignore.  We intentionally do NOT use the full
 # get_runtime_gitignore_entries() helper here to avoid backfilling
 # constitution surfaces or other pre-existing entries.
-# The kitty-specs/**/.kittify/dossiers/ entry covers feature-local dossier
+# The kitty-specs/**/.kittify/dossiers/ entry covers mission-local dossier
 # snapshots saved by src/specify_cli/dossier/snapshot.py.
 _NEW_RUNTIME_ENTRIES = [
     ".kittify/runtime/",

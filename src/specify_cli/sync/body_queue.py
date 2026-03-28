@@ -32,7 +32,7 @@ class BodyUploadTask:
 
     row_id: int
     project_uuid: str
-    feature_slug: str
+    mission_slug: str
     target_branch: str
     mission_key: str
     manifest_version: str
@@ -101,13 +101,13 @@ class OfflineBodyUploadQueue:
                 return False
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO body_upload_queue
-                   (project_uuid, feature_slug, target_branch, mission_key,
+                   (project_uuid, mission_slug, target_branch, mission_key,
                     manifest_version, artifact_path, content_hash, hash_algorithm,
                     content_body, size_bytes, retry_count, next_attempt_at, created_at, last_error)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, ?, NULL)""",
                 (
                     namespace.project_uuid,
-                    namespace.feature_slug,
+                    namespace.mission_slug,
                     namespace.target_branch,
                     namespace.mission_key,
                     namespace.manifest_version,
@@ -129,7 +129,7 @@ class OfflineBodyUploadQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.execute(
-                """SELECT id, project_uuid, feature_slug, target_branch, mission_key,
+                """SELECT id, project_uuid, mission_slug, target_branch, mission_key,
                           manifest_version, artifact_path, content_hash, hash_algorithm,
                           content_body, size_bytes, retry_count, next_attempt_at,
                           created_at, last_error
@@ -145,7 +145,7 @@ class OfflineBodyUploadQueue:
                     BodyUploadTask(
                         row_id=row[0],
                         project_uuid=row[1],
-                        feature_slug=row[2],
+                        mission_slug=row[2],
                         target_branch=row[3],
                         mission_key=row[4],
                         manifest_version=row[5],

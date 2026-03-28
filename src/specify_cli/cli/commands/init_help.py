@@ -59,7 +59,7 @@ Non-interactive automation example:
   spec-kitty init my-project --ai codex,claude --script sh --no-git --non-interactive
 
 Missions:
-- Missions are selected per-feature during /spec-kitty.specify
+- Missions are selected per-mission during /spec-kitty.specify
 
 See docs/non-interactive-init.md for automation patterns and CI examples.
 """

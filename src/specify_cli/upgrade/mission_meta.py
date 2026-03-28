@@ -1,9 +1,9 @@
-"""Helpers for feature metadata repair during upgrades.
+"""Helpers for mission metadata repair during upgrades.
 
-``load_feature_meta`` and ``write_feature_meta`` are thin compatibility
+``load_mission_meta`` and ``write_mission_meta`` are thin compatibility
 wrappers that delegate to the canonical single-writer module
-:mod:`specify_cli.feature_metadata`.  All other functions in this module
-(``infer_*``, ``build_baseline_feature_meta``, private helpers) are
+:mod:`specify_cli.mission_metadata`.  All other functions in this module
+(``infer_*``, ``build_baseline_mission_meta``, private helpers) are
 upgrade-specific logic and remain implemented here.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.feature_metadata import load_meta, write_meta
+from specify_cli.mission_metadata import load_meta, write_meta
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -23,14 +23,14 @@ _BRANCH_PATTERNS = (
     re.compile(r"(?im)^target repo branch:\s*`?([^\n`]+)`?\s*$"),
     re.compile(r"(?im)^branch:\s*`?([^\n`]+)`?\s*$"),
     re.compile(r"(?i)must be done on .*?`([^`]+)` branch"),
-    re.compile(r"(?i)all work packages branch from and merge back to [`“]?([^`”\n]+)[`”]?"),
-    re.compile(r"(?i)merge back to [`“]?([^`”\n]+)[`”]?"),
+    re.compile(r"(?i)all work packages branch from and merge back to [`"]?([^`"\n]+)[`"]?"),
+    re.compile(r"(?i)merge back to [`"]?([^`"\n]+)[`"]?"),
     re.compile(r"(?i)repository[^\n]*branch [`(]?([A-Za-z0-9._/-]+)"),
 )
 
 
-def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json``.  Delegates to :func:`feature_metadata.load_meta`.
+def load_mission_meta(mission_dir: Path) -> dict[str, Any] | None:
+    """Load ``meta.json``.  Delegates to :func:`mission_metadata.load_meta`.
 
     Kept for backward compatibility with migration code.
     ``load_meta()`` raises ``ValueError`` for malformed JSON, but frozen
@@ -39,13 +39,13 @@ def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
     meta as "needs repair" continue to work.
     """
     try:
-        return load_meta(feature_dir)
+        return load_meta(mission_dir)
     except ValueError:
         return None
 
 
-def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
-    """Write ``meta.json``.  Delegates to :func:`feature_metadata.write_meta`.
+def write_mission_meta(mission_dir: Path, meta: dict[str, Any]) -> None:
+    """Write ``meta.json``.  Delegates to :func:`mission_metadata.write_meta`.
 
     Kept for backward compatibility with migration code.
     Note: ``write_meta()`` adds ``sort_keys=True`` which the original
@@ -54,21 +54,21 @@ def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
     Validation is disabled (``validate=False``) to match the original
     behaviour, which did not enforce required-field checks.
     """
-    write_meta(feature_dir, meta, validate=False)
+    write_meta(mission_dir, meta, validate=False)
 
 
 def infer_target_branch(
-    feature_dir: Path,
+    mission_dir: Path,
     repo_root: Path,
     *,
     fallback: str | None = None,
 ) -> str:
-    """Infer ``target_branch`` from explicit feature docs or repo context."""
+    """Infer ``target_branch`` from explicit mission docs or repo context."""
     fallback_branch = fallback or resolve_primary_branch(repo_root)
     candidates: list[str] = []
 
     for name in ("spec.md", "plan.md", "tasks.md", "quickstart.md"):
-        doc = feature_dir / name
+        doc = mission_dir / name
         if not doc.exists():
             continue
         content = doc.read_text(encoding="utf-8", errors="ignore")
@@ -86,74 +86,74 @@ def infer_target_branch(
 
 
 def infer_mission(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     existing_meta: dict[str, Any] | None = None,
 ) -> str:
-    """Infer a feature mission when ``meta.json`` is missing."""
+    """Infer a mission type when ``meta.json`` is missing."""
     if existing_meta:
         mission = str(existing_meta.get("mission", "")).strip()
         if mission:
             return mission
 
-    if (feature_dir / "research").exists():
+    if (mission_dir / "research").exists():
         return "research"
     return "software-dev"
 
 
 def infer_created_at(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     now: datetime | None = None,
 ) -> str:
     """Infer a stable ``created_at`` timestamp from the earliest file mtime."""
     timestamps = [
         path.stat().st_mtime
-        for path in feature_dir.rglob("*")
+        for path in mission_dir.rglob("*")
         if path.is_file()
     ]
-    if feature_dir.exists():
-        timestamps.append(feature_dir.stat().st_mtime)
+    if mission_dir.exists():
+        timestamps.append(mission_dir.stat().st_mtime)
 
     created_at = datetime.fromtimestamp(min(timestamps), tz=UTC) if timestamps else now or datetime.now(UTC)
     return created_at.isoformat()
 
 
-def build_baseline_feature_meta(
-    feature_dir: Path,
+def build_baseline_mission_meta(
+    mission_dir: Path,
     repo_root: Path,
     *,
     existing_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build the minimum viable ``meta.json`` payload for a feature."""
-    feature_slug = feature_dir.name
-    feature_number, _, slug_tail = feature_slug.partition("-")
+    """Build the minimum viable ``meta.json`` payload for a mission."""
+    mission_slug = mission_dir.name
+    mission_number, _, slug_tail = mission_slug.partition("-")
     meta = dict(existing_meta or {})
 
     _set_if_blank(
         meta,
-        "feature_number",
-        feature_number if feature_number.isdigit() else "",
+        "mission_number",
+        mission_number if mission_number.isdigit() else "",
     )
-    _set_if_blank(meta, "slug", feature_slug)
-    _set_if_blank(meta, "feature_slug", feature_slug)
+    _set_if_blank(meta, "slug", mission_slug)
+    _set_if_blank(meta, "mission_slug", mission_slug)
     _set_if_blank(
         meta,
         "friendly_name",
-        slug_tail.replace("-", " ").strip() or feature_slug,
+        slug_tail.replace("-", " ").strip() or mission_slug,
     )
-    _set_if_blank(meta, "mission", infer_mission(feature_dir, existing_meta=meta))
+    _set_if_blank(meta, "mission", infer_mission(mission_dir, existing_meta=meta))
     _set_if_blank(
         meta,
         "target_branch",
-        infer_target_branch(feature_dir, repo_root),
+        infer_target_branch(mission_dir, repo_root),
     )
-    _set_if_blank(meta, "created_at", infer_created_at(feature_dir))
+    _set_if_blank(meta, "created_at", infer_created_at(mission_dir))
     return meta
 
 
 def _normalize_branch_candidate(value: str) -> str | None:
-    """Normalize a branch candidate extracted from feature docs."""
+    """Normalize a branch candidate extracted from mission docs."""
     cleaned = value.strip()
     if not cleaned:
         return None

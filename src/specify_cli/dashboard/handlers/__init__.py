@@ -2,7 +2,7 @@
 
 from .api import APIHandler
 from .base import DashboardHandler
-from .features import FeatureHandler
+from .missions import MissionHandler
 from .router import DashboardRouter
 from .static import STATIC_DIR, STATIC_URL_PREFIX, StaticHandler
 
@@ -10,7 +10,7 @@ __all__ = [
     "APIHandler",
     "DashboardHandler",
     "DashboardRouter",
-    "FeatureHandler",
+    "MissionHandler",
     "StaticHandler",
     "STATIC_DIR",
     "STATIC_URL_PREFIX",

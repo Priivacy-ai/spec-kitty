@@ -25,11 +25,11 @@ DEFAULT_MAX_QUEUE_SIZE = 100_000
 # row.  This prevents high-volume instrumentation from flooding the queue.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
     # project_uuid scopes the key so events from different repos/branches
-    # sharing the same feature_slug+artifact_key never collide.
-    "MissionDossierArtifactIndexed": ["project_uuid", "feature_slug", "artifact_key"],
-    # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
+    # sharing the same mission_slug+artifact_key never collide.
+    "MissionDossierArtifactIndexed": ["project_uuid", "mission_slug", "artifact_key"],
+    # Snapshot IDs are regenerated on each scan, so coalesce by project+mission
     # to keep only the latest snapshot queued for a given dossier.
-    "MissionDossierSnapshotComputed": ["project_uuid", "feature_slug"],
+    "MissionDossierSnapshotComputed": ["project_uuid", "mission_slug"],
 }
 
 
@@ -199,7 +199,7 @@ _BODY_QUEUE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS body_upload_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_uuid TEXT NOT NULL,
-    feature_slug TEXT NOT NULL,
+    mission_slug TEXT NOT NULL,
     target_branch TEXT NOT NULL,
     mission_key TEXT NOT NULL,
     manifest_version TEXT NOT NULL,
@@ -212,10 +212,10 @@ CREATE TABLE IF NOT EXISTS body_upload_queue (
     next_attempt_at REAL NOT NULL DEFAULT 0.0,
     created_at REAL NOT NULL,
     last_error TEXT,
-    UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
+    UNIQUE(project_uuid, mission_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_body_queue_next_attempt ON body_upload_queue(next_attempt_at);
-CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, feature_slug, target_branch);
+CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, mission_slug, target_branch);
 """
 
 

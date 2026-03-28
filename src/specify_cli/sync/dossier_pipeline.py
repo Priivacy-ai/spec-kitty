@@ -1,7 +1,7 @@
 """Dossier sync pipeline orchestration.
 
 Wires indexer → event emission → body upload preparation
-as a single pipeline invoked during feature-aware sync.
+as a single pipeline invoked during mission-aware sync.
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ class DossierSyncResult:
         return self.dossier is not None and not self.errors
 
 
-def sync_feature_dossier(
-    feature_dir: Path,
+def sync_mission_dossier(
+    mission_dir: Path,
     namespace_ref: NamespaceRef,
     body_queue: OfflineBodyUploadQueue,
     mission_type: str = "software-dev",
@@ -68,9 +68,9 @@ def sync_feature_dossier(
     # Step 1: Index
     try:
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, mission_type, step_id)
+        dossier = indexer.index_feature(mission_dir, mission_type, step_id)
     except Exception as e:
-        logger.error("Indexer failed for %s: %s", feature_dir, e)
+        logger.error("Indexer failed for %s: %s", mission_dir, e)
         return DossierSyncResult(
             dossier=None, events_emitted=0, body_outcomes=[], errors=[str(e)],
         )
@@ -82,7 +82,7 @@ def sync_feature_dossier(
         if artifact.is_present:
             try:
                 result = emit_artifact_indexed(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     artifact_key=artifact.artifact_key,
                     artifact_class=artifact.artifact_class,
                     relative_path=artifact.relative_path,
@@ -104,7 +104,7 @@ def sync_feature_dossier(
                 from specify_cli.dossier.events import emit_artifact_missing
 
                 result = emit_artifact_missing(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     artifact_key=artifact.artifact_key,
                     artifact_class=artifact.artifact_class,
                     expected_path_pattern=artifact.relative_path,
@@ -124,11 +124,11 @@ def sync_feature_dossier(
     snapshot = None
     try:
         snapshot = compute_snapshot(dossier)
-        save_snapshot(snapshot, feature_dir)
+        save_snapshot(snapshot, mission_dir)
         dossier.latest_snapshot = snapshot.model_dump(mode="json")
 
         result = emit_snapshot_computed(
-            feature_slug=namespace_ref.feature_slug,
+            mission_slug=namespace_ref.mission_slug,
             parity_hash_sha256=snapshot.parity_hash_sha256,
             total_artifacts=snapshot.total_artifacts,
             required_artifacts=snapshot.required_artifacts,
@@ -143,12 +143,12 @@ def sync_feature_dossier(
         if result is not None:
             events_emitted += 1
     except Exception as e:
-        logger.warning("Snapshot computation/emission failed for %s: %s", feature_dir, e)
+        logger.warning("Snapshot computation/emission failed for %s: %s", mission_dir, e)
 
     if snapshot is not None and repo_root is not None and project_identity is not None:
         try:
             has_drift, drift_info = detect_drift(
-                feature_slug=namespace_ref.feature_slug,
+                mission_slug=namespace_ref.mission_slug,
                 current_snapshot=snapshot,
                 repo_root=repo_root,
                 project_identity=project_identity,
@@ -158,7 +158,7 @@ def sync_feature_dossier(
             )
             if has_drift and drift_info is not None:
                 result = emit_parity_drift_detected(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     local_parity_hash=drift_info["local_parity_hash"],
                     baseline_parity_hash=drift_info["baseline_parity_hash"],
                     missing_in_local=drift_info["missing_in_local"],
@@ -169,7 +169,7 @@ def sync_feature_dossier(
                 if result is not None:
                     events_emitted += 1
         except Exception as e:
-            logger.warning("Parity drift detection/emission failed for %s: %s", feature_dir, e)
+            logger.warning("Parity drift detection/emission failed for %s: %s", mission_dir, e)
 
     # Step 4: Prepare body uploads
     body_outcomes: list[UploadOutcome] = []
@@ -178,24 +178,24 @@ def sync_feature_dossier(
             artifacts=dossier.artifacts,
             namespace_ref=namespace_ref,
             body_queue=body_queue,
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
         )
     except Exception as e:
         logger.error(
-            "Body upload preparation failed for %s: %s", feature_dir, e,
+            "Body upload preparation failed for %s: %s", mission_dir, e,
         )
         errors.append(f"body_upload_preparation_failed: {e}")
 
     # Per-artifact result logging (FR-012)
     if body_outcomes:
-        log_upload_outcomes(body_outcomes, namespace_ref.feature_slug, logger)
+        log_upload_outcomes(body_outcomes, namespace_ref.mission_slug, logger)
 
     # Summary logging
     queued = sum(1 for o in body_outcomes if o.status == UploadStatus.QUEUED)
     skipped = sum(1 for o in body_outcomes if o.status == UploadStatus.SKIPPED)
     logger.info(
         "Dossier sync for %s: %d events emitted, %d bodies queued, %d skipped",
-        namespace_ref.feature_slug, events_emitted, queued, skipped,
+        namespace_ref.mission_slug, events_emitted, queued, skipped,
     )
 
     return DossierSyncResult(
@@ -206,14 +206,14 @@ def sync_feature_dossier(
     )
 
 
-def trigger_feature_dossier_sync_if_enabled(
-    feature_dir: Path,
-    feature_slug: str,
+def trigger_mission_dossier_sync_if_enabled(
+    mission_dir: Path,
+    mission_slug: str,
     repo_root: Path,
     mission_type: str = "software-dev",
     step_id: str | None = None,
 ) -> DossierSyncResult | None:
-    """Fire-and-forget dossier sync triggered after feature artifact mutations.
+    """Fire-and-forget dossier sync triggered after mission artifact mutations.
 
     Never raises. Logs failures. Returns None if sync is disabled or fails.
     """
@@ -223,8 +223,8 @@ def trigger_feature_dossier_sync_if_enabled(
         if not is_saas_sync_enabled():
             return None
 
-        from specify_cli.core.feature_detection import get_feature_target_branch
-        from specify_cli.mission import get_feature_mission_key
+        from specify_cli.core.mission_detection import get_mission_target_branch
+        from specify_cli.mission import get_mission_key
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
         from specify_cli.sync.project_identity import ensure_identity
         from specify_cli.sync.runtime import get_runtime
@@ -235,13 +235,13 @@ def trigger_feature_dossier_sync_if_enabled(
             logger.warning("No project UUID; skipping dossier sync")
             return None
 
-        target_branch = get_feature_target_branch(repo_root, feature_slug)
-        resolved_mission = get_feature_mission_key(feature_dir) or mission_type
+        target_branch = get_mission_target_branch(repo_root, mission_slug)
+        resolved_mission = get_mission_key(mission_dir) or mission_type
         manifest_version = resolve_manifest_version(resolved_mission)
 
         namespace_ref = NamespaceRef.from_context(
             identity=identity,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             mission_key=resolved_mission,
             manifest_version=manifest_version,
@@ -253,8 +253,8 @@ def trigger_feature_dossier_sync_if_enabled(
             logger.debug("Body queue not initialised; skipping dossier sync")
             return None
 
-        return sync_feature_dossier(
-            feature_dir=feature_dir,
+        return sync_mission_dossier(
+            mission_dir=mission_dir,
             namespace_ref=namespace_ref,
             body_queue=runtime.body_queue,
             mission_type=resolved_mission,
@@ -263,5 +263,10 @@ def trigger_feature_dossier_sync_if_enabled(
             project_identity=identity,
         )
     except Exception as e:
-        logger.warning("Dossier sync failed for %s: %s", feature_slug, e)
+        logger.warning("Dossier sync failed for %s: %s", mission_slug, e)
         return None
+
+
+# Backward-compat aliases (to be removed in cord-cutting phase)
+trigger_feature_dossier_sync_if_enabled = trigger_mission_dossier_sync_if_enabled
+sync_feature_dossier = sync_mission_dossier

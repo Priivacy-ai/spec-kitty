@@ -73,7 +73,7 @@ class GitVCS:
 
         Args:
             workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace branch (e.g., "015-feature-WP01")
+            workspace_name: Name for the workspace branch (e.g., "015-mission-WP01")
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Root of the git repository (auto-detected if not provided)

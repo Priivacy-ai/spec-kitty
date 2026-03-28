@@ -1,6 +1,6 @@
 """Migration: expand orchestrator-api skill with output examples and internals.
 
-Adds JSON output examples for feature-state and list-ready, error code catalog,
+Adds JSON output examples for mission-state and list-ready, error code catalog,
 start-implementation idempotency table, workspace_path creation responsibility,
 start-review --review-ref requirement, merge preflight details, policy secret
 validation, full lane list including blocked/canceled, list-ready

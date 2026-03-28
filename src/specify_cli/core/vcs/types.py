@@ -203,11 +203,11 @@ class ProjectVCSConfig:
 
 
 @dataclass
-class FeatureVCSConfig:
+class MissionVCSConfig:
     """
-    Per-feature VCS selection stored in feature's meta.json.
+    Per-mission VCS selection stored in mission's meta.json.
 
-    Once set, vcs cannot be changed (locked at feature creation).
+    Once set, vcs cannot be changed (locked at mission creation).
     """
 
     vcs: VCSBackend

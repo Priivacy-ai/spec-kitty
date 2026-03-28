@@ -1,7 +1,7 @@
 """Single metadata writer API for all meta.json operations.
 
 This module is the canonical entry point for reading, validating, and writing
-feature metadata (``meta.json``).  All mutation helpers go through
+mission metadata (``meta.json``).  All mutation helpers go through
 :func:`write_meta`, which enforces validation, a standard serialization
 format, and atomic writes.
 
@@ -28,19 +28,19 @@ from specify_cli.core.atomic import atomic_write
 # ---------------------------------------------------------------------------
 
 
-class FeatureMetaRequired(TypedDict):
+class MissionMetaRequired(TypedDict):
     """Required fields -- always present in a valid meta.json."""
 
-    feature_number: str
+    mission_number: str
     slug: str
-    feature_slug: str
+    mission_slug: str
     friendly_name: str
     mission: str
     target_branch: str
     created_at: str
 
 
-class FeatureMetaOptional(TypedDict, total=False):
+class MissionMetaOptional(TypedDict, total=False):
     """Optional fields -- present only after specific operations."""
 
     vcs: str
@@ -66,7 +66,7 @@ class FeatureMetaOptional(TypedDict, total=False):
 # Constants
 # ---------------------------------------------------------------------------
 
-REQUIRED_FIELDS: frozenset[str] = frozenset(FeatureMetaRequired.__annotations__)
+REQUIRED_FIELDS: frozenset[str] = frozenset(MissionMetaRequired.__annotations__)
 HISTORY_CAP: int = 20
 
 
@@ -85,13 +85,13 @@ def _now_iso() -> str:
 # ---------------------------------------------------------------------------
 
 
-def load_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json`` from *feature_dir*.  Returns ``None`` if missing.
+def load_meta(mission_dir: Path) -> dict[str, Any] | None:
+    """Load ``meta.json`` from *mission_dir*.  Returns ``None`` if missing.
 
     Raises :class:`ValueError` when the file exists but contains malformed
     JSON.
     """
-    meta_path = feature_dir / "meta.json"
+    meta_path = mission_dir / "meta.json"
     if not meta_path.exists():
         return None
     text = meta_path.read_text(encoding="utf-8")
@@ -118,7 +118,7 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
 
 
 def write_meta(
-    feature_dir: Path,
+    mission_dir: Path,
     meta: dict[str, Any],
     *,
     validate: bool = True,
@@ -129,7 +129,7 @@ def write_meta(
     trailing newline.
 
     Args:
-        feature_dir: Directory containing meta.json.
+        mission_dir: Directory containing meta.json.
         meta: Metadata dict to write.
         validate: If True (default), validate required fields before writing.
             Set to False for tolerant writes (e.g., doc_state writes to
@@ -140,9 +140,9 @@ def write_meta(
     if validate:
         errors = validate_meta(meta)
         if errors:
-            raise ValueError(f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}")
+            raise ValueError(f"Invalid meta.json for {mission_dir.name}: {'; '.join(errors)}")
     content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    meta_path = feature_dir / "meta.json"
+    meta_path = mission_dir / "meta.json"
     atomic_write(meta_path, content)
 
 
@@ -152,7 +152,7 @@ def write_meta(
 
 
 def record_acceptance(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     accepted_by: str,
     mode: str,
@@ -160,9 +160,9 @@ def record_acceptance(
     accept_commit: str | None = None,
 ) -> dict[str, Any]:
     """Record acceptance metadata.  Appends to bounded history."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     now = _now_iso()
     entry: dict[str, Any] = {
@@ -193,12 +193,12 @@ def record_acceptance(
         history = history[-HISTORY_CAP:]
     meta["acceptance_history"] = history
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta
 
 
 def record_merge(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     merged_by: str,
     merged_into: str,
@@ -206,9 +206,9 @@ def record_merge(
     push: bool,
 ) -> dict[str, Any]:
     """Record merge metadata.  Appends to bounded history."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     now = _now_iso()
     meta["merged_at"] = now
@@ -233,19 +233,19 @@ def record_merge(
         history = history[-HISTORY_CAP:]
     meta["merge_history"] = history
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta
 
 
 def finalize_merge(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     merged_commit: str,
 ) -> dict[str, Any]:
     """Set final merge commit hash.  Updates both top-level and latest history entry."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     meta["merged_commit"] = merged_commit
     history: list[dict[str, Any]] = meta.get("merge_history", [])
@@ -253,54 +253,54 @@ def finalize_merge(
         history[-1]["merged_commit"] = merged_commit
     meta["merge_history"] = history
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta
 
 
 def set_vcs_lock(
-    feature_dir: Path,
+    mission_dir: Path,
     *,
     vcs_type: str,
     locked_at: str | None = None,
 ) -> dict[str, Any]:
     """Set VCS type and lock timestamp."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     meta["vcs"] = vcs_type
     if locked_at is not None:
         meta["vcs_locked_at"] = locked_at
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta
 
 
 def set_documentation_state(
-    feature_dir: Path,
+    mission_dir: Path,
     state: dict[str, Any],
 ) -> dict[str, Any]:
     """Set or replace ``documentation_state`` subtree."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     meta["documentation_state"] = state
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta
 
 
 def set_target_branch(
-    feature_dir: Path,
+    mission_dir: Path,
     branch: str,
 ) -> dict[str, Any]:
     """Set ``target_branch`` field."""
-    meta = load_meta(feature_dir)
+    meta = load_meta(mission_dir)
     if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+        raise FileNotFoundError(f"No meta.json in {mission_dir}")
 
     meta["target_branch"] = branch
 
-    write_meta(feature_dir, meta)
+    write_meta(mission_dir, meta)
     return meta

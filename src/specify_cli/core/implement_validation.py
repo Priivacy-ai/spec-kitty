@@ -39,7 +39,7 @@ def validate_and_resolve_base(
     wp_id: str,
     wp_file: Path,
     base: str | None,
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path,
     *,
     auto_detect_single_dependency: bool = True,
@@ -57,7 +57,7 @@ def validate_and_resolve_base(
         wp_id: Work package ID (e.g., "WP01")
         wp_file: Path to WP markdown file
         base: Base WP ID from --base flag (may be None)
-        feature_slug: Feature slug (e.g., "010-my-feature")
+        mission_slug: Mission slug (e.g., "010-my-mission")
         repo_root: Repository root path
 
     Returns:
@@ -132,14 +132,14 @@ def validate_and_resolve_base(
 
 def validate_base_workspace_exists(
     base: str,
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path
 ) -> None:
     """Validate that a base workspace exists and is valid.
 
     Args:
         base: Base WP ID (e.g., "WP01")
-        feature_slug: Feature slug
+        mission_slug: Mission slug
         repo_root: Repository root path
 
     Raises:
@@ -147,7 +147,7 @@ def validate_base_workspace_exists(
     """
     import subprocess
 
-    base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+    base_workspace = repo_root / ".worktrees" / f"{mission_slug}-{base}"
 
     if not base_workspace.exists():
         console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")

@@ -1,12 +1,12 @@
-"""Migration: Add target_branch field to feature metadata.
+"""Migration: Add target_branch field to mission metadata.
 
-This migration adds a target_branch field to all feature meta.json files.
+This migration adds a target_branch field to all mission meta.json files.
 The target_branch determines where status commits and implementation work
 should be routed:
-- "main" for 1.x features (CLI-only features)
-- "2.x" for SaaS features (requires 2.x architecture)
+- "main" for 1.x missions (CLI-only missions)
+- "2.x" for SaaS missions (requires 2.x architecture)
 
-This fixes the race condition where Feature 025 (targeting 2.x) was having
+This fixes the race condition where Mission 025 (targeting 2.x) was having
 its status commits routed to main, causing branch divergence.
 
 Version: 0.13.7 → 0.13.8
@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.upgrade.feature_meta import infer_target_branch
+from specify_cli.upgrade.mission_meta import infer_target_branch
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -27,27 +27,27 @@ from .base import BaseMigration, MigrationResult
 
 @MigrationRegistry.register
 class TargetBranchMigration(BaseMigration):
-    """Add target_branch to all features."""
+    """Add target_branch to all missions."""
 
     migration_id = "0.13.8_target_branch"
-    description = "Add target_branch field to feature metadata"
+    description = "Add target_branch field to mission metadata"
     target_version = "0.13.8"
 
     def detect(self, project_path: Path) -> bool:
-        """Check if any feature is missing target_branch field."""
+        """Check if any mission is missing target_branch field."""
         kitty_specs = project_path / "kitty-specs"
         if not kitty_specs.exists():
             return False
 
-        for feature_dir in kitty_specs.glob("[0-9][0-9][0-9]-*/"):
-            meta_file = feature_dir / "meta.json"
+        for mission_dir in kitty_specs.glob("[0-9][0-9][0-9]-*/"):
+            meta_file = mission_dir / "meta.json"
             if not meta_file.exists():
                 continue
 
             try:
                 meta = json.loads(meta_file.read_text(encoding="utf-8"))
                 if "target_branch" not in meta:
-                    # At least one feature missing target_branch
+                    # At least one mission missing target_branch
                     return True
             except (json.JSONDecodeError, OSError):
                 # Skip malformed files
@@ -59,13 +59,13 @@ class TargetBranchMigration(BaseMigration):
         """Check if migration can be applied."""
         kitty_specs = project_path / "kitty-specs"
         if not kitty_specs.exists():
-            return True, ""  # No features, nothing to do
+            return True, ""  # No missions, nothing to do
 
         # Migration can always be applied (just adds missing fields)
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Add target_branch to all feature meta.json files."""
+        """Add target_branch to all mission meta.json files."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
@@ -74,11 +74,11 @@ class TargetBranchMigration(BaseMigration):
         if not kitty_specs.exists():
             return MigrationResult(
                 success=True,
-                changes_made=["No features found, skipping target_branch addition"],
+                changes_made=["No missions found, skipping target_branch addition"],
             )
 
-        for feature_dir in kitty_specs.glob("[0-9][0-9][0-9]-*/"):
-            meta_file = feature_dir / "meta.json"
+        for mission_dir in kitty_specs.glob("[0-9][0-9][0-9]-*/"):
+            meta_file = mission_dir / "meta.json"
             if not meta_file.exists():
                 continue
 
@@ -89,29 +89,29 @@ class TargetBranchMigration(BaseMigration):
                 if "target_branch" in meta:
                     continue
 
-                target_branch = infer_target_branch(feature_dir, project_path)
+                target_branch = infer_target_branch(mission_dir, project_path)
                 if target_branch != "main":
                     warnings.append(
-                        f"{feature_dir.name} auto-detected target_branch={target_branch}"
+                        f"{mission_dir.name} auto-detected target_branch={target_branch}"
                     )
 
                 # Add target_branch field
                 meta["target_branch"] = target_branch
 
                 if dry_run:
-                    changes.append(f"Would add target_branch={target_branch} to {feature_dir.name}")
+                    changes.append(f"Would add target_branch={target_branch} to {mission_dir.name}")
                 else:
                     # Write updated meta.json with pretty formatting
                     meta_file.write_text(
                         json.dumps(meta, indent=2, ensure_ascii=False) + "\n",
                         encoding="utf-8",
                     )
-                    changes.append(f"Added target_branch={target_branch} to {feature_dir.name}")
+                    changes.append(f"Added target_branch={target_branch} to {mission_dir.name}")
 
             except json.JSONDecodeError as e:
-                errors.append(f"Malformed JSON in {feature_dir.name}/meta.json: {e}")
+                errors.append(f"Malformed JSON in {mission_dir.name}/meta.json: {e}")
             except OSError as e:
-                errors.append(f"Failed to update {feature_dir.name}/meta.json: {e}")
+                errors.append(f"Failed to update {mission_dir.name}/meta.json: {e}")
 
         success = len(errors) == 0
         return MigrationResult(

@@ -2,7 +2,7 @@
 
 Provides a single ``spec-kitty next --agent <name>`` entry point that agents
 call repeatedly.  The system decides what to do next based on mission state,
-feature artifacts, and WP lane states, returning a deterministic JSON decision
+mission artifacts, and WP lane states, returning a deterministic JSON decision
 plus a prompt file.
 """
 

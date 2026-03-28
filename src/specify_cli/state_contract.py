@@ -13,7 +13,7 @@ class StateRoot(StrEnum):
     """Root directory that anchors a family of state surfaces."""
 
     PROJECT = "project"  # .kittify/
-    FEATURE = "feature"  # kitty-specs/<feature>/
+    MISSION = "mission"  # kitty-specs/<mission>/
     GLOBAL_RUNTIME = "global_runtime"  # ~/.kittify/
     GLOBAL_SYNC = "global_sync"  # ~/.spec-kitty/
     GIT_INTERNAL = "git_internal"  # .git/spec-kitty/
@@ -134,7 +134,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="workspace_context",
-        path_pattern=".kittify/workspaces/<feature>-<WP>.json",
+        path_pattern=".kittify/workspaces/<mission>-<WP>.json",
         root=StateRoot.PROJECT,
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
@@ -153,8 +153,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="spec-kitty merge",
     ),
     StateSurface(
-        name="runtime_feature_index",
-        path_pattern=".kittify/runtime/feature-runs.json",
+        name="runtime_mission_index",
+        path_pattern=".kittify/runtime/mission-runs.json",
         root=StateRoot.PROJECT,
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
@@ -204,7 +204,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="dossier_snapshot",
-        path_pattern=".kittify/dossiers/<feature>/snapshot-latest.json",
+        path_pattern=".kittify/dossiers/<mission>/snapshot-latest.json",
         root=StateRoot.PROJECT,
         format=StateFormat.JSON,
         authority=AuthorityClass.DERIVED,
@@ -225,7 +225,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="dossier_parity_baseline",
-        path_pattern=".kittify/dossiers/<feature>/parity-baseline.json",
+        path_pattern=".kittify/dossiers/<mission>/parity-baseline.json",
         root=StateRoot.PROJECT,
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
@@ -320,23 +320,23 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="constitution context bootstrap",
     ),
     # -----------------------------------------------------------------------
-    # Section C -- Feature State (kitty-specs/<feature>/)
+    # Section C -- Mission State (kitty-specs/<mission>/)
     # -----------------------------------------------------------------------
     StateSurface(
-        name="feature_metadata",
-        path_pattern="kitty-specs/<feature>/meta.json",
-        root=StateRoot.FEATURE,
+        name="mission_metadata",
+        path_pattern="kitty-specs/<mission>/meta.json",
+        root=StateRoot.MISSION,
         format=StateFormat.JSON,
         authority=AuthorityClass.AUTHORITATIVE,
         git_class=GitClass.TRACKED,
-        owner_module="feature creation/acceptance",
+        owner_module="mission creation/acceptance",
         creation_trigger="spec-kitty specify",
         atomic_write=True,
     ),
     StateSurface(
         name="canonical_status_log",
-        path_pattern="kitty-specs/<feature>/status.events.jsonl",
-        root=StateRoot.FEATURE,
+        path_pattern="kitty-specs/<mission>/status.events.jsonl",
+        root=StateRoot.MISSION,
         format=StateFormat.JSONL,
         authority=AuthorityClass.AUTHORITATIVE,
         git_class=GitClass.TRACKED,
@@ -346,8 +346,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="canonical_status_snapshot",
-        path_pattern="kitty-specs/<feature>/status.json",
-        root=StateRoot.FEATURE,
+        path_pattern="kitty-specs/<mission>/status.json",
+        root=StateRoot.MISSION,
         format=StateFormat.JSON,
         authority=AuthorityClass.DERIVED,
         git_class=GitClass.TRACKED,
@@ -357,8 +357,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="wp_prompt_frontmatter",
-        path_pattern="kitty-specs/<feature>/tasks/WP*.md",
-        root=StateRoot.FEATURE,
+        path_pattern="kitty-specs/<mission>/tasks/WP*.md",
+        root=StateRoot.MISSION,
         format=StateFormat.YAML,
         authority=AuthorityClass.COMPATIBILITY,
         git_class=GitClass.TRACKED,
@@ -368,8 +368,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="wp_activity_log",
-        path_pattern="kitty-specs/<feature>/tasks/WP*.md body",
-        root=StateRoot.FEATURE,
+        path_pattern="kitty-specs/<mission>/tasks/WP*.md body",
+        root=StateRoot.MISSION,
         format=StateFormat.MARKDOWN,
         authority=AuthorityClass.COMPATIBILITY,
         git_class=GitClass.TRACKED,
@@ -379,8 +379,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="tasks_status_block",
-        path_pattern="kitty-specs/<feature>/tasks.md",
-        root=StateRoot.FEATURE,
+        path_pattern="kitty-specs/<mission>/tasks.md",
+        root=StateRoot.MISSION,
         format=StateFormat.MARKDOWN,
         authority=AuthorityClass.DERIVED,
         git_class=GitClass.TRACKED,
@@ -392,7 +392,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     # -----------------------------------------------------------------------
     StateSurface(
         name="review_feedback_artifact",
-        path_pattern=".git/spec-kitty/feedback/<feature>/<WP>/<timestamp>-<id>.md",
+        path_pattern=".git/spec-kitty/feedback/<mission>/<WP>/<timestamp>-<id>.md",
         root=StateRoot.GIT_INTERNAL,
         format=StateFormat.MARKDOWN,
         authority=AuthorityClass.GIT_INTERNAL,

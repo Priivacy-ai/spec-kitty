@@ -13,8 +13,8 @@ from specify_cli.acceptance import (
     AcceptanceResult,
     AcceptanceSummary,
     choose_mode,
-    collect_feature_summary,
-    detect_feature_slug,
+    collect_mission_summary,
+    detect_mission_slug,
     perform_acceptance,
 )
 from specify_cli.cli import StepTracker
@@ -65,7 +65,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
         "\n[bold]Acceptance metadata[/bold]\n"
-        f"• Feature: {result.summary.feature}\n"
+        f"• Mission: {result.summary.mission}\n"
         f"• Accepted at: {result.accepted_at}\n"
         f"• Accepted by: {result.accepted_by}"
     )
@@ -92,7 +92,7 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _emit_acceptance_events(feature_slug: str, wp_ids: list[str]) -> None:
+def _emit_acceptance_events(mission_slug: str, wp_ids: list[str]) -> None:
     if not wp_ids:
         return
     for wp_id in wp_ids:
@@ -102,7 +102,7 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: list[str]) -> None:
                 from_lane="for_review",
                 to_lane="done",
                 actor="user",
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
             )
         except Exception as exc:
             console.print(
@@ -121,8 +121,8 @@ def accept(
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
-    """Validate feature readiness before merging to main."""
-    feature = resolve_mission_or_feature(mission, feature)
+    """Validate mission readiness before merging to main."""
+    mission_flag = resolve_mission_or_feature(mission, feature)
 
     if not json_output:
         show_banner()
@@ -139,16 +139,16 @@ def accept(
     if not json_output:
         check_version_compatibility(repo_root, "accept")
 
-    tracker = StepTracker("Feature Acceptance")
+    tracker = StepTracker("Mission Acceptance")
     if not json_output:
-        tracker.add("detect", "Identify feature slug")
+        tracker.add("detect", "Identify mission slug")
         tracker.add("verify", "Run readiness checks")
         console.print()
         tracker.start("detect")
     try:
-        feature_slug = (
-            feature
-            or detect_feature_slug(repo_root)
+        mission_slug = (
+            mission_flag
+            or detect_mission_slug(repo_root)
         ).strip()
     except AcceptanceError as exc:
         _safe_emit_error_logged(str(exc))
@@ -160,7 +160,7 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     if not json_output:
-        tracker.complete("detect", feature_slug)
+        tracker.complete("detect", mission_slug)
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)
@@ -173,9 +173,9 @@ def accept(
     if not json_output:
         tracker.start("verify")
     try:
-        summary = collect_feature_summary(
+        summary = collect_mission_summary(
             repo_root,
-            feature_slug,
+            mission_slug,
             strict_metadata=not lenient,
         )
     except AcceptanceError as exc:
@@ -237,7 +237,7 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
+    _emit_acceptance_events(mission_slug, result.summary.lanes.get("for_review", []))
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))
