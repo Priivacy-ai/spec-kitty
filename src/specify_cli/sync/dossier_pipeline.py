@@ -223,7 +223,7 @@ def trigger_feature_dossier_sync_if_enabled(
         if not is_saas_sync_enabled():
             return None
 
-        from specify_cli.core.feature_detection import get_feature_target_branch
+        from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.mission import get_feature_mission_key
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
         from specify_cli.sync.project_identity import ensure_identity

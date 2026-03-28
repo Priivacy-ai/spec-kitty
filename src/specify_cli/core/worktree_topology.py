@@ -20,9 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from specify_cli.core.feature_detection import get_feature_target_branch
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.workspace_context import list_contexts
 from specify_cli.frontmatter import read_frontmatter
 

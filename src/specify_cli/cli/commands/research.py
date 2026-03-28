@@ -9,7 +9,8 @@ from typing import Optional
 import typer
 from rich.panel import Panel
 
-from specify_cli.acceptance import AcceptanceError, detect_feature_slug
+from specify_cli.acceptance import AcceptanceError
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
@@ -50,8 +51,8 @@ def research(
 
     tracker.start("feature")
     try:
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
-    except AcceptanceError as exc:
+        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+    except ValueError as exc:
         tracker.error("feature", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")

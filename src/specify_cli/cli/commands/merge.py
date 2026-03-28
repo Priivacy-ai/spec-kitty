@@ -20,7 +20,7 @@ from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
     run_git_preflight,
 )
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
@@ -797,7 +797,6 @@ def merge(
     # Resolve target branch dynamically if not specified
     if target_branch is None:
         if resolved_feature:
-            from specify_cli.core.feature_detection import get_feature_target_branch
             target_branch = get_feature_target_branch(repo_root, resolved_feature)
             target_source = "meta.json"
         else:
@@ -810,7 +809,6 @@ def merge(
             _inferred_slug = extract_feature_slug(_current_branch)
             _feature_dir = repo_root / "kitty-specs" / _inferred_slug
             if re.match(r"^\d{3}-.+$", _inferred_slug) and (_feature_dir / "meta.json").exists():
-                from specify_cli.core.feature_detection import get_feature_target_branch
                 resolved_feature = _inferred_slug
                 target_branch = get_feature_target_branch(repo_root, resolved_feature)
                 target_source = "meta.json"

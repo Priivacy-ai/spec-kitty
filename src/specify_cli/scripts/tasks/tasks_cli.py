@@ -56,7 +56,6 @@ from acceptance_support import (  # noqa: E402
     ArtifactEncodingError,
     choose_mode,
     collect_feature_summary,
-    detect_feature_slug,
     normalize_feature_encoding,
     perform_acceptance,
 )
@@ -393,7 +392,10 @@ def rollback_command(args: argparse.Namespace) -> None:
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
     if requested:
         return requested
-    return detect_feature_slug(repo_root)
+    raise TaskCliError(
+        "Feature slug is required. Provide it via --feature <slug>.\n"
+        "No auto-detection is performed."
+    )
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
@@ -601,7 +603,10 @@ def merge_command(args: argparse.Namespace) -> None:
     elif current_branch and current_branch != "HEAD":
         feature = current_branch
     else:
-        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
+        raise TaskCliError(
+            "Feature slug is required for merge. Provide it via --feature <slug>.\n"
+            "No auto-detection is performed."
+        )
 
     # Resolve target branch dynamically if not specified
     if args.target is None:

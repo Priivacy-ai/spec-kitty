@@ -197,10 +197,11 @@ def run_enhanced_verify(
         console.print(f"   Merged features: {worktree_summary['merged_features']}")
         console.print(f"   In development: {worktree_summary['in_development']}")
 
-    # 4. Feature Detection and Analysis
+    # 4. Feature Analysis (only when an explicit feature is provided)
     try:
-        from .acceptance import detect_feature_slug, AcceptanceError
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=cwd)).strip()
+        if not feature:
+            raise ValueError("No --feature provided; skipping feature analysis.")
+        feature_slug = feature.strip()
 
         output_data["feature_detection"] = {
             "detected": True,
@@ -242,15 +243,15 @@ def run_enhanced_verify(
             elif feature_status["state"] == "not_started":
                 console.print("   [dim]○[/dim] Feature not yet started")
 
-    except AcceptanceError as exc:
+    except (ValueError, Exception) as exc:
         output_data["feature_detection"] = {
             "detected": False,
             "error": str(exc)
         }
 
         if not json_output:
-            console.print("\n[cyan]4. Feature Detection[/cyan]")
-            console.print(f"   [yellow]⚠[/yellow] Could not detect feature: {exc}")
+            console.print("\n[cyan]4. Feature Analysis[/cyan]")
+            console.print(f"   [yellow]⚠[/yellow] Skipped: {exc}")
 
     # 5. All Features Status Table
     all_features = worktree_status.get_all_features()

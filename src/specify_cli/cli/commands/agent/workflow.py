@@ -21,10 +21,7 @@ from specify_cli.core.implement_validation import (
     validate_base_workspace_exists,
 )
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.status.emit import emit_status_transition, TransitionError
@@ -161,32 +158,20 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Find the current feature slug using centralized detection.
+    """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_feature: Feature slug provided via --feature flag.
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If feature slug cannot be determined
+        typer.Exit: If feature slug is not provided.
     """
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        print("Error: Not in a spec-kitty project.")
-        raise typer.Exit(1)
-
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
+        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
 

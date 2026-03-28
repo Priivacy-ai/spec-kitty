@@ -18,10 +18,7 @@ from specify_cli.core.agent_context import (
     get_supported_agent_types,
     get_agent_file_path,
 )
-from specify_cli.core.feature_detection import (
-    detect_feature_directory,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.execution_context import (
     ACTION_NAMES,
     ActionName,
@@ -39,33 +36,27 @@ console = Console()
 
 
 def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
-    """Find the current feature directory using centralized detection.
-
-    This function now uses the centralized feature detection module
-    to provide deterministic, consistent behavior across all commands.
+    """Find the feature directory from an explicit feature slug.
 
     Args:
         repo_root: Repository root path
-        cwd: Current working directory
-        explicit_feature: Optional explicit feature slug from --feature flag
+        cwd: Current working directory (unused — kept for signature compatibility)
+        explicit_feature: Feature slug from --feature flag (required)
 
     Returns:
         Path to feature directory
 
     Raises:
-        ValueError: If feature directory cannot be determined
-        FeatureDetectionError: If detection fails
+        ValueError: If feature slug is not provided or directory doesn't exist
     """
-    try:
-        return detect_feature_directory(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
+    slug = require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    feature_dir = repo_root / "kitty-specs" / slug
+    if not feature_dir.exists():
+        raise ValueError(
+            f"Feature directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct feature slug."
         )
-    except FeatureDetectionError as e:
-        # Convert to ValueError for backward compatibility
-        raise ValueError(str(e)) from e
+    return feature_dir
 
 
 @app.command(name="resolve")

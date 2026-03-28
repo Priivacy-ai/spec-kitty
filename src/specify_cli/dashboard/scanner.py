@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
-from specify_cli.core.feature_detection import detect_feature
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
@@ -278,19 +277,13 @@ def resolve_active_feature(
     project_dir: Path,
     features: List[Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
-    """Resolve active feature using the same detector as CLI status commands."""
-    if not features:
-        return None
+    """Return None — active feature cannot be auto-detected; requires explicit --feature.
 
-    context = detect_feature(
-        project_dir,
-        cwd=project_dir,
-        mode="lenient",
-    )
-    if context:
-        for feature in features:
-            if feature.get("id") == context.slug:
-                return feature
+    This function is retained for backward-compatible call sites. Without
+    auto-detection, we cannot determine the active feature without an explicit
+    feature slug from the caller.
+    """
+    return None
 
     # Keep previous deterministic fallback for edge cases.
     return features[0]

@@ -31,10 +31,9 @@ from specify_cli.core.git_preflight import (
     run_git_preflight,
 )
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
-from specify_cli.core.feature_detection import (
-    detect_feature,
-    detect_feature_directory,
-    FeatureDetectionError,
+from specify_cli.core.paths import (
+    get_feature_target_branch,
+    require_explicit_feature,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
@@ -329,33 +328,27 @@ def _find_feature_directory(
     cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the current feature directory using centralized detection.
-
-    This function now uses the centralized feature detection module
-    to provide deterministic, consistent behavior across all commands.
+    """Find the feature directory from an explicit feature slug.
 
     Args:
         repo_root: Repository root path
-        cwd: Current working directory
-        explicit_feature: Optional explicit feature slug from --feature flag
+        cwd: Current working directory (unused — kept for signature compatibility)
+        explicit_feature: Feature slug from --feature flag (required)
 
     Returns:
         Path to feature directory
 
     Raises:
-        ValueError: If feature directory cannot be determined
-        FeatureDetectionError: If detection fails
+        ValueError: If feature slug is not provided or directory doesn't exist
     """
-    try:
-        return detect_feature_directory(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
+    slug = require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    feature_dir = repo_root / "kitty-specs" / slug
+    if not feature_dir.exists():
+        raise ValueError(
+            f"Feature directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct feature slug."
         )
-    except FeatureDetectionError as e:
-        # Convert to ValueError for backward compatibility
-        raise ValueError(str(e)) from e
+    return feature_dir
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -1480,7 +1473,6 @@ def merge_feature(
 
         # Resolve target branch dynamically if not specified
         if target is None:
-            from specify_cli.core.feature_detection import get_feature_target_branch
             if feature:
                 target = get_feature_target_branch(repo_root, feature)
             else:
