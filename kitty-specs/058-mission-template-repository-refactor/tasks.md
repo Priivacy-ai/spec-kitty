@@ -224,7 +224,7 @@
 ### Included Subtasks
 
 - [x] T023 Reroute `src/specify_cli/runtime/resolver.py` -- replace tier-5 `get_package_asset_root()` (lines 174-175, 302-303) with `MissionTemplateRepository.default()._command_template_path()` / `._content_template_path()` / `._mission_config_path()`
-- [ ] T024 Reroute `src/specify_cli/runtime/bootstrap.py` -- replace `get_package_asset_root()` (line 74) with `MissionTemplateRepository.default()._missions_root` for missions source path
+- [x] T024 Reroute `src/specify_cli/runtime/bootstrap.py` -- replace `get_package_asset_root()` (line 74) with `MissionTemplateRepository.default()._missions_root` for missions source path
 - [ ] T025 Reroute `src/specify_cli/runtime/migrate.py` -- replace `get_package_asset_root()` (line 177) with `MissionTemplateRepository.default()._missions_root`
 - [ ] T026 [P] Reroute `src/specify_cli/template/manager.py` -- replace `files("doctrine").joinpath("missions")` (lines 242-243) with `MissionTemplateRepository.default()._missions_root`
 
