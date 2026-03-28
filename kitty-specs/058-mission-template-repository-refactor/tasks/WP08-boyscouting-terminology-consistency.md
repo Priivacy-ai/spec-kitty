@@ -1,13 +1,16 @@
 ---
 work_package_id: WP08
-title: "Boyscouting: Terminology Consistency (agent feature \u2192 agent mission)"
-lane: planned
+title: 'Boyscouting: Terminology Consistency (agent feature → agent mission)'
+lane: "doing"
 dependencies: [WP07]
 requirement_refs:
 - Constitution terminology canon
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP07
+base_commit: 8eb05adc3d929758c53473e9b6a0ac7dec949a21
+created_at: '2026-03-28T12:45:41.437779+00:00'
 subtasks:
 - T031
 - T032
@@ -23,8 +26,7 @@ subtasks:
 phase: Boyscouting
 assignee: ''
 agent: ''
-agent_profile: implementer
-shell_pid: ''
+shell_pid: "113162"
 review_status: ''
 reviewed_by: ''
 history:
@@ -33,6 +35,7 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt added manually during /spec-kitty.analyze review
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP08 -- Boyscouting: Terminology Consistency
