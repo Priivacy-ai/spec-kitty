@@ -98,7 +98,7 @@
 
 ### Included Subtasks
 
-- [ ] T010 [P] Add `get_action_index(mission, action)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses YAML with ruamel.yaml)
+- [x] T010 [P] Add `get_action_index(mission, action)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses YAML with ruamel.yaml)
 - [ ] T011 [P] Add `get_action_guidelines(mission, action)` → `TemplateResult | None` on `MissionTemplateRepository` (reads markdown)
 - [ ] T012 [P] Add `get_mission_config(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses mission.yaml)
 - [ ] T013 [P] Add `get_expected_artifacts(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses expected-artifacts.yaml)
