@@ -251,20 +251,13 @@ def _load_template_sets_with_presence(doctrine_root: Path) -> tuple[set[str], bo
         mission directories were found — every template-set selection is invalid.
         ``present=False`` means the missions directory is not deployed.
     """
-    template_sets: set[str] = set()
+    from doctrine.missions import MissionTemplateRepository
 
-    missions_root = doctrine_root / "missions"
-    if not missions_root.is_dir():
-        try:
-            missions_root = _get_package_asset_root()
-        except FileNotFoundError:
-            missions_root = doctrine_root / "missions"
+    repo = MissionTemplateRepository.default()
+    mission_names = repo.list_missions()
 
-    if not missions_root.is_dir():
-        return template_sets, False
+    if not mission_names and not repo._missions_root.is_dir():
+        return set(), False
 
-    for mission_dir in sorted(missions_root.iterdir()):
-        if mission_dir.is_dir() and (mission_dir / "mission.yaml").is_file():
-            template_sets.add(f"{mission_dir.name}-default")
-
+    template_sets = {f"{name}-default" for name in mission_names}
     return template_sets, True
