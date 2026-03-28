@@ -260,10 +260,10 @@
 
 ### Included Subtasks
 
-- [ ] T027 Reroute `src/constitution/compiler.py` (line 601) -- replace `doctrine_root / "missions" / mission / "mission.yaml"` with `MissionTemplateRepository.default().get_mission_config(mission)`
-- [ ] T028 Reroute `src/specify_cli/constitution/compiler.py` (line 333) -- same pattern as T027
-- [ ] T029 Fix stale path in `src/specify_cli/cli/commands/agent/feature.py` (line 1716) -- `Path(__file__).parents[3] / "specify_cli" / "missions"` references pre-migration directory. Replace with `MissionTemplateRepository.default()._missions_root` or appropriate API call.
-- [ ] T030 Run full test suite (`pytest`) and fix any regressions. Validate with grep: no direct `missions_root / mission / "command-templates"`, `missions_root / mission / "templates"`, `missions_root / mission / "actions"` patterns in production code outside `repository.py`, shipped migrations, and `test_package_bundling.py`.
+- [x] T027 Reroute `src/constitution/compiler.py` (line 601) -- replace `doctrine_root / "missions" / mission / "mission.yaml"` with `MissionTemplateRepository.default().get_mission_config(mission)`
+- [x] T028 Reroute `src/specify_cli/constitution/compiler.py` (line 333) -- same pattern as T027
+- [x] T029 Fix stale path in `src/specify_cli/cli/commands/agent/feature.py` (line 1716) -- `Path(__file__).parents[3] / "specify_cli" / "missions"` references pre-migration directory. Replace with `MissionTemplateRepository.default()._missions_root` or appropriate API call.
+- [x] T030 Run full test suite (`pytest`) and fix any regressions. Validate with grep: no direct `missions_root / mission / "command-templates"`, `missions_root / mission / "templates"`, `missions_root / mission / "actions"` patterns in production code outside `repository.py`, shipped migrations, and `test_package_bundling.py`.
 
 ### Implementation Notes
 
