@@ -547,5 +547,5 @@
 - WP01: approved
 - WP02: approved
 - WP03: approved
-- WP11: in_progress
+- WP11: approved
 <!-- status-model:end -->

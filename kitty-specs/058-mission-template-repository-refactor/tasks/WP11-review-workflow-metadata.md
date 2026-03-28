@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Review Workflow Metadata & Dashboard Visibility
-lane: "doing"
+lane: "approved"
 dependencies: [WP03]
 requirement_refs:
 - FR-020
@@ -25,10 +25,10 @@ subtasks:
 - T054
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: "opencode"
-shell_pid: "26986"
-review_status: ''
-reviewed_by: ''
+agent: opencode
+shell_pid: '26986'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-28T06:30:00Z'
   lane: planned
@@ -231,3 +231,4 @@ print(f'Lane.IN_REVIEW = {Lane.IN_REVIEW}')
 - 2026-03-28T07:11:41Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
 - 2026-03-28T07:34:39Z – opencode – shell_pid=26986 – lane=for_review – Implementation complete: all subtasks T049-T054 done
 - 2026-03-28T07:34:44Z – opencode – shell_pid=26986 – lane=doing – Started review via workflow command
+- 2026-03-28T07:41:23Z – opencode – shell_pid=26986 – lane=approved – Review passed: 9-lane model with in_review correctly implemented. All 704 status tests pass. Transitions properly enforce for_review->in_review->approved->done path. role/approved_by fields visible in dashboard. Test suite updated for new lane counts, removed illegal for_review->done/approved transitions, and added in_review coverage.
