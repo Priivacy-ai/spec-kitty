@@ -143,8 +143,8 @@
 
 ### Included Subtasks
 
-- [ ] T017 Verify existing `test_mission_repository.py` passes unchanged via alias (run before/after). Also verify `list_missions()` signature and return type match FR-008 (sorted `list[str]`).
-- [ ] T018 Create `tests/doctrine/test_mission_template_repository.py` with test categories:
+- [x] T017 Verify existing `test_mission_repository.py` passes unchanged via alias (run before/after). Also verify `list_missions()` signature and return type match FR-008 (sorted `list[str]`).
+- [x] T018 Create `tests/doctrine/test_mission_template_repository.py` with test categories:
   - Value object construction and properties (`TemplateResult`, `ConfigResult`)
   - Doctrine-level reads: all `get_*` methods against real doctrine assets
   - `None` returns: nonexistent missions, templates, actions
