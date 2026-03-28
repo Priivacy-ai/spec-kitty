@@ -139,6 +139,8 @@ class TestFeatureState:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["feature_slug"] == feature_slug
+        assert data["data"]["summary"]["claimed"] == 1
+        assert data["data"]["summary"]["planned"] == 1
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
         assert wps["WP01"]["lane"] == "claimed"
@@ -821,6 +823,8 @@ class TestFeatureStateNoEvents:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+        assert data["data"]["summary"]["planned"] == 2
+        assert data["data"]["summary"]["claimed"] == 0
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
         assert "WP02" in wps

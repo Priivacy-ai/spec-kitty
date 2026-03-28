@@ -420,6 +420,8 @@ class TestImplementCommand:
         payload = json.loads(output)
         assert payload["status"] == "error"
         assert payload["wp_id"] == "WP01"
+        assert payload["error"] != "implement command failed"
+        assert "meta.json not found" in payload["error"]
 
     def test_implement_with_base(self, tmp_path):
         """Test implement WP02 --base WP01 creates workspace from WP01 branch."""

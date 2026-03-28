@@ -450,6 +450,9 @@ Options:
   --policy      TEXT  Policy metadata JSON (required for run-affecting lanes)
   --force             Force the transition
   --review-ref  TEXT  Review reference
+  --evidence-json  TEXT  JSON string with done evidence
+  --subtasks-complete  FLAG  Whether required subtasks are complete for in_progress->for_review
+  --implementation-evidence-present  FLAG  Whether implementation evidence exists for in_progress->for_review
 ```
 
 **Flags:**
@@ -464,6 +467,9 @@ Options:
 | `--policy` | TEXT | Conditional | none | JSON policy metadata (required for run-affecting lanes) |
 | `--force` | FLAG | No | off | Override guard checks (recovery only) |
 | `--review-ref` | TEXT | No | none | Review artifact reference |
+| `--evidence-json` | TEXT | No | none | JSON payload recorded with the transition |
+| `--subtasks-complete` | FLAG | No | off | Assert that required subtasks are complete for `for_review` handoff |
+| `--implementation-evidence-present` | FLAG | No | off | Assert that implementation evidence exists for `for_review` handoff |
 
 **Valid target lanes and policy requirement:**
 
@@ -849,7 +855,8 @@ spec-kitty orchestrator-api transition \
 # 8. Transition to done
 spec-kitty orchestrator-api transition \
   --feature 017-my-feature --wp WP01 --to done --actor "reviewer-bot" \
-  --force --note "Approved in PR #42"
+  --review-ref "review/WP01/attempt-1" \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
 
 # 9. When all WPs are done, accept and merge
 spec-kitty orchestrator-api accept-feature \
