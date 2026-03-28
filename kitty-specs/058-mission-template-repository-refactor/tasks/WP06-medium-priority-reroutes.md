@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: MEDIUM Priority Consumer Reroutes
-lane: "for_review"
+lane: "in_review"
 dependencies:
 - WP01
 requirement_refs:
@@ -18,11 +18,12 @@ subtasks:
 - T025
 - T026
 phase: Phase 2 - Consumer Rerouting
-assignee: ''
-agent: ''
-shell_pid: '84896'
+assignee: reviewer
+agent: "reviewer"
+shell_pid: "88955"
 review_status: ''
 reviewed_by: ''
+role: "reviewer"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -232,3 +233,4 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/ -v
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
 - 2026-03-28T10:16:48Z – unknown – shell_pid=84896 – lane=for_review – Ready for review: rerouted resolver, bootstrap, migrate, manager from get_package_asset_root to MissionTemplateRepository. All 1327 relevant tests pass.
+- 2026-03-28T10:25:51Z – reviewer – shell_pid=88955 – lane=in_review – Started review via workflow command

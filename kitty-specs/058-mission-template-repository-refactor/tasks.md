@@ -549,6 +549,6 @@
 - WP03: done
 - WP04: done
 - WP05: done
-- WP06: for_review
+- WP06: in_review
 - WP11: done
 <!-- status-model:end -->
