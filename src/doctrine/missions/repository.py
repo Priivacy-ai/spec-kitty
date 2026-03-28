@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ruamel.yaml import YAML
+
 
 class TemplateResult:
     """Value object wrapping template content with origin metadata.
@@ -216,6 +218,100 @@ class MissionTemplateRepository:
             p.name for p in tpl_dir.iterdir()
             if p.is_file() and p.name != "README.md"
         )
+
+    # ------------------------------------------------------------------
+    # Public config-returning methods
+    # ------------------------------------------------------------------
+
+    def get_action_index(self, mission: str, action: str) -> ConfigResult | None:
+        """Read and parse an action's index.yaml from doctrine assets.
+
+        Args:
+            mission: Mission name.
+            action: Action name (e.g. ``"implement"``).
+
+        Returns:
+            ConfigResult with raw YAML text and parsed dict, or ``None`` if not found.
+        """
+        path = self._action_index_path(mission, action)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/actions/{action}/index.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
+
+    def get_action_guidelines(self, mission: str, action: str) -> TemplateResult | None:
+        """Read an action's guidelines.md from doctrine assets.
+
+        Args:
+            mission: Mission name.
+            action: Action name.
+
+        Returns:
+            TemplateResult with content and origin, or ``None`` if not found.
+        """
+        path = self._action_guidelines_path(mission, action)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/actions/{action}/guidelines.md"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def get_mission_config(self, mission: str) -> ConfigResult | None:
+        """Read and parse a mission's mission.yaml from doctrine assets.
+
+        Args:
+            mission: Mission name.
+
+        Returns:
+            ConfigResult with raw YAML text and parsed dict, or ``None`` if not found.
+        """
+        path = self._mission_config_path(mission)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/mission.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
+
+    def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+        """Read and parse a mission's expected-artifacts.yaml.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+
+        Returns:
+            ConfigResult with raw YAML text and parsed data, or ``None`` if not found.
+        """
+        path = self._expected_artifacts_path(mission)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/expected-artifacts.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
 
     # ------------------------------------------------------------------
     # Private path methods (internal use only)

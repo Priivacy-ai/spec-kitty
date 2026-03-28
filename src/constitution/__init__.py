@@ -61,6 +61,7 @@ from .resolver import (
     resolve_governance,
     resolve_governance_for_profile,
 )
+from .template_resolver import ConstitutionTemplateResolver
 
 __all__ = [
     "DoctrineCatalog",
@@ -107,4 +108,5 @@ __all__ = [
     "resolve_governance",
     "resolve_governance_for_profile",
     "collect_governance_diagnostics",
+    "ConstitutionTemplateResolver",
 ]
