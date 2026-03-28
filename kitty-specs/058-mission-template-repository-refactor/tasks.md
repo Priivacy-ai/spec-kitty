@@ -102,7 +102,7 @@
 - [x] T011 [P] Add `get_action_guidelines(mission, action)` → `TemplateResult | None` on `MissionTemplateRepository` (reads markdown)
 - [x] T012 [P] Add `get_mission_config(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses mission.yaml)
 - [x] T013 [P] Add `get_expected_artifacts(mission)` → `ConfigResult | None` on `MissionTemplateRepository` (reads + parses expected-artifacts.yaml)
-- [ ] T014 Create `src/constitution/template_resolver.py` with `ConstitutionTemplateResolver` class. Method: `resolve_command_template(mission, name, project_dir?)` → `TemplateResult`. Composes `MissionTemplateRepository` (tier 5) + `specify_cli.runtime.resolver` (tiers 1-4). Raises `FileNotFoundError` if not found at any tier.
+- [x] T014 Create `src/constitution/template_resolver.py` with `ConstitutionTemplateResolver` class. Method: `resolve_command_template(mission, name, project_dir?)` → `TemplateResult`. Composes `MissionTemplateRepository` (tier 5) + `specify_cli.runtime.resolver` (tiers 1-4). Raises `FileNotFoundError` if not found at any tier.
 - [ ] T015 Add `resolve_content_template(mission, name, project_dir?)` → `TemplateResult` on `ConstitutionTemplateResolver` (same pattern as T014)
 
 ### Implementation Notes
