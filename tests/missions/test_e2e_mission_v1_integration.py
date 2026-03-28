@@ -19,7 +19,7 @@ def _write_yaml(path: Path, data: dict) -> None:
 
 def test_v1_mission_e2e(tmp_path: Path):
     """Full v1 mission flow with guard blocking until artifact exists."""
-    mission_dir = tmp_path / "test-mission"
+    mission_dir = tmp_path / "mission"
     _write_yaml(
         mission_dir / "mission.yaml",
         {
@@ -46,9 +46,6 @@ def test_v1_mission_e2e(tmp_path: Path):
             ],
         },
     )
-
-    mission_dir = tmp_path / "mission"
-    mission_dir.mkdir()
 
     mission = load_mission(mission_dir, mission_dir=mission_dir)
     assert isinstance(mission, StateMachineMission)

@@ -477,7 +477,7 @@ class TestMaterializeCommand:
         assert "Legacy bridge update failed: bridge broken" in result.output
 
     def test_materialize_no_events(self, tmp_path: Path, mission_dir: Path):
-        """Missing event log should produce an error message."""
+        """No event log should succeed with empty snapshot."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -493,11 +493,11 @@ class TestMaterializeCommand:
                 ],
             )
 
-        assert result.exit_code == 1, f"stdout: {result.output}"
-        assert "No event log" in result.output or "error" in result.output.lower()
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        assert "0 events" in result.output
 
     def test_materialize_no_events_json(self, tmp_path: Path, mission_dir: Path):
-        """Missing event log with --json should produce JSON error."""
+        """No event log with --json should produce empty snapshot JSON."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -514,9 +514,9 @@ class TestMaterializeCommand:
                 ],
             )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         data = _extract_json(result.output)
-        assert "error" in data
+        assert data.get("event_count", 0) == 0
 
     def test_materialize_multiple_events(self, tmp_path: Path, mission_dir: Path):
         """Materialize should handle multiple events correctly."""

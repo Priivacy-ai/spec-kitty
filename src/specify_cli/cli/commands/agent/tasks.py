@@ -883,6 +883,705 @@ def move_task(
         # Ensure we operate on the target branch for this mission
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
+        # Informational: Let user know we're using planning repo's kitty-specs
+        cwd = Path.cwd().resolve()
+        if is_worktree_context(cwd) and not json_output and cwd != main_repo_root:
+            # Check if worktree has its own kitty-specs (stale copy)
+            worktree_kitty = None
+            current = cwd
+            while current != current.parent and ".worktrees" in str(current):
+                if (current / "kitty-specs").exists():
+                    worktree_kitty = current / "kitty-specs"
+                    break
+                current = current.parent
+
+            if worktree_kitty and (worktree_kitty / mission_slug / "tasks").exists():
+                console.print(
+                    f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]"
+                )
+
+        # Load work package first (needed for current_lane check)
+        wp = locate_work_package(repo_root, mission_slug, task_id)
+        old_lane = wp.current_lane
+
+        # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
+        # This helps prevent agents from accidentally modifying WPs they don't own
+        current_agent = extract_scalar(wp.frontmatter, "agent")
+        if current_agent and agent and current_agent != agent and not force:
+            if not json_output:
+                console.print()
+                console.print("[bold red]⚠️  AGENT OWNERSHIP WARNING[/bold red]")
+                console.print(f"   {task_id} is currently assigned to: [cyan]{current_agent}[/cyan]")
+                console.print(f"   You are trying to move it as: [yellow]{agent}[/yellow]")
+                console.print()
+                console.print("   If you are the correct agent, use --force to override.")
+                console.print("   If not, you may be modifying the wrong WP!")
+                console.print()
+            _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
+            raise typer.Exit(1)
+
+        resolved_feedback_source: Path | None = None
+        if review_feedback_file is not None:
+            feedback_candidate = review_feedback_file.expanduser()
+            feedback_candidate = (Path.cwd() / feedback_candidate).resolve() if not feedback_candidate.is_absolute() else feedback_candidate.resolve()
+
+            if not feedback_candidate.exists():
+                _output_error(
+                    json_output,
+                    f"Review feedback file not found: {feedback_candidate}",
+                )
+                raise typer.Exit(1)
+
+            if not feedback_candidate.is_file():
+                _output_error(
+                    json_output,
+                    f"Review feedback path is not a file: {feedback_candidate}",
+                )
+                raise typer.Exit(1)
+
+            resolved_feedback_source = feedback_candidate
+
+        review_feedback_pointer: str | None = None
+
+        # Strictly enforce deterministic review feedback capture on planned rollbacks.
+        # This requirement is never bypassed, including with --force.
+        if target_lane == "planned":
+            if not resolved_feedback_source:
+                error_msg = f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
+                error_msg += "Please provide feedback:\n"
+                error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
+                error_msg += f"  2. Run: spec-kitty agent tasks move-task {task_id} --to planned --review-feedback-file feedback.md\n\n"
+                error_msg += "This requirement cannot be bypassed with --force."
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+            feedback_content = resolved_feedback_source.read_text(encoding="utf-8").strip()
+            if not feedback_content:
+                _output_error(
+                    json_output,
+                    f"Review feedback file is empty: {resolved_feedback_source}",
+                )
+                raise typer.Exit(1)
+
+            _, review_feedback_pointer = _persist_review_feedback(
+                main_repo_root=main_repo_root,
+                mission_slug=mission_slug,
+                task_id=task_id,
+                feedback_source=resolved_feedback_source,
+            )
+
+        # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
+        if target_lane in ("for_review", "approved", "done") and not force:
+            unchecked = _check_unchecked_subtasks(repo_root, mission_slug, task_id, force)
+            if unchecked:
+                error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
+                for task in unchecked:
+                    error_msg += f"  - [ ] {task}\n"
+                error_msg += "\nMark these complete first:\n"
+                for task in unchecked[:3]:  # Show first 3 examples
+                    task_clean = task.split()[0] if ' ' in task else task
+                    error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
+                error_msg += "\nOr use --force to override (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+        # Validate uncommitted changes when moving to for_review/approved/done
+        # This catches the bug where agents edit artifacts but forget to commit
+        if target_lane in ("for_review", "approved", "done"):
+            is_valid, guidance = _validate_ready_for_review(repo_root, mission_slug, task_id, force)
+            if not is_valid:
+                error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
+                error_msg += "\n".join(guidance)
+                if not force:
+                    error_msg += "\n\nOr use --force to override (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+        # Guardrail: done transitions require merge ancestry or explicit override reason.
+        user_note = note.strip() if isinstance(note, str) else note
+        note_text = user_note
+        override_reason = done_override_reason.strip() if isinstance(done_override_reason, str) else done_override_reason
+        if target_lane == "done":
+            merged, merge_msg = _wp_branch_merged_into_target(
+                repo_root=main_repo_root,
+                mission_slug=mission_slug,
+                wp_id=task_id,
+                target_branch=target_branch,
+            )
+            if not merged:
+                if not override_reason:
+                    _output_error(
+                        json_output,
+                        (
+                            f"Cannot move {task_id} to done without verified merge ancestry.\n"
+                            f"{merge_msg}\n"
+                            f"If review just passed, move it to approved first:\n"
+                            f"  spec-kitty agent tasks move-task {task_id} --to approved --note \"Review passed\"\n"
+                            f"To proceed anyway, provide --done-override-reason \"<why this is acceptable>\"."
+                        ),
+                    )
+                    raise typer.Exit(1)
+
+                override_note = f"Done override: {override_reason}"
+                note_text = f"{note_text} | {override_note}" if note_text else override_note
+                if not json_output:
+                    console.print(
+                        "[yellow]⚠️  Proceeding with done override; reason recorded in history/events.[/yellow]"
+                    )
+
+        # --- Canonical emit pipeline (WP09 delegation) ---
+        # Build evidence dict for approval and done transitions.
+        evidence_dict = None
+        if target_lane in ("approved", "done"):
+            # Auto-detect reviewer if not provided
+            effective_reviewer = reviewer
+            if not effective_reviewer:
+                effective_reviewer = _detect_reviewer_name()
+            effective_approval_ref = approval_ref
+            if not effective_approval_ref and user_note:
+                effective_approval_ref = user_note
+            if not effective_approval_ref:
+                effective_approval_ref = (
+                    f"auto-approval:{task_id}:{datetime.now(UTC).strftime('%Y%m%d')}"
+                )
+            evidence_dict = {
+                "review": {
+                    "reviewer": effective_reviewer,
+                    "verdict": "approved",
+                    "reference": effective_approval_ref or "force-override",
+                },
+            }
+
+        # Build review_ref for for_review -> in_progress transitions
+        emit_review_ref = None
+        if target_lane == "planned" and review_feedback_pointer:
+            emit_review_ref = review_feedback_pointer
+        elif old_lane == "for_review" and resolve_lane_alias(target_lane) in ("in_progress", "planned") and force:
+            emit_review_ref = "force-override"
+
+        # Map --agent to actor; default to "user" if not provided
+        actor = agent or "user"
+
+        # Build reason for emit (used by force transitions and some guards)
+        emit_reason = note_text if note_text else None
+        if force and not emit_reason:
+            emit_reason = f"Force move to {target_lane}"
+
+        # Resolve the canonical lane for the emit pipeline
+        canonical_lane = resolve_lane_alias(target_lane)
+
+        # Determine mission_dir for the event store
+        mission_dir = main_repo_root / "kitty-specs" / mission_slug
+
+        # Keep force semantics strict: only user-requested --force should bypass guards.
+        emit_force = force
+        if not emit_reason:
+            emit_reason = f"Force move to {target_lane}" if force else f"move-task: {old_lane} -> {target_lane}"
+
+        def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
+            current = resolve_lane_alias(current_lane)
+            target = resolve_lane_alias(requested_lane)
+            forward = ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done"]
+            if current in forward and target in forward:
+                current_idx = forward.index(current)
+                target_idx = forward.index(target)
+                if target_idx > current_idx:
+                    return forward[current_idx + 1: target_idx + 1]
+            return [target]
+
+        transition_targets = [canonical_lane]
+        if not emit_force:
+            transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
+
+        with mission_status_lock(main_repo_root, mission_slug):
+            current_canonical_lane = resolve_lane_alias(old_lane)
+            current_event_lane = None
+            for existing_event in reversed(read_events(mission_dir)):
+                if existing_event.wp_id == task_id:
+                    current_event_lane = str(existing_event.to_lane)
+                    break
+            if (
+                current_canonical_lane != "planned"
+                and current_event_lane != current_canonical_lane
+            ):
+                # Seed/sync canonical history from frontmatter so strict transitions can continue.
+                sync_reason = (
+                    "bootstrap from frontmatter lane "
+                    if current_event_lane is None
+                    else "sync from frontmatter lane "
+                )
+                emit_status_transition(
+                    mission_dir=mission_dir,
+                    mission_slug=mission_slug,
+                    wp_id=task_id,
+                    to_lane=current_canonical_lane,
+                    actor=actor,
+                    force=True,
+                    reason=(
+                        f"{sync_reason}"
+                        f"{current_canonical_lane} before move-task transition"
+                    ),
+                    workspace_context=f"move-task:{main_repo_root}",
+                    subtasks_complete=True if current_canonical_lane == "for_review" else None,
+                    implementation_evidence_present=(
+                        True if current_canonical_lane == "for_review" else None
+                    ),
+                    repo_root=main_repo_root,
+                )
+
+            for target in transition_targets:
+                emit_status_transition(
+                    mission_dir=mission_dir,
+                    mission_slug=mission_slug,
+                    wp_id=task_id,
+                    to_lane=target,
+                    actor=actor,
+                    force=emit_force,
+                    reason=emit_reason,
+                    evidence=evidence_dict if target in ("approved", "done") else None,
+                    review_ref=emit_review_ref,
+                    workspace_context=f"move-task:{main_repo_root}",
+                    subtasks_complete=(
+                        True
+                        if target in ("for_review", "approved") and not emit_force
+                        else None
+                    ),
+                    implementation_evidence_present=(
+                        True
+                        if target in ("for_review", "approved") and not emit_force
+                        else None
+                    ),
+                    repo_root=main_repo_root,
+                )
+                # review_ref only applies to rollback transitions, never to forward chain hops
+                emit_review_ref = None
+
+            # --- Post-emit: apply metadata fields to WP file ---
+            # The emit pipeline (via legacy_bridge) may have updated the lane
+            # in frontmatter. Re-read the file to get the current state,
+            # then apply additional metadata fields that are NOT part of
+            # the canonical event.
+            wp_content = wp.path.read_text(encoding="utf-8-sig")
+            updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+
+            # Ensure lane is set (in case legacy_bridge didn't update it)
+            updated_front = set_scalar(updated_front, "lane", canonical_lane)
+
+            # Update assignee if provided
+            if assignee:
+                updated_front = set_scalar(updated_front, "assignee", assignee)
+
+            # Update agent if provided
+            if agent:
+                updated_front = set_scalar(updated_front, "agent", agent)
+
+            # Update shell_pid if provided
+            if shell_pid:
+                updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+
+            # Store canonical review feedback pointer in frontmatter and populate body.
+            if target_lane == "planned" and review_feedback_pointer is not None:
+                effective_reviewer = reviewer or _detect_reviewer_name()
+                updated_front = set_scalar(updated_front, "review_status", "has_feedback")
+                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(
+                    updated_front,
+                    "review_feedback",
+                    review_feedback_pointer,
+                )
+                if resolved_feedback_source is not None:
+                    feedback_text = resolved_feedback_source.read_text(encoding="utf-8").strip()
+                    if feedback_text:
+                        updated_body = populate_review_feedback(
+                            updated_body, feedback_text, "changes_requested", effective_reviewer,
+                        )
+
+            # Record review role when entering in_review via move-task.
+            if target_lane == "in_review":
+                updated_front = set_scalar(updated_front, "role", "reviewer")
+
+            # Record approval metadata when review passes.
+            if target_lane in ("approved", "done"):
+                effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
+                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(updated_front, "approved_by", effective_reviewer)
+                updated_front = set_scalar(updated_front, "review_status", "approved")
+                if note_text:
+                    updated_body = populate_review_feedback(
+                        updated_body, note_text, "approved", effective_reviewer,
+                    )
+
+            # Build history entry
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
+            shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
+            note_text = note_text or f"Moved to {target_lane}"
+
+            shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
+            history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
+
+            # Add history entry to body
+            updated_body = append_activity_log(updated_body, history_entry)
+
+            # Build updated document and write
+            updated_doc = build_document(updated_front, updated_body, updated_padding)
+
+            file_written = False
+            if auto_commit:
+                spec_number = mission_slug.split('-')[0] if '-' in mission_slug else mission_slug
+
+                commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
+                if agent_name != "unknown":
+                    commit_msg += f" [{agent_name}]"
+
+                try:
+                    actual_file_path = wp.path.resolve()
+
+                    wp.path.write_text(updated_doc, encoding="utf-8")
+                    file_written = True
+
+                    # Commit the WP file together with all status artifacts
+                    # so that events.jsonl, status.json, and tasks.md
+                    # changes are captured in the same atomic commit.
+                    status_artifacts = _collect_status_artifacts(mission_dir)
+                    commit_success = safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[actual_file_path] + status_artifacts,
+                        commit_message=commit_msg,
+                        allow_empty=True,  # OK if nothing changed
+                    )
+
+                    if commit_success:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                    else:
+                        if not json_output:
+                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
+
+                except Exception as e:
+                    if not file_written:
+                        wp.path.write_text(updated_doc, encoding="utf-8")
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
+            else:
+                wp.path.write_text(updated_doc, encoding="utf-8")
+
+        # Output result
+        result = {
+            "result": "success",
+            "task_id": task_id,
+            "old_lane": old_lane,
+            "new_lane": target_lane,
+            "path": str(wp.path)
+        }
+        if review_feedback_pointer is not None:
+            result["review_feedback"] = review_feedback_pointer
+
+        _output_result(
+            json_output,
+            result,
+            f"[green]✓[/green] Moved {task_id} from {old_lane} to {target_lane}"
+        )
+
+        # Check for dependent WP warnings when moving to for_review (T083)
+        _check_dependent_warnings(repo_root, mission_slug, task_id, target_lane, json_output)
+
+    except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                wp_id=task_id if 'task_id' in dir() else None,
+                stack_trace=traceback.format_exc(),
+                agent_id=agent if 'agent' in dir() else None,
+            )
+        except Exception:
+            pass  # Don't block on error logging
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="mark-status")
+def mark_status(
+    task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
+    status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    auto_commit: Annotated[bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Update task checkbox status in tasks.md for one or more tasks.
+
+    Accepts MULTIPLE task IDs separated by spaces. All tasks are updated
+    in a single operation with one commit.
+
+    Examples:
+        # Single task:
+        spec-kitty agent tasks mark-status T001 --status done
+
+        # Multiple tasks (space-separated):
+        spec-kitty agent tasks mark-status T001 T002 T003 --status done
+
+        # Many tasks at once:
+        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-mission
+
+        # With JSON output:
+        spec-kitty agent tasks mark-status T001 T002 --status done --json
+    """
+    try:
+        # Validate status
+        if status not in ("done", "pending"):
+            _output_error(json_output, f"Invalid status '{status}'. Must be 'done' or 'pending'.")
+            raise typer.Exit(1)
+
+        # Validate we have at least one task
+        if not task_ids:
+            _output_error(json_output, "At least one task ID is required")
+            raise typer.Exit(1)
+
+        # Get repo root and mission slug
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        # Resolve auto_commit: CLI flag overrides project config
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(repo_root)
+
+        mission_slug = _find_mission_slug(explicit_mission=mission)
+        # Ensure we operate on the target branch for this mission
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        mission_dir = main_repo_root / "kitty-specs" / mission_slug
+        tasks_md = mission_dir / "tasks.md"
+
+        with mission_status_lock(main_repo_root, mission_slug):
+            if not tasks_md.exists():
+                _output_error(json_output, f"tasks.md not found: {tasks_md}")
+                raise typer.Exit(1)
+
+            # Read tasks.md content
+            content = tasks_md.read_text(encoding="utf-8")
+            lines = content.split('\n')
+            new_checkbox = "[x]" if status == "done" else "[ ]"
+
+            # Track which tasks were updated and which weren't found
+            updated_tasks = []
+            not_found_tasks = []
+
+            # Update all requested tasks in a single pass
+            for task_id in task_ids:
+                task_found = False
+                for i, line in enumerate(lines):
+                    # Match checkbox lines with this task ID
+                    if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
+                        # Replace the checkbox
+                        lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
+                        updated_tasks.append(task_id)
+                        task_found = True
+                        break
+
+                if not task_found:
+                    not_found_tasks.append(task_id)
+
+            # Fail if no tasks were updated
+            if not updated_tasks:
+                _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
+                raise typer.Exit(1)
+
+            # Write updated content (single write for all changes)
+            updated_content = '\n'.join(lines)
+            tasks_md.write_text(updated_content, encoding="utf-8")
+
+            # Auto-commit to TARGET branch (detects from mission meta.json)
+            if auto_commit:
+
+                # Extract spec number from mission_slug (e.g., "014" from "014-mission-name")
+                spec_number = mission_slug.split('-')[0] if '-' in mission_slug else mission_slug
+
+                # Build commit message
+                if len(updated_tasks) == 1:
+                    commit_msg = f"chore: Mark {updated_tasks[0]} as {status} on spec {spec_number}"
+                else:
+                    commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status} on spec {spec_number}"
+
+                try:
+                    actual_tasks_path = tasks_md.resolve()
+
+                    # Commit only the tasks.md file (preserves staging area)
+                    commit_success = safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[actual_tasks_path],
+                        commit_message=commit_msg,
+                        allow_empty=True,  # OK if nothing changed
+                    )
+
+                    if commit_success:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                    else:
+                        if not json_output:
+                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
+
+                except Exception as e:
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
+
+        # Emit HistoryAdded event for subtask status changes (T014)
+        try:
+            task_list_str = ", ".join(updated_tasks)
+            emit_history_added(
+                wp_id=updated_tasks[0].replace("T", "WP")[:4] if updated_tasks else "WP00",
+                entry_type="note",
+                entry_content=f"Subtask(s) {task_list_str} marked as {status}",
+                author="user",
+            )
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
+
+        # Dossier sync (fire-and-forget)
+        try:
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_mission_dossier_sync_if_enabled,
+            )
+
+            trigger_mission_dossier_sync_if_enabled(
+                mission_dir, mission_slug, repo_root,
+            )
+        except Exception:
+            pass
+
+        # Build result
+        result = {
+            "result": "success",
+            "updated": updated_tasks,
+            "not_found": not_found_tasks,
+            "status": status,
+            "count": len(updated_tasks)
+        }
+
+        # Output result
+        if not_found_tasks and not json_output:
+            console.print(f"[yellow]Warning:[/yellow] Not found: {', '.join(not_found_tasks)}")
+
+        if len(updated_tasks) == 1:
+            success_msg = f"[green]✓[/green] Marked {updated_tasks[0]} as {status}"
+        else:
+            success_msg = f"[green]✓[/green] Marked {len(updated_tasks)} subtasks as {status}: {', '.join(updated_tasks)}"
+
+        _output_result(json_output, result, success_msg)
+
+    except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                stack_trace=traceback.format_exc(),
+            )
+        except Exception:
+            pass  # Don't block on error logging
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="list-tasks")
+def list_tasks(
+    lane: Annotated[str | None, typer.Option("--lane", help="Filter by lane")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """List tasks with optional lane filtering.
+
+    Examples:
+        spec-kitty agent tasks list-tasks --json
+        spec-kitty agent tasks list-tasks --lane doing --json
+    """
+    try:
+        # Get repo root and mission slug
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        mission_slug = _find_mission_slug(explicit_mission=mission)
+
+        # Ensure we operate on the target branch for this mission
+        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+
+        # Find all task files
+        tasks_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks"
+        if not tasks_dir.exists():
+            _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
+            raise typer.Exit(1)
+
+        tasks = []
+        for task_file in tasks_dir.glob("WP*.md"):
+            if task_file.name.lower() == "readme.md":
+                continue
+
+            content = task_file.read_text(encoding="utf-8-sig")
+            frontmatter, _, _ = split_frontmatter(content)
+
+            task_lane = extract_scalar(frontmatter, "lane") or "planned"
+            task_wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
+            task_title = extract_scalar(frontmatter, "title") or ""
+
+            # Filter by lane if specified
+            if lane and task_lane != lane:
+                continue
+
+            tasks.append({
+                "work_package_id": task_wp_id,
+                "title": task_title,
+                "lane": task_lane,
+                "path": str(task_file)
+            })
+
+        # Sort by work package ID
+        tasks.sort(key=lambda t: t["work_package_id"])
+
+        if json_output:
+            print(json.dumps({"tasks": tasks, "count": len(tasks)}))
+        else:
+            if not tasks:
+                console.print(f"[yellow]No tasks found{' in lane ' + lane if lane else ''}[/yellow]")
+            else:
+                console.print(f"[bold]Tasks{' in lane ' + lane if lane else ''}:[/bold]\n")
+                for task in tasks:
+                    console.print(f"  {task['work_package_id']}: {task['title']} [{task['lane']}]")
+
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="add-history")
+def add_history(
+    task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
+    note: Annotated[str, typer.Option("--note", help="History note")],
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Append history entry to task activity log.
+
+    Examples:
+        spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
+    """
+    try:
+        # Get repo root and mission slug
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        mission_slug = _find_mission_slug(explicit_mission=mission)
+
+        # Ensure we operate on the target branch for this mission
+        _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
 

@@ -47,10 +47,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
         )
     )
 
-    # team_domain: mission (workflow machine)
+    # team_domain: deployment (workflow machine)
     store.add_sense(
         TermSense(
-            surface=TermSurface("mission"),
+            surface=TermSurface("deployment"),
             scope=GlossaryScope.TEAM_DOMAIN.value,
             definition="Purpose-specific workflow machine",
             provenance=provenance,
@@ -59,10 +59,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
         )
     )
 
-    # audience_domain: mission (user-facing definition)
+    # audience_domain: deployment (user-facing definition)
     store.add_sense(
         TermSense(
-            surface=TermSurface("mission"),
+            surface=TermSurface("deployment"),
             scope=GlossaryScope.AUDIENCE_DOMAIN.value,
             definition="A project goal or objective",
             provenance=provenance,
@@ -71,10 +71,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
         )
     )
 
-    # spec_kitty_core: mission (canonical definition)
+    # spec_kitty_core: pipeline (canonical definition)
     store.add_sense(
         TermSense(
-            surface=TermSurface("mission"),
+            surface=TermSurface("pipeline"),
             scope=GlossaryScope.SPEC_KITTY_CORE.value,
             definition="A unit of work with specifications and work packages",
             provenance=provenance,
@@ -88,10 +88,10 @@ def glossary_store(tmp_path: Path) -> GlossaryStore:
 
 def test_resolve_term_single_match(glossary_store: GlossaryStore) -> None:
     """Test resolving a term with a single match."""
-    results = resolve_term("mission", SCOPE_RESOLUTION_ORDER, glossary_store)
+    results = resolve_term("pipeline", SCOPE_RESOLUTION_ORDER, glossary_store)
 
     assert len(results) == 1
-    assert results[0].surface.surface_text == "mission"
+    assert results[0].surface.surface_text == "pipeline"
     assert results[0].scope == GlossaryScope.SPEC_KITTY_CORE.value
 
 
@@ -104,7 +104,7 @@ def test_resolve_term_no_match(glossary_store: GlossaryStore) -> None:
 
 def test_resolve_term_multiple_scopes(glossary_store: GlossaryStore) -> None:
     """Test resolving a term with matches in multiple scopes."""
-    results = resolve_term("mission", SCOPE_RESOLUTION_ORDER, glossary_store)
+    results = resolve_term("deployment", SCOPE_RESOLUTION_ORDER, glossary_store)
 
     assert len(results) == 2
     # Results should be in scope precedence order
@@ -128,7 +128,7 @@ def test_resolve_term_scope_precedence(glossary_store: GlossaryStore) -> None:
 def test_resolve_term_custom_scope_order(glossary_store: GlossaryStore) -> None:
     """Test resolving with a custom scope order."""
     custom_order = [GlossaryScope.AUDIENCE_DOMAIN, GlossaryScope.TEAM_DOMAIN]
-    results = resolve_term("mission", custom_order, glossary_store)
+    results = resolve_term("deployment", custom_order, glossary_store)
 
     assert len(results) == 2
     # Custom order: audience_domain should come first
