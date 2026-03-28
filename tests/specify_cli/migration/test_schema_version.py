@@ -27,6 +27,9 @@ from specify_cli.migration.schema_version import (
 )
 from specify_cli.migration.gate import check_schema_version
 
+# Use a concrete version for testing (REQUIRED_SCHEMA_VERSION may be None during dev)
+_TEST_SCHEMA_VERSION: int = 3
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,7 +61,7 @@ def _write_metadata(tmp_path: Path, schema_version: int | None = None) -> None:
 
 def test_check_compatibility_unmigrated():
     """schema_version=None → UNMIGRATED."""
-    result = check_compatibility(None, REQUIRED_SCHEMA_VERSION)
+    result = check_compatibility(None, _TEST_SCHEMA_VERSION)
     assert result.status == CompatibilityStatus.UNMIGRATED
     assert not result.is_compatible
     assert result.exit_code == 1
@@ -67,17 +70,17 @@ def test_check_compatibility_unmigrated():
 
 def test_check_compatibility_outdated():
     """schema_version < CLI → OUTDATED."""
-    result = check_compatibility(REQUIRED_SCHEMA_VERSION - 1, REQUIRED_SCHEMA_VERSION)
+    result = check_compatibility(_TEST_SCHEMA_VERSION - 1, _TEST_SCHEMA_VERSION)
     assert result.status == CompatibilityStatus.OUTDATED
     assert not result.is_compatible
     assert result.exit_code == 1
     assert "spec-kitty upgrade" in result.message
-    assert str(REQUIRED_SCHEMA_VERSION - 1) in result.message
+    assert str(_TEST_SCHEMA_VERSION - 1) in result.message
 
 
 def test_check_compatibility_compatible():
     """schema_version == CLI → COMPATIBLE."""
-    result = check_compatibility(REQUIRED_SCHEMA_VERSION, REQUIRED_SCHEMA_VERSION)
+    result = check_compatibility(_TEST_SCHEMA_VERSION, _TEST_SCHEMA_VERSION)
     assert result.status == CompatibilityStatus.COMPATIBLE
     assert result.is_compatible
     assert result.exit_code == 0
@@ -85,12 +88,12 @@ def test_check_compatibility_compatible():
 
 def test_check_compatibility_cli_outdated():
     """schema_version > CLI → CLI_OUTDATED."""
-    result = check_compatibility(REQUIRED_SCHEMA_VERSION + 1, REQUIRED_SCHEMA_VERSION)
+    result = check_compatibility(_TEST_SCHEMA_VERSION + 1, _TEST_SCHEMA_VERSION)
     assert result.status == CompatibilityStatus.CLI_OUTDATED
     assert not result.is_compatible
     assert result.exit_code == 1
     assert "pip install --upgrade spec-kitty-cli" in result.message
-    assert str(REQUIRED_SCHEMA_VERSION + 1) in result.message
+    assert str(_TEST_SCHEMA_VERSION + 1) in result.message
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +101,9 @@ def test_check_compatibility_cli_outdated():
 # ---------------------------------------------------------------------------
 
 
-def test_gate_raises_on_unmigrated(tmp_path):
+def test_gate_raises_on_unmigrated(tmp_path, monkeypatch):
     """Gate raises SystemExit(1) when schema_version is missing."""
+    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
     _write_metadata(tmp_path, schema_version=None)  # no schema_version field
 
     with pytest.raises(SystemExit) as exc_info:
@@ -107,18 +111,20 @@ def test_gate_raises_on_unmigrated(tmp_path):
     assert exc_info.value.code == 1
 
 
-def test_gate_raises_on_outdated(tmp_path):
+def test_gate_raises_on_outdated(tmp_path, monkeypatch):
     """Gate raises SystemExit(1) when project schema is behind CLI."""
-    _write_metadata(tmp_path, schema_version=REQUIRED_SCHEMA_VERSION - 1)
+    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
+    _write_metadata(tmp_path, schema_version=_TEST_SCHEMA_VERSION - 1)
 
     with pytest.raises(SystemExit) as exc_info:
         check_schema_version(tmp_path, invoked_subcommand="specify")
     assert exc_info.value.code == 1
 
 
-def test_gate_raises_on_cli_outdated(tmp_path):
+def test_gate_raises_on_cli_outdated(tmp_path, monkeypatch):
     """Gate raises SystemExit(1) when project schema is ahead of CLI."""
-    _write_metadata(tmp_path, schema_version=REQUIRED_SCHEMA_VERSION + 1)
+    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
+    _write_metadata(tmp_path, schema_version=_TEST_SCHEMA_VERSION + 1)
 
     with pytest.raises(SystemExit) as exc_info:
         check_schema_version(tmp_path, invoked_subcommand="specify")
