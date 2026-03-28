@@ -414,12 +414,12 @@
 
 ### Included Subtasks
 
-- [ ] T049 Add `IN_REVIEW` lane to status model + transitions
-- [ ] T050 Add `role` and `approved_by` frontmatter fields to scanner
-- [ ] T051 Update workflow review command to use `in_review` lane
-- [ ] T052 Update `move-task --to approved` to populate `approved_by`
-- [ ] T053 Dashboard: render `in_review` lane column, `role` badge, `approved_by` in detail pane
-- [ ] T054 Verify scanner passes `role` and `approved_by` through to JSON API
+- [x] T049 Add `IN_REVIEW` lane to status model + transitions
+- [x] T050 Add `role` and `approved_by` frontmatter fields to scanner
+- [x] T051 Update workflow review command to use `in_review` lane
+- [x] T052 Update `move-task --to approved` to populate `approved_by`
+- [x] T053 Dashboard: render `in_review` lane column, `role` badge, `approved_by` in detail pane
+- [x] T054 Verify scanner passes `role` and `approved_by` through to JSON API
 
 ### Dependencies
 
