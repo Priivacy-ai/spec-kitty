@@ -19,7 +19,7 @@ subtasks:
 - T038
 - T043
 - T048
-- T049
+- T055
 phase: Boyscouting
 assignee: ''
 agent: ''
@@ -80,6 +80,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 - **Constitution**: Lines 302-308 mandate "Mission" as the only canonical term; "Feature/Features" are prohibited in user-facing language
+- **Constitution exception for backward-compat aliases**: The constitution's hard-break policy ("do not introduce or preserve `feature*` aliases") applies to *new canonical surfaces*. The hidden `agent feature` alias, deprecated `--feature` flag, and deprecated `SPECIFY_FEATURE` env var are *transitional backward-compatibility shims*, not canonical surfaces. They are intentionally preserved to avoid breaking existing automation and CI scripts. Each emits a deprecation warning when used. This is consistent with the constitution's intent: users never *see* "feature" in help text, docs, or error messages — only in legacy invocation paths that will be removed in a future major version.
 - **Current state**: `agent mission` is already the canonical registration in `__init__.py` line 16; `agent feature` is a backward-compat alias on line 17
 - **Scope guard**: Only touch strings/docs where "feature" means "mission" (the domain object). Do NOT touch:
   - Internal Python variable/function names (e.g., `create_feature()` function can keep its name)
@@ -235,7 +236,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py`, `src/specify_cli/cli/commands/agent/tasks.py`, and any other CLI modules with `--feature` flags
 - **Parallel?**: Yes, independent of T031-T043
 
-### Subtask T049 -- Rename "feature" to "mission" in detection error messages and env var references
+### Subtask T055 -- Rename "feature" to "mission" in detection error messages and env var references
 
 - **Purpose**: The `detect_feature()` function in `feature_detection.py` emits user-facing error messages that say "Multiple features found", reference `--feature <feature-slug>`, and surface the `SPECIFY_FEATURE` environment variable. These are the most prominent user-facing terminology violations because they appear whenever auto-detection fails. The `status.py` hint message has the same issue.
 - **Steps**:
@@ -284,7 +285,7 @@ spec-kitty agent mission create-feature --help  # hidden alias, should still wor
 ## Risks & Mitigations
 
 1. **CI scripts hard-coding `agent feature`**: Hidden alias prevents breakage. No action needed.
-2. **Overlap with 057 scope**: T048 pulled `--feature` → `--mission` flag rename into this WP (2026-03-28). T049 extends this to error messages and env var references. No remaining overlap with 057.
+2. **Overlap with 057 scope**: T048 pulled `--feature` → `--mission` flag rename into this WP (2026-03-28). T055 extends this to error messages and env var references. No remaining overlap with 057.
 3. **Test assertions on command names**: Tests may assert on `"create-feature"` in help output. Update these assertions.
 4. **`SPECIFY_FEATURE` env var in CI/scripts**: Keep `SPECIFY_FEATURE` as deprecated fallback to avoid breaking existing automation. Emit deprecation warning when it is used.
 
@@ -302,4 +303,4 @@ spec-kitty agent mission create-feature --help  # hidden alias, should still wor
 ## Activity Log
 
 - 2026-03-27T05:00:00Z -- system -- lane=planned -- Prompt added during /spec-kitty.analyze review.
-- 2026-03-28T00:00:00Z -- agent -- lane=planned -- Added subtask T049: rename "feature" to "mission" in detection error messages, status hints, and SPECIFY_FEATURE env var references. Updated objectives, risks, and review guidance to reflect expanded scope.
+- 2026-03-28T00:00:00Z -- agent -- lane=planned -- Added subtask T055: rename "feature" to "mission" in detection error messages, status hints, and SPECIFY_FEATURE env var references. Updated objectives, risks, and review guidance to reflect expanded scope.

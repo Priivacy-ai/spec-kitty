@@ -65,7 +65,7 @@ history:
 - **ADR**: `architecture/2.x/adr/2026-03-27-1-pytestarch-architectural-dependency-testing.md`
 - **2.x landscape**: `architecture/2.x/00_landscape/README.md`
 - **Dependency chain**: kernel (root) <- doctrine <- constitution <- specify_cli
-- **Special case**: constitution may import `specify_cli.runtime` (not other specify_cli submodules)
+- **Strict boundary**: constitution may import doctrine + kernel only. No `specify_cli` imports from constitution.
 - **PyTestArch**: v4.0.1, AST-based, session-scoped evaluable graph
 
 ## Branch Strategy
@@ -214,17 +214,16 @@ history:
 
      # --- Invariant 3: constitution boundary ---
 
-     class TestConstitutionBoundary:
-         """constitution may import doctrine + kernel + specify_cli.runtime only."""
+      class TestConstitutionBoundary:
+          """constitution may import doctrine + kernel only. No specify_cli imports."""
 
-         def test_constitution_does_not_import_specify_cli_non_runtime(self, evaluable):
-             (Rule()
-              .modules_that().are_sub_modules_of("constitution")
-              .should_not()
-              .import_modules_that().have_name_matching(
-                  r"specify_cli\.(?!runtime).*"
-              )
-              ).assert_applies(evaluable)
+          def test_constitution_does_not_import_specify_cli(self, evaluable, landscape):
+              (LayerRule()
+               .based_on(landscape)
+               .layers_that().are_named("constitution")
+               .should_not()
+               .access_layers_that().are_named("specify_cli")
+               ).assert_applies(evaluable)
      ```
   2. **Register the marker** in `pyproject.toml` under `[tool.pytest.ini_options]`:
      ```toml
@@ -265,12 +264,12 @@ git checkout src/doctrine/missions/repository.py
 
 1. **Pre-existing violations**: The current codebase may have boundary violations we haven't found. T047 serves as the discovery step. Any found violations are fixed or explicitly excluded with justification.
 2. **AST parse performance**: Session-scoped fixture runs once. If slow (>5s), add `level_limit=3` to constrain depth.
-3. **Regex for constitution exception**: The `(?!runtime)` negative lookahead in the constitution test may need tuning if legitimate `specify_cli` imports beyond `runtime` are added in future. Document the pattern.
+3. **Constitution boundary is strict**: Constitution must have zero imports from `specify_cli`. The test uses a simple `LayerRule` (not a regex-based `Rule` with exceptions). If a future need arises for constitution to access `specify_cli` types, the correct solution is to move those types to doctrine or kernel.
 
 ## Review Guidance
 
 - Verify all 3 invariant classes are present and match the 2.x landscape
-- Verify the constitution exception correctly permits `specify_cli.runtime` imports
+- Verify the constitution boundary strictly forbids all `specify_cli` imports (no exceptions)
 - Verify the `architectural` marker is registered
 - Verify the session fixture scans `src/` not the whole repo
 - Verify the ADR is committed alongside the tests

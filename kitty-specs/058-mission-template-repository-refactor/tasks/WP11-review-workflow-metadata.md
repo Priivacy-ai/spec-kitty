@@ -3,7 +3,13 @@ work_package_id: WP11
 title: "Review Workflow Metadata & Dashboard Visibility"
 lane: planned
 dependencies: [WP03]
-requirement_refs: []
+requirement_refs:
+- FR-020
+- FR-021
+- FR-022
+- FR-023
+- FR-024
+- FR-025
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
