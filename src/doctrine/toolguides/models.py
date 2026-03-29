@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class Toolguide(BaseModel):
     """A tool-specific governance guide."""
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     schema_version: str = Field(pattern=r"^1\.0$")

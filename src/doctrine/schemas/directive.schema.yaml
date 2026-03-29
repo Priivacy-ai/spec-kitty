@@ -1,83 +1,86 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://spec-kitty.dev/schemas/doctrine/directive.schema.yaml"
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/directive.schema.yaml
 title: Directive
 description: Schema for governance directives with optional enrichment fields.
 type: object
 additionalProperties: false
 required:
-  - schema_version
-  - id
-  - title
-  - intent
-  - enforcement
+- id
+- schema_version
+- title
+- intent
+- enforcement
 definitions:
-  directive_reference:
-    type: object
-    additionalProperties: false
-    required:
-      - type
-      - id
-    properties:
-      type:
-        type: string
-        enum:
-          - directive
-          - tactic
-          - styleguide
-          - toolguide
-          - paradigm
-          - procedure
-          - template
-      id:
-        type: string
-        minLength: 1
   contradiction:
     type: object
     additionalProperties: false
     required:
-      - type
-      - id
-      - reason
+    - type
+    - id
+    - reason
     properties:
       type:
         type: string
+        minLength: 1
         enum:
-          - directive
-          - tactic
-          - paradigm
+        - directive
+        - tactic
+        - paradigm
       id:
         type: string
         minLength: 1
       reason:
         type: string
         minLength: 1
-properties:
-  schema_version:
+  directive_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - type
+    - id
+    properties:
+      type:
+        type: string
+        minLength: 1
+        enum:
+        - directive
+        - tactic
+        - styleguide
+        - toolguide
+        - paradigm
+        - procedure
+        - template
+        description: Doctrine artifact type being referenced.
+      id:
+        type: string
+        minLength: 1
+  enforcement:
     type: string
-    pattern: '^1\.0$'
+    enum:
+    - required
+    - lenient-adherence
+    - advisory
+properties:
   id:
     type: string
-    pattern: '^[A-Z][A-Z0-9_-]*$'
+    pattern: ^[A-Z][A-Z0-9_-]*$
+  schema_version:
+    type: string
+    pattern: ^1\.0$
   title:
     type: string
     minLength: 1
   intent:
     type: string
     minLength: 1
+  enforcement:
+    $ref: '#/definitions/enforcement'
   tactic_refs:
     type: array
     items:
       type: string
-      pattern: '^[a-z][a-z0-9-]*$'
-  enforcement:
-    type: string
-    enum:
-      - required
-      - lenient-adherence
-      - advisory
   scope:
     type: string
-    minLength: 1
   procedures:
     type: array
     items:
@@ -104,12 +107,12 @@ properties:
     items:
       $ref: '#/definitions/contradiction'
 allOf:
-  - if:
-      properties:
-        enforcement:
-          const: lenient-adherence
-      required:
-        - enforcement
-    then:
-      required:
-        - explicit_allowances
+- if:
+    properties:
+      enforcement:
+        const: lenient-adherence
+    required:
+    - enforcement
+  then:
+    required:
+    - explicit_allowances

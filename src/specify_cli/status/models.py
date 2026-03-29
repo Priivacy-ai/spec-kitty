@@ -185,7 +185,7 @@ class StatusEvent:
         actor = ActorIdentity.from_dict(raw_actor) if isinstance(raw_actor, dict) else ActorIdentity.from_legacy(str(raw_actor))
         return cls(
             event_id=data["event_id"],
-            mission_slug=data["mission_slug"],
+            mission_slug=data.get("mission_slug") or data["feature_slug"],
             wp_id=data["wp_id"],
             from_lane=Lane(data["from_lane"]),
             to_lane=Lane(data["to_lane"]),
@@ -227,7 +227,7 @@ class StatusSnapshot:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
         return cls(
-            mission_slug=data["mission_slug"],
+            mission_slug=data.get("mission_slug") or data["feature_slug"],
             materialized_at=data["materialized_at"],
             event_count=data["event_count"],
             last_event_id=data.get("last_event_id"),

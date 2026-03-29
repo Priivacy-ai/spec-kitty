@@ -10,6 +10,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
+from doctrine.shared.models import Contradiction
 
 
 class Enforcement(StrEnum):
@@ -23,7 +24,7 @@ class Enforcement(StrEnum):
 class DirectiveReference(BaseModel):
     """Cross-artifact reference within a directive."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     type: ArtifactKind
     id: str
@@ -37,11 +38,11 @@ class Directive(BaseModel):
     level and optional references to tactics that describe HOW.
     """
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     # Required fields
-    id: str
-    schema_version: str = Field(alias="schema_version")
+    id: str = Field(pattern=r"^[A-Z][A-Z0-9_-]*$")
+    schema_version: str = Field(pattern=r"^1\.0$", alias="schema_version")
     title: str
     intent: str
     enforcement: Enforcement
@@ -60,6 +61,7 @@ class Directive(BaseModel):
         default_factory=list, alias="explicit_allowances"
     )
     references: list[DirectiveReference] = Field(default_factory=list)
+    opposed_by: list[Contradiction] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_lenient_adherence(self) -> "Directive":

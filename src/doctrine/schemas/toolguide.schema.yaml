@@ -1,23 +1,23 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://spec-kitty.dev/schemas/doctrine/toolguide.schema.yaml"
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/toolguide.schema.yaml
 title: Toolguide
 description: Minimal schema for doctrine toolguides.
 type: object
 additionalProperties: false
 required:
-  - schema_version
-  - id
-  - tool
-  - title
-  - guide_path
-  - summary
+- id
+- schema_version
+- tool
+- title
+- guide_path
+- summary
 properties:
-  schema_version:
-    type: string
-    pattern: '^1\.0$'
   id:
     type: string
-    pattern: '^[a-z][a-z0-9-]*$'
+    pattern: ^[a-z][a-z0-9-]*$
+  schema_version:
+    type: string
+    pattern: ^1\.0$
   tool:
     type: string
     minLength: 1
@@ -26,7 +26,7 @@ properties:
     minLength: 1
   guide_path:
     type: string
-    pattern: '^src/doctrine/.+\.md$'
+    pattern: ^src/doctrine/.+\.md$
   summary:
     type: string
     minLength: 1
@@ -34,4 +34,3 @@ properties:
     type: array
     items:
       type: string
-      minLength: 1
