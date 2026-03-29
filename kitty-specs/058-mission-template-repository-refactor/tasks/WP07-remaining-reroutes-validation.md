@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Remaining Reroutes + Bug Fix + Validation
-lane: "in_review"
+lane: "for_review"
 dependencies: [WP05, WP06]
 requirement_refs:
 - FR-017
@@ -20,10 +20,9 @@ subtasks:
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
 agent: "opencode"
-shell_pid: "113162"
+shell_pid: '113162'
 review_status: ''
 reviewed_by: ''
-role: "reviewer"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -31,6 +30,7 @@ history:
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: implementer
+role: reviewer
 ---
 
 # Work Package Prompt: WP07 – Remaining Reroutes + Bug Fix + Validation
@@ -213,3 +213,4 @@ Expected outcome: All tests pass. Any failures are regressions from WP05-WP06 ch
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
 - 2026-03-28T12:51:26Z – unknown – shell_pid=98083 – lane=for_review – Ready for review: rerouted remaining direct mission paths to MissionTemplateRepository, fixed stale path, boyscout test fixes
 - 2026-03-29T06:13:32Z – opencode – shell_pid=113162 – lane=in_review – Started review via workflow command
+- 2026-03-29T06:14:11Z – opencode – shell_pid=113162 – lane=for_review – Returned to for_review - accidentally claimed during WP08 review
