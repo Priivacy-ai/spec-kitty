@@ -1303,7 +1303,7 @@ def accept_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
+            help="Feature directory slug (required in multi-feature repos)"
         )
     ] = None,
     mode: Annotated[
@@ -1385,14 +1385,14 @@ def merge_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
+            help="Feature directory slug (required in multi-feature repos)"
         )
     ] = None,
     target: Annotated[
         Optional[str],
         typer.Option(
             "--target",
-            help="Target branch to merge into (auto-detected if not specified)"
+            help="Target branch to merge into (required in multi-feature repos)"
         )
     ] = None,
     strategy: Annotated[
@@ -1560,15 +1560,19 @@ def merge_feature(
 def finalize_tasks(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    validate_only: Annotated[bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")] = False,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
     This command is designed to be called after LLM generates WP files via /spec-kitty.tasks.
     It post-processes the generated files to add dependency information and commits everything.
 
+    Use --validate-only to check for issues (missing requirement mappings, ownership overlaps,
+    dependency cycles) without making any changes or committing.
+
     Examples:
         spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
-        spec-kitty agent feature finalize-tasks --feature 021-my-feature --json
+        spec-kitty agent feature finalize-tasks --feature 020-my-feature --validate-only --json
     """
     try:
         repo_root = locate_project_root()
@@ -1893,6 +1897,21 @@ def finalize_tasks(
         commit_created = False
         commit_hash = None
         files_committed = []
+
+        if validate_only:
+            if json_output:
+                _emit_json({
+                    "result": "validation_passed",
+                    "feature_slug": feature_slug,
+                    "wp_count": wp_count,
+                    "validate_only": True,
+                    "message": "All validations passed. Run without --validate-only to commit.",
+                })
+            else:
+                console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
+                console.print(f"  Feature: {feature_slug}")
+                console.print(f"  WPs validated: {wp_count}")
+            return
 
         try:
             # Build list of all files to commit via safe_commit

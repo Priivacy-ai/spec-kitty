@@ -268,7 +268,7 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
@@ -861,7 +861,7 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.

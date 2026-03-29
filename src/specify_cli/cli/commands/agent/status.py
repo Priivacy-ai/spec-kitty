@@ -97,7 +97,7 @@ def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
@@ -206,7 +206,7 @@ def emit(
 
 @app.command()
 def materialize(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -553,7 +553,7 @@ def migrate(
 def validate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", help="Feature slug (required in multi-feature repos)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -692,7 +692,7 @@ def validate(
 def reconcile(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", "-f", help="Feature slug (required in multi-feature repos)"),
     ] = None,
     dry_run: Annotated[
         bool,

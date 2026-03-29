@@ -277,6 +277,9 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
     must receive it via ``--feature`` (or equivalent).  No scanning, no env
     var magic, no git branch guessing.
 
+    When the feature is missing, scans ``kitty-specs/`` for available features
+    and includes them in the error message so agents can self-correct.
+
     Args:
         feature: The feature slug provided by the user (may be None).
         command_hint: Name of the CLI flag to mention in the error message.
@@ -291,10 +294,43 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
         return feature.strip()
 
     flag = command_hint or "--feature <slug>"
+
+    # Scan for available features to include in the error message
+    available = ""
+    try:
+        root = locate_project_root()
+        kitty_specs = root / "kitty-specs"
+        if kitty_specs.is_dir():
+            slugs = sorted(
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if slugs:
+                listing = "\n".join(f"  - {s}" for s in slugs[:15])
+                if len(slugs) > 15:
+                    listing += f"\n  ... and {len(slugs) - 15} more"
+                available = f"\nAvailable features:\n{listing}\n"
+    except Exception:
+        pass
+
+    example_slug = "057-canonical-context-architecture-cleanup"
+    if available:
+        # Use the first real slug as the example
+        try:
+            root = locate_project_root()
+            first = sorted(
+                d.name for d in (root / "kitty-specs").iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )[0]
+            example_slug = first
+        except Exception:
+            pass
+
     msg = (
         f"Feature slug is required.  Provide it explicitly: {flag}\n"
         "No auto-detection is performed (branch scanning / env vars removed).\n"
-        "Example:  spec-kitty ... --feature 057-canonical-context-architecture-cleanup"
+        f"{available}"
+        f"Example:  spec-kitty ... --feature {example_slug}"
     )
     raise ValueError(msg)
 
