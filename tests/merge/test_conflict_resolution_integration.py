@@ -30,12 +30,12 @@ def _make_event(
     force: bool = False,
     reason: str | None = None,
     review_ref: str | None = None,
-    feature_slug: str = "099-conflict-test",
+    mission_slug: str = "099-conflict-test",
 ) -> StatusEvent:
     """Create a StatusEvent with sensible defaults."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -141,9 +141,9 @@ class TestNonConflictingEventsForDifferentWPs:
         snapshot = reduce(events)
 
         assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
-        assert snapshot.work_packages["WP01"]["actor"] == "agent-1"
+        assert snapshot.work_packages["WP01"]["actor"]["tool"] == "agent-1"
         assert snapshot.work_packages["WP02"]["lane"] == "in_progress"
-        assert snapshot.work_packages["WP02"]["actor"] == "agent-2"
+        assert snapshot.work_packages["WP02"]["actor"]["tool"] == "agent-2"
 
 class TestDuplicateEventIdsDeduplicated:
     """T079: Duplicate event_ids are deduplicated (first occurrence wins)."""
@@ -221,22 +221,22 @@ class TestDeduplicationPreservesDeterminism:
 
     def test_dedup_with_persistence(self, tmp_path: Path):
         """Deduplication works correctly through the store layer."""
-        feature_dir = tmp_path / "kitty-specs" / "099-dedup-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "099-dedup-test"
+        mission_dir.mkdir(parents=True)
 
         dup_id = "01GGG00000000000000000001A"
         event1 = _make_event(dup_id, "WP01", "planned", "claimed",
                              "2026-01-15T10:00:00+00:00",
-                             feature_slug="099-dedup-test")
+                             mission_slug="099-dedup-test")
         event2 = _make_event(dup_id, "WP01", "planned", "blocked",
                              "2026-01-15T10:00:01+00:00",
-                             feature_slug="099-dedup-test")
+                             mission_slug="099-dedup-test")
 
-        append_event(feature_dir, event1)
-        append_event(feature_dir, event2)
+        append_event(mission_dir, event1)
+        append_event(mission_dir, event2)
 
         # Both lines are in the file
-        events_raw = read_events(feature_dir)
+        events_raw = read_events(mission_dir)
         assert len(events_raw) == 2  # Both are in the file
 
         # But reducer deduplicates

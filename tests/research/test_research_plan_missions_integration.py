@@ -18,6 +18,7 @@ from pathlib import Path
 
 import yaml
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.mission_v1.schema import (
 
     is_v1_mission,
@@ -32,10 +33,11 @@ pytestmark = pytest.mark.git_repo
 # Helpers
 # ---------------------------------------------------------------------------
 
-MISSIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions"
+MISSIONS_DIR = MissionTemplateRepository.default_missions_root()
+DOCTRINE_MISSIONS_DIR = MISSIONS_DIR  # canonical missions now live in doctrine
 
 def _load_yaml(mission_name: str) -> dict:
-    """Load a mission.yaml from the missions directory."""
+    """Load a mission.yaml from the doctrine missions directory."""
     path = MISSIONS_DIR / mission_name / "mission.yaml"
     assert path.exists(), f"Missing mission.yaml at {path}"
     with open(path) as f:
@@ -308,10 +310,10 @@ class TestPlanMissionDirectoryStructure:
         assert (MISSIONS_DIR / "plan" / "mission.yaml").is_file()
 
     def test_plan_command_templates_exists(self) -> None:
-        assert (MISSIONS_DIR / "plan" / "command-templates").is_dir()
+        assert (DOCTRINE_MISSIONS_DIR / "plan" / "command-templates").is_dir()
 
     def test_plan_templates_exists(self) -> None:
-        assert (MISSIONS_DIR / "plan" / "templates").is_dir()
+        assert (DOCTRINE_MISSIONS_DIR / "plan" / "templates").is_dir()
 
 # ---------------------------------------------------------------------------
 # Guard expression validation (both missions use the 6 supported primitives)

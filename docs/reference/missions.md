@@ -1,6 +1,6 @@
 # Missions Reference
 
-Spec Kitty supports three mission types, each tailored to a different kind of work. Missions determine the workflow phases, artifacts, and templates used during feature development.
+Spec Kitty supports three mission types, each tailored to a different kind of work. Missions determine the workflow phases, artifacts, and templates used during mission development.
 
 ---
 
@@ -145,7 +145,7 @@ Missions are selected **per-feature** during `/spec-kitty.specify`. The mission 
 When you run `/spec-kitty.specify`, you'll be asked to choose a mission:
 
 ```
-? Which mission type for this feature?
+? Which mission type for this mission?
   ○ software-dev — Building software features (default)
   ○ research — Research and analysis
   ○ documentation — Creating documentation

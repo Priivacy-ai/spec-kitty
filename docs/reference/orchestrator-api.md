@@ -82,14 +82,14 @@ persisted in events or returned in API responses.
 | # | Command | Purpose | Mutates State |
 |---|---------|---------|:-------------:|
 | 1 | [`contract-version`](#1-contract-version) | Verify API compatibility | No |
-| 2 | [`feature-state`](#2-feature-state) | Query full feature state | No |
+| 2 | [`mission-state`](#2-mission-state) | Query full feature state | No |
 | 3 | [`list-ready`](#3-list-ready) | List WPs ready to start | No |
 | 4 | [`start-implementation`](#4-start-implementation) | Claim + begin WP (atomic) | Yes |
 | 5 | [`start-review`](#5-start-review) | Reviewer rollback (for_review to in_progress) | Yes |
 | 6 | [`transition`](#6-transition) | Explicit single lane change | Yes |
 | 7 | [`append-history`](#7-append-history) | Add note to WP activity log | Yes |
-| 8 | [`accept-feature`](#8-accept-feature) | Mark feature as accepted | Yes |
-| 9 | [`merge-feature`](#9-merge-feature) | Merge WP branches into target | Yes |
+| 8 | [`accept-mission`](#8-accept-mission) | Mark feature as accepted | Yes |
+| 9 | [`merge-mission`](#9-merge-mission) | Merge WP branches into target | Yes |
 
 ---
 
@@ -148,28 +148,28 @@ Options:
 
 ---
 
-## 2. feature-state
+## 2. mission-state
 
 Query the full state of a feature and all its work packages.
 
 ```
-Usage: spec-kitty orchestrator-api feature-state [OPTIONS]
+Usage: spec-kitty orchestrator-api mission-state [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug (e.g. 034-my-feature) [required]
+  --mission  TEXT  Feature slug (e.g. 034-my-feature) [required]
 ```
 
 **Flags:**
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug (e.g., `047-namespace-aware-artifact-body-sync`) |
+| `--mission` | TEXT | Yes | -- | Feature slug (e.g., `047-namespace-aware-artifact-body-sync`) |
 
 **Response `data` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `feature_slug` | string | The feature identifier |
+| `mission_slug` | string | The feature identifier |
 | `summary.planned` | int | WPs in the `planned` lane |
 | `summary.claimed` | int | WPs in the `claimed` lane |
 | `summary.in_progress` | int | WPs in the `in_progress` lane |
@@ -189,13 +189,13 @@ Options:
 ```json
 {
   "contract_version": "1.0.0",
-  "command": "orchestrator-api.feature-state",
+  "command": "orchestrator-api.mission-state",
   "timestamp": "2026-03-22T15:01:27.957292+00:00",
   "correlation_id": "corr-23ce339e-8b17-4b8b-a599-c3f9136a0e45",
   "success": true,
   "error_code": null,
   "data": {
-    "feature_slug": "047-namespace-aware-artifact-body-sync",
+    "mission_slug": "047-namespace-aware-artifact-body-sync",
     "summary": {
       "planned": 0,
       "claimed": 0,
@@ -271,20 +271,20 @@ dependencies satisfied).
 Usage: spec-kitty orchestrator-api list-ready [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --mission  TEXT  Feature slug [required]
 ```
 
 **Flags:**
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 
 **Response `data` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `feature_slug` | string | The feature identifier |
+| `mission_slug` | string | The feature identifier |
 | `ready_work_packages` | list | WPs ready to start (see below) |
 | `ready_work_packages[].wp_id` | string | Work package identifier |
 | `ready_work_packages[].lane` | string | Current lane (always `planned` for returned WPs) |
@@ -302,7 +302,7 @@ Options:
   "success": true,
   "error_code": null,
   "data": {
-    "feature_slug": "042-test-feature",
+    "mission_slug": "042-test-feature",
     "ready_work_packages": [
       {
         "wp_id": "WP03",
@@ -340,7 +340,7 @@ that moves the WP through `planned` -> `claimed` -> `in_progress` atomically
 Usage: spec-kitty orchestrator-api start-implementation [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --mission  TEXT  Feature slug [required]
   --wp       TEXT  Work package ID (e.g. WP01) [required]
   --actor    TEXT  Actor identity [required]
   --policy   TEXT  Policy metadata JSON (required)
@@ -350,7 +350,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--wp` | TEXT | Yes | -- | Work package ID (e.g., `WP01`) |
 | `--actor` | TEXT | Yes | -- | Identity of the claiming actor |
 | `--policy` | TEXT | Yes | -- | JSON string with [policy metadata](#policy-metadata-schema) |
@@ -396,7 +396,7 @@ so the implementing agent can address review feedback.
 Usage: spec-kitty orchestrator-api start-review [OPTIONS]
 
 Options:
-  --feature     TEXT  Feature slug [required]
+  --mission     TEXT  Feature slug [required]
   --wp          TEXT  Work package ID [required]
   --actor       TEXT  Actor identity [required]
   --policy      TEXT  Policy metadata JSON (required)
@@ -407,7 +407,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--actor` | TEXT | Yes | -- | Identity of the reviewing actor |
 | `--policy` | TEXT | Yes | -- | JSON string with [policy metadata](#policy-metadata-schema) |
@@ -442,7 +442,7 @@ Perform an explicit single lane transition on a work package.
 Usage: spec-kitty orchestrator-api transition [OPTIONS]
 
 Options:
-  --feature     TEXT  Feature slug [required]
+  --mission     TEXT  Feature slug [required]
   --wp          TEXT  Work package ID [required]
   --to          TEXT  Target lane [required]
   --actor       TEXT  Actor identity [required]
@@ -456,7 +456,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--to` | TEXT | Yes | -- | Target lane |
 | `--actor` | TEXT | Yes | -- | Identity of the transitioning actor |
@@ -510,7 +510,7 @@ the WP lane.
 Usage: spec-kitty orchestrator-api append-history [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --mission  TEXT  Feature slug [required]
   --wp       TEXT  Work package ID [required]
   --actor    TEXT  Actor identity [required]
   --note     TEXT  History note to append [required]
@@ -520,7 +520,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--actor` | TEXT | Yes | -- | Identity of the author |
 | `--note` | TEXT | Yes | -- | History note content |
@@ -540,15 +540,15 @@ Options:
 
 ---
 
-## 8. accept-feature
+## 8. accept-mission
 
 Mark a feature as accepted. All work packages must be in the `done` lane.
 
 ```
-Usage: spec-kitty orchestrator-api accept-feature [OPTIONS]
+Usage: spec-kitty orchestrator-api accept-mission [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --mission  TEXT  Feature slug [required]
   --actor    TEXT  Actor identity [required]
 ```
 
@@ -556,7 +556,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--actor` | TEXT | Yes | -- | Identity of the accepting actor |
 
 **Response `data` fields:**
@@ -573,21 +573,21 @@ Options:
 | `FEATURE_NOT_READY` | One or more WPs are not in the `done` lane |
 
 **Usage notes:**
-- Always call `feature-state` first to verify all WPs are done.
+- Always call `mission-state` first to verify all WPs are done.
 - This is a guard-protected operation; it rejects if any WP is not done.
 
 ---
 
-## 9. merge-feature
+## 9. merge-mission
 
 Run preflight checks then merge all WP branches into the target branch in
 dependency order.
 
 ```
-Usage: spec-kitty orchestrator-api merge-feature [OPTIONS]
+Usage: spec-kitty orchestrator-api merge-mission [OPTIONS]
 
 Options:
-  --feature   TEXT  Feature slug [required]
+  --mission   TEXT  Feature slug [required]
   --target    TEXT  Target branch to merge into (auto-detected from meta.json)
   --strategy  TEXT  Merge strategy: merge, squash, or rebase [default: merge]
   --push           Push target branch after merge
@@ -597,7 +597,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--mission` | TEXT | Yes | -- | Feature slug |
 | `--target` | TEXT | No | auto-detected from `meta.json` | Target branch to merge into |
 | `--strategy` | TEXT | No | `merge` | Merge strategy: `merge` (--no-ff), `squash`, or `rebase` |
 | `--push` | FLAG | No | off | Push target branch to remote after merge |
@@ -700,17 +700,17 @@ Complete list of all error codes returned by orchestrator-api commands.
 |------------|----------|-------|
 | `USAGE_ERROR` | All | Parser/usage error (missing required args, unknown options) |
 | `CONTRACT_VERSION_MISMATCH` | `contract-version` | Provider version below `min_supported_provider_version` |
-| `FEATURE_NOT_FOUND` | `feature-state`, `list-ready`, `append-history`, `accept-feature`, `merge-feature` | Feature slug does not resolve to a directory in `kitty-specs/` |
+| `FEATURE_NOT_FOUND` | `mission-state`, `list-ready`, `append-history`, `accept-mission`, `merge-mission` | Feature slug does not resolve to a directory in `kitty-specs/` |
 | `WP_NOT_FOUND` | `start-implementation`, `start-review`, `transition`, `append-history` | WP ID does not exist in the feature |
 | `TRANSITION_REJECTED` | `start-implementation`, `start-review`, `transition` | Invalid lane transition or guard failure (dependency not met, invalid state) |
 | `WP_ALREADY_CLAIMED` | `start-implementation` | Another actor has already claimed the WP |
 | `POLICY_METADATA_REQUIRED` | `start-implementation`, `start-review`, `transition` | Policy missing on run-affecting lane (`claimed`, `in_progress`, `for_review`) |
 | `POLICY_VALIDATION_FAILED` | `start-implementation`, `start-review`, `transition` | Invalid JSON, missing required fields, non-array `dangerous_flags`, or secret-like values detected |
-| `FEATURE_NOT_READY` | `accept-feature` | Not all WPs are in the `done` lane |
-| `PREFLIGHT_FAILED` | `merge-feature` | Dirty worktrees, diverged target branch, or missing WP worktrees |
-| `MERGE_FAILED` | `merge-feature` | Git merge failed (conflicts or other git error) |
-| `PUSH_FAILED` | `merge-feature` | Push to remote failed after merge |
-| `UNSUPPORTED_STRATEGY` | `merge-feature` | Merge strategy not in `{merge, squash, rebase}` |
+| `FEATURE_NOT_READY` | `accept-mission` | Not all WPs are in the `done` lane |
+| `PREFLIGHT_FAILED` | `merge-mission` | Dirty worktrees, diverged target branch, or missing WP worktrees |
+| `MERGE_FAILED` | `merge-mission` | Git merge failed (conflicts or other git error) |
+| `PUSH_FAILED` | `merge-mission` | Push to remote failed after merge |
+| `UNSUPPORTED_STRATEGY` | `merge-mission` | Merge strategy not in `{merge, squash, rebase}` |
 
 **Handling errors programmatically:**
 
@@ -718,7 +718,7 @@ Complete list of all error codes returned by orchestrator-api commands.
 import json, subprocess
 
 result = subprocess.run(
-    ["spec-kitty", "orchestrator-api", "feature-state", "--feature", slug],
+    ["spec-kitty", "orchestrator-api", "mission-state", "--mission", slug],
     capture_output=True, text=True,
 )
 envelope = json.loads(result.stdout)
@@ -756,8 +756,8 @@ are not interchangeable.
 | Dashboard moves a WP to approved | Orchestrator API | Dashboard is external |
 | Agent queries its next step | Host CLI (`spec-kitty next`) | Agent is inside the project |
 | Supervisor queries ready WPs | Orchestrator API (`list-ready`) | Supervisor is external |
-| External tool reads WP state | Orchestrator API (`feature-state`) | External tool must use API |
-| CI accepts a feature after all checks pass | Orchestrator API (`accept-feature`) | CI is external |
+| External tool reads WP state | Orchestrator API (`mission-state`) | External tool must use API |
+| CI accepts a feature after all checks pass | Orchestrator API (`accept-mission`) | CI is external |
 
 ### Anti-Patterns (Do NOT Do)
 
@@ -802,7 +802,7 @@ grep "lane:" kitty-specs/017-feature/tasks/WP01-setup.md
 ```
 
 File content may be stale, partially written, or in a format that changes
-between versions. Use `orchestrator-api feature-state` or `list-ready`.
+between versions. Use `orchestrator-api mission-state` or `list-ready`.
 
 **5. Skip contract-version check**
 
@@ -825,37 +825,37 @@ A typical external orchestrator loop:
 spec-kitty orchestrator-api contract-version --provider-version "1.0.0"
 
 # 2. Query ready WPs
-spec-kitty orchestrator-api list-ready --feature 017-my-feature
+spec-kitty orchestrator-api list-ready --mission 017-my-feature
 
 # 3. Start implementation for each ready WP
 spec-kitty orchestrator-api start-implementation \
-  --feature 017-my-feature --wp WP01 --actor "ci-bot" \
+  --mission 017-my-feature --wp WP01 --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0","agent_family":"claude","approval_mode":"auto","sandbox_mode":"container","network_mode":"restricted","dangerous_flags":[]}'
 
 # 4. (Agent executes the prompt_path in the worktree the orchestrator created)
 
 # 5. Record history
 spec-kitty orchestrator-api append-history \
-  --feature 017-my-feature --wp WP01 --actor "ci-bot" \
+  --mission 017-my-feature --wp WP01 --actor "ci-bot" \
   --note "Implementation complete"
 
 # 6. Transition to review
 spec-kitty orchestrator-api transition \
-  --feature 017-my-feature --wp WP01 --to for_review --actor "ci-bot" \
+  --mission 017-my-feature --wp WP01 --to for_review --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0","agent_family":"claude","approval_mode":"auto","sandbox_mode":"container","network_mode":"restricted","dangerous_flags":[]}'
 
 # 7. (Reviewer reviews the work)
 
 # 8. Transition to done
 spec-kitty orchestrator-api transition \
-  --feature 017-my-feature --wp WP01 --to done --actor "reviewer-bot" \
+  --mission 017-my-feature --wp WP01 --to done --actor "reviewer-bot" \
   --force --note "Approved in PR #42"
 
 # 9. When all WPs are done, accept and merge
-spec-kitty orchestrator-api accept-feature \
-  --feature 017-my-feature --actor "ci-bot"
-spec-kitty orchestrator-api merge-feature \
-  --feature 017-my-feature --strategy squash --push
+spec-kitty orchestrator-api accept-mission \
+  --mission 017-my-feature --actor "ci-bot"
+spec-kitty orchestrator-api merge-mission \
+  --mission 017-my-feature --strategy squash --push
 ```
 
 ---

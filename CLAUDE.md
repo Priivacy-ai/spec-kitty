@@ -181,31 +181,39 @@ agents:
 
 ---
 
-# Feature Development History
+# Mission Development History
 
-*Auto-generated from all feature plans. Last updated: 2025-11-10*
+*Auto-generated from all mission plans. Last updated: 2025-11-10*
 
 ## Active Technologies
-- Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
-- Python 3.11+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
+
+- Python 3.12+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
+- Python 3.12+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
 - File system (no database) (004-modular-code-refactoring)
-- Python 3.11+ (existing spec-kitty codebase requirement) (005-refactor-mission-system)
+- Python 3.12+ (existing spec-kitty codebase requirement) (005-refactor-mission-system)
 - Filesystem only (YAML configs, CSV files, markdown templates) (005-refactor-mission-system)
-- Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI) (007-frontmatter-only-lane)
+- Python 3.12+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI) (007-frontmatter-only-lane)
 - Filesystem only (YAML frontmatter in markdown files) (007-frontmatter-only-lane)
-- Python 3.11+ (existing spec-kitty requirement) (008-unified-python-cli)
+- Python 3.12+ (existing spec-kitty requirement) (008-unified-python-cli)
 - Filesystem only (no database) (008-unified-python-cli)
-- Python 3.11+ + pathlib, Rich, ruamel.yaml, typer, subprocess (git worktree), pytest (010-workspace-per-work-package-for-parallel-development)
+- Python 3.12+ + pathlib, Rich, ruamel.yaml, typer, subprocess (git worktree), pytest (010-workspace-per-work-package-for-parallel-development)
 - Filesystem only (YAML frontmatter, git worktrees) (010-workspace-per-work-package-for-parallel-development)
-- Python 3.11+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
+- Python 3.12+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
 - Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
-- Python 3.11+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
+- Python 3.12+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
 - Filesystem only (mission configs in YAML, Divio templates in Markdown, iteration state in JSON) (012-documentation-mission)
+- Python 3.12+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
+- Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
+
 - Markdown (documentation only) + None (pure documentation) (023-documentation-sprint-agent-management-cleanup)
+- Python 3.12+ (existing spec-kitty codebase) + typer, rich, ruamel.yaml, pydantic (057-doctrine-stack-init-and-profile-integration)
+- Filesystem only (YAML profiles, markdown constitution, doctrine defaults) (057-doctrine-stack-init-and-profile-integration)
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
-- Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
+- Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
+
 ## Project Structure
+
 ```
 architecture/           # Architectural design decisions and technical specifications
   ├── README.md        # Overview of architecture documentation
@@ -217,10 +225,10 @@ src/                   # Source code
       ├── glossary/      # Glossary semantic integrity pipeline + CLI surfaces (implemented)
       └── next/          # Canonical mission-next command loop integration (implemented)
       # Planned in future core/runtime work:
-      # - core/events/   # Event ABCs, Pydantic models, factory (Feature 040 target)
-      # - telemetry/     # JSONL event writer (Feature 040 target)
+      # - core/events/   # Event ABCs, Pydantic models, factory (Mission 040 target)
+      # - telemetry/     # JSONL event writer (Mission 040 target)
 tests/                 # Test suite
-kitty-specs/          # Feature specifications (dogfooding spec-kitty)
+kitty-specs/          # Mission specifications (dogfooding spec-kitty)
 docs/                 # User documentation
 ```
 
@@ -231,6 +239,7 @@ docs/                 # User documentation
 - Reference from code comments for major components
 
 ## Commands
+
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
 
 ## Testing
@@ -246,10 +255,18 @@ pytest tests/ --browser-channel=chromium --headed=false
 ```
 
 ## Code Style
-Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
+
+Python 3.12+ (existing spec-kitty codebase): Follow standard conventions
+
+## Branching Strategy
+
+- For **2.x** work, the reference branch is either `2.x` or `develop` (if it exists).
+- For **1.x** work, the reference branch is `main`.
 
 ## Recent Changes
-- 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
+
+- 057-doctrine-stack-init-and-profile-integration: Init-time doctrine setup, profile inheritance (merge + excluding), workflow profile injection, --mission→--mission rename
+- 047-namespace-aware-artifact-body-sync: Added Python 3.12+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
 <!-- MANUAL ADDITIONS START -->
 
@@ -289,15 +306,15 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 
 ## Workspace-per-Work-Package Development (0.11.0+)
 
-**Breaking change in 0.11.0**: Workspace model changed from workspace-per-feature to workspace-per-work-package.
+**Breaking change in 0.11.0**: Workspace model changed from workspace-per-mission to workspace-per-work-package.
 
 ### Planning Workflow
 
 **All planning happens in main repository:**
-- `/spec-kitty.specify` → Creates `kitty-specs/###-feature/` in main, commits to main
+- `/spec-kitty.specify` → Creates `kitty-specs/###-mission/` in main, commits to main
 - `/spec-kitty.plan` → Creates `plan.md` in main, commits to main
 - `/spec-kitty.tasks` → LLM creates `tasks.md` and `tasks/*.md` in main
-- `spec-kitty agent feature finalize-tasks` → Parses dependencies, validates, commits to main
+- `spec-kitty agent mission finalize-tasks` → Parses dependencies, validates, commits to main
 - All artifacts committed to main **before** implementation starts
 
 **NO worktrees created during planning.**
@@ -305,8 +322,8 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 ### Implementation Workflow
 
 **Worktrees created on-demand:**
-- `spec-kitty implement WP01` → Creates `.worktrees/###-feature-WP01/`
-- One worktree per work package (not per feature)
+- `spec-kitty implement WP01` → Creates `.worktrees/###-mission-WP01/`
+- One worktree per work package (not per mission)
 - Each WP has isolated workspace with dedicated branch
 
 **Example implementation sequence:**
@@ -344,13 +361,13 @@ spec-kitty implement WP02 --base WP01  # Branches from WP01's branch
 - If WP04 depends on WP02 and WP03, use `--base WP03`, then manually merge WP02:
   ```bash
   spec-kitty implement WP04 --base WP03
-  cd .worktrees/###-feature-WP04/
-  git merge ###-feature-WP02
+  cd .worktrees/###-mission-WP04/
+  git merge ###-mission-WP02
   ```
 
 ### Testing Requirements
 
-**For workspace-per-WP features:**
+**For workspace-per-WP missions:**
 - Write migration tests for template updates (parametrized across all 12 agents)
 - Write integration tests for full workflow (specify → implement → merge)
 - Write dependency graph tests (cycle detection, validation, inverse graph)
@@ -396,7 +413,7 @@ pytest tests/specify_cli/test_workspace_per_wp_migration.py -v
 ```python
 from specify_cli.core.dependency_graph import DependencyGraph
 
-graph = DependencyGraph.build_graph(feature_dir)
+graph = DependencyGraph.build_graph(mission_dir)
 dependents = graph.get_dependents("WP01")
 
 if dependents:
@@ -423,9 +440,9 @@ WP status is tracked in the **main branch** via kitty-specs files. When you run 
 - You see commits from other WPs → Other agents are working in parallel, ignore them
 - Status seems out of sync → The source of truth is the WP file in main branch
 
-### Dogfooding: How This Feature Was Built
+### Dogfooding: How This Mission Was Built
 
-This workspace-per-WP feature (010) used the NEW model:
+This workspace-per-WP mission (010) used the NEW model:
 
 **Planning phase:**
 - Ran `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` in main
@@ -490,15 +507,15 @@ spec-kitty implement WP02 --base WP01 &  # Parallel
 spec-kitty implement WP03 --base WP01 &  # Parallel
 # After both complete:
 spec-kitty implement WP04 --base WP03
-cd .worktrees/###-feature-WP04/
-git merge ###-feature-WP02  # Manual merge second dependency
+cd .worktrees/###-mission-WP04/
+git merge ###-mission-WP02  # Manual merge second dependency
 ```
 
 ### Migration to 0.11.0
 
 **Before migrating:**
-- Complete or delete all in-progress features (legacy worktrees)
-- Use `spec-kitty list-legacy-features` to check
+- Complete or delete all in-progress missions (legacy worktrees)
+- Use `spec-kitty list-legacy-worktrees` to check
 - Upgrade blocked if legacy worktrees exist
 
 **Migration script (`m_0_11_0_workspace_per_wp.py`):**
@@ -507,7 +524,7 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - Updates mission templates (specify, plan, tasks, implement)
 
 **Post-migration:**
-- All new features use workspace-per-WP model
+- All new missions use workspace-per-WP model
 - Planning in main, worktrees on-demand
 - Dependency tracking in frontmatter
 
@@ -522,8 +539,8 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - Ensure dependencies form a DAG (directed acyclic graph)
 
 **"Legacy worktrees detected" during upgrade:**
-- Complete or delete features before upgrading
-- Use `spec-kitty list-legacy-features` to identify
+- Complete or delete missions before upgrading
+- Use `spec-kitty list-legacy-worktrees` to identify
 - Follow [upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md)
 
 ### Documentation
@@ -538,11 +555,9 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
-
-
 ## Merge & Preflight Patterns (0.11.0+)
 
-When merging workspace-per-WP features, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
+When merging workspace-per-WP missions, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
 
 ### Merge State Persistence
 
@@ -550,7 +565,7 @@ Merge progress is saved in `.kittify/merge-state.json` to enable resuming interr
 
 ```json
 {
-  "feature_slug": "017-feature-name",
+  "mission_slug": "017-auth-system",
   "target_branch": "main",
   "wp_order": ["WP01", "WP02", "WP03"],
   "completed_wps": ["WP01"],
@@ -566,7 +581,7 @@ Merge progress is saved in `.kittify/merge-state.json` to enable resuming interr
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `feature_slug` | `str` | Feature identifier (e.g., "017-feature-name") |
+| `mission_slug` | `str` | Mission identifier (e.g., "017-auth-system") |
 | `target_branch` | `str` | Branch being merged into (e.g., "main") |
 | `wp_order` | `list[str]` | Ordered list of WP IDs to merge |
 | `completed_wps` | `list[str]` | WPs that have been successfully merged |
@@ -600,10 +615,10 @@ from pathlib import Path
 from specify_cli.merge import run_preflight, PreflightResult, WPStatus
 
 result = run_preflight(
-    feature_slug="017-feature",
+    mission_slug="017-auth-system",
     target_branch="main",
     repo_root=Path("."),
-    wp_workspaces=[(Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01")],
+    wp_workspaces=[(Path(".worktrees/017-auth-system-WP01"), "WP01", "017-auth-system-WP01")],
 )
 
 if not result.passed:
@@ -648,7 +663,7 @@ repo_root = Path(".")
 
 if has_active_merge(repo_root):
     state = load_state(repo_root)
-    print(f"Merge in progress: {state.feature_slug}")
+    print(f"Merge in progress: {state.mission_slug}")
     print(f"Progress: {len(state.completed_wps)}/{len(state.wp_order)}")
     print(f"Remaining: {', '.join(state.remaining_wps)}")
 ```
@@ -659,12 +674,12 @@ from pathlib import Path
 from specify_cli.merge import run_preflight
 
 wp_workspaces = [
-    (Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01"),
-    (Path(".worktrees/017-feature-WP02"), "WP02", "017-feature-WP02"),
+    (Path(".worktrees/017-auth-system-WP01"), "WP01", "017-auth-system-WP01"),
+    (Path(".worktrees/017-auth-system-WP02"), "WP02", "017-auth-system-WP02"),
 ]
 
 result = run_preflight(
-    feature_slug="017-feature",
+    mission_slug="017-auth-system",
     target_branch="main",
     repo_root=Path("."),
     wp_workspaces=wp_workspaces,
@@ -681,8 +696,8 @@ from pathlib import Path
 from specify_cli.merge import predict_conflicts
 
 wp_workspaces = [
-    (Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01"),
-    (Path(".worktrees/017-feature-WP02"), "WP02", "017-feature-WP02"),
+    (Path(".worktrees/017-auth-system-WP01"), "WP01", "017-auth-system-WP01"),
+    (Path(".worktrees/017-auth-system-WP02"), "WP02", "017-auth-system-WP02"),
 ]
 
 predictions = predict_conflicts(wp_workspaces, "main", Path("."))
@@ -711,7 +726,7 @@ spec-kitty merge --dry-run
 
 **Merge from main branch:**
 ```bash
-spec-kitty merge --feature 017-my-feature
+spec-kitty merge --mission 017-my-mission
 ```
 
 ### Implementation Files
@@ -723,17 +738,16 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
 
-
 ## Status Model Patterns (034+)
 
-The canonical status model replaces scattered frontmatter authority with an append-only event log per feature. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`.
+The canonical status model replaces scattered frontmatter authority with an append-only event log per mission. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`.
 
 ### Canonical Event Log Format
 
 Each line in `status.events.jsonl` is a JSON object with sorted keys:
 
 ```json
-{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-status-model","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
 ```
 
 ### Key Functions
@@ -795,17 +809,17 @@ src/specify_cli/status/
 # Emit a transition (the standard way)
 from specify_cli.status.emit import emit_status_transition
 event = emit_status_transition(
-    feature_dir=feature_dir, feature_slug="034-feature",
+    mission_dir=mission_dir, mission_slug="034-status-model",
     wp_id="WP01", to_lane="claimed", actor="claude",
 )
 
 # Materialize snapshot from event log
 from specify_cli.status.reducer import materialize
-snapshot = materialize(feature_dir)
+snapshot = materialize(mission_dir)
 
 # Read events
 from specify_cli.status.store import read_events
-events = read_events(feature_dir)
+events = read_events(mission_dir)
 
 # Validate transitions
 from specify_cli.status.transitions import validate_transition
@@ -813,7 +827,7 @@ ok, error = validate_transition("planned", "claimed", actor="claude")
 
 # Resolve phase
 from specify_cli.status.phase import resolve_phase
-phase, source = resolve_phase(repo_root, "034-feature")
+phase, source = resolve_phase(repo_root, "034-status-model")
 ```
 
 ### Documentation
@@ -821,7 +835,6 @@ phase, source = resolve_phase(repo_root, "034-feature")
 - Operator docs: [docs/status-model.md](docs/status-model.md)
 - Data model: [kitty-specs/034-feature-status-state-model-remediation/data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
 - Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
-
 
 ## Agent Utilities for Work Package Status
 
@@ -831,7 +844,7 @@ Use the CLI command to check work package status:
 
 ```bash
 spec-kitty agent tasks status
-spec-kitty agent tasks status --feature 012-documentation-mission
+spec-kitty agent tasks status --mission 012-documentation-mission
 ```
 
 **What You Get:**
@@ -852,7 +865,7 @@ For programmatic access in Jupyter notebooks or scripts:
 ```python
 from specify_cli.agent_utils.status import show_kanban_status
 
-# Auto-detect feature or specify explicitly
+# Auto-detect mission or specify explicitly
 result = show_kanban_status("012-documentation-mission")
 ```
 
@@ -875,7 +888,7 @@ Returns structured data:
 **When to Use Documentation Mission**:
 - Creating comprehensive docs for a new project (initial mode)
 - Filling gaps in existing documentation (gap-filling mode)
-- Documenting a specific feature or component (feature-specific mode)
+- Documenting a specific feature or component (mission-specific mode)
 
 ### Key Concepts
 

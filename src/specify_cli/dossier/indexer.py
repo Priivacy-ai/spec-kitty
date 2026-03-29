@@ -1,11 +1,11 @@
 """Artifact indexing and missing detection for mission dossiers.
 
-This module implements the Indexer class which recursively scans feature
+This module implements the Indexer class which recursively scans mission
 directories, classifies artifacts into 6 classes, detects missing required
 artifacts, and builds complete MissionDossier inventories.
 
 Key concepts:
-- Indexer.index_feature() performs recursive directory scan yielding artifacts
+- Indexer.index_mission() performs recursive directory scan yielding artifacts
 - Deterministic classification (6 classes: input, workflow, output, evidence, policy, runtime)
 - Missing artifact detection comparing filesystem against manifest requirements
 - Graceful error handling: permission errors, UTF-8 decode failures, deleted files
@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 
 
 class Indexer:
-    """Recursively indexes feature directory artifacts and builds MissionDossier.
+    """Recursively indexes mission directory artifacts and builds MissionDossier.
 
-    Scans feature directory, classifies artifacts using manifest definitions,
+    Scans mission directory, classifies artifacts using manifest definitions,
     detects missing required artifacts, and aggregates into complete MissionDossier.
 
     Attributes:
@@ -50,14 +50,14 @@ class Indexer:
         self.artifacts: list[ArtifactRef] = []
         self.errors: list[dict] = []
 
-    def index_feature(self, feature_dir: Path, mission_type: str, step_id: str | None = None) -> MissionDossier:
-        """Scan feature directory and build MissionDossier.
+    def index_mission(self, mission_dir: Path, mission_type: str, step_id: str | None = None) -> MissionDossier:
+        """Scan mission directory and build MissionDossier.
 
-        Recursively scans feature_dir, indexes all artifacts, loads manifest,
+        Recursively scans mission_dir, indexes all artifacts, loads manifest,
         detects missing artifacts, and builds complete MissionDossier.
 
         Args:
-            feature_dir: Path to feature directory
+            mission_dir: Path to mission directory
             mission_type: e.g., 'software-dev'
             step_id: Current mission step (e.g., 'plan'), for completeness check
 
@@ -67,9 +67,9 @@ class Indexer:
         self.artifacts = []
         self.errors = []
 
-        # Recursively scan feature directory
-        for file_path in self._scan_directory(feature_dir):
-            artifact = self._index_file(file_path, feature_dir, mission_type)
+        # Recursively scan mission directory
+        for file_path in self._scan_directory(mission_dir):
+            artifact = self._index_file(file_path, mission_dir, mission_type)
             if artifact:
                 self.artifacts.append(artifact)
 
@@ -78,10 +78,10 @@ class Indexer:
 
         # Build MissionDossier
         dossier = MissionDossier(
-            mission_slug=mission_type,
+            mission_type=mission_type,
             mission_run_id=str(uuid.uuid4()),
-            feature_slug=self._extract_feature_slug(feature_dir),
-            feature_dir=str(feature_dir),
+            mission_slug=self._extract_mission_slug(mission_dir),
+            mission_dir=str(mission_dir),
             artifacts=self.artifacts,
             manifest=manifest.model_dump() if manifest else None,
         )
@@ -111,7 +111,7 @@ class Indexer:
             if item.is_file():
                 yield item
 
-    def _index_file(self, file_path: Path, feature_dir: Path, mission_type: str) -> ArtifactRef | None:
+    def _index_file(self, file_path: Path, mission_dir: Path, mission_type: str) -> ArtifactRef | None:
         """Index single file, return ArtifactRef or None if unindexable.
 
         Handles errors gracefully: permission errors, UTF-8 validation failures,
@@ -119,19 +119,19 @@ class Indexer:
 
         Args:
             file_path: Path to file to index
-            feature_dir: Path to feature directory (for relative_path)
+            mission_dir: Path to mission directory (for relative_path)
             mission_type: Mission type for manifest lookup
 
         Returns:
             ArtifactRef with all metadata, or None if unindexable
         """
-        relative_path = str(file_path.relative_to(feature_dir))
+        relative_path = str(file_path.relative_to(mission_dir))
         artifact_key = self._derive_artifact_key(file_path, mission_type)
         manifest = self.manifest_registry.load_manifest(mission_type)
 
         # Try to classify (with fallback for unreadable files)
         try:
-            artifact_class = self._classify_artifact(file_path, manifest, feature_dir=feature_dir)
+            artifact_class = self._classify_artifact(file_path, manifest, mission_dir=mission_dir)
         except ValueError:
             # If classification fails, use a generic fallback
             artifact_class = "output"
@@ -200,7 +200,7 @@ class Indexer:
         self,
         file_path: Path,
         manifest: ExpectedArtifactManifest | None,
-        feature_dir: Path | None = None,
+        mission_dir: Path | None = None,
     ) -> str:
         """Deterministically classify artifact into one of 6 classes.
 
@@ -213,7 +213,7 @@ class Indexer:
         Args:
             file_path: Path to file to classify
             manifest: Optional manifest for classification hints
-            feature_dir: Optional feature directory for relative path matching
+            mission_dir: Optional mission directory for relative path matching
 
         Returns:
             One of the 6 classes: input, workflow, output, evidence, policy, runtime
@@ -226,7 +226,7 @@ class Indexer:
             for specs in (
                 manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
             ):
-                if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
+                if self._matches_pattern(file_path, specs.path_pattern, mission_dir=mission_dir):
                     return specs.artifact_class.value
 
         # Strategy 2: Filename-based patterns (fallback)
@@ -271,18 +271,18 @@ class Indexer:
         # Strategy 3: Fail explicitly if can't classify
         raise ValueError(f"Cannot classify artifact: {file_path} (not in manifest, no pattern match)")
 
-    def _matches_pattern(self, file_path: Path, pattern: str, feature_dir: Path | None = None) -> bool:
-        """Check if file_path matches feature-relative glob pattern.
+    def _matches_pattern(self, file_path: Path, pattern: str, mission_dir: Path | None = None) -> bool:
+        """Check if file_path matches mission-relative glob pattern.
 
         Args:
             file_path: Path to file to check
-            pattern: Glob pattern relative to feature directory
-            feature_dir: Feature directory for relative path computation
+            pattern: Glob pattern relative to mission directory
+            mission_dir: Mission directory for relative path computation
 
         Returns:
             True if file_path matches pattern, False otherwise
         """
-        relative = str(file_path.relative_to(feature_dir)) if feature_dir else file_path.name
+        relative = str(file_path.relative_to(mission_dir)) if mission_dir else file_path.name
         return fnmatch.fnmatch(relative, pattern)
 
     def _detect_missing_artifacts(self, dossier: MissionDossier, step_id: str | None = None) -> list[ArtifactRef]:
@@ -302,7 +302,7 @@ class Indexer:
             return []  # No manifest, can't detect missing
 
         # Load manifest to access ExpectedArtifactSpec objects
-        manifest = self.manifest_registry.load_manifest(dossier.mission_slug)
+        manifest = self.manifest_registry.load_manifest(dossier.mission_type)
         if not manifest:
             return []
 
@@ -396,15 +396,15 @@ class Indexer:
         # Default to optional
         return "optional"
 
-    def _extract_feature_slug(self, feature_dir: Path) -> str:
-        """Extract feature slug from feature directory path.
+    def _extract_mission_slug(self, mission_dir: Path) -> str:
+        """Extract mission slug from mission directory path.
 
         Assumes directory name follows pattern: {number}-{name} (e.g., 042-dossier)
 
         Args:
-            feature_dir: Path to feature directory
+            mission_dir: Path to mission directory
 
         Returns:
-            Feature slug extracted from directory name
+            Mission slug extracted from directory name
         """
-        return feature_dir.name
+        return mission_dir.name

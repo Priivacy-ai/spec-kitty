@@ -8,12 +8,11 @@ rather than from migration files.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
 
 
 # Canonical list of all supported agent directories and their subdirectories
 # This is the single source of truth for agent directory configuration
-AGENT_DIRS: List[Tuple[str, str]] = [
+AGENT_DIRS: list[tuple[str, str]] = [
     (".claude", "commands"),
     (".github", "prompts"),
     (".gemini", "commands"),
@@ -48,7 +47,7 @@ AGENT_DIR_TO_KEY = {
 }
 
 
-def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
+def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
     """Get agent directories to process based on project config.
 
     Reads config.yaml to determine which agents are enabled.
@@ -73,9 +72,9 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         12  # All agents
     """
     try:
-        from specify_cli.core.agent_config import (
-            AgentConfigError,
-            get_configured_agents,
+        from specify_cli.core.tool_config import (
+            ToolConfigError as AgentConfigError,
+            get_configured_tools as get_configured_agents,
         )
 
         available = get_configured_agents(project_path)

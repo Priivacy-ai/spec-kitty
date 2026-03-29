@@ -4,7 +4,7 @@ Python utilities that AI agents can import and call directly, without running CL
 
 ## Quick Status Check
 
-### `show_kanban_status(feature_slug)`
+### `show_kanban_status(mission_slug)`
 
 Display a beautiful kanban status board with parallelization analysis.
 
@@ -12,10 +12,10 @@ Display a beautiful kanban status board with parallelization analysis.
 ```python
 from specify_cli.agent_utils.status import show_kanban_status
 
-# Auto-detect feature from current directory
+# Auto-detect mission from current directory
 result = show_kanban_status()
 
-# Or specify feature explicitly
+# Or specify mission explicitly
 result = show_kanban_status("012-documentation-mission")
 ```
 
@@ -27,7 +27,7 @@ result = show_kanban_status("012-documentation-mission")
 
 **What it displays:**
 
-1. **Feature header** with cyan border
+1. **Mission header** with cyan border
 2. **Progress bar** visual (████████░░░) with percentage
 3. **Kanban Board Table** showing all WPs in 4 lanes:
    - 📋 Planned
@@ -80,7 +80,7 @@ Progress: 8/10 (80.0%)
 **Returns (structured dict):**
 ```python
 {
-    'feature': '012-documentation-mission',
+    'mission': '012-documentation-mission',
     'total_wps': 10,
     'done_count': 8,
     'progress_percentage': 80.0,

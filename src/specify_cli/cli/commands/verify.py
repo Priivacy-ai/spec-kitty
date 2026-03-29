@@ -12,7 +12,7 @@ from rich.table import Table
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
-from specify_cli.core.feature_detection import detect_feature
+from specify_cli.core.mission_detection import detect_mission
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
@@ -20,22 +20,22 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.verify_enhanced import run_enhanced_verify
 
 
-def _resolve_feature_dir(
+def _resolve_mission_dir(
     project_root: Path,
-    feature: str | None = None,
+    mission: str | None = None,
 ) -> Path | None:
-    """Detect the feature directory from explicit flag or current context.
+    """Detect the mission directory from explicit flag or current context.
 
-    Uses the centralized ``detect_feature`` helper in lenient mode so that
-    callers never crash when no feature is active.
+    Uses the centralized ``detect_mission`` helper in lenient mode so that
+    callers never crash when no mission is active.
 
     Returns:
         Path to the ``kitty-specs/<slug>`` directory, or ``None``.
     """
     try:
-        ctx = detect_feature(
+        ctx = detect_mission(
             project_root,
-            explicit_feature=feature,
+            explicit_mission=mission,
             cwd=Path.cwd(),
             mode="lenient",
         )
@@ -63,18 +63,19 @@ TOOL_LABELS = [
 
 
 def verify_setup(
-    feature: str | None = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug to verify (auto-detected when omitted)"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
     check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
     check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show detailed diagnostics with dashboard health"),
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
+    mission_flag = mission
     output_data: dict[str, object] = {}
 
     # If diagnostics mode requested, use diagnostics output
     if diagnostics:
-        _run_diagnostics_mode(json_output, check_tools, feature=feature)
+        _run_diagnostics_mode(json_output, check_tools, mission=mission_flag)
         return
 
     # Check tools if requested
@@ -110,7 +111,7 @@ def verify_setup(
         else:
             console.print(f"[red]✗[/red] Repository detection failed: {exc}")
             console.print(
-                "\n[yellow]Solution:[/yellow] Run this command from a Spec Kitty project root or from a feature worktree inside .worktrees/<feature>/ (use 'spec-kitty init <name>' to create a project)."  # noqa: E501
+                "\n[yellow]Solution:[/yellow] Run this command from a Spec Kitty project root or from a mission worktree inside .worktrees/<mission>/ (use 'spec-kitty init <name>' to create a project)."  # noqa: E501
             )
         raise typer.Exit(1) from exc
 
@@ -118,18 +119,18 @@ def verify_setup(
     check_version_compatibility(project_root, "verify")
     cwd = Path.cwd()
 
-    # Detect feature directory from --feature flag or current context
-    feature_dir = _resolve_feature_dir(project_root, feature)
+    # Detect mission directory from --mission flag or current context
+    mission_dir = _resolve_mission_dir(project_root, mission_flag)
 
     result = run_enhanced_verify(
         repo_root=repo_root,
         project_root=project_root,
         cwd=cwd,
-        feature=feature,
+        mission=mission_flag,
         json_output=json_output,
         check_files=check_files,
         console=console,
-        feature_dir=feature_dir,
+        mission_dir=mission_dir,
     )
 
     # Add tool checking results to JSON output
@@ -143,15 +144,15 @@ def verify_setup(
     return
 
 
-def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
+def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, mission: str | None = None) -> None:
     """Run diagnostics mode with detailed health information."""
     try:
         # Resolve the MAIN repo root, not CWD.  In worktrees CWD lacks
-        # kitty-specs/ (sparse checkout), so feature detection would fail
+        # kitty-specs/ (sparse checkout), so mission detection would fail
         # if we passed CWD directly.
         project_path = locate_project_root() or Path.cwd()
-        feature_dir = _resolve_feature_dir(project_path, feature)
-        diag = run_diagnostics(project_path, feature_dir=feature_dir)
+        mission_dir = _resolve_mission_dir(project_path, mission)
+        diag = run_diagnostics(project_path, mission_dir=mission_dir)
 
         # Add tool checking if requested
         if check_tools:
@@ -219,10 +220,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
     total_present = file_integrity.get("total_present", 0)
     total_missing = file_integrity.get("total_missing", 0)
 
-    if total_missing == 0:
-        integrity_status = "[green]✓ All files present[/green]"
-    else:
-        integrity_status = f"[yellow]⚠ {total_missing} files missing[/yellow]"
+    integrity_status = "[green]✓ All files present[/green]" if total_missing == 0 else f"[yellow]⚠ {total_missing} files missing[/yellow]"
 
     file_info = f"""
 [bold]Files:[/bold] {total_present}/{total_expected} present {integrity_status}
@@ -246,7 +244,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
 [bold]Worktrees Exist:[/bold] {"[green]Yes[/green]" if worktrees_exist else "[red]No[/red]"}
 [bold]Currently in Worktree:[/bold] {"[green]Yes[/green]" if in_worktree else "[red]No[/red]"}
 [bold]Active Worktrees:[/bold] {worktree_overview.get("active_worktrees", 0)}
-[bold]Total Features:[/bold] {worktree_overview.get("total_features", 0)}
+[bold]Total Missions:[/bold] {worktree_overview.get("total_missions", 0)}
 """
     console.print(Panel(worktree_info.strip(), title="Worktrees", border_style="cyan"))
 
@@ -283,38 +281,38 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
 
     console.print(Panel(dashboard_info.strip(), title="Dashboard Health", border_style="cyan"))
 
-    # Current feature
-    current_feature = diag.get("current_feature", {})
-    if current_feature.get("detected"):
-        feature_info = f"""
-[bold]Detected Feature:[/bold] {current_feature.get("name")}
-[bold]State:[/bold] {current_feature.get("state")}
-[bold]Branch Exists:[/bold] {"[green]Yes[/green]" if current_feature.get("branch_exists") else "[red]No[/red]"}
-[bold]Worktree Exists:[/bold] {"[green]Yes[/green]" if current_feature.get("worktree_exists") else "[red]No[/red]"}
+    # Current mission
+    current_mission = diag.get("current_mission", {})
+    if current_mission.get("detected"):
+        mission_info = f"""
+[bold]Detected Mission:[/bold] {current_mission.get("name")}
+[bold]State:[/bold] {current_mission.get("state")}
+[bold]Branch Exists:[/bold] {"[green]Yes[/green]" if current_mission.get("branch_exists") else "[red]No[/red]"}
+[bold]Worktree Exists:[/bold] {"[green]Yes[/green]" if current_mission.get("worktree_exists") else "[red]No[/red]"}
 """
     else:
-        feature_info = "[yellow]No feature detected in current context[/yellow]"
+        mission_info = "[yellow]No mission detected in current context[/yellow]"
 
-    console.print(Panel(feature_info.strip(), title="Current Feature", border_style="cyan"))
+    console.print(Panel(mission_info.strip(), title="Current Mission", border_style="cyan"))
 
-    # All features table
-    all_features = diag.get("all_features", [])
-    if all_features:
-        table = Table(title="All Features", show_lines=False, header_style="bold cyan")
-        table.add_column("Feature", style="bright_cyan")
+    # All missions table
+    all_missions = diag.get("all_missions", [])
+    if all_missions:
+        table = Table(title="All Missions", show_lines=False, header_style="bold cyan")
+        table.add_column("Mission", style="bright_cyan")
         table.add_column("State", style="bright_white")
         table.add_column("Branch", justify="center")
         table.add_column("Merged", justify="center")
         table.add_column("Worktree", justify="center")
 
-        for feature in all_features:
-            branch_emoji = "✓" if feature.get("branch_exists") else "✗"
-            merged_emoji = "✓" if feature.get("branch_merged") else "○"
-            worktree_emoji = "✓" if feature.get("worktree_exists") else "✗"
+        for mission_entry in all_missions:
+            branch_emoji = "✓" if mission_entry.get("branch_exists") else "✗"
+            merged_emoji = "✓" if mission_entry.get("branch_merged") else "○"
+            worktree_emoji = "✓" if mission_entry.get("worktree_exists") else "✗"
 
             table.add_row(
-                feature.get("name", "Unknown"),
-                feature.get("state", "Unknown"),
+                mission_entry.get("name", "Unknown"),
+                mission_entry.get("state", "Unknown"),
                 branch_emoji,
                 merged_emoji,
                 worktree_emoji,
@@ -322,7 +320,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
 
         console.print(table)
     else:
-        console.print("[yellow]No features found[/yellow]")
+        console.print("[yellow]No missions found[/yellow]")
 
     # Observations and issues
     observations = diag.get("observations", [])

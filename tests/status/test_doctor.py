@@ -24,7 +24,7 @@ from specify_cli.status.doctor import (
 pytestmark = pytest.mark.fast
 
 def _create_events_file(
-    feature_dir: Path, wp_states: dict[str, str], timestamp: str, feature_slug: str = "034-test"
+    mission_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test"
 ) -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
@@ -36,7 +36,7 @@ def _create_events_file(
             json.dumps(
                 {
                     "event_id": f"01EVT{wp_id}",
-                    "feature_slug": feature_slug,
+                    "mission_slug": mission_slug,
                     "wp_id": wp_id,
                     "from_lane": "planned",
                     "to_lane": lane,
@@ -47,7 +47,7 @@ def _create_events_file(
                 }
             )
         )
-    (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+    (mission_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
 
 def _healthy_global_checks() -> list[DoctorCheck]:
@@ -123,7 +123,7 @@ class TestDoctorResult:
     """Tests for the DoctorResult dataclass."""
 
     def test_healthy_result(self):
-        result = DoctorResult(feature_slug="034-test")
+        result = DoctorResult(mission_slug="034-test")
         assert result.is_healthy is True
         assert result.has_errors is False
         assert result.has_warnings is False
@@ -131,7 +131,7 @@ class TestDoctorResult:
 
     def test_result_with_warnings(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -148,7 +148,7 @@ class TestDoctorResult:
 
     def test_result_with_errors(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.ERROR,
@@ -164,7 +164,7 @@ class TestDoctorResult:
 
     def test_result_with_mixed_severity(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -187,7 +187,7 @@ class TestDoctorResult:
 
     def test_findings_by_category(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -475,8 +475,8 @@ class TestCheckOrphanWorkspaces:
         """All WPs done + worktree exists -> finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
-        (worktrees_dir / "034-test-feature-WP02").mkdir()
+        (worktrees_dir / "034-test-mission-WP01").mkdir()
+        (worktrees_dir / "034-test-mission-WP02").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -484,7 +484,7 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 2
         assert all(f.category == Category.ORPHAN_WORKSPACE for f in findings)
 
@@ -492,7 +492,7 @@ class TestCheckOrphanWorkspaces:
         """Worktree exists, but WP01 is still in_progress -> no finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
+        (worktrees_dir / "034-test-mission-WP01").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -500,7 +500,7 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
     def test_all_done_no_worktrees(self, tmp_path: Path):
@@ -510,7 +510,7 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
     def test_no_worktrees_directory(self, tmp_path: Path):
@@ -520,14 +520,14 @@ class TestCheckOrphanWorkspaces:
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
     def test_mixed_terminal_states(self, tmp_path: Path):
         """Some done, some canceled (all terminal) + worktree -> finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
+        (worktrees_dir / "034-test-mission-WP01").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -535,13 +535,13 @@ class TestCheckOrphanWorkspaces:
                 "WP02": {"lane": "canceled"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 1
 
     def test_empty_work_packages(self, tmp_path: Path):
         """Empty work_packages -> no findings."""
         snapshot = {"work_packages": {}}
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
     def test_worktree_file_not_dir_ignored(self, tmp_path: Path):
@@ -549,28 +549,28 @@ class TestCheckOrphanWorkspaces:
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
         # Create a file, not a directory
-        (worktrees_dir / "034-test-feature-WP01").write_text("not a dir")
+        (worktrees_dir / "034-test-mission-WP01").write_text("not a dir")
 
         snapshot = {
             "work_packages": {
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
     def test_unrelated_worktrees_not_flagged(self, tmp_path: Path):
-        """Worktrees for other features are not flagged."""
+        """Worktrees for other missions are not flagged."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "999-other-feature-WP01").mkdir()
+        (worktrees_dir / "999-other-mission-WP01").mkdir()
 
         snapshot = {
             "work_packages": {
                 "WP01": {"lane": "done"},
             }
         }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
+        findings = check_orphan_workspaces(tmp_path, "034-test-mission", snapshot)
         assert len(findings) == 0
 
 
@@ -605,44 +605,44 @@ class TestCheckDrift:
 class TestRunDoctor:
     """Tests for the main run_doctor entry point."""
 
-    def test_feature_dir_not_exist_raises(self, tmp_path: Path):
-        """Feature directory does not exist -> FileNotFoundError."""
+    def test_mission_dir_not_exist_raises(self, tmp_path: Path):
+        """Mission directory does not exist -> FileNotFoundError."""
         nonexistent = tmp_path / "nonexistent"
         with pytest.raises(FileNotFoundError, match="does not exist"):
             run_doctor(
-                feature_dir=nonexistent,
-                feature_slug="034-test",
+                mission_dir=nonexistent,
+                mission_slug="034-test",
                 repo_root=tmp_path,
             )
 
-    def test_clean_feature_healthy(self, tmp_path: Path):
-        """Feature with no events and no status.json -> healthy (nothing to check)."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+    def test_clean_mission_healthy(self, tmp_path: Path):
+        """Mission with no events and no status.json -> healthy (nothing to check)."""
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is True
-        assert result.feature_slug == "034-test"
+        assert result.mission_slug == "034-test"
 
-    def test_healthy_feature_with_active_wps(self, tmp_path: Path):
+    def test_healthy_mission_with_active_wps(self, tmp_path: Path):
         """Active WPs within thresholds, no worktrees -> healthy."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": recent,
             "event_count": 2,
             "last_event_id": "01ABC",
             "work_packages": {
                 "WP01": {
                     "lane": "in_progress",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": recent,
                     "last_event_id": "01ABC",
                     "force_count": 0,
@@ -650,13 +650,13 @@ class TestRunDoctor:
             },
             "summary": {"in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         # Doctor checks for events file existence alongside status.json
         events = [
             json.dumps(
                 {
                     "event_id": "01AAA",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "planned",
                     "to_lane": "claimed",
@@ -669,7 +669,7 @@ class TestRunDoctor:
             json.dumps(
                 {
                     "event_id": "01ABC",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "claimed",
                     "to_lane": "in_progress",
@@ -680,30 +680,30 @@ class TestRunDoctor:
                 }
             ),
         ]
-        (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+        (mission_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is True
 
     def test_stale_claim_detected_via_status_json(self, tmp_path: Path):
         """Stale claimed WP detected via status.json."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01ABC",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01ABC",
                     "force_count": 0,
@@ -711,13 +711,13 @@ class TestRunDoctor:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
         # Create events file so doctor doesn't flag missing events
         events = [
             json.dumps(
                 {
                     "event_id": "01ABC",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "planned",
                     "to_lane": "claimed",
@@ -728,11 +728,11 @@ class TestRunDoctor:
                 }
             ),
         ]
-        (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+        (mission_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
         )
@@ -743,15 +743,15 @@ class TestRunDoctor:
 
     def test_orphan_detected_via_status_json(self, tmp_path: Path):
         """Orphan worktree detected when all WPs are terminal."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
         (worktrees_dir / "034-test-WP01").mkdir()
 
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": "2026-01-01T00:00:00Z",
             "event_count": 1,
             "last_event_id": "01ABC",
@@ -766,12 +766,12 @@ class TestRunDoctor:
             },
             "summary": {"done": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "done"}, "2026-01-01T00:00:00Z")
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "done"}, "2026-01-01T00:00:00Z")
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is False
@@ -779,8 +779,8 @@ class TestRunDoctor:
 
     def test_stale_and_orphan_combined(self, tmp_path: Path):
         """Multiple issues detected in a single doctor run."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
@@ -788,7 +788,7 @@ class TestRunDoctor:
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 2,
             "last_event_id": "01ABC",
@@ -810,12 +810,12 @@ class TestRunDoctor:
             },
             "summary": {"claimed": 1, "in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "claimed", "WP02": "in_progress"}, old)
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "claimed", "WP02": "in_progress"}, old)
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
             stale_in_progress_days=7,
@@ -827,13 +827,13 @@ class TestRunDoctor:
 
     def test_corrupted_status_json_returns_healthy(self, tmp_path: Path):
         """Corrupted status.json with no event log -> healthy (nothing to check)."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "status.json").write_text("not valid json", encoding="utf-8")
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "status.json").write_text("not valid json", encoding="utf-8")
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         # snapshot is None because JSON is corrupt and no events exist
@@ -841,13 +841,13 @@ class TestRunDoctor:
 
     def test_snapshot_from_events_when_no_status_json(self, tmp_path: Path):
         """When status.json missing but events exist, snapshot is built from events."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         event = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "claimed",
@@ -856,12 +856,12 @@ class TestRunDoctor:
             "force": False,
             "execution_mode": "worktree",
         }
-        events_file = feature_dir / "status.events.jsonl"
+        events_file = mission_dir / "status.events.jsonl"
         events_file.write_text(json.dumps(event) + "\n", encoding="utf-8")
 
         result = run_doctor(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
         )
@@ -888,19 +888,19 @@ class TestDoctorCLI:
         runner = CliRunner()
 
         # Mock the resolution chain to use our temp directory
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": recent,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "in_progress",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": recent,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -908,8 +908,8 @@ class TestDoctorCLI:
             },
             "summary": {"in_progress": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "in_progress"}, recent)
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "in_progress"}, recent)
 
         with (
             patch(
@@ -917,8 +917,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result = runner.invoke(app, ["doctor", "--json"])
@@ -929,19 +929,19 @@ class TestDoctorCLI:
         output = result.output.strip()
         parsed = json.loads(output)
         assert parsed["healthy"] is True
-        assert parsed["feature_slug"] == "034-test"
+        assert parsed["mission_slug"] == "034-test"
         assert parsed["findings"] == []
 
     def test_doctor_cli_healthy_exit_0(self, tmp_path: Path):
-        """Healthy feature -> exit code 0."""
+        """Healthy mission -> exit code 0."""
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.agent.status import app
 
         runner = CliRunner()
 
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         with (
             patch(
@@ -949,8 +949,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result = runner.invoke(app, ["doctor"])
@@ -966,19 +966,19 @@ class TestDoctorCLI:
 
         runner = CliRunner()
 
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -986,8 +986,8 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "claimed"}, old)
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "claimed"}, old)
 
         with (
             patch(
@@ -995,8 +995,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result = runner.invoke(app, ["doctor"])
@@ -1012,19 +1012,19 @@ class TestDoctorCLI:
 
         runner = CliRunner()
 
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -1032,8 +1032,8 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "claimed"}, old)
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "claimed"}, old)
 
         with (
             patch(
@@ -1041,8 +1041,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result = runner.invoke(app, ["doctor", "--json"])
@@ -1059,8 +1059,8 @@ class TestDoctorCLI:
         assert "claimed" in finding["message"]
         assert finding["recommended_action"]  # Non-empty
 
-    def test_doctor_cli_feature_not_found(self, tmp_path: Path):
-        """Feature directory not found -> exit code 1."""
+    def test_doctor_cli_mission_not_found(self, tmp_path: Path):
+        """Mission directory not found -> exit code 1."""
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.agent.status import app
@@ -1075,7 +1075,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
                 return_value=(nonexistent, "999-missing", tmp_path),
             ),
         ):
@@ -1093,20 +1093,20 @@ class TestDoctorCLI:
 
         runner = CliRunner()
 
-        feature_dir = tmp_path / "kitty-specs" / "034-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test"
+        mission_dir.mkdir(parents=True)
 
         # 2 days ago - below default 7-day threshold but above custom 1-day
         two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": two_days_ago,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": two_days_ago,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -1114,8 +1114,8 @@ class TestDoctorCLI:
             },
             "summary": {"claimed": 1},
         }
-        (feature_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
-        _create_events_file(feature_dir, {"WP01": "claimed"}, two_days_ago)
+        (mission_dir / "status.json").write_text(json.dumps(status_data), encoding="utf-8")
+        _create_events_file(mission_dir, {"WP01": "claimed"}, two_days_ago)
 
         # Default threshold: healthy
         with (
@@ -1124,8 +1124,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result_default = runner.invoke(app, ["doctor", "--json"])
@@ -1138,8 +1138,8 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_feature_dir",
-                return_value=(feature_dir, "034-test", tmp_path),
+                "specify_cli.cli.commands.agent.status._resolve_mission_dir",
+                return_value=(mission_dir, "034-test", tmp_path),
             ),
         ):
             result_custom = runner.invoke(

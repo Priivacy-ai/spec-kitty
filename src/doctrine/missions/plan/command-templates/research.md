@@ -10,7 +10,7 @@ estimated_duration: "20-30 minutes"
 
 ## Context
 
-You are conducting technical research to support the planning process. Building on the feature specification from the previous step, you now investigate the technical requirements, design patterns, dependencies, and potential risks.
+You are conducting technical research to support the planning process. Building on the mission specification from the previous step, you now investigate the technical requirements, design patterns, dependencies, and potential risks.
 
 **Input**: Feature specification from the specify step
 
@@ -39,13 +39,13 @@ The research analysis should include:
 ## Instructions
 
 1. **Analyze technical requirements**
-   - What technical capabilities must this feature implement?
+   - What technical capabilities must this mission implement?
    - What are the performance requirements?
    - What data structures or models are needed?
    - What integrations are required?
 
 2. **Research applicable design patterns**
-   - What established design patterns apply to this feature?
+   - What established design patterns apply to this mission?
    - What similar features exist in the codebase that can be referenced?
    - What industry best practices should guide the design?
    - What architectural patterns are appropriate?
@@ -63,7 +63,7 @@ The research analysis should include:
    - What data sources are required?
 
 5. **Evaluate integration points**
-   - How will this feature connect to existing systems?
+   - How will this mission connect to existing systems?
    - What data flows are required?
    - What authentication or authorization is needed?
    - What side effects or impacts on existing features?

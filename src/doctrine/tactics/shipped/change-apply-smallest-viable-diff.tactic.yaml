@@ -1,0 +1,31 @@
+schema_version: "1.0"
+id: change-apply-smallest-viable-diff
+name: Change Apply Smallest Viable Diff
+purpose: Introduce changes using the smallest possible modification that achieves the stated goal, minimising unintended side effects.
+opposed_by:
+  - type: directive
+    id: DIRECTIVE_025
+    reason: >
+      The Boy Scout Rule encourages leaving touched code better than found,
+      which can justify changes beyond the smallest viable diff. The tension
+      is real: apply smallest-diff discipline for goal delivery, and defer
+      opportunistic improvements to explicit tasks unless the cleanup is
+      strictly necessary for correctness.
+steps:
+  - title: Identify the minimal file set
+    description: Determine the minimum number of files that must change to achieve the stated goal. Do not open unrelated files.
+    examples:
+      - "A bug in payment processing requires changes only to payment_service.py and its tests – not to the shared utilities module."
+  - title: Identify the minimal change within each file
+    description: Find the smallest edit (line or block) that achieves the goal. Do not reformat, rename, or reorganise adjacent code.
+  - title: Apply the change
+    description: Make targeted edits without altering unrelated formatting, imports, or structure.
+    examples:
+      - "Fix the off-by-one error in the loop boundary; leave surrounding variable names and whitespace untouched."
+  - title: Verify the goal is met
+    description: Run the relevant tests or validation steps to confirm the change achieves the stated goal.
+  - title: Stop after the goal is met
+    description: |
+      Do not continue improving beyond the stated goal.
+      Gold-plating indicators that signal scope creep: changing formatting in unrelated sections, renaming variables outside the change scope, adding "nice to have" improvements, reorganising structure unnecessarily.
+      When in doubt, stop and confirm before expanding scope.

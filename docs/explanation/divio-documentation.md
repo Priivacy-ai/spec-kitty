@@ -33,7 +33,7 @@ The Divio system identifies four distinct types of documentation, each serving a
 - Focuses on learning, not accomplishing
 - "Follow along with me"
 
-**Spec Kitty example**: "Your First Feature with Spec Kitty" - walks through creating a feature from start to finish
+**Spec Kitty example**: "Your First Mission with Spec Kitty" - walks through creating a feature from start to finish
 
 ### 2. How-To Guides (Task-Oriented)
 

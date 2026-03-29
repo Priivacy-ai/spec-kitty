@@ -21,6 +21,8 @@ This test suite validates the detection and automation logic.
 
 from __future__ import annotations
 
+import pytest
+
 import os
 import subprocess
 from pathlib import Path
@@ -151,7 +153,7 @@ def test_merge_suggestion_message():
     'WP04 depends on WP01, WP02, WP03 (all done).
      Merge dependencies to main first to avoid conflicts?
 
-     Run: spec-kitty merge --feature 001-triple-tic-tac-toe
+     Run: spec-kitty merge --mission 001-triple-tic-tac-toe
      Then: spec-kitty implement WP04
 
      Or use --force to attempt auto-merge (may conflict)'
@@ -162,7 +164,7 @@ def test_merge_suggestion_message():
     suggestion = (
         f"{wp_id} depends on {', '.join(deps)} (all done).\n"
         f"Merge dependencies to main first to avoid conflicts?\n\n"
-        f"Run: spec-kitty merge --feature <feature-slug>\n"
+        f"Run: spec-kitty merge --mission <mission-slug>\n"
         f"Then: spec-kitty implement {wp_id}\n\n"
         f"Or use --force to attempt auto-merge (may conflict)"
     )

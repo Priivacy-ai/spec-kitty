@@ -11,6 +11,8 @@ Covers:
 
 from __future__ import annotations
 
+import pytest
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,8 +31,8 @@ from specify_cli.sync.events import (
     emit_wp_status_changed,
     emit_wp_created,
     emit_wp_assigned,
-    emit_feature_created,
-    emit_feature_completed,
+    emit_mission_created,
+    emit_mission_completed,
     emit_history_added,
     emit_error_logged,
     emit_dependency_resolved,
@@ -162,7 +164,7 @@ class TestEventEnvelope:
         events = [
             emitter.emit_wp_status_changed("WP01", "planned", "in_progress"),
             emitter.emit_wp_created("WP01", "Test", "033-test"),
-            emitter.emit_feature_created("033-test", "033", "2.x", 1),
+            emitter.emit_mission_created("033-test", "033", "2.x", 1),
         ]
         for event in events:
             assert event is not None
@@ -206,16 +208,16 @@ class TestWPStatusChanged:
         assert event is not None
         assert event["payload"]["actor"] == "claude-opus"
 
-    def test_feature_slug_optional(self, emitter: EventEmitter, temp_queue):
-        """feature_slug is optional and nullable."""
+    def test_mission_slug_optional(self, emitter: EventEmitter, temp_queue):
+        """mission_slug is optional and nullable."""
         event = emitter.emit_wp_status_changed(
             "WP01",
             "planned",
             "in_progress",
-            feature_slug="028-sync",
+            mission_slug="028-sync",
         )
         assert event is not None
-        assert event["payload"]["feature_slug"] == "028-sync"
+        assert event["payload"]["mission_slug"] == "028-sync"
 
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
@@ -238,14 +240,14 @@ class TestWPCreated:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Implement sync",
-            feature_slug="028-sync",
+            mission_slug="028-sync",
         )
         assert event is not None
         assert event["event_type"] == "WPCreated"
         assert event["aggregate_type"] == "WorkPackage"
         assert event["payload"]["wp_id"] == "WP01"
         assert event["payload"]["title"] == "Implement sync"
-        assert event["payload"]["feature_slug"] == "028-sync"
+        assert event["payload"]["mission_slug"] == "028-sync"
 
     def test_dependencies_default_empty(self, emitter: EventEmitter, temp_queue):
         """Dependencies defaults to empty list."""
@@ -300,26 +302,26 @@ class TestWPAssigned:
         assert event["payload"]["phase"] == "review"
 
 
-class TestFeatureCreated:
-    """Test emit_feature_created (SC-004)."""
+class TestMissionCreated:
+    """Test emit_mission_created (SC-004)."""
 
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
-        """FeatureCreated event has correct structure."""
-        event = emitter.emit_feature_created(
-            feature_slug="028-cli-event-emission-sync",
-            feature_number="028",
+        """MissionCreated event has correct structure."""
+        event = emitter.emit_mission_created(
+            mission_slug="028-cli-event-emission-sync",
+            mission_number="028",
             target_branch="main",
             wp_count=7,
         )
         assert event is not None
-        assert event["event_type"] == "FeatureCreated"
-        assert event["aggregate_type"] == "Feature"
+        assert event["event_type"] == "MissionCreated"
+        assert event["aggregate_type"] == "Mission"
         assert event["aggregate_id"] == "028-cli-event-emission-sync"
         assert event["payload"]["wp_count"] == 7
 
     def test_created_at_optional(self, emitter: EventEmitter, temp_queue):
         """created_at is optional."""
-        event = emitter.emit_feature_created(
+        event = emitter.emit_mission_created(
             "028-sync",
             "028",
             "main",
@@ -330,23 +332,23 @@ class TestFeatureCreated:
         assert event["payload"]["created_at"] == "2026-02-04T12:00:00+00:00"
 
 
-class TestFeatureCompleted:
-    """Test emit_feature_completed."""
+class TestMissionCompleted:
+    """Test emit_mission_completed."""
 
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
-        """FeatureCompleted event has correct structure."""
-        event = emitter.emit_feature_completed(
-            feature_slug="028-sync",
+        """MissionCompleted event has correct structure."""
+        event = emitter.emit_mission_completed(
+            mission_slug="028-sync",
             total_wps=7,
         )
         assert event is not None
-        assert event["event_type"] == "FeatureCompleted"
-        assert event["aggregate_type"] == "Feature"
+        assert event["event_type"] == "MissionCompleted"
+        assert event["aggregate_type"] == "Mission"
         assert event["payload"]["total_wps"] == 7
 
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
         """completed_at and total_duration are optional."""
-        event = emitter.emit_feature_completed(
+        event = emitter.emit_mission_completed(
             "028-sync",
             7,
             completed_at="2026-02-04T18:00:00+00:00",
@@ -415,7 +417,7 @@ class TestErrorLogged:
         event = emitter.emit_error_logged("runtime", "error")
         assert event is not None
         assert event["aggregate_id"] == "error"
-        assert event["aggregate_type"] == "Feature"
+        assert event["aggregate_type"] == "Mission"
 
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
         """stack_trace and agent_id are optional."""
@@ -488,9 +490,9 @@ class TestValidation:
         event = emitter.emit_wp_created("WP01", "", "028-sync")
         assert event is None
 
-    def test_invalid_feature_slug_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid feature_slug format for FeatureCreated causes validation failure."""
-        event = emitter.emit_feature_created("NoNumbers", "abc", "main", 5)
+    def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
+        """Invalid mission_slug format for MissionCreated causes validation failure."""
+        event = emitter.emit_mission_created("NoNumbers", "abc", "main", 5)
         assert event is None
 
     def test_invalid_resolution_type_returns_none(self, emitter: EventEmitter, temp_queue):
@@ -504,8 +506,8 @@ class TestValidation:
         assert event is None
 
     def test_negative_wp_count_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Negative wp_count for FeatureCreated causes validation failure."""
-        event = emitter.emit_feature_created("028-sync", "028", "main", -1)
+        """Negative wp_count for MissionCreated causes validation failure."""
+        event = emitter.emit_mission_created("028-sync", "028", "main", -1)
         assert event is None
 
 
@@ -543,20 +545,20 @@ class TestConvenienceFunctions:
         mock_emitter.emit_wp_assigned.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_feature_created_delegates(self, mock_get):
-        """emit_feature_created delegates to singleton."""
+    def test_emit_mission_created_delegates(self, mock_get):
+        """emit_mission_created delegates to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_feature_created("028-sync", "028", "main", 5)
-        mock_emitter.emit_feature_created.assert_called_once()
+        emit_mission_created("028-sync", "028", "main", 5)
+        mock_emitter.emit_mission_created.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_feature_completed_delegates(self, mock_get):
-        """emit_feature_completed delegates to singleton."""
+    def test_emit_mission_completed_delegates(self, mock_get):
+        """emit_mission_completed delegates to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_feature_completed("028-sync", 5)
-        mock_emitter.emit_feature_completed.assert_called_once()
+        emit_mission_completed("028-sync", 5)
+        mock_emitter.emit_mission_completed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emit_history_added_delegates(self, mock_get):
@@ -678,7 +680,7 @@ class TestOfflineReplayCompatibility:
                 "from_lane": "planned",
                 "to_lane": "in_progress",
                 "actor": "user",
-                "feature_slug": None,
+                "mission_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
             "node_id": "test123",
@@ -710,7 +712,7 @@ class TestOfflineReplayCompatibility:
                 "from_lane": "planned",
                 "to_lane": "in_progress",
                 "actor": "user",
-                "feature_slug": None,
+                "mission_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
             "node_id": "test123",
@@ -751,8 +753,8 @@ class TestInternalValidation:
         assert event is None
 
     def test_created_at_non_datetime_validation(self, emitter: EventEmitter, temp_queue):
-        """Invalid created_at datetime string fails FeatureCreated validation."""
-        event = emitter.emit_feature_created(
+        """Invalid created_at datetime string fails MissionCreated validation."""
+        event = emitter.emit_mission_created(
             "028-sync",
             "028",
             "main",
@@ -762,8 +764,8 @@ class TestInternalValidation:
         assert event is None
 
     def test_completed_at_non_datetime_validation(self, emitter: EventEmitter, temp_queue):
-        """Invalid completed_at datetime string fails FeatureCompleted validation."""
-        event = emitter.emit_feature_completed(
+        """Invalid completed_at datetime string fails MissionCompleted validation."""
+        event = emitter.emit_mission_completed(
             "028-sync",
             5,
             completed_at="not-a-date",

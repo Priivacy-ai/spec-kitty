@@ -1,13 +1,13 @@
 """Documentation State Management for Spec Kitty.
 
-This module manages documentation mission state persistence in feature meta.json files.
+This module manages documentation mission state persistence in mission meta.json files.
 State includes iteration mode, selected Divio types, configured generators, and audit metadata.
 
 Documentation State Schema for meta.json
 ========================================
 
-The documentation_state field is added to feature meta.json files for
-documentation mission features. It persists state between iterations.
+The documentation_state field is added to mission meta.json files for
+documentation missions. It persists state between iterations.
 
 Schema:
 {
@@ -41,9 +41,9 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Literal, Optional, TypedDict
+from typing import Literal, TypedDict
 
-from specify_cli.feature_metadata import load_meta, write_meta
+from specify_cli.mission_metadata import load_meta, write_meta
 
 
 class GeneratorConfig(TypedDict):
@@ -58,10 +58,10 @@ class DocumentationState(TypedDict):
     """Documentation state schema for meta.json."""
 
     iteration_mode: Literal["initial", "gap_filling", "feature_specific"]
-    divio_types_selected: List[str]
-    generators_configured: List[GeneratorConfig]
+    divio_types_selected: list[str]
+    generators_configured: list[GeneratorConfig]
     target_audience: str
-    last_audit_date: Optional[str]  # ISO datetime or null
+    last_audit_date: str | None  # ISO datetime or null
     coverage_percentage: float  # 0.0 to 1.0
 
 
@@ -73,7 +73,7 @@ class DocumentationState(TypedDict):
 def set_iteration_mode(
     meta_file: Path, iteration_mode: Literal["initial", "gap_filling", "feature_specific"]
 ) -> None:
-    """Set iteration mode in feature meta.json.
+    """Set iteration mode in mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -89,9 +89,9 @@ def set_iteration_mode(
             f"Invalid iteration_mode: {iteration_mode}. Must be one of: {valid_modes}"
         )
 
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -106,8 +106,8 @@ def set_iteration_mode(
     write_meta(meta_file.parent, meta, validate=False)
 
 
-def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
-    """Set selected Divio types in feature meta.json.
+def set_divio_types_selected(meta_file: Path, divio_types: list[str]) -> None:
+    """Set selected Divio types in mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -124,9 +124,9 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
             f"Invalid Divio types: {invalid_types}. Must be one of: {valid_types}"
         )
 
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -141,8 +141,8 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
     write_meta(meta_file.parent, meta, validate=False)
 
 
-def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]) -> None:
-    """Set configured generators in feature meta.json.
+def set_generators_configured(meta_file: Path, generators: list[GeneratorConfig]) -> None:
+    """Set configured generators in mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -169,9 +169,9 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
         if "config_path" not in gen:
             raise ValueError(f"Generator config missing 'config_path' field: {gen}")
 
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -187,9 +187,9 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
 
 
 def set_audit_metadata(
-    meta_file: Path, last_audit_date: Optional[datetime], coverage_percentage: float
+    meta_file: Path, last_audit_date: datetime | None, coverage_percentage: float
 ) -> None:
-    """Set audit metadata in feature meta.json.
+    """Set audit metadata in mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -205,9 +205,9 @@ def set_audit_metadata(
             f"coverage_percentage must be 0.0-1.0, got {coverage_percentage}"
         )
 
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -230,8 +230,8 @@ def set_audit_metadata(
 # ============================================================================
 
 
-def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
-    """Read documentation state from feature meta.json.
+def read_documentation_state(meta_file: Path) -> DocumentationState | None:
+    """Read documentation state from mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -244,19 +244,19 @@ def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
         FileNotFoundError: If meta.json doesn't exist
         json.JSONDecodeError: If meta.json is invalid JSON
     """
-    with open(meta_file, "r") as f:
+    with open(meta_file) as f:
         meta = json.load(f)
 
     # Check if this is a documentation mission
     if meta.get("mission") != "documentation":
         return None
 
-    # Get documentation_state (may be missing for old features)
+    # Get documentation_state (may be missing for old missions)
     return meta.get("documentation_state")
 
 
 def write_documentation_state(meta_file: Path, state: DocumentationState) -> None:
-    """Write complete documentation state to feature meta.json.
+    """Write complete documentation state to mission meta.json.
 
     Args:
         meta_file: Path to meta.json
@@ -279,9 +279,9 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     if missing_fields:
         raise ValueError(f"State missing required fields: {missing_fields}")
 
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -295,8 +295,8 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
 def initialize_documentation_state(
     meta_file: Path,
     iteration_mode: str,
-    divio_types: List[str],
-    generators: List[GeneratorConfig],
+    divio_types: list[str],
+    generators: list[GeneratorConfig],
     target_audience: str,
 ) -> DocumentationState:
     """Initialize documentation state for a new documentation mission.
@@ -368,16 +368,16 @@ def update_documentation_state(meta_file: Path, **updates) -> DocumentationState
 def ensure_documentation_state(meta_file: Path) -> None:
     """Ensure meta.json has documentation_state field.
 
-    For backward compatibility with old documentation mission features.
-    If feature is a documentation mission but lacks documentation_state,
+    For backward compatibility with old documentation missions.
+    If mission is a documentation mission but lacks documentation_state,
     initialize with sensible defaults.
 
     Args:
         meta_file: Path to meta.json
     """
-    # Read existing meta.json (feature_dir = parent of meta.json path)
-    feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # Read existing meta.json (mission_dir = parent of meta.json path)
+    mission_dir = meta_file.parent
+    meta = load_meta(mission_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 

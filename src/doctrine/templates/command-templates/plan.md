@@ -15,7 +15,7 @@ description: Execute the implementation planning workflow using the plan templat
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/###-feature/plan.md → In planning repository
+# - kitty-specs/###-mission/plan.md → In planning repository
 # - Commits to target branch
 # - NO worktrees created
 ```
@@ -35,37 +35,37 @@ You **MUST** consider the user input before proceeding (if not empty).
 This command runs in the **planning repository**, not in a worktree.
 
 - Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
-- Planning artifacts live in `kitty-specs/###-feature/`
+- Planning artifacts live in `kitty-specs/###-mission/`
 - The plan template is committed to the target branch after generation
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Planning Interrogation (mandatory)
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
 
-- **Scope proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
-  - **Trivial/Test Features** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
-  - **Simple Features** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
-  - **Complex Features** (new subsystems, multi-component features): Ask 3-5 questions covering architecture, NFRs, integrations
-  - **Platform/Critical Features** (core infrastructure, security, payments): Full interrogation with 5+ questions
+- **Scope proportionality (CRITICAL)**: FIRST, assess the mission's complexity from the spec:
+  - **Trivial/Test Missions** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
+  - **Simple Missions** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
+  - **Complex Missions** (new subsystems, multi-component missions): Ask 3-5 questions covering architecture, NFRs, integrations
+  - **Platform/Critical Missions** (core infrastructure, security, payments): Full interrogation with 5+ questions
 
 - **User signals to reduce questioning**: If the user says "use defaults", "just make it simple", "skip to implementation", "vanilla HTML/CSS/JS" - recognize these as signals to minimize planning questions and use standard approaches.
 
 - **First response rule**:
-  - For TRIVIAL features: Ask ONE tech stack question, then if answer is simple (e.g., "vanilla HTML"), proceed directly to plan generation
-  - For other features: Ask a single architecture question and end with `WAITING_FOR_PLANNING_INPUT`
+  - For TRIVIAL missions: Ask ONE tech stack question, then if answer is simple (e.g., "vanilla HTML"), proceed directly to plan generation
+  - For other missions: Ask a single architecture question and end with `WAITING_FOR_PLANNING_INPUT`
 
 - If the user has not provided plan context, keep interrogating with one question at a time.
 
-- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this feature's scope. For trivial features, knowing the basic stack is enough. Only continue if critical unknowns remain.
+- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this mission's scope. For trivial missions, knowing the basic stack is enough. Only continue if critical unknowns remain.
 
 Planning requirements (scale to complexity):
 
-1. Maintain a **Planning Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
-2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
+1. Maintain a **Planning Questions** table internally covering questions appropriate to the mission's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
+2. For trivial missions, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
 3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm.
-4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
+4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that mission type.
 
 ## Outline
 
@@ -73,19 +73,19 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Detect feature context** (mandatory in new sessions):
-   - Determine feature slug from one of:
+2. **Detect mission context** (mandatory in new sessions):
+   - Determine mission slug from one of:
      - explicit user direction
      - current branch (`git rev-parse --abbrev-ref HEAD`)
-     - current directory path (`kitty-specs/<feature-slug>/...`)
-   - If context is still ambiguous, run setup-plan once without `--feature`, parse the candidate list from JSON error, and pick one explicit feature slug before continuing.
+     - current directory path (`kitty-specs/<mission-slug>/...`)
+   - If context is still ambiguous, run setup-plan once without `--mission`, parse the candidate list from JSON error, and pick one explicit mission slug before continuing.
 
-3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
-   - `feature_slug`: resolved feature slug
+   - `mission_slug`: resolved mission slug
    - `spec_file`: absolute path to resolved spec.md
    - `plan_file`: absolute path to created plan.md
-   - `feature_dir`: absolute path to feature directory
+   - `mission_dir`: absolute path to mission directory
 
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
@@ -115,7 +115,7 @@ Planning requirements (scale to complexity):
 
    ```
    For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
+      Task: "Research {unknown} for {mission context}"
    For each technology choice:
      Task: "Find best practices for {tech} in {domain}"
    ```
@@ -131,7 +131,7 @@ Planning requirements (scale to complexity):
 
 **Prerequisites:** `research.md` complete
 
-1. **Extract entities from feature spec** → `data-model.md`:
+1. **Extract entities from mission spec** → `data-model.md`:
    - Entity name, fields, relationships
    - Validation rules from requirements
    - State transitions if applicable

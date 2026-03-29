@@ -78,7 +78,7 @@ For GitHub and GitLab, Spec-Kitty already has strong signals from the CLI sync:
 
 1. Local git remotes observed from CLI usage
 2. Commit SHAs present in synced builds
-3. Branch names and `feature_slug` values in namespaces
+3. Branch names and `mission_slug` values in namespaces
 
 These signals should be used to **suggest** or **auto-create** repo mappings in the common case. They should not replace explicit installation and mapping records.
 

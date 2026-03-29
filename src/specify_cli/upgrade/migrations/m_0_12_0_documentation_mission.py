@@ -140,12 +140,15 @@ class InstallDocumentationMission(BaseMigration):
         Returns:
             Path to source mission directory, or None if not found
         """
-        # The source is relative to this migration file
-        migrations_dir = Path(__file__).parent
-        src_dir = migrations_dir.parent.parent  # Up to src/specify_cli/
-        source_mission = src_dir / "missions" / "documentation"
+        # Primary: doctrine.missions (canonical location)
+        try:
+            import importlib.resources
 
-        if source_mission.exists() and (source_mission / "mission.yaml").exists():
-            return source_mission
+            doctrine_missions = Path(str(importlib.resources.files("doctrine") / "missions"))
+            source_mission = doctrine_missions / "documentation"
+            if source_mission.exists() and (source_mission / "mission.yaml").exists():
+                return source_mission
+        except (TypeError, ModuleNotFoundError):
+            pass
 
         return None

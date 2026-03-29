@@ -1,5 +1,5 @@
 """
-Tests for plan mission runtime support (Feature 041).
+Tests for plan mission runtime support (Mission 041).
 
 Coverage:
 - Mission discovery integration test
@@ -13,10 +13,17 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from collections.abc import Generator
 
+from doctrine.missions import MissionTemplateRepository
+
 pytestmark = pytest.mark.fast
+
+# Canonical repository -- tests resolve assets through the public API,
+# never via hardcoded filesystem paths.
+_repo = MissionTemplateRepository(MissionTemplateRepository.default_missions_root())
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
@@ -40,32 +47,24 @@ def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
-    """Create a test feature with mission=plan.
+def plan_mission(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
+    """Create a test mission with mission=plan.
 
     Depends on: temp_project
-    Yields: (feature_slug, feature_dir)
+    Yields: (mission_slug, mission_dir)
     """
-    feature_slug = "001-test-plan-feature"
-    feature_dir = temp_project / "kitty-specs" / feature_slug
-    feature_dir.mkdir()
+    mission_slug = "001-test-plan-mission"
+    mission_dir = temp_project / "kitty-specs" / mission_slug
+    mission_dir.mkdir()
 
     # Create meta.json with mission: "plan"
-    meta = {
-        "feature_number": "001",
-        "slug": feature_slug,
-        "mission": "plan",
-        "created_at": "2026-02-22T00:00:00+00:00"
-    }
-    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+    meta = {"mission_number": "001", "slug": mission_slug, "mission": "plan", "created_at": "2026-02-22T00:00:00+00:00"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     # Create spec.md
-    (feature_dir / "spec.md").write_text(
-        "# Test Feature\n\n"
-        "This is a test feature for plan mission integration.\n"
-    )
+    (mission_dir / "spec.md").write_text("# Test Mission\n\nThis is a test mission for plan mission integration.\n")
 
-    yield (feature_slug, feature_dir)
+    yield (mission_slug, mission_dir)
 
 
 @pytest.fixture
@@ -86,8 +85,8 @@ def mock_runtime_bridge() -> MagicMock:
                 {"id": "specify", "order": 1, "title": "Specify"},
                 {"id": "research", "order": 2, "title": "Research"},
                 {"id": "plan", "order": 3, "title": "Plan"},
-                {"id": "review", "order": 4, "title": "Review"}
-            ]
+                {"id": "review", "order": 4, "title": "Review"},
+            ],
         }
     }
 
@@ -102,12 +101,12 @@ def mock_workspace_context() -> MagicMock:
     """Mock workspace context for testing.
 
     Returns: MagicMock with properties:
-    - feature_slug
+    - mission_slug
     - wp_id
     - base_branch
     """
     context = MagicMock()
-    context.feature_slug = "001-test-plan-feature"
+    context.mission_slug = "001-test-plan-mission"
     context.wp_id = "WP01"
     context.base_branch = "main"
     return context
@@ -117,35 +116,36 @@ def mock_workspace_context() -> MagicMock:
 # Test Classes
 # ============================================================================
 
+
 class TestPlanMissionIntegration:
-    """Integration tests for plan mission feature creation and runtime."""
+    """Integration tests for plan mission mission creation and runtime."""
 
-    def test_create_plan_feature_with_mission_yaml(self, plan_feature):
-        """Verify plan feature can be created with mission=plan."""
-        feature_slug, feature_dir = plan_feature
+    def test_create_plan_mission_with_mission_yaml(self, plan_mission):
+        """Verify plan mission can be created with mission=plan."""
+        mission_slug, mission_dir = plan_mission
 
-        # Verify feature directory exists
-        assert feature_dir.exists()
+        # Verify mission directory exists
+        assert mission_dir.exists()
 
         # Verify meta.json exists and contains mission=plan
-        meta_file = feature_dir / "meta.json"
+        meta_file = mission_dir / "meta.json"
         assert meta_file.exists()
 
         meta = json.loads(meta_file.read_text())
         assert meta["mission"] == "plan"
-        assert meta["slug"] == feature_slug
+        assert meta["slug"] == mission_slug
 
-    def test_plan_feature_spec_file_created(self, plan_feature):
-        """Verify spec.md is created for plan features."""
-        feature_slug, feature_dir = plan_feature
+    def test_plan_mission_spec_file_created(self, plan_mission):
+        """Verify spec.md is created for plan missions."""
+        mission_slug, mission_dir = plan_mission
 
         # Verify spec.md exists
-        spec_file = feature_dir / "spec.md"
+        spec_file = mission_dir / "spec.md"
         assert spec_file.exists()
 
         # Verify it contains expected content
         content = spec_file.read_text()
-        assert "Test Feature" in content
+        assert "Test Mission" in content
         assert len(content) > 0
 
     def test_runtime_bridge_discovers_plan_mission(self, mock_runtime_bridge):
@@ -172,24 +172,28 @@ class TestPlanMissionIntegration:
 
         # Verify steps are in correct order
         for i, expected_id in enumerate(["specify", "research", "plan", "review"], 1):
-            assert steps[i-1]["id"] == expected_id
-            assert steps[i-1]["order"] == i
+            assert steps[i - 1]["id"] == expected_id
+            assert steps[i - 1]["order"] == i
 
-    def test_next_command_plan_feature_not_blocked(self, plan_feature):
-        """Verify spec-kitty next doesn't block on plan features (Feature 041 fix).
+    def test_next_command_plan_mission_not_blocked(self, plan_mission):
+        """Verify spec-kitty next doesn't block on plan missions (Mission 041 fix).
 
         This is the core regression test: plan mission should be discoverable
         and should NOT return "Mission 'plan' not found" error.
         """
-        feature_slug, feature_dir = plan_feature
+        mission_slug, mission_dir = plan_mission
         import yaml
 
-        # 1. Verify feature has mission=plan
-        meta = json.loads((feature_dir / "meta.json").read_text())
-        assert meta["mission"] == "plan", "Feature must have mission=plan"
+        # 1. Verify mission has mission=plan
+        meta = json.loads((mission_dir / "meta.json").read_text())
+        assert meta["mission"] == "plan", "Mission must have mission=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
-        mission_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        runtime_path = _repo._mission_config_path("plan")
+        assert runtime_path is not None, "plan mission.yaml must be resolvable"
+
+        # Also verify mission-runtime.yaml via the doctrine root
+        mission_runtime = _repo._root / "plan" / "mission-runtime.yaml"
         assert mission_runtime.exists(), "mission-runtime.yaml must exist"
 
         # 3. Verify it parses as valid YAML
@@ -263,11 +267,11 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify software-dev mission exists and is intact
-        sd_runtime = Path("src/specify_cli/missions/software-dev/mission-runtime.yaml")
-        assert sd_runtime.exists(), "software-dev mission-runtime.yaml must exist"
+        sd_runtime_path = _repo._root / "software-dev" / "mission-runtime.yaml"
+        assert sd_runtime_path.exists(), "software-dev mission-runtime.yaml must exist"
 
         # Load and parse
-        data = yaml.safe_load(sd_runtime.read_text())
+        data = yaml.safe_load(sd_runtime_path.read_text())
         assert "mission" in data, "software-dev must have 'mission' key at top level"
         assert data["mission"]["key"] == "software-dev", "Mission key must be software-dev"
 
@@ -276,8 +280,8 @@ class TestPlanMissionRegressions:
         steps = data["steps"]
         assert len(steps) > 0, "software-dev must have at least one step"
 
-        # Verify core templates exist for software-dev
-        cmd_dir = Path("src/specify_cli/missions/software-dev/command-templates")
+        # Verify core templates exist for software-dev (now in doctrine/missions)
+        cmd_dir = Path("src/doctrine/missions/software-dev/command-templates")
         core_templates = ["specify.md", "plan.md", "implement.md", "review.md"]
         for template in core_templates:
             template_file = cmd_dir / template
@@ -288,11 +292,11 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Verify research mission exists and is intact
-        r_mission = Path("src/specify_cli/missions/research/mission.yaml")
-        assert r_mission.exists(), "research mission.yaml must exist"
+        r_mission_path = _repo._mission_config_path("research")
+        assert r_mission_path is not None, "research mission.yaml must exist"
 
         # Load and parse
-        data = yaml.safe_load(r_mission.read_text())
+        data = yaml.safe_load(r_mission_path.read_text())
         assert "mission" in data, "research must have 'mission' key at top level"
 
         # Research mission has states at top level - verify it has the expected structure
@@ -300,8 +304,8 @@ class TestPlanMissionRegressions:
         states = data["states"]
         assert len(states) > 0, "research must have at least one state"
 
-        # Verify command templates exist
-        cmd_dir = Path("src/specify_cli/missions/research/command-templates")
+        # Verify command templates exist (now in doctrine/missions)
+        cmd_dir = Path("src/doctrine/missions/research/command-templates")
         assert cmd_dir.exists(), "research command-templates directory must exist"
         assert len(list(cmd_dir.glob("*.md"))) > 0, "research must have command templates"
 
@@ -316,7 +320,7 @@ class TestPlanMissionRegressions:
         import yaml
 
         # Load plan mission-runtime.yaml
-        plan_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        plan_runtime = _repo._root / "plan" / "mission-runtime.yaml"
         assert plan_runtime.exists(), "plan mission-runtime.yaml must exist"
 
         content = plan_runtime.read_text()
@@ -364,7 +368,7 @@ class TestPlanMissionSteps:
 
     def test_specify_step_has_deliverables(self):
         """Verify specify step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/specify.md")
+        template = Path("src/doctrine/missions/plan/command-templates/specify.md")
         assert template.exists(), "specify.md must exist"
 
         content = template.read_text()
@@ -373,7 +377,7 @@ class TestPlanMissionSteps:
 
     def test_research_step_has_deliverables(self):
         """Verify research step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/research.md")
+        template = Path("src/doctrine/missions/plan/command-templates/research.md")
         assert template.exists(), "research.md must exist"
 
         content = template.read_text()
@@ -382,7 +386,7 @@ class TestPlanMissionSteps:
 
     def test_plan_step_has_deliverables(self):
         """Verify plan step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/plan.md")
+        template = Path("src/doctrine/missions/plan/command-templates/plan.md")
         assert template.exists(), "plan.md must exist"
 
         content = template.read_text()
@@ -391,7 +395,7 @@ class TestPlanMissionSteps:
 
     def test_review_step_has_deliverables(self):
         """Verify review step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/review.md")
+        template = Path("src/doctrine/missions/plan/command-templates/review.md")
         assert template.exists(), "review.md must exist"
 
         content = template.read_text()
@@ -415,9 +419,8 @@ class TestPlanMissionWorkflow:
         """Verify valid transitions between steps follow dependency chain."""
         import yaml
 
-
         # Load mission definition
-        mission_yaml = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
+        mission_yaml = _repo._root / "plan" / "mission-runtime.yaml"
         mission = yaml.safe_load(mission_yaml.read_text())
         steps = mission["mission"]["steps"]
 
@@ -438,12 +441,12 @@ class TestPlanMissionWorkflow:
             else:
                 # Each step depends only on the previous one
                 expected_dep = step_ids[i - 1]
-                assert depends_on == [expected_dep], \
+                assert depends_on == [expected_dep], (
                     f"Step {step_id} should depend only on {expected_dep}, got {depends_on}"
+                )
 
         # Verify no cycles (linear chain is acyclic by definition)
         assert len(step_ids) == len(set(step_ids)), "Step IDs must be unique"
 
         # Verify terminal step is correct
-        assert mission["mission"]["runtime"]["terminal_step"] == "review", \
-            "Terminal step must be review (last step)"
+        assert mission["mission"]["runtime"]["terminal_step"] == "review", "Terminal step must be review (last step)"

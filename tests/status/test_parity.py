@@ -40,7 +40,7 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
-    feature_slug: str = "034-parity-test",
+    mission_slug: str = "034-parity-test",
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -54,7 +54,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -249,16 +249,16 @@ class TestSaasFanOutNoOp:
         """Full emit_status_transition works when sync/ is unavailable."""
         from specify_cli.status.emit import emit_status_transition
 
-        feature_dir = tmp_path / "kitty-specs" / "034-parity-test"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-parity-test"
+        mission_dir.mkdir(parents=True)
 
         saved = sys.modules.get("specify_cli.sync.events")
         sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
 
         try:
             event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-parity-test",
+                mission_dir=mission_dir,
+                mission_slug="034-parity-test",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="parity-agent",
@@ -333,12 +333,12 @@ class TestPhaseCap:
 
     @patch("specify_cli.status.phase.subprocess.run")
     def test_feature_branch_not_detected_as_01x(self, mock_run, tmp_path: Path):
-        """Feature branches starting with '034-' are not 0.1x."""
+        """Mission branches starting with '034-' are not 0.1x."""
         from specify_cli.status.phase import is_01x_branch
 
         result = MagicMock()
         result.returncode = 0
-        result.stdout = "034-feature-status-state-model-remediation-WP16\n"
+        result.stdout = "034-mission-status-state-model-remediation-WP16\n"
         mock_run.return_value = result
 
         assert is_01x_branch(tmp_path) is False
@@ -485,12 +485,13 @@ class TestReducerDeterminism:
             snap = reduce([event_original, event_duplicate])
 
         assert snap.event_count == 1
-        assert snap.work_packages["WP01"]["actor"] == "original-actor"
+        expected_actor = {"tool": "original-actor", "model": "unknown", "profile": "unknown", "role": "unknown"}
+        assert snap.work_packages["WP01"]["actor"] == expected_actor
 
     def test_json_serialization_byte_identical(self):
         """materialize_to_json produces byte-identical output for same snapshot."""
         snapshot = StatusSnapshot(
-            feature_slug="034-parity-test",
+            mission_slug="034-parity-test",
             materialized_at="2026-02-08T15:00:00+00:00",
             event_count=3,
             last_event_id="01HXYZ0000000000000000000C",
@@ -530,13 +531,13 @@ class TestReducerDeterminism:
 
         # Valid JSON
         parsed = json.loads(json_a)
-        assert parsed["feature_slug"] == "034-parity-test"
+        assert parsed["mission_slug"] == "034-parity-test"
         assert parsed["event_count"] == 3
 
     def test_sorted_keys_in_json_output(self):
         """JSON output has sorted keys for deterministic diff-friendly output."""
         snapshot = StatusSnapshot(
-            feature_slug="034-parity-test",
+            mission_slug="034-parity-test",
             materialized_at="2026-02-08T15:00:00+00:00",
             event_count=1,
             last_event_id="01HXYZ0000000000000000000A",
@@ -601,7 +602,7 @@ class TestReducerDeterminism:
         parsed = json.loads(json_str)
         roundtrip = StatusSnapshot.from_dict(parsed)
 
-        assert roundtrip.feature_slug == snapshot.feature_slug
+        assert roundtrip.mission_slug == snapshot.mission_slug
         assert roundtrip.event_count == snapshot.event_count
         assert roundtrip.last_event_id == snapshot.last_event_id
         assert roundtrip.work_packages == snapshot.work_packages
@@ -614,7 +615,7 @@ class TestReducerDeterminism:
             snap_a = reduce([])
             snap_b = reduce([])
 
-        assert snap_a.feature_slug == snap_b.feature_slug == ""
+        assert snap_a.mission_slug == snap_b.mission_slug == ""
         assert snap_a.event_count == snap_b.event_count == 0
         assert snap_a.last_event_id == snap_b.last_event_id is None
         assert snap_a.work_packages == snap_b.work_packages == {}

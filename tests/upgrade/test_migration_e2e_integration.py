@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from specify_cli.status.migrate import (
-    migrate_feature,
+    migrate_mission,
 )
 from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
@@ -63,12 +63,12 @@ def _create_wp_file(
     wp_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return wp_file
 
-def _setup_legacy_feature(
+def _setup_legacy_mission(
     tmp_path: Path,
-    feature_slug: str = "099-legacy-test",
+    mission_slug: str = "099-legacy-test",
     wp_lanes: dict[str, str] | None = None,
 ) -> Path:
-    """Create a legacy feature directory with WP files but no event log."""
+    """Create a legacy mission directory with WP files but no event log."""
     if wp_lanes is None:
         wp_lanes = {
             "WP01": "in_progress",
@@ -77,26 +77,26 @@ def _setup_legacy_feature(
             "WP04": "doing",  # alias for in_progress
         }
 
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     for wp_id, lane in wp_lanes.items():
         _create_wp_file(tasks_dir, wp_id, lane)
 
-    return feature_dir
+    return mission_dir
 
 # ── Tests ────────────────────────────────────────────────────────
 
-class TestLegacyFeatureFullMigrationPipeline:
+class TestLegacyMissionFullMigrationPipeline:
     """T080: Full migration pipeline from frontmatter to event log."""
 
-    def test_legacy_feature_full_migration_pipeline(self, tmp_path: Path):
-        """Migrate a feature with 4 WPs at various lanes. Verify events,
+    def test_legacy_mission_full_migration_pipeline(self, tmp_path: Path):
+        """Migrate a mission with 4 WPs at various lanes. Verify events,
         snapshot, and consistency."""
-        feature_dir = _setup_legacy_feature(tmp_path)
+        mission_dir = _setup_legacy_mission(tmp_path)
 
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
 
         # Migration succeeded
         assert result.status == "migrated"
@@ -105,7 +105,7 @@ class TestLegacyFeatureFullMigrationPipeline:
         # WP01 (in_progress), WP02 (for_review), WP04 (doing->in_progress)
         # Each generates exactly one bootstrap event (from planned -> current)
         # because no history arrays are provided
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 3
 
         # Verify each event
@@ -123,7 +123,7 @@ class TestLegacyFeatureFullMigrationPipeline:
             assert e.reason is not None
 
         # Materialize and verify snapshot
-        snapshot = materialize(feature_dir)
+        snapshot = materialize(mission_dir)
         assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
         assert snapshot.work_packages["WP02"]["lane"] == "for_review"
         assert snapshot.work_packages["WP04"]["lane"] == "in_progress"
@@ -133,22 +133,22 @@ class TestLegacyFeatureFullMigrationPipeline:
 
     def test_migration_idempotent(self, tmp_path: Path):
         """Running migration twice skips on the second run."""
-        feature_dir = _setup_legacy_feature(tmp_path)
+        mission_dir = _setup_legacy_mission(tmp_path)
 
-        result1 = migrate_feature(feature_dir)
+        result1 = migrate_mission(mission_dir)
         assert result1.status == "migrated"
 
-        result2 = migrate_feature(feature_dir)
+        result2 = migrate_mission(mission_dir)
         assert result2.status == "skipped"
 
         # Event count unchanged
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 3
 
     def test_multi_step_history_reconstruction(self, tmp_path: Path):
         """Full history reconstruction from multi-step history arrays."""
-        feature_dir = tmp_path / "kitty-specs" / "099-multi-history"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "099-multi-history"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         _create_wp_file(
@@ -162,10 +162,10 @@ class TestLegacyFeatureFullMigrationPipeline:
             reviewed_by="reviewer",
         )
 
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
         assert result.status == "migrated"
 
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 3  # 3 transitions from 4 history entries
 
         assert events[0].from_lane == Lane.PLANNED
@@ -184,32 +184,32 @@ class TestMigrationThenTransition:
 
     def test_migration_then_transition(self, tmp_path: Path):
         """Migrate, then emit a transition on top of the bootstrapped state."""
-        feature_dir = _setup_legacy_feature(
+        mission_dir = _setup_legacy_mission(
             tmp_path,
             wp_lanes={"WP01": "claimed", "WP02": "planned"},
         )
-        feature_slug = "099-legacy-test"
+        mission_slug = "099-legacy-test"
         repo_root = tmp_path
 
         # Set up phase 1
-        (feature_dir / "meta.json").write_text(
+        (mission_dir / "meta.json").write_text(
             json.dumps({"status_phase": 1}), encoding="utf-8"
         )
 
         # Migrate
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
         assert result.status == "migrated"
 
         # WP01 should be at "claimed" via bootstrap event
-        events_before = read_events(feature_dir)
+        events_before = read_events(mission_dir)
         assert len(events_before) == 1
         assert events_before[0].wp_id == "WP01"
         assert events_before[0].to_lane == Lane.CLAIMED
 
         # Now emit a normal transition: claimed -> in_progress
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_dir=mission_dir,
+            mission_slug=mission_slug,
             wp_id="WP01",
             to_lane="in_progress",
             actor="agent-1",
@@ -220,7 +220,7 @@ class TestMigrationThenTransition:
         assert event.to_lane == Lane.IN_PROGRESS
 
         # Total events should be bootstrap + new
-        events_after = read_events(feature_dir)
+        events_after = read_events(mission_dir)
         assert len(events_after) == 2
 
 class TestMigrationAliasEndToEnd:
@@ -228,12 +228,12 @@ class TestMigrationAliasEndToEnd:
 
     def test_migration_alias_end_to_end(self, tmp_path: Path):
         """'doing' alias in frontmatter is resolved to 'in_progress' in events."""
-        feature_dir = _setup_legacy_feature(
+        mission_dir = _setup_legacy_mission(
             tmp_path,
             wp_lanes={"WP01": "doing"},
         )
 
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
         assert result.status == "migrated"
 
         # Check wp_details for alias resolution
@@ -246,12 +246,12 @@ class TestMigrationAliasEndToEnd:
         assert wp01_detail.alias_resolved is True
 
         # Verify in the event log
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 1
         assert events[0].to_lane == Lane.IN_PROGRESS
 
         # Verify in raw JSONL
-        raw_events = read_events_raw(feature_dir)
+        raw_events = read_events_raw(mission_dir)
         assert raw_events[0]["to_lane"] == "in_progress"
 
 class TestMigrationDryRunThenReal:
@@ -259,26 +259,26 @@ class TestMigrationDryRunThenReal:
 
     def test_migration_dry_run_then_real(self, tmp_path: Path):
         """Dry run reports what would happen, then real run persists."""
-        feature_dir = _setup_legacy_feature(
+        mission_dir = _setup_legacy_mission(
             tmp_path,
             wp_lanes={"WP01": "in_progress", "WP02": "for_review"},
         )
 
         # Dry run
-        dry_result = migrate_feature(feature_dir, dry_run=True)
+        dry_result = migrate_mission(mission_dir, dry_run=True)
         assert dry_result.status == "migrated"  # Reports as migrated
         assert len(dry_result.wp_details) > 0
 
         # But no events should be written
-        events_path = feature_dir / EVENTS_FILENAME
+        events_path = mission_dir / EVENTS_FILENAME
         assert not events_path.exists()
 
         # Now do the real run
-        real_result = migrate_feature(feature_dir, dry_run=False)
+        real_result = migrate_mission(mission_dir, dry_run=False)
         assert real_result.status == "migrated"
 
         # Events should now be written
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 2
 
         # WP details should match between dry and real
@@ -292,51 +292,51 @@ class TestMigrationDryRunThenReal:
 
     def test_dry_run_no_side_effects(self, tmp_path: Path):
         """Dry run leaves no files on disk."""
-        feature_dir = _setup_legacy_feature(
+        mission_dir = _setup_legacy_mission(
             tmp_path,
             wp_lanes={"WP01": "claimed"},
         )
 
-        migrate_feature(feature_dir, dry_run=True)
+        migrate_mission(mission_dir, dry_run=True)
 
         # No JSONL file
-        assert not (feature_dir / EVENTS_FILENAME).exists()
+        assert not (mission_dir / EVENTS_FILENAME).exists()
 
         # No snapshot file
-        assert not (feature_dir / SNAPSHOT_FILENAME).exists()
+        assert not (mission_dir / SNAPSHOT_FILENAME).exists()
 
 class TestMigrationEdgeCases:
     """Additional migration edge cases."""
 
     def test_migration_no_tasks_dir(self, tmp_path: Path):
         """Migration fails gracefully when tasks/ directory is missing."""
-        feature_dir = tmp_path / "kitty-specs" / "099-no-tasks"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "099-no-tasks"
+        mission_dir.mkdir(parents=True)
 
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
         assert result.status == "failed"
         assert "tasks/" in (result.error or "")
 
     def test_migration_empty_tasks_dir(self, tmp_path: Path):
         """Migration fails when tasks/ has no WP files."""
-        feature_dir = tmp_path / "kitty-specs" / "099-empty-tasks"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "099-empty-tasks"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        result = migrate_feature(feature_dir)
+        result = migrate_mission(mission_dir)
         assert result.status == "failed"
         assert "WP" in (result.error or "")
 
     def test_migration_custom_actor(self, tmp_path: Path):
         """Migration with custom actor name."""
-        feature_dir = _setup_legacy_feature(
+        mission_dir = _setup_legacy_mission(
             tmp_path,
             wp_lanes={"WP01": "in_progress"},
         )
 
-        result = migrate_feature(feature_dir, actor="custom-migration-bot")
+        result = migrate_mission(mission_dir, actor="custom-migration-bot")
         assert result.status == "migrated"
 
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 1
-        assert events[0].actor == "custom-migration-bot"
+        assert events[0].actor.tool == "custom-migration-bot"

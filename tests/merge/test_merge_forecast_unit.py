@@ -9,6 +9,8 @@ Tests the conflict prediction logic for merge dry-run:
 
 from __future__ import annotations
 
+import pytest
+
 import subprocess
 from pathlib import Path
 
@@ -29,26 +31,26 @@ class TestIsStatusFile:
 
     def test_matches_wp_task_file(self):
         """Test matching WP task files in standard structure."""
-        assert is_status_file("kitty-specs/017-feature/tasks/WP01.md") is True
+        assert is_status_file("kitty-specs/017-mission/tasks/WP01.md") is True
         assert is_status_file("kitty-specs/010-workspace/tasks/WP02.md") is True
-        assert is_status_file("kitty-specs/005-my-feature/tasks/WP12.md") is True
+        assert is_status_file("kitty-specs/005-my-mission/tasks/WP12.md") is True
 
     def test_matches_main_tasks_file(self):
         """Test matching main tasks.md file."""
-        assert is_status_file("kitty-specs/017-feature/tasks.md") is True
+        assert is_status_file("kitty-specs/017-mission/tasks.md") is True
         assert is_status_file("kitty-specs/010-workspace/tasks.md") is True
 
     def test_matches_nested_patterns(self):
         """Test matching nested directory patterns."""
-        assert is_status_file("kitty-specs/features/017/tasks/WP01.md") is True
-        assert is_status_file("kitty-specs/features/017/tasks.md") is True
+        assert is_status_file("kitty-specs/missions/017/tasks/WP01.md") is True
+        assert is_status_file("kitty-specs/missions/017/tasks.md") is True
 
     def test_non_status_file_returns_false(self):
         """Test that non-status files return False."""
         assert is_status_file("src/main.py") is False
         assert is_status_file("README.md") is False
-        assert is_status_file("kitty-specs/017-feature/spec.md") is False
-        assert is_status_file("kitty-specs/017-feature/plan.md") is False
+        assert is_status_file("kitty-specs/017-mission/spec.md") is False
+        assert is_status_file("kitty-specs/017-mission/plan.md") is False
         assert is_status_file("tests/test_something.py") is False
 
 
@@ -96,7 +98,7 @@ class TestBuildFileWPMapping:
 
         # Create WP01 branch modifying file1.txt
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -118,7 +120,7 @@ class TestBuildFileWPMapping:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -140,8 +142,8 @@ class TestBuildFileWPMapping:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         mapping = build_file_wp_mapping(wp_workspaces, main_branch, repo)
@@ -192,7 +194,7 @@ class TestBuildFileWPMapping:
 
         # WP01 modifies shared.txt
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -214,7 +216,7 @@ class TestBuildFileWPMapping:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -236,8 +238,8 @@ class TestBuildFileWPMapping:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         mapping = build_file_wp_mapping(wp_workspaces, main_branch, repo)
@@ -285,7 +287,7 @@ class TestBuildFileWPMapping:
 
         # Create empty WP branch
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -298,7 +300,7 @@ class TestBuildFileWPMapping:
             capture_output=True,
         )
 
-        wp_workspaces = [(repo, "WP01", "feature-WP01")]
+        wp_workspaces = [(repo, "WP01", "mission-WP01")]
 
         mapping = build_file_wp_mapping(wp_workspaces, main_branch, repo)
 
@@ -396,7 +398,7 @@ class TestPredictConflicts:
 
         # WP01 modifies file1.txt
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -418,7 +420,7 @@ class TestPredictConflicts:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -440,8 +442,8 @@ class TestPredictConflicts:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         predictions = predict_conflicts(wp_workspaces, main_branch, repo)
@@ -488,7 +490,7 @@ class TestPredictConflicts:
 
         # WP01 modifies shared.txt
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -510,7 +512,7 @@ class TestPredictConflicts:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -532,8 +534,8 @@ class TestPredictConflicts:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         predictions = predict_conflicts(wp_workspaces, main_branch, repo)
@@ -562,7 +564,7 @@ class TestPredictConflicts:
         )
 
         # Create initial status file
-        status_dir = repo / "kitty-specs" / "017-feature" / "tasks"
+        status_dir = repo / "kitty-specs" / "017-mission" / "tasks"
         status_dir.mkdir(parents=True)
         (status_dir / "WP01.md").write_text("---\nlane: planned\n---")
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -585,7 +587,7 @@ class TestPredictConflicts:
 
         # WP01 updates status
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -607,7 +609,7 @@ class TestPredictConflicts:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -629,15 +631,15 @@ class TestPredictConflicts:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         predictions = predict_conflicts(wp_workspaces, main_branch, repo)
 
         assert len(predictions) == 1
         pred = predictions[0]
-        assert pred.file_path == "kitty-specs/017-feature/tasks/WP01.md"
+        assert pred.file_path == "kitty-specs/017-mission/tasks/WP01.md"
         assert pred.is_status_file is True
         assert pred.auto_resolvable is True
 
@@ -681,7 +683,7 @@ class TestPredictConflicts:
 
         # Create conflicting WPs
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP01"],
+            ["git", "checkout", "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -702,7 +704,7 @@ class TestPredictConflicts:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "feature-WP02"],
+            ["git", "checkout", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -724,8 +726,8 @@ class TestPredictConflicts:
         )
 
         wp_workspaces = [
-            (repo, "WP01", "feature-WP01"),
-            (repo, "WP02", "feature-WP02"),
+            (repo, "WP01", "mission-WP01"),
+            (repo, "WP02", "mission-WP02"),
         ]
 
         predictions = predict_conflicts(wp_workspaces, main_branch, repo)
@@ -741,7 +743,7 @@ class TestConflictPrediction:
         """Test auto_resolvable property for status files."""
         # Status file should be auto-resolvable
         pred1 = ConflictPrediction(
-            file_path="kitty-specs/017-feature/tasks/WP01.md",
+            file_path="kitty-specs/017-mission/tasks/WP01.md",
             conflicting_wps=["WP01", "WP02"],
             is_status_file=True,
             confidence="possible",

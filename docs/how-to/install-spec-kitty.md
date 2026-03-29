@@ -2,7 +2,7 @@
 
 > Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.
 
-> **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
+> **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through mission development and merging.
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ When adding to an existing project:
 **Best Practices for Existing Projects:**
 1. **Backup first**: Commit your current work to git before adding Spec Kitty
 2. **Review .gitignore**: Spec Kitty automatically protects agent directories in `.gitignore`
-3. **Team alignment**: Add Spec Kitty to a feature branch before merging to main if you're in a team
+3. **Team alignment**: Add Spec Kitty to a mission branch before merging to main if you're in a team
 4. **Follow the workflow**: After init, run `/spec-kitty.specify` to begin your first feature
 
 ### Choose AI Agent

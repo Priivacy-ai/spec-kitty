@@ -46,7 +46,7 @@ class ExpectedArtifactSpec(BaseModel):
     Attributes:
         artifact_key: Stable, unique key (e.g., 'input.spec.main')
         artifact_class: One of {input, workflow, output, evidence, policy, runtime}
-        path_pattern: Glob pattern relative to feature dir (e.g., 'spec.md', 'tasks/*.md')
+        path_pattern: Glob pattern relative to mission dir (e.g., 'spec.md', 'tasks/*.md')
         blocking: If True, missing artifact blocks mission completeness
     """
 
@@ -62,7 +62,7 @@ class ExpectedArtifactSpec(BaseModel):
     path_pattern: str = Field(
         ...,
         min_length=1,
-        description="Glob pattern relative to feature directory (e.g., 'spec.md', 'tasks/*.md')",
+        description="Glob pattern relative to mission directory (e.g., 'spec.md', 'tasks/*.md')",
     )
     blocking: bool = Field(
         default=False,
@@ -175,9 +175,12 @@ class ManifestRegistry:
         if mission_type in ManifestRegistry._cache:
             return ManifestRegistry._cache[mission_type]
 
-        manifest_path = Path(__file__).parent.parent / "missions" / mission_type / "expected-artifacts.yaml"
+        from doctrine.missions.repository import MissionRepository
 
-        if not manifest_path.exists():
+        repo = MissionRepository(MissionRepository.default_missions_root())
+        manifest_path = repo.get_expected_artifacts(mission_type)
+
+        if manifest_path is None:
             logger.debug(f"Manifest not found for mission type: {mission_type}")
             ManifestRegistry._cache[mission_type] = None
             return None

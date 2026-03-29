@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: powershell-syntax
 tool: powershell
 title: PowerShell Syntax Guide
-guide_path: src/doctrine/toolguides/POWERSHELL_SYNTAX.md
+guide_path: src/doctrine/toolguides/shipped/POWERSHELL_SYNTAX.md
 summary: PowerShell-specific syntax and parameter conventions.
 commands:
   - spec-kitty

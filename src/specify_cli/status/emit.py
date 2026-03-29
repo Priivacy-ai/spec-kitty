@@ -10,10 +10,10 @@ Pipeline order (critical -- do not reorder):
     2. Derive from_lane from last event for this WP (or "planned")
     3. validate_transition(from_lane, resolved_lane, ...)
     4. Create StatusEvent with ULID event_id
-    5. store.append_event(feature_dir, event)
-    6. reducer.materialize(feature_dir)
-    7. legacy_bridge.update_all_views(feature_dir, snapshot)  [non-critical]
-    8. _saas_fan_out(event, feature_slug, repo_root)
+    5. store.append_event(mission_dir, event)
+    6. reducer.materialize(mission_dir)
+    7. legacy_bridge.update_all_views(mission_dir, snapshot)  [non-critical]
+    8. _saas_fan_out(event, mission_slug, repo_root)
     9. Return the event
 """
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -37,10 +37,12 @@ from .models import (
 )
 from .transitions import resolve_lane_alias, validate_transition
 from .legacy_bridge import update_all_views as _update_all_views
+from specify_cli.identity import ActorIdentity
 from . import store as _store
 from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
+
 
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
@@ -49,23 +51,23 @@ class TransitionError(Exception):
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
 def _now_utc() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
+def _derive_from_lane(mission_dir: Path, wp_id: str) -> str:
     """Derive the current lane for a WP from canonical reduced state.
 
     The event log may not be append-ordered by logical transition time,
     so we must reduce the full log to determine the current lane
     deterministically.
     """
-    events = _store.read_events(feature_dir)
+    events = _store.read_events(mission_dir)
     if not events:
         return "planned"
 
@@ -89,21 +91,14 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     review_data = evidence.get("review")
     if not isinstance(review_data, dict):
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
     reviewer = review_data.get("reviewer")
     verdict = review_data.get("verdict")
     reference = review_data.get("reference")
-    if (
-        not reviewer
-        or not verdict
-        or not reference
-        or not str(reference).strip()
-    ):
+    if not reviewer or not verdict or not reference or not str(reference).strip():
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
 
     review_approval = ReviewApproval(
@@ -112,12 +107,8 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
         reference=str(reference),
     )
 
-    repos = [
-        RepoEvidence(**r) for r in evidence.get("repos", [])
-    ]
-    verification = [
-        VerificationResult(**v) for v in evidence.get("verification", [])
-    ]
+    repos = [RepoEvidence(**r) for r in evidence.get("repos", [])]
+    verification = [VerificationResult(**v) for v in evidence.get("verification", [])]
 
     return DoneEvidence(
         review=review_approval,
@@ -126,9 +117,9 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     )
 
 
-def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
+def _infer_subtasks_complete(mission_dir: Path, wp_id: str) -> bool:
     """Infer subtask completion from tasks.md checkboxes for a WP section."""
-    tasks_path = feature_dir / "tasks.md"
+    tasks_path = mission_dir / "tasks.md"
     if not tasks_path.exists():
         return True
     content = tasks_path.read_text(encoding="utf-8")
@@ -152,31 +143,28 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     return not unchecked_found
 
 
-def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
+def _infer_implementation_evidence(mission_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    for event in _store.read_events(feature_dir):
-        if event.wp_id == wp_id:
-            return True
-    return False
+    return any(event.wp_id == wp_id for event in _store.read_events(mission_dir))
 
 
 def emit_status_transition(
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     wp_id: str,
     to_lane: str,
-    actor: str,
+    actor: str | ActorIdentity,
     *,
     force: bool = False,
     reason: str | None = None,
-    evidence: dict | None = None,
+    evidence: dict[str, object] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, object] | None = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -187,8 +175,8 @@ def emit_status_transition(
     persisted. SaaS failures never block canonical persistence.
 
     Args:
-        feature_dir: Path to the kitty-specs feature directory.
-        feature_slug: Feature identifier (e.g. "034-feature-name").
+        mission_dir: Path to the kitty-specs mission directory.
+        mission_slug: Mission identifier (e.g. "034-mission-name").
         wp_id: Work package identifier (e.g. "WP01").
         to_lane: Target lane (canonical or alias).
         actor: Identity of the actor performing the transition.
@@ -214,25 +202,15 @@ def emit_status_transition(
     resolved_lane = resolve_lane_alias(to_lane)
 
     # Step 2: Derive from_lane from last event for this WP
-    from_lane = _derive_from_lane(feature_dir, wp_id)
+    from_lane = _derive_from_lane(mission_dir, wp_id)
 
     if workspace_context is None:
-        context_root = repo_root if repo_root is not None else feature_dir
+        context_root = repo_root if repo_root is not None else mission_dir
         workspace_context = f"{execution_mode}:{context_root}"
-    if (
-        subtasks_complete is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if (
-        implementation_evidence_present is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        implementation_evidence_present = _infer_implementation_evidence(
-            feature_dir, wp_id
-        )
+    if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        subtasks_complete = _infer_subtasks_complete(mission_dir, wp_id)
+    if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        implementation_evidence_present = _infer_implementation_evidence(mission_dir, wp_id)
 
     # Step 3: Validate the transition
     # Build DoneEvidence early so we can pass it to validate_transition
@@ -256,14 +234,15 @@ def emit_status_transition(
         raise TransitionError(error_msg)
 
     # Step 4: Create StatusEvent with ULID event_id
+    actor_identity: ActorIdentity = ActorIdentity.from_legacy(actor) if isinstance(actor, str) else actor
     event = StatusEvent(
         event_id=_generate_ulid(),
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(resolved_lane),
         at=_now_utc(),
-        actor=actor,
+        actor=actor_identity,
         force=force,
         execution_mode=execution_mode,
         reason=reason,
@@ -273,15 +252,14 @@ def emit_status_transition(
     )
 
     # Step 5: Persist event to JSONL log
-    _store.append_event(feature_dir, event)
+    _store.append_event(mission_dir, event)
 
     # Step 6: Materialize snapshot from event log
     try:
-        snapshot = _reducer.materialize(feature_dir)
+        snapshot = _reducer.materialize(mission_dir)
     except Exception:
         logger.warning(
-            "Materialization failed after event %s was persisted; "
-            "run 'status materialize' to recover",
+            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
             event.event_id,
         )
         snapshot = None
@@ -289,28 +267,29 @@ def emit_status_transition(
     # Step 7: Update legacy compatibility views
     if snapshot is not None:
         try:
-            _update_all_views(feature_dir, snapshot)
+            _update_all_views(mission_dir, snapshot)
         except Exception:
             logger.warning(
-                "Legacy bridge update failed for event %s; "
-                "canonical log and snapshot are unaffected",
+                "Legacy bridge update failed for event %s; canonical log and snapshot are unaffected",
                 event.event_id,
             )
 
     # Step 8: SaaS fan-out (never blocks canonical persistence)
-    _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)
+    _saas_fan_out(event, mission_slug, repo_root, policy_metadata=policy_metadata)
 
     # Step 9: Dossier sync (fire-and-forget, never blocks)
     if repo_root is not None:
         try:
             from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
+                trigger_mission_dossier_sync_if_enabled,
             )
 
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir, feature_slug, repo_root,
+            trigger_mission_dossier_sync_if_enabled(
+                mission_dir,
+                mission_slug,
+                repo_root,
             )
-        except Exception:
+        except Exception:  # noqa: S110
             pass  # Never block status transitions
 
     # Step 10: Return the event
@@ -319,10 +298,10 @@ def emit_status_transition(
 
 def _saas_fan_out(
     event: StatusEvent,
-    feature_slug: str,
-    repo_root: Path | None,
+    mission_slug: str,
+    _repo_root: Path | None,
     *,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, object] | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 
@@ -337,8 +316,8 @@ def _saas_fan_out(
             wp_id=event.wp_id,
             from_lane=str(event.from_lane),
             to_lane=str(event.to_lane),
-            actor=event.actor,
-            feature_slug=feature_slug,
+            actor=event.actor.to_compact(),
+            mission_slug=mission_slug,
             policy_metadata=policy_metadata,
         )
     except ImportError:

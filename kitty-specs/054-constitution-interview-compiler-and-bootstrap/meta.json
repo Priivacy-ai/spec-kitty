@@ -1,0 +1,12 @@
+{
+  "feature_number": "054",
+  "slug": "054-constitution-interview-compiler-and-bootstrap",
+  "feature_slug": "054-constitution-interview-compiler-and-bootstrap",
+  "friendly_name": "Constitution Interview Compiler and Context Bootstrap",
+  "mission": "software-dev",
+  "source_description": "Merge of features 043 (Doctrine-Lite Constitution Generator) and 044 (Constitution Interview Compiler + Bootstrap) into a single feature. Implements interview-driven constitution generation, catalog validation, agents.yaml removal, and first-load context injection across all agent command templates.",
+  "target_branch": "feature/agent-profile-implementation",
+  "vcs": "git",
+  "created_at": "2026-03-09T10:32:08.342472+00:00",
+  "supersedes": ["043-doctrine-lite-constitution-generator", "044-constitution-interview-compiler-context-bootstrap"]
+}

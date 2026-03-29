@@ -25,9 +25,9 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture
-def feature_dir(tmp_path: Path) -> Path:
-    """Create a minimal feature directory for tests."""
-    fd = tmp_path / "kitty-specs" / "039-test-feature"
+def mission_dir(tmp_path: Path) -> Path:
+    """Create a minimal mission directory for tests."""
+    fd = tmp_path / "kitty-specs" / "039-test-mission"
     fd.mkdir(parents=True)
     return fd
 
@@ -46,7 +46,7 @@ class TestCanonicalFanOut:
     ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000TEST",
-            feature_slug="039-test-feature",
+            mission_slug="039-test-mission",
             wp_id="WP01",
             from_lane=from_lane,
             to_lane=to_lane,
@@ -77,14 +77,14 @@ class TestCanonicalFanOut:
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
         ):
-            _saas_fan_out(event, "039-test-feature", None)
+            _saas_fan_out(event, "039-test-mission", None)
 
         mock_emit.assert_called_once_with(
             wp_id="WP01",
             from_lane=str(from_lane),
             to_lane=str(to_lane),
-            actor="test-actor",
-            feature_slug="039-test-feature",
+            actor="test-actor:unknown:unknown:unknown",
+            mission_slug="039-test-mission",
             policy_metadata=None,
         )
 
@@ -95,7 +95,7 @@ class TestCanonicalFanOut:
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
         ):
-            _saas_fan_out(event, "039-test-feature", None)
+            _saas_fan_out(event, "039-test-mission", None)
         mock_emit.assert_called_once()
 
     def test_all_canonical_lanes_accepted_by_validators(self) -> None:
@@ -118,68 +118,68 @@ class TestInvalidLaneHandling:
     """Ensure invalid lane values are rejected with TransitionError."""
 
     def test_invalid_to_lane_raises_transition_error(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ) -> None:
         """Completely unknown lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="039-test-mission",
                 wp_id="WP01",
                 to_lane="NONEXISTENT",
                 actor="tester",
             )
 
     def test_empty_to_lane_raises_transition_error(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ) -> None:
         """Empty string lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="039-test-mission",
                 wp_id="WP01",
                 to_lane="",
                 actor="tester",
             )
 
     def test_numeric_lane_raises_transition_error(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ) -> None:
         """Numeric lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="039-test-mission",
                 wp_id="WP01",
                 to_lane="42",
                 actor="tester",
             )
 
-    def test_case_sensitive_rejection(self, feature_dir: Path) -> None:
+    def test_case_sensitive_rejection(self, mission_dir: Path) -> None:
         """Uppercase lane values that are not aliases are rejected."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="039-test-mission",
                 wp_id="WP01",
                 to_lane="Doing_stuff",
                 actor="tester",
             )
 
-    def test_invalid_lane_does_not_persist(self, feature_dir: Path) -> None:
+    def test_invalid_lane_does_not_persist(self, mission_dir: Path) -> None:
         """Invalid lane rejection happens before any event persistence."""
         from specify_cli.status.store import EVENTS_FILENAME
 
 
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="039-test-mission",
                 wp_id="WP01",
                 to_lane="bogus",
                 actor="tester",
             )
 
-        events_path = feature_dir / EVENTS_FILENAME
+        events_path = mission_dir / EVENTS_FILENAME
         assert not events_path.exists()

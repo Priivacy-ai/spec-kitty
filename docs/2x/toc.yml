@@ -8,5 +8,7 @@
   href: runtime-and-missions.md
 - name: Orchestration and API Boundary
   href: orchestration-and-api.md
+- name: Model Discipline and Routing
+  href: model-discipline-routing.md
 - name: ADR Coverage
   href: adr-coverage.md

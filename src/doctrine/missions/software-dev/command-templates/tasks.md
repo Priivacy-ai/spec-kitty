@@ -57,14 +57,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before proceeding, verify you are in the planning repository:
 
-**Check your current branch:**
+**Check your current branch context:**
 
 ```bash
-git branch --show-current
+spec-kitty agent mission branch-context --json
 ```
 
-**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
+**Expected output:** JSON with `planning_base_branch` and `merge_target_branch` pointing to the target branch (typically `main` or `2.x`).
+**If you are on a mission branch:** You're in the wrong place. Return to the target branch:
 
 ```bash
 cd $(git rev-parse --show-toplevel)
@@ -75,25 +75,25 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `mission_dir` plus `available_docs`. All paths must be absolute.
 
-   **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
+   **CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-mission-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
 
    ```
-   feature_dir = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
-   tasks.md location: feature_dir + "/tasks.md"
-   prompt location: feature_dir + "/tasks/WP01-slug.md"
+   mission_dir = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
+   tasks.md location: mission_dir + "/tasks.md"
+   prompt location: mission_dir + "/tasks/WP01-slug.md"
    ```
 
    **DO NOT CREATE** paths like:
-   - ❌ `tasks/WP01-slug.md` (missing feature_dir prefix)
+   - ❌ `tasks/WP01-slug.md` (missing mission_dir prefix)
    - ❌ `/tasks/WP01-slug.md` (wrong root)
-   - ❌ `feature_dir/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
+   - ❌ `mission_dir/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
-2. **Load design documents** from `feature_dir` (only those present):
+2. **Load design documents** from `mission_dir` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
    - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
@@ -128,8 +128,8 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
    - Record metadata: priority, success criteria, risks, dependencies, included subtasks
 
-5. **Write `tasks.md`** using the bundled tasks template (`src/specify_cli/missions/software-dev/templates/tasks-template.md`):
-   - **Location**: Write to `feature_dir/tasks.md` (use the absolute feature_dir path from step 1)
+5. **Write `tasks.md`** using the bundled tasks template (`src/doctrine/missions/software-dev/templates/tasks-template.md`):
+   - **Location**: Write to `mission_dir/tasks.md` (use the absolute mission_dir path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
      - Summary (goal, priority, independent test)
@@ -139,16 +139,16 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Preserve the checklist style so implementers can mark progress
 
 6. **Generate prompt files (one per work package)**:
-   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
-   - Correct structure: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
-   - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY lane subdirectories
-   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
-   - Ensure `feature_dir/tasks/` exists (create as flat directory, NO subdirectories)
+   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `mission_dir/tasks/` directory, NOT in subdirectories!
+   - Correct structure: `mission_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+   - WRONG (do not create): `mission_dir/tasks/planned/`, `mission_dir/tasks/doing/`, or ANY lane subdirectories
+   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under mission_dir
+   - Ensure `mission_dir/tasks/` exists (create as flat directory, NO subdirectories)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
-     - Use the bundled task prompt template (`src/specify_cli/missions/software-dev/templates/task-prompt-template.md`) to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
+     - Full path example: `mission_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from mission_dir variable)
+      - Use the bundled task prompt template (`src/doctrine/missions/software-dev/templates/task-prompt-template.md`) to capture:
+     - Frontmatter with `work_package_id`, `subtasks` array, `task_type`, `lane: "planned"`, `dependencies`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
@@ -169,7 +169,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    **CRITICAL**: Run this command from repo root:
 
    ```bash
-   spec-kitty agent feature finalize-tasks --json
+   spec-kitty agent mission finalize-tasks --json
    ```
 
    This step is MANDATORY for workspace-per-WP features. Without it:
@@ -217,6 +217,7 @@ Each WP prompt file MUST include a `dependencies` field:
 ---
 work_package_id: "WP02"
 title: "Build API"
+task_type: "implement"  # implement | review | plan | specify | research
 lane: "planned"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]
@@ -229,6 +230,31 @@ subtasks: ["T001", "T002"]
 - With dependencies: `spec-kitty implement WP02 --base WP01`
 
 The WP prompt must show the correct command so agents don't branch from the wrong base.
+
+## Task Type Assignment (required)
+
+**Every WP MUST have a `task_type` field in its frontmatter.** This drives automatic agent profile assignment during `finalize-tasks`.
+
+**Valid values** (from mission.yaml `task_types`):
+
+| `task_type` | Agent Profile | Use When |
+|-------------|--------------|----------|
+| `implement` | implementer | Writing code, migrations, infrastructure, refactoring, tests |
+| `review` | reviewer | Code review, audit, validation work packages |
+| `plan` | planner | Design, architecture, planning work packages |
+| `specify` | planner | Specification, requirements work packages |
+| `research` | researcher | Investigation, research, analysis work packages |
+
+**Default**: Most WPs are `implement`. Only change when the WP's primary purpose is different.
+
+**Examples**:
+- WP: "Build API endpoints" → `task_type: "implement"`
+- WP: "Comprehensive tests for new API" → `task_type: "implement"` (tests are implementation)
+- WP: "Architectural dependency tests" → `task_type: "implement"` (writing test code)
+- WP: "Code review + validation" → `task_type: "review"`
+- WP: "Research alternatives" → `task_type: "research"`
+
+The `finalize-tasks` command reads `task_type` and maps it to `agent_profile` via the mission config. If `task_type` is missing, it falls back to heuristic title-keyword inference, which is unreliable. **Always set it explicitly.**
 
 ## Work Package Sizing Guidelines (CRITICAL)
 
@@ -316,7 +342,7 @@ The WP prompt must show the correct command so agents don't branch from the wron
 
 ## Task Generation Rules
 
-**Tests remain optional**. Only include testing tasks/steps if the feature spec or user explicitly demands them.
+**Tests remain optional**. Only include testing tasks/steps if the mission spec or user explicitly demands them.
 
 1. **Subtask derivation**:
    - Assign IDs `Txxx` sequentially in execution order.
@@ -359,11 +385,11 @@ The WP prompt must show the correct command so agents don't branch from the wron
 
 ### Step 1: Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` and capture `feature_dir`.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` and capture `mission_dir`.
 
 ### Step 2: Load Design Documents
 
-Read from `feature_dir`:
+Read from `mission_dir`:
 
 - spec.md (required)
 - plan.md (required)
@@ -429,7 +455,7 @@ Create work package sections with:
 
 ### Step 6: Generate WP Prompt Files
 
-For each WP, generate `feature_dir/tasks/WPxx-slug.md` using the template.
+For each WP, generate `mission_dir/tasks/WPxx-slug.md` using the template.
 
 **CRITICAL VALIDATION**: After generating each prompt:
 
@@ -445,7 +471,7 @@ For each WP, generate `feature_dir/tasks/WPxx-slug.md` using the template.
 
 ### Step 7: Finalize Tasks
 
-Run `spec-kitty agent feature finalize-tasks --json` to:
+Run `spec-kitty agent mission finalize-tasks --json` to:
 
 - Parse dependencies
 - Update frontmatter
@@ -484,6 +510,7 @@ Each WP prompt file MUST include a `dependencies` field:
 ---
 work_package_id: "WP02"
 title: "Build API"
+task_type: "implement"  # implement | review | plan | specify | research
 lane: "planned"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]
@@ -607,19 +634,3 @@ A rushed job with vague, oversized WPs causes:
 - Feature failure
 
 **Invest the tokens now. Be thorough. Future agents will thank you.**
-
-## Telemetry (final step)
-
-After completing all steps above and reporting to the user, emit a telemetry event to record this task generation phase:
-
-```bash
-spec-kitty agent telemetry emit \
-  --feature <feature-slug> \
-  --role planner \
-  --agent <your-agent-name> \
-  --model <your-model-id>
-```
-
-Note: Task generation uses `--role planner` because it is part of the planning lifecycle.
-
-Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if your agent runtime provides usage metrics. This is fire-and-forget — failures never block the workflow.

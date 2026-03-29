@@ -67,41 +67,41 @@ def resolve_template_path(project_root: Path, mission_key: str, template_subpath
     return None
 
 
-def resolve_worktree_aware_feature_dir(
+def resolve_worktree_aware_mission_dir(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     cwd: Path | None = None,
     console: ConsoleType = None,
 ) -> Path:
-    """Resolve the correct feature directory, preferring worktree locations when available."""
+    """Resolve the correct mission directory, preferring worktree locations when available."""
     resolved_console = _resolve_console(console)
     current_dir = (cwd or Path.cwd()).resolve()
 
     parts = current_dir.parts
     for idx, part in enumerate(parts):
-        if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == feature_slug:
+        if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == mission_slug:
             worktree_root = Path(*parts[: idx + 2])
-            feature_dir = worktree_root / "kitty-specs" / feature_slug
-            resolved_console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
-            return feature_dir
+            mission_dir = worktree_root / "kitty-specs" / mission_slug
+            resolved_console.print(f"[green]✓[/green] Using worktree location: {mission_dir}")
+            return mission_dir
 
-    worktree_path = repo_root / ".worktrees" / feature_slug
+    worktree_path = repo_root / ".worktrees" / mission_slug
     if worktree_path.exists():
-        feature_dir = worktree_path / "kitty-specs" / feature_slug
-        resolved_console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
+        mission_dir = worktree_path / "kitty-specs" / mission_slug
+        resolved_console.print(f"[green]✓[/green] Found worktree, using: {mission_dir}")
         resolved_console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
-        return feature_dir
+        return mission_dir
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {mission_dir}")
     resolved_console.print(
-        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"  # noqa: E501
+        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{mission_slug} {mission_slug}"  # noqa: E501
     )
-    return feature_dir
+    return mission_dir
 
 
 __all__ = [
     "locate_project_root",
     "resolve_template_path",
-    "resolve_worktree_aware_feature_dir",
+    "resolve_worktree_aware_mission_dir",
 ]

@@ -32,10 +32,10 @@ def detect_legacy_worktrees(project_root: Path) -> list[Path]:
             continue
 
         name = item.name
-        has_feature_pattern = re.match(r"^\d{3}-", name)
+        has_mission_pattern = re.match(r"^\d{3}-", name)
         has_wp_suffix = re.search(r"-WP\d{2}$", name)
 
-        if has_feature_pattern and not has_wp_suffix:
+        if has_mission_pattern and not has_wp_suffix:
             legacy_worktrees.append(item)
 
     return legacy_worktrees
@@ -58,10 +58,10 @@ def validate_upgrade(project_root: Path) -> tuple[bool, list[str]]:
         [
             "",
             "Action required before upgrade:",
-            "  1. Complete features: spec-kitty merge <feature>",
-            "  2. OR delete worktrees: git worktree remove .worktrees/<feature>",
+            "  1. Complete missions: spec-kitty merge <mission>",
+            "  2. OR delete worktrees: git worktree remove .worktrees/<mission>",
             "",
-            "Use: spec-kitty list-legacy-features to see all legacy worktrees",
+            "Use: spec-kitty list-legacy-missions to see all legacy worktrees",
         ]
     )
     return False, errors

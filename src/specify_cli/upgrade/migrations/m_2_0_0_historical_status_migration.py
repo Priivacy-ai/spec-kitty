@@ -1,6 +1,6 @@
 """Upgrade migration: reconstruct full event history from WP frontmatter.
 
-Wraps ``specify_cli.status.migrate.migrate_feature()`` for the upgrade
+Wraps ``specify_cli.status.migrate.migrate_mission()`` for the upgrade
 framework so ``spec-kitty upgrade`` discovers and runs it automatically.
 
 Migration ID ``2.0.0_historical_status_migration`` is shared across
@@ -27,32 +27,32 @@ class HistoricalStatusMigration(BaseMigration):
     target_version = "2.0.0"
 
     def detect(self, project_path: Path) -> bool:
-        """Return True if any feature has WPs but no full-history events."""
-        from specify_cli.status.migrate import feature_requires_historical_migration
+        """Return True if any mission has WPs but no full-history events."""
+        from specify_cli.status.migrate import mission_requires_historical_migration
 
         kitty_specs = project_path / "kitty-specs"
         if not kitty_specs.exists():
             return False
 
-        for feature_dir in sorted(kitty_specs.iterdir()):
-            if not feature_dir.is_dir():
+        for mission_dir in sorted(kitty_specs.iterdir()):
+            if not mission_dir.is_dir():
                 continue
-            tasks_dir = feature_dir / "tasks"
+            tasks_dir = mission_dir / "tasks"
             if not tasks_dir.exists():
                 continue
             wp_files = list(tasks_dir.glob("WP*.md"))
             if not wp_files:
                 continue
 
-            events_file = feature_dir / "status.events.jsonl"
+            events_file = mission_dir / "status.events.jsonl"
             if not events_file.exists():
-                if feature_requires_historical_migration(feature_dir):
+                if mission_requires_historical_migration(mission_dir):
                     return True
                 continue
 
             content = events_file.read_text(encoding="utf-8").strip()
             if not content:
-                if feature_requires_historical_migration(feature_dir):
+                if mission_requires_historical_migration(mission_dir):
                     return True
                 continue
 
@@ -60,14 +60,14 @@ class HistoricalStatusMigration(BaseMigration):
             from specify_cli.status.store import read_events, StoreError
 
             try:
-                events = read_events(feature_dir)
+                events = read_events(mission_dir)
                 if not events:
                     return True
                 # Has marker? Already migrated with full history.
                 if any(e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason for e in events):
                     continue
                 # Has non-migration actors? Live data, skip.
-                if any(not e.actor.startswith("migration") for e in events):
+                if any(not str(e.actor).startswith("migration") for e in events):
                     continue
                 # All migration actors, no marker -> legacy bootstrap, needs upgrade
                 return True
@@ -83,15 +83,15 @@ class HistoricalStatusMigration(BaseMigration):
             return False, "No kitty-specs directory found"
 
         try:
-            from specify_cli.status.migrate import migrate_feature  # noqa: F401
+            from specify_cli.status.migrate import migrate_mission  # noqa: F401
 
             return True, ""
         except ImportError as e:
             return False, f"Status module not available: {e}"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Run full-history migration across all features."""
-        from specify_cli.status.migrate import migrate_feature
+        """Run full-history migration across all missions."""
+        from specify_cli.status.migrate import migrate_mission
 
         result = MigrationResult(success=True)
         kitty_specs = project_path / "kitty-specs"
@@ -99,23 +99,23 @@ class HistoricalStatusMigration(BaseMigration):
         if not kitty_specs.exists():
             return result
 
-        for feature_dir in sorted(kitty_specs.iterdir()):
-            if not feature_dir.is_dir():
+        for mission_dir in sorted(kitty_specs.iterdir()):
+            if not mission_dir.is_dir():
                 continue
-            tasks_dir = feature_dir / "tasks"
+            tasks_dir = mission_dir / "tasks"
             if not tasks_dir.exists() or not list(tasks_dir.glob("WP*.md")):
                 continue
 
             try:
-                fr = migrate_feature(feature_dir, dry_run=dry_run)
+                fr = migrate_mission(mission_dir, dry_run=dry_run)
                 if fr.status == "migrated":
                     wp_count = sum(1 for wp in fr.wp_details if wp.events_created > 0)
                     total_events = sum(wp.events_created for wp in fr.wp_details)
-                    result.changes_made.append(f"{feature_dir.name}: migrated ({wp_count} WPs, {total_events} events)")
+                    result.changes_made.append(f"{mission_dir.name}: migrated ({wp_count} WPs, {total_events} events)")
                 elif fr.status == "failed":
-                    result.warnings.append(f"{feature_dir.name}: {fr.error}")
+                    result.warnings.append(f"{mission_dir.name}: {fr.error}")
             except Exception as e:
-                result.errors.append(f"{feature_dir.name}: {e}")
+                result.errors.append(f"{mission_dir.name}: {e}")
 
         if result.errors:
             result.success = False

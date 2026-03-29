@@ -115,10 +115,7 @@ def _preserve_trailing_newline(resolved: str, original: str) -> str:
 
 def is_status_file(file_path: str) -> bool:
     """Check if file matches status file patterns."""
-    for pattern in STATUS_FILE_PATTERNS:
-        if fnmatch.fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(fnmatch.fnmatch(file_path, pattern) for pattern in STATUS_FILE_PATTERNS)
 
 
 def extract_lane_value(content: str) -> str | None:

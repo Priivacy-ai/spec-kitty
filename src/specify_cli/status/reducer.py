@@ -46,7 +46,7 @@ def _wp_state_from_event(
 
     return {
         "lane": str(event.to_lane),
-        "actor": event.actor,
+        "actor": event.actor.to_dict(),
         "last_transition_at": event.at,
         "last_event_id": event.event_id,
         "force_count": prior_force_count + (1 if event.force else 0),
@@ -113,12 +113,12 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     4. Apply rollback-aware precedence for concurrent events
     5. Build summary counts for all 7 lanes
 
-    Empty events returns a snapshot with feature_slug="", all zero
+    Empty events returns a snapshot with mission_slug="", all zero
     counts, and no work packages.
     """
     if not events:
         return StatusSnapshot(
-            feature_slug="",
+            mission_slug="",
             materialized_at=_now_utc(),
             event_count=0,
             last_event_id=None,
@@ -139,7 +139,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
 
     # Step 3 & 4: Iterate and apply events with rollback-aware precedence
     wp_states: dict[str, dict[str, Any]] = {}
-    feature_slug = sorted_events[0].feature_slug
+    mission_slug = sorted_events[0].mission_slug
 
     for event in sorted_events:
         current = wp_states.get(event.wp_id)
@@ -154,7 +154,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
             summary[lane_val] += 1
 
     return StatusSnapshot(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         materialized_at=_now_utc(),
         event_count=len(sorted_events),
         last_event_id=sorted_events[-1].event_id,
@@ -181,7 +181,7 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
     )
 
 
-def materialize(feature_dir: Path) -> StatusSnapshot:
+def materialize(mission_dir: Path) -> StatusSnapshot:
     """Read events, reduce to snapshot, and write status.json atomically.
 
     Writes to a temporary file first, then uses ``os.replace`` for an
@@ -189,12 +189,12 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
 
     Returns the materialized snapshot.
     """
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     snapshot = reduce(events)
     json_str = materialize_to_json(snapshot)
 
-    out_path = feature_dir / SNAPSHOT_FILENAME
-    tmp_path = feature_dir / (SNAPSHOT_FILENAME + ".tmp")
+    out_path = mission_dir / SNAPSHOT_FILENAME
+    tmp_path = mission_dir / (SNAPSHOT_FILENAME + ".tmp")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path.write_text(json_str, encoding="utf-8")

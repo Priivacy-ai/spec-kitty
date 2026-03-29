@@ -3,7 +3,7 @@
 The original skill documented the basic workflow but not the internals. This adds
 the decision algorithm, WP iteration logic (CLI bridge vs runtime), mission
 runtime YAML schema, 6 guard primitives, prompt file generation, run persistence,
-feature detection, decision output fields, and the complete agent loop pattern.
+mission detection, decision output fields, and the complete agent loop pattern.
 
 Uses the reusable skill_update utility to find and replace skill files across
 all agent skill roots.
@@ -40,10 +40,7 @@ class FixRuntimeNextSkillMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any runtime-next SKILL.md lacks the new docs."""
-        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
-            if file_contains_any(info.path, _OLD_MARKERS):
-                return True
-        return False
+        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if project has runtime-next skill files."""

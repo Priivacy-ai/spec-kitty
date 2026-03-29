@@ -99,54 +99,54 @@ lane: "planned"
 class TestBuildDependencyGraph:
     """Test build_dependency_graph() function."""
 
-    def test_build_graph_empty_feature(self, tmp_path: Path):
+    def test_build_graph_empty_mission(self, tmp_path: Path):
         """Test graph building with no WPs."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        graph = build_dependency_graph(feature_dir)
+        graph = build_dependency_graph(mission_dir)
         assert graph == {}
 
     def test_build_graph_single_wp(self, tmp_path: Path):
         """Test graph building with single WP."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
 
-        graph = build_dependency_graph(feature_dir)
+        graph = build_dependency_graph(mission_dir)
         assert graph == {"WP01": []}
 
     def test_build_graph_raises_on_mismatched_wp_id(self, tmp_path: Path):
         """Mismatched filename WP ID vs frontmatter should raise."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         (tasks_dir / "WP02-mismatch.md").write_text("---\nwork_package_id: WP03\ndependencies: []\n---")
 
         with pytest.raises(ValueError, match="WP ID mismatch"):
-            build_dependency_graph(feature_dir)
+            build_dependency_graph(mission_dir)
 
     def test_build_graph_linear_chain(self, tmp_path: Path):
         """Test graph building with linear dependency chain."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
         (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---")
         (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP02]\n---")
 
-        graph = build_dependency_graph(feature_dir)
+        graph = build_dependency_graph(mission_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
 
     def test_build_graph_fan_out(self, tmp_path: Path):
         """Test graph building with fan-out pattern (multiple WPs depend on one)."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
@@ -154,13 +154,13 @@ class TestBuildDependencyGraph:
         (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP01]\n---")
         (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP01]\n---")
 
-        graph = build_dependency_graph(feature_dir)
+        graph = build_dependency_graph(mission_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP01"]}
 
     def test_build_graph_complex_dag(self, tmp_path: Path):
         """Test graph building with complex DAG (diamond pattern)."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "010-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
@@ -168,7 +168,7 @@ class TestBuildDependencyGraph:
         (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP01]\n---")
         (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP02, WP03]\n---")
 
-        graph = build_dependency_graph(feature_dir)
+        graph = build_dependency_graph(mission_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}
 
 

@@ -9,7 +9,6 @@ import textwrap
 import threading
 from http.server import HTTPServer
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .handlers.router import DashboardRouter
 
@@ -44,7 +43,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
     raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + max_attempts}")
 
 
-def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> type[DashboardRouter]:
+def _build_handler_class(project_dir: Path, project_token: str | None) -> type[DashboardRouter]:
     return type(
         'DashboardHandler',
         (DashboardRouter,),
@@ -55,14 +54,14 @@ def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> typ
     )
 
 
-def run_dashboard_server(project_dir: Path, port: int, project_token: Optional[str]) -> None:
+def run_dashboard_server(project_dir: Path, port: int, project_token: str | None) -> None:
     """Run the dashboard server forever (used by detached child processes)."""
     handler_class = _build_handler_class(project_dir, project_token)
     server = HTTPServer(('127.0.0.1', port), handler_class)
     server.serve_forever()
 
 
-def _background_script(project_dir: Path, port: int, project_token: Optional[str]) -> str:
+def _background_script(project_dir: Path, port: int, project_token: str | None) -> str:
     repo_root = Path(__file__).resolve().parents[2]
     return textwrap.dedent(
         f"""
@@ -80,10 +79,10 @@ def _background_script(project_dir: Path, port: int, project_token: Optional[str
 
 def start_dashboard(
     project_dir: Path,
-    port: Optional[int] = None,
+    port: int | None = None,
     background_process: bool = False,
-    project_token: Optional[str] = None,
-) -> Tuple[int, Optional[int]]:
+    project_token: str | None = None,
+) -> tuple[int, int | None]:
     """
     Start the dashboard server.
 

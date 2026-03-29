@@ -18,16 +18,16 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
+from specify_cli.identity import ActorIdentity
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: Tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
-LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
+LANES: tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled")
+LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -35,7 +35,7 @@ class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
 
 
-def find_repo_root(start: Optional[Path] = None) -> Path:
+def find_repo_root(start: Path | None = None) -> Path:
     """Find the MAIN repository root, even when inside a worktree.
 
     This function correctly handles git worktrees by detecting when .git is a
@@ -72,7 +72,7 @@ def find_repo_root(start: Optional[Path] = None) -> Path:
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 
-def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
     """Run a git command inside the repository."""
     try:
         return subprocess.run(
@@ -103,25 +103,23 @@ def ensure_lane(value: str) -> str:
 
 
 def now_utc() -> str:
-    return datetime.now(timezone.utc).strftime(TIMESTAMP_FORMAT)
+    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
 
 
-def git_status_lines(repo_root: Path) -> List[str]:
+def git_status_lines(repo_root: Path) -> list[str]:
     result = run_git(["status", "--porcelain"], cwd=repo_root, check=True)
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
-def normalize_note(note: Optional[str], target_lane: str) -> str:
+def normalize_note(note: str | None, target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()
     return cleaned or default
 
 
-def detect_conflicting_wp_status(
-    status_lines: List[str], feature: str, old_path: Path, new_path: Path
-) -> List[str]:
+def detect_conflicting_wp_status(status_lines: list[str], mission_slug: str, old_path: Path, new_path: Path) -> list[str]:
     """Return staged work-package entries unrelated to the requested move."""
-    prefix = f"kitty-specs/{feature}/tasks/"
+    prefix = f"kitty-specs/{mission_slug}/tasks/"
     allowed = {
         str(old_path).lstrip("./"),
         str(new_path).lstrip("./"),
@@ -137,7 +135,7 @@ def detect_conflicting_wp_status(
     return conflicts
 
 
-def match_frontmatter_line(frontmatter: str, key: str) -> Optional[re.Match]:
+def match_frontmatter_line(frontmatter: str, key: str) -> re.Match | None:
     pattern = re.compile(
         rf"^({re.escape(key)}:\s*)(\".*?\"|'.*?'|[^#\n]*)(.*)$",
         flags=re.MULTILINE,
@@ -145,7 +143,7 @@ def match_frontmatter_line(frontmatter: str, key: str) -> Optional[re.Match]:
     return pattern.search(frontmatter)
 
 
-def extract_scalar(frontmatter: str, key: str) -> Optional[str]:
+def extract_scalar(frontmatter: str, key: str) -> str | None:
     match = match_frontmatter_line(frontmatter, key)
     if not match:
         return None
@@ -165,11 +163,7 @@ def set_scalar(frontmatter: str, key: str, value: str) -> str:
         prefix = match.group(1)
         comment = match.group(3)
         comment_suffix = f"{comment}" if comment else ""
-        return (
-            frontmatter[: match.start()]
-            + f'{prefix}"{value}"{comment_suffix}'
-            + frontmatter[match.end() :]
-        )
+        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
 
     insertion = f"{replacement_line}\n"
     history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
@@ -182,7 +176,7 @@ def set_scalar(frontmatter: str, key: str, value: str) -> str:
     return frontmatter + insertion
 
 
-def split_frontmatter(text: str) -> Tuple[str, str, str]:
+def split_frontmatter(text: str) -> tuple[str, str, str]:
     """Return (frontmatter, body, padding) while preserving spacing after frontmatter."""
     normalized = text.replace("\r\n", "\n")
     if not normalized.startswith("---\n"):
@@ -232,7 +226,36 @@ def append_activity_log(body: str, entry: str) -> str:
     return body[: match.start(1)] + section + body[match.end(1) :]
 
 
-def activity_entries(body: str) -> List[Dict[str, str]]:
+def populate_review_feedback(body: str, feedback: str, verdict: str, reviewer: str) -> str:
+    """Replace the Review Feedback placeholder with actual feedback content.
+
+    Works for both approvals (verdict="approved") and rejections (verdict="changes_requested").
+    """
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    header_line = f"**Verdict**: {verdict} | **Reviewer**: {reviewer} | **Date**: {timestamp}"
+    replacement = f"{header_line}\n\n{feedback}"
+
+    # Replace the placeholder text
+    placeholder = "*[This section is empty initially.]*"
+    if placeholder in body:
+        return body.replace(placeholder, replacement)
+
+    # If no placeholder, append under the ## Review Feedback header
+    section_header = "## Review Feedback"
+    if section_header in body:
+        pattern = re.compile(
+            rf"({re.escape(section_header)}\s*\n\s*>\s*\*\*Populated by.*?\*\*\s*\n?)",
+            flags=re.DOTALL,
+        )
+        match = pattern.search(body)
+        if match:
+            insert_pos = match.end()
+            return body[:insert_pos] + "\n" + replacement + "\n" + body[insert_pos:]
+
+    return body
+
+
+def activity_entries(body: str) -> list[dict[str, str]]:
     # Match both en-dash (–) and hyphen (-) as separators
     # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
     # Use \S+ to match non-whitespace including hyphens within the agent name
@@ -245,7 +268,7 @@ def activity_entries(body: str) -> List[Dict[str, str]]:
         r"(?P<note>.*)$",
         flags=re.MULTILINE,
     )
-    entries: List[Dict[str, str]] = []
+    entries: list[dict[str, str]] = []
     for match in pattern.finditer(body):
         entries.append(
             {
@@ -261,7 +284,7 @@ def activity_entries(body: str) -> List[Dict[str, str]]:
 
 @dataclass
 class WorkPackage:
-    feature: str
+    mission_slug: str
     path: Path
     current_lane: str
     relative_subpath: Path
@@ -270,31 +293,33 @@ class WorkPackage:
     padding: str
 
     @property
-    def work_package_id(self) -> Optional[str]:
+    def work_package_id(self) -> str | None:
         return extract_scalar(self.frontmatter, "work_package_id")
 
     @property
-    def title(self) -> Optional[str]:
+    def title(self) -> str | None:
         return extract_scalar(self.frontmatter, "title")
 
     @property
-    def assignee(self) -> Optional[str]:
+    def assignee(self) -> str | None:
         return extract_scalar(self.frontmatter, "assignee")
 
     @property
-    def agent(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "agent")
+    def agent(self) -> ActorIdentity | None:
+        from specify_cli.frontmatter import extract_agent_identity
+
+        return extract_agent_identity(self.frontmatter)
 
     @property
-    def shell_pid(self) -> Optional[str]:
+    def shell_pid(self) -> str | None:
         return extract_scalar(self.frontmatter, "shell_pid")
 
     @property
-    def lane(self) -> Optional[str]:
+    def lane(self) -> str | None:
         return extract_scalar(self.frontmatter, "lane")
 
 
-def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
+def locate_work_package(repo_root: Path, mission_slug: str, wp_id: str) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
     Always uses main repo's kitty-specs/ regardless of current directory.
@@ -308,18 +333,18 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # Always use main repo's kitty-specs - it's the source of truth
     # This fixes the bug where worktree's stale kitty-specs/ would be used
     main_root = get_main_repo_root(repo_root)
-    feature_path = main_root / "kitty-specs" / feature
+    mission_path = main_root / "kitty-specs" / mission_slug
 
-    tasks_root = feature_path / "tasks"
+    tasks_root = mission_path / "tasks"
     if not tasks_root.exists():
-        raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
+        raise TaskCliError(f"Mission '{mission_slug}' has no tasks directory at {tasks_root}.")
 
     # Use exact WP ID matching with word boundary to avoid WP04 matching WP04b
     # Matches: WP04.md, WP04-something.md, WP04_something.md
     # Does NOT match: WP04b.md, WP04b-something.md
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
 
-    use_legacy = is_legacy_format(feature_path)
+    use_legacy = is_legacy_format(mission_path)
     candidates = []
 
     if use_legacy:
@@ -342,19 +367,17 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
                 candidates.append((lane, path, tasks_root))
 
     if not candidates:
-        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
+        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{mission_slug}/tasks.")
     if len(candidates) > 1:
         joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
-        raise TaskCliError(
-            f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
-        )
+        raise TaskCliError(f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}")
 
     lane, path, base_dir = candidates[0]
     text = path.read_text(encoding="utf-8-sig")
     front, body, padding = split_frontmatter(text)
     relative = path.relative_to(base_dir)
     return WorkPackage(
-        feature=feature,
+        mission_slug=mission_slug,
         path=path,
         current_lane=lane,
         relative_subpath=relative,
@@ -364,7 +387,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     )
 
 
-def load_meta(meta_path: Path) -> Dict:
+def load_meta(meta_path: Path) -> dict:
     if not meta_path.exists():
         raise TaskCliError(f"Meta file not found at {meta_path}")
     return json.loads(meta_path.read_text(encoding="utf-8-sig"))
@@ -396,27 +419,20 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
             # Import here to avoid circular dependency issues
             try:
                 from rich.console import Console
+
                 console = Console(stderr=True)
-                console.print(
-                    f"[yellow]Warning: {wp_path.name} missing lane field, "
-                    f"defaulting to 'planned'[/yellow]"
-                )
+                console.print(f"[yellow]Warning: {wp_path.name} missing lane field, defaulting to 'planned'[/yellow]")
             except ImportError:
                 import sys
-                print(
-                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
-                    file=sys.stderr
-                )
+
+                print(f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'", file=sys.stderr)
         return "planned"
 
     # Resolve aliases (e.g., "doing" -> "in_progress")
     lane = LANE_ALIASES.get(lane, lane)
 
     if lane not in LANES:
-        raise ValueError(
-            f"Invalid lane '{lane}' in {wp_path.name}. "
-            f"Valid lanes: {', '.join(LANES)}"
-        )
+        raise ValueError(f"Invalid lane '{lane}' in {wp_path.name}. Valid lanes: {', '.join(LANES)}")
 
     return lane
 

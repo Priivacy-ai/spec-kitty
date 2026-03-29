@@ -16,6 +16,8 @@ from specify_cli.core.agent_context import (
     get_agent_file_path,
     AGENT_CONFIGS,
 )
+pytestmark = pytest.mark.fast
+
 
 runner = CliRunner()
 
@@ -28,11 +30,11 @@ runner = CliRunner()
 def sample_plan_md(tmp_path: Path) -> Path:
     """Create a sample plan.md file with Technical Context section."""
     plan_file = tmp_path / "plan.md"
-    content = """# Implementation Plan: Test Feature
+    content = """# Implementation Plan: Test Mission
 
 ## Summary
 
-Test feature description.
+Test mission description.
 
 ## Technical Context
 
@@ -63,15 +65,15 @@ def sample_agent_file(tmp_path: Path) -> Path:
     agent_file = tmp_path / "CLAUDE.md"
     content = """# Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-01-01
+Auto-generated from all mission plans. Last updated: 2025-01-01
 
 ## Active Technologies
-- Python 3.10+ (existing) (001-old-feature)
-- Django (web framework) (002-another-feature)
+- Python 3.10+ (existing) (001-old-mission)
+- Django (web framework) (002-another-mission)
 
 ## Recent Changes
-- 002-another-feature: Added Django
-- 001-old-feature: Added Python 3.10+
+- 002-another-mission: Added Django
+- 001-old-mission: Added Python 3.10+
 
 ## Other Sections
 
@@ -98,9 +100,9 @@ def mock_repo_root(tmp_path: Path) -> Path:
     # Create .kittify marker
     (repo_root / ".kittify").mkdir()
 
-    # Create feature directory with plan.md
-    feature_dir = repo_root / "kitty-specs" / "008-test-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission directory with plan.md
+    mission_dir = repo_root / "kitty-specs" / "008-test-mission"
+    mission_dir.mkdir(parents=True)
 
     plan_content = """# Implementation Plan
 
@@ -118,7 +120,7 @@ def mock_repo_root(tmp_path: Path) -> Path:
 
 **Project Type**: Single Python package
 """
-    (feature_dir / "plan.md").write_text(plan_content)
+    (mission_dir / "plan.md").write_text(plan_content)
 
     # Create CLAUDE.md
     claude_content = """# Development Guidelines
@@ -126,10 +128,10 @@ def mock_repo_root(tmp_path: Path) -> Path:
 Last updated: 2025-01-01
 
 ## Active Technologies
-- Python 3.10+ (old-feature)
+- Python 3.10+ (old-mission)
 
 ## Recent Changes
-- old-feature: Added Python 3.10+
+- old-mission: Added Python 3.10+
 
 <!-- MANUAL ADDITIONS START -->
 
@@ -228,11 +230,11 @@ def test_format_technology_stack_combines_language_and_deps():
         "project_type": None,
     }
 
-    result = format_technology_stack(tech_stack, "008-test-feature")
+    result = format_technology_stack(tech_stack, "008-test-mission")
 
     assert len(result) == 2
-    assert result[0] == "- Python 3.11+ + Typer, Rich (008-test-feature)"
-    assert result[1] == "- Filesystem only (008-test-feature)"
+    assert result[0] == "- Python 3.11+ + Typer, Rich (008-test-mission)"
+    assert result[1] == "- Filesystem only (008-test-mission)"
 
 
 def test_format_technology_stack_language_only():
@@ -410,19 +412,19 @@ def test_update_agent_context_updates_sections(sample_agent_file: Path):
     update_agent_context(
         agent_type="claude",
         tech_stack=tech_stack,
-        feature_slug="008-test-feature",
+        mission_slug="008-test-mission",
         repo_root=repo_root,
-        feature_dir=None,
+        mission_dir=None,
     )
 
     updated_content = sample_agent_file.read_text()
 
     # Check Active Technologies section was updated
-    assert "Python 3.11+ + Typer, Rich (008-test-feature)" in updated_content
-    assert "Filesystem only (008-test-feature)" in updated_content
+    assert "Python 3.11+ + Typer, Rich (008-test-mission)" in updated_content
+    assert "Filesystem only (008-test-mission)" in updated_content
 
     # Check Recent Changes section was updated
-    assert "008-test-feature: Added Python 3.11+ + Typer, Rich" in updated_content
+    assert "008-test-mission: Added Python 3.11+ + Typer, Rich" in updated_content
 
 
 def test_update_agent_context_preserves_manual_additions(sample_agent_file: Path):
@@ -440,9 +442,9 @@ def test_update_agent_context_preserves_manual_additions(sample_agent_file: Path
     update_agent_context(
         agent_type="claude",
         tech_stack=tech_stack,
-        feature_slug="008-test",
+        mission_slug="008-test",
         repo_root=repo_root,
-        feature_dir=None,
+        mission_dir=None,
     )
 
     updated_content = sample_agent_file.read_text()
@@ -469,9 +471,9 @@ def test_update_agent_context_limits_recent_changes(sample_agent_file: Path):
     update_agent_context(
         agent_type="claude",
         tech_stack=tech_stack,
-        feature_slug="008-new",
+        mission_slug="008-new",
         repo_root=repo_root,
-        feature_dir=None,
+        mission_dir=None,
     )
 
     updated_content = sample_agent_file.read_text()
@@ -490,9 +492,9 @@ def test_update_agent_context_unsupported_agent_type(tmp_path: Path):
         update_agent_context(
             agent_type="invalid_agent",
             tech_stack=tech_stack,
-            feature_slug="008-test",
+            mission_slug="008-test",
             repo_root=tmp_path,
-            feature_dir=None,
+            mission_dir=None,
         )
 
 
@@ -504,9 +506,9 @@ def test_update_agent_context_missing_file(tmp_path: Path):
         update_agent_context(
             agent_type="claude",
             tech_stack=tech_stack,
-            feature_slug="008-test",
+            mission_slug="008-test",
             repo_root=tmp_path,
-            feature_dir=None,
+            mission_dir=None,
         )
 
 

@@ -281,11 +281,11 @@ def test_resolve_target_branch_branches_match(tmp_path):
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "Initial"], cwd=repo)
 
-    # Create feature targeting main
-    feature_dir = repo / "kitty-specs" / "001-test"
-    feature_dir.mkdir(parents=True)
-    meta = {"feature_id": "001-test", "target_branch": "main"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    # Create mission targeting main
+    mission_dir = repo / "kitty-specs" / "001-test"
+    mission_dir.mkdir(parents=True)
+    meta = {"mission_id": "001-test", "target_branch": "main"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     # Resolve from main to main
     resolution = resolve_target_branch("001-test", repo, "main", respect_current=True)
@@ -313,11 +313,11 @@ def test_resolve_target_branch_branches_differ_respect_current(tmp_path):
     # Create develop branch
     run_command(["git", "checkout", "-b", "develop"], cwd=repo)
 
-    # Create feature targeting main
-    feature_dir = repo / "kitty-specs" / "002-test"
-    feature_dir.mkdir(parents=True)
-    meta = {"feature_id": "002-test", "target_branch": "main"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    # Create mission targeting main
+    mission_dir = repo / "kitty-specs" / "002-test"
+    mission_dir.mkdir(parents=True)
+    meta = {"mission_id": "002-test", "target_branch": "main"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     # Resolve from develop (current) when target is main
     resolution = resolve_target_branch("002-test", repo, "develop", respect_current=True)
@@ -340,9 +340,9 @@ def test_resolve_target_branch_fallback_to_main(tmp_path):
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "Initial"], cwd=repo)
 
-    # Create feature WITHOUT meta.json
-    feature_dir = repo / "kitty-specs" / "003-test"
-    feature_dir.mkdir(parents=True)
+    # Create mission WITHOUT meta.json
+    mission_dir = repo / "kitty-specs" / "003-test"
+    mission_dir.mkdir(parents=True)
 
     # Resolve should fallback to "main"
     resolution = resolve_target_branch("003-test", repo, "main", respect_current=True)
@@ -370,11 +370,11 @@ def test_resolve_target_branch_auto_detect_current(tmp_path):
     # Create develop branch
     run_command(["git", "checkout", "-b", "develop"], cwd=repo)
 
-    # Create feature targeting main
-    feature_dir = repo / "kitty-specs" / "004-test"
-    feature_dir.mkdir(parents=True)
-    meta = {"feature_id": "004-test", "target_branch": "main"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    # Create mission targeting main
+    mission_dir = repo / "kitty-specs" / "004-test"
+    mission_dir.mkdir(parents=True)
+    meta = {"mission_id": "004-test", "target_branch": "main"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     # Resolve WITHOUT providing current_branch (should auto-detect)
     resolution = resolve_target_branch("004-test", repo, current_branch=None, respect_current=True)
@@ -397,10 +397,10 @@ def test_resolve_target_branch_invalid_meta_json(tmp_path):
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "Initial"], cwd=repo)
 
-    # Create feature with INVALID meta.json
-    feature_dir = repo / "kitty-specs" / "005-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
+    # Create mission with INVALID meta.json
+    mission_dir = repo / "kitty-specs" / "005-test"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
 
     # Resolve should fallback to "main" (not crash)
     resolution = resolve_target_branch("005-test", repo, "main", respect_current=True)
@@ -561,9 +561,9 @@ def test_resolve_target_branch_fallback_to_master(tmp_path):
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    # Create feature WITHOUT meta.json
-    feature_dir = repo / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
+    # Create mission WITHOUT meta.json
+    mission_dir = repo / "kitty-specs" / "010-test"
+    mission_dir.mkdir(parents=True)
 
     resolution = resolve_target_branch("010-test", repo, "master", respect_current=True)
 
@@ -580,13 +580,13 @@ def test_resolve_target_branch_fallback_uses_origin_head(tmp_path):
 
     repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
 
-    # Create feature with meta.json that has NO target_branch field
-    feature_dir = repo / "kitty-specs" / "020-feature"
-    feature_dir.mkdir(parents=True)
-    meta = {"feature_number": "020", "slug": "020-feature"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    # Create mission with meta.json that has NO target_branch field
+    mission_dir = repo / "kitty-specs" / "020-mission"
+    mission_dir.mkdir(parents=True)
+    meta = {"mission_number": "020", "slug": "020-mission"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-    resolution = resolve_target_branch("020-feature", repo, "ticket_nr_4_branch", respect_current=True)
+    resolution = resolve_target_branch("020-mission", repo, "ticket_nr_4_branch", respect_current=True)
 
     assert resolution.target == "ticket_nr_4_branch"  # Detected from origin/HEAD
     assert resolution.should_notify is False
@@ -600,67 +600,67 @@ def test_resolve_target_branch_meta_overrides_detected_primary(tmp_path):
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    # Create feature targeting "2.x" explicitly
-    feature_dir = repo / "kitty-specs" / "025-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission targeting "2.x" explicitly
+    mission_dir = repo / "kitty-specs" / "025-mission"
+    mission_dir.mkdir(parents=True)
     meta = {"target_branch": "2.x"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-    resolution = resolve_target_branch("025-feature", repo, "master", respect_current=True)
+    resolution = resolve_target_branch("025-mission", repo, "master", respect_current=True)
 
     assert resolution.target == "2.x"  # meta.json wins over detected "master"
     assert resolution.should_notify is True  # master != 2.x
 
 
 # ============================================================================
-# get_feature_target_branch with non-"main" primary
+# get_mission_target_branch with non-"main" primary
 # ============================================================================
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_get_feature_target_branch_master_repo_no_meta(tmp_path):
+def test_get_mission_target_branch_master_repo_no_meta(tmp_path):
     """In a master-based repo with no meta.json, fallback should be 'master'."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.mission_detection import get_mission_target_branch
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    feature_dir = repo / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
+    mission_dir = repo / "kitty-specs" / "010-test"
+    mission_dir.mkdir(parents=True)
     # No meta.json
 
-    target = get_feature_target_branch(repo, "010-test")
+    target = get_mission_target_branch(repo, "010-test")
     assert target == "master"
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_get_feature_target_branch_custom_primary_no_meta(tmp_path):
+def test_get_mission_target_branch_custom_primary_no_meta(tmp_path):
     """In a repo with a custom primary branch and no meta.json, fallback should match."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.mission_detection import get_mission_target_branch
 
     repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
 
-    feature_dir = repo / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
+    mission_dir = repo / "kitty-specs" / "010-test"
+    mission_dir.mkdir(parents=True)
     # No meta.json
 
-    target = get_feature_target_branch(repo, "010-test")
+    target = get_mission_target_branch(repo, "010-test")
     assert target == "ticket_nr_4_branch"
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_get_feature_target_branch_meta_overrides_custom_primary(tmp_path):
+def test_get_mission_target_branch_meta_overrides_custom_primary(tmp_path):
     """meta.json target_branch wins over custom primary branch detection."""
     import json
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.mission_detection import get_mission_target_branch
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    feature_dir = repo / "kitty-specs" / "025-test"
-    feature_dir.mkdir(parents=True)
+    mission_dir = repo / "kitty-specs" / "025-test"
+    mission_dir.mkdir(parents=True)
     meta = {"target_branch": "2.x"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-    target = get_feature_target_branch(repo, "025-test")
+    target = get_mission_target_branch(repo, "025-test")
     assert target == "2.x"  # meta.json overrides "master" detection
 
 
@@ -671,30 +671,30 @@ def test_get_feature_target_branch_meta_overrides_custom_primary(tmp_path):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_manifest_merged_check_uses_detected_primary(tmp_path):
-    """WorktreeStatus.get_feature_status checks --merged against detected primary branch."""
+    """WorktreeStatus.get_mission_status checks --merged against detected primary branch."""
     from specify_cli.manifest import WorktreeStatus
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    # Create a feature branch and merge it into master
-    run_command(["git", "checkout", "-b", "001-my-feature"], cwd=repo)
-    (repo / "feature.txt").write_text("feature work", encoding="utf-8")
+    # Create a mission branch and merge it into master
+    run_command(["git", "checkout", "-b", "001-my-mission"], cwd=repo)
+    (repo / "mission.txt").write_text("mission work", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
-    run_command(["git", "commit", "-m", "Feature work"], cwd=repo)
+    run_command(["git", "commit", "-m", "Mission work"], cwd=repo)
     run_command(["git", "checkout", "master"], cwd=repo)
-    run_command(["git", "merge", "--no-ff", "001-my-feature", "-m", "Merge feature"], cwd=repo)
+    run_command(["git", "merge", "--no-ff", "001-my-mission", "-m", "Merge mission"], cwd=repo)
 
     # Create kitty-specs directory so it shows up (needs a file; git ignores empty dirs)
-    feature_dir = repo / "kitty-specs" / "001-my-feature"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "spec.md").write_text("# Feature spec\n", encoding="utf-8")
+    mission_dir = repo / "kitty-specs" / "001-my-mission"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "spec.md").write_text("# Mission spec\n", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "Add kitty-specs"], cwd=repo)
 
     ws = WorktreeStatus(repo)
-    status = ws.get_feature_status("001-my-feature")
+    status = ws.get_mission_status("001-my-mission")
 
-    # Feature should be detected as merged into master (not fail because "main" doesn't exist)
+    # Mission should be detected as merged into master (not fail because "main" doesn't exist)
     assert status["branch_merged"] is True
     assert status["state"] == "merged"
 
@@ -712,13 +712,13 @@ def test_multi_parent_merge_uses_target_branch(tmp_path):
     repo = _init_repo_with_branch(tmp_path, "master")
 
     # Create two dependency branches
-    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-mission-WP01"], cwd=repo)
     (repo / "wp01.txt").write_text("wp01", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "WP01 work"], cwd=repo)
 
     run_command(["git", "checkout", "master"], cwd=repo)
-    run_command(["git", "checkout", "-b", "010-feature-WP02"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-mission-WP02"], cwd=repo)
     (repo / "wp02.txt").write_text("wp02", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "WP02 work"], cwd=repo)
@@ -727,7 +727,7 @@ def test_multi_parent_merge_uses_target_branch(tmp_path):
 
     # Create multi-parent base with explicit target_branch="master"
     result = create_multi_parent_base(
-        feature_slug="010-feature",
+        mission_slug="010-mission",
         wp_id="WP03",
         dependencies=["WP01", "WP02"],
         repo_root=repo,
@@ -735,7 +735,7 @@ def test_multi_parent_merge_uses_target_branch(tmp_path):
     )
 
     assert result.success is True
-    assert result.branch_name == "010-feature-WP03-merge-base"
+    assert result.branch_name == "010-mission-WP03-merge-base"
     assert result.commit_sha is not None
 
 
@@ -746,13 +746,13 @@ def test_multi_parent_merge_auto_detects_primary(tmp_path):
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-mission-WP01"], cwd=repo)
     (repo / "wp01.txt").write_text("wp01", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "WP01 work"], cwd=repo)
 
     run_command(["git", "checkout", "master"], cwd=repo)
-    run_command(["git", "checkout", "-b", "010-feature-WP02"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-mission-WP02"], cwd=repo)
     (repo / "wp02.txt").write_text("wp02", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "WP02 work"], cwd=repo)
@@ -761,7 +761,7 @@ def test_multi_parent_merge_auto_detects_primary(tmp_path):
 
     # Don't pass target_branch — should auto-detect "master"
     result = create_multi_parent_base(
-        feature_slug="010-feature",
+        mission_slug="010-mission",
         wp_id="WP03",
         dependencies=["WP01", "WP02"],
         repo_root=repo,
@@ -782,13 +782,13 @@ def test_predict_merge_conflicts_auto_detects_target(tmp_path):
 
     repo = _init_repo_with_branch(tmp_path, "master")
 
-    # Create a feature branch
-    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    # Create a mission branch
+    run_command(["git", "checkout", "-b", "010-mission-WP01"], cwd=repo)
     (repo / "new_file.txt").write_text("wp01", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
     run_command(["git", "commit", "-m", "WP01"], cwd=repo)
     run_command(["git", "checkout", "master"], cwd=repo)
 
     # Should not raise when target=None (auto-detects "master")
-    conflicts = predict_merge_conflicts(repo, ["010-feature-WP01"])
+    conflicts = predict_merge_conflicts(repo, ["010-mission-WP01"])
     assert isinstance(conflicts, dict)

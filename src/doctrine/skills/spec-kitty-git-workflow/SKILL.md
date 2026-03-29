@@ -49,7 +49,7 @@ conflict resolution.
 When you run `spec-kitty implement WP01`, Python:
 
 ```
-git worktree add -b 042-feature-WP01 .worktrees/042-feature-WP01 main
+git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
 ```
 
 It also configures sparse checkout to exclude `kitty-specs/` from the
@@ -67,17 +67,17 @@ spec-kitty implement WP02 --base WP01
 This branches from WP01's branch instead of main:
 
 ```
-git worktree add -b 042-feature-WP02 .worktrees/042-feature-WP02 042-feature-WP01
+git worktree add -b 042-mission-WP02 .worktrees/042-mission-WP02 042-mission-WP01
 ```
 
 ### 2. Planning Artifact Auto-Commits
 
-Before creating a worktree, Python checks if `kitty-specs/042-feature/` has
+Before creating a worktree, Python checks if `kitty-specs/042-mission/` has
 uncommitted changes on the primary branch. If so, it auto-commits:
 
 ```
-git add -f kitty-specs/042-feature/
-git commit -m "chore: Planning artifacts for 042-feature"
+git add -f kitty-specs/042-mission/
+git commit -m "chore: Planning artifacts for 042-mission"
 ```
 
 **Controlled by:** `auto_commit: true` in `.kittify/config.yaml` (default: true).
@@ -110,20 +110,20 @@ one would create excessive git noise.
 
 ### 5. Merge Execution
 
-`spec-kitty merge --feature 042-feature` runs the full merge sequence:
+`spec-kitty merge --mission 042-mission` runs the full merge sequence:
 
 ```
 git checkout main
 git pull --ff-only                    # sync with remote
-git merge --no-ff 042-feature-WP01   # merge in dependency order
-git merge --no-ff 042-feature-WP02
-git merge --no-ff 042-feature-WP03
-git worktree remove .worktrees/042-feature-WP01 --force
-git worktree remove .worktrees/042-feature-WP02 --force
-git worktree remove .worktrees/042-feature-WP03 --force
-git branch -d 042-feature-WP01       # cleanup branches
-git branch -d 042-feature-WP02
-git branch -d 042-feature-WP03
+git merge --no-ff 042-mission-WP01   # merge in dependency order
+git merge --no-ff 042-mission-WP02
+git merge --no-ff 042-mission-WP03
+git worktree remove .worktrees/042-mission-WP01 --force
+git worktree remove .worktrees/042-mission-WP02 --force
+git worktree remove .worktrees/042-mission-WP03 --force
+git branch -d 042-mission-WP01       # cleanup branches
+git branch -d 042-mission-WP02
+git branch -d 042-mission-WP03
 ```
 
 Merge order follows the dependency graph (topological sort).
@@ -152,7 +152,7 @@ All actual code work must be committed by the agent. Python creates the
 worktree but never commits code:
 
 ```bash
-cd .worktrees/042-feature-WP01
+cd .worktrees/042-mission-WP01
 # ... write code, run tests ...
 git add src/ tests/
 git commit -m "feat(WP01): implement auth middleware"
@@ -168,8 +168,8 @@ rejected.
 When WP02 depends on WP01 and WP01 has changed since WP02 branched:
 
 ```bash
-cd .worktrees/042-feature-WP02
-git rebase 042-feature-WP01
+cd .worktrees/042-mission-WP02
+git rebase 042-mission-WP01
 # resolve conflicts if any
 git add .
 git rebase --continue
@@ -188,8 +188,8 @@ merge the other:
 
 ```bash
 spec-kitty implement WP04 --base WP03    # branches from WP03
-cd .worktrees/042-feature-WP04
-git merge 042-feature-WP02               # manually merge WP02
+cd .worktrees/042-mission-WP04
+git merge 042-mission-WP02               # manually merge WP02
 ```
 
 ### 4. Pushing
@@ -226,11 +226,11 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 ```
 1. CREATED
    spec-kitty implement WP01
-   → git worktree add -b 042-feature-WP01 .worktrees/042-feature-WP01 main
-   → .kittify/workspaces/042-feature-WP01.json created
+   → git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
+   → .kittify/workspaces/042-mission-WP01.json created
 
 2. ACTIVE (agent works here)
-   cd .worktrees/042-feature-WP01
+   cd .worktrees/042-mission-WP01
    → agent writes code, commits, tests
    → WP status: in_progress
 
@@ -240,11 +240,11 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
    → reviewer checks the diff
 
 4. MERGED
-   spec-kitty merge --feature 042-feature
-   → git merge --no-ff 042-feature-WP01
-   → git worktree remove .worktrees/042-feature-WP01 --force
-   → git branch -d 042-feature-WP01
-   → .kittify/workspaces/042-feature-WP01.json removed
+   spec-kitty merge --mission 042-mission
+   → git merge --no-ff 042-mission-WP01
+   → git worktree remove .worktrees/042-mission-WP01 --force
+   → git branch -d 042-mission-WP01
+   → .kittify/workspaces/042-mission-WP01.json removed
 
 5. CLEANED UP
    Worktree directory gone, branch deleted, workspace context removed

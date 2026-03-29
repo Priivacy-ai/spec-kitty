@@ -4,17 +4,17 @@ This document lists all environment variables used by Spec Kitty.
 
 ---
 
-## Feature Detection
+## Mission Detection
 
-### SPECIFY_FEATURE
+### SPECIFY_MISSION
 
-Override automatic feature detection.
+Override automatic mission detection.
 
 **Purpose**: Force Spec Kitty to use a specific feature when automatic detection fails (e.g., in non-Git repositories or CI environments).
 
 **Example**:
 ```bash
-export SPECIFY_FEATURE=014-comprehensive-docs
+export SPECIFY_MISSION=014-comprehensive-docs
 spec-kitty agent tasks status
 ```
 
@@ -29,20 +29,20 @@ spec-kitty agent tasks status
 
 ### SPEC_KITTY_TEMPLATE_ROOT
 
-Use local templates instead of fetching from GitHub.
+Override the package asset root for mission discovery.
 
-**Purpose**: Point to a local directory containing Spec Kitty templates. Useful for template development or air-gapped environments.
+**Purpose**: Point to a local directory containing mission assets (used by `get_package_asset_root()`). The directory should contain mission subdirectories (e.g. `software-dev/`, `research/`). Useful for CI/testing or air-gapped environments.
 
 **Example**:
 ```bash
-export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty/src/specify_cli/templates
+export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty/src/doctrine/missions
 spec-kitty init my-project --ai claude
 ```
 
 **When to use**:
-- Developing or testing template changes
+- CI/testing to bypass `importlib.resources` discovery
 - Environments without internet access
-- Custom template workflows
+- Custom mission asset workflows
 
 ### SPECIFY_TEMPLATE_REPO
 
@@ -165,7 +165,7 @@ spec-kitty init my-project --ai codex --non-interactive
 
 | Variable | Purpose | Example Value |
 |----------|---------|---------------|
-| `SPECIFY_FEATURE` | Override feature detection | `014-my-feature` |
+| `SPECIFY_MISSION` | Override mission detection | `014-my-feature` |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Local template path | `/path/to/templates` |
 | `SPECIFY_TEMPLATE_REPO` | Custom template repo | `org/templates` |
 | `CODEX_HOME` | Codex CLI prompt path | `$(pwd)/.codex` |

@@ -1,0 +1,32 @@
+id: "imp-quickstart-python-conventions"
+source:
+  title: "Python Conventions & Style Guide"
+  type: "styleguide"
+  publisher: "quickstart_agent-augmented-development"
+  path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/docs/styleguides/python_conventions.md"
+  accessed_on: "2026-03-28"
+classification:
+  target_concepts:
+    - "styleguide"
+  rationale: >
+    Comprehensive Python coding conventions including Quad-A test structure,
+    guard clause patterns, modern type hints, pathlib usage, and tooling config.
+    Spec-kitty has no Python-specific styleguide — this fills the gap.
+adaptation:
+  summary: >
+    Converted from markdown to spec-kitty styleguide YAML schema. Extracted
+    key patterns (guard clauses, Quad-A, modern type hints, path operations,
+    YAML I/O) as structured examples with bad/good pairs. Added anti-patterns
+    section. Mapped tooling to ruff-first (black as fallback).
+  notes:
+    - "Quad-A test pattern (Arrange-Assumption-Act-Assert) is the core differentiator from generic test guidance."
+    - "Guard clauses principle connects to input-validation-fail-fast tactic."
+    - "Source uses black line-length 88; we note ruff format as primary, black as fallback."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/docs/styleguides/python_conventions.md"
+    lines: "1-616"
+    note: "Full Python conventions document."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/styleguides/_proposed/python-conventions.styleguide.yaml"

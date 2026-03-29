@@ -81,3 +81,27 @@ General technology terms that appear throughout Spec Kitty documentation. Includ
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Content Hash](./dossier.md#content-hash), [Parity Hash](./dossier.md#parity-hash) |
+
+---
+
+### Common Kernel
+
+| | |
+|---|---|
+| **Definition** | A zero-dependency shared utility package (`src/kernel/`) that provides primitives needed by multiple peer packages (`specify_cli`, `constitution`, `doctrine`). The kernel has no imports from any of these packages — only they import from it. This pattern (also called "extract kernel") breaks cyclic dependencies by extracting the shared logic into a foundation layer that all packages can safely consume without introducing dependency cycles. |
+| **Context** | Technology Foundations |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Extract Kernel (refactoring tactic)](#extract-kernel-refactoring-tactic) |
+
+---
+
+### Extract Kernel (Refactoring Tactic)
+
+| | |
+|---|---|
+| **Definition** | A refactoring approach for resolving cyclic package dependencies. When package A and package B both need a shared utility, and that utility currently lives inside A (causing B to import A), the fix is to extract the utility into a new zero-dependency package C (the kernel). Both A and B then import from C, and the cycle is broken. The key invariant: the kernel must have no imports from A or B. |
+| **Context** | Technology Foundations |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Common Kernel](#common-kernel) |

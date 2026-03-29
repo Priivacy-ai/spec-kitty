@@ -73,7 +73,7 @@ class GitVCS:
 
         Args:
             workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace branch (e.g., "015-feature-WP01")
+            workspace_name: Name for the workspace branch (e.g., "015-mission-WP01")
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Root of the git repository (auto-detected if not provided)
@@ -811,11 +811,7 @@ class GitVCS:
                 timeout=30,
             )
 
-            for line in status_result.stdout.strip().split("\n"):
-                if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
-                    return True
-
-            return False
+            return any(line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD") for line in status_result.stdout.strip().split("\n"))
 
         except (subprocess.TimeoutExpired, OSError):
             return False

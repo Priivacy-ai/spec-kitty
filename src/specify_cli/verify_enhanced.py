@@ -2,15 +2,12 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
-import json
 import logging
 import subprocess
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
 from .skills.manifest import load_manifest as load_skill_manifest
@@ -19,14 +16,14 @@ from .skills.verifier import verify_installed_skills
 logger = logging.getLogger(__name__)
 
 
-def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
-    """Resolve mission key from a feature's meta.json.
+def _resolve_mission_from_mission_dir(mission_dir: Path) -> str | None:
+    """Resolve mission key from a mission's meta.json.
 
     Returns the mission string or ``None`` when no meta.json exists.
     """
     try:
-        from .feature_metadata import load_meta
-        meta = load_meta(feature_dir)
+        from .mission_metadata import load_meta
+        meta = load_meta(mission_dir)
         if meta:
             return meta.get("mission")
     except Exception:
@@ -34,7 +31,7 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
     return None
 
 
-def _parse_skill_name_from_frontmatter(content: str) -> Optional[str]:
+def _parse_skill_name_from_frontmatter(content: str) -> str | None:
     """Extract the ``name`` field from YAML frontmatter in a SKILL.md file.
 
     Returns ``None`` when no frontmatter or no ``name`` key is found.
@@ -60,12 +57,12 @@ def run_enhanced_verify(
     repo_root: Path,
     project_root: Path,
     cwd: Path,
-    feature: Optional[str],
+    mission: str | None,
     json_output: bool,
     check_files: bool,
     console: Console,
-    feature_dir: Optional[Path] = None,
-) -> Dict:
+    mission_dir: Path | None = None,
+) -> dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
 
@@ -73,21 +70,21 @@ def run_enhanced_verify(
     """
     output_data = {
         "environment": {},
-        "feature_detection": {},
+        "mission_detection": {},
         "worktree_status": {},
         "file_integrity": {},
-        "feature_analysis": {},
+        "mission_analysis": {},
         "recommendations": []
     }
 
-    # Resolve mission from feature-level meta.json when available
-    mission_key: Optional[str] = None
-    if feature_dir is not None:
-        mission_key = _resolve_mission_from_feature(feature_dir)
-    elif feature:
-        candidate = project_root / "kitty-specs" / feature
+    # Resolve mission from mission-level meta.json when available
+    mission_key: str | None = None
+    if mission_dir is not None:
+        mission_key = _resolve_mission_from_mission_dir(mission_dir)
+    elif mission:
+        candidate = project_root / "kitty-specs" / mission
         if candidate.is_dir():
-            mission_key = _resolve_mission_from_feature(candidate)
+            mission_key = _resolve_mission_from_mission_dir(candidate)
 
     # Initialize helpers
     kittify_dir = project_root / ".kittify"
@@ -116,7 +113,7 @@ def run_enhanced_verify(
         "project_root": str(project_root),
         "in_worktree": in_worktree,
         "current_branch": current_branch,
-        "active_mission": mission_key or "no feature context"
+        "active_mission": mission_key or "no mission context"
     }
 
     if not json_output:
@@ -128,16 +125,16 @@ def run_enhanced_verify(
         console.print(f"   Repository root: {repo_root}")
 
         if in_worktree:
-            console.print(f"   [green]✓[/green] In worktree")
+            console.print("   [green]✓[/green] In worktree")
         else:
-            console.print(f"   [dim]○[/dim] Not in worktree")
+            console.print("   [dim]○[/dim] Not in worktree")
 
         if current_branch:
             console.print(f"   Current branch: {current_branch}")
             if current_branch in ("main", "master"):
                 console.print(f"   [yellow]⚠[/yellow] On {current_branch} branch")
         else:
-            console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
+            console.print("   [yellow]⚠[/yellow] Could not detect branch")
 
     # 2. File Integrity Check
     total_missing = 0
@@ -150,7 +147,7 @@ def run_enhanced_verify(
         total_missing = len(file_check["missing"])
 
         output_data["file_integrity"] = {
-            "active_mission": mission_key or "no feature context",
+            "active_mission": mission_key or "no mission context",
             "total_expected": total_expected,
             "total_present": total_present,
             "total_missing": total_missing,
@@ -169,7 +166,7 @@ def run_enhanced_verify(
 
         if not json_output:
             console.print("\n[cyan]2. Mission File Integrity[/cyan]")
-            console.print(f"   Active mission: {mission_key or 'no feature context'}")
+            console.print(f"   Active mission: {mission_key or 'no mission context'}")
 
             if total_missing == 0:
                 console.print(f"   [green]✓[/green] All {total_expected} expected files present")
@@ -192,81 +189,81 @@ def run_enhanced_verify(
 
     if not json_output:
         console.print("\n[cyan]3. Worktree Overview[/cyan]")
-        console.print(f"   Total features: {worktree_summary['total_features']}")
+        console.print(f"   Total missions: {worktree_summary['total_missions']}")
         console.print(f"   Active worktrees: {worktree_summary['active_worktrees']}")
-        console.print(f"   Merged features: {worktree_summary['merged_features']}")
+        console.print(f"   Merged missions: {worktree_summary['merged_missions']}")
         console.print(f"   In development: {worktree_summary['in_development']}")
 
-    # 4. Feature Detection and Analysis
+    # 4. Mission Detection and Analysis
     try:
-        from .acceptance import detect_feature_slug, AcceptanceError
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=cwd)).strip()
+        from .acceptance import detect_mission_slug, AcceptanceError
+        mission_slug = (mission or detect_mission_slug(repo_root, cwd=cwd)).strip()
 
-        output_data["feature_detection"] = {
+        output_data["mission_detection"] = {
             "detected": True,
-            "feature": feature_slug
+            "mission_slug": mission_slug
         }
 
-        # Get detailed status for this feature
-        feature_status = worktree_status.get_feature_status(feature_slug)
-        output_data["feature_analysis"] = feature_status
+        # Get detailed status for this mission
+        mission_status = worktree_status.get_mission_status(mission_slug)
+        output_data["mission_analysis"] = mission_status
 
         if not json_output:
-            console.print("\n[cyan]4. Current Feature Status[/cyan]")
-            console.print(f"   Feature: {feature_slug}")
-            console.print(f"   State: {feature_status['state'].upper()}")
+            console.print("\n[cyan]4. Current Mission Status[/cyan]")
+            console.print(f"   Mission: {mission_slug}")
+            console.print(f"   State: {mission_status['state'].upper()}")
 
             # Status indicators
-            if feature_status["branch_exists"]:
-                status_text = "merged" if feature_status["branch_merged"] else "active"
+            if mission_status["branch_exists"]:
+                status_text = "merged" if mission_status["branch_merged"] else "active"
                 console.print(f"   [green]✓[/green] Branch exists ({status_text})")
             else:
-                console.print(f"   [dim]○[/dim] No branch")
+                console.print("   [dim]○[/dim] No branch")
 
-            if feature_status["worktree_exists"]:
-                console.print(f"   [green]✓[/green] Worktree at: {feature_status['worktree_path']}")
+            if mission_status["worktree_exists"]:
+                console.print(f"   [green]✓[/green] Worktree at: {mission_status['worktree_path']}")
             else:
-                console.print(f"   [dim]○[/dim] No worktree")
+                console.print("   [dim]○[/dim] No worktree")
 
             # Artifacts
-            if feature_status["artifacts_in_main"]:
-                console.print(f"   Artifacts in main: {', '.join(feature_status['artifacts_in_main'])}")
-            if feature_status["artifacts_in_worktree"]:
-                console.print(f"   Artifacts in worktree: {', '.join(feature_status['artifacts_in_worktree'])}")
+            if mission_status["artifacts_in_main"]:
+                console.print(f"   Artifacts in main: {', '.join(mission_status['artifacts_in_main'])}")
+            if mission_status["artifacts_in_worktree"]:
+                console.print(f"   Artifacts in worktree: {', '.join(mission_status['artifacts_in_worktree'])}")
 
             # State-based observations
-            if feature_status["state"] == "merged":
-                console.print("   [green]✓[/green] Feature appears to be merged")
-            elif feature_status["state"] == "in_development":
-                console.print("   [blue]●[/blue] Feature is in active development")
-            elif feature_status["state"] == "not_started":
-                console.print("   [dim]○[/dim] Feature not yet started")
+            if mission_status["state"] == "merged":
+                console.print("   [green]✓[/green] Mission appears to be merged")
+            elif mission_status["state"] == "in_development":
+                console.print("   [blue]●[/blue] Mission is in active development")
+            elif mission_status["state"] == "not_started":
+                console.print("   [dim]○[/dim] Mission not yet started")
 
     except AcceptanceError as exc:
-        output_data["feature_detection"] = {
+        output_data["mission_detection"] = {
             "detected": False,
             "error": str(exc)
         }
 
         if not json_output:
-            console.print("\n[cyan]4. Feature Detection[/cyan]")
-            console.print(f"   [yellow]⚠[/yellow] Could not detect feature: {exc}")
+            console.print("\n[cyan]4. Mission Detection[/cyan]")
+            console.print(f"   [yellow]⚠[/yellow] Could not detect mission: {exc}")
 
-    # 5. All Features Status Table
-    all_features = worktree_status.get_all_features()
+    # 5. All Missions Status Table
+    all_missions = worktree_status.get_all_missions()
 
-    if not json_output and all_features:
-        console.print("\n[cyan]5. All Features Status[/cyan]")
+    if not json_output and all_missions:
+        console.print("\n[cyan]5. All Missions Status[/cyan]")
 
         table = Table(show_header=True, header_style="bold")
-        table.add_column("Feature", style="cyan")
+        table.add_column("Mission", style="cyan")
         table.add_column("State", style="white")
         table.add_column("Branch", style="white")
         table.add_column("Worktree", style="white")
         table.add_column("Artifacts", style="white")
 
-        for feat in all_features[:10]:  # Show first 10
-            feat_status = worktree_status.get_feature_status(feat)
+        for mission in all_missions[:10]:  # Show first 10
+            mission_status = worktree_status.get_mission_status(mission)
 
             # Determine display values
             state_display = {
@@ -275,19 +272,19 @@ def run_enhanced_verify(
                 "ready_to_merge": "[blue]READY[/blue]",
                 "not_started": "[dim]NOT STARTED[/dim]",
                 "unknown": "[dim]?[/dim]"
-            }.get(feat_status["state"], feat_status["state"])
+            }.get(mission_status["state"], mission_status["state"])
 
-            branch_display = "✓" if feat_status["branch_exists"] else "-"
-            if feat_status["branch_merged"]:
+            branch_display = "✓" if mission_status["branch_exists"] else "-"
+            if mission_status["branch_merged"]:
                 branch_display = "merged"
 
-            worktree_display = "✓" if feat_status["worktree_exists"] else "-"
+            worktree_display = "✓" if mission_status["worktree_exists"] else "-"
 
-            artifact_count = len(feat_status["artifacts_in_main"]) + len(feat_status["artifacts_in_worktree"])
+            artifact_count = len(mission_status["artifacts_in_main"]) + len(mission_status["artifacts_in_worktree"])
             artifacts_display = str(artifact_count) if artifact_count > 0 else "-"
 
             table.add_row(
-                feat,
+                mission,
                 state_display,
                 branch_display,
                 worktree_display,
@@ -296,11 +293,11 @@ def run_enhanced_verify(
 
         console.print(table)
 
-        if len(all_features) > 10:
-            console.print(f"   [dim]... and {len(all_features) - 10} more features[/dim]")
+        if len(all_missions) > 10:
+            console.print(f"   [dim]... and {len(all_missions) - 10} more missions[/dim]")
 
     # 6. Managed Skills
-    skill_verify_data: Dict = {"status": "skipped"}
+    skill_verify_data: dict = {"status": "skipped"}
     skill_warnings: list[str] = []
     skill_has_issues = False
 
@@ -426,9 +423,8 @@ def run_enhanced_verify(
     if current_branch in ("main", "master") and in_worktree:
         observations.append("Unusual: In worktree but on main branch")
 
-    if output_data.get("feature_analysis", {}).get("state") == "in_development":
-        if not output_data["feature_analysis"].get("worktree_exists"):
-            observations.append(f"Feature {feature_slug} has no worktree but has development artifacts")
+    if output_data.get("mission_analysis", {}).get("state") == "in_development" and not output_data["mission_analysis"].get("worktree_exists"):
+        observations.append(f"Mission {mission_slug} has no worktree but has development artifacts")
 
     if total_missing > 0 and check_files:
         observations.append(f"Mission integrity: {total_missing} expected files not found")

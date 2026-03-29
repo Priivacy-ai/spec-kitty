@@ -1,8 +1,8 @@
 ---
-description: Create or update the feature specification from a natural language feature description.
+description: Create or update the mission specification from a natural language feature description.
 ---
 
-# /spec-kitty.specify - Create Feature Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Version**: 0.11.0+
 
@@ -48,7 +48,7 @@ Before running any scripts or writing to disk you **must** conduct a structured 
 
 - If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
 
-- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this feature's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
+- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this mission's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
 
 Discovery requirements (scale to feature complexity):
 
@@ -59,7 +59,7 @@ Discovery requirements (scale to feature complexity):
 
 ## Mission Selection
 
-After completing discovery and confirming the Intent Summary, determine the appropriate mission for this feature.
+After completing discovery and confirming the Intent Summary, determine the appropriate mission for this mission.
 
 ### Available Missions
 
@@ -79,7 +79,7 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 2. **Check for explicit mission requests** in the user's description:
    - If user mentions "research project", "investigation", "analysis" → use research
-   - If user mentions "build", "implement", "create feature" → use software-dev
+   - If user mentions "build", "implement", "create mission" → use software-dev
 
 3. **Confirm with user** (unless explicit):
    > "Based on your description, this sounds like a **[software-dev/research]** project.
@@ -101,7 +101,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-feature-WP##`).
+**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-mission-WP##`).
 
 ## Location
 
@@ -115,7 +115,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
 - Read that title back during the Intent Summary and revise it if the user requests changes.
-- Use the confirmed title to derive the kebab-case feature slug for the create-feature command.
+- Use the confirmed title to derive the kebab-case feature slug for the create-mission command.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
@@ -132,7 +132,7 @@ Given that feature description, do this:
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:
 
    ```bash
-   spec-kitty agent feature create-feature "<slug>" --json
+   spec-kitty agent mission create-mission "<slug>" --json
    ```
 
    Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").
@@ -140,7 +140,7 @@ Given that feature description, do this:
    The command returns JSON with:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
-   - `feature_dir`: Absolute path to the feature directory inside the main repo
+   - `mission_dir`: Absolute path to the mission directory inside the main repo
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
@@ -149,7 +149,7 @@ Given that feature description, do this:
 
 4. Load the spec template from `.kittify/templates/spec-template.md` (or `templates/spec-template.md`) to understand required sections.
 
-5. Create meta.json in the feature directory with:
+5. Create meta.json in the mission directory with:
 
    ```json
    {
@@ -176,14 +176,14 @@ Given that feature description, do this:
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 
-7. Write the specification to `<feature_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+7. Write the specification to `<mission_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `feature_dir/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `mission_dir/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
-      # Specification Quality Checklist: [FEATURE NAME]
+      # Specification Quality Checklist: [MISSION NAME]
       
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
@@ -254,7 +254,7 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
+9. Report completion with mission directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

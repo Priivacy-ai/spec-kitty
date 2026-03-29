@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.runtime.resolver import (
     ResolutionTier,
     _is_global_runtime_configured,
@@ -31,6 +32,8 @@ from specify_cli.runtime.resolver import (
     resolve_command,
     resolve_template,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +84,8 @@ class TestGlobalTierResolution:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             result = resolve_template("spec-template.md", project)
@@ -116,8 +119,8 @@ class TestGlobalTierResolution:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             result = resolve_template("spec-template.md", project)
@@ -150,8 +153,8 @@ class TestGlobalTierResolution:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             result = resolve_template("spec-template.md", project)
@@ -176,8 +179,8 @@ class TestGlobalTierResolution:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             result = resolve_command("plan.md", project)
@@ -212,8 +215,8 @@ class TestLegacyWarningSuppression:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
             warnings.catch_warnings(record=True) as w,
         ):
@@ -245,8 +248,8 @@ class TestLegacyWarningSuppression:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
             warnings.catch_warnings(record=True) as w,
         ):
@@ -288,8 +291,8 @@ class TestMigrateNudge:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             # Resolve two legacy assets
@@ -321,8 +324,8 @@ class TestMigrateNudge:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             resolve_template("spec-template.md", project)
@@ -404,7 +407,7 @@ class TestFullResolutionChainOrder:
 
         with (
             patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -428,7 +431,7 @@ class TestFullResolutionChainOrder:
 
         with (
             patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
             warnings.catch_warnings(record=True),
         ):
             warnings.simplefilter("always")
@@ -455,7 +458,7 @@ class TestFullResolutionChainOrder:
 
         with (
             patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -477,7 +480,7 @@ class TestFullResolutionChainOrder:
 
         with (
             patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -499,7 +502,7 @@ class TestFullResolutionChainOrder:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "empty_home",
             ),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -652,7 +655,10 @@ class TestMigrateIdempotency:
         with (
             patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
             patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_package_asset_root", return_value=pkg_root),
+            patch(
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
+            ),
             patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
             from specify_cli.runtime.bootstrap import ensure_runtime
@@ -677,7 +683,10 @@ class TestMigrateIdempotency:
         with (
             patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
             patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_package_asset_root", return_value=pkg_root),
+            patch(
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
+            ),
             patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
             from specify_cli.runtime.bootstrap import ensure_runtime
@@ -744,6 +753,7 @@ class TestCredentialPathDecision:
         security model (tighter permissions, never synced, never in git).
         """
         from specify_cli.runtime.home import get_kittify_home
+
 
         home = get_kittify_home()
         # The credential path should NOT be under ~/.kittify/

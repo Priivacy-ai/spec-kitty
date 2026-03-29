@@ -20,8 +20,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the main repository (not a worktree). Planning happens in main for ALL missions.
 
 ```bash
-git branch --show-current  # Should show "main"
+spec-kitty agent mission branch-context --json
 ```
+
+Use the returned JSON to confirm you are on the target branch (`planning_base_branch`).
 
 **Note**: Planning in main is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 
@@ -60,7 +62,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature setup-plan --json` to initialize plan.md
+1. **Setup**: Run `spec-kitty agent mission setup-plan --json` to initialize plan.md
 
 2. **Load context**: Read spec.md, meta.json (especially `documentation_state`)
 
@@ -93,7 +95,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
       - Prioritized gap list
       - Recommendations
 
-   **Output**: `gap-analysis.md` file in feature directory
+   **Output**: `gap-analysis.md` file in mission directory
 
    ---
 
@@ -242,8 +244,8 @@ For documentation missions, planning interrogation is lighter than software-dev:
    4. WP04: Generator Updates - Regenerate outdated API docs
    5. WP05: Quality Validation - Validate new and updated docs
 
-   **For Feature-Specific Mode**:
-   1. WP01: Feature Documentation - Document the specific feature across Divio types
+   **For Mission-Specific Mode**:
+   1. WP01: Mission Documentation - Document the specific feature across Divio types
    2. WP02: Integration - Integrate with existing documentation
    3. WP03: Quality Validation - Validate feature docs
 

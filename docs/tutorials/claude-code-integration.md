@@ -305,7 +305,7 @@ and WebSocket for live reload. Dark mode toggle.
 # Validates all tasks complete
 
 /spec-kitty.merge --push
-# Merges to main, feature complete!
+# Merges to main, mission complete!
 ```
 
 **Total Time**: ~30-60 minutes for a well-specified, tested, reviewed feature.
@@ -393,7 +393,7 @@ spec-kitty agent workflow review WP01
 # Review workflow moves to done when there is no feedback
 ```
 
-### Pattern 3: Parallel Features
+### Pattern 3: Parallel Missions
 
 ```bash
 # Terminal 1: Feature A
@@ -529,7 +529,7 @@ Encode your team's quality standards once:
    - Vague answers = implementation guesswork
 
 2. **Always `cd .worktrees/001-feature`**
-   - Slash commands need feature context
+   - Slash commands need mission context
    - Dashboard needs to know which feature you're in
 
 3. **Use the dashboard**
@@ -547,7 +547,7 @@ Encode your team's quality standards once:
    - Spec takes 5 minutes, saves hours
 
 2. **Work directly on main**
-   - Use feature worktrees
+   - Use mission worktrees
    - Keeps main clean and deployable
 
 3. **Manually edit lane metadata**
@@ -566,7 +566,7 @@ Encode your team's quality standards once:
 
 Spec Kitty uses standard git operations:
 ```bash
-# Commits work in feature branch
+# Commits work in mission branch
 cd .worktrees/001-feature
 git commit -m "Implement WP03"
 
@@ -600,7 +600,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 ### Dashboard Performance
 
 - Updates every 1-2 seconds
-- Handles 100+ work packages across all features
+- Handles 100+ work packages across all missions
 - WebSocket-based live updates (no polling overhead)
 
 ---

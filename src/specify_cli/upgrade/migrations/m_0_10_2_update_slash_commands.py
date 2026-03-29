@@ -13,9 +13,9 @@ from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 class UpdateSlashCommandsMigration(BaseMigration):
     """Update all agent slash commands to use Python CLI and flat tasks/ structure.
 
-    This migration addresses two critical issues from feature 008 and 007:
-    1. Slash commands still referenced deleted bash scripts (feature 008 bug)
-    2. Slash commands instructed agents to create subdirectories (feature 007 violation)
+    This migration addresses two critical issues from mission 008 and 007:
+    1. Slash commands still referenced deleted bash scripts (mission 008 bug)
+    2. Slash commands instructed agents to create subdirectories (mission 007 violation)
 
     This migration:
     1. Detects if slash commands have old bash script references
@@ -47,7 +47,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
                     return True
                 if ".kittify/scripts/powershell/" in content or "scripts/powershell/" in content:
                     return True
-                # Check for subdirectory violations (feature 007)
+                # Check for subdirectory violations (mission 007)
                 if "tasks/planned/" in content or "tasks/doing/" in content:  # noqa: SIM102
                     # Exclude "WRONG" examples
                     if "WRONG" not in content or content.count("tasks/planned/") > 2:
@@ -138,7 +138,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
         if total_updated > 0:
             changes.append(f"Total: Updated {total_updated} slash commands from {mission_name} mission")
             changes.append("Slash commands now use Python CLI (no bash scripts)")
-            changes.append("Slash commands now enforce flat tasks/ structure (feature 007)")
+            changes.append("Slash commands now enforce flat tasks/ structure (mission 007)")
 
         commands_dir = project_path / ".kittify" / "commands"
         if commands_dir.exists():

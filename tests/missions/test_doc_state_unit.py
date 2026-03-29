@@ -23,10 +23,10 @@ pytestmark = pytest.mark.fast
 
 
 _VALID_META_BASE: dict = {
-    "feature_number": "001",
+    "mission_number": "001",
     "slug": "001-test",
-    "feature_slug": "001-test",
-    "friendly_name": "Test Feature",
+    "mission_slug": "001-test",
+    "friendly_name": "Test Mission",
     "mission": "documentation",
     "target_branch": "main",
     "created_at": "2026-01-01T00:00:00+00:00",

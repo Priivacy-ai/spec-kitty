@@ -1,0 +1,13 @@
+schema_version: "1.0"
+key: software-dev
+name: Software Development
+orchestration:
+  states:
+    - id: planned
+      agent-profile: "Planner_Profile"
+  transitions:
+    - from: planned
+      to: doing
+      on: implement
+  guards: []
+  required_artifacts: [spec.md]

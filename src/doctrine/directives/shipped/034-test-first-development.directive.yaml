@@ -1,0 +1,26 @@
+schema_version: "1.0"
+id: DIRECTIVE_034
+title: Test-First Development
+intent: >
+  Require test-first behavior across acceptance and implementation layers,
+  selecting tactics based on scope and risk. Tests define the contract
+  before production code is written.
+tactic_refs:
+  - acceptance-test-first
+  - tdd-red-green-refactor
+  - zombies-tdd
+enforcement: required
+scope: >
+  Applies to all implementation work that produces executable behavior —
+  new features, bug fixes, and refactoring that changes observable output.
+procedures:
+  - Write a failing test that captures the intended behavior before writing production code.
+  - Select the appropriate test-first tactic based on scope — acceptance-test-first for feature boundaries, tdd-red-green-refactor for unit-level iteration, zombies-tdd for incremental case discovery.
+  - Keep the red-green-refactor cycle short — each cycle should take minutes, not hours.
+  - When fixing a bug, write a reproduction test first that fails, then apply the fix.
+integrity_rules:
+  - Production code must not be written ahead of a failing test that motivates it.
+  - Skipping the test-first cycle requires explicit justification in the commit or PR.
+validation_criteria:
+  - Each new behavior has a corresponding test that was written before the production code.
+  - Bug fixes include a regression test that fails without the fix.

@@ -12,13 +12,14 @@ from . import constitution as constitution_module
 from . import context as context_module
 from . import dashboard as dashboard_module
 from . import doctor as doctor_module
+from . import doctrine as doctrine_module
 from . import glossary as glossary_module
 from . import implement as implement_module
 from . import lifecycle as lifecycle_module
 from . import merge as merge_module
 from . import migrate_cmd as migrate_module
 from . import next_cmd as next_cmd_module
-from . import mission as mission_module
+from . import mission_type as mission_type_module
 from . import ops as ops_module
 from specify_cli import orchestrator_api as orchestrator_api_module
 from . import repair as repair_module
@@ -46,6 +47,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(context_module.app, name="context")
     app.command()(dashboard_module.dashboard)
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
+    app.add_typer(doctrine_module.app, name="doctrine", help="Doctrine artifact curation")
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
     app.command()(lifecycle_module.specify)
@@ -54,7 +56,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(merge_module.merge)
     app.command()(migrate_module.migrate)
     app.command(name="next")(next_cmd_module.next_step)
-    app.add_typer(mission_module.app, name="mission")
+    app.add_typer(mission_type_module.app, name="mission-type")
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
@@ -63,7 +65,7 @@ def register_commands(app: typer.Typer) -> None:
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
     app.command()(upgrade_module.upgrade)
-    app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
+    app.command(name="list-legacy-worktrees")(upgrade_module.list_legacy_worktrees)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)

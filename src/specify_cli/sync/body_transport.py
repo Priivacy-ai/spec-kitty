@@ -71,12 +71,10 @@ def _build_request_body(task: BodyUploadTask) -> dict[str, Any]:
     """
     return {
         "project_uuid": task.project_uuid,
-        "feature_slug": task.feature_slug,
+        "mission_slug": task.mission_slug,
         "target_branch": task.target_branch,
         "mission_key": task.mission_key,
         "manifest_version": task.manifest_version,
-        # TODO: Remove mission_slug once SaaS accepts mission_key directly
-        "mission_slug": task.mission_key,
         "artifact_path": task.artifact_path,
         "content_hash": task.content_hash,
         "hash_algorithm": task.hash_algorithm,

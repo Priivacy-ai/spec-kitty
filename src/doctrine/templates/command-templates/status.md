@@ -4,7 +4,7 @@ description: Display kanban board status showing work package progress across la
 
 ## Status Board
 
-Show the current status of all work packages in the active feature. This displays:
+Show the current status of all work packages in the active mission. This displays:
 
 - Kanban board with WPs organized by lane
 - Progress bar showing completion percentage
@@ -26,10 +26,10 @@ Run the CLI command to display the status board:
 spec-kitty agent tasks status
 ```
 
-To specify a feature explicitly:
+To specify a mission explicitly:
 
 ```bash
-spec-kitty agent tasks status --feature 012-documentation-mission
+spec-kitty agent tasks status --mission 012-documentation-mission
 ```
 
 The command displays a rich kanban board with:
@@ -45,10 +45,10 @@ For programmatic access (e.g., in Jupyter notebooks or scripts), use the Python 
 ```python
 from specify_cli.agent_utils.status import show_kanban_status
 
-# Auto-detect feature from current directory/branch
+# Auto-detect mission from current directory/branch
 result = show_kanban_status()
 
-# Or specify feature explicitly:
+# Or specify mission explicitly:
 # result = show_kanban_status("012-documentation-mission")
 ```
 
@@ -56,7 +56,7 @@ Returns structured data:
 
 ```python
 {
-    'feature_slug': '012-documentation-mission',
+    'mission_slug': '012-documentation-mission',
     'progress_percentage': 80.0,
     'done_count': 8,
     'total_wps': 10,

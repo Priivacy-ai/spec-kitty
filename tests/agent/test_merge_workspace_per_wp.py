@@ -60,7 +60,7 @@ def workspace_per_wp_repo(git_repo: Path) -> Path:
     # Create 3 WP workspaces
     for wp_num in [1, 2, 3]:
         wp_id = f"WP{wp_num:02d}"
-        branch_name = f"010-test-feature-{wp_id}"
+        branch_name = f"010-test-mission-{wp_id}"
         worktree_path = worktrees_dir / branch_name
 
         # Create worktree
@@ -90,7 +90,7 @@ class TestDetectWorktreeStructure:
 
     def test_detects_workspace_per_wp(self, workspace_per_wp_repo: Path):
         """Test detecting workspace-per-WP structure."""
-        structure = detect_worktree_structure(workspace_per_wp_repo, "010-test-feature")
+        structure = detect_worktree_structure(workspace_per_wp_repo, "010-test-mission")
         assert structure == "workspace-per-wp"
 
 
@@ -98,8 +98,8 @@ class TestFindWpWorktrees:
     """Tests for find_wp_worktrees function."""
 
     def test_finds_all_wp_worktrees(self, workspace_per_wp_repo: Path):
-        """Test finding all WP worktrees for a feature."""
-        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+        """Test finding all WP worktrees for a mission."""
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-mission")
 
         assert len(wp_workspaces) == 3
 
@@ -109,9 +109,9 @@ class TestFindWpWorktrees:
         assert wp_workspaces[2][1] == "WP03"
 
         # Check branch names
-        assert wp_workspaces[0][2] == "010-test-feature-WP01"
-        assert wp_workspaces[1][2] == "010-test-feature-WP02"
-        assert wp_workspaces[2][2] == "010-test-feature-WP03"
+        assert wp_workspaces[0][2] == "010-test-mission-WP01"
+        assert wp_workspaces[1][2] == "010-test-mission-WP02"
+        assert wp_workspaces[2][2] == "010-test-mission-WP03"
 
     def test_returns_empty_for_no_worktrees(self, git_repo: Path):
         """Test returns empty list when no worktrees found."""
@@ -124,25 +124,25 @@ class TestValidateWpReadyForMerge:
 
     def test_validates_clean_worktree(self, workspace_per_wp_repo: Path):
         """Test validating a clean worktree."""
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
-        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-mission-WP01")
         assert is_valid is True
         assert error_msg == ""
 
     def test_detects_uncommitted_changes(self, workspace_per_wp_repo: Path):
         """Test detecting uncommitted changes in worktree."""
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
 
         # Make uncommitted changes
         (worktree_path / "uncommitted.txt").write_text("uncommitted\n")
 
-        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-feature-WP01")
+        is_valid, error_msg = validate_wp_ready_for_merge(workspace_per_wp_repo, worktree_path, "010-test-mission-WP01")
         assert is_valid is False
         assert "uncommitted changes" in error_msg
 
     def test_detects_missing_branch(self, workspace_per_wp_repo: Path):
         """Test detecting missing branch."""
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
 
         is_valid, error_msg = validate_wp_ready_for_merge(
             workspace_per_wp_repo, worktree_path, "999-nonexistent-branch"
@@ -163,14 +163,14 @@ class TestDetectWorktreeFromWithinWorktree:
         (no .worktrees/), so detect_worktree_structure() must find main repo.
         """
         # Simulate being in a worktree by passing worktree path
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
-        structure = detect_worktree_structure(worktree_path, "010-test-feature")
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
+        structure = detect_worktree_structure(worktree_path, "010-test-mission")
         assert structure == "workspace-per-wp"
 
     def test_finds_wp_worktrees_from_worktree(self, workspace_per_wp_repo: Path):
         """Test finding WP worktrees when called from within a WP worktree."""
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
-        wp_workspaces = find_wp_worktrees(worktree_path, "010-test-feature")
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
+        wp_workspaces = find_wp_worktrees(worktree_path, "010-test-mission")
 
         assert len(wp_workspaces) == 3
         assert wp_workspaces[0][1] == "WP01"
@@ -182,7 +182,7 @@ class TestMixedStructureDetection:
     """Tests for mixed structure detection (both legacy and WP worktrees).
 
     This addresses High Issue 2 from review feedback:
-    In mixed structures (both .worktrees/feature and .worktrees/feature-WP##),
+    In mixed structures (both .worktrees/mission and .worktrees/mission-WP##),
     workspace-per-WP should take precedence if any WP worktrees exist.
     """
 
@@ -192,12 +192,12 @@ class TestMixedStructureDetection:
         worktrees_dir.mkdir()
 
         # Create legacy worktree
-        legacy_path = worktrees_dir / "010-mixed-feature"
+        legacy_path = worktrees_dir / "010-mixed-mission"
         legacy_path.mkdir()
 
         # Create WP worktrees
         for wp_num in [1, 2]:
-            wp_branch = f"010-mixed-feature-WP{wp_num:02d}"
+            wp_branch = f"010-mixed-mission-WP{wp_num:02d}"
             worktree_path = worktrees_dir / wp_branch
             subprocess.run(
                 ["git", "worktree", "add", str(worktree_path), "-b", wp_branch],
@@ -207,7 +207,7 @@ class TestMixedStructureDetection:
             )
 
         # Detection should return workspace-per-wp (not legacy)
-        structure = detect_worktree_structure(git_repo, "010-mixed-feature")
+        structure = detect_worktree_structure(git_repo, "010-mixed-mission")
         assert structure == "workspace-per-wp"
 
 
@@ -239,14 +239,14 @@ class TestWorkspacePerWpMergeIntegration:
         tracker.add("branch", "Delete branches")
 
         # Find WP workspaces
-        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-mission")
 
         # Call execute_merge in dry_run mode to test detection
         # This validates all the critical logic without needing a remote
         result = execute_merge(
             wp_workspaces=wp_workspaces,
-            feature_slug="010-test-feature",
-            feature_dir=None,  # No kitty-specs in test repo
+            mission_slug="010-test-mission",
+            mission_dir=None,  # No kitty-specs in test repo
             target_branch="main",
             strategy="merge",
             repo_root=workspace_per_wp_repo,
@@ -277,7 +277,7 @@ class TestWorkspacePerWpMergeIntegration:
         from specify_cli.merge.executor import execute_merge
 
         # Simulate being in a worktree
-        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
+        worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-mission-WP01"
 
         tracker = StepTracker("Test Merge from Worktree")
         tracker.add("preflight", "Pre-flight validation")
@@ -289,14 +289,14 @@ class TestWorkspacePerWpMergeIntegration:
         tracker.add("branch", "Delete branches")
 
         # Find WP workspaces (this function uses get_main_repo_root internally)
-        wp_workspaces = find_wp_worktrees(worktree_path, "010-test-feature")
+        wp_workspaces = find_wp_worktrees(worktree_path, "010-test-mission")
 
         # Call execute_merge from worktree context
         # This is the key test: repo_root is a worktree, not main repo
         result = execute_merge(
             wp_workspaces=wp_workspaces,
-            feature_slug="010-test-feature",
-            feature_dir=None,  # No kitty-specs in test repo
+            mission_slug="010-test-mission",
+            mission_dir=None,  # No kitty-specs in test repo
             target_branch="main",
             strategy="merge",
             repo_root=workspace_per_wp_repo,  # Main repo for git operations
@@ -338,7 +338,7 @@ class TestWorkspacePerWpMergeIntegration:
 
         # Merge each WP branch
         for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            branch_name = f"010-test-mission-WP{wp_num:02d}"
             subprocess.run(
                 ["git", "merge", "--no-ff", branch_name, "-m", f"Merge WP{wp_num:02d}"],
                 cwd=workspace_per_wp_repo,
@@ -367,7 +367,7 @@ class TestWorkspacePerWpMergeIntegration:
         """Test that worktree cleanup removes all WP worktrees."""
         # Remove worktrees
         for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            branch_name = f"010-test-mission-WP{wp_num:02d}"
             worktree_path = workspace_per_wp_repo / ".worktrees" / branch_name
 
             subprocess.run(
@@ -393,9 +393,9 @@ class TestEffectiveMergePlanning:
         worktrees_dir = git_repo / ".worktrees"
         worktrees_dir.mkdir()
 
-        wp01 = "020-linear-feature-WP01"
-        wp02 = "020-linear-feature-WP02"
-        wp03 = "020-linear-feature-WP03"
+        wp01 = "020-linear-mission-WP01"
+        wp02 = "020-linear-mission-WP02"
+        wp03 = "020-linear-mission-WP03"
 
         wt01 = worktrees_dir / wp01
         subprocess.run(
@@ -430,10 +430,10 @@ class TestEffectiveMergePlanning:
         subprocess.run(["git", "add", "."], cwd=wt03, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "wp03"], cwd=wt03, check=True, capture_output=True)
 
-        wp_workspaces = find_wp_worktrees(git_repo, "020-linear-feature")
+        wp_workspaces = find_wp_worktrees(git_repo, "020-linear-mission")
         plan = _build_workspace_per_wp_merge_plan(
             git_repo,
-            "020-linear-feature",
+            "020-linear-mission",
             target_branch,
             wp_workspaces,
         )
@@ -495,10 +495,10 @@ class TestEffectiveMergePlanning:
             text=True,
         ).stdout.strip()
 
-        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-mission")
         plan = _build_workspace_per_wp_merge_plan(
             workspace_per_wp_repo,
-            "010-test-feature",
+            "010-test-mission",
             target_branch,
             wp_workspaces,
         )
@@ -527,7 +527,7 @@ class TestEffectiveMergePlanning:
         )
 
         for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            branch_name = f"010-test-mission-WP{wp_num:02d}"
             subprocess.run(
                 ["git", "merge", "--no-ff", branch_name, "-m", f"Merge WP{wp_num:02d}"],
                 cwd=workspace_per_wp_repo,
@@ -537,7 +537,7 @@ class TestEffectiveMergePlanning:
 
         # Remove worktrees first (required before deleting branches)
         for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            branch_name = f"010-test-mission-WP{wp_num:02d}"
             worktree_path = workspace_per_wp_repo / ".worktrees" / branch_name
             subprocess.run(
                 ["git", "worktree", "remove", str(worktree_path), "--force"],
@@ -548,7 +548,7 @@ class TestEffectiveMergePlanning:
 
         # Delete branches
         for wp_num in [1, 2, 3]:
-            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            branch_name = f"010-test-mission-WP{wp_num:02d}"
             subprocess.run(
                 ["git", "branch", "-d", branch_name],
                 cwd=workspace_per_wp_repo,
@@ -564,8 +564,8 @@ class TestEffectiveMergePlanning:
             text=True,
             check=True,
         )
-        assert "010-test-feature-WP01" not in result.stdout
-        assert "010-test-feature-WP02" not in result.stdout
-        assert "010-test-feature-WP03" not in result.stdout
+        assert "010-test-mission-WP01" not in result.stdout
+        assert "010-test-mission-WP02" not in result.stdout
+        assert "010-test-mission-WP03" not in result.stdout
 
 

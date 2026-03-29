@@ -25,9 +25,9 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 _VALID_META_BASE = {
-    "feature_number": "001",
+    "mission_number": "001",
     "slug": "001-test",
-    "feature_slug": "001-test",
+    "mission_slug": "001-test",
     "friendly_name": "Test",
     "mission": "documentation",
     "target_branch": "main",
@@ -117,9 +117,9 @@ def test_update_documentation_state(tmp_path):
 
 
 # Test backward compatibility
-def test_ensure_state_for_old_feature(tmp_path):
-    """Test migration adds state to old features."""
-    # Old feature without documentation_state
+def test_ensure_state_for_old_mission(tmp_path):
+    """Test migration adds state to old missions."""
+    # Old mission without documentation_state
     meta_file = _write_meta(tmp_path)
 
     ensure_documentation_state(meta_file)
@@ -333,7 +333,7 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
 def test_original_fields_preserved_after_state_update(tmp_path):
     """Test original meta.json fields are preserved."""
     meta_file = _write_meta(tmp_path, extra={
-        "feature_number": "012",
+        "mission_number": "012",
         "custom_field": "custom_value",
     })
 
@@ -349,7 +349,7 @@ def test_original_fields_preserved_after_state_update(tmp_path):
         meta = json.load(f)
 
     # Original fields should still exist
-    assert meta["feature_number"] == "012"
+    assert meta["mission_number"] == "012"
     assert meta["mission"] == "documentation"
     assert meta["created_at"] == "2026-01-01T00:00:00+00:00"
     assert meta["custom_field"] == "custom_value"

@@ -22,7 +22,7 @@ def _make_task(
     return BodyUploadTask(
         row_id=row_id,
         project_uuid="proj-uuid",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
         mission_key="software-dev",
         manifest_version="1",
@@ -48,7 +48,7 @@ def _enqueue_task(
 
     ns = NamespaceRef(
         project_uuid="proj-uuid",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
         mission_key="software-dev",
         manifest_version="1",

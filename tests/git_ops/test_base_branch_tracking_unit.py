@@ -23,6 +23,9 @@ from specify_cli.workspace_context import (
     load_context,
     save_context,
 )
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 class TestWorkspaceContext:
@@ -32,10 +35,10 @@ class TestWorkspaceContext:
         """Test context serialization to dict."""
         context = WorkspaceContext(
             wp_id="WP02",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP02",
-            branch_name="010-feature-WP02",
-            base_branch="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP02",
+            branch_name="010-mission-WP02",
+            base_branch="010-mission-WP01",
             base_commit="abc123def456",
             dependencies=["WP01"],
             created_at="2026-01-23T10:00:00Z",
@@ -46,7 +49,7 @@ class TestWorkspaceContext:
         data = context.to_dict()
 
         assert data["wp_id"] == "WP02"
-        assert data["base_branch"] == "010-feature-WP01"
+        assert data["base_branch"] == "010-mission-WP01"
         assert data["base_commit"] == "abc123def456"
         assert data["dependencies"] == ["WP01"]
 
@@ -54,10 +57,10 @@ class TestWorkspaceContext:
         """Test context deserialization from dict."""
         data = {
             "wp_id": "WP02",
-            "feature_slug": "010-feature",
-            "worktree_path": ".worktrees/010-feature-WP02",
-            "branch_name": "010-feature-WP02",
-            "base_branch": "010-feature-WP01",
+            "mission_slug": "010-mission",
+            "worktree_path": ".worktrees/010-mission-WP02",
+            "branch_name": "010-mission-WP02",
+            "base_branch": "010-mission-WP01",
             "base_commit": "abc123def456",
             "dependencies": ["WP01"],
             "created_at": "2026-01-23T10:00:00Z",
@@ -68,16 +71,16 @@ class TestWorkspaceContext:
         context = WorkspaceContext.from_dict(data)
 
         assert context.wp_id == "WP02"
-        assert context.base_branch == "010-feature-WP01"
+        assert context.base_branch == "010-mission-WP01"
         assert context.dependencies == ["WP01"]
 
     def test_context_roundtrip(self):
         """Test serialization and deserialization roundtrip."""
         original = WorkspaceContext(
             wp_id="WP03",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP03",
-            branch_name="010-feature-WP03",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP03",
+            branch_name="010-mission-WP03",
             base_branch="main",
             base_commit="fedcba987654",
             dependencies=[],
@@ -101,7 +104,7 @@ class TestWorkspaceContextPersistence:
         # Create context
         context = WorkspaceContext(
             wp_id="WP01",
-            feature_slug="015-jj-integration",
+            mission_slug="015-jj-integration",
             worktree_path=".worktrees/015-jj-integration-WP01",
             branch_name="015-jj-integration-WP01",
             base_branch="main",
@@ -151,9 +154,9 @@ class TestWorkspaceContextPersistence:
         # Create context
         context = WorkspaceContext(
             wp_id="WP01",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP01",
-            branch_name="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP01",
+            branch_name="010-mission-WP01",
             base_branch="main",
             base_commit="abc123",
             dependencies=[],
@@ -165,15 +168,15 @@ class TestWorkspaceContextPersistence:
         save_context(tmp_path, context)
 
         # Delete context
-        deleted = delete_context(tmp_path, "010-feature-WP01")
+        deleted = delete_context(tmp_path, "010-mission-WP01")
         assert deleted is True
 
         # Verify deleted
-        loaded = load_context(tmp_path, "010-feature-WP01")
+        loaded = load_context(tmp_path, "010-mission-WP01")
         assert loaded is None
 
         # Delete again (should return False)
-        deleted_again = delete_context(tmp_path, "010-feature-WP01")
+        deleted_again = delete_context(tmp_path, "010-mission-WP01")
         assert deleted_again is False
 
     def test_list_contexts(self, tmp_path: Path):
@@ -182,10 +185,10 @@ class TestWorkspaceContextPersistence:
         contexts = [
             WorkspaceContext(
                 wp_id=f"WP0{i}",
-                feature_slug="010-feature",
-                worktree_path=f".worktrees/010-feature-WP0{i}",
-                branch_name=f"010-feature-WP0{i}",
-                base_branch="main" if i == 1 else f"010-feature-WP0{i-1}",
+                mission_slug="010-mission",
+                worktree_path=f".worktrees/010-mission-WP0{i}",
+                branch_name=f"010-mission-WP0{i}",
+                base_branch="main" if i == 1 else f"010-mission-WP0{i-1}",
                 base_commit=f"commit{i}",
                 dependencies=[] if i == 1 else [f"WP0{i-1}"],
                 created_at="2026-01-23T10:00:00Z",
@@ -202,7 +205,7 @@ class TestWorkspaceContextPersistence:
         loaded_contexts = list_contexts(tmp_path)
 
         assert len(loaded_contexts) == 3
-        assert all(ctx.feature_slug == "010-feature" for ctx in loaded_contexts)
+        assert all(ctx.mission_slug == "010-mission" for ctx in loaded_contexts)
 
     def test_list_contexts_empty(self, tmp_path: Path):
         """Test listing contexts when none exist."""
@@ -218,9 +221,9 @@ class TestOrphanedContexts:
         # Create context for non-existent workspace
         context = WorkspaceContext(
             wp_id="WP01",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP01",
-            branch_name="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP01",
+            branch_name="010-mission-WP01",
             base_branch="main",
             base_commit="abc123",
             dependencies=[],
@@ -235,21 +238,21 @@ class TestOrphanedContexts:
         orphaned = find_orphaned_contexts(tmp_path)
 
         assert len(orphaned) == 1
-        assert orphaned[0][0] == "010-feature-WP01"
+        assert orphaned[0][0] == "010-mission-WP01"
         assert orphaned[0][1].wp_id == "WP01"
 
     def test_find_orphaned_with_existing_workspace(self, tmp_path: Path):
         """Test that existing workspaces are not considered orphaned."""
         # Create worktree directory
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree_path = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree_path.mkdir(parents=True, exist_ok=True)
 
         # Create context
         context = WorkspaceContext(
             wp_id="WP01",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP01",
-            branch_name="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP01",
+            branch_name="010-mission-WP01",
             base_branch="main",
             base_commit="abc123",
             dependencies=[],
@@ -271,9 +274,9 @@ class TestOrphanedContexts:
         for i in range(1, 4):
             context = WorkspaceContext(
                 wp_id=f"WP0{i}",
-                feature_slug="010-feature",
-                worktree_path=f".worktrees/010-feature-WP0{i}",
-                branch_name=f"010-feature-WP0{i}",
+                mission_slug="010-mission",
+                worktree_path=f".worktrees/010-mission-WP0{i}",
+                branch_name=f"010-mission-WP0{i}",
                 base_branch="main",
                 base_commit=f"commit{i}",
                 dependencies=[],
@@ -342,7 +345,7 @@ class TestBaseBranchInFrontmatter:
 
         # Update with base tracking
         update_fields(wp_file, {
-            "base_branch": "010-feature-WP01",
+            "base_branch": "010-mission-WP01",
             "base_commit": "abc123def456",
             "created_at": "2026-01-23T10:00:00Z",
         })
@@ -350,7 +353,7 @@ class TestBaseBranchInFrontmatter:
         # Read and verify
         updated_frontmatter, _ = read_frontmatter(wp_file)
 
-        assert updated_frontmatter["base_branch"] == "010-feature-WP01"
+        assert updated_frontmatter["base_branch"] == "010-mission-WP01"
         assert updated_frontmatter["base_commit"] == "abc123def456"
         assert updated_frontmatter["created_at"] == "2026-01-23T10:00:00Z"
 
@@ -365,7 +368,7 @@ class TestBaseBranchInFrontmatter:
             "title": "Write Documentation",
             "lane": "doing",
             "dependencies": ["WP02"],
-            "base_branch": "010-feature-WP02",
+            "base_branch": "010-mission-WP02",
             "base_commit": "fedcba987654",
             "created_at": "2026-01-23T11:00:00Z",
         }
@@ -378,7 +381,7 @@ class TestBaseBranchInFrontmatter:
         base_commit = get_field(wp_file, "base_commit")
         created_at = get_field(wp_file, "created_at")
 
-        assert base_branch == "010-feature-WP02"
+        assert base_branch == "010-mission-WP02"
         assert base_commit == "fedcba987654"
         assert created_at == "2026-01-23T11:00:00Z"
 
@@ -389,16 +392,16 @@ class TestIntegrationBaseBranchTracking:
     def test_context_file_readable_from_worktree(self, tmp_path: Path):
         """Test that context file is readable from worktree via relative path."""
         # Create workspace directory structure
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-mission-WP02"
         worktree_path.mkdir(parents=True, exist_ok=True)
 
         # Save context in main repo
         context = WorkspaceContext(
             wp_id="WP02",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP02",
-            branch_name="010-feature-WP02",
-            base_branch="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP02",
+            branch_name="010-mission-WP02",
+            base_branch="010-mission-WP01",
             base_commit="abc123",
             dependencies=["WP01"],
             created_at="2026-01-23T10:00:00Z",
@@ -409,20 +412,20 @@ class TestIntegrationBaseBranchTracking:
         save_context(tmp_path, context)
 
         # From worktree, access context via ../../.kittify/workspaces/
-        context_from_worktree = worktree_path / ".." / ".." / ".kittify" / "workspaces" / "010-feature-WP02.json"
+        context_from_worktree = worktree_path / ".." / ".." / ".kittify" / "workspaces" / "010-mission-WP02.json"
         assert context_from_worktree.exists()
 
         # Read and verify
         data = json.loads(context_from_worktree.read_text(encoding="utf-8"))
         assert data["wp_id"] == "WP02"
-        assert data["base_branch"] == "010-feature-WP01"
+        assert data["base_branch"] == "010-mission-WP01"
 
     def test_frontmatter_and_context_consistency(self, tmp_path: Path):
         """Test that frontmatter and context have consistent base tracking."""
         from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 
         # Create WP file with base tracking
-        wp_file = tmp_path / "kitty-specs" / "010-feature" / "tasks" / "WP02-api.md"
+        wp_file = tmp_path / "kitty-specs" / "010-mission" / "tasks" / "WP02-api.md"
         wp_file.parent.mkdir(parents=True, exist_ok=True)
 
         frontmatter = {
@@ -430,7 +433,7 @@ class TestIntegrationBaseBranchTracking:
             "title": "Build API",
             "lane": "doing",
             "dependencies": ["WP01"],
-            "base_branch": "010-feature-WP01",
+            "base_branch": "010-mission-WP01",
             "base_commit": "abc123def456",
             "created_at": "2026-01-23T10:00:00Z",
         }
@@ -441,10 +444,10 @@ class TestIntegrationBaseBranchTracking:
         # Create matching workspace context
         context = WorkspaceContext(
             wp_id="WP02",
-            feature_slug="010-feature",
-            worktree_path=".worktrees/010-feature-WP02",
-            branch_name="010-feature-WP02",
-            base_branch="010-feature-WP01",
+            mission_slug="010-mission",
+            worktree_path=".worktrees/010-mission-WP02",
+            branch_name="010-mission-WP02",
+            base_branch="010-mission-WP01",
             base_commit="abc123def456",
             dependencies=["WP01"],
             created_at="2026-01-23T10:00:00Z",
@@ -456,7 +459,7 @@ class TestIntegrationBaseBranchTracking:
 
         # Read and verify consistency
         fm, _ = read_frontmatter(wp_file)
-        loaded_ctx = load_context(tmp_path, "010-feature-WP02")
+        loaded_ctx = load_context(tmp_path, "010-mission-WP02")
 
         assert fm["base_branch"] == loaded_ctx.base_branch
         assert fm["base_commit"] == loaded_ctx.base_commit

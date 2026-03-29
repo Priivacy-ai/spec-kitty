@@ -35,7 +35,7 @@ def _git_common_dir(repo: Path) -> Path:
 
 
 def _wp_path(repo: Path) -> Path:
-    return repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
+    return repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP01-test-task.md"
 
 
 def _write_wp(
@@ -83,13 +83,13 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
 
     (repo / ".kittify").mkdir()
 
-    feature_slug = "001-test-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    mission_slug = "001-test-mission"
+    mission_dir = repo / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
 
-    feedback_rel = "001-test-feature/WP01/20260227T120000Z-ab12cd34.md"
+    feedback_rel = "001-test-mission/WP01/20260227T120000Z-ab12cd34.md"
     feedback_pointer = f"feedback://{feedback_rel}"
     feedback_file = _git_common_dir(repo) / "spec-kitty" / "feedback" / feedback_rel
     feedback_file.parent.mkdir(parents=True, exist_ok=True)
@@ -102,7 +102,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
         review_feedback=feedback_pointer,
     )
 
-    workspace = repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace = repo / ".worktrees" / f"{mission_slug}-WP01"
     workspace.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -118,7 +118,7 @@ def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, 
 
     result = runner.invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", "001-test-mission", "--agent", "test-agent"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -159,7 +159,7 @@ def test_resolve_feedback_pointer_handles_blank_and_legacy_missing(tmp_path: Pat
         assert (
             workflow._resolve_review_feedback_pointer(
                 repo,
-                "feedback://001-test-feature/WP01/file.md",
+                "feedback://001-test-mission/WP01/file.md",
             )
             is None
         )
@@ -178,7 +178,7 @@ def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workfl
     feedback_file.unlink()
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["implement", "WP01", "--mission", "001-test-mission"])
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
@@ -199,7 +199,7 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     )
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["implement", "WP01", "--mission", "001-test-mission"])
 
     assert result.exit_code == 0, result.stdout
     assert "Has review feedback - but no review_feedback reference is set" in result.stdout
@@ -220,7 +220,7 @@ def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_
     )
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", "001-test-feature"])
+    result = runner.invoke(workflow.app, ["review", "WP01", "--mission", "001-test-mission"])
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"

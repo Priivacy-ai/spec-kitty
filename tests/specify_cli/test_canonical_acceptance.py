@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from specify_cli.acceptance import collect_feature_summary
-from specify_cli.feature_metadata import load_meta, record_acceptance
+from specify_cli.acceptance import collect_mission_summary
+from specify_cli.mission_metadata import load_meta, record_acceptance
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -28,10 +28,10 @@ from specify_cli.status.store import append_event
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
     return {
-        "feature_number": "099",
-        "slug": "099-test-feature",
-        "feature_slug": "099-test-feature",
-        "friendly_name": "Test Feature",
+        "mission_number": "099",
+        "slug": "099-test-mission",
+        "mission_slug": "099-test-mission",
+        "friendly_name": "Test Mission",
         "mission": "software-dev",
         "target_branch": "main",
         "created_at": "2026-03-18T00:00:00+00:00",
@@ -39,7 +39,7 @@ def _minimal_meta() -> dict[str, Any]:
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -50,7 +50,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -100,9 +100,9 @@ def _write_wp_file(
     return wp_path
 
 
-def _setup_feature(
+def _setup_mission(
     tmp_path: Path,
-    feature_slug: str = "099-test-feature",
+    mission_slug: str = "099-test-mission",
     wp_ids: list[str] | None = None,
     *,
     all_done: bool = True,
@@ -111,23 +111,23 @@ def _setup_feature(
     activity_log_lane: str | None = None,
     wp_lanes: dict[str, str] | None = None,
 ) -> Path:
-    """Scaffold a complete feature directory for testing.
+    """Scaffold a complete mission directory for testing.
 
-    Returns the feature directory path.
+    Returns the mission directory path.
     """
     if wp_ids is None:
         wp_ids = ["WP01", "WP02"]
 
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True)
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True)
+    tasks_dir = mission_dir / "tasks"
 
     # Write meta.json
     meta = _minimal_meta()
-    meta["feature_number"] = feature_slug.split("-")[0]
-    meta["slug"] = feature_slug
-    meta["feature_slug"] = feature_slug
-    meta_path = feature_dir / "meta.json"
+    meta["mission_number"] = mission_slug.split("-")[0]
+    meta["slug"] = mission_slug
+    meta["mission_slug"] = mission_slug
+    meta_path = mission_dir / "meta.json"
     meta_path.write_text(
         json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -135,7 +135,7 @@ def _setup_feature(
 
     # Write required artifacts
     for artifact in ["spec.md", "plan.md", "tasks.md"]:
-        (feature_dir / artifact).write_text(
+        (mission_dir / artifact).write_text(
             f"# {artifact}\n\n- [x] All tasks done\n", encoding="utf-8"
         )
 
@@ -173,19 +173,19 @@ def _setup_feature(
             for from_l, to_l in transitions:
                 counter += 1
                 event = _make_event(
-                    feature_slug,
+                    mission_slug,
                     wp_id,
                     from_l,
                     to_l,
                     event_id=f"01TEST{wp_id}{counter:020d}",
                     at=f"2026-03-18T{12 + counter:02d}:00:00+00:00",
                 )
-                append_event(feature_dir, event)
+                append_event(mission_dir, event)
                 # Stop if we've reached the target lane
                 if to_l == target_lane:
                     break
 
-    return feature_dir
+    return mission_dir
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +202,7 @@ class TestCanonicalStateAuthority:
         This is the primary success gate from the WP prompt: canonical state
         is the sole authority for determining WP lane status.
         """
-        _setup_feature(
+        _setup_mission(
             tmp_path,
             all_done=True,
             include_events=True,
@@ -213,9 +213,9 @@ class TestCanonicalStateAuthority:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
@@ -234,7 +234,7 @@ class TestCanonicalStateAuthority:
         drives the lanes dict, so all_done returns True.
         """
         # Frontmatter says for_review, but canonical events say done
-        _setup_feature(
+        _setup_mission(
             tmp_path,
             wp_ids=["WP01", "WP02"],
             include_events=True,
@@ -246,7 +246,7 @@ class TestCanonicalStateAuthority:
         )
 
         # Overwrite WP files to have frontmatter lane=for_review
-        tasks_dir = tmp_path / "kitty-specs" / "099-test-feature" / "tasks"
+        tasks_dir = tmp_path / "kitty-specs" / "099-test-mission" / "tasks"
         for wp_id in ["WP01", "WP02"]:
             _write_wp_file(
                 tasks_dir,
@@ -259,9 +259,9 @@ class TestCanonicalStateAuthority:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
@@ -284,7 +284,7 @@ class TestCanonicalStateAuthority:
 
         Canonical state must win -- falsified Activity Log is ignored.
         """
-        _setup_feature(
+        _setup_mission(
             tmp_path,
             wp_ids=["WP01", "WP02"],
             include_events=True,
@@ -299,9 +299,9 @@ class TestCanonicalStateAuthority:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
@@ -313,7 +313,7 @@ class TestCanonicalStateAuthority:
 
     def test_acceptance_fails_with_missing_event_log(self, tmp_path: Path) -> None:
         """No status.events.jsonl -- explicit error, not Activity Log fallback."""
-        _setup_feature(
+        _setup_mission(
             tmp_path,
             all_done=True,
             include_events=False,  # No event log
@@ -323,9 +323,9 @@ class TestCanonicalStateAuthority:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
@@ -341,7 +341,7 @@ class TestCanonicalStateAuthority:
 
     def test_wp_with_no_events_reports_no_canonical_state(self, tmp_path: Path) -> None:
         """WP exists in task files but has no events in the log."""
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
             wp_ids=["WP01", "WP02"],
             include_events=False,
@@ -357,18 +357,18 @@ class TestCanonicalStateAuthority:
             ("approved", "done"),
         ], start=1):
             event = _make_event(
-                "099-test-feature", "WP01", from_l, to_l,
+                "099-test-mission", "WP01", from_l, to_l,
                 event_id=f"01TESTWP01{i:020d}",
                 at=f"2026-03-18T{12 + i:02d}:00:00+00:00",
             )
-            append_event(feature_dir, event)
+            append_event(mission_dir, event)
 
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
@@ -385,13 +385,13 @@ class TestCanonicalStateAuthority:
         ), f"WP01 should not have issues, got: {summary.activity_issues}"
 
     def test_acceptance_fails_with_empty_event_log(self, tmp_path: Path) -> None:
-        """Empty status.events.jsonl triggers feature-level error.
+        """Empty status.events.jsonl triggers mission-level error.
 
         If the file exists but is empty, materialize() returns a snapshot with
-        no work_packages. This must produce the same feature-level error as a
+        no work_packages. This must produce the same mission-level error as a
         missing file, not fall through to per-WP messages.
         """
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
             wp_ids=["WP01", "WP02"],
             include_events=False,  # Don't auto-create events
@@ -399,31 +399,31 @@ class TestCanonicalStateAuthority:
         )
 
         # Create an empty status.events.jsonl (file exists but no events)
-        events_file = feature_dir / "status.events.jsonl"
+        events_file = mission_dir / "status.events.jsonl"
         events_file.write_text("", encoding="utf-8")
 
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
-                "099-test-feature",
+                "099-test-mission",
                 strict_metadata=False,
             )
 
-        # Should have the feature-level error, not per-WP messages
+        # Should have the mission-level error, not per-WP messages
         assert any(
             "No canonical state found" in issue
             for issue in summary.activity_issues
-        ), f"Expected feature-level 'No canonical state found' error, got: {summary.activity_issues}"
+        ), f"Expected mission-level 'No canonical state found' error, got: {summary.activity_issues}"
 
-        # Verify it's the feature-level message (mentions feature name), not per-WP
-        feature_level_errors = [
+        # Verify it's the mission-level message (mentions mission name), not per-WP
+        mission_level_errors = [
             issue for issue in summary.activity_issues
-            if "No canonical state found for feature" in issue
+            if "No canonical state found for mission" in issue
         ]
-        assert len(feature_level_errors) >= 1, (
-            f"Expected at least one feature-level error, got: {summary.activity_issues}"
+        assert len(mission_level_errors) >= 1, (
+            f"Expected at least one mission-level error, got: {summary.activity_issues}"
         )
 
 
@@ -432,21 +432,21 @@ class TestOrchestratorParity:
 
     def test_orchestrator_and_standard_acceptance_identical_structure(self, tmp_path: Path) -> None:
         """Both acceptance paths produce the same meta.json fields."""
-        # Setup two identical features
-        feature_std = _setup_feature(
+        # Setup two identical missions
+        mission_std = _setup_mission(
             tmp_path / "standard",
-            feature_slug="099-test-standard",
+            mission_slug="099-test-standard",
             all_done=True,
         )
-        feature_orch = _setup_feature(
+        mission_orch = _setup_mission(
             tmp_path / "orchestrator",
-            feature_slug="099-test-orchestrator",
+            mission_slug="099-test-orchestrator",
             all_done=True,
         )
 
         # Standard acceptance via record_acceptance
         record_acceptance(
-            feature_std,
+            mission_std,
             accepted_by="test-user",
             mode="local",
             from_commit="abc123",
@@ -455,13 +455,13 @@ class TestOrchestratorParity:
 
         # Orchestrator acceptance via record_acceptance
         record_acceptance(
-            feature_orch,
+            mission_orch,
             accepted_by="test-user",
             mode="orchestrator",
         )
 
-        meta_std = load_meta(feature_std)
-        meta_orch = load_meta(feature_orch)
+        meta_std = load_meta(mission_std)
+        meta_orch = load_meta(mission_orch)
 
         assert meta_std is not None
         assert meta_orch is not None
@@ -490,29 +490,29 @@ class TestOrchestratorParity:
 
     def test_orchestrator_acceptance_includes_acceptance_mode(self, tmp_path: Path) -> None:
         """Orchestrator path now sets acceptance_mode (previously missing)."""
-        feature_dir = _setup_feature(tmp_path, all_done=True)
+        mission_dir = _setup_mission(tmp_path, all_done=True)
 
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="orchestrator-bot",
             mode="orchestrator",
         )
 
-        meta = load_meta(feature_dir)
+        meta = load_meta(mission_dir)
         assert meta is not None
         assert meta["acceptance_mode"] == "orchestrator"
 
     def test_record_acceptance_produces_trailing_newline(self, tmp_path: Path) -> None:
         """record_acceptance() writes files with trailing newline (fixes orchestrator bug)."""
-        feature_dir = _setup_feature(tmp_path, all_done=True)
+        mission_dir = _setup_mission(tmp_path, all_done=True)
 
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="test-user",
             mode="orchestrator",
         )
 
-        meta_path = feature_dir / "meta.json"
+        meta_path = mission_dir / "meta.json"
         raw = meta_path.read_text(encoding="utf-8")
         assert raw.endswith("\n"), "meta.json should end with a trailing newline"
         assert not raw.endswith("\n\n"), "meta.json should not have double trailing newlines"
@@ -523,17 +523,17 @@ class TestAcceptanceMetadataWrite:
 
     def test_record_acceptance_sets_all_fields(self, tmp_path: Path) -> None:
         """Standard acceptance with all parameters."""
-        feature_dir = _setup_feature(tmp_path, all_done=True)
+        mission_dir = _setup_mission(tmp_path, all_done=True)
 
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="reviewer",
             mode="pr",
             from_commit="abc123",
             accept_commit="def456",
         )
 
-        meta = load_meta(feature_dir)
+        meta = load_meta(mission_dir)
         assert meta is not None
         assert meta["accepted_by"] == "reviewer"
         assert meta["acceptance_mode"] == "pr"
@@ -544,26 +544,26 @@ class TestAcceptanceMetadataWrite:
 
     def test_record_acceptance_without_commits(self, tmp_path: Path) -> None:
         """Orchestrator mode may not have commit info."""
-        feature_dir = _setup_feature(tmp_path, all_done=True)
+        mission_dir = _setup_mission(tmp_path, all_done=True)
 
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="bot",
             mode="orchestrator",
         )
 
-        meta = load_meta(feature_dir)
+        meta = load_meta(mission_dir)
         assert meta is not None
         assert "accepted_from_commit" not in meta
         assert "accept_commit" not in meta
 
     def test_record_acceptance_clears_stale_commit_fields(self, tmp_path: Path) -> None:
         """Re-acceptance clears stale commit fields from prior run."""
-        feature_dir = _setup_feature(tmp_path, all_done=True)
+        mission_dir = _setup_mission(tmp_path, all_done=True)
 
         # First acceptance with commits
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="user1",
             mode="local",
             from_commit="abc",
@@ -572,12 +572,12 @@ class TestAcceptanceMetadataWrite:
 
         # Second acceptance without commits (orchestrator)
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="user2",
             mode="orchestrator",
         )
 
-        meta = load_meta(feature_dir)
+        meta = load_meta(mission_dir)
         assert meta is not None
         assert meta["accepted_by"] == "user2"
         assert meta["acceptance_mode"] == "orchestrator"
@@ -602,13 +602,13 @@ class TestEndToEndCanonicalAcceptance:
         Validates SC-001 through SC-005 by running the full acceptance flow
         and verifying that:
         1. Canonical state (materialize) determines lane status
-        2. record_acceptance() writes through feature_metadata.py
+        2. record_acceptance() writes through mission_metadata.py
         3. meta.json has standard format (sorted keys, trailing newline)
         4. acceptance_history is populated
         """
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
-            feature_slug="099-e2e-test",
+            mission_slug="099-e2e-test",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,
@@ -619,7 +619,7 @@ class TestEndToEndCanonicalAcceptance:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-e2e-test",
                 strict_metadata=False,
@@ -634,7 +634,7 @@ class TestEndToEndCanonicalAcceptance:
 
         # Step 2: Run record_acceptance() through the single writer
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="e2e-reviewer",
             mode="local",
             from_commit="aaa111",
@@ -642,7 +642,7 @@ class TestEndToEndCanonicalAcceptance:
         )
 
         # Step 3: Verify meta.json standard format
-        meta_path = feature_dir / "meta.json"
+        meta_path = mission_dir / "meta.json"
         raw = meta_path.read_text(encoding="utf-8")
         assert raw.endswith("\n"), "meta.json must end with trailing newline"
         assert not raw.endswith("\n\n"), "meta.json must not have double newline"
@@ -666,9 +666,9 @@ class TestEndToEndCanonicalAcceptance:
 
     def test_e2e_acceptance_no_activity_log_fallback(self, tmp_path: Path) -> None:
         """Acceptance reads canonical state, never falls back to Activity Log."""
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
-            feature_slug="099-no-fallback",
+            mission_slug="099-no-fallback",
             wp_ids=["WP01"],
             all_done=True,
             include_events=True,
@@ -678,7 +678,7 @@ class TestEndToEndCanonicalAcceptance:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-no-fallback",
                 strict_metadata=False,
@@ -690,12 +690,12 @@ class TestEndToEndCanonicalAcceptance:
 
         # Record acceptance succeeds
         record_acceptance(
-            feature_dir,
+            mission_dir,
             accepted_by="bot",
             mode="orchestrator",
         )
 
-        meta = load_meta(feature_dir)
+        meta = load_meta(mission_dir)
         assert meta is not None
         assert meta["accepted_by"] == "bot"
 
@@ -710,9 +710,9 @@ class TestCorruptedCompatibilityViews:
 
     def test_corrupted_activity_log_no_effect(self, tmp_path: Path) -> None:
         """Deleting Activity Log from WP files does not affect acceptance."""
-        _setup_feature(
+        _setup_mission(
             tmp_path,
-            feature_slug="099-corrupted-log",
+            mission_slug="099-corrupted-log",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -722,7 +722,7 @@ class TestCorruptedCompatibilityViews:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-corrupted-log",
                 strict_metadata=False,
@@ -740,9 +740,9 @@ class TestCorruptedCompatibilityViews:
         """
         from specify_cli.status.reducer import materialize as raw_materialize
 
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
-            feature_slug="099-bad-frontmatter",
+            mission_slug="099-bad-frontmatter",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -750,7 +750,7 @@ class TestCorruptedCompatibilityViews:
         )
 
         # Corrupt frontmatter: set lane to 'planned' (should be 'done')
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         for wp_id in ["WP01", "WP02"]:
             _write_wp_file(
                 tasks_dir,
@@ -761,7 +761,7 @@ class TestCorruptedCompatibilityViews:
             )
 
         # materialize() reads from event log, not frontmatter
-        snapshot = raw_materialize(feature_dir)
+        snapshot = raw_materialize(mission_dir)
         for wp_id in ["WP01", "WP02"]:
             assert snapshot.work_packages[wp_id]["lane"] == "done", (
                 f"{wp_id}: materialize() should return 'done' regardless of frontmatter"
@@ -771,7 +771,7 @@ class TestCorruptedCompatibilityViews:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-bad-frontmatter",
                 strict_metadata=False,
@@ -795,9 +795,9 @@ class TestCorruptedCompatibilityViews:
         """
         from specify_cli.status.reducer import materialize as raw_materialize
 
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
-            feature_slug="099-bad-tasks-md",
+            mission_slug="099-bad-tasks-md",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -805,7 +805,7 @@ class TestCorruptedCompatibilityViews:
         )
 
         # Corrupt tasks.md: write garbage status block
-        tasks_md = feature_dir / "tasks.md"
+        tasks_md = mission_dir / "tasks.md"
         tasks_md.write_text(
             "# Tasks\n\n"
             "## Status\n"
@@ -817,7 +817,7 @@ class TestCorruptedCompatibilityViews:
         )
 
         # materialize() should still return correct state
-        snapshot = raw_materialize(feature_dir)
+        snapshot = raw_materialize(mission_dir)
         for wp_id in ["WP01", "WP02"]:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
@@ -825,7 +825,7 @@ class TestCorruptedCompatibilityViews:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-bad-tasks-md",
                 strict_metadata=False,
@@ -843,9 +843,9 @@ class TestCorruptedCompatibilityViews:
         """
         from specify_cli.status.reducer import materialize as raw_materialize
 
-        feature_dir = _setup_feature(
+        mission_dir = _setup_mission(
             tmp_path,
-            feature_slug="099-all-corrupted",
+            mission_slug="099-all-corrupted",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,
@@ -853,7 +853,7 @@ class TestCorruptedCompatibilityViews:
         )
 
         # Corrupt frontmatter: set lane to 'in_progress'
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         for wp_id in ["WP01", "WP02", "WP03"]:
             _write_wp_file(
                 tasks_dir,
@@ -863,12 +863,12 @@ class TestCorruptedCompatibilityViews:
             )
 
         # Corrupt tasks.md completely
-        (feature_dir / "tasks.md").write_text(
+        (mission_dir / "tasks.md").write_text(
             "TOTALLY CORRUPTED FILE\n- [x] done\n", encoding="utf-8"
         )
 
         # Canonical state should be unaffected
-        snapshot = raw_materialize(feature_dir)
+        snapshot = raw_materialize(mission_dir)
         for wp_id in ["WP01", "WP02", "WP03"]:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
@@ -876,7 +876,7 @@ class TestCorruptedCompatibilityViews:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
+            summary = collect_mission_summary(
                 tmp_path,
                 "099-all-corrupted",
                 strict_metadata=False,

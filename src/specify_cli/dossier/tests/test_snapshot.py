@@ -8,12 +8,9 @@ Test coverage:
 - T027: Snapshot equality comparison
 """
 
-import json
 import random
 from datetime import datetime
-from pathlib import Path
 
-import pytest
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
 from specify_cli.dossier.snapshot import (
@@ -32,10 +29,10 @@ class TestComputeSnapshotDeterministic:
     def test_snapshot_computes_without_errors(self):
         """Snapshot should compute without errors for valid dossier."""
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-001",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=[
                 ArtifactRef(
                     artifact_key="spec.main",
@@ -53,7 +50,7 @@ class TestComputeSnapshotDeterministic:
         snapshot = compute_snapshot(dossier)
 
         assert snapshot is not None
-        assert snapshot.feature_slug == "042-local-mission-dossier"
+        assert snapshot.mission_slug == "042-local-mission-dossier"
         assert snapshot.total_artifacts == 1
 
     def test_artifact_counts_accurate(self):
@@ -88,10 +85,10 @@ class TestComputeSnapshotDeterministic:
             )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-002",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -129,10 +126,10 @@ class TestComputeSnapshotDeterministic:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-003",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -165,10 +162,10 @@ class TestComputeSnapshotDeterministic:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-004",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -191,10 +188,10 @@ class TestComputeSnapshotDeterministic:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-005",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest=None,
         )
@@ -220,10 +217,10 @@ class TestComputeSnapshotDeterministic:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-006",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -272,10 +269,10 @@ class TestComputeSnapshotDeterministic:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-007",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -304,10 +301,10 @@ class TestParityHashAlgorithm:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-008",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -336,10 +333,10 @@ class TestParityHashAlgorithm:
 
         # Compute hash with original order
         dossier1 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-009",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -350,10 +347,10 @@ class TestParityHashAlgorithm:
         random.shuffle(shuffled_artifacts)
 
         dossier2 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-009b",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=shuffled_artifacts,
             manifest={"test": "manifest"},
         )
@@ -376,10 +373,10 @@ class TestParityHashAlgorithm:
         ]
 
         dossier1 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-010",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts1,
             manifest={"test": "manifest"},
         )
@@ -398,10 +395,10 @@ class TestParityHashAlgorithm:
         ]
 
         dossier2 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-011",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts2,
             manifest={"test": "manifest"},
         )
@@ -434,10 +431,10 @@ class TestParityHashAlgorithm:
         ]
 
         dossier_with_missing = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-012",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -445,10 +442,10 @@ class TestParityHashAlgorithm:
         # Dossier with only present artifact
         artifacts_present_only = [artifacts[0]]
         dossier_present_only = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-013",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts_present_only,
             manifest={"test": "manifest"},
         )
@@ -483,10 +480,10 @@ class TestParityHashAlgorithm:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-014",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -503,7 +500,7 @@ class TestSnapshotPersistence:
     def test_snapshot_saves_to_correct_path(self, tmp_path):
         """Snapshot should save to correct file path."""
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
@@ -522,7 +519,7 @@ class TestSnapshotPersistence:
     def test_snapshot_loads_from_json(self, tmp_path):
         """Snapshot should load from JSON without errors."""
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
             total_artifacts=5,
@@ -534,7 +531,7 @@ class TestSnapshotPersistence:
         loaded = load_snapshot(tmp_path, "042-local-mission-dossier")
 
         assert loaded is not None
-        assert loaded.feature_slug == "042-local-mission-dossier"
+        assert loaded.mission_slug == "042-local-mission-dossier"
         assert loaded.parity_hash_sha256 == "a" * 64
         assert loaded.completeness_status == "complete"
         assert loaded.total_artifacts == 5
@@ -542,7 +539,7 @@ class TestSnapshotPersistence:
     def test_snapshot_roundtrip_preserves_all_fields(self, tmp_path):
         """Round-trip (save, load) should preserve all fields."""
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="incomplete",
             total_artifacts=10,
@@ -571,13 +568,13 @@ class TestSnapshotPersistence:
 
     def test_load_missing_file_returns_none(self, tmp_path):
         """Loading non-existent snapshot should return None."""
-        loaded = load_snapshot(tmp_path, "nonexistent-feature")
+        loaded = load_snapshot(tmp_path, "nonexistent-mission")
         assert loaded is None
 
     def test_get_latest_snapshot_convenience_alias(self, tmp_path):
         """get_latest_snapshot should work as convenience alias."""
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
@@ -610,10 +607,10 @@ class TestSnapshotReproducibility:
 
         # Snapshot 1
         dossier1 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-015",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -621,10 +618,10 @@ class TestSnapshotReproducibility:
 
         # Snapshot 2 (same content)
         dossier2 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-016",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -653,10 +650,10 @@ class TestSnapshotReproducibility:
 
         # Snapshot 1: original order
         dossier1 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-017",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )
@@ -666,10 +663,10 @@ class TestSnapshotReproducibility:
         shuffled = artifacts.copy()
         random.shuffle(shuffled)
         dossier2 = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-018",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=shuffled,
             manifest={"test": "manifest"},
         )
@@ -684,13 +681,13 @@ class TestSnapshotEquality:
     def test_same_parity_hash_equal_snapshots(self):
         """Snapshots with same parity hash should be equal."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
@@ -700,13 +697,13 @@ class TestSnapshotEquality:
     def test_different_parity_hash_unequal_snapshots(self):
         """Snapshots with different parity hash should be unequal."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="b" * 64,
             completeness_status="complete",
         )
@@ -717,7 +714,7 @@ class TestSnapshotEquality:
         """Equality should ignore timestamp differences."""
         now = datetime.utcnow()
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
             computed_at=now,
@@ -725,7 +722,7 @@ class TestSnapshotEquality:
 
         # Different timestamp
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
             computed_at=datetime(2020, 1, 1),
@@ -736,14 +733,14 @@ class TestSnapshotEquality:
     def test_snapshot_equality_ignores_id(self):
         """Equality should ignore snapshot_id differences."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             snapshot_id="id-1",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             snapshot_id="id-2",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
@@ -754,13 +751,13 @@ class TestSnapshotEquality:
     def test_snapshot_equality_requires_same_completeness_status(self):
         """Equality requires same completeness status."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="incomplete",
         )
@@ -770,13 +767,13 @@ class TestSnapshotEquality:
     def test_snapshot_has_parity_diff(self):
         """has_parity_diff should detect parity differences."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="b" * 64,
             completeness_status="complete",
         )
@@ -786,25 +783,25 @@ class TestSnapshotEquality:
     def test_snapshot_equality_with_non_snapshot_returns_false(self):
         """Equality with non-snapshot object should return False."""
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         assert snapshot != "not a snapshot"
         assert snapshot != 123
-        assert snapshot != None
+        assert snapshot is not None
 
     def test_snapshot_hash_for_set_usage(self):
         """Snapshot should be hashable for set/dict usage."""
         snapshot1 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
             completeness_status="complete",
         )
 
         snapshot2 = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="b" * 64,
             completeness_status="complete",
         )
@@ -836,10 +833,10 @@ class TestLargeSnapshot:
         ]
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-019",
-            feature_slug="042-local-mission-dossier",
-            feature_dir="/test/feature",
+            mission_slug="042-local-mission-dossier",
+            mission_dir="/test/mission",
             artifacts=artifacts,
             manifest={"test": "manifest"},
         )

@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import typer
@@ -32,16 +31,16 @@ from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
+from datetime import UTC
 
 console = Console()
 
 
-def humanize_timedelta(td: "timedelta") -> str:
+def humanize_timedelta(td: timedelta) -> str:
     """Convert a timedelta into a concise human-readable string.
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
     """
-    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
 
     total_seconds = int(td.total_seconds())
     if total_seconds < 0:
@@ -146,10 +145,10 @@ app = typer.Typer(
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
-    """Detect current workspace and feature context.
+    """Detect current workspace and mission context.
 
     Returns:
-        Tuple of (workspace_path, feature_slug)
+        Tuple of (workspace_path, mission_slug)
         If not in a workspace, returns (cwd, None)
     """
     cwd = Path.cwd()
@@ -158,9 +157,9 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
     parts = cwd.parts
     for i, part in enumerate(parts):
         if part == ".worktrees" and i + 1 < len(parts):
-            # Found a worktree path like: /repo/.worktrees/010-feature-WP01
+            # Found a worktree path like: /repo/.worktrees/010-mission-WP01
             workspace_name = parts[i + 1]
-            # Extract feature slug from workspace name (###-feature-WP##)
+            # Extract mission slug from workspace name (###-mission-WP##)
             match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", workspace_name)
             if match:
                 return cwd, match.group(1)
@@ -178,7 +177,7 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
         )
         if result.returncode == 0:
             branch_name = result.stdout.strip()
-            # Check if branch matches WP pattern (###-feature-WP##)
+            # Check if branch matches WP pattern (###-mission-WP##)
             match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", branch_name)
             if match:
                 return cwd, match.group(1)
@@ -227,10 +226,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
 
     for conflict in conflicts:
         # Format line ranges
-        if conflict.line_ranges:
-            lines = ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges)
-        else:
-            lines = "entire file"
+        lines = ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges) if conflict.line_ranges else "entire file"
 
         table.add_row(
             str(conflict.file_path),
@@ -326,12 +322,12 @@ def sync_workspace(
     console.print()
 
     # Detect workspace context
-    workspace_path, feature_slug = _detect_workspace_context()
+    workspace_path, mission_slug = _detect_workspace_context()
 
-    if feature_slug is None:
+    if mission_slug is None:
         console.print("[yellow]⚠ Not in a recognized workspace[/yellow]")
         console.print("Run this command from a worktree directory:")
-        console.print("  cd .worktrees/<feature>-WP##/")
+        console.print("  cd .worktrees/<mission>-WP##/")
         raise typer.Exit(1)
 
     console.print(f"[cyan]Workspace:[/cyan] {workspace_path.name}")
@@ -343,7 +339,7 @@ def sync_workspace(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Backend:[/cyan] git")
+    console.print("[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode
@@ -408,7 +404,7 @@ def sync_workspace(
             _display_changes_integrated(result.changes_integrated)
 
     elif result.status == SyncStatus.FAILED:
-        console.print(f"\n[red]✗ Sync failed[/red]")
+        console.print("\n[red]✗ Sync failed[/red]")
         if result.message:
             console.print(f"[dim]{result.message}[/dim]")
 
@@ -564,7 +560,7 @@ def sync_server(
 
 @app.command()
 def now(
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Export per-event failure details to a JSON file",
@@ -842,9 +838,9 @@ def doctor() -> None:
     Examples:
         spec-kitty sync doctor
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime
 
-    from specify_cli.sync.auth import AuthClient, CredentialStore
+    from specify_cli.sync.auth import CredentialStore
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.queue import OfflineQueue
 
@@ -900,7 +896,7 @@ def doctor() -> None:
         access_exp = expiry_info.get("access_expires_at")
         refresh_exp = expiry_info.get("refresh_expires_at")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         def _parse_exp(val: str | None) -> datetime | None:
             if not val:
@@ -909,7 +905,7 @@ def doctor() -> None:
                 v = val.replace("Z", "+00:00") if isinstance(val, str) else val
                 parsed = datetime.fromisoformat(str(v))
                 if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
+                    parsed = parsed.replace(tzinfo=UTC)
                 return parsed
             except (ValueError, TypeError):
                 return None

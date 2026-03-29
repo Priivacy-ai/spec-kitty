@@ -58,7 +58,7 @@ def info_command(
         spec-kitty context info
 
         # Explicit workspace
-        spec-kitty context info --workspace 010-feature-WP02
+        spec-kitty context info --workspace 010-mission-WP02
 
         # JSON output
         spec-kitty context info --json
@@ -75,7 +75,7 @@ def info_command(
         if workspace is None:
             console.print("[red]Error:[/red] Not inside a worktree and no --workspace specified")
             console.print("\nRun from inside a worktree or use --workspace flag:")
-            console.print("  spec-kitty context info --workspace 010-feature-WP02")
+            console.print("  spec-kitty context info --workspace 010-mission-WP02")
             raise typer.Exit(1)
 
     # Load context
@@ -99,7 +99,7 @@ def info_command(
         table.add_column("Value")
 
         table.add_row("Work Package", f"[bold]{context.wp_id}[/bold]")
-        table.add_row("Feature", context.feature_slug)
+        table.add_row("Mission", context.mission_slug)
         table.add_row("Base Branch", f"[cyan]{context.base_branch}[/cyan]")
         table.add_row("Base Commit", f"[dim]{context.base_commit[:12]}[/dim]")
         table.add_row("Dependencies", ", ".join(context.dependencies) if context.dependencies else "[dim]none[/dim]")
@@ -165,12 +165,12 @@ def list_command(
 
             table = Table(show_header=True)
             table.add_column("WP", style="bold")
-            table.add_column("Feature", style="dim")
+            table.add_column("Mission", style="dim")
             table.add_column("Base", style="cyan")
             table.add_column("Dependencies")
             table.add_column("Status")
 
-            for ctx in sorted(contexts, key=lambda c: (c.feature_slug, c.wp_id)):
+            for ctx in sorted(contexts, key=lambda c: (c.mission_slug, c.wp_id)):
                 # Check if worktree exists
                 worktree_path = repo_root / ctx.worktree_path
                 status = "[green]Active[/green]" if worktree_path.exists() else "[yellow]Orphaned[/yellow]"
@@ -179,7 +179,7 @@ def list_command(
 
                 table.add_row(
                     ctx.wp_id,
-                    ctx.feature_slug,
+                    ctx.mission_slug,
                     ctx.base_branch,
                     deps,
                     status,

@@ -20,8 +20,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the main repository (not a worktree). Task generation happens in main for ALL missions.
 
 ```bash
-git branch --show-current  # Should show "main"
+spec-kitty agent mission branch-context --json
 ```
+
+Use the returned JSON to confirm you are on the target branch (`planning_base_branch`).
 
 **Note**: Task generation in main is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 
@@ -29,7 +31,7 @@ git branch --show-current  # Should show "main"
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks`
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
 2. **Load design documents**:
    - spec.md (documentation goals, selected Divio types)
@@ -105,10 +107,10 @@ git branch --show-current  # Should show "main"
    - WP03: Generator Updates (regenerate outdated API docs)
    - WP04: Quality Validation (validate all docs, old and new)
 
-   **For Feature-Specific Mode**:
-   - WP01: Feature Documentation (tasks for documenting the feature across selected Divio types)
+   **For Mission-Specific Mode**:
+   - WP01: Mission Documentation (tasks for documenting the feature across selected Divio types)
    - WP02: Integration (tasks for integrating feature docs with existing docs)
-   - WP03: Quality Validation (validate feature-specific docs)
+   - WP03: Quality Validation (validate mission-specific docs)
 
    ### Prioritization
 
@@ -125,14 +127,14 @@ git branch --show-current  # Should show "main"
    - Identify MVP scope (typically WP01 + Reference generation)
 
 6. **Generate prompt files**:
-   - Create flat `FEATURE_DIR/tasks/` directory (no subdirectories!)
+   - Create flat `MISSION_DIR/tasks/` directory (no subdirectories!)
    - For each work package:
      - Generate `WPxx-slug.md` using `templates/task-prompt-template.md`
      - Include objectives, context, subtask guidance
      - Add quality validation strategy (documentation-specific)
      - Include Divio compliance checks
      - Add accessibility/inclusivity checklists
-     - Set `lane: "planned"` in frontmatter
+     - Set `lane: "planned"` and `task_type` (implement|review|plan|specify|research) in frontmatter
 
 7. **Report**:
    - Path to tasks.md

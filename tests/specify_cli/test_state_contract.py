@@ -56,7 +56,7 @@ def test_all_state_roots_used():
 
 def test_all_git_classes_used():
     """At least one surface per GitClass value (except retired classes)."""
-    # INSIDE_REPO_NOT_IGNORED was retired in feature 054: all surfaces using it
+    # INSIDE_REPO_NOT_IGNORED was retired in mission 054: all surfaces using it
     # were either removed (active_mission_marker) or reclassified (constitution).
     retired_classes = {GitClass.INSIDE_REPO_NOT_IGNORED}
     classes_used = {s.git_class for s in STATE_SURFACES}
@@ -135,11 +135,11 @@ def test_get_surfaces_by_root_project():
     assert all(s.root == StateRoot.PROJECT for s in project)
 
 
-def test_get_surfaces_by_root_feature():
+def test_get_surfaces_by_root_mission():
     """FEATURE root returns non-empty list with correct root values."""
-    feature = get_surfaces_by_root(StateRoot.FEATURE)
-    assert len(feature) > 0
-    assert all(s.root == StateRoot.FEATURE for s in feature)
+    mission = get_surfaces_by_root(StateRoot.MISSION)
+    assert len(mission) > 0
+    assert all(s.root == StateRoot.MISSION for s in mission)
 
 
 def test_get_surfaces_by_root_all_roots_sum():
@@ -297,7 +297,7 @@ def test_deprecated_authority_class():
 
 
 # ---------------------------------------------------------------------------
-# Constitution Git policy (feature 054)
+# Constitution Git policy (mission 054)
 # ---------------------------------------------------------------------------
 
 
@@ -356,7 +356,7 @@ def test_section_a_project_surfaces_present():
         "dashboard_control",
         "workspace_context",
         "merge_resume_state",
-        "runtime_feature_index",
+        "runtime_mission_index",
         "runtime_run_snapshot",
         "runtime_run_event_log",
         "runtime_frozen_template",
@@ -385,11 +385,11 @@ def test_section_b_constitution_surfaces_present():
     assert not missing, f"Missing Section B surfaces: {missing}"
 
 
-def test_section_c_feature_surfaces_present():
+def test_section_c_mission_surfaces_present():
     """Key Section C surfaces exist."""
     names = {s.name for s in STATE_SURFACES}
     expected = {
-        "feature_metadata",
+        "mission_metadata",
         "canonical_status_log",
         "canonical_status_snapshot",
         "wp_prompt_frontmatter",

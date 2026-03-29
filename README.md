@@ -24,7 +24,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 - [External Architect Evaluators](architecture/audience/external/architect-evaluator.md) evaluating governance durability and boundary clarity
 - [External Product Manager Evaluators](architecture/audience/external/product-manager-evaluator.md) validating intent-to-delivery traceability
 - [Lead Developers](architecture/audience/internal/lead-developer.md) coordinating implementation quality and handoffs
-- [Maintainers](architecture/audience/internal/maintainer.md) preserving operational consistency across features and agents
+- [Maintainers](architecture/audience/internal/maintainer.md) preserving operational consistency across missions and agents
 
 ### Stakeholder Value Proposition
 
@@ -45,10 +45,10 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
-| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
+| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<mission>/` |
 | **Work package execution** | Uses canonical 2.x lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
 | **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution |
-| **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
+| **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
 | **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
 | **Multi-agent support** | Template and command generation for 12 AI agent integrations |
 
@@ -143,8 +143,8 @@ Run multi-agent delivery with an external orchestrator while keeping workflow st
 spec-kitty orchestrator-api contract-version --json
 
 # Use the reference external orchestrator
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-mission --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-mission
 ```
 
 Docs:
@@ -185,7 +185,7 @@ sequenceDiagram
 
 ## 📊 Real-Time Dashboard
 
-Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
+Spec Kitty includes a **live dashboard** that automatically tracks your mission development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
 
 <div align="center">
   <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
@@ -193,8 +193,8 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
 </div>
 
 <div align="center">
-  <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
-  <p><em>Feature overview with completion metrics and available artifacts</em></p>
+  <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-overview.png" alt="Spec Kitty Dashboard - Mission Overview" width="800"/>
+  <p><em>Mission overview with completion metrics and available artifacts</em></p>
 </div>
 
 The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
@@ -348,25 +348,51 @@ code     # For GitHub Copilot / Cursor
 **Verify slash commands loaded:**
 Type `/spec-kitty` and you should see autocomplete with all 13 commands.
 
-### Phase 3: Establish Project Principles (In Agent)
+### Phase 3: Establish Project Principles (Terminal + Agent)
 
-**Still in main repo** - Start with your project's governing principles:
+**Still in main repo** — Run the CLI interview first, then compile the constitution:
 
-```text
-/spec-kitty.constitution
+```bash
+# Step 1 (Terminal): Capture project answers
+spec-kitty constitution interview --profile minimal
 
-Create principles focused on code quality, testing standards,
-user experience consistency, and performance requirements.
+# Step 2 (Terminal): Compile constitution bundle from answers
+spec-kitty constitution generate --from-interview
 ```
 
+Or for deterministic defaults (no prompts):
+
+```bash
+spec-kitty constitution interview --defaults --profile minimal --json
+spec-kitty constitution generate --from-interview --json
+```
+
+> **⚠️ Interview is required.** `constitution generate` exits with an error if
+> `answers.yaml` is missing. Run `spec-kitty constitution interview` first.
+
 **What this creates:**
-- `.kittify/memory/constitution.md` - Your project's architectural DNA
-- These principles will guide all subsequent development
+- `.kittify/constitution/constitution.md` — Your project's governance document
+- `.kittify/constitution/interview/answers.yaml` — Captured selections (paradigms, directives, tools)
+- `.kittify/constitution/references.yaml` — References to shipped doctrine and any local support files
+
+**Context bootstrap (agent commands):**
+
+After generation, lifecycle commands load governance context on first use:
+
+```bash
+spec-kitty constitution context --action specify --json
+# Returns full bootstrap context on first call, compact summary on subsequent calls
+```
+
+**Key behaviours:**
+- Shipped doctrine catalog is validated at compile time; unknown IDs are reported as diagnostics
+- Project-local support files (declared in `answers.yaml`) supplement shipped doctrine — they do not replace it
+- Local support files that overlap a shipped concept emit an additive conflict warning but are still included
 - Missions do not have separate constitutions; the project constitution is the single source of truth
 
-### Phase 4: Create Your First Feature (In Agent)
+### Phase 4: Create Your First Mission (In Agent)
 
-Now begin the feature development cycle:
+Now begin the mission development cycle:
 
 #### 4a. Define WHAT to Build
 
@@ -427,7 +453,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **Check your dashboard:** You'll now see tasks in the `planned` lane.
 
-### Phase 5: Implement Features (In Feature Worktree)
+### Phase 5: Implement Missions (In Mission Worktree)
 
 #### 5a. Execute Implementation
 
@@ -455,9 +481,9 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 - Agent reviews code and provides feedback or approval
 - Shows commands to move to `lane: "done"` (passed) or `lane: "planned"` (changes needed)
 
-### Phase 6: Accept & Merge (In Feature Worktree)
+### Phase 6: Accept & Merge (In Mission Worktree)
 
-#### 6a. Validate Feature Complete
+#### 6a. Validate Mission Complete
 
 ```text
 /spec-kitty.accept
@@ -477,23 +503,25 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **What this does:**
 - Switches to main branch
-- Merges feature branch
+- Merges mission branch
 - Pushes to remote (if `--push` specified)
 - Cleans up worktree
-- Deletes feature branch
+- Deletes mission branch
 
-**🎉 Feature complete!** Return to main repo and start your next feature with `/spec-kitty.specify`
+**🎉 Mission complete!** Return to main repo and start your next mission with `/spec-kitty.specify`
 
 ---
 
 ## 📋 Quick Reference: Command Order
 
 ### Required Workflow (Once per project)
+
 ```
 1️⃣  /spec-kitty.constitution     → In main repo (sets project principles)
 ```
 
-### Required Workflow (Each feature)
+### Required Workflow (Each mission)
+
 ```
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
@@ -501,11 +529,12 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 5️⃣  spec-kitty implement WP01    → Create workspace for WP01 (first worktree)
     /spec-kitty.implement        → Build the work package
 6️⃣  /spec-kitty.review           → Review completed work
-7️⃣  /spec-kitty.accept           → Validate feature ready
+7️⃣  /spec-kitty.accept           → Validate mission ready
 8️⃣  /spec-kitty.merge            → Merge to main + cleanup
 ```
 
 ### Optional Enhancement Commands
+
 ```
 /spec-kitty.research   → After /plan: Investigate technical decisions
 /spec-kitty.analyze    → After /tasks: Cross-artifact consistency check
@@ -537,7 +566,7 @@ Spec Kitty automatically protects you with multiple layers:
 **Worktree Constitution Sharing:**
 When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
 ```
-.worktrees/001-feature-WP01/.kittify/memory -> ../../../../.kittify/memory
+.worktrees/001-mission-WP01/.kittify/constitution -> ../../../../.kittify/constitution
 ```
 This ensures all work packages follow the same project principles.
 
@@ -546,7 +575,8 @@ This ensures all work packages follow the same project principles.
 ✅ **DO commit:**
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission workflows
-- `.kittify/memory/constitution.md` - Project principles
+- `.kittify/constitution/constitution.md` - Project governance document
+- `.kittify/constitution/references.yaml` - Reference manifest
 - `.gitignore` - Protection rules
 
 ❌ **NEVER commit:**
@@ -560,12 +590,13 @@ See [AGENTS.md](.kittify/AGENTS.md) for complete guidelines.
 <details>
 <summary><h2>📚 Terminology</h2></summary>
 
-Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
+Spec Kitty differentiates between the **project** that holds your entire codebase, the **missions** you build within that project, and the **mission type** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
 
 For glossary-first terminology (including semantic-integrity rules), see [`glossary/README.md`](glossary/README.md).
 
 ### Project
-**Definition**: The entire codebase (one Git repository) that contains all missions, features, and `.kittify/` automation.
+
+**Definition**: The entire codebase (one Git repository) that contains all missions and `.kittify/` automation.
 
 **Examples**:
 - "spec-kitty project" (this repository)
@@ -573,58 +604,60 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - "my-agency-portal project"
 
 **Usage**: Projects are initialized once with `spec-kitty init`. A project contains:
-- One active mission at a time
-- Multiple features (each with its own spec/plan/tasks)
+- One active mission type at a time
+- Multiple missions (each with its own spec/plan/tasks)
 - Shared automation under `.kittify/`
 
 **Commands**: Initialize with `spec-kitty init` for the current directory by default (or pass `spec-kitty init my-project` to create a project directory).
 
 ---
 
-### Feature
-**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and implementation worktree.
+### Mission
+
+**Definition**: A single unit of work tracked by Spec Kitty. Every mission has its own spec, plan, tasks, and implementation worktree.
 
 **Examples**:
-- "001-auth-system feature"
-- "005-refactor-mission-system feature" (this document)
-- "042-dashboard-refresh feature"
+- "001-auth-system mission"
+- "005-refactor-mission-system mission" (this document)
+- "042-dashboard-refresh mission"
 
 **Structure**:
-- Specification: `/kitty-specs/###-feature-name/spec.md`
-- Plan: `/kitty-specs/###-feature-name/plan.md`
-- Tasks: `/kitty-specs/###-feature-name/tasks.md`
-- Implementation: `.worktrees/###-feature-name/`
+- Specification: `/kitty-specs/###-mission-name/spec.md`
+- Plan: `/kitty-specs/###-mission-name/plan.md`
+- Tasks: `/kitty-specs/###-mission-name/tasks.md`
+- Implementation: `.worktrees/###-mission-name/`
 
 **Lifecycle**:
-1. `/spec-kitty.specify` – Create the feature and its branch
+1. `/spec-kitty.specify` – Create the mission and its branch
 2. `/spec-kitty.plan` – Document the technical design
 3. `/spec-kitty.tasks` – Break work into packages
-4. `/spec-kitty.implement` – Build the feature inside its worktree
+4. `/spec-kitty.implement` – Build the mission inside its worktree
 5. `/spec-kitty.review` – Peer review
 6. `/spec-kitty.accept` – Validate according to gates
 7. `/spec-kitty.merge` – Merge and clean up
 
-**Commands**: Always create features with `/spec-kitty.specify`.
+**Commands**: Always create missions with `/spec-kitty.specify`.
 
-**Compatibility note**: In current 2.x, feature slugs remain the practical artifact key for `kitty-specs/` and worktrees.
+**Compatibility note**: In current 2.x, mission slugs remain the practical artifact key for `kitty-specs/` and worktrees.
 
 ---
 
-### Mission
-**Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
+### Mission Type
+
+**Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Mission types are project-wide; all missions in a project share the same active mission type.
 
 **Examples**:
-- "software-dev mission" (ship software with TDD)
-- "research mission" (conduct systematic investigations)
-- "writing mission" (future workflow)
+- "software-dev mission type" (ship software with TDD)
+- "research mission type" (conduct systematic investigations)
+- "writing mission type" (future workflow)
 
-**What missions define**:
+**What mission types define**:
 - Workflow phases (e.g., design → implement vs. question → gather findings)
 - Templates (spec, plan, tasks, prompts)
 - Validation rules (tests pass vs. citations documented)
 - Path conventions (e.g., `src/` vs. `research/`)
 
-**Scope**: Entire project. In current 2.x, mission is selected at init and remains fixed for the project lifecycle.
+**Scope**: Entire project. In current 2.x, mission type is selected at init and remains fixed for the project lifecycle.
 
 **Runtime note**: Mission-run identity (`mission_id` / `mission_run_id`) is the preferred runtime collaboration scope when available.
 
@@ -639,22 +672,22 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 | Term | Scope | Example | Key Command |
 |------|-------|---------|-------------|
 | **Project** | Entire codebase | "spec-kitty project" | `spec-kitty init my-project` |
-| **Feature** | Unit of work | "001-auth-system feature" | `/spec-kitty.specify "auth system"` |
-| **Mission** | Workflow adapter | "research mission" | `spec-kitty init --mission research` |
+| **Mission** | Unit of work | "001-auth-system mission" | `/spec-kitty.specify "auth system"` |
+| **Mission Type** | Workflow adapter | "research mission type" | `spec-kitty init --mission research` |
 
 ### Common Questions
 
-**Q: What's the difference between a project and a feature?**  
-A project is your entire git repository. A feature is one unit of work inside that project with its own spec/plan/tasks.
+**Q: What's the difference between a project and a mission?**  
+A project is your entire git repository. A mission is one unit of work inside that project with its own spec/plan/tasks.
 
-**Q: Can I have multiple missions in one project?**  
-Only one mission is active at a time in current 2.x. Select it during `spec-kitty init`.
+**Q: Can I have multiple mission types in one project?**  
+Only one mission type is active at a time in current 2.x. Select it during `spec-kitty init`.
 
-**Q: Should I create a new project for every feature?**  
-No. Initialize a project once, then create as many features as you need with `/spec-kitty.specify`.
+**Q: Should I create a new project for every mission?**  
+No. Initialize a project once, then create as many missions as you need with `/spec-kitty.specify`.
 
 **Q: What's a task?**
-Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are **not** separate features or projects.
+Tasks (T001, T002, etc.) are subtasks within a mission's work packages. They are **not** separate missions or projects.
 
 </details>
 
@@ -666,11 +699,11 @@ Learn from real-world workflows used by teams building production software with 
 
 ### Featured Workflows
 
-- **[Multi-Agent Feature Development](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/multi-agent-feature-development.md)**
-  *Coordinate 3-5 AI agents on a single large feature using an external orchestrator plus host API*
+- **[Multi-Agent Mission Development](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/multi-agent-feature-development.md)**
+  *Coordinate 3-5 AI agents on a single large mission using an external orchestrator plus host API*
 
 - **[Parallel Implementation Tracking](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/parallel-implementation-tracking.md)**
-  *Monitor multiple teams/agents delivering features simultaneously with dashboard metrics*
+  *Monitor multiple teams/agents delivering missions simultaneously with dashboard metrics*
 
 - **[Dashboard-Driven Development](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/dashboard-driven-development.md)**
   *Product trio workflow: PM + Designer + Engineers using live kanban visibility*
@@ -715,11 +748,11 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `init`      | Initialize a new Spec Kitty project from templates |
 | `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
 | `repair`    | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
-| `accept`    | Validate feature readiness before merging to main |
+| `accept`    | Validate mission readiness before merging to main |
 | `check`     | Check that required tooling is available |
 | `dashboard` | Open or stop the Spec Kitty dashboard |
 | `diagnostics` | Show project health and diagnostics information |
-| `merge`     | Merge a completed feature branch into main and clean up resources |
+| `merge`     | Merge a completed mission branch into main and clean up resources |
 | `orchestrator-api` | Host contract for external orchestrators (JSON envelope interface) |
 | `research`  | Execute Phase 0 research workflow to scaffold artifacts |
 | `verify-setup` | Verify that the current environment matches Spec Kitty expectations |
@@ -829,13 +862,13 @@ spec-kitty upgrade --no-worktrees
 
 The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
 
-**Feature Management:**
-- `spec-kitty agent feature create-feature <name>` – Create new feature with worktree
-- `spec-kitty agent feature check-prerequisites` – Validate project setup and feature context
-- `spec-kitty agent feature setup-plan` – Initialize plan template for feature
+**Mission Management:**
+- `spec-kitty agent mission create-mission <name>` – Create new mission with worktree
+- `spec-kitty agent mission check-prerequisites` – Validate project setup and mission context
+- `spec-kitty agent mission setup-plan` – Initialize plan template for mission
 - `spec-kitty agent context update` – Update agent context files
-- `spec-kitty agent feature accept` – Run acceptance workflow
-- `spec-kitty agent feature merge` – Merge feature branch and cleanup
+- `spec-kitty agent mission accept` – Run acceptance workflow
+- `spec-kitty agent mission merge` – Merge mission branch and cleanup
 
 **Task Workflow:**
 - `spec-kitty agent workflow implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
@@ -853,8 +886,8 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 
 **Example Usage:**
 ```bash
-# Create feature (agent-friendly)
-spec-kitty agent feature create-feature "Payment Flow" --json
+# Create mission (agent-friendly)
+spec-kitty agent mission create-mission "Payment Flow" --json
 
 # Display WP prompt and auto-move to in_progress ("Doing")
 spec-kitty agent workflow implement WP01 --agent __AGENT__
@@ -865,8 +898,8 @@ spec-kitty agent workflow implement WP01 --agent __AGENT__
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
 
-# Accept feature
-spec-kitty agent feature accept --json
+# Accept mission
+spec-kitty agent mission accept --json
 ```
 
 ### `spec-kitty dashboard` Options
@@ -892,7 +925,7 @@ spec-kitty dashboard --kill
 
 | Option | Description |
 |--------|-------------|
-| `--feature <slug>` | Feature slug to accept (auto-detected by default) |
+| `--mission <slug>` | Mission slug to accept (auto-detected by default) |
 | `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor <name>` | Name to record as the acceptance actor |
 | `--test <command>` | Validation command to execute (repeatable) |
@@ -903,11 +936,11 @@ spec-kitty dashboard --kill
 
 **Examples:**
 ```bash
-# Validate feature (auto-detect)
+# Validate mission (auto-detect)
 spec-kitty accept
 
-# Validate specific feature
-spec-kitty accept --feature 001-auth-system
+# Validate specific mission
+spec-kitty accept --mission 001-auth-system
 
 # Get checklist only (no commit)
 spec-kitty accept --mode checklist
@@ -924,8 +957,8 @@ spec-kitty accept --json
 | Option | Description |
 |--------|-------------|
 | `--strategy <type>` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
-| `--delete-branch` / `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
-| `--remove-worktree` / `--keep-worktree` | Remove or keep feature worktree after merge (default: remove) |
+| `--delete-branch` / `--keep-branch` | Delete or keep mission branch after merge (default: delete) |
+| `--remove-worktree` / `--keep-worktree` | Remove or keep mission worktree after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target <branch>` | Target branch to merge into (default: `main`) |
 | `--dry-run` | Show what would be done without executing |
@@ -966,7 +999,7 @@ spec-kitty verify-setup
 
 Shows project health and diagnostics information:
 - Active mission
-- Available features
+- Available missions
 - Dashboard status
 - Git configuration
 - Agent command availability
@@ -995,8 +1028,8 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | 5 | `/spec-kitty.tasks`         | Generate actionable task lists and work package prompts in flat tasks/ directory |
 | 6 | `/spec-kitty.implement`     | Display WP prompt, auto-move to `in_progress` ("Doing"), show completion instructions |
 | 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to `in_progress` ("Doing"), show next steps |
-| 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
-| 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
+| 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify mission complete |
+| 9 | `/spec-kitty.merge`         | Merge mission into main branch and clean up worktree                  |
 
 #### Quality Gates & Development Tools
 
@@ -1014,7 +1047,7 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 > **📖 Quick Start:** See the [Getting Started guide](#-getting-started-complete-workflow) for practical examples of worktree usage in context.
 
-Spec Kitty uses an **opinionated worktree approach** for parallel feature development:
+Spec Kitty uses an **opinionated worktree approach** for parallel mission development:
 
 ### Parallel Development Without Branch Switching
 
@@ -1045,21 +1078,23 @@ graph TD
 - Merge conflicts detected early with pre-flight validation
 
 ### The Pattern
+
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
-│   ├── 001-auth-system-WP01/  # Feature 1 WP01 (isolated sandbox)
-│   ├── 001-auth-system-WP02/  # Feature 1 WP02 (parallel work)
-│   └── 002-dashboard-WP01/    # Feature 2 WP01 (different feature)
+│   ├── 001-auth-system-WP01/  # Mission 1 WP01 (isolated sandbox)
+│   ├── 001-auth-system-WP02/  # Mission 1 WP02 (parallel work)
+│   └── 002-dashboard-WP01/    # Mission 2 WP01 (different mission)
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
 ```
 
 ### The Rules
+
 1. **Main branch** stays in the primary repo root
-2. **Feature branches** live in `.worktrees/<feature-slug>/`
-3. **Work on features** happens in their worktrees (complete isolation)
+2. **Mission branches** live in `.worktrees/<mission-slug>/`
+3. **Work on missions** happens in their worktrees (complete isolation)
 4. **No branch switching** in main repo - just `cd` between worktrees
 5. **Automatic cleanup** - worktrees removed after merge
 
@@ -1069,11 +1104,11 @@ my-project/                    # Main repo (main branch)
 # ========== IN MAIN REPO ==========
 /spec-kitty.constitution     # Step 1: Establish project governance (one time per project)
 
-# ========== CREATE FEATURE BRANCH & WORKTREE ==========
-/spec-kitty.specify          # Step 2: Creates feature branch + isolated worktree
-cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
+# ========== CREATE MISSION BRANCH & WORKTREE ==========
+/spec-kitty.specify          # Step 2: Creates mission branch + isolated worktree
+cd .worktrees/001-my-mission # Enter isolated sandbox for mission development
 
-# ========== IN FEATURE WORKTREE ==========
+# ========== IN MISSION WORKTREE ==========
 /spec-kitty.plan             # Step 3: Design technical implementation
 /spec-kitty.research         # Step 4 (as needed): Research technologies, patterns, etc.
 /spec-kitty.tasks            # Step 5: Break plan into actionable tasks
@@ -1084,7 +1119,7 @@ cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
 /spec-kitty.merge --push     # Step 10: Merge to main + cleanup worktree
 
 # ========== BACK IN MAIN REPO ==========
-# Ready for next feature!
+# Ready for next mission!
 ```
 
 ## 🧭 Mission System
@@ -1131,11 +1166,10 @@ cat .kittify/metadata.yaml
 
 | Variable         | Description                                                                                    |
 |------------------|------------------------------------------------------------------------------------------------|
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
+| `SPECIFY_MISSION` | Override mission detection for non-Git repositories. Set to the mission directory name (e.g., `001-photo-albums`) to work on a specific mission when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
 | `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
-
 
 ## 🔧 Prerequisites
 
@@ -1246,7 +1280,7 @@ git push origin vX.Y.Z
 ## 📖 Learn more
 
 - **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)** - Deep dive into the full process
-- **[Getting Started Guide](#-getting-started-complete-workflow)** - Step-by-step walkthrough from installation to feature completion
+- **[Getting Started Guide](#-getting-started-complete-workflow)** - Step-by-step walkthrough from installation to mission completion
 
 ---
 

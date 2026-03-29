@@ -47,13 +47,13 @@ def test_wp_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     hook_path = _hook_script()
 
     subprocess.run(
-        ["git", "checkout", "-b", "001-test-feature-WP01"],
+        ["git", "checkout", "-b", "001-test-mission-WP01"],
         cwd=repo,
         check=True,
         capture_output=True,
     )
 
-    blocked_file = repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test.md"
+    blocked_file = repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP01-test.md"
     blocked_file.parent.mkdir(parents=True)
     blocked_file.write_text(
         "---\n"
@@ -86,7 +86,7 @@ def test_wp_branch_hook_allows_non_wp_branches(tmp_path: Path) -> None:
     _init_repo(repo)
     hook_path = _hook_script()
 
-    allowed_file = repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test.md"
+    allowed_file = repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP01-test.md"
     allowed_file.parent.mkdir(parents=True)
     allowed_file.write_text(
         "---\n"

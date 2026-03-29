@@ -1,0 +1,18 @@
+action: implement
+directives:
+  - 024-locality-of-change
+  - 025-boy-scout-rule
+  - 028-search-tool-discipline
+  - 029-agent-commit-signing-policy
+  - 030-test-and-typecheck-quality-gate
+tactics:
+  - acceptance-test-first
+  - tdd-red-green-refactor
+  - change-apply-smallest-viable-diff
+  - autonomous-operation-protocol
+  - quality-gate-verification
+  - stopping-conditions
+styleguides: []
+toolguides:
+  - efficient-local-tooling
+procedures: []

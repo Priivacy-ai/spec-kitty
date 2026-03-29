@@ -1,8 +1,8 @@
 ---
-description: Create or update the feature specification from a natural language feature description.
+description: Create or update the mission specification from a natural language feature description.
 ---
 
-# /spec-kitty.specify - Create Feature Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Version**: 0.11.0+
 
@@ -49,6 +49,16 @@ spec-kitty constitution context --action specify --json
 - If JSON `mode` is `bootstrap`, treat JSON `text` as the initial governance context and consult referenced docs as needed.
 - If JSON `mode` is `compact`, proceed with concise governance context.
 
+## Branch Context (required)
+
+Before creating or updating a feature, determine the correct target branch deterministically:
+
+```bash
+spec-kitty agent mission branch-context --json
+```
+
+Use the returned `planning_base_branch` and `merge_target_branch` values when populating `meta.json` and work package frontmatter. Do NOT probe git directly for branch names — always use the CLI helper.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
@@ -67,7 +77,7 @@ Before running any scripts or writing to disk you **must** conduct a structured 
 
 - If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
 
-- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this feature's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
+- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this mission's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
 
 Discovery requirements (scale to feature complexity):
 
@@ -78,7 +88,7 @@ Discovery requirements (scale to feature complexity):
 
 ## Mission Selection
 
-After completing discovery and confirming the Intent Summary, determine the appropriate mission for this feature.
+After completing discovery and confirming the Intent Summary, determine the appropriate mission for this mission.
 
 ### Available Missions
 
@@ -98,7 +108,7 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 2. **Check for explicit mission requests** in the user's description:
    - If user mentions "research project", "investigation", "analysis" → use research
-   - If user mentions "build", "implement", "create feature" → use software-dev
+   - If user mentions "build", "implement", "create mission" → use software-dev
 
 3. **Confirm with user** (unless explicit):
    > "Based on your description, this sounds like a **[software-dev/research]** project.
@@ -120,7 +130,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-feature-WP##`).
+**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-mission-WP##`).
 
 ## Location
 
@@ -134,7 +144,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
 - Read that title back during the Intent Summary and revise it if the user requests changes.
-- Use the confirmed title to derive the kebab-case feature slug for the create-feature command.
+- Use the confirmed title to derive the kebab-case feature slug for the create-mission command.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
@@ -151,7 +161,7 @@ Given that feature description, do this:
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:
 
    ```bash
-   spec-kitty agent feature create-feature "<slug>" --json
+   spec-kitty agent mission create-mission "<slug>" --json
    ```
 
    Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").
@@ -159,16 +169,16 @@ Given that feature description, do this:
    The command returns JSON with:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
-   - `feature_dir`: Absolute path to the feature directory inside the main repo
+   - `mission_dir`: Absolute path to the mission directory inside the main repo
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
    **IMPORTANT**: You must only ever run this command once. The JSON is provided in the terminal output - always refer to it to get the actual paths you're looking for.
 3. **Stay in the main repository**: No worktree is created during specify.
 
-4. The spec template is bundled with spec-kitty at `src/specify_cli/missions/software-dev/templates/spec-template.md`. The template defines required sections for software development features.
+4. The spec template is bundled with spec-kitty at `src/doctrine/missions/software-dev/templates/spec-template.md`. The template defines required sections for software development features.
 
-5. Create meta.json in the feature directory with:
+5. Create meta.json in the mission directory with:
 
    ```json
    {
@@ -202,14 +212,14 @@ Given that feature description, do this:
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 
-7. Write the specification to `<feature_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+7. Write the specification to `<mission_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `feature_dir/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `mission_dir/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
-      # Specification Quality Checklist: [FEATURE NAME]
+      # Specification Quality Checklist: [MISSION NAME]
       
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
@@ -284,92 +294,6 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
+9. Report completion with mission directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
-
-## General Guidelines
-
-## Quick Guidelines
-
-- Focus on **WHAT** users need and **WHY**.
-- Avoid HOW to implement (no tech stack, APIs, code structure).
-- Written for business stakeholders, not developers.
-- DO NOT create any checklists that are embedded in the spec. That will be a separate command.
-
-### Section Requirements
-
-- **Mandatory sections**: Must be completed for every feature
-- **Optional sections**: Include only when relevant to the feature
-- When a section doesn't apply, remove it entirely (don't leave as "N/A")
-
-### For AI Generation
-
-When creating this spec from a user prompt:
-
-1. **Make informed guesses**: Use context, industry standards, and common patterns to fill gaps
-2. **Document assumptions**: Record reasonable defaults in the Assumptions section
-3. **Limit clarifications**: Maximum 3 [NEEDS CLARIFICATION] markers - use only for critical decisions that:
-   - Significantly impact feature scope or user experience
-   - Have multiple reasonable interpretations with different implications
-   - Lack any reasonable default
-4. **Prioritize clarifications**: scope > security/privacy > user experience > technical details
-5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
-6. **Common areas needing clarification** (only if no reasonable default exists):
-   - Feature scope and boundaries (include/exclude specific use cases)
-   - User types and permissions (if multiple conflicting interpretations possible)
-   - Security/compliance requirements (when legally/financially significant)
-
-**Examples of reasonable defaults** (don't ask about these):
-
-- Data retention: Industry-standard practices for the domain
-- Performance targets: Standard web/mobile app expectations unless specified
-- Error handling: User-friendly messages with appropriate fallbacks
-- Authentication method: Standard session-based or OAuth2 for web apps
-- Integration patterns: RESTful APIs unless specified otherwise
-
-### Success Criteria Guidelines
-
-Success criteria must be:
-
-1. **Measurable**: Include specific metrics (time, percentage, count, rate)
-2. **Technology-agnostic**: No mention of frameworks, languages, databases, or tools
-3. **User-focused**: Describe outcomes from user/business perspective, not system internals
-4. **Verifiable**: Can be tested/validated without knowing implementation details
-
-**Good examples**:
-
-- "Users can complete checkout in under 3 minutes"
-- "System supports 10,000 concurrent users"
-- "95% of searches return results in under 1 second"
-- "Task completion rate improves by 40%"
-
-**Bad examples** (implementation-focused):
-
-- "API response time is under 200ms" (too technical, use "Users see results instantly")
-- "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
-- "React components render efficiently" (framework-specific)
-- "Redis cache hit rate above 80%" (technology-specific)
-
-## Telemetry (final step)
-
-After completing all steps above and reporting to the user, emit a telemetry event to record this specification phase:
-
-```bash
-spec-kitty agent telemetry emit \
-  --feature <feature-slug> \
-  --role specifier \
-  --agent <your-agent-name> \
-  --model <your-model-id>
-```
-
-Replace `<feature-slug>` with the feature slug from the `create-feature` output (e.g., `048-full-lifecycle-telemetry-events`).
-
-If your agent runtime provides usage metrics, include them:
-
-- `--input-tokens <count>` — total input tokens consumed during this phase
-- `--output-tokens <count>` — total output tokens generated during this phase
-- `--cost-usd <amount>` — total cost in USD for this phase
-- `--duration-ms <milliseconds>` — duration of this phase
-
-This event is fire-and-forget. If the command fails, continue normally — telemetry failures never block the workflow.

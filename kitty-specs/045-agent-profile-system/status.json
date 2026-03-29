@@ -1,0 +1,80 @@
+{
+  "event_count": 27,
+  "feature_slug": "045-agent-profile-system",
+  "last_event_id": "01KJ64AVEQA98AVGX3781C7FH7",
+  "materialized_at": "2026-02-23T20:51:26.296441+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP05": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64A0S80FR0Q22WNCMFXQFB",
+      "last_transition_at": "2026-02-23T20:50:58.984451+00:00"
+    },
+    "WP08": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64A3Y8SJQ5P0XFMH174998",
+      "last_transition_at": "2026-02-23T20:51:02.216432+00:00"
+    },
+    "WP09": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64A75QC5CH6V5Q9V0C5BD4",
+      "last_transition_at": "2026-02-23T20:51:05.527326+00:00"
+    },
+    "WP10": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64AADXSD6GYBWV8C0SARA1",
+      "last_transition_at": "2026-02-23T20:51:08.861627+00:00"
+    },
+    "WP11": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64AR4MNGN8QBCRW6D5XBHW",
+      "last_transition_at": "2026-02-23T20:51:22.900453+00:00"
+    },
+    "WP12": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64AVEQA98AVGX3781C7FH7",
+      "last_transition_at": "2026-02-23T20:51:26.295461+00:00"
+    },
+    "WP13": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64ADP3V6D2T9XHC7XERSWX",
+      "last_transition_at": "2026-02-23T20:51:12.195852+00:00"
+    },
+    "WP14": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64AGZXKXSET3AEVVB2H823",
+      "last_transition_at": "2026-02-23T20:51:15.581046+00:00"
+    },
+    "WP15": {
+      "actor": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KJ64AMA0P8PVAVAG22GJFG9R",
+      "last_transition_at": "2026-02-23T20:51:18.976118+00:00"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """Integration tests for research CSV schema detection migration (0.13.0).
 
 Tests validate that the migration correctly detects schema mismatches in
-research feature CSVs and provides informational messages without auto-fixing.
+research mission CSVs and provides informational messages without auto-fixing.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.fast
 
 @pytest.fixture
 def mock_research_project(tmp_path):
-    """Create a mock spec-kitty project with research features."""
+    """Create a mock spec-kitty project with research missions."""
     # Create kitty-specs structure
     kitty_specs = tmp_path / "kitty-specs"
     kitty_specs.mkdir()
@@ -27,17 +27,17 @@ def mock_research_project(tmp_path):
 
 
 @pytest.fixture
-def research_feature_with_correct_schema(mock_research_project):
-    """Create a research feature with correct CSV schemas."""
-    feature_dir = mock_research_project / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir()
+def research_mission_with_correct_schema(mock_research_project):
+    """Create a research mission with correct CSV schemas."""
+    mission_dir = mock_research_project / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir()
 
     # Create meta.json
     meta = {"mission": "research"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
 
     # Create research directory with correct schemas
-    research_dir = feature_dir / "research"
+    research_dir = mission_dir / "research"
     research_dir.mkdir()
 
     # Correct evidence-log.csv schema
@@ -58,17 +58,17 @@ def research_feature_with_correct_schema(mock_research_project):
 
 
 @pytest.fixture
-def research_feature_with_wrong_evidence_schema(mock_research_project):
-    """Create a research feature with wrong evidence-log.csv schema."""
-    feature_dir = mock_research_project / "kitty-specs" / "002-wrong-evidence"
-    feature_dir.mkdir()
+def research_mission_with_wrong_evidence_schema(mock_research_project):
+    """Create a research mission with wrong evidence-log.csv schema."""
+    mission_dir = mock_research_project / "kitty-specs" / "002-wrong-evidence"
+    mission_dir.mkdir()
 
     # Create meta.json
     meta = {"mission": "research"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
 
     # Create research directory with WRONG schema
-    research_dir = feature_dir / "research"
+    research_dir = mission_dir / "research"
     research_dir.mkdir()
 
     # WRONG evidence-log.csv schema (wrong column names and order)
@@ -82,17 +82,17 @@ def research_feature_with_wrong_evidence_schema(mock_research_project):
 
 
 @pytest.fixture
-def research_feature_with_wrong_source_schema(mock_research_project):
-    """Create a research feature with wrong source-register.csv schema."""
-    feature_dir = mock_research_project / "kitty-specs" / "003-wrong-source"
-    feature_dir.mkdir()
+def research_mission_with_wrong_source_schema(mock_research_project):
+    """Create a research mission with wrong source-register.csv schema."""
+    mission_dir = mock_research_project / "kitty-specs" / "003-wrong-source"
+    mission_dir.mkdir()
 
     # Create meta.json
     meta = {"mission": "research"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
 
     # Create research directory with WRONG schema
-    research_dir = feature_dir / "research"
+    research_dir = mission_dir / "research"
     research_dir.mkdir()
 
     # WRONG source-register.csv schema
@@ -105,14 +105,14 @@ def research_feature_with_wrong_source_schema(mock_research_project):
 
 
 @pytest.fixture
-def software_dev_feature(mock_research_project):
-    """Create a software-dev feature (should be skipped by migration)."""
-    feature_dir = mock_research_project / "kitty-specs" / "004-software-dev"
-    feature_dir.mkdir()
+def software_dev_mission(mock_research_project):
+    """Create a software-dev mission (should be skipped by migration)."""
+    mission_dir = mock_research_project / "kitty-specs" / "004-software-dev"
+    mission_dir.mkdir()
 
     # Create meta.json with software-dev mission
     meta = {"mission": "software-dev"}
-    (feature_dir / "meta.json").write_text(json.dumps(meta))
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
 
     return mock_research_project
 
@@ -120,37 +120,37 @@ def software_dev_feature(mock_research_project):
 class TestDetection:
     """Tests for migration detection logic."""
 
-    def test_detect_no_features(self, mock_research_project):
-        """Test detection returns False when no features exist."""
+    def test_detect_no_missions(self, mock_research_project):
+        """Test detection returns False when no missions exist."""
         migration = ResearchCSVSchemaCheckMigration()
         assert migration.detect(mock_research_project) is False
 
-    def test_detect_correct_schema(self, research_feature_with_correct_schema):
+    def test_detect_correct_schema(self, research_mission_with_correct_schema):
         """Test detection returns False when schemas are correct."""
         migration = ResearchCSVSchemaCheckMigration()
-        assert migration.detect(research_feature_with_correct_schema) is False
+        assert migration.detect(research_mission_with_correct_schema) is False
 
-    def test_detect_wrong_evidence_schema(self, research_feature_with_wrong_evidence_schema):
+    def test_detect_wrong_evidence_schema(self, research_mission_with_wrong_evidence_schema):
         """Test detection returns True when evidence-log.csv schema is wrong."""
         migration = ResearchCSVSchemaCheckMigration()
-        assert migration.detect(research_feature_with_wrong_evidence_schema) is True
+        assert migration.detect(research_mission_with_wrong_evidence_schema) is True
 
-    def test_detect_wrong_source_schema(self, research_feature_with_wrong_source_schema):
+    def test_detect_wrong_source_schema(self, research_mission_with_wrong_source_schema):
         """Test detection returns True when source-register.csv schema is wrong."""
         migration = ResearchCSVSchemaCheckMigration()
-        assert migration.detect(research_feature_with_wrong_source_schema) is True
+        assert migration.detect(research_mission_with_wrong_source_schema) is True
 
-    def test_detect_skips_software_dev(self, software_dev_feature):
-        """Test detection skips software-dev features."""
+    def test_detect_skips_software_dev(self, software_dev_mission):
+        """Test detection skips software-dev missions."""
         migration = ResearchCSVSchemaCheckMigration()
-        assert migration.detect(software_dev_feature) is False
+        assert migration.detect(software_dev_mission) is False
 
 
 class TestMigrationApply:
     """Tests for migration application."""
 
-    def test_apply_no_features(self, mock_research_project):
-        """Test migration handles project with no features."""
+    def test_apply_no_missions(self, mock_research_project):
+        """Test migration handles project with no missions."""
         migration = ResearchCSVSchemaCheckMigration()
         result = migration.apply(mock_research_project, dry_run=False)
 
@@ -159,10 +159,10 @@ class TestMigrationApply:
         # Empty kitty-specs directory means all schemas are correct (no mismatches found)
         assert any("correct" in change.lower() for change in result.changes_made)
 
-    def test_apply_correct_schemas(self, research_feature_with_correct_schema, capsys):
+    def test_apply_correct_schemas(self, research_mission_with_correct_schema, capsys):
         """Test migration reports success when schemas are correct."""
         migration = ResearchCSVSchemaCheckMigration()
-        result = migration.apply(research_feature_with_correct_schema, dry_run=False)
+        result = migration.apply(research_mission_with_correct_schema, dry_run=False)
 
         assert result.success is True
         assert len(result.errors) == 0
@@ -172,10 +172,10 @@ class TestMigrationApply:
         captured = capsys.readouterr()
         assert "Schema mismatch" not in captured.out
 
-    def test_apply_wrong_evidence_schema(self, research_feature_with_wrong_evidence_schema, capsys):
+    def test_apply_wrong_evidence_schema(self, research_mission_with_wrong_evidence_schema, capsys):
         """Test migration reports mismatch for wrong evidence-log.csv schema."""
         migration = ResearchCSVSchemaCheckMigration()
-        result = migration.apply(research_feature_with_wrong_evidence_schema, dry_run=False)
+        result = migration.apply(research_mission_with_wrong_evidence_schema, dry_run=False)
 
         assert result.success is True  # Informational only
         assert len(result.errors) == 0
@@ -189,10 +189,10 @@ class TestMigrationApply:
         assert "Actual:" in captured.out
         assert "timestamp,source_type,citation,key_finding,confidence,notes" in captured.out
 
-    def test_apply_wrong_source_schema(self, research_feature_with_wrong_source_schema, capsys):
+    def test_apply_wrong_source_schema(self, research_mission_with_wrong_source_schema, capsys):
         """Test migration reports mismatch for wrong source-register.csv schema."""
         migration = ResearchCSVSchemaCheckMigration()
-        result = migration.apply(research_feature_with_wrong_source_schema, dry_run=False)
+        result = migration.apply(research_mission_with_wrong_source_schema, dry_run=False)
 
         assert result.success is True  # Informational only
         assert len(result.errors) == 0
@@ -203,19 +203,19 @@ class TestMigrationApply:
         assert "source-register.csv" in captured.out
         assert "source_id,citation,url,accessed_date,relevance,status" in captured.out
 
-    def test_apply_skips_software_dev(self, software_dev_feature):
-        """Test migration skips software-dev features."""
+    def test_apply_skips_software_dev(self, software_dev_mission):
+        """Test migration skips software-dev missions."""
         migration = ResearchCSVSchemaCheckMigration()
-        result = migration.apply(software_dev_feature, dry_run=False)
+        result = migration.apply(software_dev_mission, dry_run=False)
 
         assert result.success is True
-        # Should report no mismatches (skipped non-research feature)
+        # Should report no mismatches (skipped non-research mission)
         assert any("correct" in change.lower() for change in result.changes_made)
 
-    def test_apply_dry_run(self, research_feature_with_wrong_evidence_schema, capsys):
+    def test_apply_dry_run(self, research_mission_with_wrong_evidence_schema, capsys):
         """Test dry run mode produces same output."""
         migration = ResearchCSVSchemaCheckMigration()
-        result = migration.apply(research_feature_with_wrong_evidence_schema, dry_run=True)
+        result = migration.apply(research_mission_with_wrong_evidence_schema, dry_run=True)
 
         assert result.success is True
         assert len(result.errors) == 0
@@ -224,10 +224,10 @@ class TestMigrationApply:
         captured = capsys.readouterr()
         assert "schema mismatch" in captured.out.lower()
 
-    def test_apply_provides_migration_tips(self, research_feature_with_wrong_evidence_schema, capsys):
+    def test_apply_provides_migration_tips(self, research_mission_with_wrong_evidence_schema, capsys):
         """Test migration provides actionable migration tips."""
         migration = ResearchCSVSchemaCheckMigration()
-        migration.apply(research_feature_with_wrong_evidence_schema, dry_run=False)
+        migration.apply(research_mission_with_wrong_evidence_schema, dry_run=False)
 
         captured = capsys.readouterr()
         # Check for migration tips
@@ -235,10 +235,10 @@ class TestMigrationApply:
         assert "implement.md" in captured.out
         assert "LLM agents can help" in captured.out
 
-    def test_apply_does_not_modify_files(self, research_feature_with_wrong_evidence_schema):
+    def test_apply_does_not_modify_files(self, research_mission_with_wrong_evidence_schema):
         """Test migration does NOT modify CSV files (informational only)."""
         csv_path = (
-            research_feature_with_wrong_evidence_schema
+            research_mission_with_wrong_evidence_schema
             / "kitty-specs"
             / "002-wrong-evidence"
             / "research"
@@ -247,7 +247,7 @@ class TestMigrationApply:
         original_content = csv_path.read_text()
 
         migration = ResearchCSVSchemaCheckMigration()
-        migration.apply(research_feature_with_wrong_evidence_schema, dry_run=False)
+        migration.apply(research_mission_with_wrong_evidence_schema, dry_run=False)
 
         # File should be unchanged
         assert csv_path.read_text() == original_content
@@ -261,24 +261,24 @@ class TestMigrationApply:
         assert reason == ""
 
 
-class TestMultipleFeatures:
-    """Tests with multiple research features."""
+class TestMultipleMissions:
+    """Tests with multiple research missions."""
 
     def test_mixed_correct_and_wrong_schemas(self, mock_research_project, capsys):
         """Test migration reports only wrong schemas when mix exists."""
-        # Create one correct feature
-        correct_feature = mock_research_project / "kitty-specs" / "001-correct"
-        correct_feature.mkdir()
-        (correct_feature / "meta.json").write_text(json.dumps({"mission": "research"}))
-        research_dir = correct_feature / "research"
+        # Create one correct mission
+        correct_mission = mock_research_project / "kitty-specs" / "001-correct"
+        correct_mission.mkdir()
+        (correct_mission / "meta.json").write_text(json.dumps({"mission": "research"}))
+        research_dir = correct_mission / "research"
         research_dir.mkdir()
         (research_dir / "evidence-log.csv").write_text("timestamp,source_type,citation,key_finding,confidence,notes\n")
 
-        # Create one wrong feature
-        wrong_feature = mock_research_project / "kitty-specs" / "002-wrong"
-        wrong_feature.mkdir()
-        (wrong_feature / "meta.json").write_text(json.dumps({"mission": "research"}))
-        research_dir = wrong_feature / "research"
+        # Create one wrong mission
+        wrong_mission = mock_research_project / "kitty-specs" / "002-wrong"
+        wrong_mission.mkdir()
+        (wrong_mission / "meta.json").write_text(json.dumps({"mission": "research"}))
+        research_dir = wrong_mission / "research"
         research_dir.mkdir()
         (research_dir / "evidence-log.csv").write_text("id,component,finding\n")
 
@@ -288,6 +288,6 @@ class TestMultipleFeatures:
         assert result.success is True
         captured = capsys.readouterr()
 
-        # Should report only the wrong feature
+        # Should report only the wrong mission
         assert "002-wrong" in captured.out
         assert "001-correct" not in captured.out

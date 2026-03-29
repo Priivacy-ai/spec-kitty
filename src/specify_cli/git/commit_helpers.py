@@ -66,7 +66,7 @@ def safe_commit(
         >>> from pathlib import Path
         >>> safe_commit(
         ...     repo_path=Path("."),
-        ...     files_to_commit=[Path("kitty-specs/038-feature/tasks/WP01.md")],
+        ...     files_to_commit=[Path("kitty-specs/038-mission/tasks/WP01.md")],
         ...     commit_message="Update WP01 status to doing",
         ...     allow_empty=False
         ... )

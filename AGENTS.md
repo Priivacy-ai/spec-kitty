@@ -19,7 +19,7 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 ### Current System (v0.9.0+)
 
 ```
-kitty-specs/001-my-feature/tasks/
+kitty-specs/001-my-mission/tasks/
   ├── WP01-setup.md        (lane: "planned")
   ├── WP02-core.md         (lane: "doing")
   ├── WP03-tests.md        (lane: "for_review")
@@ -66,7 +66,7 @@ spec-kitty agent workflow review [WP01]
 ### Other Task Commands
 
 ```bash
-# List all work packages for current feature
+# List all work packages for current mission
 spec-kitty agent tasks list-tasks
 
 # List tasks in specific lane
@@ -81,6 +81,11 @@ spec-kitty agent tasks add-history WP01 --note "Progress update"
 ## General practices
 
 - Any changes to `__init__.py` for the Spec Kitty CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`.
+
+## Branching Strategy
+
+- For **2.x** work, the reference branch is either `2.x` or `develop` (if it exists).
+- For **1.x** work, the reference branch is `main`.
 
 ## Adding New Agent Support
 
@@ -107,7 +112,6 @@ Spec Kitty CLI supports multiple AI agents by generating agent-specific command 
 | **opencode** | `.opencode/command/` | Markdown | `opencode` | opencode CLI |
 | **Windsurf** | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows |
 | **Amazon Q Developer CLI** | `.amazonq/prompts/` | Markdown | `q` | Amazon Q Developer CLI |
-
 
 ### Step-by-Step Integration Guide
 
@@ -169,12 +173,14 @@ Update the **Supported AI Agents** section in `README.md` to include the new age
 
 Modify `.github/workflows/scripts/create-release-packages.sh`:
 
-##### Add to ALL_AGENTS array:
+##### Add to ALL_AGENTS array
+
 ```bash
 ALL_AGENTS=(claude gemini copilot cursor qwen opencode windsurf q)
 ```
 
-##### Add case statement for directory structure:
+##### Add case statement for directory structure
+
 ```bash
 case $agent in
   # ... existing cases ...
@@ -206,7 +212,7 @@ Agent context is now managed via the Python CLI:
 # Update agent context programmatically
 spec-kitty agent context update
 
-# Or handle during feature workflow via slash commands
+# Or handle during mission workflow via slash commands
 # which automatically manage agent context
 ```
 
@@ -239,6 +245,7 @@ elif selected_ai == "windsurf":
 ## Agent Categories
 
 ### CLI-Based Agents
+
 Require a command-line tool to be installed:
 - **Claude Code**: `claude` CLI
 - **Gemini CLI**: `gemini` CLI  
@@ -247,6 +254,7 @@ Require a command-line tool to be installed:
 - **opencode**: `opencode` CLI
 
 ### IDE-Based Agents
+
 Work within integrated development environments:
 - **GitHub Copilot**: Built into VS Code/compatible editors
 - **Windsurf**: Built into Windsurf IDE
@@ -254,6 +262,7 @@ Work within integrated development environments:
 ## Command File Formats
 
 ### Markdown Format
+
 Used by: Claude, Cursor, opencode, Windsurf, Amazon Q Developer
 
 ```markdown
@@ -265,6 +274,7 @@ Command content with {SCRIPT} and $ARGUMENTS placeholders.
 ```
 
 ### TOML Format
+
 Used by: Gemini, Qwen
 
 ```toml
@@ -338,7 +348,6 @@ Rules:
 - If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
 - Runbook source of truth: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`.
-
 
 ---
 

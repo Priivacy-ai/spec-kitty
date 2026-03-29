@@ -87,7 +87,7 @@ adds OAuth2 providers as delta to existing system.
 
 ## Real-Time Progress Tracking with Integrated Kanban
 
-Spec Kitty pairs specification rigor with a **visual workflow** that keeps the entire team aligned. The built-in task dashboard streams lane transitions from every feature worktree, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane scripts, so the dashboard highlights blockers, review requests, and idle work packages in real time. This **task dashboard** becomes the heartbeat of the project—drive agent coordination from one screen, rebalance workloads instantly, and archive the full timeline for compliance.
+Spec Kitty pairs specification rigor with a **visual workflow** that keeps the entire team aligned. The built-in task dashboard streams lane transitions from every mission worktree, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane scripts, so the dashboard highlights blockers, review requests, and idle work packages in real time. This **task dashboard** becomes the heartbeat of the project—drive agent coordination from one screen, rebalance workloads instantly, and archive the full timeline for compliance.
 
 ## The SDD Workflow in Practice
 
@@ -160,21 +160,21 @@ The SDD methodology is significantly enhanced through three powerful commands th
 
 ### The `/spec-kitty.specify` Command
 
-This command transforms a simple feature description (the user-prompt) into a complete, structured specification with automatic repository management:
+This command transforms a simple mission description (the user-prompt) into a complete, structured specification with automatic repository management:
 
-1. **Automatic Feature Numbering**: Scans existing specs to determine the next feature number (e.g., 001, 002, 003)
+1. **Automatic Mission Numbering**: Scans existing specs to determine the next mission number (e.g., 001, 002, 003)
 2. **Branch Creation**: Generates a semantic branch name from your description and creates it automatically
-3. **Dedicated Worktree**: Spawns an isolated checkout under `.worktrees/<feature-slug>` so each feature has its own sandbox without disturbing other branches
-4. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
+3. **Dedicated Worktree**: Spawns an isolated checkout under `.worktrees/<mission-slug>` so each mission has its own sandbox without disturbing other branches
+4. **Template-Based Generation**: Copies and customizes the mission specification template with your requirements
 5. **Directory Structure**: Creates the proper `kitty-specs/[branch-name]/` structure for all related documents
 
 After the command finishes, switch your shell into the new worktree (e.g., `cd .worktrees/003-chat-system`) before running planning or implementation commands. If your environment can’t access the `.worktrees/` directory, the CLI falls back to the legacy single-worktree flow so you can keep working.
 
 ### The `/spec-kitty.plan` Command
 
-Once a feature specification exists, this command creates a comprehensive implementation plan:
+Once a mission specification exists, this command creates a comprehensive implementation plan:
 
-1. **Specification Analysis**: Reads and understands the feature requirements, user stories, and acceptance criteria
+1. **Specification Analysis**: Reads and understands the mission requirements, user stories, and acceptance criteria
 2. **Constitutional Compliance**: Ensures alignment with project constitution and architectural principles
 3. **Technical Translation**: Converts business requirements into technical architecture and implementation details
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
@@ -208,10 +208,10 @@ Use this command after every work package is in `tasks/done/` and the checklist 
 
 1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures Activity Log entries exist for each lane transition.
 2. **Artifact Audit**: Verifies `spec.md`, `plan.md`, `tasks.md`, and supporting documents are present and free from `NEEDS CLARIFICATION` markers; confirms all checkboxes in `tasks.md` are checked.
-3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `kitty-specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
-4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
+3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `kitty-specs/<mission>/meta.json`, creating an acceptance commit unless run in dry-run mode.
+4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the mission worktree and branch once merged.
 
-`/spec-kitty.implement` and `/spec-kitty.accept` both assume you are operating from that feature’s worktree. If you drift back to the repo root, `cd .worktrees/<feature-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
+`/spec-kitty.implement` and `/spec-kitty.accept` both assume you are operating from that mission’s worktree. If you drift back to the repo root, `cd .worktrees/<mission-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
 
 `/spec-kitty.accept` is also exposed as `spec-kitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
 
@@ -288,7 +288,7 @@ Total: ~12 hours of documentation work
 **SDD with Commands Approach:**
 
 ```bash
-# Step 1: Create the feature specification (5 minutes)
+# Step 1: Create the mission specification (5 minutes)
 /spec-kitty.specify Real-time chat system with message history and user presence
 
 # This automatically:
@@ -314,11 +314,11 @@ Total: ~12 hours of documentation work
 
 In 15 minutes, you have:
 
-- A complete feature specification with user stories and acceptance criteria
+- A complete mission specification with user stories and acceptance criteria
 - A detailed implementation plan with technology choices and rationale
 - API contracts and data models ready for code generation
 - Comprehensive test scenarios for both automated and manual testing
-- All documents properly versioned in a feature branch
+- All documents properly versioned in a mission branch
 
 ### The Power of Structured Automation
 
@@ -337,7 +337,7 @@ The true power of these commands lies not just in automation, but in how the tem
 
 #### 1. **Preventing Premature Implementation Details**
 
-The feature specification template explicitly instructs:
+The mission specification template explicitly instructs:
 
 ```text
 - ✅ Focus on WHAT users need and WHY

@@ -9,6 +9,8 @@ Tests the preflight validation checks that run before any merge operation begins
 
 from __future__ import annotations
 
+import pytest
+
 import subprocess
 from pathlib import Path
 
@@ -47,14 +49,14 @@ class TestWPStatus:
         """Test creating WPStatus with all fields."""
         status = WPStatus(
             wp_id="WP01",
-            worktree_path=Path("/test/.worktrees/feature-WP01"),
-            branch_name="feature-WP01",
+            worktree_path=Path("/test/.worktrees/mission-WP01"),
+            branch_name="mission-WP01",
             is_clean=True,
             error=None,
         )
         assert status.wp_id == "WP01"
-        assert status.worktree_path == Path("/test/.worktrees/feature-WP01")
-        assert status.branch_name == "feature-WP01"
+        assert status.worktree_path == Path("/test/.worktrees/mission-WP01")
+        assert status.branch_name == "mission-WP01"
         assert status.is_clean is True
         assert status.error is None
 
@@ -62,8 +64,8 @@ class TestWPStatus:
         """Test WPStatus for clean worktree (no error)."""
         status = WPStatus(
             wp_id="WP02",
-            worktree_path=Path("/test/.worktrees/feature-WP02"),
-            branch_name="feature-WP02",
+            worktree_path=Path("/test/.worktrees/mission-WP02"),
+            branch_name="mission-WP02",
             is_clean=True,
         )
         assert status.is_clean is True
@@ -73,13 +75,13 @@ class TestWPStatus:
         """Test WPStatus for dirty worktree (with error message)."""
         status = WPStatus(
             wp_id="WP03",
-            worktree_path=Path("/test/.worktrees/feature-WP03"),
-            branch_name="feature-WP03",
+            worktree_path=Path("/test/.worktrees/mission-WP03"),
+            branch_name="mission-WP03",
             is_clean=False,
-            error="Uncommitted changes in feature-WP03",
+            error="Uncommitted changes in mission-WP03",
         )
         assert status.is_clean is False
-        assert status.error == "Uncommitted changes in feature-WP03"
+        assert status.error == "Uncommitted changes in mission-WP03"
 
 
 class TestCheckWorktreeStatus:
@@ -114,7 +116,7 @@ class TestCheckWorktreeStatus:
             capture_output=True,
         )
 
-        status = check_worktree_status(repo, "WP01", "feature-WP01")
+        status = check_worktree_status(repo, "WP01", "mission-WP01")
         assert status.is_clean is True
         assert status.error is None
         assert status.wp_id == "WP01"
@@ -151,7 +153,7 @@ class TestCheckWorktreeStatus:
         # Add uncommitted file
         (repo / "uncommitted.txt").write_text("changes")
 
-        status = check_worktree_status(repo, "WP02", "feature-WP02")
+        status = check_worktree_status(repo, "WP02", "mission-WP02")
         assert status.is_clean is False
         assert status.error is not None
         assert "Uncommitted changes" in status.error
@@ -160,7 +162,7 @@ class TestCheckWorktreeStatus:
         """Test that missing worktree directory returns error."""
         missing_path = tmp_path / "nonexistent"
 
-        status = check_worktree_status(missing_path, "WP03", "feature-WP03")
+        status = check_worktree_status(missing_path, "WP03", "mission-WP03")
         assert status.is_clean is False
         assert status.error is not None
 
@@ -170,7 +172,7 @@ class TestCheckWorktreeStatus:
         not_a_repo = tmp_path / "not_a_repo"
         not_a_repo.mkdir()
 
-        status = check_worktree_status(not_a_repo, "WP04", "feature-WP04")
+        status = check_worktree_status(not_a_repo, "WP04", "mission-WP04")
         # Git status in a non-git directory returns exit code 128 but the function catches it
         # The result is actually a clean status when the directory doesn't have .git
         # because git status --porcelain returns empty string when not in a repo
@@ -486,7 +488,7 @@ class TestRunPreflight:
 
     def test_all_checks_pass(self, tmp_path: Path):
         """Test preflight when all checks pass."""
-        # Create main repo with feature directory
+        # Create main repo with mission directory
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
@@ -511,9 +513,9 @@ class TestRunPreflight:
             capture_output=True,
         )
 
-        # Create feature directory with WP tasks
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        # Create mission directory with WP tasks
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 task file
@@ -531,9 +533,9 @@ dependencies: []
         )
 
         # Create worktree
-        worktree_dir = repo / ".worktrees" / "001-test-feature-WP01"
+        worktree_dir = repo / ".worktrees" / "001-test-mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -554,10 +556,10 @@ dependencies: []
             capture_output=True,
         )
 
-        wp_workspaces = [(worktree_dir, "WP01", "001-test-feature-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", "001-test-mission-WP01")]
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch="master",
             repo_root=repo,
             wp_workspaces=wp_workspaces,
@@ -595,9 +597,9 @@ dependencies: []
             capture_output=True,
         )
 
-        # Create feature directory with WP tasks but no worktree
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        # Create mission directory with WP tasks but no worktree
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_file = tasks_dir / "WP01.md"
@@ -617,7 +619,7 @@ dependencies: []
         wp_workspaces = []
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch="master",
             repo_root=repo,
             wp_workspaces=wp_workspaces,
@@ -656,8 +658,8 @@ dependencies: []
             capture_output=True,
         )
 
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_file = tasks_dir / "WP01.md"
@@ -674,7 +676,7 @@ dependencies: []
         )
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch="master",
             repo_root=repo,
             wp_workspaces=[],
@@ -711,9 +713,9 @@ dependencies: []
             capture_output=True,
         )
 
-        # Create feature and worktree
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        # Create mission and worktree
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_file = tasks_dir / "WP01.md"
@@ -729,9 +731,9 @@ dependencies: []
 """
         )
 
-        worktree_dir = repo / ".worktrees" / "001-test-feature-WP01"
+        worktree_dir = repo / ".worktrees" / "001-test-mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -740,10 +742,10 @@ dependencies: []
         # Add uncommitted changes
         (worktree_dir / "uncommitted.txt").write_text("changes")
 
-        wp_workspaces = [(worktree_dir, "WP01", "001-test-feature-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", "001-test-mission-WP01")]
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch="master",
             repo_root=repo,
             wp_workspaces=wp_workspaces,
@@ -819,9 +821,9 @@ dependencies: []
             capture_output=True,
         )
 
-        # Create feature and worktree
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        # Create mission and worktree
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_file = tasks_dir / "WP01.md"
@@ -837,9 +839,9 @@ dependencies: []
 """
         )
 
-        worktree_dir = repo / ".worktrees" / "001-test-feature-WP01"
+        worktree_dir = repo / ".worktrees" / "001-test-mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -858,7 +860,7 @@ dependencies: []
             capture_output=True,
         )
 
-        wp_workspaces = [(worktree_dir, "WP01", "001-test-feature-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", "001-test-mission-WP01")]
 
         # Get default branch name
         result_branch = subprocess.run(
@@ -871,7 +873,7 @@ dependencies: []
         default_branch = result_branch.stdout.strip()
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch=default_branch,
             repo_root=repo,
             wp_workspaces=wp_workspaces,
@@ -909,9 +911,9 @@ dependencies: []
             capture_output=True,
         )
 
-        # Create feature with 2 WPs
-        feature_dir = repo / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        # Create mission with 2 WPs
+        mission_dir = repo / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_lanes = {1: "done", 2: "planned"}
@@ -930,9 +932,9 @@ dependencies: []
             )
 
         # Create worktree for WP01 with uncommitted changes
-        worktree_dir = repo / ".worktrees" / "001-test-feature-WP01"
+        worktree_dir = repo / ".worktrees" / "001-test-mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "001-test-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -940,10 +942,10 @@ dependencies: []
         (worktree_dir / "uncommitted.txt").write_text("changes")
 
         # WP02 has no worktree (missing)
-        wp_workspaces = [(worktree_dir, "WP01", "001-test-feature-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", "001-test-mission-WP01")]
 
         result = run_preflight(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             target_branch="master",
             repo_root=repo,
             wp_workspaces=wp_workspaces,

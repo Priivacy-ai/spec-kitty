@@ -15,7 +15,7 @@ def test_doctrine_structure_paths_exist() -> None:
         REPO_ROOT / "src" / "doctrine" / "paradigms",
         REPO_ROOT / "src" / "doctrine" / "directives",
         REPO_ROOT / "src" / "doctrine" / "tactics",
-        REPO_ROOT / "src" / "doctrine" / "agent-profiles",
+        REPO_ROOT / "src" / "doctrine" / "agent_profiles",
         REPO_ROOT / "src" / "doctrine" / "styleguides",
         REPO_ROOT / "src" / "doctrine" / "toolguides",
         REPO_ROOT / "src" / "doctrine" / "schemas",
@@ -26,10 +26,11 @@ def test_doctrine_structure_paths_exist() -> None:
         assert directory.is_dir(), f"Missing expected doctrine directory: {directory}"
 
 
-def test_curation_readme_documents_pull_based_flow() -> None:
+def test_curation_readme_documents_pipeline() -> None:
     readme = (REPO_ROOT / "src" / "doctrine" / "curation" / "README.md").read_text(encoding="utf-8")
-    assert "pull-based" in readme.lower()
-    assert "ZOMBIES TDD" in readme
+    assert "_proposed" in readme
+    assert "shipped" in readme
+    assert "workflow" in readme.lower()
 
 
 def test_import_candidate_schema_contains_adoption_gate() -> None:
@@ -68,8 +69,7 @@ def test_import_candidate_sample_validates() -> None:
         REPO_ROOT
         / "src"
         / "doctrine"
-        / "curation"
-        / "imports"
+        / "_reference"
         / "example-zombies"
         / "candidates"
         / "zombies-tdd.import.yaml"

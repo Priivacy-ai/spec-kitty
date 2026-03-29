@@ -3,6 +3,7 @@ work_package_id: "WPxx"
 subtasks:
   - "Txxx"
 title: "Replace with work package title"
+task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
 lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
@@ -62,6 +63,15 @@ Use language identifiers in code blocks: ````python`,````bash`
 - **Source Register**: All sources MUST be recorded in `research/source-register.csv`
 - **Evidence Log**: All findings MUST be recorded in `research/evidence-log.csv`
 - **Citations**: Every claim must link to evidence rows
+
+## Branch Strategy
+
+- **Strategy**: {{branch_strategy}}
+- **Planning base branch**: {{planning_base_branch}}
+- **Merge target branch**: {{merge_target_branch}}
+
+> These fields are populated automatically by `spec-kitty agent mission tasks`.
+> Do NOT change them manually unless you are certain the branch topology has changed.
 
 ## Subtasks & Detailed Guidance
 

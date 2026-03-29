@@ -15,7 +15,7 @@ import pytest
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import (
@@ -219,10 +219,10 @@ class TestMissingArtifactDetection:
 
         # Create dossier with no artifacts
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
         )
@@ -260,10 +260,10 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
         )
@@ -303,10 +303,10 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[artifact],
             manifest=manifest.dict(),
         )
@@ -332,10 +332,10 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
         )
@@ -361,10 +361,10 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
         )
@@ -449,18 +449,18 @@ class TestUnreadableArtifactHandling:
 class TestMissionDossierBuilder:
     """Test MissionDossier builder."""
 
-    def test_index_feature_builds_complete_dossier(self, tmp_path):
-        """index_feature builds complete MissionDossier with indexed artifacts."""
+    def test_index_mission_builds_complete_dossier(self, tmp_path):
+        """index_mission builds complete MissionDossier with indexed artifacts."""
         (tmp_path / "spec.md").write_text("# Specification")
         (tmp_path / "plan.md").write_text("# Plan")
         (tmp_path / "tasks.md").write_text("# Tasks")
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(tmp_path, "software-dev")
+        dossier = indexer.index_mission(tmp_path, "software-dev")
 
         assert dossier.mission_slug == "software-dev"
-        assert dossier.feature_slug == tmp_path.name
-        assert dossier.feature_dir == str(tmp_path)
+        assert dossier.mission_slug == tmp_path.name
+        assert dossier.mission_dir == str(tmp_path)
         assert len(dossier.artifacts) >= 3
 
     def test_dossier_includes_all_indexed_artifacts(self, tmp_path):
@@ -473,7 +473,7 @@ class TestMissionDossierBuilder:
 
         try:
             indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(tmp_path, "software-dev")
+            dossier = indexer.index_mission(tmp_path, "software-dev")
 
             # Should have both readable and unreadable
             assert len(dossier.artifacts) >= 2
@@ -503,7 +503,7 @@ class TestMissionDossierBuilder:
             # Create empty temp directory
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_path = Path(tmp_dir)
-                dossier = indexer.index_feature(tmp_path, "software-dev")
+                dossier = indexer.index_mission(tmp_path, "software-dev")
 
         # Should have missing artifact
         missing = [a for a in dossier.artifacts if not a.is_present]
@@ -515,7 +515,7 @@ class TestMissionDossierBuilder:
 
         indexer = Indexer(ManifestRegistry())
         before = datetime.utcnow()
-        dossier = indexer.index_feature(tmp_path, "software-dev")
+        dossier = indexer.index_mission(tmp_path, "software-dev")
         after = datetime.utcnow()
 
         assert dossier.dossier_updated_at is not None
@@ -537,10 +537,10 @@ class TestCompletenessStatus:
             is_present=True,
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},  # Has manifest
         )
@@ -559,10 +559,10 @@ class TestCompletenessStatus:
             error_reason="not_found",
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},
         )
@@ -580,10 +580,10 @@ class TestCompletenessStatus:
             is_present=True,
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[artifact],
             manifest=None,  # No manifest
         )
@@ -611,10 +611,10 @@ class TestCompletenessStatus:
             error_reason="not_found",
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
-            feature_dir="/tmp/test",
+            mission_slug="test-mission",
+            mission_dir="/tmp/test",
             artifacts=[required, optional],
             manifest={"required": ["spec"]},
         )
@@ -626,7 +626,7 @@ class TestLargeScaleIndexing:
     """Test indexing with many artifacts."""
 
     def test_scan_30_plus_artifacts_without_errors(self, tmp_path):
-        """Scan feature directory with 30+ files, no errors."""
+        """Scan mission directory with 30+ files, no errors."""
         # Create 30+ test files
         for i in range(35):
             if i % 5 == 0:
@@ -641,7 +641,7 @@ class TestLargeScaleIndexing:
                 (tmp_path / f"test_{i}.py").write_text(f"# Test {i}")
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(tmp_path, "software-dev")
+        dossier = indexer.index_mission(tmp_path, "software-dev")
 
         # Should have indexed 35 artifacts without errors
         assert len(dossier.artifacts) == 35

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.constitution.resolver import (
+from constitution.resolver import (
     GovernanceResolutionError,
     resolve_governance,
 )

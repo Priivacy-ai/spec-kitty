@@ -1,6 +1,6 @@
-"""Migration tests for workspace-per-WP feature (0.11.0) - CORRECTED.
+"""Migration tests for workspace-per-WP capability (0.11.0) - CORRECTED.
 
-Tests validate that template SOURCE files in src/specify_cli/missions/software-dev/command-templates/
+Tests validate that template SOURCE files in src/doctrine/missions/software-dev/command-templates/
 are updated correctly for the workspace-per-WP workflow.
 
 Agent directories (.claude/, .gemini/, etc.) are GITIGNORED and generated at runtime
@@ -20,7 +20,7 @@ from pathlib import Path
 pytestmark = pytest.mark.fast
 # Template source directory (committed to repo)
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+TEMPLATE_DIR = REPO_ROOT / "src" / "doctrine" / "missions" / "software-dev" / "command-templates"
 
 
 # T009: Test template directory exists
@@ -39,7 +39,7 @@ def test_specify_template_updated():
     content = specify_template.read_text()
 
     # Should NOT contain instructions to create worktrees during specify
-    # Check ANY mention of .worktrees (case-insensitive, no gating on "feature" word)
+    # Check ANY mention of .worktrees (case-insensitive, no gating on "mission" word)
     content_lower = content.lower()
 
     if ".worktrees" in content_lower:

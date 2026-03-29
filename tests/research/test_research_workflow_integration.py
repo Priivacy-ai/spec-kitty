@@ -121,16 +121,16 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     subprocess.run(["git", "add", "."], cwd=project_dir, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Init"], cwd=project_dir, check=True, capture_output=True)
 
-    # Create a feature so mission current has explicit feature context.
-    feature_slug = "001-research-test"
-    feature_dir = project_dir / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
+    # Create a mission so mission current has explicit mission context.
+    mission_slug = "001-research-test"
+    mission_dir = project_dir / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
         json.dumps(
             {
-                "feature_number": "001",
-                "slug": feature_slug,
-                "feature_slug": feature_slug,
+                "mission_number": "001",
+                "slug": mission_slug,
+                "mission_slug": mission_slug,
                 "friendly_name": "Research Test",
                 "mission": "research",
                 "target_branch": "main",
@@ -140,8 +140,8 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
         encoding="utf-8",
     )
 
-    # Verify research mission active for the explicit feature.
-    result = run_cli(project_dir, "mission", "current", "--feature", feature_slug)
+    # Verify research mission active for the explicit mission.
+    result = run_cli(project_dir, "mission-type", "current", "--mission", mission_slug)
     assert result.returncode == 0
     assert "research" in result.stdout.lower()
 
@@ -180,12 +180,12 @@ def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
 
     from specify_cli.mission import get_deliverables_path
 
-    # Create feature structure
-    feature_dir = tmp_path / "kitty-specs" / "001-market-research"
-    feature_dir.mkdir(parents=True)
+    # Create mission structure
+    mission_dir = tmp_path / "kitty-specs" / "001-market-research"
+    mission_dir.mkdir(parents=True)
 
     # Write meta.json with deliverables_path
-    meta_file = feature_dir / "meta.json"
+    meta_file = mission_dir / "meta.json"
     meta_file.write_text(
         json.dumps(
             {"mission": "research", "slug": "001-market-research", "deliverables_path": "docs/research/market-study/"}
@@ -193,7 +193,7 @@ def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
     )
 
     # Verify retrieval
-    result = get_deliverables_path(feature_dir)
+    result = get_deliverables_path(mission_dir)
     assert result == "docs/research/market-study/"
 
 def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
@@ -220,25 +220,25 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
 
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+    from specify_cli.mission import get_deliverables_path, get_mission_key
 
-    # Create feature structure
-    feature_dir = tmp_path / "kitty-specs" / "001-research"
-    feature_dir.mkdir(parents=True)
+    # Create mission structure
+    mission_dir = tmp_path / "kitty-specs" / "001-research"
+    mission_dir.mkdir(parents=True)
 
     # Create research planning artifacts (in kitty-specs)
-    research_planning = feature_dir / "research"
+    research_planning = mission_dir / "research"
     research_planning.mkdir()
     (research_planning / "evidence-log.csv").write_text("timestamp,source_type,citation\n")
     (research_planning / "source-register.csv").write_text("source_id,citation,url\n")
 
     # Create meta.json with deliverables path
-    meta_file = feature_dir / "meta.json"
+    meta_file = mission_dir / "meta.json"
     meta_file.write_text(json.dumps({"mission": "research", "deliverables_path": "docs/research/001-research/"}))
 
     # Verify separation
-    assert get_feature_mission_key(feature_dir) == "research"
-    deliverables = get_deliverables_path(feature_dir)
+    assert get_mission_key(mission_dir) == "research"
+    deliverables = get_deliverables_path(mission_dir)
     assert deliverables == "docs/research/001-research/"
 
     # Planning artifacts exist in kitty-specs
@@ -257,11 +257,11 @@ def test_default_deliverables_path_generation(tmp_path: Path) -> None:
 
     from specify_cli.mission import get_deliverables_path
 
-    # Create feature with research mission but NO deliverables_path
-    feature_dir = tmp_path / "kitty-specs" / "002-literature-review"
-    feature_dir.mkdir(parents=True)
+    # Create mission with research mission but NO deliverables_path
+    mission_dir = tmp_path / "kitty-specs" / "002-literature-review"
+    mission_dir.mkdir(parents=True)
 
-    meta_file = feature_dir / "meta.json"
+    meta_file = mission_dir / "meta.json"
     meta_file.write_text(
         json.dumps(
             {
@@ -273,5 +273,5 @@ def test_default_deliverables_path_generation(tmp_path: Path) -> None:
     )
 
     # Should return default path
-    result = get_deliverables_path(feature_dir)
+    result = get_deliverables_path(mission_dir)
     assert result == "docs/research/002-literature-review/"

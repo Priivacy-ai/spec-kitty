@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.core.agent_config import (
-    load_agent_config,
-    save_agent_config,
-    AgentConfig,
-    AgentConfigError,
+from specify_cli.core.tool_config import (
+    load_tool_config as load_agent_config,
+    save_tool_config as save_agent_config,
+    ToolConfig as AgentConfig,
+    ToolConfigError as AgentConfigError,
 )
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
@@ -22,7 +21,7 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 )
 from specify_cli.tasks_support import find_repo_root
 
-app = typer.Typer(
+app: typer.Typer = typer.Typer(
     name="config",
     help="Manage project AI agent configuration (add, remove, list agents)",
     no_args_is_help=True,
@@ -93,7 +92,7 @@ def list_agents():
 
 @app.command(name="add")
 def add_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
 ):
     """Add agents to the project.
 
@@ -174,7 +173,7 @@ def add_agents(
 
 @app.command(name="remove")
 def remove_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to remove"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to remove"),
     keep_config: bool = typer.Option(
         False,
         "--keep-config",
@@ -307,7 +306,7 @@ def agent_status():
             f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
             f"(present but not configured)"
         )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")

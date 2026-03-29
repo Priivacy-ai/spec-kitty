@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.constitution import (
+from constitution import (
     DirectivesConfig,
     GovernanceConfig,
     load_directives_config,
@@ -109,7 +109,7 @@ class TestPostSaveHook:
         constitution_path.write_text("## Testing\n\nWe require 80% coverage.")
 
         caplog.clear()
-        with caplog.at_level(logging.INFO, logger="specify_cli.constitution.sync"):
+        with caplog.at_level(logging.INFO, logger="constitution.sync"):
             post_save_hook(constitution_path)
 
         assert any("Constitution synced: 3 YAML files updated" in record.message for record in caplog.records)
@@ -120,7 +120,7 @@ class TestPostSaveHook:
         constitution_path = constitution_dir / "constitution.md"
         constitution_path.write_text("## Testing\n\nCoverage: 80%")
 
-        with patch("specify_cli.constitution.sync.sync") as mock_sync:
+        with patch("constitution.sync.sync") as mock_sync:
             mock_sync.side_effect = RuntimeError("Extraction failed")
 
             caplog.clear()

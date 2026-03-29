@@ -10,7 +10,7 @@ description: Implement a research work package by conducting research and docume
 
 | Type | Location | Edited Where | Purpose |
 |------|----------|--------------|---------|
-| **Sprint Planning** | `kitty-specs/{{feature_slug}}/research/` | Main repo | Evidence/sources for planning THIS sprint |
+| **Sprint Planning** | `kitty-specs/{{mission_slug}}/research/` | Main repo | Evidence/sources for planning THIS sprint |
 | **Research Deliverables** | `{{deliverables_path}}` | Worktree | Actual research outputs (your work product) |
 
 ### Where to Put Your Research
@@ -21,7 +21,7 @@ This is configured in `meta.json` during planning. To find it:
 
 ```bash
 # Check deliverables_path in meta.json
-cat kitty-specs/{{feature_slug}}/meta.json | grep deliverables_path
+cat kitty-specs/{{mission_slug}}/meta.json | grep deliverables_path
 ```
 
 Examples of valid deliverables paths:
@@ -69,7 +69,7 @@ Before any `Read`/`Edit`/`Write` action, verify paths in shell first:
 ```bash
 pwd
 ls -la
-test -f kitty-specs/{{feature_slug}}/meta.json && echo "meta exists"
+test -f kitty-specs/{{mission_slug}}/meta.json && echo "meta exists"
 test -d {{deliverables_path}} || echo "deliverables path will be created"
 ```
 
@@ -119,7 +119,7 @@ spec-kitty agent tasks move-task {{wp_id}} --to for_review --note "Ready for rev
 
 ## Sprint Planning Artifacts (Separate)
 
-Planning artifacts in `kitty-specs/{{feature_slug}}/research/` are:
+Planning artifacts in `kitty-specs/{{mission_slug}}/research/` are:
 
 - `evidence-log.csv` - Evidence collected DURING PLANNING
 - `source-register.csv` - Sources cited DURING PLANNING
@@ -160,7 +160,7 @@ timestamp,source_type,citation,key_finding,confidence,notes
 ```bash
 # Format: timestamp,source_type,citation,key_finding,confidence,notes
 echo '2025-01-25T14:00:00,journal,"Smith, J. (2024). AI Tools. Nature, 10(2), 123.",AI improves productivity 30%,high,Meta-analysis' \
-  >> kitty-specs/{{feature_slug}}/research/evidence-log.csv
+  >> kitty-specs/{{mission_slug}}/research/evidence-log.csv
 ```
 
 ### source-register.csv Schema
@@ -185,7 +185,7 @@ source_id,citation,url,accessed_date,relevance,status
 ```bash
 # Format: source_id,citation,url,accessed_date,relevance,status
 echo 'S001,"Smith (2024). AI Tools.",https://example.com,2025-01-25,high,reviewed' \
-  >> kitty-specs/{{feature_slug}}/research/source-register.csv
+  >> kitty-specs/{{mission_slug}}/research/source-register.csv
 ```
 
 **Why this matters:**
@@ -229,7 +229,7 @@ Now, research deliverables go in `{{deliverables_path}}` which:
 
 ```bash
 # Creating files in planning artifacts location
-echo "# Findings" > kitty-specs/{{feature_slug}}/findings.md  # BAD!
+echo "# Findings" > kitty-specs/{{mission_slug}}/findings.md  # BAD!
 ```
 
 **Right**:

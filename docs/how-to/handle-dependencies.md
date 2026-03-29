@@ -49,10 +49,10 @@ Git can only branch from one base commit, so you choose the primary dependency a
 
 ```bash
 spec-kitty implement WP04 --base WP03
-cd .worktrees/###-feature-WP04
+cd .worktrees/###-mission-WP04
 
 # Merge the other dependency manually
-git merge ###-feature-WP02
+git merge ###-mission-WP02
 ```
 
 
@@ -61,7 +61,7 @@ git merge ###-feature-WP02
 When a dependency changes after you've started work, use `spec-kitty sync workspace` to update your workspace:
 
 ```bash
-cd .worktrees/###-feature-WP02
+cd .worktrees/###-mission-WP02
 spec-kitty sync workspace
 ```
 
@@ -78,9 +78,9 @@ You may need to resolve conflicts during sync. See [Sync Workspaces](sync-worksp
 If the parent WP changes after your dependent WP is in progress, rebase the child workspace:
 
 ```bash
-cd .worktrees/###-feature-WP02
+cd .worktrees/###-mission-WP02
 
-git rebase ###-feature-WP01
+git rebase ###-mission-WP01
 ```
 
 Repeat for each dependent WP that needs the updated base.

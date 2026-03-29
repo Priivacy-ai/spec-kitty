@@ -45,7 +45,7 @@ def test_atomic_write_interrupt_preserves_original(tmp_path: Path) -> None:
     target.write_text("original", encoding="utf-8")
 
     with (
-        patch("specify_cli.core.atomic.os.replace", side_effect=OSError("disk error")),
+        patch("kernel.atomic.os.replace", side_effect=OSError("disk error")),
         pytest.raises(OSError, match="disk error"),
     ):
         atomic_write(target, "replacement")
@@ -63,7 +63,7 @@ def test_atomic_write_keyboard_interrupt_cleanup(tmp_path: Path) -> None:
     target = tmp_path / "data.txt"
 
     with (
-        patch("specify_cli.core.atomic.os.replace", side_effect=KeyboardInterrupt),
+        patch("kernel.atomic.os.replace", side_effect=KeyboardInterrupt),
         pytest.raises(KeyboardInterrupt),
     ):
         atomic_write(target, "interrupted")

@@ -1,31 +1,43 @@
-"""Test that all templates comply with feature 007 flat tasks/ structure."""
+"""Test that all templates comply with mission 007 flat tasks/ structure.
 
+These are black-box tests that verify the interaction between specify_cli and
+doctrine by going through the public doctrine API (MissionTemplateRepository) rather
+than hard-coding internal filesystem paths.
+"""
+
+import importlib.resources
 from pathlib import Path
 import pytest
 import re
 
+from doctrine.missions import MissionTemplateRepository
+
+
+def _missions_root() -> Path:
+    """Return the doctrine package's missions root via the public API."""
+    return MissionTemplateRepository.default_missions_root()
+
 
 def find_mission_templates() -> list[Path]:
-    """Find all command template files in missions."""
-    spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
+    """Find all command template and content template files via the doctrine API.
 
+    Searches:
+    - doctrine missions: <missions_root>/<mission>/command-templates/*.md
+    - doctrine missions: <missions_root>/<mission>/templates/*.md
+    """
+    missions_root = _missions_root()
     templates = []
-    if missions_dir.exists():
-        for mission_dir in missions_dir.iterdir():
-            if mission_dir.is_dir():
-                cmd_templates = mission_dir / "command-templates"
-                if cmd_templates.exists():
-                    templates.extend(cmd_templates.glob("*.md"))
 
-                mission_templates = mission_dir / "templates"
-                if mission_templates.exists():
-                    templates.extend(mission_templates.glob("*.md"))
-
-    # Also check root templates
-    root_templates = spec_kitty_root / "src" / "specify_cli" / "templates"
-    if root_templates.exists():
-        templates.extend(root_templates.glob("**/*.md"))
+    if missions_root.is_dir():
+        for mission_dir in missions_root.iterdir():
+            if not mission_dir.is_dir() or mission_dir.name.startswith("."):
+                continue
+            cmd_templates = mission_dir / "command-templates"
+            if cmd_templates.exists():
+                templates.extend(cmd_templates.glob("*.md"))
+            mission_templates = mission_dir / "templates"
+            if mission_templates.exists():
+                templates.extend(mission_templates.glob("*.md"))
 
     return templates
 
@@ -122,14 +134,12 @@ def test_no_phase_subdirectories_in_templates():
 
 def test_templates_require_flat_structure():
     """Templates must explicitly require flat tasks/ structure."""
-    spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    tasks_template = (
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md"
-    )
+    repo = MissionTemplateRepository(_missions_root())
+    tasks_path = repo.get_command_template("software-dev", "tasks")
 
-    assert tasks_template.exists(), "tasks.md template not found"
+    assert tasks_path is not None, "tasks.md command template not found via MissionTemplateRepository"
 
-    content = tasks_template.read_text(encoding="utf-8")
+    content = tasks_path.content
 
     # Must have explicit instruction about flat structure
     assert "FLAT" in content.upper() or "flat" in content, "tasks.md must explicitly mention flat structure"
@@ -175,53 +185,49 @@ def test_task_prompt_templates_include_branch_contract_metadata():
 
 def test_planning_templates_use_deterministic_branch_helpers():
     """Planning-stage templates should rely on Python helpers, not manual git probing."""
-    spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    template_paths = [
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "tasks.md",
-    ]
+    repo = MissionTemplateRepository(_missions_root())
+    missions = repo.list_missions()
 
     missing_branch_helper = []
     forbidden_git_probes = []
 
-    for template_path in template_paths:
-        content = template_path.read_text(encoding="utf-8")
+    for mission in missions:
+        for cmd_name in ("specify", "plan", "tasks"):
+            result = repo.get_command_template(mission, cmd_name)
+            if result is None:
+                continue
+            content = result.content
 
-        if template_path.name == "specify.md" and "branch-context --json" not in content:
-            missing_branch_helper.append(template_path)
+            if cmd_name == "specify" and "branch-context --json" not in content:
+                missing_branch_helper.append(result.origin)
 
-        if "git branch --show-current" in content or "git rev-parse --abbrev-ref HEAD" in content:
-            forbidden_git_probes.append(template_path)
+            if "git branch --show-current" in content or "git rev-parse --abbrev-ref HEAD" in content:
+                forbidden_git_probes.append(result.origin)
 
     if missing_branch_helper:
         msg = "\n\nSpecify templates missing deterministic branch-context helper:\n"
-        for template_path in missing_branch_helper:
-            msg += f"\n{template_path}\n"
+        for origin in missing_branch_helper:
+            msg += f"\n{origin}\n"
         pytest.fail(msg)
 
     if forbidden_git_probes:
         msg = "\n\nPlanning templates still probe git directly instead of helper JSON:\n"
-        for template_path in forbidden_git_probes:
-            msg += f"\n{template_path}\n"
+        for origin in forbidden_git_probes:
+            msg += f"\n{origin}\n"
         pytest.fail(msg)
 
 
 def test_agents_md_shows_flat_structure():
     """AGENTS.md must document the flat tasks/ structure."""
-    spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    agents_md = spec_kitty_root / "src" / "specify_cli" / "templates" / "AGENTS.md"
+    try:
+        agents_md = Path(str(importlib.resources.files("doctrine") / "templates" / "AGENTS.md"))
+    except Exception:
+        pytest.skip("AGENTS.md not found in doctrine package")
+        return
 
     if not agents_md.exists():
         pytest.skip("AGENTS.md not found")
+        return
 
     content = agents_md.read_text(encoding="utf-8")
 

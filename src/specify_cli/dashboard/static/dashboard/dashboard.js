@@ -1,12 +1,12 @@
-let currentFeature = null;
+let currentMission = null;
 let currentPage = 'overview';
-let allFeatures = [];
+let allMissions = [];
 let isConstitutionView = false;
 let lastNonConstitutionPage = 'overview';
 let projectPathDisplay = 'Loading…';
 let activeWorktreeDisplay = 'detecting…';
-let featureSelectActive = false;
-let featureSelectIdleTimer = null;
+let missionSelectActive = false;
+let missionSelectIdleTimer = null;
 let activeMission = {
     name: 'Loading…',
     domain: '',
@@ -124,17 +124,17 @@ function restoreState() {
     }, {});
 
     return {
-        feature: cookies.lastFeature || null,
+        mission: cookies.lastMission || null,
         page: cookies.lastPage || 'overview'
     };
 }
 
-function saveState(feature, page) {
+function saveState(mission, page) {
     const expires = new Date();
     expires.setFullYear(expires.getFullYear() + 1); // 1 year
 
-    if (feature) {
-        document.cookie = `lastFeature=${encodeURIComponent(feature)}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
+    if (mission) {
+        document.cookie = `lastMission=${encodeURIComponent(mission)}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
     }
     if (page) {
         document.cookie = `lastPage=${encodeURIComponent(page)}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
@@ -163,21 +163,21 @@ function restoreSidebarState() {
 
 restoreSidebarState();
 
-function setFeatureSelectActive(isActive) {
+function setMissionSelectActive(isActive) {
     if (isActive) {
-        featureSelectActive = true;
-        if (featureSelectIdleTimer) {
-            clearTimeout(featureSelectIdleTimer);
+        missionSelectActive = true;
+        if (missionSelectIdleTimer) {
+            clearTimeout(missionSelectIdleTimer);
         }
-        featureSelectIdleTimer = setTimeout(() => {
-            featureSelectActive = false;
-            featureSelectIdleTimer = null;
+        missionSelectIdleTimer = setTimeout(() => {
+            missionSelectActive = false;
+            missionSelectIdleTimer = null;
         }, 5000);
     } else {
-        featureSelectActive = false;
-        if (featureSelectIdleTimer) {
-            clearTimeout(featureSelectIdleTimer);
-            featureSelectIdleTimer = null;
+        missionSelectActive = false;
+        if (missionSelectIdleTimer) {
+            clearTimeout(missionSelectIdleTimer);
+            missionSelectIdleTimer = null;
         }
     }
 }
@@ -191,21 +191,21 @@ function updateTreeInfo() {
     if (activeWorktreeDisplay) {
         lines.push(`   └─ Active worktree: ${activeWorktreeDisplay}`);
     }
-    // Note: In 0.11.0+, worktrees are per-WP, not per-feature
-    // Feature-level worktree display removed (obsolete 0.10.x concept)
+    // Note: In 0.11.0+, worktrees are per-WP, not per-mission
+    // Mission-level worktree display removed (obsolete 0.10.x concept)
     treeElement.textContent = lines.join('\n');
 }
 
-function computeFeatureWorktreeStatus(feature) {
-    // No-op: Feature-level worktrees are obsolete in 0.11.0+
-    // In workspace-per-WP model, worktrees are per-WP, not per-feature
+function computeMissionWorktreeStatus(mission) {
+    // No-op: Mission-level worktrees are obsolete in 0.11.0+
+    // In workspace-per-WP model, worktrees are per-WP, not per-mission
     // This function is kept for compatibility but does nothing
 }
 
-function switchFeature(featureId) {
-    const isSameFeature = featureId === currentFeature;
+function switchMission(missionId) {
+    const isSameMission = missionId === currentMission;
     if (isConstitutionView) {
-        if (isSameFeature) {
+        if (isSameMission) {
             return;
         }
         isConstitutionView = false;
@@ -227,12 +227,12 @@ function switchFeature(featureId) {
             }
         });
     }
-    currentFeature = featureId;
-    saveState(currentFeature, currentPage);
+    currentMission = missionId;
+    saveState(currentMission, currentPage);
     loadCurrentPage();
     updateSidebarState();
-    const feature = allFeatures.find(f => f.id === currentFeature);
-    computeFeatureWorktreeStatus(feature);
+    const mission = allMissions.find(f => f.id === currentMission);
+    computeMissionWorktreeStatus(mission);
     updateTreeInfo();
 }
 
@@ -248,7 +248,7 @@ function switchPage(pageName) {
     isConstitutionView = false;
     currentPage = pageName;
     lastNonConstitutionPage = pageName;
-    saveState(currentFeature, currentPage);
+    saveState(currentMission, currentPage);
 
     // Update sidebar
     document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -272,10 +272,10 @@ function switchPage(pageName) {
 }
 
 function updateSidebarState() {
-    const feature = allFeatures.find(f => f.id === currentFeature);
-    if (!feature) return;
+    const mission = allMissions.find(f => f.id === currentMission);
+    if (!mission) return;
 
-    const artifacts = feature.artifacts;
+    const artifacts = mission.artifacts;
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         const page = item.dataset.page;
@@ -299,7 +299,7 @@ function loadCurrentPage() {
     if (isConstitutionView || currentPage === 'constitution') {
         return;
     }
-    if (!currentFeature) return;
+    if (!currentMission) return;
 
     if (currentPage === 'overview') {
         loadOverview();
@@ -317,11 +317,11 @@ function loadCurrentPage() {
 }
 
 function loadOverview() {
-    const feature = allFeatures.find(f => f.id === currentFeature);
-    if (!feature) return;
+    const mission = allMissions.find(f => f.id === currentMission);
+    if (!mission) return;
 
     const mergeBadge = (() => {
-const meta = feature.meta || {};
+const meta = mission.meta || {};
 const mergedAt = meta.merged_at || meta.merge_at;
 const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
 if (!mergedAt || !mergedInto) {
@@ -337,12 +337,12 @@ return `
 `;
     })();
 
-    const stats = feature.kanban_stats;
+    const stats = mission.kanban_stats;
     const total = stats.total;
     const completed = stats.done;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    const artifacts = feature.artifacts;
+    const artifacts = mission.artifacts;
     const artifactList = [
         {name: 'Project Constitution', key: 'constitution', icon: '⚖️'},
         {name: 'Specification', key: 'spec', icon: '📄'},
@@ -365,8 +365,8 @@ return `
 
     document.getElementById('overview-content').innerHTML = `
 <div style="margin-bottom: 30px;">
-    <h3>Feature: ${feature.name} ${mergeBadge}</h3>
-    <p style="color: #6b7280;">View and track all artifacts for this feature</p>
+    <h3>Mission: ${mission.name} ${mergeBadge}</h3>
+    <p style="color: #6b7280;">View and track all artifacts for this mission</p>
 </div>
 
 <div class="status-summary">
@@ -405,7 +405,7 @@ return `
 }
 
 function loadKanban() {
-    fetch(`/api/kanban/${currentFeature}`)
+    fetch(`/api/kanban/${currentMission}`)
         .then(response => response.json())
         .then(data => {
             renderKanban(data && data.lanes ? data.lanes : data);
@@ -417,7 +417,7 @@ function loadKanban() {
 }
 
 function renderKanban(lanes) {
-    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.approved || []).length + lanes.done.length;
+    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.in_review || []).length + (lanes.approved || []).length + lanes.done.length;
     const completed = lanes.done.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -439,8 +439,12 @@ function renderKanban(lanes) {
             <div class="status-value">${lanes.doing.length}</div>
         </div>
         <div class="status-card review">
-            <div class="status-label">Review</div>
+            <div class="status-label">For Review</div>
             <div class="status-value">${lanes.for_review.length}</div>
+        </div>
+        <div class="status-card in-review">
+            <div class="status-label">In Review</div>
+            <div class="status-value">${(lanes.in_review || []).length}</div>
         </div>
         <div class="status-card approved">
             <div class="status-label">Approved</div>
@@ -467,6 +471,9 @@ function renderKanban(lanes) {
             <div class="card-title">${task.title}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${task.agent}</span>` : ''}
+                ${task.role ? `<span class="badge role">${task.role}</span>` : ''}
+                ${task.agent_profile ? `<span class="badge profile">${task.agent_profile}</span>` : ''}
+                ${task.task_type ? `<span class="badge task-type">${task.task_type}</span>` : ''}
                 ${task.subtasks && task.subtasks.length > 0 ?
                   `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>` : ''}
             </div>
@@ -495,6 +502,13 @@ function renderKanban(lanes) {
             </div>
             <div>${lanes.for_review.length === 0 ? '<div class="empty-state">No tasks</div>' : lanes.for_review.map(createCard).join('')}</div>
         </div>
+        <div class="lane in_review">
+            <div class="lane-header">
+                <span>🔍 In Review</span>
+                <span class="count">${(lanes.in_review || []).length}</span>
+            </div>
+            <div>${(lanes.in_review || []).length === 0 ? '<div class="empty-state">No tasks</div>' : (lanes.in_review || []).map(createCard).join('')}</div>
+        </div>
         <div class="lane approved">
             <div class="lane-header">
                 <span>👍 Approved</span>
@@ -511,10 +525,10 @@ function renderKanban(lanes) {
         </div>
     `;
 
-    ['planned', 'doing', 'for_review', 'approved', 'done'].forEach(laneName => {
+    ['planned', 'doing', 'for_review', 'in_review', 'approved', 'done'].forEach(laneName => {
         const laneCards = document.querySelectorAll(`.lane.${laneName} .card`);
         laneCards.forEach((card, index) => {
-            const task = lanes[laneName][index];
+            const task = (lanes[laneName] || [])[index];
             if (!task) return;
             if (!card.hasAttribute('tabindex')) {
                 card.setAttribute('tabindex', '0');
@@ -562,10 +576,14 @@ function showPromptModal(task) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
         if (task.agent) metaItems.push(`<span>Agent: ${escapeHtml(task.agent)}</span>`);
+        if (task.role) metaItems.push(`<span>Role: ${escapeHtml(task.role)}</span>`);
+        if (task.agent_profile) metaItems.push(`<span>Profile: ${escapeHtml(task.agent_profile)}</span>`);
+        if (task.task_type) metaItems.push(`<span>Type: ${escapeHtml(task.task_type)}</span>`);
         if (task.subtasks && task.subtasks.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
+        if (task.approved_by) metaItems.push(`<span>Approved By: ${escapeHtml(task.approved_by)}</span>`);
         if (task.prompt_path) metaItems.push(`<span>Source: ${escapeHtml(task.prompt_path)}</span>`);
 
         if (metaItems.length > 0) {
@@ -624,7 +642,7 @@ document.addEventListener('keydown', (event) => {
 
 function loadArtifact(artifactName) {
     const artifactKey = artifactName.replace('-', '_');
-    fetch(`/api/artifact/${currentFeature}/${artifactName}`)
+    fetch(`/api/artifact/${currentMission}/${artifactName}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             // Render markdown to HTML
@@ -641,7 +659,7 @@ function loadArtifact(artifactName) {
 }
 
 function loadContracts() {
-    fetch(`/api/contracts/${currentFeature}`)
+    fetch(`/api/contracts/${currentMission}`)
         .then(response => response.ok ? response.json() : Promise.reject('Not found'))
         .then(data => {
             if (data.files && data.files.length > 0) {
@@ -676,7 +694,7 @@ function renderContractsList(files) {
 
     document.getElementById('contracts-content').innerHTML = `
         <p style="margin-bottom: 20px; color: var(--medium-text);">
-            API specifications and interface definitions for this feature.
+            API specifications and interface definitions for this mission.
         </p>
         ${contractsHtml}
     `;
@@ -690,7 +708,7 @@ function renderContractsList(files) {
 }
 
 function loadContractFile(filePath, fileName) {
-    fetch(`/api/contracts/${currentFeature}/${encodeURIComponent(filePath)}`)
+    fetch(`/api/contracts/${currentMission}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             let htmlContent;
@@ -741,7 +759,7 @@ function loadContractFile(filePath, fileName) {
 }
 
 function loadChecklists() {
-    fetch(`/api/checklists/${currentFeature}`)
+    fetch(`/api/checklists/${currentMission}`)
         .then(response => response.ok ? response.json() : Promise.reject('Not found'))
         .then(data => {
             if (data.files && data.files.length > 0) {
@@ -776,7 +794,7 @@ function renderChecklistsList(files) {
 
     document.getElementById('checklists-content').innerHTML = `
         <p style="margin-bottom: 20px; color: var(--medium-text);">
-            Quality control and validation checklists for this feature.
+            Quality control and validation checklists for this mission.
         </p>
         ${checklistsHtml}
     `;
@@ -790,7 +808,7 @@ function renderChecklistsList(files) {
 }
 
 function loadChecklistFile(filePath, fileName) {
-    fetch(`/api/checklists/${currentFeature}/${encodeURIComponent(filePath)}`)
+    fetch(`/api/checklists/${currentMission}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             let htmlContent;
@@ -841,7 +859,7 @@ function loadChecklistFile(filePath, fileName) {
 }
 
 function loadResearch() {
-    fetch(`/api/research/${currentFeature}`)
+    fetch(`/api/research/${currentMission}`)
         .then(response => response.ok ? response.json() : Promise.reject('Not found'))
         .then(data => {
             if (data.main_file || (data.artifacts && data.artifacts.length > 0)) {
@@ -908,7 +926,7 @@ function renderResearchContent(data) {
 }
 
 function loadResearchFile(filePath, fileName) {
-    fetch(`/api/research/${currentFeature}/${encodeURIComponent(filePath)}`)
+    fetch(`/api/research/${currentMission}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             let htmlContent;
@@ -1031,7 +1049,7 @@ function showConstitution() {
     // Switch to constitution page
     currentPage = 'constitution';
     isConstitutionView = true;
-    saveState(currentFeature, 'constitution');
+    saveState(currentMission, 'constitution');
     document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
     const constitutionItem = document.querySelector('.sidebar-item[data-page="constitution"]');
     if (constitutionItem) {
@@ -1070,19 +1088,19 @@ function updateWorkflowIcons(workflow) {
     document.getElementById('icon-implement').textContent = iconMap[workflow.implement] || '⏳';
 }
 
-function getFeatureDisplayName(feature) {
-    if (!feature) {
-        return 'Unknown feature';
+function getMissionDisplayName(mission) {
+    if (!mission) {
+        return 'Unknown mission';
     }
 
-    return feature.display_name || feature.name || feature.id || 'Unknown feature';
+    return mission.display_name || mission.name || mission.id || 'Unknown mission';
 }
 
-function updateFeatureList(features, activeFeatureId = null) {
-    allFeatures = features;
-    const selectContainer = document.getElementById('feature-selector-container');
-    const select = document.getElementById('feature-select');
-    const singleFeatureName = document.getElementById('single-feature-name');
+function updateMissionList(missions, activeMissionId = null) {
+    allMissions = missions;
+    const selectContainer = document.getElementById('mission-selector-container');
+    const select = document.getElementById('mission-select');
+    const singleMissionName = document.getElementById('single-mission-name');
     const sidebar = document.querySelector('.sidebar');
     const mainContent = document.querySelector('.main-content');
 
@@ -1090,8 +1108,8 @@ function updateFeatureList(features, activeFeatureId = null) {
     const savedState = restoreState();
 
     if (select && !select.dataset.pauseHandlersAttached) {
-        const activate = () => setFeatureSelectActive(true);
-        const deactivate = () => setFeatureSelectActive(false);
+        const activate = () => setMissionSelectActive(true);
+        const deactivate = () => setMissionSelectActive(false);
         ['focus', 'mousedown', 'keydown', 'click', 'input'].forEach(evt => {
             select.addEventListener(evt, activate);
         });
@@ -1101,16 +1119,16 @@ function updateFeatureList(features, activeFeatureId = null) {
         select.dataset.pauseHandlersAttached = 'true';
     }
 
-    // Handle 0 features - show welcome page
-    if (features.length === 0) {
+    // Handle 0 missions - show welcome page
+    if (missions.length === 0) {
         selectContainer.style.display = 'none';
-        singleFeatureName.style.display = 'none';
+        singleMissionName.style.display = 'none';
         sidebar.style.display = 'block';
         mainContent.style.display = 'block';
         isConstitutionView = false;
-        currentFeature = null;
-        computeFeatureWorktreeStatus(null);
-        setFeatureSelectActive(false);
+        currentMission = null;
+        computeMissionWorktreeStatus(null);
+        setMissionSelectActive(false);
 
         // Show welcome page
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1128,44 +1146,44 @@ function updateFeatureList(features, activeFeatureId = null) {
         return;
     }
 
-    // Handle 1 feature - show name directly (no dropdown)
-    if (features.length === 1) {
+    // Handle 1 mission - show name directly (no dropdown)
+    if (missions.length === 1) {
         selectContainer.style.display = 'none';
-        singleFeatureName.style.display = 'block';
-        singleFeatureName.textContent = `Feature: ${getFeatureDisplayName(features[0])}`;
-        currentFeature = activeFeatureId || features[0].id;
-        setFeatureSelectActive(false);
+        singleMissionName.style.display = 'block';
+        singleMissionName.textContent = `Mission: ${getMissionDisplayName(missions[0])}`;
+        currentMission = activeMissionId || missions[0].id;
+        setMissionSelectActive(false);
     } else {
-        // Handle multiple features - show dropdown
+        // Handle multiple missions - show dropdown
         selectContainer.style.display = 'block';
-        singleFeatureName.style.display = 'none';
+        singleMissionName.style.display = 'none';
 
-        const activeFeatureExists = activeFeatureId && features.find(f => f.id === activeFeatureId);
-        // Try to restore saved feature, fall back to first feature
-        const savedFeatureExists = savedState.feature && features.find(f => f.id === savedState.feature);
-        if (activeFeatureExists) {
-            currentFeature = activeFeatureId;
-        } else if (!currentFeature || !features.find(f => f.id === currentFeature)) {
-            currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
+        const activeMissionExists = activeMissionId && missions.find(f => f.id === activeMissionId);
+        // Try to restore saved mission, fall back to first mission
+        const savedMissionExists = savedState.mission && missions.find(f => f.id === savedState.mission);
+        if (activeMissionExists) {
+            currentMission = activeMissionId;
+        } else if (!currentMission || !missions.find(f => f.id === currentMission)) {
+            currentMission = savedMissionExists ? savedState.mission : missions[0].id;
         }
 
-        select.innerHTML = features.map(f =>
-            `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${escapeHtml(getFeatureDisplayName(f))}</option>`
+        select.innerHTML = missions.map(f =>
+            `<option value="${f.id}" ${f.id === currentMission ? 'selected' : ''}>${escapeHtml(getMissionDisplayName(f))}</option>`
         ).join('');
-        select.value = currentFeature;
+        select.value = currentMission;
     }
 
-    // Restore saved page if it's valid for the current feature
-    const feature = features.find(f => f.id === currentFeature);
+    // Restore saved page if it's valid for the current mission
+    const mission = missions.find(f => f.id === currentMission);
     if (savedState.page && savedState.page !== 'overview') {
         if (savedState.page === 'constitution') {
             // Will be handled by showConstitution() call below
             currentPage = savedState.page;
-        } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban?.exists) {
+        } else if (savedState.page === 'kanban' && mission && mission.artifacts && mission.artifacts.kanban?.exists) {
             currentPage = savedState.page;
-        } else if (feature && feature.artifacts) {
+        } else if (mission && mission.artifacts) {
             const artifactKey = savedState.page.replace('-', '_');
-            if (feature.artifacts[artifactKey]?.exists || savedState.page === 'overview') {
+            if (mission.artifacts[artifactKey]?.exists || savedState.page === 'overview') {
                 currentPage = savedState.page;
             }
         }
@@ -1174,12 +1192,12 @@ function updateFeatureList(features, activeFeatureId = null) {
     sidebar.style.display = 'block';
     mainContent.style.display = 'block';
 
-    // Update workflow icons based on current feature
-    if (feature && feature.workflow) {
-        updateWorkflowIcons(feature.workflow);
-        computeFeatureWorktreeStatus(feature);
+    // Update workflow icons based on current mission
+    if (mission && mission.workflow) {
+        updateWorkflowIcons(mission.workflow);
+        computeMissionWorktreeStatus(mission);
     } else {
-        computeFeatureWorktreeStatus(null);
+        computeMissionWorktreeStatus(null);
     }
 
     updateSidebarState();
@@ -1207,25 +1225,25 @@ function updateFeatureList(features, activeFeatureId = null) {
     }
 }
 
-function updateFeatureListSilent(features) {
-    // Same as updateFeatureList but doesn't reload the current page
+function updateMissionListSilent(missions) {
+    // Same as updateMissionList but doesn't reload the current page
     // Used during polling to avoid resetting user's view
-    const oldFeature = allFeatures.find(f => f.id === currentFeature);
-    allFeatures = features;
-    const feature = features.find(f => f.id === currentFeature);
+    const oldMission = allMissions.find(f => f.id === currentMission);
+    allMissions = missions;
+    const mission = missions.find(f => f.id === currentMission);
 
-    if (feature && feature.workflow) {
-        updateWorkflowIcons(feature.workflow);
-        computeFeatureWorktreeStatus(feature);
+    if (mission && mission.workflow) {
+        updateWorkflowIcons(mission.workflow);
+        computeMissionWorktreeStatus(mission);
     } else {
-        computeFeatureWorktreeStatus(null);
+        computeMissionWorktreeStatus(null);
     }
     updateSidebarState();
 
     // Detect artifact changes and reload overview if artifacts changed
-    if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
+    if (currentPage === 'overview' && oldMission && mission) {
+        const oldArtifacts = JSON.stringify(oldMission.artifacts);
+        const newArtifacts = JSON.stringify(mission.artifacts);
         if (oldArtifacts !== newArtifacts) {
             loadOverview();
         }
@@ -1233,20 +1251,20 @@ function updateFeatureListSilent(features) {
 }
 
 function fetchData(isInitialLoad = false) {
-    if (featureSelectActive && !isInitialLoad) {
+    if (missionSelectActive && !isInitialLoad) {
         return;
     }
-    fetch('/api/features')
+    fetch('/api/missions')
         .then(response => response.json())
         .then(data => {
             // Use full update on initial load, silent update on polls
             if (isInitialLoad) {
-                updateFeatureList(data.features, data.active_feature_id || null);
+                updateMissionList(data.missions, data.active_mission_id || null);
             } else {
-                updateFeatureListSilent(data.features);
+                updateMissionListSilent(data.missions);
 
                 // Refresh kanban board if currently viewing it
-                if (currentPage === 'kanban' && !isConstitutionView && currentFeature) {
+                if (currentPage === 'kanban' && !isConstitutionView && currentMission) {
                     loadKanban();
                 }
             }
@@ -1267,8 +1285,8 @@ function fetchData(isInitialLoad = false) {
                 updateMissionDisplay(data.active_mission);
             }
 
-            const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
-            computeFeatureWorktreeStatus(currentFeatureObj || null);
+            const currentMissionObj = allMissions.find(f => f.id === currentMission);
+            computeMissionWorktreeStatus(currentMissionObj || null);
             updateTreeInfo();
         })
         .catch(error => console.error('Error fetching data:', error));
@@ -1283,7 +1301,7 @@ function showDiagnostics() {
     // Switch to diagnostics page
     currentPage = 'diagnostics';
     isConstitutionView = false;
-    saveState(currentFeature, 'diagnostics');
+    saveState(currentMission, 'diagnostics');
 
     // Update sidebar - consistent with other pages
     document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -1358,9 +1376,9 @@ function displayDiagnostics(data) {
     if (data.worktree_overview) {
         const overviewHtml = `
             <h3>Worktree Overview</h3>
-            <div><strong>Total Features:</strong> ${data.worktree_overview.total_features}</div>
+            <div><strong>Total Missions:</strong> ${data.worktree_overview.total_missions}</div>
             <div><strong>Active Worktrees:</strong> ${data.worktree_overview.active_worktrees}</div>
-            <div><strong>Merged Features:</strong> ${data.worktree_overview.merged_features}</div>
+            <div><strong>Merged Missions:</strong> ${data.worktree_overview.merged_missions}</div>
             <div><strong>In Development:</strong> ${data.worktree_overview.in_development}</div>
             <div><strong>Not Started:</strong> ${data.worktree_overview.not_started}</div>
         `;
@@ -1370,8 +1388,8 @@ function displayDiagnostics(data) {
         document.getElementById('diagnostics-status').appendChild(overviewDiv);
     }
 
-    // Display current feature
-    if (data.current_feature && data.current_feature.detected) {
+    // Display current mission
+    if (data.current_mission && data.current_mission.detected) {
         const stateMap = {
             'merged': '✅ MERGED',
             'in_development': '🔄 IN DEVELOPMENT',
@@ -1380,16 +1398,16 @@ function displayDiagnostics(data) {
             'unknown': '❓ UNKNOWN'
         };
         const currentHtml = `
-            <h3>Current Feature</h3>
-            <div><strong>Feature:</strong> ${data.current_feature.name}</div>
-            <div><strong>State:</strong> ${stateMap[data.current_feature.state] || data.current_feature.state}</div>
-            <div><strong>Branch Exists:</strong> ${data.current_feature.branch_exists ? '✅' : '❌'}</div>
-            <div><strong>Worktree Exists:</strong> ${data.current_feature.worktree_exists ? '✅' : '❌'}</div>
-            ${data.current_feature.worktree_path ? `<div><strong>Worktree Path:</strong> ${data.current_feature.worktree_path}</div>` : ''}
-            ${data.current_feature.artifacts_in_main && data.current_feature.artifacts_in_main.length > 0 ?
-                `<div><strong>Artifacts in Main:</strong> ${data.current_feature.artifacts_in_main.join(', ')}</div>` : ''}
-            ${data.current_feature.artifacts_in_worktree && data.current_feature.artifacts_in_worktree.length > 0 ?
-                `<div><strong>Artifacts in Worktree:</strong> ${data.current_feature.artifacts_in_worktree.join(', ')}</div>` : ''}
+            <h3>Current Mission</h3>
+            <div><strong>Mission:</strong> ${data.current_mission.name}</div>
+            <div><strong>State:</strong> ${stateMap[data.current_mission.state] || data.current_mission.state}</div>
+            <div><strong>Branch Exists:</strong> ${data.current_mission.branch_exists ? '✅' : '❌'}</div>
+            <div><strong>Worktree Exists:</strong> ${data.current_mission.worktree_exists ? '✅' : '❌'}</div>
+            ${data.current_mission.worktree_path ? `<div><strong>Worktree Path:</strong> ${data.current_mission.worktree_path}</div>` : ''}
+            ${data.current_mission.artifacts_in_main && data.current_mission.artifacts_in_main.length > 0 ?
+                `<div><strong>Artifacts in Main:</strong> ${data.current_mission.artifacts_in_main.join(', ')}</div>` : ''}
+            ${data.current_mission.artifacts_in_worktree && data.current_mission.artifacts_in_worktree.length > 0 ?
+                `<div><strong>Artifacts in Worktree:</strong> ${data.current_mission.artifacts_in_worktree.join(', ')}</div>` : ''}
         `;
         const currentDiv = document.createElement('div');
         currentDiv.innerHTML = currentHtml;
@@ -1397,14 +1415,14 @@ function displayDiagnostics(data) {
         document.getElementById('diagnostics-status').appendChild(currentDiv);
     }
 
-    // Display all features table
-    if (data.all_features && data.all_features.length > 0) {
+    // Display all missions table
+    if (data.all_missions && data.all_missions.length > 0) {
         const tableHtml = `
-            <h3>All Features Status</h3>
+            <h3>All Missions Status</h3>
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead>
                     <tr style="background: #f0f0f0;">
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Feature</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Mission</th>
                         <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">State</th>
                         <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Branch</th>
                         <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Worktree</th>
@@ -1412,23 +1430,23 @@ function displayDiagnostics(data) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.all_features.slice(0, 10).map(feature => {
+                    ${data.all_missions.slice(0, 10).map(missionItem => {
                         const stateDisplay = {
                             'merged': '<span style="color: green;">MERGED</span>',
                             'in_development': '<span style="color: orange;">ACTIVE</span>',
                             'ready_to_merge': '<span style="color: blue;">READY</span>',
                             'not_started': '<span style="color: gray;">NOT STARTED</span>',
                             'unknown': '<span style="color: gray;">?</span>'
-                        }[feature.state] || feature.state;
+                        }[missionItem.state] || missionItem.state;
 
-                        const branchDisplay = feature.branch_merged ? 'merged' : (feature.branch_exists ? '✓' : '-');
-                        const worktreeDisplay = feature.worktree_exists ? '✓' : '-';
-                        const artifactCount = (feature.artifacts_in_main || []).length + (feature.artifacts_in_worktree || []).length;
+                        const branchDisplay = missionItem.branch_merged ? 'merged' : (missionItem.branch_exists ? '✓' : '-');
+                        const worktreeDisplay = missionItem.worktree_exists ? '✓' : '-';
+                        const artifactCount = (missionItem.artifacts_in_main || []).length + (missionItem.artifacts_in_worktree || []).length;
                         const artifactsDisplay = artifactCount > 0 ? artifactCount : '-';
 
                         return `
                             <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${feature.name}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${missionItem.name}</td>
                                 <td style="padding: 8px; border: 1px solid #ddd;">${stateDisplay}</td>
                                 <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${branchDisplay}</td>
                                 <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${worktreeDisplay}</td>
@@ -1438,7 +1456,7 @@ function displayDiagnostics(data) {
                     }).join('')}
                 </tbody>
             </table>
-            ${data.all_features.length > 10 ? `<div style="margin-top: 10px; color: #666;">... and ${data.all_features.length - 10} more features</div>` : ''}
+            ${data.all_missions.length > 10 ? `<div style="margin-top: 10px; color: #666;">... and ${data.all_missions.length - 10} more missions</div>` : ''}
         `;
         const tableDiv = document.createElement('div');
         tableDiv.innerHTML = tableHtml;

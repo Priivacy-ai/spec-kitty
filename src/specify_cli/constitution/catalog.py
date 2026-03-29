@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import importlib.resources
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from specify_cli.runtime.home import get_package_asset_root
+_log = logging.getLogger(__name__)
 
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
@@ -48,10 +49,11 @@ def resolve_doctrine_root() -> Path:
         if doctrine_root.is_dir():
             return doctrine_root
     except (ModuleNotFoundError, TypeError):
-        pass
+        _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 
     dev_root = Path(__file__).parent.parent.parent / "doctrine"
     if dev_root.is_dir():
+        _log.debug("doctrine: resolved via dev layout at %s", dev_root)
         return dev_root
 
     raise FileNotFoundError(
@@ -98,18 +100,8 @@ def _load_template_sets(doctrine_root: Path) -> set[str]:
 
     Template set IDs are derived from bundled missions as `{mission}-default`.
     """
-    template_sets: set[str] = set()
+    from doctrine.missions import MissionTemplateRepository
 
-    missions_root = doctrine_root / "missions"
-    if not missions_root.is_dir():
-        try:
-            missions_root = get_package_asset_root()
-        except FileNotFoundError:
-            missions_root = doctrine_root / "missions"
-
-    if missions_root.is_dir():
-        for mission_dir in sorted(missions_root.iterdir()):
-            if mission_dir.is_dir() and (mission_dir / "mission.yaml").is_file():
-                template_sets.add(f"{mission_dir.name}-default")
-
-    return template_sets
+    repo = MissionTemplateRepository.default()
+    mission_names = repo.list_missions()
+    return {f"{name}-default" for name in mission_names}

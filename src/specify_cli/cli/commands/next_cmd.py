@@ -9,9 +9,9 @@ import typer
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.feature_detection import (
-    FeatureDetectionError,
-    detect_feature_slug,
+from specify_cli.core.mission_detection import (
+    MissionDetectionError,
+    detect_mission_slug,
 )
 from specify_cli.core.paths import locate_project_root
 from specify_cli.mission_v1.events import emit_event
@@ -27,7 +27,7 @@ def next_step(
     result: Annotated[
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
-    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[
@@ -42,7 +42,7 @@ def next_step(
 
     Examples:
         spec-kitty next --agent claude --json
-        spec-kitty next --agent codex --feature 034-my-feature
+        spec-kitty next --agent codex --mission 034-my-mission
         spec-kitty next --agent gemini --result failed --json
         spec-kitty next --agent claude --answer "yes" --json
         spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
@@ -58,23 +58,23 @@ def next_step(
         print("Error: Could not locate project root", file=sys.stderr)
         raise typer.Exit(1)
 
-    # Resolve feature slug
+    # Resolve mission slug
     try:
-        feature_slug = detect_feature_slug(repo_root, explicit_feature=feature)
-    except FeatureDetectionError as exc:
+        mission_slug = detect_mission_slug(repo_root, explicit_mission=mission)
+    except MissionDetectionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
     # Handle --answer flow
     answered_id = None
     if answer is not None:
-        answered_id = _handle_answer(agent, feature_slug, answer, decision_id, repo_root)
+        answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
 
     # Core decision
-    decision = decide_next(agent, feature_slug, result, repo_root)
+    decision = decide_next(agent, mission_slug, result, repo_root)
 
     # Emit MissionNextInvoked event
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    mission_dir = repo_root / "kitty-specs" / mission_slug
     emit_event(
         "MissionNextInvoked",
         {
@@ -86,7 +86,7 @@ def next_step(
             "mission_state": decision.mission_state,
         },
         mission_name=decision.mission,
-        feature_dir=feature_dir if feature_dir.is_dir() else None,
+        mission_dir=mission_dir if mission_dir.is_dir() else None,
     )
 
     # Output — always exactly one JSON document
@@ -108,7 +108,7 @@ def next_step(
 
 def _handle_answer(
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     answer: str,
     decision_id: str | None,
     repo_root: object,
@@ -123,11 +123,11 @@ def _handle_answer(
 
     try:
         from specify_cli.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
-        from specify_cli.mission import get_feature_mission_key
+        from specify_cli.mission import get_mission_key
 
-        feature_dir = repo_root_path / "kitty-specs" / feature_slug
-        mission_key = get_feature_mission_key(feature_dir)
-        run_ref = get_or_start_run(feature_slug, repo_root_path, mission_key)
+        mission_dir = repo_root_path / "kitty-specs" / mission_slug
+        mission_key = get_mission_key(mission_dir)
+        run_ref = get_or_start_run(mission_slug, repo_root_path, mission_key)
 
         # If no decision_id provided, try to auto-resolve
         if decision_id is None:
@@ -151,7 +151,7 @@ def _handle_answer(
                 raise typer.Exit(1)
 
         answer_decision_via_runtime(
-            feature_slug,
+            mission_slug,
             decision_id,
             answer,
             agent,

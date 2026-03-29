@@ -23,13 +23,12 @@ from .events import (
     emit_wp_status_changed,
     emit_wp_created,
     emit_wp_assigned,
-    emit_feature_created,
-    emit_feature_completed,
+    emit_mission_created,
+    emit_mission_completed,
     emit_history_added,
     emit_error_logged,
     emit_dependency_resolved,
 )
-from .queue import OfflineQueue
 from .feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,
@@ -38,6 +37,7 @@ from .feature_flags import (
 
 # Lazy-loaded names (require 'requests' or 'websockets' at runtime)
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "OfflineQueue": (".queue", "OfflineQueue"),
     "AuthClient": (".auth", "AuthClient"),
     "AuthenticationError": (".auth", "AuthenticationError"),
     "CredentialStore": (".auth", "CredentialStore"),
@@ -92,8 +92,8 @@ __all__ = [
     "emit_wp_status_changed",
     "emit_wp_created",
     "emit_wp_assigned",
-    "emit_feature_created",
-    "emit_feature_completed",
+    "emit_mission_created",
+    "emit_mission_completed",
     "emit_history_added",
     "emit_error_logged",
     "emit_dependency_resolved",

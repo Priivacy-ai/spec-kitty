@@ -22,6 +22,8 @@ from specify_cli.runtime.bootstrap import (
     ensure_runtime,
     populate_from_package,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -43,8 +45,10 @@ def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def fake_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a fake package asset root and override discovery.
 
-    Returns the missions directory (what get_package_asset_root returns).
+    Returns the missions directory (MissionTemplateRepository._missions_root).
     """
+    from doctrine.missions import MissionTemplateRepository
+
     pkg_root = tmp_path / "package"
     missions = pkg_root / "missions"
     (missions / "software-dev").mkdir(parents=True)
@@ -60,7 +64,10 @@ def fake_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # AGENTS.md (sibling of missions)
     (pkg_root / "AGENTS.md").write_text("# Agents")
 
-    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
+    monkeypatch.setattr(
+        "doctrine.missions.MissionTemplateRepository.default",
+        staticmethod(lambda: MissionTemplateRepository(missions)),
+    )
     return missions
 
 
@@ -745,6 +752,7 @@ class TestVersionPinWiredIntoCallback:
             patch("specify_cli.root_callback"),
         ):
             from specify_cli import main_callback
+
 
             main_callback(MagicMock(), version=False)
 

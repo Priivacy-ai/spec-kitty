@@ -28,11 +28,7 @@ class ConstitutionCleanupMigration(BaseMigration):
         if not missions_dir.exists():
             return False
 
-        for mission_dir in missions_dir.iterdir():
-            if mission_dir.is_dir() and (mission_dir / "constitution").exists():
-                return True
-
-        return False
+        return any(mission_dir.is_dir() and (mission_dir / "constitution").exists() for mission_dir in missions_dir.iterdir())
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if migration can be applied."""

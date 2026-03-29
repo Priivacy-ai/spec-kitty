@@ -6,27 +6,16 @@ This module implements the strictness policy system with three enforcement modes
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ruamel.yaml
 
+# Strictness canonical definition moved to doctrine; re-exported here for backward compat.
+from kernel.glossary_types import Strictness  # noqa: F401
+
 if TYPE_CHECKING:
     from .models import SemanticConflict, Severity
-
-
-class Strictness(StrEnum):
-    """Glossary enforcement strictness levels.
-
-    - OFF: No enforcement, generation always proceeds
-    - MEDIUM: Warn broadly, block only high-severity conflicts
-    - MAX: Block any unresolved conflict regardless of severity
-    """
-
-    OFF = "off"
-    MEDIUM = "medium"
-    MAX = "max"
 
 
 def resolve_strictness(

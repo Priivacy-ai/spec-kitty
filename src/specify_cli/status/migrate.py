@@ -1,6 +1,6 @@
 """Migration: reconstruct full event history from WP frontmatter.
 
-Reads existing WP frontmatter history[] arrays from a feature's tasks/
+Reads existing WP frontmatter history[] arrays from a mission's tasks/
 directory and generates complete transition chains as StatusEvent records
 in status.events.jsonl.
 
@@ -8,7 +8,7 @@ Key invariants:
 - Full history reconstruction via ``build_transition_chain()`` from history_parser.
 - All migration events use ``force=True`` with ``reason`` set.
 - 3-layer idempotency: marker check, live-events skip, migration-actor-only replace.
-- Atomic write per feature (temp file + os.replace).
+- Atomic write per mission (temp file + os.replace).
 - Backup creation before replace-once on migration-only path.
 - Post-migration materialization (status.json).
 """
@@ -26,6 +26,7 @@ from pathlib import Path
 from ulid import ULID
 
 from specify_cli.frontmatter import read_frontmatter
+from specify_cli.identity import ActorIdentity
 from specify_cli.status.history_parser import build_transition_chain
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
@@ -54,10 +55,10 @@ class WPMigrationDetail:
 
 
 @dataclass
-class FeatureMigrationResult:
-    """Per-feature migration outcome."""
+class MissionMigrationResult:
+    """Per-mission migration outcome."""
 
-    feature_slug: str
+    mission_slug: str
     status: str  # "migrated", "skipped", "failed"
     wp_details: list[WPMigrationDetail] = field(default_factory=list)
     error: str | None = None
@@ -67,9 +68,9 @@ class FeatureMigrationResult:
 
 @dataclass
 class MigrationResult:
-    """Aggregate migration outcome across features."""
+    """Aggregate migration outcome across missions."""
 
-    features: list[FeatureMigrationResult] = field(default_factory=list)
+    missions: list[MissionMigrationResult] = field(default_factory=list)
     total_migrated: int = 0
     total_skipped: int = 0
     total_failed: int = 0
@@ -81,12 +82,12 @@ class MigrationResult:
 # ---------------------------------------------------------------------------
 
 
-def _write_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
+def _write_events_atomic(mission_dir: Path, events: list[StatusEvent]) -> None:
     """Write events to status.events.jsonl atomically."""
-    events_file = feature_dir / EVENTS_FILENAME
-    tmp_file = feature_dir / f"{EVENTS_FILENAME}.tmp"
+    events_file = mission_dir / EVENTS_FILENAME
+    tmp_file = mission_dir / f"{EVENTS_FILENAME}.tmp"
     try:
-        feature_dir.mkdir(parents=True, exist_ok=True)
+        mission_dir.mkdir(parents=True, exist_ok=True)
         with open(tmp_file, "w", encoding="utf-8") as f:
             for event in events:
                 f.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
@@ -101,8 +102,8 @@ def _write_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _check_idempotency(feature_dir: Path) -> str:
-    """Check idempotency state of a feature's event log.
+def _check_idempotency(mission_dir: Path) -> str:
+    """Check idempotency state of a mission's event log.
 
     Returns:
         "no_events" - No events file exists (or empty)
@@ -110,7 +111,7 @@ def _check_idempotency(feature_dir: Path) -> str:
         "live_events" - Non-migration actors present (skip)
         "migration_only" - Only migration actors (backup + replace)
     """
-    events_file = feature_dir / EVENTS_FILENAME
+    events_file = mission_dir / EVENTS_FILENAME
     if not events_file.exists():
         return "no_events"
 
@@ -119,9 +120,9 @@ def _check_idempotency(feature_dir: Path) -> str:
         return "no_events"
 
     try:
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
     except StoreError:
-        logger.warning("Corrupt events file in %s, treating as no_events", feature_dir)
+        logger.warning("Corrupt events file in %s, treating as no_events", mission_dir)
         return "no_events"
 
     if not events:
@@ -134,7 +135,7 @@ def _check_idempotency(feature_dir: Path) -> str:
 
     # Layer 2: Check for non-migration actors (live events)
     for event in events:
-        if not event.actor.startswith("migration"):
+        if not event.actor.tool.startswith("migration"):
             return "live_events"
 
     # Layer 3: All events have migration actors
@@ -146,13 +147,13 @@ def _check_idempotency(feature_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _backup_events_file(feature_dir: Path) -> Path | None:
+def _backup_events_file(mission_dir: Path) -> Path | None:
     """Backup existing events file. Returns backup path or None."""
-    events_file = feature_dir / EVENTS_FILENAME
+    events_file = mission_dir / EVENTS_FILENAME
     if not events_file.exists():
         return None
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    backup_path = feature_dir / f"{EVENTS_FILENAME}.bak.{timestamp}"
+    backup_path = mission_dir / f"{EVENTS_FILENAME}.bak.{timestamp}"
     shutil.copy2(str(events_file), str(backup_path))
     return backup_path
 
@@ -162,13 +163,13 @@ def _backup_events_file(feature_dir: Path) -> Path | None:
 # ---------------------------------------------------------------------------
 
 
-def feature_requires_historical_migration(feature_dir: Path) -> bool:
-    """Return True when a feature has at least one reconstructable transition.
+def mission_requires_historical_migration(mission_dir: Path) -> bool:
+    """Return True when a mission has at least one reconstructable transition.
 
-    Features with only planned/no-op WPs do not require historical migration and
+    Missions with only planned/no-op WPs do not require historical migration and
     should not trigger upgrade detect loops.
     """
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return False
 
@@ -198,12 +199,12 @@ def feature_requires_historical_migration(feature_dir: Path) -> bool:
     return False
 
 
-def migrate_feature(  # noqa: C901
-    feature_dir: Path,
+def migrate_mission(  # noqa: C901
+    mission_dir: Path,
     *,
     actor: str = "migration",
     dry_run: bool = False,
-) -> FeatureMigrationResult:
+) -> MissionMigrationResult:
     """Reconstruct full event history from WP frontmatter.
 
     Uses build_transition_chain() to reconstruct N transitions per WP
@@ -211,29 +212,29 @@ def migrate_feature(  # noqa: C901
     reason set.
 
     Args:
-        feature_dir: Path to the feature directory (e.g. kitty-specs/099-test/).
+        mission_dir: Path to the mission directory (e.g. kitty-specs/099-test/).
         actor: Fallback actor name (used when history agent is "migration").
         dry_run: When True, compute results but do not write events.
 
     Returns:
-        FeatureMigrationResult with per-WP details and overall status.
+        MissionMigrationResult with per-WP details and overall status.
     """
-    feature_slug = feature_dir.name
+    mission_slug = mission_dir.name
 
     # ------------------------------------------------------------------
     # 3-layer idempotency check
     # ------------------------------------------------------------------
-    idem_state = _check_idempotency(feature_dir)
+    idem_state = _check_idempotency(mission_dir)
 
     if idem_state == "has_marker":
-        return FeatureMigrationResult(
-            feature_slug=feature_slug,
+        return MissionMigrationResult(
+            mission_slug=mission_slug,
             status="skipped",
         )
 
     if idem_state == "live_events":
-        return FeatureMigrationResult(
-            feature_slug=feature_slug,
+        return MissionMigrationResult(
+            mission_slug=mission_slug,
             status="skipped",
         )
 
@@ -243,18 +244,18 @@ def migrate_feature(  # noqa: C901
     backup_path: Path | None = None
     was_replace = False
     if idem_state == "migration_only" and not dry_run:
-        backup_path = _backup_events_file(feature_dir)
+        backup_path = _backup_events_file(mission_dir)
         was_replace = True
 
     # ------------------------------------------------------------------
     # Validate tasks/ directory exists
     # ------------------------------------------------------------------
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
-        return FeatureMigrationResult(
-            feature_slug=feature_slug,
+        return MissionMigrationResult(
+            mission_slug=mission_slug,
             status="failed",
-            error=f"No tasks/ directory found in {feature_dir}",
+            error=f"No tasks/ directory found in {mission_dir}",
         )
 
     # ------------------------------------------------------------------
@@ -262,8 +263,8 @@ def migrate_feature(  # noqa: C901
     # ------------------------------------------------------------------
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     if not wp_files:
-        return FeatureMigrationResult(
-            feature_slug=feature_slug,
+        return MissionMigrationResult(
+            mission_slug=mission_slug,
             status="failed",
             error=f"No WP*.md files found in {tasks_dir}",
         )
@@ -336,12 +337,13 @@ def migrate_feature(  # noqa: C901
             reason = "historical_frontmatter_to_jsonl:v1" if i == 0 else "historical migration"
 
             # Actor resolution: use transition's actor unless it's "migration"
-            event_actor = t.actor if t.actor != "migration" else actor
+            raw_actor = t.actor if t.actor != "migration" else actor
+            event_actor = ActorIdentity.from_legacy(raw_actor)
 
             try:
                 event = StatusEvent(
                     event_id=event_id,
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     wp_id=wp_id,
                     from_lane=Lane(t.from_lane),
                     to_lane=Lane(t.to_lane),
@@ -376,14 +378,14 @@ def migrate_feature(  # noqa: C901
     # Write events atomically (unless dry_run)
     # ------------------------------------------------------------------
     if not dry_run and all_events:
-        _write_events_atomic(feature_dir, all_events)
+        _write_events_atomic(mission_dir, all_events)
 
         # Verification: read back and confirm count
-        persisted = read_events(feature_dir)
+        persisted = read_events(mission_dir)
         if len(persisted) != len(all_events):
             raise RuntimeError(
                 f"Migration verification failed: expected {len(all_events)} events, "
-                f"found {len(persisted)} in {feature_dir / EVENTS_FILENAME}"
+                f"found {len(persisted)} in {mission_dir / EVENTS_FILENAME}"
             )
 
     # ------------------------------------------------------------------
@@ -393,9 +395,9 @@ def migrate_feature(  # noqa: C901
         try:
             from specify_cli.status.reducer import materialize
 
-            materialize(feature_dir)
+            materialize(mission_dir)
         except Exception as exc:
-            logger.warning("Materialization failed for %s (non-fatal): %s", feature_slug, exc)
+            logger.warning("Materialization failed for %s (non-fatal): %s", mission_slug, exc)
 
     status = "migrated" if all_events else "skipped"
     error_msg: str | None = None
@@ -406,8 +408,8 @@ def migrate_feature(  # noqa: C901
             sample = f"{sample}; ... (+{len(wp_errors) - 3} more)"
         error_msg = sample
 
-    return FeatureMigrationResult(
-        feature_slug=feature_slug,
+    return MissionMigrationResult(
+        mission_slug=mission_slug,
         status=status,
         wp_details=wp_details,
         error=error_msg,

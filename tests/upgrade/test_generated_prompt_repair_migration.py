@@ -56,7 +56,7 @@ def test_applies_replacements_to_generated_prompts(tmp_path: Path) -> None:
 
     assert result.success is True
     updated = stale.read_text(encoding="utf-8")
-    assert "spec-kitty agent feature check-prerequisites" in updated
+    assert "spec-kitty agent mission check-prerequisites" in updated
     assert "--require-tasks" not in updated
     assert "(Missing script command for sh)" not in updated
     assert "ancestry pruning" in updated
@@ -81,7 +81,7 @@ def test_noop_when_files_are_already_clean(tmp_path: Path) -> None:
     project = _make_project(tmp_path)
     clean = project / ".codex" / "prompts" / "spec-kitty.tasks.md"
     clean.write_text(
-        "spec-kitty agent feature check-prerequisites --json --include-tasks\n",
+        "spec-kitty agent mission check-prerequisites --json --include-tasks\n",
         encoding="utf-8",
     )
 

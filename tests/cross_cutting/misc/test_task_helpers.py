@@ -50,27 +50,27 @@ def test_detect_conflicting_wp_status() -> None:
     assert conflicts == [" M kitty-specs/001-demo/tasks/doing/WP02.md"]
 
 
-def test_locate_work_package(feature_repo: Path, feature_slug: str) -> None:
+def test_locate_work_package(mission_repo: Path, mission_slug: str) -> None:
     th.ensure_lane("planned")  # smoke call
-    path = th.locate_work_package(feature_repo, feature_slug, "WP01")
+    path = th.locate_work_package(mission_repo, mission_slug, "WP01")
     assert path.work_package_id == "WP01"
     assert path.current_lane == "planned"
 
 
-def test_locate_work_package_exact_match(feature_repo: Path, feature_slug: str) -> None:
+def test_locate_work_package_exact_match(mission_repo: Path, mission_slug: str) -> None:
     """Test that WP04 doesn't match WP04b - exact ID matching is required."""
     from tests.utils import write_wp
 
     # Create WP04 and WP04b in the same lane
-    write_wp(feature_repo, feature_slug, "planned", "WP04")
-    write_wp(feature_repo, feature_slug, "planned", "WP04b")
+    write_wp(mission_repo, mission_slug, "planned", "WP04")
+    write_wp(mission_repo, mission_slug, "planned", "WP04b")
 
     # Looking for WP04 should NOT match WP04b
-    wp = th.locate_work_package(feature_repo, feature_slug, "WP04")
+    wp = th.locate_work_package(mission_repo, mission_slug, "WP04")
     assert wp.work_package_id == "WP04"
 
     # Looking for WP04b should NOT match WP04
-    wp_b = th.locate_work_package(feature_repo, feature_slug, "WP04b")
+    wp_b = th.locate_work_package(mission_repo, mission_slug, "WP04b")
     assert wp_b.work_package_id == "WP04b"
 
     # Ensure they are different files

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.core.config import (
     AGENT_SKILL_CONFIG,
-    SKILL_CLASS_NATIVE,
     SKILL_CLASS_SHARED,
     SKILL_CLASS_WRAPPER,
 )
@@ -29,7 +28,7 @@ def _install_skill_files(
 ) -> list[ManagedFileEntry]:
     """Copy all files for one skill to *target_skill_dir* and return manifest entries."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for source_file in skill.all_files:
         rel_within_skill = source_file.relative_to(skill.skill_dir)
@@ -61,7 +60,7 @@ def _make_entries_for_existing(
 ) -> list[ManagedFileEntry]:
     """Create manifest entries pointing to already-installed shared files (no copy)."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for source_file in skill.all_files:
         rel_within_skill = source_file.relative_to(skill.skill_dir)
@@ -160,7 +159,7 @@ def install_all_skills(
         Populated ManagedSkillManifest with entries for all installed files.
     """
     skills = registry.discover_skills()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     manifest = ManagedSkillManifest(
         version=1,

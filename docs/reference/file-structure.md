@@ -56,7 +56,7 @@ Contains Spec Kitty configuration, templates, and project memory.
 
 ## kitty-specs/ Directory
 
-Contains all feature specifications. Each feature has its own subdirectory.
+Contains all mission specifications. Each feature has its own subdirectory.
 
 ```
 kitty-specs/
@@ -191,7 +191,7 @@ docs/
 ├── docfx.json                    # Build configuration
 ├── tutorials/                    # Learning-oriented
 │   ├── getting-started.md
-│   └── your-first-feature.md
+│   └── your-first-mission.md
 ├── how-to/                       # Task-oriented
 │   ├── install-spec-kitty.md
 │   ├── create-specification.md

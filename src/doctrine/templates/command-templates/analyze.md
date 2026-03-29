@@ -1,10 +1,10 @@
 ---
 description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
 scripts:
-  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
-  ps: spec-kitty agent feature -Json -RequireTasks -IncludeTasks
+  sh: spec-kitty agent mission check-prerequisites --json --include-tasks
+  ps: spec-kitty agent mission -Json -RequireTasks -IncludeTasks
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 *Path: [templates/commands/analyze.md](templates/commands/analyze.md)*
 
@@ -30,7 +30,7 @@ git branch --show-current
 **Expected output:**
 
 - `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
-- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+- Branch: Should show your mission branch name like `001-mission-name` (NOT `main`)
 
 **If you see the main branch or main repository path:**
 
@@ -41,7 +41,7 @@ This command reads your feature artifacts (spec, plan, tasks) which are in your 
 **Correct the issue:**
 
 1. Navigate to your primary repository checkout: `cd primary repository checkout`
-2. Verify you're on the correct feature branch: `git branch --show-current`
+2. Verify you're on the correct mission branch: `git branch --show-current`
 3. Then run this analyze command again
 
 ---
@@ -97,11 +97,11 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for feature_dir and available_docs. Derive absolute paths:
+Run `{SCRIPT}` once from repo root and parse JSON for mission_dir and available_docs. Derive absolute paths:
 
-- SPEC = feature_dir/spec.md
-- PLAN = feature_dir/plan.md
-- TASKS = feature_dir/tasks.md
+- SPEC = mission_dir/spec.md
+- PLAN = mission_dir/plan.md
+- TASKS = mission_dir/tasks.md
 
 Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
 

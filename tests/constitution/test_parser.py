@@ -2,7 +2,7 @@
 
 import pytest
 
-from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
+from constitution.parser import ConstitutionParser, ConstitutionSection
 
 pytestmark = pytest.mark.fast
 
@@ -196,7 +196,7 @@ invalid: [unclosed
 
     def test_extract_keywords_tdd_required(self, parser):
         """T017: Extract TDD requirement."""
-        content = "TDD required for all features."
+        content = "TDD required for all missions."
         result = parser.extract_keywords(content)
 
         assert "tdd_required" in result

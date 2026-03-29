@@ -7,7 +7,7 @@ recovery steps.
 
 ## 1. Missing Skill Root
 
-**Symptom:** Agent cannot find skills; `spec-kitty verify` reports missing skill
+**Symptom:** Agent cannot find skills; `spec-kitty verify-setup` reports missing skill
 files. Slash commands that reference skills fail with "skill not found" or
 similar errors.
 
@@ -48,7 +48,7 @@ This regenerates wrapper files for all configured agents.
 
 ## 3. Manifest Drift
 
-**Symptom:** `spec-kitty verify` reports drifted skill files. The hash of one or
+**Symptom:** `spec-kitty verify-setup` reports drifted skill files. The hash of one or
 more installed files does not match the manifest.
 
 **Cause:** Managed skill files were manually edited after installation. This is

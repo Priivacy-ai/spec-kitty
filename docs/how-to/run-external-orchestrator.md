@@ -35,7 +35,7 @@ Expected result:
 ## 2. Run a Dry-Run
 
 ```bash
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
 ```
 
 Use this to validate configuration before mutating WP lanes.
@@ -43,7 +43,7 @@ Use this to validate configuration before mutating WP lanes.
 ## 3. Start Orchestration
 
 ```bash
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
 The orchestrator loop will typically:
@@ -66,7 +66,7 @@ Use `resume` after interruption. Use `abort` to mark the provider run as stopped
 ## 5. Confirm Host State
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature 034-my-feature
+spec-kitty orchestrator-api mission-state --mission 034-my-feature
 ```
 
 This is the authoritative source of lane state.

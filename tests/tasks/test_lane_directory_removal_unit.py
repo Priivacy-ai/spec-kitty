@@ -18,6 +18,8 @@ from specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes import (
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     CompleteLaneMigration,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture
@@ -37,14 +39,14 @@ def mock_v0_6_4_project(tmp_path: Path) -> Path:
     """Create a mock v0.6.4 project with lane directories.
 
     Simulates a real v0.6.4 project structure:
-    kitty-specs/001-test-feature/tasks/planned/WP01.md
-    kitty-specs/001-test-feature/tasks/doing/WP02.md
-    kitty-specs/001-test-feature/tasks/for_review/WP03.md
-    kitty-specs/001-test-feature/tasks/done/WP04.md
+    kitty-specs/001-test-mission/tasks/planned/WP01.md
+    kitty-specs/001-test-mission/tasks/doing/WP02.md
+    kitty-specs/001-test-mission/tasks/for_review/WP03.md
+    kitty-specs/001-test-mission/tasks/done/WP04.md
     """
-    # Create feature directory
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    # Create mission directory
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     # Create lane directories with WP files
     lanes = {
@@ -80,8 +82,8 @@ def mock_v0_6_4_project_with_ds_store(mock_v0_6_4_project: Path) -> Path:
     This simulates the real-world scenario on macOS where Finder creates
     .DS_Store files in directories that have been viewed.
     """
-    feature_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     # Add .DS_Store to some (not all) lane directories
     # This matches the bug report where only some directories persisted
@@ -95,8 +97,8 @@ def mock_v0_6_4_project_with_ds_store(mock_v0_6_4_project: Path) -> Path:
 @pytest.fixture
 def mock_v0_6_4_project_with_gitkeep(mock_v0_6_4_project: Path) -> Path:
     """Create a mock v0.6.4 project with .gitkeep files."""
-    feature_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     for lane in ["planned", "doing", "for_review", "done"]:
         gitkeep = tasks_dir / lane / ".gitkeep"
@@ -122,8 +124,8 @@ def test_migration_0_9_0_removes_empty_lane_directories(migration_0_9_0, mock_v0
     assert result.success is True
 
     # Check files were moved to flat structure
-    feature_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     assert (tasks_dir / "WP01.md").exists(), "WP01.md should be in tasks/"
     assert (tasks_dir / "WP02.md").exists(), "WP02.md should be in tasks/"
@@ -155,8 +157,8 @@ def test_migration_0_9_0_handles_ds_store_files(migration_0_9_0, mock_v0_6_4_pro
     assert result.success is True
 
     # Check lane directories were removed (even with .DS_Store files)
-    feature_dir = mock_v0_6_4_project_with_ds_store / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project_with_ds_store / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     persisting_lanes = []
     for lane in ["planned", "doing", "for_review", "done"]:
@@ -180,8 +182,8 @@ def test_migration_0_9_0_handles_gitkeep_files(migration_0_9_0, mock_v0_6_4_proj
     assert result.success is True
 
     # Check lane directories were removed
-    feature_dir = mock_v0_6_4_project_with_gitkeep / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project_with_gitkeep / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     persisting_lanes = []
     for lane in ["planned", "doing", "for_review", "done"]:
@@ -212,8 +214,8 @@ def test_migration_0_9_1_removes_remaining_lane_directories(migration_0_9_1, moc
     assert result.success is True
 
     # Check ALL lane directories were removed
-    feature_dir = mock_v0_6_4_project_with_ds_store / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = mock_v0_6_4_project_with_ds_store / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     persisting_lanes = []
     for lane in ["planned", "doing", "for_review", "done"]:
@@ -249,8 +251,8 @@ def test_upgrade_path_0_6_4_to_0_10_x_removes_all_lanes(
     assert result_0_9_1.success is True
 
     # Verify NO lane directories remain
-    feature_dir = project / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = project / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     persisting_lanes = []
     for lane in ["planned", "doing", "for_review", "done"]:
@@ -273,9 +275,9 @@ def test_upgrade_path_0_6_4_to_0_10_x_removes_all_lanes(
 
 def test_empty_lane_directories_are_removed(migration_0_9_0, tmp_path):
     """Test that completely empty lane directories (no files at all) are removed."""
-    # Create feature with empty lane directories
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    # Create mission with empty lane directories
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    tasks_dir = mission_dir / "tasks"
 
     for lane in ["planned", "doing", "for_review", "done"]:
         lane_dir = tasks_dir / lane

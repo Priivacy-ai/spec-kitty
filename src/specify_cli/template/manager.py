@@ -59,13 +59,7 @@ def copy_constitution_templates(project_path: Path, repo_root: Path | None = Non
     except ModuleNotFoundError:
         pass
 
-    # Legacy fallback while older packages still ship this under templates/
-    try:
-        specify_root = files("specify_cli")
-        legacy_toolguide = specify_root.joinpath("templates", "POWERSHELL_SYNTAX.md")
-        _copy_constitution_toolguide_from_resource(legacy_toolguide, project_path)
-    except ModuleNotFoundError:
-        pass
+    # Legacy fallback removed -- doctrine/toolguides/ is the sole canonical location.
 
 
 def get_local_repo_root(override_path: str | None = None) -> Path | None:
@@ -112,15 +106,23 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     return None
 
 
-def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
+def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:  # noqa: C901
     """Copy the embedded .kittify assets from a local repository checkout."""
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
     # Copy from .kittify/memory/ for consistency with other .kittify paths
     memory_src = repo_root / ".kittify" / "memory"
-    if memory_src.exists():
-        memory_dest = specify_root / "memory"
+    memory_dest = specify_root / "memory"
+    same_memory_tree = False
+    try:
+        same_memory_tree = memory_src.resolve(strict=False) == memory_dest.resolve(strict=False)
+    except OSError:
+        same_memory_tree = memory_src == memory_dest
+
+    if same_memory_tree:
+        memory_dest.mkdir(parents=True, exist_ok=True)
+    elif memory_src.exists():
         if memory_dest.exists():
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
@@ -216,7 +218,16 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
                 with resource_file.open("rb") as src, open(scripts_dest / resource_file.name, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
-    templates_resource = data_root.joinpath("templates")
+    # Prefer doctrine templates (canonical location)
+    templates_resource = None
+    try:
+        doctrine_templates = files("doctrine").joinpath("templates")
+        if _resource_exists(doctrine_templates):
+            templates_resource = doctrine_templates
+    except ModuleNotFoundError:
+        pass
+    if templates_resource is None:
+        templates_resource = data_root.joinpath("templates")
     if _resource_exists(templates_resource):
         templates_dest = specify_root / "templates"
         copy_package_tree(templates_resource, templates_dest)
@@ -225,13 +236,30 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             with agents_template.open("rb") as src, open(specify_root / "AGENTS.md", "wb") as dst:
                 shutil.copyfileobj(src, dst)
 
-    missions_resource_candidates = [
-        data_root.joinpath("missions"),  # Primary location per pyproject.toml
+    # Build missions resource candidates, preferring MissionTemplateRepository
+    missions_resource_candidates = []
+    try:
+        from doctrine.missions import MissionTemplateRepository
+
+        missions_root = MissionTemplateRepository.default()._missions_root
+        if missions_root.is_dir():
+            missions_resource_candidates.append(missions_root)
+    except (ImportError, Exception):
+        pass
+    missions_resource_candidates.extend([
+        data_root.joinpath("missions"),  # Legacy specify_cli location
         data_root.joinpath(".kittify", "missions"),  # Legacy fallback
         data_root.joinpath("template_data", "missions"),  # Legacy fallback
-    ]
+    ])
     for missions_resource in missions_resource_candidates:
-        if _resource_exists(missions_resource):
+        if isinstance(missions_resource, Path):
+            if missions_resource.is_dir():
+                missions_dest = specify_root / "missions"
+                if missions_dest.exists():
+                    shutil.rmtree(missions_dest)
+                shutil.copytree(missions_resource, missions_dest)
+                break
+        elif _resource_exists(missions_resource):
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 

@@ -1,6 +1,6 @@
 """Migration: expand orchestrator-api skill with output examples and internals.
 
-Adds JSON output examples for feature-state and list-ready, error code catalog,
+Adds JSON output examples for mission-state and list-ready, error code catalog,
 start-implementation idempotency table, workspace_path creation responsibility,
 start-review --review-ref requirement, merge preflight details, policy secret
 validation, full lane list including blocked/canceled, list-ready
@@ -37,10 +37,7 @@ class FixOrchestratorApiSkillMigration(BaseMigration):
     target_version = "2.1.2"
 
     def detect(self, project_path: Path) -> bool:
-        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
-            if file_contains_any(info.path, _OLD_MARKERS):
-                return True
-        return False
+        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         files_found = find_skill_files(project_path, _SKILL_NAME)

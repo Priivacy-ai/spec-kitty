@@ -18,8 +18,8 @@ from specify_cli.status.models import (
 pytestmark = pytest.mark.fast
 
 class TestLaneEnum:
-    def test_lane_enum_has_eight_values(self) -> None:
-        assert len(Lane) == 8
+    def test_lane_enum_has_nine_values(self) -> None:
+        assert len(Lane) == 9
 
     def test_lane_enum_string_values(self) -> None:
         expected = {
@@ -27,6 +27,7 @@ class TestLaneEnum:
             "claimed",
             "in_progress",
             "for_review",
+            "in_review",
             "approved",
             "done",
             "blocked",
@@ -68,7 +69,7 @@ class TestRepoEvidence:
     def test_to_dict(self, sample_repo_evidence: RepoEvidence) -> None:
         d = sample_repo_evidence.to_dict()
         assert d["repo"] == "my-org/my-repo"
-        assert d["branch"] == "034-feature-WP01"
+        assert d["branch"] == "034-mission-WP01"
         assert d["commit"] == "abc1234"
         assert d["files_touched"] == ["src/models.py", "tests/test_models.py"]
 
@@ -193,7 +194,7 @@ class TestStatusEvent:
     def test_from_dict_converts_string_lanes(self) -> None:
         d = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
-            "feature_slug": "034-feature",
+            "mission_slug": "034-mission",
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "claimed",
@@ -214,7 +215,7 @@ class TestStatusEvent:
     def test_force_event_with_reason(self) -> None:
         event = StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",
-            feature_slug="034-feature",
+            mission_slug="034-mission",
             wp_id="WP01",
             from_lane=Lane.DONE,
             to_lane=Lane.IN_PROGRESS,
@@ -231,7 +232,7 @@ class TestStatusEvent:
     def test_review_ref_event(self) -> None:
         event = StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",
-            feature_slug="034-feature",
+            mission_slug="034-mission",
             wp_id="WP01",
             from_lane=Lane.FOR_REVIEW,
             to_lane=Lane.IN_PROGRESS,
@@ -253,7 +254,7 @@ class TestStatusSnapshot:
     ) -> None:
         d = sample_status_snapshot.to_dict()
         restored = StatusSnapshot.from_dict(d)
-        assert restored.feature_slug == sample_status_snapshot.feature_slug
+        assert restored.mission_slug == sample_status_snapshot.mission_slug
         assert restored.event_count == sample_status_snapshot.event_count
         assert restored.work_packages == sample_status_snapshot.work_packages
         assert restored.summary == sample_status_snapshot.summary
@@ -266,6 +267,7 @@ class TestStatusSnapshot:
             "claimed",
             "in_progress",
             "for_review",
+            "in_review",
             "approved",
             "done",
             "blocked",
@@ -282,7 +284,7 @@ class TestStatusSnapshot:
 
     def test_empty_snapshot(self) -> None:
         snap = StatusSnapshot(
-            feature_slug="001-test",
+            mission_slug="001-test",
             materialized_at="2026-01-01T00:00:00Z",
             event_count=0,
             last_event_id=None,
@@ -292,6 +294,7 @@ class TestStatusSnapshot:
                 "claimed": 0,
                 "in_progress": 0,
                 "for_review": 0,
+                "in_review": 0,
                 "approved": 0,
                 "done": 0,
                 "blocked": 0,

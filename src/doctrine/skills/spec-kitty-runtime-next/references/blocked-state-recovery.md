@@ -10,10 +10,10 @@ Reference for diagnosing and recovering from blocked runtime states.
 
 ```bash
 # Check which WPs are blocking
-spec-kitty agent tasks status --feature <feature-slug>
+spec-kitty agent tasks status --mission <mission-slug>
 
 # Check specific WP dependencies
-grep 'dependencies:' kitty-specs/<feature>/tasks/WP##-*.md
+grep 'dependencies:' kitty-specs/<mission>/tasks/WP##-*.md
 ```
 
 **Recovery:**
@@ -30,7 +30,7 @@ grep 'dependencies:' kitty-specs/<feature>/tasks/WP##-*.md
 
 ```bash
 # Check review status
-grep 'review_status:' kitty-specs/<feature>/tasks/WP##-*.md
+grep 'review_status:' kitty-specs/<mission>/tasks/WP##-*.md
 ```
 
 **Recovery:**
@@ -47,7 +47,7 @@ grep 'review_status:' kitty-specs/<feature>/tasks/WP##-*.md
 
 ```bash
 # Check if the implementing process is still alive
-PID=$(grep 'shell_pid:' kitty-specs/<feature>/tasks/WP##-*.md | awk '{print $2}' | tr -d '"')
+PID=$(grep 'shell_pid:' kitty-specs/<mission>/tasks/WP##-*.md | awk '{print $2}' | tr -d '"')
 kill -0 "$PID" 2>/dev/null && echo "alive" || echo "stale"
 ```
 
@@ -59,20 +59,20 @@ kill -0 "$PID" 2>/dev/null && echo "alive" || echo "stale"
 2. Check the worktree for partial work worth keeping
 3. Re-dispatch implementation
 
-## Pattern 4: Missing Feature Artifacts
+## Pattern 4: Missing Mission Artifacts
 
-**Symptom:** Runtime cannot find spec, plan, or task files for the active feature.
+**Symptom:** Runtime cannot find spec, plan, or task files for the active mission.
 
 **Diagnosis:**
 
 ```bash
-ls kitty-specs/<feature-slug>/
+ls kitty-specs/<mission-slug>/
 ```
 
 **Recovery:**
 1. If artifacts are missing: re-run the planning workflow (`/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`)
 2. If artifacts exist but are corrupted: restore from git history
-3. If the feature directory is entirely absent: check that you are on the correct branch
+3. If the mission directory is entirely absent: check that you are on the correct branch
 
 ## Pattern 5: Circular Dependencies
 
@@ -84,7 +84,7 @@ The dependency graph has a cycle. This should have been caught by `finalize-task
 **Recovery:**
 1. Review the dependency declarations in WP frontmatter
 2. Break the cycle by removing one dependency that is not strictly required
-3. Re-run `spec-kitty agent feature finalize-tasks` to validate
+3. Re-run `spec-kitty agent mission finalize-tasks` to validate
 
 ## Pattern 6: All WPs Done But Mission Not Complete
 

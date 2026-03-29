@@ -2,8 +2,8 @@
 
 Historical context:
 - Earlier spec-kitty versions or user templates may have added `kitty-specs/` to .gitignore
-- This prevents git from tracking feature specifications, causing failures in:
-  - `spec-kitty agent feature create-feature`
+- This prevents git from tracking mission specifications, causing failures in:
+  - `spec-kitty agent mission create-mission`
   - `/spec-kitty.specify` (commit step)
   - Other commands that commit to kitty-specs/
 
@@ -22,7 +22,7 @@ from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "0.12.1_remove_kitty_specs_from_gitignore"
 MIGRATION_VERSION = "0.12.1"
-MIGRATION_DESCRIPTION = "Remove kitty-specs/ from main repo .gitignore to allow tracking feature specs"
+MIGRATION_DESCRIPTION = "Remove kitty-specs/ from main repo .gitignore to allow tracking mission specs"
 
 # Patterns to REMOVE (block entire kitty-specs directory)
 PATTERNS_TO_REMOVE = [
@@ -138,8 +138,8 @@ def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> tupl
 class RemoveKittySpecsFromGitignoreMigration(BaseMigration):
     """Remove kitty-specs/ from main repo .gitignore.
 
-    Feature specifications must be tracked in git. If kitty-specs/ is in
-    .gitignore, git add operations fail during feature creation.
+    Mission specifications must be tracked in git. If kitty-specs/ is in
+    .gitignore, git add operations fail during mission creation.
     """
 
     migration_id = MIGRATION_ID

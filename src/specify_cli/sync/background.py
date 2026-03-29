@@ -11,14 +11,15 @@ import atexit
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from datetime import datetime, UTC
+from typing import TYPE_CHECKING
 
 from .auth import AuthClient
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+import contextlib
 
 if TYPE_CHECKING:
     from .body_queue import BodyUploadTask, OfflineBodyUploadQueue
@@ -35,12 +36,12 @@ class BackgroundSyncService:
     auth: AuthClient
     config: SyncConfig
     sync_interval_seconds: float = 300.0  # 5 minutes default
-    _timer: Optional[threading.Timer] = field(default=None, init=False, repr=False)
+    _timer: threading.Timer | None = field(default=None, init=False, repr=False)
     _running: bool = field(default=False, init=False, repr=False)
     _backoff_seconds: float = field(default=0.5, init=False, repr=False)
-    _last_sync: Optional[datetime] = field(default=None, init=False, repr=False)
+    _last_sync: datetime | None = field(default=None, init=False, repr=False)
     _consecutive_failures: int = field(default=0, init=False, repr=False)
-    _body_queue: Optional[OfflineBodyUploadQueue] = field(default=None, init=False, repr=False)
+    _body_queue: OfflineBodyUploadQueue | None = field(default=None, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def start(self) -> None:
@@ -73,14 +74,12 @@ class BackgroundSyncService:
             self._body_queue is not None and self._body_queue.size() > 0
         )
         if self.queue.size() > 0 or body_queue_has_work:
-            try:
+            with contextlib.suppress(Exception):
                 self._perform_sync()
-            except Exception:
-                pass
         logger.debug("Background sync service stopped")
 
     @property
-    def last_sync(self) -> Optional[datetime]:
+    def last_sync(self) -> datetime | None:
         return self._last_sync
 
     @property
@@ -107,10 +106,7 @@ class BackgroundSyncService:
         if not self._running:
             return
 
-        if self._consecutive_failures > 0:
-            interval = min(self._backoff_seconds, 30.0)
-        else:
-            interval = self.sync_interval_seconds
+        interval = min(self._backoff_seconds, 30.0) if self._consecutive_failures > 0 else self.sync_interval_seconds
 
         self._timer = threading.Timer(interval, self._on_timer)
         self._timer.daemon = True  # Don't block CLI exit
@@ -169,7 +165,7 @@ class BackgroundSyncService:
                     self._drain_body_queue()
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
-                self._last_sync = datetime.now(timezone.utc)
+                self._last_sync = datetime.now(UTC)
                 return result
             except Exception as exc:
                 self._consecutive_failures += 1
@@ -213,7 +209,7 @@ class BackgroundSyncService:
             # Success: reset backoff
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
-            self._last_sync = datetime.now(timezone.utc)
+            self._last_sync = datetime.now(UTC)
             event_sync_succeeded = True
         except Exception as exc:
             self._consecutive_failures += 1
@@ -291,7 +287,7 @@ class BackgroundSyncService:
 
 # ── Singleton accessor ────────────────────────────────────────────
 
-_service: Optional[BackgroundSyncService] = None
+_service: BackgroundSyncService | None = None
 _service_lock = threading.Lock()
 
 

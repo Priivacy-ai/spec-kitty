@@ -374,7 +374,7 @@ class TestSaasFeatureFlag:
         mock_client.assert_not_called()
 
     def test_get_access_token_does_not_refresh_when_disabled(self, auth_client, monkeypatch):
-        """Expired access token should not trigger refresh when feature is disabled."""
+        """Expired access token should not trigger refresh when flag is disabled."""
         auth_client.credential_store.save(
             access_token="expired_access",
             refresh_token="valid_refresh",

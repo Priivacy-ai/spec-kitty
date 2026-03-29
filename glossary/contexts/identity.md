@@ -96,3 +96,27 @@ Terms describing who performs work and who owns semantic decisions.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Mission Owner](#mission-owner), [Collaboration Mode](./execution.md#collaboration-mode), [HiC cross-reference](./practices-principles.md#human-in-charge-cross-reference) |
+
+---
+
+### Human-in-Charge Work Package (HiC WP)
+
+| | |
+|---|---|
+| **Definition** | A work package with `agent_profile: human-in-charge` in its frontmatter, indicating the deliverable requires direct human execution or close human-AI collaboration rather than autonomous agent execution. The HiC WP sentinel causes the workflow layer to skip agent identity injection and renders the WP with a distinct marker (👤) in the kanban. The Human in Charge remains accountable regardless of the executor assignment. |
+| **Context** | Identity |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **See also** | [Human-in-Charge (HiC)](#human-in-charge-hic), [Sentinel Profile](#sentinel-profile) |
+
+---
+
+### Sentinel Profile
+
+| | |
+|---|---|
+| **Definition** | An agent profile with `sentinel: true` that functions as a workflow signal rather than an agent identity artifact. A sentinel profile carries no initialization declaration, no directive references, and no specialization. When the workflow layer encounters a sentinel profile, it skips agent context injection entirely. `human-in-charge` is the primary example. Sentinel profiles live in `_proposed/` and are never promoted to `shipped/`. |
+| **Context** | Identity |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **See also** | [Human-in-Charge Work Package (HiC WP)](#human-in-charge-work-package-hic-wp), [Agent Profile](./doctrine.md#agent-profile) |

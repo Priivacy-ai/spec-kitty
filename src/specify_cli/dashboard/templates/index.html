@@ -21,17 +21,17 @@
                 <h1>Spec Kitty</h1>
                 <pre class="tree-view" id="tree-info">Loading…</pre>
             </div>
-            <div class="feature-selector" id="feature-selector-container">
-                <label>Feature:</label>
-                <select id="feature-select" onchange="switchFeature(this.value)">
+            <div class="mission-selector" id="mission-selector-container">
+                <label>Mission:</label>
+                <select id="mission-select" onchange="switchMission(this.value)">
                     <option value="">Loading...</option>
                 </select>
             </div>
-            <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
+            <div id="single-mission-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
         <div class="header-right">
             <div class="mission-display" id="mission-display">
-                <span class="mission-label">Mission:</span>
+                <span class="mission-label">Mission template:</span>
                 <span class="mission-name" id="mission-name">Loading…</span>
             </div>
             <a class="docs-site-link" href="https://docs.spec-kitty.ai/" target="_blank" rel="noopener noreferrer">
@@ -94,7 +94,7 @@
         <div class="main-content">
             <div id="page-overview" class="page active">
                 <div class="content-card">
-                    <h2>Feature Overview</h2>
+                    <h2>Mission Overview</h2>
                     <div id="overview-content"></div>
                 </div>
             </div>
@@ -194,10 +194,10 @@
                             <div id="diagnostics-recommendations-content" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;"></div>
                         </div>
 
-                        <!-- Feature Analysis -->
+                        <!-- Mission Analysis -->
                         <div style="margin-bottom: 30px;">
-                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Feature Analysis</h3>
-                            <div id="diagnostics-features" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Mission Analysis</h3>
+                            <div id="diagnostics-missions" style="display: flex; flex-direction: column; gap: 15px;"></div>
                         </div>
 
                         <!-- Actions -->
@@ -224,7 +224,7 @@
                         <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
                             <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
                             <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
-                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first feature</li>
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first mission</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.plan</code> to create the implementation plan</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.tasks</code> to generate the task breakdown</li>
                                 <li>Watch the dashboard update in real-time as you work!</li>
@@ -234,9 +234,9 @@
                 </div>
             </div>
 
-            <div id="no-features-message" class="no-features" style="display: none;">
-                <h2>No Features Found</h2>
-                <p>Create your first feature using <code>/spec-kitty.specify</code></p>
+            <div id="no-missions-message" class="no-missions" style="display: none;">
+                <h2>No Missions Found</h2>
+                <p>Create your first mission using <code>/spec-kitty.specify</code></p>
             </div>
         </div>
     </div>

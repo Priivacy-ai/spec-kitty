@@ -33,12 +33,12 @@ class TestAgentWorkflowImplement:
         repo_root.mkdir()
 
         # Create kitty-specs structure
-        feature_dir = repo_root / "kitty-specs" / "001-test-feature"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = repo_root / "kitty-specs" / "001-test-mission"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create meta.json
-        meta_file = feature_dir / "meta.json"
+        meta_file = mission_dir / "meta.json"
         meta_file.write_text('{"vcs": "git"}', encoding="utf-8")
 
         # Initialize as git repo
@@ -53,7 +53,7 @@ class TestAgentWorkflowImplement:
     def test_single_dependency_no_base_errors(self, mock_repo, capsys):
         """Agent implement should error when WP has dependency but no --base."""
         # Create WP02 with dependency on WP01
-        wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
+        wp_file = mock_repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP02-build-api.md"
         wp_file.write_text(
             "---\n"
             "work_package_id: WP02\n"
@@ -70,17 +70,17 @@ class TestAgentWorkflowImplement:
         subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Add WP02"], cwd=mock_repo, check=True, capture_output=True)
 
-        # Create feature branch
-        subprocess.run(["git", "checkout", "-b", "001-test-feature"], cwd=mock_repo, check=True, capture_output=True)
+        # Create mission branch
+        subprocess.run(["git", "checkout", "-b", "001-test-mission"], cwd=mock_repo, check=True, capture_output=True)
 
         # Mock locate_project_root and locate_work_package
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug") as mock_find_slug,
         ):
             mock_locate_root.return_value = mock_repo
-            mock_find_slug.return_value = "001-test-feature"
+            mock_find_slug.return_value = "001-test-mission"
 
             # Mock WP object
             mock_wp = MagicMock()
@@ -93,7 +93,7 @@ class TestAgentWorkflowImplement:
             with pytest.raises(typer.Exit):
                 agent_implement(
                     wp_id="WP02",
-                    feature="001-test-feature",
+                    mission="001-test-mission",
                     agent="test-agent",
                     base=None,  # Missing!
                 )
@@ -106,13 +106,13 @@ class TestAgentWorkflowImplement:
     def test_single_dependency_with_base_calls_toplevel(self, mock_repo):
         """Agent implement with valid --base should call top-level implement."""
         # Create WP01 and WP02
-        wp01_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-setup.md"
+        wp01_file = mock_repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP01-setup.md"
         wp01_file.write_text(
             "---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\nlane: done\n---\nSetup task\n",
             encoding="utf-8",
         )
 
-        wp02_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
+        wp02_file = mock_repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP02-build-api.md"
         wp02_file.write_text(
             "---\nwork_package_id: WP02\ntitle: Build API\ndependencies: [WP01]\nlane: planned\n---\nBuild API task\n",
             encoding="utf-8",
@@ -127,9 +127,9 @@ class TestAgentWorkflowImplement:
         # Create WP01 workspace (base workspace must exist)
         worktrees_dir = mock_repo / ".worktrees"
         worktrees_dir.mkdir(exist_ok=True)
-        wp01_workspace = worktrees_dir / "001-test-feature-WP01"
+        wp01_workspace = worktrees_dir / "001-test-mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_workspace), "-b", "001-test-feature-WP01"],
+            ["git", "worktree", "add", str(wp01_workspace), "-b", "001-test-mission-WP01"],
             cwd=mock_repo,
             check=True,
             capture_output=True,
@@ -139,11 +139,12 @@ class TestAgentWorkflowImplement:
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug") as mock_find_slug,
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
         ):
             mock_locate_root.return_value = mock_repo
-            mock_find_slug.return_value = "001-test-feature"
+            mock_find_slug.return_value = "001-test-mission"
 
             # Mock WP02 object
             mock_wp = MagicMock()
@@ -155,17 +156,17 @@ class TestAgentWorkflowImplement:
             # Run agent implement with --base WP01
             # This should call top-level implement (mocked to avoid full execution)
             with contextlib.suppress(Exception):
-                agent_implement(wp_id="WP02", feature="001-test-feature", agent="test-agent", base="WP01")
+                agent_implement(wp_id="WP02", mission="001-test-mission", agent="test-agent", base="WP01")
 
             # Verify top-level implement was called with correct parameters
             mock_top_level.assert_called_once_with(
-                wp_id="WP02", base="WP01", feature="001-test-feature", json_output=False
+                wp_id="WP02", base="WP01", mission="001-test-mission", json_output=False
             )
 
     def test_multi_parent_auto_merge(self, mock_repo, capsys):
         """Agent implement should support auto-merge for multi-parent dependencies."""
         # Create WP04 with dependencies on WP02, WP03
-        wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP04-integration.md"
+        wp_file = mock_repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP04-integration.md"
         wp_file.write_text(
             "---\n"
             "work_package_id: WP04\n"
@@ -184,11 +185,12 @@ class TestAgentWorkflowImplement:
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug") as mock_find_slug,
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
         ):
             mock_locate_root.return_value = mock_repo
-            mock_find_slug.return_value = "001-test-feature"
+            mock_find_slug.return_value = "001-test-mission"
 
             mock_wp = MagicMock()
             mock_wp.path = wp_file
@@ -200,7 +202,7 @@ class TestAgentWorkflowImplement:
             with contextlib.suppress(Exception):
                 agent_implement(
                     wp_id="WP04",
-                    feature="001-test-feature",
+                    mission="001-test-mission",
                     agent="test-agent",
                     base=None,  # Auto-merge should trigger
                 )
@@ -210,12 +212,12 @@ class TestAgentWorkflowImplement:
             call_args = mock_top_level.call_args
             assert call_args[1]["wp_id"] == "WP04"
             assert call_args[1]["base"] is None  # Auto-merge uses None
-            assert call_args[1]["feature"] == "001-test-feature"
+            assert call_args[1]["mission"] == "001-test-mission"
 
     def test_validation_error_prevents_workspace_creation(self, mock_repo):
         """Validation errors should prevent workspace creation."""
         # Create WP02 with dependency on WP01
-        wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
+        wp_file = mock_repo / "kitty-specs" / "001-test-mission" / "tasks" / "WP02-build-api.md"
         wp_file.write_text(
             "---\nwork_package_id: WP02\ndependencies: [WP01]\nlane: planned\n---\nTask\n", encoding="utf-8"
         )
@@ -227,11 +229,11 @@ class TestAgentWorkflowImplement:
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug") as mock_find_slug,
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
         ):
             mock_locate_root.return_value = mock_repo
-            mock_find_slug.return_value = "001-test-feature"
+            mock_find_slug.return_value = "001-test-mission"
 
             mock_wp = MagicMock()
             mock_wp.path = wp_file
@@ -241,15 +243,15 @@ class TestAgentWorkflowImplement:
 
             # Should error during validation (before calling top-level)
             with pytest.raises(typer.Exit):
-                agent_implement(wp_id="WP02", feature="001-test-feature", agent="test-agent", base=None)
+                agent_implement(wp_id="WP02", mission="001-test-mission", agent="test-agent", base=None)
 
             # Verify top-level implement was NOT called
             mock_top_level.assert_not_called()
 
     def test_implement_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
         """Workflow implement must fail loudly when status commit fails."""
-        feature_slug = "001-test-feature"
-        wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
+        mission_slug = "001-test-mission"
+        wp_file = mock_repo / "kitty-specs" / mission_slug / "tasks" / "WP01-setup.md"
         wp_file.write_text(
             "---\n"
             "work_package_id: WP01\n"
@@ -268,12 +270,12 @@ class TestAgentWorkflowImplement:
         subprocess.run(["git", "commit", "-m", "Add WP01"], cwd=mock_repo, check=True, capture_output=True)
 
         # Ensure command does not delegate to top-level implement.
-        workspace_path = mock_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace_path = mock_repo / ".worktrees" / f"{mission_slug}-WP01"
         workspace_path.mkdir(parents=True, exist_ok=True)
 
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root", return_value=mock_repo),
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug", return_value=feature_slug),
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug", return_value=mission_slug),
             patch(
                 "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
                 return_value=(mock_repo, "main"),
@@ -283,7 +285,7 @@ class TestAgentWorkflowImplement:
         ):
             agent_implement(
                 wp_id="WP01",
-                feature=feature_slug,
+                mission=mission_slug,
                 agent="test-agent",
                 base=None,
             )
@@ -294,8 +296,8 @@ class TestAgentWorkflowImplement:
 
     def test_review_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
         """Workflow review must fail loudly when status commit fails."""
-        feature_slug = "001-test-feature"
-        wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
+        mission_slug = "001-test-mission"
+        wp_file = mock_repo / "kitty-specs" / mission_slug / "tasks" / "WP01-setup.md"
         wp_file.write_text(
             "---\n"
             "work_package_id: WP01\n"
@@ -314,12 +316,12 @@ class TestAgentWorkflowImplement:
         subprocess.run(["git", "commit", "-m", "Add WP01 for review"], cwd=mock_repo, check=True, capture_output=True)
 
         # Ensure command does not create workspace (which would obscure commit-failure path).
-        workspace_path = mock_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace_path = mock_repo / ".worktrees" / f"{mission_slug}-WP01"
         workspace_path.mkdir(parents=True, exist_ok=True)
 
         with (
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root", return_value=mock_repo),
-            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug", return_value=feature_slug),
+            patch("specify_cli.cli.commands.agent.workflow._find_mission_slug", return_value=mission_slug),
             patch(
                 "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
                 return_value=(mock_repo, "main"),
@@ -329,7 +331,7 @@ class TestAgentWorkflowImplement:
         ):
             agent_review(
                 wp_id="WP01",
-                feature=feature_slug,
+                mission=mission_slug,
                 agent="reviewer",
             )
 
@@ -338,16 +340,16 @@ class TestAgentWorkflowImplement:
         assert "✓ Claimed WP01 for review" not in captured.out
 
 class TestAgentFeatureAccept:
-    """Integration tests for spec-kitty agent feature accept."""
+    """Integration tests for spec-kitty agent mission accept."""
 
-    @patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+    @patch("specify_cli.cli.commands.agent.mission.top_level_accept")
     def test_delegates_to_toplevel(self, mock_accept):
         """Agent accept should delegate to top-level accept command."""
-        from specify_cli.cli.commands.agent.feature import accept_feature
+        from specify_cli.cli.commands.agent.mission import accept_mission
 
         # Call agent accept
-        accept_feature(
-            feature="001-test",
+        accept_mission(
+            mission="001-test",
             mode="auto",
             json_output=True,
             lenient=False,
@@ -356,7 +358,7 @@ class TestAgentFeatureAccept:
 
         # Verify top-level accept was called with correct parameters
         mock_accept.assert_called_once_with(
-            feature="001-test",
+            mission="001-test",
             mode="auto",
             actor=None,  # Agent doesn't use actor
             test=[],  # Agent doesn't use test
@@ -366,18 +368,18 @@ class TestAgentFeatureAccept:
             allow_fail=False,
         )
 
-    @patch("specify_cli.cli.commands.agent.feature.top_level_accept")
+    @patch("specify_cli.cli.commands.agent.mission.top_level_accept")
     def test_propagates_typer_exit(self, mock_accept):
         """Agent accept should propagate typer.Exit from top-level."""
-        from specify_cli.cli.commands.agent.feature import accept_feature
+        from specify_cli.cli.commands.agent.mission import accept_mission
 
         # Make top-level raise typer.Exit
         mock_accept.side_effect = typer.Exit(1)
 
         # Should propagate exit
         with pytest.raises(typer.Exit):
-            accept_feature(
-                feature="001-test",
+            accept_mission(
+                mission="001-test",
                 mode="auto",
                 json_output=False,
                 lenient=False,
@@ -385,23 +387,23 @@ class TestAgentFeatureAccept:
             )
 
 class TestAgentFeatureMerge:
-    """Integration tests for spec-kitty agent feature merge."""
+    """Integration tests for spec-kitty agent mission merge."""
 
-    @patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_delegates_to_toplevel(self, mock_locate_root, mock_merge, tmp_path):
         """Agent merge should delegate to top-level merge command."""
-        from specify_cli.cli.commands.agent.feature import merge_feature
+        from specify_cli.cli.commands.agent.mission import merge_mission
 
         mock_locate_root.return_value = tmp_path
 
         # Mock auto-retry check (skip retry logic for this test)
-        with patch("specify_cli.cli.commands.agent.feature._get_current_branch") as mock_branch:
-            mock_branch.return_value = "001-test-feature-WP01"  # On feature branch
+        with patch("specify_cli.cli.commands.agent.mission._get_current_branch") as mock_branch:
+            mock_branch.return_value = "001-test-mission-WP01"  # On mission branch
 
             # Call agent merge
-            merge_feature(
-                feature="001-test",
+            merge_mission(
+                mission="001-test",
                 target="main",
                 strategy="merge",
                 push=True,
@@ -419,25 +421,25 @@ class TestAgentFeatureMerge:
                 push=True,
                 target_branch="main",  # Parameter name differs
                 dry_run=False,
-                feature="001-test",
+                mission="001-test",
                 resume=False,
                 abort=False,
             )
 
-    @patch("specify_cli.cli.commands.agent.feature.top_level_merge")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_parameter_inversion(self, mock_locate_root, mock_merge, tmp_path):
         """Agent merge should correctly invert keep_* parameters."""
-        from specify_cli.cli.commands.agent.feature import merge_feature
+        from specify_cli.cli.commands.agent.mission import merge_mission
 
         mock_locate_root.return_value = tmp_path
 
-        with patch("specify_cli.cli.commands.agent.feature._get_current_branch") as mock_branch:
-            mock_branch.return_value = "001-test-feature-WP01"
+        with patch("specify_cli.cli.commands.agent.mission._get_current_branch") as mock_branch:
+            mock_branch.return_value = "001-test-mission-WP01"
 
             # Call with keep_branch=True, keep_worktree=True
-            merge_feature(
-                feature="001-test",
+            merge_mission(
+                mission="001-test",
                 target="develop",
                 strategy="squash",
                 push=False,
@@ -454,25 +456,25 @@ class TestAgentFeatureMerge:
             assert call_args[1]["strategy"] == "squash"
             assert call_args[1]["target_branch"] == "develop"
 
-    @patch("specify_cli.cli.commands.agent.feature.top_level_merge")
+    @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
     def test_propagates_typer_exit(self, mock_merge):
         """Agent merge should propagate typer.Exit from top-level."""
-        from specify_cli.cli.commands.agent.feature import merge_feature
+        from specify_cli.cli.commands.agent.mission import merge_mission
 
         # Make top-level raise typer.Exit
         mock_merge.side_effect = typer.Exit(1)
 
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root") as mock_locate_root,
-            patch("specify_cli.cli.commands.agent.feature._get_current_branch") as mock_branch,
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root") as mock_locate_root,
+            patch("specify_cli.cli.commands.agent.mission._get_current_branch") as mock_branch,
         ):
             mock_locate_root.return_value = Path("/tmp/test")
-            mock_branch.return_value = "001-test-feature-WP01"
+            mock_branch.return_value = "001-test-mission-WP01"
 
             # Should propagate exit
             with pytest.raises(typer.Exit):
-                merge_feature(
-                    feature="001-test",
+                merge_mission(
+                    mission="001-test",
                     target="main",
                     strategy="merge",
                     push=False,
@@ -487,18 +489,18 @@ class TestAgentCommandConsistency:
 
     def test_all_agent_commands_use_direct_import(self):
         """Verify agent commands import top-level commands, not subprocess."""
-        from specify_cli.cli.commands.agent import feature, workflow
+        from specify_cli.cli.commands.agent import mission, workflow
 
         # Check workflow.py imports
         assert hasattr(workflow, "top_level_implement") or "top_level_implement" in workflow.implement.__code__.co_names
 
-        # Check feature.py imports (in function scope)
-        feature_source = Path(feature.__file__).read_text()
-        assert "from specify_cli.cli.commands.accept import accept" in feature_source
-        assert "from specify_cli.cli.commands.merge import merge" in feature_source
+        # Check mission.py imports (in function scope)
+        mission_source = Path(mission.__file__).read_text()
+        assert "from specify_cli.cli.commands.accept import accept" in mission_source
+        assert "from specify_cli.cli.commands.merge import merge" in mission_source
 
         # Verify NO legacy script calls
-        assert "scripts/tasks/tasks_cli.py" not in feature_source
+        assert "scripts/tasks/tasks_cli.py" not in mission_source
 
     def test_no_legacy_script_references(self):
         """Verify no agent commands reference legacy scripts/tasks/tasks_cli.py."""

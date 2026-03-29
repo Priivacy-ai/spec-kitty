@@ -30,6 +30,16 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Context (required)
+
+Before creating or updating a feature, determine the correct target branch deterministically:
+
+```bash
+spec-kitty agent mission branch-context --json
+```
+
+Use the returned `planning_base_branch` and `merge_target_branch` values when populating `meta.json` and work package frontmatter. Do NOT probe git directly for branch names — always use the CLI helper.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
@@ -117,15 +127,15 @@ During discovery, you MUST ask:
 - Determine deliverables_path (ask user or use default)
 - Confirm Intent Summary with user
 
-### 2. Create Feature
+### 2. Create Mission
 
 When discovery is complete, run:
 
 ```bash
-spec-kitty agent feature create-feature "<slug>" --json
+spec-kitty agent mission create-mission "<slug>" --json
 ```
 
-Parse the JSON output for `feature` and `feature_dir`.
+Parse the JSON output for `feature` and `mission_dir`.
 
 ### 3. Create meta.json with deliverables_path
 
@@ -172,7 +182,7 @@ Fill in:
 
 ### 6. Write Specification
 
-Write to `<feature_dir>/spec.md`
+Write to `<mission_dir>/spec.md`
 
 ### 7. Validation
 

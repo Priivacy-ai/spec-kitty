@@ -6,7 +6,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 _console = Console(stderr=True)
 
 
-def _get_project_identity() -> "ProjectIdentity":
+def _get_project_identity() -> ProjectIdentity:
     """Lazily load and resolve project identity.
 
     Uses lazy import to prevent circular dependency issues.
@@ -46,7 +46,7 @@ def _get_project_identity() -> "ProjectIdentity":
     return ensure_identity(repo_root)
 
 
-def _create_git_resolver() -> "GitMetadataResolver":
+def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
     from .project_identity import ensure_identity
@@ -99,8 +99,8 @@ _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
 from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
-_FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
-_FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
+_MISSION_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
+_MISSION_NUMBER_PATTERN = re.compile(r"^\d{3}$")
 
 
 def _is_datetime_string(value: Any) -> bool:
@@ -123,19 +123,19 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
-            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
+            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled"},
+            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled"},
             "actor": lambda v: isinstance(v, str) if v is not None else True,
-            "feature_slug": lambda v: _is_nullable_string(v),
+            "mission_slug": lambda v: _is_nullable_string(v),
             "policy_metadata": lambda v: v is None or isinstance(v, dict),
         },
     },
     "WPCreated": {
-        "required": {"wp_id", "title", "feature_slug"},
+        "required": {"wp_id", "title", "mission_slug"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "dependencies": lambda v: isinstance(v, list)
             and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
@@ -149,20 +149,20 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "retry_count": lambda v: isinstance(v, int) and v >= 0,
         },
     },
-    "FeatureCreated": {
-        "required": {"feature_slug", "feature_number", "target_branch", "wp_count"},
+    "MissionCreated": {
+        "required": {"mission_slug", "mission_number", "target_branch", "wp_count"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
-            "feature_number": lambda v: isinstance(v, str) and bool(_FEATURE_NUMBER_PATTERN.match(v)),
+            "mission_slug": lambda v: isinstance(v, str) and bool(_MISSION_SLUG_PATTERN.match(v)),
+            "mission_number": lambda v: isinstance(v, str) and bool(_MISSION_NUMBER_PATTERN.match(v)),
             "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
             "wp_count": lambda v: isinstance(v, int) and v >= 0,
             "created_at": lambda v: _is_datetime_string(v),
         },
     },
-    "FeatureCompleted": {
-        "required": {"feature_slug", "total_wps"},
+    "MissionCompleted": {
+        "required": {"mission_slug", "total_wps"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "total_wps": lambda v: isinstance(v, int) and v >= 0,
             "completed_at": lambda v: _is_datetime_string(v),
             "total_duration": lambda v: _is_nullable_string(v),
@@ -197,9 +197,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     },
     # WP04: Dossier events
     "MissionDossierArtifactIndexed": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
+        "required": {"mission_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
             "relative_path": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -211,9 +211,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierArtifactMissing": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
+        "required": {"mission_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
             "expected_path_pattern": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -223,9 +223,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierSnapshotComputed": {
-        "required": {"feature_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
+        "required": {"mission_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "parity_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "artifact_counts": lambda v: isinstance(v, dict),
             "completeness_status": lambda v: v in {"complete", "incomplete", "unknown"},
@@ -233,9 +233,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierParityDriftDetected": {
-        "required": {"feature_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
+        "required": {"mission_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "local_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "baseline_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "missing_in_local": lambda v: isinstance(v, list),
@@ -246,7 +246,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature", "MissionDossier"})
+VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Mission", "MissionDossier"})
 
 
 class ConnectionStatus:
@@ -286,10 +286,10 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
-    _identity: "ProjectIdentity | None" = field(default=None, repr=False)
-    _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _identity: ProjectIdentity | None = field(default=None, repr=False)
+    _git_resolver: GitMetadataResolver | None = field(default=None, repr=False)
 
-    def _get_identity(self) -> "ProjectIdentity":
+    def _get_identity(self) -> ProjectIdentity:
         """Get cached project identity, lazily loading on first access.
 
         Identity is resolved once per emitter lifetime to avoid repeated I/O.
@@ -298,7 +298,7 @@ class EventEmitter:
             self._identity = _get_project_identity()
         return self._identity
 
-    def _get_git_metadata(self) -> "GitMetadata":
+    def _get_git_metadata(self) -> GitMetadata:
         """Get per-event git metadata via cached resolver.
 
         Never raises: returns GitMetadata with None fields on any error.
@@ -339,7 +339,7 @@ class EventEmitter:
         from_lane: str,
         to_lane: str,
         actor: str = "user",
-        feature_slug: str | None = None,
+        mission_slug: str | None = None,
         causation_id: str | None = None,
         policy_metadata: dict | None = None,
     ) -> dict[str, Any] | None:
@@ -349,7 +349,7 @@ class EventEmitter:
             "from_lane": from_lane,
             "to_lane": to_lane,
             "actor": actor,
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "policy_metadata": policy_metadata,
         }
         return self._emit(
@@ -364,7 +364,7 @@ class EventEmitter:
         self,
         wp_id: str,
         title: str,
-        feature_slug: str,
+        mission_slug: str,
         dependencies: list[str] | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
@@ -373,7 +373,7 @@ class EventEmitter:
             "wp_id": wp_id,
             "title": title,
             "dependencies": dependencies or [],
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
         }
         return self._emit(
             event_type="WPCreated",
@@ -406,43 +406,43 @@ class EventEmitter:
             causation_id=causation_id,
         )
 
-    def emit_feature_created(
+    def emit_mission_created(
         self,
-        feature_slug: str,
-        feature_number: str,
+        mission_slug: str,
+        mission_number: str,
         target_branch: str,
         wp_count: int,
         created_at: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit FeatureCreated event (FR-011)."""
+        """Emit MissionCreated event (FR-011)."""
         payload: dict[str, Any] = {
-            "feature_slug": feature_slug,
-            "feature_number": feature_number,
+            "mission_slug": mission_slug,
+            "mission_number": mission_number,
             "target_branch": target_branch,
             "wp_count": wp_count,
         }
         if created_at is not None:
             payload["created_at"] = created_at
         return self._emit(
-            event_type="FeatureCreated",
-            aggregate_id=feature_slug,
-            aggregate_type="Feature",
+            event_type="MissionCreated",
+            aggregate_id=mission_slug,
+            aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
         )
 
-    def emit_feature_completed(
+    def emit_mission_completed(
         self,
-        feature_slug: str,
+        mission_slug: str,
         total_wps: int,
         completed_at: str | None = None,
         total_duration: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit FeatureCompleted event (FR-012)."""
+        """Emit MissionCompleted event (FR-012)."""
         payload: dict[str, Any] = {
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "total_wps": total_wps,
         }
         if completed_at is not None:
@@ -450,9 +450,9 @@ class EventEmitter:
         if total_duration is not None:
             payload["total_duration"] = total_duration
         return self._emit(
-            event_type="FeatureCompleted",
-            aggregate_id=feature_slug,
-            aggregate_type="Feature",
+            event_type="MissionCompleted",
+            aggregate_id=mission_slug,
+            aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
         )
@@ -502,7 +502,7 @@ class EventEmitter:
             payload["agent_id"] = agent_id
 
         aggregate_id = wp_id if wp_id is not None else "error"
-        aggregate_type = "WorkPackage" if wp_id is not None else "Feature"
+        aggregate_type = "WorkPackage" if wp_id is not None else "Mission"
         return self._emit(
             event_type="ErrorLogged",
             aggregate_id=aggregate_id,
@@ -568,11 +568,11 @@ class EventEmitter:
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,
-                # Git correlation fields (Feature 033)
+                # Git correlation fields (Mission 033)
                 "git_branch": git_meta.git_branch,
                 "head_commit_sha": git_meta.head_commit_sha,
                 "repo_slug": git_meta.repo_slug,
@@ -677,10 +677,7 @@ class EventEmitter:
                     return False
 
             # 4. Validate payload against per-event-type rules
-            if not self._validate_payload(event_type, event["payload"]):
-                return False
-
-            return True
+            return self._validate_payload(event_type, event["payload"])
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event validation failed: {e}[/yellow]")

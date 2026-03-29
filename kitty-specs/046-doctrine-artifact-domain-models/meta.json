@@ -1,0 +1,10 @@
+{
+  "feature_number": "046",
+  "slug": "046-doctrine-artifact-domain-models",
+  "friendly_name": "Doctrine Artifact Domain Models",
+  "mission": "software-dev",
+  "source_description": "",
+  "created_at": "2026-02-25T12:00:00+00:00",
+  "target_branch": "feature/agent-profile-implementation",
+  "vcs": "git"
+}

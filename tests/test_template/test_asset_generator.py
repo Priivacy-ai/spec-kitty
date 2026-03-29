@@ -9,6 +9,9 @@ from specify_cli.template.asset_generator import (
     prepare_command_templates,
     render_command_template,
 )
+import pytest
+pytestmark = pytest.mark.fast
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOFTWARE_DEV_TEMPLATE_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
@@ -211,7 +214,7 @@ def test_prepare_command_templates_inherits_scripts_from_base(tmp_path: Path) ->
         """---
 description: Base
 scripts:
-  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
+  sh: spec-kitty agent mission check-prerequisites --json --include-tasks
 ---
 Run {SCRIPT}
 """,
@@ -234,7 +237,7 @@ Mission body uses {SCRIPT}
         arg_format="$ARGUMENTS",
         extension="md",
     )
-    assert "spec-kitty agent feature check-prerequisites" in rendered
+    assert "spec-kitty agent mission check-prerequisites" in rendered
 
 
 def test_prepare_command_templates_inherits_agent_scripts_from_base(tmp_path: Path) -> None:

@@ -55,7 +55,7 @@ Check that skill roots, wrapper roots, manifest, and generated artifacts are pre
 **Commands:**
 
 ```bash
-spec-kitty verify
+spec-kitty verify-setup
 ```
 
 If `spec-kitty` is not installed:
@@ -65,7 +65,7 @@ pip install spec-kitty-cli
 spec-kitty --version
 ```
 
-**Expected outcome:** `spec-kitty verify` reports all checks passed, or lists
+**Expected outcome:** `spec-kitty verify-setup` reports all checks passed, or lists
 specific missing/drifted files.
 
 ---
@@ -85,12 +85,12 @@ Verify that the working environment meets runtime requirements.
 **Commands:**
 
 ```bash
-spec-kitty status
+spec-kitty agent tasks status
 spec-kitty agent config status
 ```
 
-**Expected outcome:** Status output shows the current mission, configured agents,
-and active features without errors.
+**Expected outcome:** Status output shows the current kanban board, configured
+agents, and active features without errors.
 
 ---
 
@@ -112,7 +112,7 @@ Common patterns include:
 **How to diagnose:**
 
 ```bash
-spec-kitty verify
+spec-kitty verify-setup
 spec-kitty agent config status
 ```
 
@@ -153,8 +153,8 @@ spec-kitty init --here
 spec-kitty dashboard
 ```
 
-**Expected outcome:** After recovery, `spec-kitty verify` reports no issues and
-`spec-kitty status` shows a healthy installation.
+**Expected outcome:** After recovery, `spec-kitty verify-setup` reports no issues and
+`spec-kitty agent tasks status` shows a healthy installation.
 
 ---
 
@@ -166,9 +166,9 @@ After recovery is complete, point the user to the correct next step.
 
 1. If the user wanted to **start a new project**: `spec-kitty init --here`
 2. If the user wanted to **specify a feature**: `/spec-kitty.specify`
-3. If the user wanted to **check status**: `spec-kitty status`
+3. If the user wanted to **check status**: `spec-kitty agent tasks status`
 4. If the user wanted to **implement a work package**: `/spec-kitty.implement`
-5. If the problem was **skills missing**: confirm skills are now visible with `spec-kitty verify`
+5. If the problem was **skills missing**: confirm skills are now visible with `spec-kitty verify-setup`
 
 **What to communicate:**
 

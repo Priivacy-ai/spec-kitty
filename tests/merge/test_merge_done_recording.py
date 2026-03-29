@@ -25,8 +25,8 @@ def _write_wp(path: Path, *, lane: str, review_status: str, reviewed_by: str) ->
 
 def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) -> None:
     repo_root = tmp_path
-    feature_dir = repo_root / "kitty-specs" / "021-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp(
         tasks_dir / "WP01-test.md",
@@ -53,8 +53,8 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
 ) -> None:
     """WPs in approved lane without review_status/reviewed_by should still transition to done."""
     repo_root = tmp_path
-    feature_dir = repo_root / "kitty-specs" / "021-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp(
         tasks_dir / "WP01-test.md",
@@ -81,8 +81,8 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(
 ) -> None:
     """WPs in for_review lane without approval metadata should NOT transition to done."""
     repo_root = tmp_path
-    feature_dir = repo_root / "kitty-specs" / "021-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp(
         tasks_dir / "WP01-test.md",
@@ -104,8 +104,8 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     monkeypatch,
 ) -> None:
     repo_root = tmp_path
-    feature_dir = repo_root / "kitty-specs" / "021-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp(
         tasks_dir / "WP01-test.md",

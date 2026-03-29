@@ -13,18 +13,14 @@ Test coverage:
 """
 
 import hashlib
-import json
 import random
-import tempfile
 import time
 import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 import pytest
 
-from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation
 from specify_cli.dossier.snapshot import (
     compute_snapshot,
@@ -38,47 +34,47 @@ from specify_cli.dossier.snapshot import (
 # =============================================================================
 
 
-def create_test_feature(
+def create_test_mission(
     tmp_path: Path,
     num_artifacts: int = 10,
-    artifact_content_prefix: Optional[str] = None,
+    artifact_content_prefix: str | None = None,
 ) -> Path:
-    """Create a test feature directory with artifacts.
+    """Create a test mission directory with artifacts.
 
     Args:
-        tmp_path: Temporary directory to create feature in
+        tmp_path: Temporary directory to create mission in
         num_artifacts: Number of artifacts to create
         artifact_content_prefix: Optional prefix for all artifact content (for variation)
 
     Returns:
-        Path to feature directory
+        Path to mission directory
     """
-    feature_dir = tmp_path / "test-feature"
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    mission_dir = tmp_path / "test-mission"
+    mission_dir.mkdir(parents=True, exist_ok=True)
 
     for i in range(num_artifacts):
         prefix = artifact_content_prefix or ""
-        artifact_path = feature_dir / f"artifact-{i:02d}.md"
+        artifact_path = mission_dir / f"artifact-{i:02d}.md"
         content = f"{prefix}# Artifact {i}\n\nThis is test artifact {i}.\n"
         artifact_path.write_text(content, encoding="utf-8")
 
-    return feature_dir
+    return mission_dir
 
 
-def create_dossier_from_feature(
-    feature_dir: Path, mission_slug: str = "software-dev"
+def create_dossier_from_mission(
+    mission_dir: Path, mission_type: str = "software-dev"
 ) -> MissionDossier:
-    """Create a MissionDossier by indexing files in a feature directory.
+    """Create a MissionDossier by indexing files in a mission directory.
 
     Args:
-        feature_dir: Feature directory with artifact files
-        mission_slug: Mission slug (default: software-dev)
+        mission_dir: Mission directory with artifact files
+        mission_type: Mission type (default: software-dev)
 
     Returns:
         MissionDossier with indexed artifacts
     """
     artifacts = []
-    for i, artifact_file in enumerate(sorted(feature_dir.glob("*.md"))):
+    for i, artifact_file in enumerate(sorted(mission_dir.glob("*.md"))):
         content_hash = hash_file(artifact_file)
         artifacts.append(
             ArtifactRef(
@@ -93,10 +89,10 @@ def create_dossier_from_feature(
         )
 
     return MissionDossier(
-        mission_slug=mission_slug,
+        mission_type=mission_type,
         mission_run_id=str(uuid.uuid4()),
-        feature_slug="test-feature",
-        feature_dir=str(feature_dir),
+        mission_slug="test-mission",
+        mission_dir=str(mission_dir),
         artifacts=artifacts,
         manifest={"test": "manifest"},
     )
@@ -140,15 +136,15 @@ class TestHashReproducibility:
 
     def test_snapshot_reproducibility_same_content(self, tmp_path):
         """Compute snapshot twice on same content, verify identical parity hash."""
-        # Create feature directory with artifacts
-        feature_dir = create_test_feature(tmp_path, num_artifacts=10)
+        # Create mission directory with artifacts
+        mission_dir = create_test_mission(tmp_path, num_artifacts=10)
 
         # Compute snapshot 1
-        dossier1 = create_dossier_from_feature(feature_dir)
+        dossier1 = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier1)
 
         # Compute snapshot 2 (same content)
-        dossier2 = create_dossier_from_feature(feature_dir)
+        dossier2 = create_dossier_from_mission(mission_dir)
         snapshot2 = compute_snapshot(dossier2)
 
         # Verify hashes identical
@@ -160,12 +156,12 @@ class TestHashReproducibility:
     @pytest.mark.parametrize("run_count", [1, 5, 10, 20])
     def test_snapshot_reproducibility_multiple_runs(self, tmp_path, run_count):
         """Verify snapshot reproducible across N runs."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=20)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=20)
 
         # Compute snapshots N times
         hashes = []
         for _ in range(run_count):
-            dossier = create_dossier_from_feature(feature_dir)
+            dossier = create_dossier_from_mission(mission_dir)
             snapshot = compute_snapshot(dossier)
             hashes.append(snapshot.parity_hash_sha256)
 
@@ -178,7 +174,7 @@ class TestHashReproducibility:
         """Test hash reproducibility with binary-like content."""
         test_file = tmp_path / "binary-like.dat"
         # Write bytes that look binary but are valid UTF-8 when interpreted
-        content = bytes([0x00, 0x01, 0x02, 0x48, 0x65, 0x6c, 0x6c, 0x6f])  # Hello with binary prefix
+        bytes([0x00, 0x01, 0x02, 0x48, 0x65, 0x6c, 0x6c, 0x6f])  # Hello with binary prefix
         # Only test with valid UTF-8
         content_utf8 = "Hello\n"
         test_file.write_text(content_utf8, encoding="utf-8")
@@ -187,7 +183,7 @@ class TestHashReproducibility:
         hash2 = hash_file(test_file)
         assert hash1 == hash2
         # Verify it matches expected SHA256
-        expected = hashlib.sha256("Hello\n".encode()).hexdigest()
+        expected = hashlib.sha256(b"Hello\n").hexdigest()
         assert hash1 == expected
 
 
@@ -201,8 +197,8 @@ class TestOrderIndependence:
 
     def test_order_independence_parity_hash_components(self, tmp_path):
         """Verify parity hash is order-independent at component level."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=5)
-        dossier1 = create_dossier_from_feature(feature_dir)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=5)
+        dossier1 = create_dossier_from_mission(mission_dir)
 
         # Get components from first dossier
         components1 = get_parity_hash_components(dossier1)
@@ -210,10 +206,10 @@ class TestOrderIndependence:
         # Create dossier with shuffled artifacts
         shuffled_artifacts = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_type,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
-            feature_dir=dossier1.feature_dir,
+            mission_slug=dossier1.mission_slug,
+            mission_dir=dossier1.mission_dir,
             artifacts=shuffled_artifacts,
             manifest=dossier1.manifest,
         )
@@ -225,8 +221,8 @@ class TestOrderIndependence:
 
     def test_parity_hash_order_independence_multiple_shuffles(self, tmp_path):
         """Test order independence with 10 different random shuffles."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=10)
-        dossier_original = create_dossier_from_feature(feature_dir)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=10)
+        dossier_original = create_dossier_from_mission(mission_dir)
         original_hash = compute_parity_hash_from_dossier(dossier_original)
 
         # Compute parity hash with 10 different random orderings
@@ -236,10 +232,10 @@ class TestOrderIndependence:
                 dossier_original.artifacts, len(dossier_original.artifacts)
             )
             dossier_shuffled = MissionDossier(
-                mission_slug=dossier_original.mission_slug,
+                mission_type=dossier_original.mission_type,
                 mission_run_id=dossier_original.mission_run_id,
-                feature_slug=dossier_original.feature_slug,
-                feature_dir=dossier_original.feature_dir,
+                mission_slug=dossier_original.mission_slug,
+                mission_dir=dossier_original.mission_dir,
                 artifacts=shuffled_artifacts,
                 manifest=dossier_original.manifest,
             )
@@ -253,17 +249,17 @@ class TestOrderIndependence:
 
     def test_order_independence_snapshot_equality(self, tmp_path):
         """Snapshots with same artifacts in different order should be equal."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=8)
-        dossier1 = create_dossier_from_feature(feature_dir)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=8)
+        dossier1 = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier1)
 
         # Create snapshot with shuffled artifacts
         shuffled_artifacts = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_type,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
-            feature_dir=dossier1.feature_dir,
+            mission_slug=dossier1.mission_slug,
+            mission_dir=dossier1.mission_dir,
             artifacts=shuffled_artifacts,
             manifest=dossier1.manifest,
         )
@@ -275,19 +271,19 @@ class TestOrderIndependence:
 
     def test_order_independence_across_multiple_dossiers(self, tmp_path):
         """Create 5 independent dossiers with same artifacts in different orders."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=15)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=15)
 
-        base_dossier = create_dossier_from_feature(feature_dir)
+        base_dossier = create_dossier_from_mission(mission_dir)
         base_hash = compute_parity_hash_from_dossier(base_dossier)
 
         # Create 5 dossiers with different artifact orderings
         for _ in range(5):
             shuffled = random.sample(base_dossier.artifacts, len(base_dossier.artifacts))
             dossier = MissionDossier(
-                mission_slug=base_dossier.mission_slug,
+                mission_type=base_dossier.mission_type,
                 mission_run_id=base_dossier.mission_run_id,
-                feature_slug=base_dossier.feature_slug,
-                feature_dir=base_dossier.feature_dir,
+                mission_slug=base_dossier.mission_slug,
+                mission_dir=base_dossier.mission_dir,
                 artifacts=shuffled,
                 manifest=base_dossier.manifest,
             )
@@ -519,10 +515,11 @@ class TestParityHashStability:
 
     def test_parity_hash_timezone_independent(self, tmp_path):
         """Parity hash not affected by timezone."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=10)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=10)
 
         # Compute snapshot 1
-        indexer1 = lambda: create_dossier_from_feature(feature_dir)
+        def indexer1():
+            return create_dossier_from_mission(mission_dir)
         dossier1 = indexer1()
         snapshot1 = compute_snapshot(dossier1)
         hash_1 = snapshot1.parity_hash_sha256
@@ -560,11 +557,11 @@ class TestParityHashStability:
 
     def test_parity_hash_excludes_computed_at(self, tmp_path):
         """Verify computed_at is not part of parity hash calculation."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=5)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=5)
 
         # Create identical dossiers
-        dossier1 = create_dossier_from_feature(feature_dir)
-        dossier2 = create_dossier_from_feature(feature_dir)
+        dossier1 = create_dossier_from_mission(mission_dir)
+        dossier2 = create_dossier_from_mission(mission_dir)
 
         # Manually verify parity hash computation excludes computed_at
         # by checking that the components are the same
@@ -594,7 +591,7 @@ class TestParityHashStability:
 
         # Compute parity hash 10 times with different orders
         parity_hashes = []
-        for i in range(10):
+        for _i in range(10):
             # Shuffle hashes
             shuffled = random.sample(test_hashes, len(test_hashes))
             # Manually compute parity hash (same as compute_parity_hash_from_dossier)
@@ -608,13 +605,13 @@ class TestParityHashStability:
 
     def test_parity_hash_stable_with_large_dossier(self, tmp_path):
         """Verify parity hash stable with large number of artifacts."""
-        # Create feature with 100 artifacts
-        feature_dir = create_test_feature(tmp_path, num_artifacts=100)
+        # Create mission with 100 artifacts
+        mission_dir = create_test_mission(tmp_path, num_artifacts=100)
 
         # Compute snapshots multiple times
         hashes = []
         for _ in range(3):
-            dossier = create_dossier_from_feature(feature_dir)
+            dossier = create_dossier_from_mission(mission_dir)
             snapshot = compute_snapshot(dossier)
             hashes.append(snapshot.parity_hash_sha256)
 
@@ -624,19 +621,19 @@ class TestParityHashStability:
 
     def test_parity_hash_consistent_with_modified_artifact_content(self, tmp_path):
         """Verify parity hash changes when artifact content changes."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=5)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=5)
 
         # Compute initial snapshot
-        dossier1 = create_dossier_from_feature(feature_dir)
+        dossier1 = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier1)
         hash1 = snapshot1.parity_hash_sha256
 
         # Modify one artifact
-        artifact_file = list(feature_dir.glob("*.md"))[0]
+        artifact_file = list(mission_dir.glob("*.md"))[0]
         artifact_file.write_text("Modified content\n", encoding="utf-8")
 
         # Re-index and compute snapshot
-        dossier2 = create_dossier_from_feature(feature_dir)
+        dossier2 = create_dossier_from_mission(mission_dir)
         snapshot2 = compute_snapshot(dossier2)
         hash2 = snapshot2.parity_hash_sha256
 
@@ -646,14 +643,14 @@ class TestParityHashStability:
 
     def test_snapshot_reproducibility_end_to_end(self, tmp_path):
         """End-to-end reproducibility: create dossier, take snapshot, verify."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=15)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=15)
 
         # Snapshot 1: Create dossier, index, compute
-        dossier1 = create_dossier_from_feature(feature_dir)
+        dossier1 = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier1)
 
         # Snapshot 2: Fresh index, compute
-        dossier2 = create_dossier_from_feature(feature_dir)
+        dossier2 = create_dossier_from_mission(mission_dir)
         snapshot2 = compute_snapshot(dossier2)
 
         # All critical fields should match
@@ -675,8 +672,8 @@ class TestDeterminismIntegration:
 
     def test_all_categories_together_utf8_mixed_order_reproducible(self, tmp_path):
         """Complex scenario: UTF-8 content, mixed ordering, reproducible."""
-        feature_dir = tmp_path / "complex-feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "complex-mission"
+        mission_dir.mkdir()
 
         # Create artifacts with various UTF-8 content
         contents = [
@@ -687,19 +684,19 @@ class TestDeterminismIntegration:
         ]
 
         for i, content in enumerate(contents):
-            (feature_dir / f"artifact-{i}.md").write_text(content, encoding="utf-8")
+            (mission_dir / f"artifact-{i}.md").write_text(content, encoding="utf-8")
 
         # Compute snapshot 1 (normal order)
-        dossier1 = create_dossier_from_feature(feature_dir)
+        dossier1 = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier1)
 
         # Compute snapshot 2 (shuffled order)
         shuffled = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_type,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
-            feature_dir=dossier1.feature_dir,
+            mission_slug=dossier1.mission_slug,
+            mission_dir=dossier1.mission_dir,
             artifacts=shuffled,
             manifest=dossier1.manifest,
         )
@@ -711,20 +708,20 @@ class TestDeterminismIntegration:
 
     def test_determinism_with_all_line_ending_variants(self, tmp_path):
         """Test determinism with mixed line endings across artifacts."""
-        feature_dir = tmp_path / "line-ending-variants"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "line-ending-variants"
+        mission_dir.mkdir()
 
         # Create artifacts with different line endings
-        (feature_dir / "lf.md").write_bytes(b"Line 1\nLine 2\n")
-        (feature_dir / "crlf.md").write_bytes(b"Line 1\r\nLine 2\r\n")
-        (feature_dir / "mixed.md").write_bytes(b"Line 1\nLine 2\r\nLine 3\n")
+        (mission_dir / "lf.md").write_bytes(b"Line 1\nLine 2\n")
+        (mission_dir / "crlf.md").write_bytes(b"Line 1\r\nLine 2\r\n")
+        (mission_dir / "mixed.md").write_bytes(b"Line 1\nLine 2\r\nLine 3\n")
 
         # Index and compute
-        dossier = create_dossier_from_feature(feature_dir)
+        dossier = create_dossier_from_mission(mission_dir)
         snapshot1 = compute_snapshot(dossier)
 
         # Re-index and compute
-        dossier2 = create_dossier_from_feature(feature_dir)
+        dossier2 = create_dossier_from_mission(mission_dir)
         snapshot2 = compute_snapshot(dossier2)
 
         # Should be identical (parity hash reproduces)
@@ -738,12 +735,12 @@ class TestDeterminismIntegration:
     ])
     def test_determinism_at_scale(self, tmp_path, num_artifacts, num_runs):
         """Test determinism at various scales."""
-        feature_dir = create_test_feature(tmp_path, num_artifacts=num_artifacts)
+        mission_dir = create_test_mission(tmp_path, num_artifacts=num_artifacts)
 
         # Compute snapshot num_runs times
         hashes = []
         for _ in range(num_runs):
-            dossier = create_dossier_from_feature(feature_dir)
+            dossier = create_dossier_from_mission(mission_dir)
             snapshot = compute_snapshot(dossier)
             hashes.append(snapshot.parity_hash_sha256)
 

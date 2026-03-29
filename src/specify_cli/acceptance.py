@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""Acceptance workflow utilities for Spec Kitty features."""
+"""Acceptance workflow utilities for Spec Kitty missions."""
 
 from __future__ import annotations
 
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
+from collections.abc import Iterable, Mapping, Sequence
 
 from .tasks_support import (
     LANES,
     TaskCliError,
     WorkPackage,
-    extract_scalar,
-    find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
     is_legacy_format,
@@ -23,14 +21,14 @@ from .tasks_support import (
     split_frontmatter,
 )
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
-from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
-from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.mission_metadata import load_meta, record_acceptance, write_meta
+from specify_cli.mission import MissionError, get_mission_for_mission_dir
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
-from specify_cli.core.feature_detection import (
-    detect_feature_slug as centralized_detect_feature_slug,
-    FeatureDetectionError,
+from specify_cli.core.mission_detection import (
+    detect_mission_slug as centralized_detect_mission_slug,
+    MissionDetectionError,
 )
-from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.tool_config import get_auto_commit_default
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -61,30 +59,30 @@ class WorkPackageState:
     title: str
     path: str
     has_lane_entry: bool
-    latest_lane: Optional[str]
-    metadata: Dict[str, Optional[str]] = field(default_factory=dict)
+    latest_lane: str | None
+    metadata: dict[str, str | None] = field(default_factory=dict)
 
 
 @dataclass
 class AcceptanceSummary:
-    feature: str
+    mission_slug: str
     repo_root: Path
-    feature_dir: Path
+    mission_dir: Path
     tasks_dir: Path
-    branch: Optional[str]
+    branch: str | None
     worktree_root: Path
     primary_repo_root: Path
-    lanes: Dict[str, List[str]]
-    work_packages: List[WorkPackageState]
-    metadata_issues: List[str]
-    activity_issues: List[str]
-    unchecked_tasks: List[str]
-    needs_clarification: List[str]
-    missing_artifacts: List[str]
-    optional_missing: List[str]
-    git_dirty: List[str]
-    path_violations: List[str]
-    warnings: List[str]
+    lanes: dict[str, list[str]]
+    work_packages: list[WorkPackageState]
+    metadata_issues: list[str]
+    activity_issues: list[str]
+    unchecked_tasks: list[str]
+    needs_clarification: list[str]
+    missing_artifacts: list[str]
+    optional_missing: list[str]
+    git_dirty: list[str]
+    path_violations: list[str]
+    warnings: list[str]
 
     @property
     def all_done(self) -> bool:
@@ -103,7 +101,7 @@ class AcceptanceSummary:
             and not self.path_violations
         )
 
-    def outstanding(self) -> Dict[str, List[str]]:
+    def outstanding(self) -> dict[str, list[str]]:
         buckets = {
             "not_done": [
                 *self.lanes.get("planned", []),
@@ -120,12 +118,12 @@ class AcceptanceSummary:
         }
         return {key: value for key, value in buckets.items() if value}
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
-            "feature": self.feature,
+            "mission_slug": self.mission_slug,
             "branch": self.branch,
             "repo_root": str(self.repo_root),
-            "feature_dir": str(self.feature_dir),
+            "mission_dir": str(self.mission_dir),
             "tasks_dir": str(self.tasks_dir),
             "worktree_root": str(self.worktree_root),
             "primary_repo_root": str(self.primary_repo_root),
@@ -162,14 +160,14 @@ class AcceptanceResult:
     mode: AcceptanceMode
     accepted_at: str
     accepted_by: str
-    parent_commit: Optional[str]
-    accept_commit: Optional[str]
+    parent_commit: str | None
+    accept_commit: str | None
     commit_created: bool
-    instructions: List[str]
-    cleanup_instructions: List[str]
-    notes: List[str] = field(default_factory=list)
+    instructions: list[str]
+    cleanup_instructions: list[str]
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "accepted_at": self.accepted_at,
             "accepted_by": self.accepted_by,
@@ -184,18 +182,18 @@ class AcceptanceResult:
         }
 
 
-def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
+def _iter_work_packages(repo_root: Path, mission_slug: str) -> Iterable[WorkPackage]:
     """Iterate over work packages, supporting both legacy and new formats.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    feature_path = repo_root / "kitty-specs" / feature
-    tasks_dir = feature_path / "tasks"
+    mission_path = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_path / "tasks"
     if not tasks_dir.exists():
-        raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
+        raise AcceptanceError(f"Mission '{mission_slug}' has no tasks directory at {tasks_dir}.")
 
-    use_legacy = is_legacy_format(feature_path)
+    use_legacy = is_legacy_format(mission_path)
 
     if use_legacy:
         # Legacy format: iterate over lane subdirectories
@@ -210,7 +208,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
                 front, body, padding = split_frontmatter(text)
                 relative = path.relative_to(lane_dir)
                 yield WorkPackage(
-                    feature=feature,
+                    mission_slug=mission_slug,
                     path=path,
                     current_lane=lane,
                     relative_subpath=relative,
@@ -229,7 +227,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(
-                feature=feature,
+                mission_slug=mission_slug,
                 path=path,
                 current_lane=lane,
                 relative_subpath=relative,
@@ -239,17 +237,17 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             )
 
 
-def detect_feature_slug(
+def detect_mission_slug(
     repo_root: Path,
     *,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
     announce_fallback: bool = True,  # noqa: ARG001 -- kept for backward compat
 ) -> str:
-    """Detect feature slug using centralized detection.
+    """Detect mission slug using centralized detection.
 
     This function maintains backward compatibility while delegating
-    to the centralized feature detection module.
+    to the centralized mission detection module.
 
     Args:
         repo_root: Repository root path
@@ -259,19 +257,19 @@ def detect_feature_slug(
             kept for backward compatibility with standalone callers)
 
     Returns:
-        Feature slug (e.g., "020-my-feature")
+        Mission slug (e.g., "020-my-mission")
 
     Raises:
-        AcceptanceError: If feature slug cannot be determined
+        AcceptanceError: If mission slug cannot be determined
     """
     try:
-        return centralized_detect_feature_slug(
+        return centralized_detect_mission_slug(
             repo_root,
             env=env,
             cwd=cwd,
             mode="strict",
         )
-    except FeatureDetectionError as e:
+    except MissionDetectionError as e:
         # Convert to AcceptanceError for backward compatibility
         raise AcceptanceError(str(e)) from e
 
@@ -288,19 +286,19 @@ def _read_file(path: Path) -> str:
     return _read_text_strict(path) if path.exists() else ""
 
 
-def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
+def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
     if not tasks_file.exists():
         return ["tasks.md missing"]
 
-    unchecked: List[str] = []
+    unchecked: list[str] = []
     for line in _read_text_strict(tasks_file).splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
 
 
-def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
-    results: List[str] = []
+def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
+    results: list[str] = []
     for file_path in files:
         if file_path.exists():
             text = _read_text_strict(file_path)
@@ -309,20 +307,20 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     return results
 
 
-def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
-    required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / "tasks.md"]
+def _missing_artifacts(mission_dir: Path) -> tuple[list[str], list[str]]:
+    required = [mission_dir / "spec.md", mission_dir / "plan.md", mission_dir / "tasks.md"]
     optional = [
-        feature_dir / "quickstart.md",
-        feature_dir / "data-model.md",
-        feature_dir / "research.md",
-        feature_dir / "contracts",
+        mission_dir / "quickstart.md",
+        mission_dir / "data-model.md",
+        mission_dir / "research.md",
+        mission_dir / "contracts",
     ]
-    missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
-    missing_optional = [str(p.relative_to(feature_dir)) for p in optional if not p.exists()]
+    missing_required = [str(p.relative_to(mission_dir)) for p in required if not p.exists()]
+    missing_optional = [str(p.relative_to(mission_dir)) for p in optional if not p.exists()]
     return missing_required, missing_optional
 
 
-def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
+def normalize_mission_encoding(repo_root: Path, mission_slug: str) -> list[Path]:
     """Normalize file encoding from Windows-1252 to UTF-8 with ASCII character mapping.
 
     Converts Windows-1252 encoded files to UTF-8, replacing Unicode smart quotes
@@ -344,27 +342,27 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
         "\u00b7": "*",  # Middle dot -> asterisk
     }
 
-    feature_dir = repo_root / "kitty-specs" / feature
-    if not feature_dir.exists():
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    if not mission_dir.exists():
         return []
 
-    candidates: List[Path] = []
+    candidates: list[Path] = []
     primary_files = [
-        feature_dir / "spec.md",
-        feature_dir / "plan.md",
-        feature_dir / "quickstart.md",
-        feature_dir / "tasks.md",
-        feature_dir / "research.md",
-        feature_dir / "data-model.md",
+        mission_dir / "spec.md",
+        mission_dir / "plan.md",
+        mission_dir / "quickstart.md",
+        mission_dir / "tasks.md",
+        mission_dir / "research.md",
+        mission_dir / "data-model.md",
     ]
     candidates.extend(p for p in primary_files if p.exists())
 
-    for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
+    for subdir in [mission_dir / "tasks", mission_dir / "research", mission_dir / "checklists"]:
         if subdir.exists():
             candidates.extend(path for path in subdir.rglob("*.md"))
 
-    rewritten: List[Path] = []
-    seen: Set[Path] = set()
+    rewritten: list[Path] = []
+    seen: set[Path] = set()
     for path in candidates:
         if path in seen or not path.exists():
             continue
@@ -376,7 +374,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
         except UnicodeDecodeError:
             pass
 
-        text: Optional[str] = None
+        text: str | None = None
         for encoding in ("cp1252", "latin-1"):
             try:
                 text = data.decode(encoding)
@@ -399,18 +397,18 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
     return rewritten
 
 
-def collect_feature_summary(
+def collect_mission_summary(
     repo_root: Path,
-    feature: str,
+    mission_slug: str,
     *,
     strict_metadata: bool = True,
 ) -> AcceptanceSummary:
-    feature_dir = repo_root / "kitty-specs" / feature
-    tasks_dir = feature_dir / "tasks"
-    if not feature_dir.exists():
-        raise AcceptanceError(f"Feature directory not found: {feature_dir}")
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
+    if not mission_dir.exists():
+        raise AcceptanceError(f"Mission directory not found: {mission_dir}")
 
-    branch: Optional[str] = None
+    branch: str | None = None
     try:
         branch_value = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True).stdout.strip()
         if branch_value and branch_value != "HEAD":
@@ -440,41 +438,41 @@ def collect_feature_summary(
     except TaskCliError:
         git_dirty = []
 
-    lanes: Dict[str, List[str]] = {lane: [] for lane in LANES}
-    work_packages: List[WorkPackageState] = []
-    metadata_issues: List[str] = []
-    activity_issues: List[str] = []
+    lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
+    work_packages: list[WorkPackageState] = []
+    metadata_issues: list[str] = []
+    activity_issues: list[str] = []
 
-    use_legacy = is_legacy_format(feature_dir)
+    use_legacy = is_legacy_format(mission_dir)
 
     # ── Canonical state validation via reducer-only snapshot ──────────────
-    events_path = feature_dir / EVENTS_FILENAME
+    events_path = mission_dir / EVENTS_FILENAME
     if not events_path.exists():
         activity_issues.append(
-            f"No canonical state found for feature '{feature}'. "
+            f"No canonical state found for mission '{mission_slug}'. "
             "Cannot validate acceptance without status.events.jsonl. "
             "Run status migration to bootstrap the event log."
         )
-        snapshot_wps: Dict[str, dict] = {}
+        snapshot_wps: dict[str, dict] = {}
     else:
         try:
             from specify_cli.status.reducer import reduce
             from specify_cli.status.store import read_events
 
-            snapshot = reduce(read_events(feature_dir))
+            snapshot = reduce(read_events(mission_dir))
         except StoreError as exc:
-            raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
+            raise AcceptanceError(f"Status event log is corrupted for mission '{mission_slug}': {exc}") from exc
         snapshot_wps = snapshot.work_packages
         if not snapshot_wps:
             activity_issues.append(
-                f"No canonical state found for feature '{feature}'. "
+                f"No canonical state found for mission '{mission_slug}'. "
                 "Cannot validate acceptance without status.events.jsonl. "
                 "Run status migration to bootstrap the event log."
             )
 
     # Collect WP IDs from task files
-    expected_wp_ids: List[str] = []
-    for wp in _iter_work_packages(repo_root, feature):
+    expected_wp_ids: list[str] = []
+    for wp in _iter_work_packages(repo_root, mission_slug):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
         expected_wp_ids.append(wp_id)
@@ -494,9 +492,9 @@ def collect_feature_summary(
             # Unknown lane value — bucket under frontmatter lane as safety net
             lanes[wp.current_lane].append(wp_id)
 
-        metadata: Dict[str, Optional[str]] = {
+        metadata: dict[str, str | None] = {
             "lane": wp.lane,
-            "agent": wp.agent,
+            "agent": str(wp.agent) if wp.agent is not None else None,
             "assignee": wp.assignee,
             "shell_pid": wp.shell_pid,
         }
@@ -539,22 +537,22 @@ def collect_feature_summary(
             elif wp_snapshot.get("lane") != "done":
                 activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'")
 
-    unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
+    unchecked_tasks = _find_unchecked_tasks(mission_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
         [
-            feature_dir / "spec.md",
-            feature_dir / "plan.md",
-            feature_dir / "quickstart.md",
-            feature_dir / "tasks.md",
-            feature_dir / "research.md",
-            feature_dir / "data-model.md",
+            mission_dir / "spec.md",
+            mission_dir / "plan.md",
+            mission_dir / "quickstart.md",
+            mission_dir / "tasks.md",
+            mission_dir / "research.md",
+            mission_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(feature_dir)
+    missing_required, missing_optional = _missing_artifacts(mission_dir)
 
-    path_violations: List[str] = []
+    path_violations: list[str] = []
     try:
-        mission = get_mission_for_feature(feature_dir)
+        mission = get_mission_for_mission_dir(mission_dir)
     except MissionError:
         mission = None
 
@@ -565,16 +563,16 @@ def collect_feature_summary(
             message = exc.result.format_errors() or str(exc)
             path_violations.append(message)
 
-    warnings: List[str] = []
+    warnings: list[str] = []
     if missing_optional:
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
     return AcceptanceSummary(
-        feature=feature,
+        mission_slug=mission_slug,
         repo_root=repo_root,
-        feature_dir=feature_dir,
+        mission_dir=mission_dir,
         tasks_dir=tasks_dir,
         branch=branch,
         worktree_root=worktree_root,
@@ -593,7 +591,7 @@ def collect_feature_summary(
     )
 
 
-def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
+def choose_mode(preference: str | None, repo_root: Path) -> AcceptanceMode:
     if preference in {"pr", "local", "checklist"}:
         return preference
     try:
@@ -609,9 +607,9 @@ def perform_acceptance(
     summary: AcceptanceSummary,
     *,
     mode: AcceptanceMode,
-    actor: Optional[str],
-    tests: Optional[Sequence[str]] = None,
-    auto_commit: Optional[bool] = None,
+    actor: str | None,
+    tests: Sequence[str] | None = None,
+    auto_commit: bool | None = None,
 ) -> AcceptanceResult:
     # Resolve auto_commit: explicit value wins, then project config, then default True
     if auto_commit is None:
@@ -621,10 +619,10 @@ def perform_acceptance(
         raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
     actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    parent_commit: Optional[str] = None
-    accept_commit: Optional[str] = None
+    parent_commit: str | None = None
+    accept_commit: str | None = None
 
     if auto_commit and mode != "checklist":
         try:
@@ -633,14 +631,14 @@ def perform_acceptance(
             parent_commit = None
 
         record_acceptance(
-            summary.feature_dir,
+            summary.mission_dir,
             accepted_by=actor_name,
             mode=mode,
             from_commit=parent_commit,
             accept_commit=None,
         )
 
-        meta_path = summary.feature_dir / "meta.json"
+        meta_path = summary.mission_dir / "meta.json"
         run_git(
             ["add", str(meta_path.relative_to(summary.repo_root))],
             cwd=summary.repo_root,
@@ -651,7 +649,7 @@ def perform_acceptance(
         staged_files = [line.strip() for line in status.stdout.splitlines() if line.strip()]
         commit_created = False
         if staged_files:
-            commit_msg = f"Accept {summary.feature}"
+            commit_msg = f"Accept {summary.mission_slug}"
             run_git(["commit", "-m", commit_msg], cwd=summary.repo_root, check=True)
             commit_created = True
             try:
@@ -660,22 +658,22 @@ def perform_acceptance(
                 accept_commit = None
             # Persist commit SHA to meta.json
             if accept_commit:
-                _meta = load_meta(summary.feature_dir)
+                _meta = load_meta(summary.mission_dir)
                 if _meta is not None:
                     _meta["accept_commit"] = accept_commit
                     _history = _meta.get("acceptance_history", [])
                     if _history:
                         _history[-1]["accept_commit"] = accept_commit
-                    write_meta(summary.feature_dir, _meta)
+                    write_meta(summary.mission_dir, _meta)
         else:
             commit_created = False
     else:
         commit_created = False
 
-    instructions: List[str] = []
-    cleanup_instructions: List[str] = []
+    instructions: list[str] = []
+    cleanup_instructions: list[str] = []
 
-    branch = summary.branch or summary.feature
+    branch = summary.branch or summary.mission_slug
 
     # Determine whether `branch` is the integration/target branch itself.
     # If so, merge and branch-deletion guidance is nonsensical and dangerous
@@ -683,7 +681,7 @@ def perform_acceptance(
     _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({
         "main", "master", "develop", "development", "2.x", "3.x",
     })
-    _meta = load_meta(summary.feature_dir)
+    _meta = load_meta(summary.mission_dir)
     _target_branch = (_meta or {}).get("target_branch")
     _is_integration_branch = (
         branch == _target_branch
@@ -715,7 +713,7 @@ def perform_acceptance(
                 [
                     "Switch to your integration branch (e.g., `git checkout main`).",
                     "Synchronize it (e.g., `git pull --ff-only`).",
-                    f"Merge the feature: `git merge {branch}`",
+                    f"Merge the mission branch: `git merge {branch}`",
                 ]
             )
     else:  # checklist
@@ -726,9 +724,9 @@ def perform_acceptance(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
         )
     if not _is_integration_branch:
-        cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+        cleanup_instructions.append(f"Delete the mission branch when done: `git branch -d {branch}`")
 
-    notes: List[str] = []
+    notes: list[str] = []
     if accept_commit:
         notes.append(f"Acceptance commit: {accept_commit}")
     if parent_commit:
@@ -759,8 +757,8 @@ __all__ = [
     "ArtifactEncodingError",
     "WorkPackageState",
     "choose_mode",
-    "collect_feature_summary",
-    "detect_feature_slug",
-    "normalize_feature_encoding",
+    "collect_mission_summary",
+    "detect_mission_slug",
+    "normalize_mission_encoding",
     "perform_acceptance",
 ]

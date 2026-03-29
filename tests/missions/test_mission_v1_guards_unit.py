@@ -21,6 +21,8 @@ from specify_cli.mission_v1.guards import (
     parse_guard_expression,
 )
 from specify_cli.mission_v1.schema import MissionValidationError
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -28,10 +30,10 @@ from specify_cli.mission_v1.schema import MissionValidationError
 # ---------------------------------------------------------------------------
 
 
-def _make_model(feature_dir: Path | None = None, inputs: dict | None = None) -> MagicMock:
-    """Create a mock model with optional feature_dir and inputs."""
+def _make_model(mission_dir: Path | None = None, inputs: dict | None = None) -> MagicMock:
+    """Create a mock model with optional mission_dir and inputs."""
     model = MagicMock()
-    model.feature_dir = feature_dir
+    model.mission_dir = mission_dir
     model.inputs = inputs or {}
     return model
 
@@ -113,19 +115,19 @@ class TestArtifactExistsGuard:
         (tmp_path / "spec.md").write_text("# Spec")
         factory = GUARD_REGISTRY["artifact_exists"]
         guard = factory(["spec.md"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_file_missing(self, tmp_path: Path) -> None:
         factory = GUARD_REGISTRY["artifact_exists"]
         guard = factory(["spec.md"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
-    def test_no_feature_dir(self) -> None:
+    def test_no_mission_dir(self) -> None:
         factory = GUARD_REGISTRY["artifact_exists"]
         guard = factory(["spec.md"])
-        model = _make_model(feature_dir=None)
+        model = _make_model(mission_dir=None)
         assert guard(_make_event(model)) is False
 
     def test_nested_path(self, tmp_path: Path) -> None:
@@ -133,7 +135,7 @@ class TestArtifactExistsGuard:
         (tmp_path / "tasks" / "WP01.md").write_text("---\nlane: done\n---\n")
         factory = GUARD_REGISTRY["artifact_exists"]
         guard = factory(["tasks/WP01.md"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
 
@@ -147,7 +149,7 @@ class TestGatePassedGuard:
         )
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_gate_not_found(self, tmp_path: Path) -> None:
@@ -157,19 +159,19 @@ class TestGatePassedGuard:
         )
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
     def test_no_log_file(self, tmp_path: Path) -> None:
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
-    def test_no_feature_dir(self) -> None:
+    def test_no_mission_dir(self) -> None:
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
-        model = _make_model(feature_dir=None)
+        model = _make_model(mission_dir=None)
         assert guard(_make_event(model)) is False
 
     def test_multiple_events_in_log(self, tmp_path: Path) -> None:
@@ -182,7 +184,7 @@ class TestGatePassedGuard:
         log.write_text("\n".join(lines) + "\n")
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
 
@@ -196,7 +198,7 @@ class TestAllWpStatusGuard:
         (tasks_dir / "WP02.md").write_text("---\nlane: done\n---\n# WP02\n")
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_some_not_done(self, tmp_path: Path) -> None:
@@ -206,19 +208,19 @@ class TestAllWpStatusGuard:
         (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
     def test_no_tasks_dir(self, tmp_path: Path) -> None:
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
-    def test_no_feature_dir(self) -> None:
+    def test_no_mission_dir(self) -> None:
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=None)
+        model = _make_model(mission_dir=None)
         assert guard(_make_event(model)) is False
 
     def test_empty_tasks_dir(self, tmp_path: Path) -> None:
@@ -226,7 +228,7 @@ class TestAllWpStatusGuard:
         tasks_dir.mkdir()
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         # No WP files means False (nothing to check)
         assert guard(_make_event(model)) is False
 
@@ -236,7 +238,7 @@ class TestAllWpStatusGuard:
         (tasks_dir / "WP01.md").write_text('---\nlane: "done"\n---\n# WP01\n')
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
 
@@ -250,7 +252,7 @@ class TestAnyWpStatusGuard:
         (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_none_match(self, tmp_path: Path) -> None:
@@ -260,13 +262,13 @@ class TestAnyWpStatusGuard:
         (tasks_dir / "WP02.md").write_text("---\nlane: doing\n---\n# WP02\n")
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
-    def test_no_feature_dir(self) -> None:
+    def test_no_mission_dir(self) -> None:
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=None)
+        model = _make_model(mission_dir=None)
         assert guard(_make_event(model)) is False
 
     def test_empty_tasks_dir(self, tmp_path: Path) -> None:
@@ -274,7 +276,7 @@ class TestAnyWpStatusGuard:
         tasks_dir.mkdir()
         factory = GUARD_REGISTRY["any_wp_status"]
         guard = factory(["done"])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
 
@@ -328,7 +330,7 @@ class TestEventCountGuard:
         log.write_text("\n".join(lines) + "\n")
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["source_documented", 3])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_not_enough_events(self, tmp_path: Path) -> None:
@@ -339,19 +341,19 @@ class TestEventCountGuard:
         log.write_text("\n".join(lines) + "\n")
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["source_documented", 3])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
     def test_no_log_file(self, tmp_path: Path) -> None:
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["source_documented", 1])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
-    def test_no_feature_dir(self) -> None:
+    def test_no_mission_dir(self) -> None:
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["source_documented", 1])
-        model = _make_model(feature_dir=None)
+        model = _make_model(mission_dir=None)
         assert guard(_make_event(model)) is False
 
     def test_mixed_event_types(self, tmp_path: Path) -> None:
@@ -364,7 +366,7 @@ class TestEventCountGuard:
         log.write_text("\n".join(lines) + "\n")
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["source_documented", 2])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_exactly_min_count(self, tmp_path: Path) -> None:
@@ -372,7 +374,7 @@ class TestEventCountGuard:
         log.write_text(json.dumps({"type": "reviewed"}) + "\n")
         factory = GUARD_REGISTRY["event_count"]
         guard = factory(["reviewed", 1])
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
 
@@ -396,7 +398,7 @@ class TestCompileGuards:
                 },
             ],
         }
-        result = compile_guards(config, feature_dir=tmp_path)
+        result = compile_guards(config, mission_dir=tmp_path)
         # The string should have been replaced with a callable
         entry = result["transitions"][0]["conditions"][0]
         assert callable(entry)
@@ -412,7 +414,7 @@ class TestCompileGuards:
                 },
             ],
         }
-        result = compile_guards(config, feature_dir=tmp_path)
+        result = compile_guards(config, mission_dir=tmp_path)
         entry = result["transitions"][0]["unless"][0]
         assert callable(entry)
 
@@ -496,9 +498,9 @@ class TestCompileGuards:
                 },
             ],
         }
-        compile_guards(config, feature_dir=tmp_path)
+        compile_guards(config, mission_dir=tmp_path)
         guard = config["transitions"][0]["conditions"][0]
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is True
 
     def test_compiled_guard_returns_false_when_missing(self, tmp_path: Path) -> None:
@@ -512,9 +514,9 @@ class TestCompileGuards:
                 },
             ],
         }
-        compile_guards(config, feature_dir=tmp_path)
+        compile_guards(config, mission_dir=tmp_path)
         guard = config["transitions"][0]["conditions"][0]
-        model = _make_model(feature_dir=tmp_path)
+        model = _make_model(mission_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
 

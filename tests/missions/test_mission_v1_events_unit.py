@@ -4,7 +4,7 @@ Covers:
 - emit_event writes correct JSONL structure
 - Read-back produces correct event dicts
 - Multiple events produce multiple JSONL lines
-- emit_event with feature_dir=None does not write a file
+- emit_event with mission_dir=None does not write a file
 - emit_event with read-only directory logs warning, no exception
 - read_events on non-existent file returns empty list
 - read_events skips corrupt lines gracefully
@@ -28,6 +28,8 @@ from specify_cli.mission_v1.events import (
     emit_event,
     read_events,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +41,7 @@ class TestEmitEvent:
     """Tests for the emit_event function."""
 
     def test_writes_jsonl_line(self, tmp_path: Path) -> None:
-        """emit_event writes a single JSONL line to the feature dir."""
+        """emit_event writes a single JSONL line to the mission dir."""
         emit_event("phase_entered", {"state": "plan"}, "test-mission", tmp_path)
 
         events_file = tmp_path / MISSION_EVENTS_FILE
@@ -104,8 +106,8 @@ class TestEmitEvent:
         keys = list(parsed.keys())
         assert keys == sorted(keys)
 
-    def test_no_feature_dir_no_file(self, tmp_path: Path) -> None:
-        """emit_event with feature_dir=None writes no file."""
+    def test_no_mission_dir_no_file(self, tmp_path: Path) -> None:
+        """emit_event with mission_dir=None writes no file."""
         emit_event("phase_entered", {"state": "alpha"}, "test")
         # No file anywhere
         events_file = tmp_path / MISSION_EVENTS_FILE
@@ -133,7 +135,7 @@ class TestEmitEvent:
 
     def test_default_mission_name_empty(self, tmp_path: Path) -> None:
         """Default mission_name is empty string."""
-        emit_event("phase_entered", {"state": "x"}, feature_dir=tmp_path)
+        emit_event("phase_entered", {"state": "x"}, mission_dir=tmp_path)
 
         events = read_events(tmp_path)
         assert events[0]["mission"] == ""
@@ -226,7 +228,7 @@ class TestMissionModelCallbackWiring:
         from specify_cli.mission_v1.runner import StateMachineMission
 
         mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+            copy.deepcopy(_CALLBACK_CONFIG), mission_dir=tmp_path
         )
 
         mission.trigger("advance")  # alpha -> beta
@@ -242,7 +244,7 @@ class TestMissionModelCallbackWiring:
         from specify_cli.mission_v1.runner import StateMachineMission
 
         mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+            copy.deepcopy(_CALLBACK_CONFIG), mission_dir=tmp_path
         )
 
         mission.trigger("advance")  # alpha -> beta
@@ -257,7 +259,7 @@ class TestMissionModelCallbackWiring:
         from specify_cli.mission_v1.runner import StateMachineMission
 
         mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+            copy.deepcopy(_CALLBACK_CONFIG), mission_dir=tmp_path
         )
 
         mission.trigger("advance")  # alpha -> beta
@@ -266,11 +268,11 @@ class TestMissionModelCallbackWiring:
         assert len(events) >= 1
         assert all(e["mission"] == "callback-test" for e in events)
 
-    def test_no_feature_dir_callbacks_no_error(self) -> None:
-        """Callbacks with no feature_dir do not raise."""
+    def test_no_mission_dir_callbacks_no_error(self) -> None:
+        """Callbacks with no mission_dir do not raise."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        # No feature_dir -- events not persisted, but no crash
+        # No mission_dir -- events not persisted, but no crash
         mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG))
         mission.trigger("advance")  # alpha -> beta
         assert mission.state == "beta"
@@ -280,7 +282,7 @@ class TestMissionModelCallbackWiring:
         from specify_cli.mission_v1.runner import StateMachineMission
 
         mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+            copy.deepcopy(_CALLBACK_CONFIG), mission_dir=tmp_path
         )
 
         mission.trigger("advance")  # alpha -> beta
@@ -301,8 +303,9 @@ class TestMissionModelCallbackWiring:
         """Two transitions produce 4 events (2 exits + 2 enters)."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
+
         mission = StateMachineMission(
-            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+            copy.deepcopy(_CALLBACK_CONFIG), mission_dir=tmp_path
         )
 
         mission.trigger("advance")  # alpha -> beta

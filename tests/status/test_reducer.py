@@ -22,7 +22,7 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
-    feature_slug: str = "034-feature-name",
+    mission_slug: str = "034-mission-name",
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -36,7 +36,7 @@ def _make_event(
     """Helper to build StatusEvent with sensible defaults."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -55,7 +55,7 @@ class TestReduceEmpty:
     def test_reduce_empty_events(self) -> None:
         snapshot = reduce([])
 
-        assert snapshot.feature_slug == ""
+        assert snapshot.mission_slug == ""
         assert snapshot.event_count == 0
         assert snapshot.last_event_id is None
         assert snapshot.work_packages == {}
@@ -64,6 +64,7 @@ class TestReduceEmpty:
             "claimed": 0,
             "in_progress": 0,
             "for_review": 0,
+            "in_review": 0,
             "approved": 0,
             "done": 0,
             "blocked": 0,
@@ -85,13 +86,13 @@ class TestReduceSingleEvent:
         )
         snapshot = reduce([event])
 
-        assert snapshot.feature_slug == "034-feature-name"
+        assert snapshot.mission_slug == "034-mission-name"
         assert snapshot.event_count == 1
         assert snapshot.last_event_id == "01HXYZ0000000000000000000A"
         assert "WP01" in snapshot.work_packages
         wp = snapshot.work_packages["WP01"]
         assert wp["lane"] == "claimed"
-        assert wp["actor"] == "claude-opus"
+        assert wp["actor"] == {"tool": "claude-opus", "model": "unknown", "profile": "unknown", "role": "unknown"}
         assert wp["last_transition_at"] == "2026-02-08T12:00:00Z"
         assert wp["last_event_id"] == "01HXYZ0000000000000000000A"
         assert wp["force_count"] == 0
@@ -191,7 +192,8 @@ class TestReduceDeduplication:
         snapshot = reduce([event, duplicate])
 
         assert snapshot.event_count == 1
-        assert snapshot.work_packages["WP01"]["actor"] == "claude-opus"
+        expected_actor = {"tool": "claude-opus", "model": "unknown", "profile": "unknown", "role": "unknown"}
+        assert snapshot.work_packages["WP01"]["actor"] == expected_actor
 
 
 class TestReduceMultipleWPs:
@@ -322,7 +324,7 @@ class TestByteIdenticalOutput:
         """Two calls to materialize_to_json with the same snapshot produce
         identical byte strings."""
         snapshot = StatusSnapshot(
-            feature_slug="034-feature-name",
+            mission_slug="034-mission-name",
             materialized_at="2026-02-08T15:00:00Z",
             event_count=2,
             last_event_id="01HXYZ0000000000000000000B",
@@ -340,6 +342,8 @@ class TestByteIdenticalOutput:
                 "claimed": 0,
                 "in_progress": 1,
                 "for_review": 0,
+                "in_review": 0,
+                "approved": 0,
                 "done": 0,
                 "blocked": 0,
                 "canceled": 0,
@@ -354,7 +358,7 @@ class TestByteIdenticalOutput:
 
         # Verify it's valid JSON
         parsed = json.loads(json_a)
-        assert parsed["feature_slug"] == "034-feature-name"
+        assert parsed["mission_slug"] == "034-mission-name"
 
     def test_byte_identical_across_reduce_calls(self) -> None:
         """Two reduce calls with the same events and a fixed materialized_at
@@ -386,8 +390,8 @@ class TestMaterializeFile:
 
     def test_materialize_creates_status_json(self, tmp_path: Path) -> None:
         """materialize() reads events and writes status.json."""
-        feature_dir = tmp_path / "kitty-specs" / "034-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-mission"
+        mission_dir.mkdir(parents=True)
 
         event = _make_event(
             event_id="01HXYZ0000000000000000000A",
@@ -396,27 +400,27 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        append_event(mission_dir, event)
 
-        snapshot = materialize(feature_dir)
+        snapshot = materialize(mission_dir)
 
-        status_path = feature_dir / SNAPSHOT_FILENAME
+        status_path = mission_dir / SNAPSHOT_FILENAME
         assert status_path.exists()
 
         content = status_path.read_text(encoding="utf-8")
         parsed = json.loads(content)
-        assert parsed["feature_slug"] == "034-feature-name"
+        assert parsed["mission_slug"] == "034-mission-name"
         assert parsed["event_count"] == 1
         assert "WP01" in parsed["work_packages"]
 
         # Snapshot returned matches file content
-        assert snapshot.feature_slug == "034-feature-name"
+        assert snapshot.mission_slug == "034-mission-name"
         assert snapshot.event_count == 1
 
     def test_materialize_atomic_write(self, tmp_path: Path) -> None:
         """materialize() does not leave .tmp files behind."""
-        feature_dir = tmp_path / "kitty-specs" / "034-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-mission"
+        mission_dir.mkdir(parents=True)
 
         event = _make_event(
             event_id="01HXYZ0000000000000000000A",
@@ -425,32 +429,32 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        append_event(mission_dir, event)
 
-        materialize(feature_dir)
+        materialize(mission_dir)
 
         # The .tmp file should not remain
-        tmp_file = feature_dir / (SNAPSHOT_FILENAME + ".tmp")
+        tmp_file = mission_dir / (SNAPSHOT_FILENAME + ".tmp")
         assert not tmp_file.exists()
         # But the final file should exist
-        assert (feature_dir / SNAPSHOT_FILENAME).exists()
+        assert (mission_dir / SNAPSHOT_FILENAME).exists()
 
     def test_materialize_empty_events(self, tmp_path: Path) -> None:
         """materialize() with no events file still writes status.json."""
-        feature_dir = tmp_path / "kitty-specs" / "034-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-mission"
+        mission_dir.mkdir(parents=True)
 
-        snapshot = materialize(feature_dir)
+        snapshot = materialize(mission_dir)
 
-        status_path = feature_dir / SNAPSHOT_FILENAME
+        status_path = mission_dir / SNAPSHOT_FILENAME
         assert status_path.exists()
-        assert snapshot.feature_slug == ""
+        assert snapshot.mission_slug == ""
         assert snapshot.event_count == 0
 
     def test_materialize_overwrites_existing(self, tmp_path: Path) -> None:
         """materialize() overwrites an existing status.json."""
-        feature_dir = tmp_path / "kitty-specs" / "034-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-mission"
+        mission_dir.mkdir(parents=True)
 
         # Write initial event and materialize
         event1 = _make_event(
@@ -460,8 +464,8 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event1)
-        materialize(feature_dir)
+        append_event(mission_dir, event1)
+        materialize(mission_dir)
 
         # Add another event and re-materialize
         event2 = _make_event(
@@ -471,8 +475,8 @@ class TestMaterializeFile:
             to_lane=Lane.IN_PROGRESS,
             at="2026-02-08T13:00:00Z",
         )
-        append_event(feature_dir, event2)
-        snapshot = materialize(feature_dir)
+        append_event(mission_dir, event2)
+        snapshot = materialize(mission_dir)
 
         assert snapshot.event_count == 2
         assert snapshot.work_packages["WP01"]["lane"] == "in_progress"

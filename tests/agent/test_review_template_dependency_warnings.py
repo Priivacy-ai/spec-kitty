@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
+
+from doctrine.templates.repository import CentralTemplateRepository
+from doctrine.missions import MissionTemplateRepository
 
 pytestmark = pytest.mark.fast
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-BASE_TEMPLATE = REPO_ROOT / "src" / "specify_cli" / "templates" / "command-templates" / "review.md"
-MISSION_TEMPLATE = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "review.md"
 
 REQUIRED_KEYS = [
     "dependency_check",
@@ -19,32 +17,23 @@ REQUIRED_KEYS = [
 ]
 
 
-def _assert_required_keys(path: Path) -> None:
-    assert path.exists(), f"Missing template: {path}"
-    content = path.read_text()
+def _assert_required_keys_in_content(content: str, label: str) -> None:
     for key in REQUIRED_KEYS:
-        assert key in content, f"{path} missing required warning key: {key}"
+        assert key in content, f"{label} missing required warning key: {key}"
 
 
 def test_base_review_template_dependency_warnings() -> None:
     """Base review template must include actionable dependency warnings."""
-    # Arrange
-    # (no precondition)
-
-    # Assumption check
-    assert BASE_TEMPLATE.exists(), "base review template must be present on disk"
-
-    # Act / Assert
-    _assert_required_keys(BASE_TEMPLATE)
+    repo = CentralTemplateRepository.default()
+    path = repo.get("review.md")
+    assert path is not None, "review.md not found via CentralTemplateRepository"
+    assert path.exists(), f"Missing template: {path}"
+    _assert_required_keys_in_content(path.read_text(), str(path))
 
 
 def test_mission_review_template_dependency_warnings() -> None:
     """Software-dev review template must include dependency warnings too."""
-    # Arrange
-    # (no precondition)
-
-    # Assumption check
-    assert MISSION_TEMPLATE.exists(), "mission review template must be present on disk"
-
-    # Act / Assert
-    _assert_required_keys(MISSION_TEMPLATE)
+    repo = MissionTemplateRepository(MissionTemplateRepository.default_missions_root())
+    result = repo.get_command_template("software-dev", "review")
+    assert result is not None, "mission review.md not found via MissionTemplateRepository"
+    _assert_required_keys_in_content(result.content, result.origin)

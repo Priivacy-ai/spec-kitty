@@ -1,7 +1,7 @@
 """End-to-end CLI smoke test for the full spec-kitty workflow.
 
 Exercises the complete sequence:
-  create-feature -> setup-plan -> finalize-tasks -> implement -> move-task
+  create-mission -> setup-plan -> finalize-tasks -> implement -> move-task
 
 This test creates a fresh temporary git repo, runs each CLI command via
 subprocess, and verifies that intermediate artifacts exist at each step.
@@ -25,111 +25,111 @@ import pytest
 class TestFullCLIWorkflow:
     """Exercise the complete spec-kitty CLI workflow end-to-end."""
 
-    def test_create_feature(self, e2e_project: Path, run_cli) -> None:
-        """Step 1: create-feature produces feature directory and spec.md."""
+    def test_create_mission(self, e2e_project: Path, run_cli) -> None:
+        """Step 1: create-mission produces mission directory and spec.md."""
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create-mission",
             "smoke-test",
             "--json",
         )
         assert result.returncode == 0, (
-            f"create-feature failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            f"create-mission failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
         output = json.loads(result.stdout)
         assert output["result"] == "success"
-        assert "smoke-test" in output["feature"]
+        assert "smoke-test" in output["mission"]
 
-        feature_dir = Path(output["feature_dir"])
-        assert feature_dir.exists(), f"Feature dir missing: {feature_dir}"
-        assert (feature_dir / "spec.md").exists(), "spec.md not created"
-        assert (feature_dir / "tasks").is_dir(), "tasks/ directory not created"
+        mission_dir = Path(output["mission_dir"])
+        assert mission_dir.exists(), f"Mission dir missing: {mission_dir}"
+        assert (mission_dir / "spec.md").exists(), "spec.md not created"
+        assert (mission_dir / "tasks").is_dir(), "tasks/ directory not created"
 
         # No worktree should have been created during planning
         worktrees_dir = e2e_project / ".worktrees"
         if worktrees_dir.exists():
-            assert list(worktrees_dir.iterdir()) == [], "Worktree created during feature creation"
+            assert list(worktrees_dir.iterdir()) == [], "Worktree created during mission creation"
 
     def test_setup_plan(self, e2e_project: Path, run_cli) -> None:
-        """Step 2: setup-plan produces plan.md in feature directory."""
-        # Create feature first
+        """Step 2: setup-plan produces plan.md in mission directory."""
+        # Create mission first
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create-mission",
             "plan-smoke",
             "--json",
         )
-        assert result.returncode == 0, f"create-feature failed: {result.stderr}"
+        assert result.returncode == 0, f"create-mission failed: {result.stderr}"
         output = json.loads(result.stdout)
-        feature_dir = Path(output["feature_dir"])
-        feature_slug = output["feature"]
+        mission_dir = Path(output["mission_dir"])
+        mission_slug = output["mission"]
 
         # Run setup-plan
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
-            "--feature",
-            feature_slug,
+            "--mission",
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, (
             f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
-        plan_file = feature_dir / "plan.md"
+        plan_file = mission_dir / "plan.md"
         assert plan_file.exists(), "plan.md not created by setup-plan"
         assert plan_file.stat().st_size > 0, "plan.md is empty"
 
     def test_full_workflow_sequence(self, e2e_project: Path, run_cli) -> None:
-        """Full create-feature -> setup-plan -> finalize-tasks -> implement -> move-task.
+        """Full create-mission -> setup-plan -> finalize-tasks -> implement -> move-task.
 
         This is the main smoke test exercising the complete workflow
         that a developer/agent would follow.
         """
         repo = e2e_project
 
-        # === Step 1: Create feature ===
+        # === Step 1: Create mission ===
         result = run_cli(
             repo,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create-mission",
             "full-e2e",
             "--json",
         )
-        assert result.returncode == 0, f"create-feature failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        assert result.returncode == 0, f"create-mission failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         create_output = json.loads(result.stdout)
         assert create_output["result"] == "success"
 
-        feature_slug = create_output["feature"]
-        feature_dir = Path(create_output["feature_dir"])
-        assert feature_dir.exists()
-        assert (feature_dir / "spec.md").exists()
+        mission_slug = create_output["mission"]
+        mission_dir = Path(create_output["mission_dir"])
+        assert mission_dir.exists()
+        assert (mission_dir / "spec.md").exists()
 
         # === Step 2: Setup plan ===
         result = run_cli(
             repo,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
-            "--feature",
-            feature_slug,
+            "--mission",
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, f"setup-plan failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         plan_output = json.loads(result.stdout)
         assert plan_output["result"] == "success"
-        assert (feature_dir / "plan.md").exists()
+        assert (mission_dir / "plan.md").exists()
 
         # Populate spec requirements referenced by tasks.md
-        (feature_dir / "spec.md").write_text(
+        (mission_dir / "spec.md").write_text(
             """# E2E Smoke Spec
 
 ## Functional Requirements
@@ -154,7 +154,7 @@ class TestFullCLIWorkflow:
         )
 
         # === Step 3: Simulate LLM task generation (write tasks.md + WP files) ===
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
 
         tasks_md_content = """# Work Packages
 
@@ -167,7 +167,7 @@ class TestFullCLIWorkflow:
 
 ---
 """
-        (feature_dir / "tasks.md").write_text(tasks_md_content, encoding="utf-8")
+        (mission_dir / "tasks.md").write_text(tasks_md_content, encoding="utf-8")
 
         # Omit 'dependencies' from frontmatter so finalize-tasks has work to do
         wp01_content = """---
@@ -200,12 +200,12 @@ Create a hello module.
         import json as json_mod
 
         meta_content = {
-            "feature_number": "001",
-            "feature_slug": feature_slug,
+            "mission_number": "001",
+            "mission_slug": mission_slug,
             "created_at": "2026-02-12T00:00:00Z",
             "vcs": "git",
         }
-        (feature_dir / "meta.json").write_text(
+        (mission_dir / "meta.json").write_text(
             json_mod.dumps(meta_content, indent=2),
             encoding="utf-8",
         )
@@ -225,14 +225,14 @@ Create a hello module.
         )
 
         # === Step 4: Finalize tasks ===
-        # Use explicit feature binding to keep fresh sessions deterministic.
+        # Use explicit mission binding to keep fresh sessions deterministic.
         result = run_cli(
             repo,
             "agent",
-            "feature",
+            "mission",
             "finalize-tasks",
-            "--feature",
-            feature_slug,
+            "--mission",
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, f"finalize-tasks failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -248,14 +248,14 @@ Create a hello module.
             repo,
             "implement",
             "WP01",
-            "--feature",
-            feature_slug,
+            "--mission",
+            mission_slug,
             "--json",
         )
 
         # The implement command may or may not use --json for output.
         # We check for success by looking at the worktree existing.
-        worktree_dir = repo / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_dir = repo / ".worktrees" / f"{mission_slug}-WP01"
 
         if result.returncode != 0:
             # Try without --json (implement might not support it cleanly)
@@ -263,8 +263,8 @@ Create a hello module.
                 repo,
                 "implement",
                 "WP01",
-                "--feature",
-                feature_slug,
+                "--mission",
+                mission_slug,
             )
 
         # Verify worktree was created
@@ -316,8 +316,8 @@ Create a hello module.
             "WP01",
             "--to",
             "for_review",
-            "--feature",
-            feature_slug,
+            "--mission",
+            mission_slug,
             "--json",
         )
 
@@ -329,9 +329,9 @@ Create a hello module.
             assert "for_review" in wp01_updated, "WP01 not moved to for_review"
 
         # === Final verification: all artifacts exist ===
-        assert (feature_dir / "spec.md").exists(), "spec.md missing at end"
-        assert (feature_dir / "plan.md").exists(), "plan.md missing at end"
-        assert (feature_dir / "tasks.md").exists(), "tasks.md missing at end"
+        assert (mission_dir / "spec.md").exists(), "spec.md missing at end"
+        assert (mission_dir / "plan.md").exists(), "plan.md missing at end"
+        assert (mission_dir / "tasks.md").exists(), "tasks.md missing at end"
         assert wp01_path.exists(), "WP01 prompt file missing at end"
         assert worktree_dir.exists(), "Worktree missing at end"
 
@@ -353,13 +353,13 @@ Create a hello module.
 class TestWorkflowEdgeCases:
     """Edge case tests for the CLI workflow."""
 
-    def test_create_feature_rejects_bad_slug(self, e2e_project: Path, run_cli) -> None:
-        """create-feature rejects non-kebab-case slugs."""
+    def test_create_mission_rejects_bad_slug(self, e2e_project: Path, run_cli) -> None:
+        """create-mission rejects non-kebab-case slugs."""
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create-mission",
             "Bad_Slug",
             "--json",
         )
@@ -371,17 +371,17 @@ class TestWorkflowEdgeCases:
             f"Expected error message in output, got:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
-    def test_setup_plan_requires_feature(self, e2e_project: Path, run_cli) -> None:
-        """setup-plan fails gracefully when no feature exists."""
+    def test_setup_plan_requires_mission(self, e2e_project: Path, run_cli) -> None:
+        """setup-plan fails gracefully when no mission exists."""
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
             "--json",
         )
-        # Should fail because no feature exists yet
-        assert result.returncode != 0, "setup-plan should fail when no feature exists"
+        # Should fail because no mission exists yet
+        assert result.returncode != 0, "setup-plan should fail when no mission exists"
 
     def test_implement_requires_existing_wp(self, e2e_project: Path, run_cli) -> None:
         """implement fails gracefully when WP does not exist."""

@@ -38,7 +38,7 @@ def sample_review_approval() -> ReviewApproval:
 def sample_repo_evidence() -> RepoEvidence:
     return RepoEvidence(
         repo="my-org/my-repo",
-        branch="034-feature-WP01",
+        branch="034-mission-WP01",
         commit="abc1234",
         files_touched=["src/models.py", "tests/test_models.py"],
     )
@@ -70,7 +70,7 @@ def sample_done_evidence(
 def sample_status_event() -> StatusEvent:
     return StatusEvent(
         event_id="01HXYZ0123456789ABCDEFGHJK",
-        feature_slug="034-feature-name",
+        mission_slug="034-mission-name",
         wp_id="WP01",
         from_lane=Lane.PLANNED,
         to_lane=Lane.CLAIMED,
@@ -87,7 +87,7 @@ def sample_status_event_with_evidence(
 ) -> StatusEvent:
     return StatusEvent(
         event_id="01HXYZ0123456789ABCDEFGHJL",
-        feature_slug="034-feature-name",
+        mission_slug="034-mission-name",
         wp_id="WP01",
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.DONE,
@@ -102,7 +102,7 @@ def sample_status_event_with_evidence(
 @pytest.fixture
 def sample_status_snapshot() -> StatusSnapshot:
     return StatusSnapshot(
-        feature_slug="034-feature-name",
+        mission_slug="034-mission-name",
         materialized_at="2026-02-08T15:00:00Z",
         event_count=5,
         last_event_id="01HXYZ0123456789ABCDEFGHJM",
@@ -127,6 +127,7 @@ def sample_status_snapshot() -> StatusSnapshot:
             "claimed": 0,
             "in_progress": 1,
             "for_review": 0,
+            "in_review": 0,
             "approved": 0,
             "done": 1,
             "blocked": 0,

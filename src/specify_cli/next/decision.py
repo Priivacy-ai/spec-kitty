@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -42,7 +41,7 @@ class DecisionKind:
 class Decision:
     kind: str  # one of DecisionKind.*
     agent: str
-    feature_slug: str
+    mission_slug: str
     mission: str
     mission_state: str
     timestamp: str
@@ -66,7 +65,7 @@ class Decision:
         return {
             "kind": self.kind,
             "agent": self.agent,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "mission": self.mission,
             "mission_state": self.mission_state,
             "timestamp": self.timestamp,
@@ -92,7 +91,7 @@ class Decision:
 # ---------------------------------------------------------------------------
 
 
-def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
+def derive_mission_state(mission_dir: Path, initial_state: str) -> str:
     """Derive current mission state by replaying the event log.
 
     Scans ``mission-events.jsonl`` for the last ``phase_entered`` event and
@@ -103,7 +102,7 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
         No longer used by ``decide_next``.  Runtime state is now managed by
         ``spec-kitty-runtime`` via ``state.json`` in the run directory.
     """
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     last_state = initial_state
     for event in events:
         if event.get("type") == "phase_entered":
@@ -121,7 +120,7 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
 
 def evaluate_guards(
     mission_config: dict[str, Any],
-    feature_dir: Path,
+    mission_dir: Path,
     current_state: str,
 ) -> tuple[bool, list[str]]:
     """Evaluate guard conditions for the ``advance`` trigger from *current_state*.
@@ -149,7 +148,7 @@ def evaluate_guards(
         return True, []
 
     # Build a minimal event_data with model for guard evaluation
-    model = SimpleNamespace(feature_dir=feature_dir, inputs={})
+    model = SimpleNamespace(mission_dir=mission_dir, inputs={})
     event_data = SimpleNamespace(model=model)
 
     failures: list[str] = []
@@ -203,9 +202,9 @@ def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
+def _compute_wp_progress(mission_dir: Path) -> dict[str, int] | None:
     """Compute WP lane counts for the progress field."""
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
 
@@ -239,9 +238,9 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
     return counts
 
 
-def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
+def _find_first_wp_by_lane(mission_dir: Path, lane: str) -> str | None:
     """Find the first WP file with the given lane value."""
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
 
@@ -262,7 +261,7 @@ def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
 
 def decide_next(
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     result: str,
     repo_root: Path,
 ) -> Decision:
@@ -281,7 +280,7 @@ def decide_next(
     """
     from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-    return decide_next_via_runtime(agent, feature_slug, result, repo_root)
+    return decide_next_via_runtime(agent, mission_slug, result, repo_root)
 
 
 # ---------------------------------------------------------------------------
@@ -291,8 +290,8 @@ def decide_next(
 
 def _state_to_action(
     state: str,
-    feature_slug: str,
-    feature_dir: Path,
+    mission_slug: str,
+    mission_dir: Path,
     repo_root: Path,
     mission_name: str,
 ) -> tuple[str | None, str | None, str | None]:
@@ -303,30 +302,30 @@ def _state_to_action(
     """
     # "implement" state: find first planned or in_progress WP
     if state == "implement":
-        wp_id = _find_first_wp_by_lane(feature_dir, "planned")
+        wp_id = _find_first_wp_by_lane(mission_dir, "planned")
         if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "doing")
+            wp_id = _find_first_wp_by_lane(mission_dir, "doing")
         if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "in_progress")
+            wp_id = _find_first_wp_by_lane(mission_dir, "in_progress")
 
         if wp_id is None:
             # Check for for_review WPs -- switch to review sub-action
-            review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
+            review_wp = _find_first_wp_by_lane(mission_dir, "for_review")
             if review_wp:
-                workspace_name = f"{feature_slug}-{review_wp}"
+                workspace_name = f"{mission_slug}-{review_wp}"
                 workspace_path = str(repo_root / ".worktrees" / workspace_name)
                 return "review", review_wp, workspace_path
             return None, None, None
 
-        workspace_name = f"{feature_slug}-{wp_id}"
+        workspace_name = f"{mission_slug}-{wp_id}"
         workspace_path = str(repo_root / ".worktrees" / workspace_name)
         return "implement", wp_id, workspace_path
 
     # "review" state: WP-level if for_review WP exists, else template-level
     if state == "review":
-        wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
+        wp_id = _find_first_wp_by_lane(mission_dir, "for_review")
         if wp_id is not None:
-            workspace_name = f"{feature_slug}-{wp_id}"
+            workspace_name = f"{mission_slug}-{wp_id}"
             workspace_path = str(repo_root / ".worktrees" / workspace_name)
             return "review", wp_id, workspace_path
         # Fall through to generic template resolution below
@@ -372,8 +371,8 @@ def _state_to_action(
 
 def _build_prompt_safe(
     action: str,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     wp_id: str | None,
     agent: str,
     repo_root: Path,
@@ -385,8 +384,8 @@ def _build_prompt_safe(
 
         _, prompt_path = build_prompt(
             action=action,
-            feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_dir=mission_dir,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             agent=agent,
             repo_root=repo_root,

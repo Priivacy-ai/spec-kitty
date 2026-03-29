@@ -71,7 +71,7 @@ agent_context: |
   - Divio 4-type system: tutorial, how-to, reference, explanation (distinct purposes)
   - Accessibility: clear language, proper headings, alt text for images
   - Bias-free language: inclusive examples and terminology
-  - Iterative improvement: support gap-filling and feature-specific documentation
+  - Iterative improvement: support gap-filling and mission-specific documentation
 
   Workflow Phases: discover → audit → design → generate → validate → publish
 
@@ -100,7 +100,7 @@ task_metadata:
 # Command customization
 commands:
   specify:
-    prompt: "Define documentation needs: iteration mode (initial/gap-filling/feature-specific), Divio types to include, target audience, and documentation goals"
+    prompt: "Define documentation needs: iteration mode (initial/gap-filling/mission-specific), Divio types to include, target audience, and documentation goals"
   plan:
     prompt: "Design documentation structure, configure generators (JSDoc/Sphinx/rustdoc), plan gap-filling strategy if iterating"
   tasks:
@@ -111,3 +111,15 @@ commands:
     prompt: "Validate Divio type adherence, check accessibility guidelines, verify generator output quality, assess completeness"
   accept:
     prompt: "Validate documentation completeness, quality gates, and readiness for publication"
+
+# Task type definitions for agent profile suggestion
+task_types:
+  write:
+    agent_role: writer
+    description: "Documentation writing work packages"
+  review:
+    agent_role: reviewer
+    description: "Documentation review work packages"
+  plan:
+    agent_role: planner
+    description: "Documentation planning work packages"

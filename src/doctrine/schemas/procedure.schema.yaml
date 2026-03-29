@@ -1,0 +1,116 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/procedure.schema.yaml
+title: Procedure
+description: Schema for doctrine procedures — reusable orchestrated workflows.
+type: object
+additionalProperties: false
+required:
+- schema_version
+- id
+- name
+- purpose
+- entry_condition
+- exit_condition
+- steps
+definitions:
+  procedure_anti_pattern:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - description
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+        minLength: 1
+  procedure_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - type
+    - id
+    properties:
+      type:
+        type: string
+        minLength: 1
+        enum:
+        - directive
+        - tactic
+        - styleguide
+        - toolguide
+        - paradigm
+        - procedure
+        - agent_profile
+        - mission_step_contract
+        - template
+      id:
+        type: string
+        minLength: 1
+      reason:
+        type: string
+        description: Why this reference is relevant to the procedure.
+  procedure_step:
+    type: object
+    additionalProperties: false
+    required:
+    - title
+    properties:
+      title:
+        type: string
+        minLength: 1
+      description:
+        type: string
+      actor:
+        type: string
+        enum:
+        - human
+        - agent
+        - system
+        default: agent
+      tactic_refs:
+        type: array
+        items:
+          type: string
+      on_success:
+        type: string
+      on_failure:
+        type: string
+properties:
+  schema_version:
+    type: string
+    pattern: ^1\.0$
+  id:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+  name:
+    type: string
+    minLength: 1
+  purpose:
+    type: string
+    minLength: 1
+  entry_condition:
+    type: string
+    minLength: 1
+  exit_condition:
+    type: string
+    minLength: 1
+  steps:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/procedure_step'
+  anti_patterns:
+    type: array
+    description: Common mistakes or failure modes to avoid when following this procedure.
+    items:
+      $ref: '#/definitions/procedure_anti_pattern'
+  notes:
+    type: string
+    description: Free-form notes, rationale, or supplementary material that does not fit into structured fields.
+  references:
+    type: array
+    items:
+      $ref: '#/definitions/procedure_reference'

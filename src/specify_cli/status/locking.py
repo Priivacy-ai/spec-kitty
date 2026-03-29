@@ -1,6 +1,6 @@
-"""Per-feature status locking for shared planning artifacts.
+"""Per-mission status locking for shared planning artifacts.
 
-Serializes access to feature-level status artifacts that are written on the
+Serializes access to mission-level status artifacts that are written on the
 planning checkout (`status.events.jsonl`, `status.json`, and `tasks.md`).
 Parallel agents may run from separate worktrees, but they still converge on
 the same planning repo paths, so these writes need an inter-process lock.
@@ -12,15 +12,15 @@ import subprocess
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Iterator
 
 from filelock import FileLock, Timeout
 
 _thread_state = threading.local()
 
 
-class FeatureStatusLockTimeout(RuntimeError):
-    """Raised when the feature status lock cannot be acquired."""
+class MissionStatusLockTimeout(RuntimeError):
+    """Raised when the mission status lock cannot be acquired."""
 
 
 def _get_thread_locks() -> dict[str, tuple[FileLock, int]]:
@@ -56,26 +56,26 @@ def _git_common_dir(repo_root: Path) -> Path:
     return resolved
 
 
-def feature_status_lock_path(repo_root: Path, feature_slug: str) -> Path:
-    """Return the per-feature lock file path under the git common dir."""
+def mission_status_lock_path(repo_root: Path, mission_slug: str) -> Path:
+    """Return the per-mission lock file path under the git common dir."""
     common_dir = _git_common_dir(repo_root)
-    return common_dir / "spec-kitty-locks" / f"{feature_slug}.status.lock"
+    return common_dir / "spec-kitty-locks" / f"{mission_slug}.status.lock"
 
 
 @contextmanager
-def feature_status_lock(
+def mission_status_lock(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     *,
     timeout: float = -1,
 ) -> Iterator[Path]:
-    """Acquire the per-feature status lock.
+    """Acquire the per-mission status lock.
 
     Uses the git common dir so main checkouts and worktrees coordinate on the
     same lock file. Locking is re-entrant within a single thread so callers can
     safely wrap a larger transaction around helpers that also acquire the lock.
     """
-    lock_path = feature_status_lock_path(repo_root, feature_slug)
+    lock_path = mission_status_lock_path(repo_root, mission_slug)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     held_locks = _get_thread_locks()
@@ -95,8 +95,8 @@ def feature_status_lock(
     try:
         lock.acquire()
     except Timeout as exc:
-        raise FeatureStatusLockTimeout(
-            f"Timed out acquiring feature status lock for {feature_slug}: {lock_path}"
+        raise MissionStatusLockTimeout(
+            f"Timed out acquiring mission status lock for {mission_slug}: {lock_path}"
         ) from exc
 
     held_locks[lock_key] = (lock, 1)

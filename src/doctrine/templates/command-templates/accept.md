@@ -1,10 +1,10 @@
 ---
-description: Validate feature readiness and guide final acceptance steps.
+description: Validate mission readiness and guide final acceptance steps.
 scripts:
-  sh: spec-kitty agent feature accept --json {ARGS}
+  sh: spec-kitty agent mission accept --json {ARGS}
   ps: spec-kitty agent --json {ARGS}
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 *Path: [templates/commands/accept.md](templates/commands/accept.md)*
 
@@ -22,9 +22,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Auto-Detection Strategy
 
-1. **Feature slug**:
+1. **Mission slug**:
    - Run `git branch --show-current` to get current branch name
-   - If branch matches pattern `\d{3}-[a-z0-9-]+` (e.g., `001-privacy-cli`), use it as feature slug
+   - If branch matches pattern `\d{3}-[a-z0-9-]+` (e.g., `001-privacy-cli`), use it as mission slug
    - Only ask user if branch name doesn't match or if on `main`/`master`
 
 2. **Acceptance mode**:
@@ -58,7 +58,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Preferred flow (no user questions):**
 
 ```
-1. Auto-detect feature slug from git branch
+1. Auto-detect mission slug from git branch
 2. Use mode=local by default
 3. Search for validation commands in git log/project
 4. Proceed directly with acceptance
@@ -66,7 +66,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **Only ask the user if:**
 
-- Feature slug cannot be auto-detected (e.g., on main branch)
+- Mission slug cannot be auto-detected (e.g., on main branch)
 - User explicitly provides conflicting information in $ARGUMENTS
 - Auto-detection fails for technical reasons
 
@@ -74,14 +74,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ```
 Running acceptance with auto-detected values:
-- Feature: 001-privacy-compiler-cli (from git branch)
+- Mission: 001-privacy-compiler-cli (from git branch)
 - Mode: local (default)
 - Validation: cargo test --all, cargo build --release (from git log)
 ```
 
 **Never use `WAITING_FOR_ACCEPTANCE_INPUT` unless:**
 
-- Feature slug detection fails AND user didn't provide one
+- Mission slug detection fails AND user didn't provide one
 - User explicitly asks a question that needs an answer
 
 If user provides explicit values in $ARGUMENTS, those override auto-detected values.
@@ -91,7 +91,7 @@ If user provides explicit values in $ARGUMENTS, those override auto-detected val
 1. **Auto-detect parameters** (run these commands silently):
 
    ```bash
-   # Detect feature slug
+   # Detect mission slug
    git branch --show-current
 
    # Search for validation commands in recent commits
@@ -99,7 +99,7 @@ If user provides explicit values in $ARGUMENTS, those override auto-detected val
    ```
 
 2. **Determine final values** (using auto-detection + user overrides):
-   - Feature slug: From git branch (or user override from $ARGUMENTS)
+   - Mission slug: From git branch (or user override from $ARGUMENTS)
    - Mode: `local` (or user override: "pr"/"checklist")
    - Validation commands: From git log search (or user-specified)
    - Actor: `__AGENT__` (always)
@@ -107,13 +107,13 @@ If user provides explicit values in $ARGUMENTS, those override auto-detected val
 3. **Present detected values to user** (brief confirmation):
 
    ```
-   Running acceptance for feature 001-privacy-cli (mode: local)
+   Running acceptance for mission 001-privacy-cli (mode: local)
    Validation: cargo test --all, cargo build --release
    ```
 
 4. **Compile the acceptance options** into an argument list:
    - Always include `--actor "__AGENT__"`.
-   - Append `--feature "<slug>"` (from detection or user input).
+   - Append `--mission "<slug>"` (from detection or user input).
    - Append `--mode <mode>` (default: `local`).
    - Append `--test "<command>"` for each validation command found.
 

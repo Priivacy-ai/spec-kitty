@@ -11,7 +11,7 @@ import pytest
 from specify_cli.cli.commands.merge import (
     _build_workspace_per_wp_merge_plan,
     detect_worktree_structure,
-    extract_feature_slug,
+    extract_mission_slug,
     extract_wp_id,
     find_wp_worktrees,
     merge_workspace_per_wp,
@@ -27,38 +27,38 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
-class TestExtractFeatureSlug:
+class TestExtractMissionSlug:
     # TODO(conventions): retrofit test bodies
-    """Tests for extract_feature_slug — pure string parsing."""
+    """Tests for extract_mission_slug — pure string parsing."""
 
     def test_extracts_from_wp_branch(self):
-        assert extract_feature_slug("010-workspace-per-wp-WP01") == "010-workspace-per-wp"
-        assert extract_feature_slug("005-my-feature-WP12") == "005-my-feature"
+        assert extract_mission_slug("010-workspace-per-wp-WP01") == "010-workspace-per-wp"
+        assert extract_mission_slug("005-my-mission-WP12") == "005-my-mission"
 
     def test_returns_as_is_for_legacy_branch(self):
-        assert extract_feature_slug("008-unified-cli") == "008-unified-cli"
-        assert extract_feature_slug("main") == "main"
+        assert extract_mission_slug("008-unified-cli") == "008-unified-cli"
+        assert extract_mission_slug("main") == "main"
 
     def test_handles_edge_cases(self):
-        assert extract_feature_slug("WP01") == "WP01"  # no prefix
-        assert extract_feature_slug("") == ""
-        assert extract_feature_slug("feature-WP99") == "feature"
+        assert extract_mission_slug("WP01") == "WP01"  # no prefix
+        assert extract_mission_slug("") == ""
+        assert extract_mission_slug("mission-WP99") == "mission"
 
 
 class TestExtractWpId:
     """Tests for extract_wp_id — pure Path parsing."""
 
     def test_extracts_wp_id(self):
-        assert extract_wp_id(Path(".worktrees/010-feature-WP01")) == "WP01"
-        assert extract_wp_id(Path(".worktrees/010-feature-WP12")) == "WP12"
+        assert extract_wp_id(Path(".worktrees/010-mission-WP01")) == "WP01"
+        assert extract_wp_id(Path(".worktrees/010-mission-WP12")) == "WP12"
 
     def test_returns_none_for_legacy(self):
         assert extract_wp_id(Path(".worktrees/008-unified-cli")) is None
 
     def test_handles_edge_cases(self):
         assert extract_wp_id(Path("WP01")) is None  # no dash prefix
-        assert extract_wp_id(Path(".worktrees/feature-WP1")) is None  # only 1 digit
-        assert extract_wp_id(Path(".worktrees/feature-WP001")) is None  # 3 digits
+        assert extract_wp_id(Path(".worktrees/mission-WP1")) is None  # only 1 digit
+        assert extract_wp_id(Path(".worktrees/mission-WP001")) is None  # 3 digits
 
 
 # ---------------------------------------------------------------------------
@@ -73,26 +73,26 @@ class TestDetectWorktreeStructureMocked:
         """WP dirs present → workspace-per-wp."""
         wt = tmp_path / ".worktrees"
         wt.mkdir()
-        (wt / "010-feature-WP01").mkdir()
-        (wt / "010-feature-WP02").mkdir()
+        (wt / "010-mission-WP01").mkdir()
+        (wt / "010-mission-WP02").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            assert detect_worktree_structure(tmp_path, "010-feature") == "workspace-per-wp"
+            assert detect_worktree_structure(tmp_path, "010-mission") == "workspace-per-wp"
 
     def test_detects_legacy(self, tmp_path):
         """Legacy dir present, no WP dirs → legacy."""
         wt = tmp_path / ".worktrees"
         wt.mkdir()
-        (wt / "008-legacy-feature").mkdir()
+        (wt / "008-legacy-mission").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            assert detect_worktree_structure(tmp_path, "008-legacy-feature") == "legacy"
+            assert detect_worktree_structure(tmp_path, "008-legacy-mission") == "legacy"
 
     def test_detects_none_when_no_worktrees_dir(self, tmp_path):
         with patch.object(merge_module, "get_main_repo_root", return_value=tmp_path):
@@ -101,7 +101,7 @@ class TestDetectWorktreeStructureMocked:
     def test_detects_none_when_no_matches(self, tmp_path):
         wt = tmp_path / ".worktrees"
         wt.mkdir()
-        (wt / "other-feature-WP01").mkdir()
+        (wt / "other-mission-WP01").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
@@ -113,14 +113,14 @@ class TestDetectWorktreeStructureMocked:
         """When both legacy dir and WP dirs exist, WP wins."""
         wt = tmp_path / ".worktrees"
         wt.mkdir()
-        (wt / "010-mixed-feature").mkdir()
-        (wt / "010-mixed-feature-WP01").mkdir()
+        (wt / "010-mixed-mission").mkdir()
+        (wt / "010-mixed-mission-WP01").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            assert detect_worktree_structure(tmp_path, "010-mixed-feature") == "workspace-per-wp"
+            assert detect_worktree_structure(tmp_path, "010-mixed-mission") == "workspace-per-wp"
 
     def test_detects_wp_from_branch_listing_when_dirs_pruned(self, tmp_path):
         """Worktree dirs removed but branches remain → still workspace-per-wp."""
@@ -132,10 +132,10 @@ class TestDetectWorktreeStructureMocked:
             patch.object(
                 merge_module,
                 "_list_wp_branches",
-                return_value=[("WP01", "010-feature-WP01")],
+                return_value=[("WP01", "010-mission-WP01")],
             ),
         ):
-            assert detect_worktree_structure(tmp_path, "010-feature") == "workspace-per-wp"
+            assert detect_worktree_structure(tmp_path, "010-mission") == "workspace-per-wp"
 
     def test_resolves_main_repo_from_worktree(self, tmp_path):
         """When called from inside a worktree, gets main repo root."""
@@ -143,14 +143,14 @@ class TestDetectWorktreeStructureMocked:
         main_repo.mkdir()
         wt = main_repo / ".worktrees"
         wt.mkdir()
-        (wt / "010-feature-WP01").mkdir()
-        worktree_cwd = wt / "010-feature-WP01"
+        (wt / "010-mission-WP01").mkdir()
+        worktree_cwd = wt / "010-mission-WP01"
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=main_repo),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            assert detect_worktree_structure(worktree_cwd, "010-feature") == "workspace-per-wp"
+            assert detect_worktree_structure(worktree_cwd, "010-mission") == "workspace-per-wp"
 
 
 # ---------------------------------------------------------------------------
@@ -165,17 +165,17 @@ class TestFindWpWorktreesMocked:
         wt = tmp_path / ".worktrees"
         wt.mkdir()
         for n in [1, 2, 3]:
-            (wt / f"010-feature-WP{n:02d}").mkdir()
+            (wt / f"010-mission-WP{n:02d}").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            result = find_wp_worktrees(tmp_path, "010-feature")
+            result = find_wp_worktrees(tmp_path, "010-mission")
 
         assert len(result) == 3
         assert [wp_id for _, wp_id, _ in result] == ["WP01", "WP02", "WP03"]
-        assert [branch for _, _, branch in result] == ["010-feature-WP01", "010-feature-WP02", "010-feature-WP03"]
+        assert [branch for _, _, branch in result] == ["010-mission-WP01", "010-mission-WP02", "010-mission-WP03"]
 
     def test_returns_empty_when_no_matches(self, tmp_path):
         wt = tmp_path / ".worktrees"
@@ -193,7 +193,7 @@ class TestFindWpWorktreesMocked:
         """When dirs are pruned but branches exist, still finds WPs."""
         wt = tmp_path / ".worktrees"
         wt.mkdir()
-        (wt / "010-feature-WP01").mkdir()  # Only WP01 dir exists
+        (wt / "010-mission-WP01").mkdir()  # Only WP01 dir exists
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
@@ -201,12 +201,12 @@ class TestFindWpWorktreesMocked:
                 merge_module,
                 "_list_wp_branches",
                 return_value=[
-                    ("WP01", "010-feature-WP01"),
-                    ("WP02", "010-feature-WP02"),
+                    ("WP01", "010-mission-WP01"),
+                    ("WP02", "010-mission-WP02"),
                 ],
             ),
         ):
-            result = find_wp_worktrees(tmp_path, "010-feature")
+            result = find_wp_worktrees(tmp_path, "010-mission")
 
         assert len(result) == 2
         assert [wp_id for _, wp_id, _ in result] == ["WP01", "WP02"]
@@ -215,13 +215,13 @@ class TestFindWpWorktreesMocked:
         wt = tmp_path / ".worktrees"
         wt.mkdir()
         for n in [3, 1, 2]:
-            (wt / f"010-feature-WP{n:02d}").mkdir()
+            (wt / f"010-mission-WP{n:02d}").mkdir()
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
             patch.object(merge_module, "_list_wp_branches", return_value=[]),
         ):
-            result = find_wp_worktrees(tmp_path, "010-feature")
+            result = find_wp_worktrees(tmp_path, "010-mission")
 
         assert [wp_id for _, wp_id, _ in result] == ["WP01", "WP02", "WP03"]
 
@@ -294,7 +294,7 @@ class TestValidateWpReadyForMergeMocked:
 class TestBuildMergePlanMocked:
     """Test merge plan building with mocked git ancestry checks."""
 
-    def _make_workspaces(self, *wp_ids, slug="010-feature"):
+    def _make_workspaces(self, *wp_ids, slug="010-mission"):
         """Helper to build workspace tuples."""
         return [(Path(f".worktrees/{slug}-{wp_id}"), wp_id, f"{slug}-{wp_id}") for wp_id in wp_ids]
 
@@ -307,7 +307,7 @@ class TestBuildMergePlanMocked:
         ):
             plan = _build_workspace_per_wp_merge_plan(
                 tmp_path,
-                "010-feature",
+                "010-mission",
                 "main",
                 ws,
             )
@@ -321,7 +321,7 @@ class TestBuildMergePlanMocked:
 
         def is_ancestor(repo, branch_a, branch_b):
             # WP01 < WP02 < WP03 (linear chain)
-            order = {"010-feature-WP01": 0, "010-feature-WP02": 1, "010-feature-WP03": 2, "main": -1}
+            order = {"010-mission-WP01": 0, "010-mission-WP02": 1, "010-mission-WP03": 2, "main": -1}
             a_idx = order.get(branch_a, -1)
             b_idx = order.get(branch_b, -1)
             return a_idx < b_idx and a_idx >= 0 and b_idx >= 0
@@ -332,22 +332,22 @@ class TestBuildMergePlanMocked:
         ):
             plan = _build_workspace_per_wp_merge_plan(
                 tmp_path,
-                "010-feature",
+                "010-mission",
                 "main",
                 ws,
             )
 
         effective_branches = [b for _, _, b in plan["effective_wp_workspaces"]]
-        assert effective_branches == ["010-feature-WP03"]
-        assert "010-feature-WP01" in plan["skipped_ancestor_of"]
-        assert "010-feature-WP02" in plan["skipped_ancestor_of"]
+        assert effective_branches == ["010-mission-WP03"]
+        assert "010-mission-WP01" in plan["skipped_ancestor_of"]
+        assert "010-mission-WP02" in plan["skipped_ancestor_of"]
 
     def test_already_merged_branches_skipped(self, tmp_path):
         ws = self._make_workspaces("WP01")
 
         def is_ancestor(repo, branch_a, branch_b):
             # WP01 is ancestor of main → already merged
-            return branch_a == "010-feature-WP01" and branch_b == "main"
+            return branch_a == "010-mission-WP01" and branch_b == "main"
 
         with (
             patch.object(merge_module, "_branch_is_ancestor", side_effect=is_ancestor),
@@ -355,7 +355,7 @@ class TestBuildMergePlanMocked:
         ):
             plan = _build_workspace_per_wp_merge_plan(
                 tmp_path,
-                "010-feature",
+                "010-mission",
                 "main",
                 ws,
             )
@@ -370,7 +370,7 @@ class TestBuildMergePlanMocked:
         ws = self._make_workspaces("WP01", "WP02")
 
         def is_ancestor(repo, branch_a, branch_b):
-            return branch_a == "010-feature-WP01" and branch_b == "010-feature-WP02"
+            return branch_a == "010-mission-WP01" and branch_b == "010-mission-WP02"
 
         with (
             patch.object(merge_module, "_branch_is_ancestor", side_effect=is_ancestor),
@@ -378,13 +378,142 @@ class TestBuildMergePlanMocked:
         ):
             plan = _build_workspace_per_wp_merge_plan(
                 tmp_path,
-                "010-feature",
+                "010-mission",
                 "main",
                 ws,
             )
 
         assert len(plan["effective_wp_workspaces"]) == 1
         assert any("single effective tip" in r.lower() for r in plan["reason_summary"])
+
+
+# ---------------------------------------------------------------------------
+# merge_workspace_per_wp — ancestor-skipped WPs marked done
+# ---------------------------------------------------------------------------
+
+
+class TestAncestorSkippedWpMarkedDone:
+    """When WP02 depends on WP01 (linear chain), merging WP02 should mark
+    BOTH WP01 and WP02 as done, since WP01's code arrives via WP02's branch."""
+
+    def test_skipped_ancestor_wp_marked_done(self, tmp_path, monkeypatch):
+        """WP01 is skipped (ancestor of WP02). After merging WP02, WP01 is also marked done."""
+        from specify_cli.cli import StepTracker
+
+        wt_wp01 = tmp_path / ".worktrees" / "010-mission-WP01"
+        wt_wp02 = tmp_path / ".worktrees" / "010-mission-WP02"
+        wt_wp01.mkdir(parents=True)
+        wt_wp02.mkdir(parents=True)
+
+        wp_workspaces = [
+            (wt_wp01, "WP01", "010-mission-WP01"),
+            (wt_wp02, "WP02", "010-mission-WP02"),
+        ]
+        merge_plan = {
+            "all_wp_workspaces": wp_workspaces,
+            "effective_wp_workspaces": [(wt_wp02, "WP02", "010-mission-WP02")],
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {"010-mission-WP01": ["010-mission-WP02"]},
+            "reason_summary": ["Single effective tip contains all remaining work-package commits."],
+        }
+
+        marked_done: list[str] = []
+
+        def fake_mark_done(repo_root, mission_slug, wp_id, target_branch):
+            marked_done.append(wp_id)
+
+        monkeypatch.setattr(merge_module, "get_main_repo_root", lambda _: tmp_path)
+        monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *a, **kw: wp_workspaces)
+        monkeypatch.setattr(merge_module, "validate_wp_ready_for_merge", lambda *a, **kw: (True, ""))
+        monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *a, **kw: merge_plan)
+        monkeypatch.setattr(merge_module, "run_command", lambda *a, **kw: (0, "", ""))
+        monkeypatch.setattr(merge_module, "has_remote", lambda _: False)
+        monkeypatch.setattr(merge_module, "has_tracking_branch", lambda _: False)
+        monkeypatch.setattr(merge_module, "_mark_wp_merged_done", fake_mark_done)
+
+        tracker = StepTracker("Merge")
+        for step_id, label in [
+            ("verify", "Verify readiness"),
+            ("checkout", "Switch to target"),
+            ("pull", "Pull latest"),
+            ("merge", "Merge WPs"),
+            ("worktree", "Remove worktrees"),
+            ("branch", "Delete branches"),
+        ]:
+            tracker.add(step_id, label)
+
+        merge_workspace_per_wp(
+            repo_root=tmp_path,
+            merge_root=tmp_path,
+            mission_slug="010-mission",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="merge",
+            delete_branch=False,
+            remove_worktree=False,
+            push=False,
+            dry_run=False,
+            json_output=False,
+            tracker=tracker,
+        )
+
+        assert "WP02" in marked_done, "WP02 (merged) must be marked done"
+        assert "WP01" in marked_done, "WP01 (skipped as ancestor) must also be marked done"
+
+    def test_only_effective_wp_marked_done_when_no_skipped_ancestors(self, tmp_path, monkeypatch):
+        """When no ancestors are skipped, only the merged WP is marked done."""
+        from specify_cli.cli import StepTracker
+
+        wt_wp01 = tmp_path / ".worktrees" / "010-mission-WP01"
+        wt_wp01.mkdir(parents=True)
+
+        wp_workspaces = [(wt_wp01, "WP01", "010-mission-WP01")]
+        merge_plan = {
+            "all_wp_workspaces": wp_workspaces,
+            "effective_wp_workspaces": wp_workspaces,
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {},
+            "reason_summary": [],
+        }
+
+        marked_done: list[str] = []
+
+        def fake_mark_done(repo_root, mission_slug, wp_id, target_branch):
+            marked_done.append(wp_id)
+
+        monkeypatch.setattr(merge_module, "get_main_repo_root", lambda _: tmp_path)
+        monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *a, **kw: wp_workspaces)
+        monkeypatch.setattr(merge_module, "validate_wp_ready_for_merge", lambda *a, **kw: (True, ""))
+        monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *a, **kw: merge_plan)
+        monkeypatch.setattr(merge_module, "run_command", lambda *a, **kw: (0, "", ""))
+        monkeypatch.setattr(merge_module, "has_remote", lambda _: False)
+        monkeypatch.setattr(merge_module, "has_tracking_branch", lambda _: False)
+        monkeypatch.setattr(merge_module, "_mark_wp_merged_done", fake_mark_done)
+
+        tracker = StepTracker("Merge")
+        for step_id, label in [
+            ("verify", "Verify"), ("checkout", "Checkout"),
+            ("pull", "Pull"), ("merge", "Merge"),
+            ("worktree", "Worktree"), ("branch", "Branch"),
+        ]:
+            tracker.add(step_id, label)
+
+        merge_workspace_per_wp(
+            repo_root=tmp_path,
+            merge_root=tmp_path,
+            mission_slug="010-mission",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="merge",
+            delete_branch=False,
+            remove_worktree=False,
+            push=False,
+            dry_run=False,
+            json_output=False,
+            tracker=tracker,
+        )
+
+        assert marked_done == ["WP01"]
 
 
 # ---------------------------------------------------------------------------
@@ -395,11 +524,11 @@ class TestBuildMergePlanMocked:
 class TestMergeWorkspacePerWpDryRunMocked:
     """Dry-run output formatting with fully mocked internals."""
 
-    def test_json_dry_run_empty_feature(self, tmp_path, capsys):
+    def test_json_dry_run_empty_mission(self, tmp_path, capsys):
         from specify_cli.cli import StepTracker
 
         tracker = StepTracker("Merge")
-        tracker.add("merge", "Merge feature branch")
+        tracker.add("merge", "Merge mission branch")
 
         with (
             patch.object(merge_module, "get_main_repo_root", return_value=tmp_path),
@@ -408,7 +537,7 @@ class TestMergeWorkspacePerWpDryRunMocked:
             merge_workspace_per_wp(
                 repo_root=tmp_path,
                 merge_root=tmp_path,
-                feature_slug="999-missing",
+                mission_slug="999-missing",
                 current_branch="feature/test",
                 target_branch="main",
                 strategy="merge",
@@ -422,20 +551,20 @@ class TestMergeWorkspacePerWpDryRunMocked:
 
         payload = capsys.readouterr().out.strip().splitlines()[-1]
         data = json.loads(payload)
-        assert data["feature_slug"] == "999-missing"
+        assert data["mission_slug"] == "999-missing"
         assert data["effective_wp_branches"] == []
         assert "No WP branches/worktrees found" in data["reason_summary"][0]
 
     def test_human_dry_run_squash_push_cleanup(self, tmp_path, capsys, monkeypatch):
         from specify_cli.cli import StepTracker
 
-        existing = tmp_path / ".worktrees" / "030-feature-WP01"
+        existing = tmp_path / ".worktrees" / "030-mission-WP01"
         existing.mkdir(parents=True)
-        missing = tmp_path / ".worktrees" / "030-feature-WP02"
+        missing = tmp_path / ".worktrees" / "030-mission-WP02"
 
         wp_workspaces = [
-            (existing, "WP01", "030-feature-WP01"),
-            (missing, "WP02", "030-feature-WP02"),
+            (existing, "WP01", "030-mission-WP01"),
+            (missing, "WP02", "030-mission-WP02"),
         ]
         merge_plan = {
             "all_wp_workspaces": wp_workspaces,
@@ -460,7 +589,7 @@ class TestMergeWorkspacePerWpDryRunMocked:
         merge_workspace_per_wp(
             repo_root=tmp_path,
             merge_root=tmp_path,
-            feature_slug="030-feature",
+            mission_slug="030-mission",
             current_branch="feature/test",
             target_branch="main",
             strategy="squash",
@@ -474,9 +603,9 @@ class TestMergeWorkspacePerWpDryRunMocked:
 
         output = capsys.readouterr().out
         assert "Dry run - would execute" in output
-        assert "git merge --squash 030-feature-WP01" in output
-        assert "git merge --squash 030-feature-WP02" in output
+        assert "git merge --squash 030-mission-WP01" in output
+        assert "git merge --squash 030-mission-WP02" in output
         assert "git push origin main" in output
-        assert "git branch -d 030-feature-WP01" in output
-        assert "git branch -d 030-feature-WP02" in output
+        assert "git branch -d 030-mission-WP01" in output
+        assert "git branch -d 030-mission-WP02" in output
         assert "# skip worktree removal for WP02 (path not present)" in output

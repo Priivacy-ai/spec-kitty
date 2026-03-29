@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
-from specify_cli.sync.dossier_pipeline import DossierSyncResult, sync_feature_dossier
+from specify_cli.sync.dossier_pipeline import DossierSyncResult, sync_mission_dossier
 from specify_cli.sync.namespace import (
     NamespaceRef,
     UploadOutcome,
@@ -20,7 +20,7 @@ pytestmark = pytest.mark.fast
 def _make_namespace() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="550e8400-e29b-41d4-a716-446655440000",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
         mission_key="software-dev",
         manifest_version="1",
@@ -53,16 +53,16 @@ def _make_dossier(
     artifacts: list[ArtifactRef] | None = None,
 ) -> MissionDossier:
     return MissionDossier(
-        mission_slug="software-dev",
+        mission_type="software-dev",
         mission_run_id="test-run-id",
-        feature_slug="047-feat",
-        feature_dir="/tmp/feature",
+        mission_slug="047-feat",
+        mission_dir="/tmp/mission",
         artifacts=artifacts or [],
     )
 
 
-def _write_feature_file(feature_dir: Path, relative_path: str, content: str) -> None:
-    file_path = feature_dir / relative_path
+def _write_mission_file(mission_dir: Path, relative_path: str, content: str) -> None:
+    file_path = mission_dir / relative_path
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(content)
 
@@ -91,7 +91,7 @@ class TestDossierSyncResult:
         assert result.success is False
 
 
-# --- sync_feature_dossier ---
+# --- sync_mission_dossier ---
 
 
 @patch("specify_cli.sync.body_upload.prepare_body_uploads")
@@ -113,7 +113,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -129,7 +129,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.success is True
         assert result.dossier is dossier
@@ -148,12 +148,12 @@ class TestSyncFeatureDossier:
         tmp_path: Path,
     ) -> None:
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.side_effect = RuntimeError("scan failed")
+        mock_indexer.index_mission.side_effect = RuntimeError("scan failed")
         mock_indexer_cls.return_value = mock_indexer
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.success is False
         assert result.dossier is None
@@ -179,7 +179,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([a1, a2])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         # First emission fails, second succeeds
@@ -194,7 +194,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         # Pipeline still succeeds (partial failure is non-fatal)
         assert result.success is True
@@ -214,7 +214,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -225,7 +225,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.success is False  # Has errors
         assert result.events_emitted == 2  # Artifact + snapshot still emitted
@@ -244,7 +244,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit_snapshot.return_value = {
@@ -254,7 +254,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.success is True
         assert result.events_emitted == 1
@@ -278,7 +278,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([present, missing])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -290,7 +290,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         # 3 events: 1 indexed (present) + 1 missing + 1 snapshot
         assert result.events_emitted == 3
@@ -312,7 +312,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         # emit returns None (validation failure inside)
@@ -322,7 +322,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.events_emitted == 0
         assert result.success is True  # emit returning None is not an error
@@ -341,7 +341,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([a1, a2])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -361,7 +361,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        result = sync_feature_dossier(tmp_path, ns, queue)
+        result = sync_mission_dossier(tmp_path, ns, queue)
 
         assert result.success is True
         assert result.events_emitted == 3
@@ -383,17 +383,17 @@ class TestSyncFeatureDossier:
     ) -> None:
         dossier = _make_dossier([])
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
         mock_prepare.return_value = []
 
         ns = _make_namespace()
         queue = MagicMock()
-        sync_feature_dossier(
+        sync_mission_dossier(
             tmp_path, ns, queue, mission_type="documentation", step_id="plan",
         )
 
-        mock_indexer.index_feature.assert_called_once_with(
+        mock_indexer.index_mission.assert_called_once_with(
             tmp_path, "documentation", "plan",
         )
 
@@ -410,7 +410,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -421,13 +421,13 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        sync_feature_dossier(tmp_path, ns, queue)
+        sync_mission_dossier(tmp_path, ns, queue)
 
         mock_prepare.assert_called_once_with(
             artifacts=dossier.artifacts,
             namespace_ref=ns,
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
     def test_passes_step_id_to_emit(
@@ -443,7 +443,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -454,7 +454,7 @@ class TestSyncFeatureDossier:
 
         ns = _make_namespace()
         queue = MagicMock()
-        sync_feature_dossier(tmp_path, ns, queue, step_id="plan")
+        sync_mission_dossier(tmp_path, ns, queue, step_id="plan")
 
         assert mock_emit.call_args.kwargs["step_id"] == "plan"
 
@@ -480,7 +480,7 @@ class TestSyncFeatureDossier:
         dossier = _make_dossier([artifact])
 
         mock_indexer = MagicMock()
-        mock_indexer.index_feature.return_value = dossier
+        mock_indexer.index_mission.return_value = dossier
         mock_indexer_cls.return_value = mock_indexer
 
         mock_emit.return_value = {"event_type": "MissionDossierArtifactIndexed"}
@@ -510,7 +510,7 @@ class TestSyncFeatureDossier:
             node_id="node-123",
         )
 
-        result = sync_feature_dossier(
+        result = sync_mission_dossier(
             tmp_path,
             ns,
             queue,

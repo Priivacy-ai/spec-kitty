@@ -41,7 +41,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync") as mock_sync:
+        with patch("constitution.sync.sync") as mock_sync:
             mock_sync.return_value = Mock(synced=True, files_written=["governance.yaml"], error=None)
             changes = migration.apply(tmp_path, dry_run=False)
 
@@ -139,7 +139,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync") as mock_sync:
+        with patch("constitution.sync.sync") as mock_sync:
             mock_sync.return_value = Mock(
                 synced=True,
                 files_written=["governance.yaml", "directives.yaml"],
@@ -163,7 +163,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration with sync failure
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync") as mock_sync:
+        with patch("constitution.sync.sync") as mock_sync:
             mock_sync.return_value = Mock(synced=False, files_written=[], error="AI unavailable")
             changes = migration.apply(tmp_path, dry_run=False)
 
@@ -183,7 +183,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration with sync exception
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync") as mock_sync:
+        with patch("constitution.sync.sync") as mock_sync:
             mock_sync.side_effect = ImportError("Module not found")
             changes = migration.apply(tmp_path, dry_run=False)
 
@@ -203,7 +203,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration first time
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync"):
+        with patch("constitution.sync.sync"):
             changes1 = migration.apply(tmp_path, dry_run=False)
 
         # Verify moved
@@ -212,7 +212,7 @@ class TestConstitutionDirectoryMigration:
         assert any("Moved" in change for change in changes1)
 
         # Run migration second time
-        with patch("specify_cli.constitution.sync.sync"):
+        with patch("constitution.sync.sync"):
             changes2 = migration.apply(tmp_path, dry_run=False)
 
         # Verify skipped (scenario 3)
@@ -234,7 +234,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync"):
+        with patch("constitution.sync.sync"):
             migration.apply(tmp_path, dry_run=False)
 
         # Verify directory created
@@ -254,7 +254,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync"):
+        with patch("constitution.sync.sync"):
             migration.apply(tmp_path, dry_run=False)
 
         # Verify memory directory still exists with other file
@@ -271,7 +271,7 @@ class TestConstitutionDirectoryMigration:
 
         # Run migration
         migration = Migration()
-        with patch("specify_cli.constitution.sync.sync"):
+        with patch("constitution.sync.sync"):
             changes = migration.apply(tmp_path, dry_run=False)
 
         # Verify relative paths used

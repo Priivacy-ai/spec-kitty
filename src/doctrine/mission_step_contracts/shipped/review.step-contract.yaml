@@ -1,0 +1,51 @@
+schema_version: "1.0"
+id: review
+action: review
+mission: software-dev
+steps:
+  - id: bootstrap
+    description: Load constitution context for this action
+    command: "spec-kitty constitution context --action review --role review --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: verify_spec_fidelity
+    description: Verify implementation matches specification intent
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: assess_intent_and_risk
+    description: Evaluate changes for intent alignment and risk
+    delegates_to:
+      kind: tactic
+      candidates:
+        - review-intent-and-risk-first
+
+  - id: quality_gate
+    description: Verify tests pass and type checks succeed
+    delegates_to:
+      kind: directive
+      candidates:
+        - 030-test-and-typecheck-quality-gate
+
+  - id: verify_stopping_conditions
+    description: Check that work has reached completion criteria
+    delegates_to:
+      kind: tactic
+      candidates:
+        - quality-gate-verification
+        - stopping-conditions
+
+  - id: status_transition
+    description: Move WP to done or request changes
+    command: "spec-kitty agent tasks move-task {wp_id} --to done"
+    guidance: >
+      If changes are needed, move to in_progress with a reason.
+      If approved, move to done with evidence.

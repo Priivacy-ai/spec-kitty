@@ -1,6 +1,6 @@
-# How to Create a Feature Specification
+# How to Create a Mission Specification
 
-Use this guide to capture a new feature specification with `/spec-kitty.specify`.
+Use this guide to capture a new mission specification with `/spec-kitty.specify`.
 
 ## When to Use
 
@@ -32,7 +32,7 @@ After the command, the CLI interviews you for missing details. You must answer e
 /spec-kitty.specify Build a photo organizer that groups albums by date and supports drag-and-drop reordering.
 ```
 
-During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, the spec is written to `kitty-specs/<feature>/spec.md` on `main`.
+During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, the spec is written to `kitty-specs/<mission>/spec.md` on `main`.
 
 ## Troubleshooting
 
@@ -60,4 +60,4 @@ During discovery, answer follow-up questions (roles, constraints, success criter
 ## Getting Started
 
 - [Getting Started Tutorial](../tutorials/getting-started.md) - Hands-on introduction
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough

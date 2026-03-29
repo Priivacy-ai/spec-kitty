@@ -8,10 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-try:
-    from importlib.resources import files
-except ImportError:
-    from importlib_resources import files  # type: ignore
+from doctrine.missions import MissionRepository
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -34,8 +31,11 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
     target_version = "0.13.0"
 
     MISSION_NAME = "software-dev"
-    TEMPLATE_FILE = "constitution.md"
+    TEMPLATE_FILE = "constitution"
     SLASH_COMMAND_FILE = "spec-kitty.constitution.md"
+
+    def _repo(self) -> MissionRepository:
+        return MissionRepository(MissionRepository.default_missions_root())
 
     def detect(self, project_path: Path) -> bool:
         """Check if any agent has old /spec-kitty.plan reference."""
@@ -51,13 +51,9 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Check if we can read the template from packaged missions."""
-        try:
-            data_root = files("specify_cli")
-            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
-            if template_path.is_file():
-                return True, ""
-        except Exception as e:
-            return False, f"Cannot access packaged missions: {e}"
+        path = self._repo().get_command_template(self.MISSION_NAME, self.TEMPLATE_FILE)
+        if path is not None:
+            return True, ""
         return False, "Template not found in packaged missions"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
@@ -66,21 +62,19 @@ class UpdateConstitutionTemplatesMigration(BaseMigration):
         warnings: list[str] = []
         errors: list[str] = []
 
-        # Load template from packaged missions
+        # Load template from packaged missions via MissionRepository
+        template_path = self._repo().get_command_template(self.MISSION_NAME, self.TEMPLATE_FILE)
+        if template_path is None:
+            errors.append("Constitution template not found in packaged missions")
+            return MigrationResult(
+                success=False,
+                changes_made=changes,
+                errors=errors,
+                warnings=warnings,
+            )
+
         try:
-            data_root = files("specify_cli")
-            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
-
-            if not template_path.is_file():
-                errors.append("Constitution template not found in packaged missions")
-                return MigrationResult(
-                    success=False,
-                    changes_made=changes,
-                    errors=errors,
-                    warnings=warnings,
-                )
-
-            template_content = template_path.read_text(encoding="utf-8")
+            template_content = template_path.content
         except Exception as e:
             errors.append(f"Failed to read constitution template: {e}")
             return MigrationResult(

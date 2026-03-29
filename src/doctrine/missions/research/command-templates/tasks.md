@@ -20,8 +20,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the planning repository (not a worktree). Task generation happens on the target branch for ALL missions.
 
 ```bash
-git branch --show-current  # Should show the target branch (meta.json → target_branch)
+spec-kitty agent mission branch-context --json
 ```
+
+Use the returned JSON to confirm you are on the target branch (`planning_base_branch`).
 
 **Note**: Task generation in the target branch is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 
@@ -29,9 +31,9 @@ git branch --show-current  # Should show the target branch (meta.json → target
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks`
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
-   **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
+   **CRITICAL**: The command returns JSON with `MISSION_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 
@@ -108,7 +110,7 @@ git branch --show-current  # Should show the target branch (meta.json → target
    - **P3 (polish)**: Quality validation, external review
 
 5. **Write `tasks.md`**:
-   - Location: `FEATURE_DIR/tasks.md`
+   - Location: `MISSION_DIR/tasks.md`
    - Use `templates/tasks-template.md` from research mission
    - Include work packages with subtasks
    - Mark parallel opportunities (`[P]`)
@@ -117,15 +119,15 @@ git branch --show-current  # Should show the target branch (meta.json → target
 
 6. **Generate prompt files**:
 
-   **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
+   **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `MISSION_DIR/tasks/` directory, NOT in subdirectories!
 
-   - Create flat `FEATURE_DIR/tasks/` directory (no subdirectories!)
+   - Create flat `MISSION_DIR/tasks/` directory (no subdirectories!)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path: `FEATURE_DIR/tasks/WP01-literature-search.md`
+     - Full path: `MISSION_DIR/tasks/WP01-literature-search.md`
      - Use `templates/task-prompt-template.md` to capture:
        - **YAML frontmatter with `lane: "planned"`** (CRITICAL - this is how review finds WPs!)
-       - `work_package_id`, `subtasks` array, `dependencies`, history entry
+       - `work_package_id`, `subtasks` array, `task_type` (implement|review|plan|specify|research), `dependencies`, history entry
        - Objectives, context, methodology guidance per subtask
        - Evidence tracking requirements
        - Quality validation criteria
@@ -137,7 +139,7 @@ git branch --show-current  # Should show the target branch (meta.json → target
    **CRITICAL**: Run this command from repo root:
 
    ```bash
-   spec-kitty agent feature finalize-tasks --json
+   spec-kitty agent mission finalize-tasks --json
    ```
 
    This step is MANDATORY. Without it:

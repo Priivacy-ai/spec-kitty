@@ -26,21 +26,14 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-from specify_cli.glossary.scope import GlossaryScope
+# ScopeRef canonical definition moved to doctrine; re-exported here for backward compat.
+from kernel.glossary_types import GlossaryScope, ScopeRef  # noqa: F401
 from specify_cli.glossary.strictness import Strictness
 
 logger = logging.getLogger(__name__)
 
 # Valid cursor values representing execution stages
 VALID_CURSORS = frozenset({"pre_generation_gate", "post_clarification", "post_gate"})
-
-
-@dataclass(frozen=True)
-class ScopeRef:
-    """Reference to a specific glossary scope version."""
-
-    scope: GlossaryScope
-    version_id: str  # e.g., "v3", "2026-02-16-001"
 
 
 @dataclass(frozen=True)

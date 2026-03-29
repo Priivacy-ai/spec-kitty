@@ -4,7 +4,7 @@ Covers:
 - SC-001: implement emits WPStatusChanged(planned→in_progress)
 - SC-002: merge/move-task emits WPStatusChanged(in_progress→for_review)
 - SC-003: accept emits WPStatusChanged(for_review→done)
-- SC-004: finalize-tasks emits FeatureCreated + WPCreated batch
+- SC-004: finalize-tasks emits MissionCreated + WPCreated batch
 - SC-005: orchestrate emits WPAssigned
 - SC-008: Emission failure does not block command
 - SC-011: ErrorLogged emitted on errors
@@ -18,6 +18,8 @@ CLI commands call these functions internally).
 """
 
 from __future__ import annotations
+
+import pytest
 
 from unittest.mock import MagicMock, patch
 
@@ -111,35 +113,35 @@ class TestAcceptEmitsWPStatusChanged:
 
 
 class TestFinalizeTasksEmitsBatch:
-    """SC-004: finalize-tasks emits FeatureCreated + WPCreated for each WP."""
+    """SC-004: finalize-tasks emits MissionCreated + WPCreated for each WP."""
 
-    def test_feature_created_plus_wp_created(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """finalize-tasks: 1 FeatureCreated + 7 WPCreated events."""
+    def test_mission_created_plus_wp_created(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """finalize-tasks: 1 MissionCreated + 7 WPCreated events."""
         causation_id = emitter.generate_causation_id()
 
-        # Emit FeatureCreated
-        fc = emitter.emit_feature_created(
-            feature_slug="028-cli-event-emission-sync",
-            feature_number="028",
+        # Emit MissionCreated
+        fc = emitter.emit_mission_created(
+            mission_slug="028-cli-event-emission-sync",
+            mission_number="028",
             target_branch="main",
             wp_count=7,
             causation_id=causation_id,
         )
         assert fc is not None
-        assert fc["event_type"] == "FeatureCreated"
+        assert fc["event_type"] == "MissionCreated"
 
         # Emit 7 WPCreated events
         for i in range(1, 8):
             wp = emitter.emit_wp_created(
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
-                feature_slug="028-cli-event-emission-sync",
+                mission_slug="028-cli-event-emission-sync",
                 dependencies=([f"WP{i - 1:02d}"] if i > 1 else []),
                 causation_id=causation_id,
             )
             assert wp is not None
 
-        # Total: 1 FeatureCreated + 7 WPCreated = 8 events
+        # Total: 1 MissionCreated + 7 WPCreated = 8 events
         assert temp_queue.size() == 8
 
         # Verify causation chain
@@ -151,11 +153,11 @@ class TestFinalizeTasksEmitsBatch:
 class TestGitMetadataInBatchEvents:
     """SC-001 (Feature 033): git metadata present in batch event emissions."""
 
-    def test_feature_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """FeatureCreated event includes git metadata fields."""
-        event = emitter.emit_feature_created(
-            feature_slug="033-observability",
-            feature_number="033",
+    def test_mission_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """MissionCreated event includes git metadata fields."""
+        event = emitter.emit_mission_created(
+            mission_slug="033-observability",
+            mission_number="033",
             target_branch="main",
             wp_count=4,
         )
@@ -169,7 +171,7 @@ class TestGitMetadataInBatchEvents:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Test WP",
-            feature_slug="033-observability",
+            mission_slug="033-observability",
         )
         assert event is not None
         assert event["git_branch"] == "test-branch"
@@ -349,11 +351,11 @@ class TestIdentityInjection:
         assert "project_slug" in event
         assert event["project_slug"] == "test-project"
 
-    def test_feature_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """FeatureCreated event includes project_uuid."""
-        event = emitter.emit_feature_created(
-            feature_slug="032-identity-aware",
-            feature_number="032",
+    def test_mission_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """MissionCreated event includes project_uuid."""
+        event = emitter.emit_mission_created(
+            mission_slug="032-identity-aware",
+            mission_number="032",
             target_branch="main",
             wp_count=5,
         )
@@ -366,7 +368,7 @@ class TestIdentityInjection:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Test WP",
-            feature_slug="032-identity-aware",
+            mission_slug="032-identity-aware",
         )
         assert event is not None
         assert "project_uuid" in event
@@ -517,7 +519,7 @@ class TestPolicyMetadataPassthrough:
             from_lane="planned",
             to_lane="claimed",
             actor="claude",
-            feature_slug="099-test-feature",
+            mission_slug="099-test-mission",
             policy_metadata=policy,
         )
         assert event is not None

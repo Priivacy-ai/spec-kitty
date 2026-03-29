@@ -124,6 +124,12 @@ from .attachment import (
 )
 from .pipeline import prompt_conflict_resolution_safe
 
+# Register the concrete runner into the kernel registry so that
+# doctrine.missions.glossary_hook can call it without importing specify_cli.
+from kernel.glossary_runner import register as _register_glossary_runner
+
+_register_glossary_runner(GlossaryAwarePrimitiveRunner)
+
 __all__ = [
     # Models
     "Provenance",

@@ -22,6 +22,11 @@ This constitution captures the technical standards, architectural principles, an
 - **pytest** - Testing framework
 - **mypy** - Type checking (strict mode)
 
+### Developer Tooling Preferences
+
+- **`rg` (ripgrep)** is the preferred tool for all file-content searches — favour it over `grep`, `git grep`, or `ack` in scripts, CI steps, and agent instructions.
+- Use `rg --type py`, `rg -l`, `rg -n` etc. for targeted searches; avoid spawning `grep` or `find | xargs grep` pipelines.
+
 ### Testing Requirements
 
 - **pytest** with **90%+ test coverage** for new code

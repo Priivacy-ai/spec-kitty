@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
-
-@dataclass(frozen=True)
-class TermSurface:
-    """Raw string representation of a term."""
-
-    surface_text: str  # e.g., "workspace"
-
-    def __post_init__(self) -> None:
-        # Validate: must be normalized (lowercase, trimmed)
-        if self.surface_text != self.surface_text.lower().strip():
-            raise ValueError(f"TermSurface must be normalized: {self.surface_text}")
+# Canonical definitions moved to doctrine; re-exported here for backward compat.
+from kernel.glossary_types import (  # noqa: F401
+    ConflictType,
+    SemanticConflict,
+    SenseRef,
+    Severity,
+    TermSurface,
+)
 
 
 class SenseStatus(Enum):
@@ -55,50 +52,6 @@ class TermSense:
         # Validate definition not empty
         if not self.definition.strip():
             raise ValueError("Definition cannot be empty")
-
-
-class ConflictType(Enum):
-    """Type of semantic conflict."""
-
-    UNKNOWN = "unknown"  # No match in any scope
-    AMBIGUOUS = "ambiguous"  # Multiple active senses, unqualified usage
-    INCONSISTENT = "inconsistent"  # LLM output contradicts active glossary
-    UNRESOLVED_CRITICAL = "unresolved_critical"  # Unknown critical term, low confidence
-
-
-class Severity(Enum):
-    """Severity level of a semantic conflict."""
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-
-
-@dataclass
-class SenseRef:
-    """Reference to a TermSense (used in conflict candidates)."""
-
-    surface: str
-    scope: str
-    definition: str
-    confidence: float
-
-
-@dataclass
-class SemanticConflict:
-    """Classification of a term conflict."""
-
-    term: TermSurface
-    conflict_type: ConflictType
-    severity: Severity
-    confidence: float  # 0.0-1.0 (confidence in conflict detection)
-    candidate_senses: list[SenseRef] = field(default_factory=list)
-    context: str = ""  # Usage location (e.g., "step input: description field")
-
-    def __post_init__(self) -> None:
-        # Validate: AMBIGUOUS type must have candidates
-        if self.conflict_type == ConflictType.AMBIGUOUS and not self.candidate_senses:
-            raise ValueError("AMBIGUOUS conflict must have candidate_senses")
 
 
 # Serialization helpers for event emission

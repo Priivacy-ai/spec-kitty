@@ -25,9 +25,9 @@ __all__ = [
 
 # Patterns for status files that can be auto-resolved
 STATUS_FILE_PATTERNS = [
-    "kitty-specs/*/tasks/*.md",  # WP files: kitty-specs/017-feature/tasks/WP01.md
-    "kitty-specs/*/tasks.md",  # Main tasks: kitty-specs/017-feature/tasks.md
-    "kitty-specs/*/*/tasks/*.md",  # Nested: kitty-specs/features/017/tasks/WP01.md
+    "kitty-specs/*/tasks/*.md",  # WP files: kitty-specs/017-mission/tasks/WP01.md
+    "kitty-specs/*/tasks.md",  # Main tasks: kitty-specs/017-mission/tasks.md
+    "kitty-specs/*/*/tasks/*.md",  # Nested: kitty-specs/missions/017/tasks/WP01.md
     "kitty-specs/*/*/tasks.md",  # Nested main
 ]
 
@@ -66,10 +66,7 @@ def is_status_file(file_path: str) -> bool:
     Returns:
         True if file matches a status file pattern
     """
-    for pattern in STATUS_FILE_PATTERNS:
-        if fnmatch.fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(fnmatch.fnmatch(file_path, pattern) for pattern in STATUS_FILE_PATTERNS)
 
 
 def build_file_wp_mapping(

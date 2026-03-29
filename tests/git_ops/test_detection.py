@@ -155,24 +155,24 @@ class TestLockedVCSFromMeta:
         vcs = get_vcs(tmp_path)
         assert vcs.backend == VCSBackend.GIT
 
-    def test_path_inside_feature_uses_locked_vcs(self, tmp_path):
-        """Path inside feature directory should use locked VCS from meta.json."""
+    def test_path_inside_mission_uses_locked_vcs(self, tmp_path):
+        """Path inside mission directory should use locked VCS from meta.json."""
         import json
 
-        # Create feature structure with locked VCS
-        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-        feature_dir.mkdir(parents=True)
-        tasks_dir = feature_dir / "tasks"
+        # Create mission structure with locked VCS
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        mission_dir.mkdir(parents=True)
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir()
-        meta = feature_dir / "meta.json"
+        meta = mission_dir / "meta.json"
         meta.write_text(json.dumps({"vcs": "git"}))
 
-        # Path is inside the feature directory
-        path_inside_feature = tasks_dir / "WP01.md"
-        path_inside_feature.touch()
+        # Path is inside the mission directory
+        path_inside_mission = tasks_dir / "WP01.md"
+        path_inside_mission.touch()
 
-        vcs = get_vcs(path_inside_feature)
-        # Should use git (locked VCS) since path is inside feature
+        vcs = get_vcs(path_inside_mission)
+        # Should use git (locked VCS) since path is inside mission
         assert vcs.backend == VCSBackend.GIT
 
     def test_explicit_backend_matching_locked_works(self, tmp_path):
@@ -180,19 +180,19 @@ class TestLockedVCSFromMeta:
         import json
 
 
-        # Create feature with git locked
-        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-        feature_dir.mkdir(parents=True)
-        tasks_dir = feature_dir / "tasks"
+        # Create mission with git locked
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        mission_dir.mkdir(parents=True)
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir()
-        meta = feature_dir / "meta.json"
+        meta = mission_dir / "meta.json"
         meta.write_text(json.dumps({"vcs": "git"}))
 
-        # Path inside feature
+        # Path inside mission
         path_inside = tasks_dir / "WP01.md"
         path_inside.touch()
 
-        # Request git and feature is locked to git - should work
+        # Request git and mission is locked to git - should work
         vcs = get_vcs(path_inside, backend=VCSBackend.GIT)
         assert vcs.backend == VCSBackend.GIT
 

@@ -1,0 +1,36 @@
+id: "imp-quickstart-reverse-speccing"
+source:
+  title: "Approach: Reverse Speccing (Test-to-System Reconstruction)"
+  type: "approach"
+  publisher: "quickstart_agent-augmented-development"
+  path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/approaches/reverse-speccing.md"
+  accessed_on: "2026-03-28"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    Dual-agent validation that reconstructs system understanding from tests only,
+    then scores accuracy against reality. Measures whether tests serve as
+    executable specifications. Three-dimensional scoring: behavioral (50%),
+    architectural (30%), operational (20%).
+adaptation:
+  summary: >
+    Condensed from a full approach document into a spec-kitty tactic YAML.
+    Preserved the 6-step flow (scope, reconstruct, narrative, compare, gaps,
+    recommend). Added scoring section with target thresholds and common_gaps
+    lookup table for quick diagnosis.
+  notes:
+    - "Source includes a detailed dual-agent method — preserved as scoring rubric and common_gaps table."
+    - "Source also produced test-readability-clarity-check.md — similar content, reverse-speccing is the more actionable version."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/approaches/reverse-speccing.md"
+    lines: "1-350"
+    note: "Full approach with scoring rubric and example results."
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/approaches/test-readability-clarity-check.md"
+    lines: "1-400"
+    note: "Related approach — precursor to reverse speccing."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/_proposed/reverse-speccing.tactic.yaml"

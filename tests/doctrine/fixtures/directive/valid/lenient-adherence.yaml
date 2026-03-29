@@ -1,0 +1,7 @@
+schema_version: "1.0"
+id: DEFENSIVE_REVIEW_LENIENT
+title: Defensive Review With Allowances
+intent: Review with hard policy checks first, allowing documented exceptions.
+enforcement: lenient-adherence
+explicit_allowances:
+  - Allow bounded cleanup when it reduces verification noise and is documented.

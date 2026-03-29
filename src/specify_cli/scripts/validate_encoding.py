@@ -10,7 +10,7 @@ This utility helps prevent UnicodeDecodeError issues by:
 
 Usage:
     python scripts/validate_encoding.py --check kitty-specs/
-    python scripts/validate_encoding.py --fix kitty-specs/001-feature/
+    python scripts/validate_encoding.py --fix kitty-specs/001-mission/
     python scripts/validate_encoding.py --scan-all
 """
 

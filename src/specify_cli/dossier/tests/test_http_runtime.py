@@ -17,12 +17,8 @@ Test Strategy:
 - Ensure no silent failures (explicit errors on data issues)
 """
 
-import json
 import pytest
-import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock
 
 from specify_cli.dossier.api import (
     DossierAPIHandler,
@@ -32,17 +28,17 @@ from specify_cli.dossier.api import (
     SnapshotExportResponse,
 )
 from specify_cli.dossier.snapshot import save_snapshot, compute_snapshot
-from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 
 class TestDossierHTTPRuntime:
     """Runtime HTTP endpoint tests with real snapshots."""
 
     @pytest.fixture
-    def temp_feature_dir(self, tmp_path):
-        """Create temp feature directory with real snapshot."""
-        feature_dir = tmp_path / "kitty-specs" / "042-test-feature"
-        feature_dir.mkdir(parents=True)
+    def temp_mission_dir(self, tmp_path):
+        """Create temp mission directory with real snapshot."""
+        mission_dir = tmp_path / "kitty-specs" / "042-test-mission"
+        mission_dir.mkdir(parents=True)
 
         # Create real dossier with artifacts
         artifacts = [
@@ -80,34 +76,34 @@ class TestDossierHTTPRuntime:
         ]
 
         dossier = MissionDossier(
-            feature_slug="042-test-feature",
-            feature_dir=str(feature_dir),
+            mission_slug="042-test-mission",
+            mission_dir=str(mission_dir),
             artifacts=artifacts,
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-001",
         )
 
         # Compute and save snapshot
         snapshot = compute_snapshot(dossier)
-        save_snapshot(snapshot, feature_dir)
+        save_snapshot(snapshot, mission_dir)
 
-        return feature_dir
+        return mission_dir
 
-    def test_overview_endpoint_returns_valid_model(self, temp_feature_dir):
+    def test_overview_endpoint_returns_valid_model(self, temp_mission_dir):
         """Verify overview endpoint returns proper response model."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_overview("042-test-feature")
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
+        response = handler.handle_dossier_overview("042-test-mission")
 
         # Verify response is model (not error dict)
         assert isinstance(response, DossierOverviewResponse)
-        assert response.feature_slug == "042-test-feature"
+        assert response.mission_slug == "042-test-mission"
         assert response.completeness_status in ("complete", "incomplete", "unknown")
         assert len(response.parity_hash_sha256) == 64  # SHA256 hex
 
-    def test_artifacts_endpoint_returns_full_list(self, temp_feature_dir):
+    def test_artifacts_endpoint_returns_full_list(self, temp_mission_dir):
         """Verify artifacts endpoint returns all artifacts."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_artifacts("042-test-feature")
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
+        response = handler.handle_dossier_artifacts("042-test-mission")
 
         # Verify response is model (not error dict)
         assert isinstance(response, ArtifactListResponse)
@@ -122,11 +118,11 @@ class TestDossierHTTPRuntime:
             assert item.relative_path  # This was missing before fix!
             assert item.required_status in ("required", "optional")
 
-    def test_artifacts_endpoint_filters_by_class(self, temp_feature_dir):
+    def test_artifacts_endpoint_filters_by_class(self, temp_mission_dir):
         """Verify artifacts endpoint respects class filter."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
         response = handler.handle_dossier_artifacts(
-            "042-test-feature", **{"class": "input"}
+            "042-test-mission", **{"class": "input"}
         )
 
         # Verify filtering works
@@ -135,11 +131,11 @@ class TestDossierHTTPRuntime:
         assert len(response.artifacts) == 1
         assert response.artifacts[0].artifact_class == "input"
 
-    def test_artifacts_endpoint_filters_by_required_only(self, temp_feature_dir):
+    def test_artifacts_endpoint_filters_by_required_only(self, temp_mission_dir):
         """Verify artifacts endpoint respects required_only filter."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
         response = handler.handle_dossier_artifacts(
-            "042-test-feature", required_only="true"
+            "042-test-mission", required_only="true"
         )
 
         # Verify only required artifacts returned
@@ -149,11 +145,11 @@ class TestDossierHTTPRuntime:
         for item in response.artifacts:
             assert item.required_status == "required"
 
-    def test_artifact_detail_endpoint_reconstructs_from_snapshot(self, temp_feature_dir):
+    def test_artifact_detail_endpoint_reconstructs_from_snapshot(self, temp_mission_dir):
         """Verify detail endpoint can reconstruct artifact from snapshot."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
         response = handler.handle_dossier_artifact_detail(
-            "042-test-feature", "input.spec.main"
+            "042-test-mission", "input.spec.main"
         )
 
         # Verify response is model (not error dict)
@@ -164,11 +160,11 @@ class TestDossierHTTPRuntime:
         assert response.size_bytes == 1024
         assert response.is_present is True
 
-    def test_artifact_detail_handles_missing_artifact(self, temp_feature_dir):
+    def test_artifact_detail_handles_missing_artifact(self, temp_mission_dir):
         """Verify detail endpoint handles missing artifacts gracefully."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
         response = handler.handle_dossier_artifact_detail(
-            "042-test-feature", "nonexistent.artifact"
+            "042-test-mission", "nonexistent.artifact"
         )
 
         # Verify error response
@@ -176,24 +172,24 @@ class TestDossierHTTPRuntime:
         assert "error" in response
         assert response.get("status_code") == 404
 
-    def test_export_endpoint_returns_snapshot(self, temp_feature_dir):
+    def test_export_endpoint_returns_snapshot(self, temp_mission_dir):
         """Verify export endpoint returns complete snapshot."""
-        handler = DossierAPIHandler(temp_feature_dir.parent.parent)
-        response = handler.handle_dossier_snapshot_export("042-test-feature")
+        handler = DossierAPIHandler(temp_mission_dir.parent.parent)
+        response = handler.handle_dossier_snapshot_export("042-test-mission")
 
         # Verify response is model (not error dict)
         assert isinstance(response, SnapshotExportResponse)
-        assert response.feature_slug == "042-test-feature"
+        assert response.mission_slug == "042-test-mission"
         assert response.total_artifacts == 3
         assert response.required_artifacts == 2
         assert response.required_present == 2
         assert response.required_missing == 0
 
-    def test_all_artifact_summaries_have_required_fields(self, temp_feature_dir):
+    def test_all_artifact_summaries_have_required_fields(self, temp_mission_dir):
         """Verify snapshots include all fields needed for reconstruction."""
         from specify_cli.dossier.snapshot import load_snapshot
 
-        snapshot = load_snapshot(temp_feature_dir, "042-test-feature")
+        snapshot = load_snapshot(temp_mission_dir, "042-test-mission")
         assert snapshot is not None
 
         # Verify each summary has all required fields

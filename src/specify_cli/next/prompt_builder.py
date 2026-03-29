@@ -9,15 +9,15 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from specify_cli.constitution.context import build_constitution_context
-from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
+from constitution.context import build_constitution_context
+from constitution.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
 
 
 def build_prompt(
     action: str,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     wp_id: str | None,
     agent: str,
     repo_root: Path,
@@ -28,17 +28,17 @@ def build_prompt(
     Returns ``(prompt_text, prompt_file_path)``.
 
     For planning actions (specify, plan, tasks, research, accept) the prompt is
-    the command template with a feature context header prepended.
+    the command template with a mission context header prepended.
 
     For implement/review actions the prompt includes workspace paths, isolation
     rules, WP content, and completion instructions.
     """
     if action in ("implement", "review") and wp_id:
-        prompt_text = _build_wp_prompt(action, feature_dir, feature_slug, wp_id, agent, repo_root, mission_key)
+        prompt_text = _build_wp_prompt(action, mission_dir, mission_slug, wp_id, agent, repo_root, mission_key)
     else:
-        prompt_text = _build_template_prompt(action, feature_dir, feature_slug, agent, repo_root, mission_key)
+        prompt_text = _build_template_prompt(action, mission_dir, mission_slug, agent, repo_root, mission_key)
 
-    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, feature_slug=feature_slug)
+    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug)
     return prompt_text, prompt_file
 
 
@@ -46,7 +46,7 @@ def build_decision_prompt(
     question: str,
     options: list[str] | None,
     decision_id: str,
-    feature_slug: str,
+    mission_slug: str,
     agent: str,
 ) -> tuple[str, Path]:
     """Build a prompt for a decision_required response.
@@ -58,7 +58,7 @@ def build_decision_prompt(
         "DECISION REQUIRED",
         "=" * 80,
         "",
-        f"Feature: {feature_slug}",
+        f"Mission: {mission_slug}",
         f"Agent: {agent}",
         f"Decision ID: {decision_id}",
         "",
@@ -73,20 +73,20 @@ def build_decision_prompt(
         lines.append("")
 
     lines.append("To answer:")
-    lines.append(f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+    lines.append(f'  spec-kitty next --agent {agent} --mission {mission_slug} --answer "<your answer>" --decision-id "{decision_id}"')
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
         "decision", None, prompt_text,
-        agent=agent, feature_slug=feature_slug,
+        agent=agent, mission_slug=mission_slug,
     )
     return prompt_text, prompt_file
 
 
 def _build_template_prompt(
     action: str,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     agent: str,
     repo_root: Path,
     mission_key: str,
@@ -95,26 +95,26 @@ def _build_template_prompt(
     result = resolve_command(f"{action}.md", repo_root, mission=mission_key)
     template_content = result.path.read_text(encoding="utf-8")
 
-    header = _feature_context_header(feature_slug, feature_dir, agent)
+    header = _mission_context_header(mission_slug, mission_dir, agent)
     governance = _governance_context(repo_root, action=action)
     return f"{header}\n\n{governance}\n\n{template_content}"
 
 
 def _build_wp_prompt(
     action: str,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     wp_id: str,
     agent: str,
     repo_root: Path,
     mission_key: str,
 ) -> str:
     """Build prompt for implement or review actions with WP context."""
-    workspace_name = f"{feature_slug}-{wp_id}"
+    workspace_name = f"{mission_slug}-{wp_id}"
     workspace_path = repo_root / ".worktrees" / workspace_name
 
     # Read WP file content
-    wp_content = _read_wp_content(feature_dir, wp_id)
+    wp_content = _read_wp_content(mission_dir, wp_id)
 
     lines: list[str] = []
     lines.append("=" * 80)
@@ -122,8 +122,8 @@ def _build_wp_prompt(
     lines.append("=" * 80)
     lines.append("")
     lines.append(f"Agent: {agent}")
-    lines.append(f"Feature: {feature_slug}")
-    lines.append(f"Mission: {mission_key}")
+    lines.append(f"Mission: {mission_slug}")
+    lines.append(f"Mission key: {mission_key}")
     lines.append(f"Workspace: {workspace_path}")
     lines.append("")
     lines.append(_governance_context(repo_root, action=action))
@@ -131,7 +131,7 @@ def _build_wp_prompt(
 
     # WP isolation rules
     lines.append("=" * 78)
-    lines.append(f"  CRITICAL: WORK PACKAGE ISOLATION RULES")
+    lines.append("  CRITICAL: WORK PACKAGE ISOLATION RULES")
     lines.append("=" * 78)
     lines.append(f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}")
     lines.append("")
@@ -146,14 +146,14 @@ def _build_wp_prompt(
     lines.append("")
 
     # Working directory
-    lines.append(f"WORKING DIRECTORY:")
+    lines.append("WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
     lines.append("")
 
     if action == "review":
         lines.append("REVIEW COMMANDS:")
-        lines.append(f"  git log main..HEAD --oneline")
-        lines.append(f"  git diff main..HEAD --stat")
+        lines.append("  git log main..HEAD --oneline")
+        lines.append("  git diff main..HEAD --stat")
         lines.append("")
 
     # WP content
@@ -180,13 +180,13 @@ def _build_wp_prompt(
     return "\n".join(lines)
 
 
-def _feature_context_header(feature_slug: str, feature_dir: Path, agent: str) -> str:
-    """Build a feature context header for template prompts."""
+def _mission_context_header(mission_slug: str, mission_dir: Path, agent: str) -> str:
+    """Build a mission context header for template prompts."""
     lines = [
         "=" * 80,
-        f"Feature: {feature_slug}",
+        f"Mission: {mission_slug}",
         f"Agent: {agent}",
-        f"Feature directory: {feature_dir}",
+        f"Mission directory: {mission_dir}",
         "=" * 80,
     ]
     return "\n".join(lines)
@@ -235,9 +235,9 @@ def _legacy_governance_context(repo_root: Path) -> str:
     return "\n".join(lines)
 
 
-def _read_wp_content(feature_dir: Path, wp_id: str) -> str:
+def _read_wp_content(mission_dir: Path, wp_id: str) -> str:
     """Read WP file content from the tasks directory."""
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.is_dir():
         return f"[WP file not found: tasks directory missing at {tasks_dir}]"
 
@@ -258,15 +258,15 @@ def _write_to_temp(
     content: str,
     *,
     agent: str = "unknown",
-    feature_slug: str = "unknown",
+    mission_slug: str = "unknown",
 ) -> Path:
     """Write prompt content to a temp file.
 
-    Filenames include agent and feature to avoid collisions when multiple
-    agents or features run concurrently.
+    Filenames include agent and mission to avoid collisions when multiple
+    agents or missions run concurrently.
     """
     wp_suffix = f"-{wp_id}" if wp_id else ""
-    filename = f"spec-kitty-next-{agent}-{feature_slug}-{action}{wp_suffix}.md"
+    filename = f"spec-kitty-next-{agent}-{mission_slug}-{action}{wp_suffix}.md"
     prompt_path = Path(tempfile.gettempdir()) / filename
     prompt_path.write_text(content, encoding="utf-8")
     return prompt_path

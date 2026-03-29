@@ -49,7 +49,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
         >>> assert (root / ".kittify").exists()
 
         >>> # From worktree - returns MAIN repo, not worktree
-        >>> root = locate_project_root(Path(".worktrees/my-feature"))
+        >>> root = locate_project_root(Path(".worktrees/my-mission"))
         >>> assert ".worktrees" not in str(root)
     """
     # Tier 1: Check environment variable (allows override for CI/CD)
@@ -114,7 +114,7 @@ def is_worktree_context(path: Path) -> bool:
         True if path is within any git worktree, False otherwise
 
     Examples:
-        >>> is_worktree_context(Path("/repo/.worktrees/feature-001"))
+        >>> is_worktree_context(Path("/repo/.worktrees/mission-001"))
         True
         >>> is_worktree_context(Path("/repo/kitty-specs"))
         False
@@ -167,7 +167,7 @@ def resolve_with_context(start: Path | None = None) -> tuple[Path | None, bool]:
         >>> assert in_worktree is False
 
         >>> # From worktree
-        >>> root, in_worktree = resolve_with_context(Path(".worktrees/my-feature"))
+        >>> root, in_worktree = resolve_with_context(Path(".worktrees/my-mission"))
         >>> assert in_worktree is True
     """
     current = (start or Path.cwd()).resolve()
@@ -215,7 +215,7 @@ def get_main_repo_root(current_path: Path) -> Path:
         Path('/repo')
 
         >>> # From worktree - returns main repo
-        >>> get_main_repo_root(Path("/repo/.worktrees/feature-001"))
+        >>> get_main_repo_root(Path("/repo/.worktrees/mission-001"))
         Path('/repo')
     """
     git_file = current_path / ".git"
@@ -239,16 +239,16 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path.resolve()
 
 
-# DEPRECATED: find_feature_slug() has been removed
-# Use detect_feature_slug() from specify_cli.core.feature_detection instead
+# DEPRECATED: find_mission_slug() has been removed
+# Use detect_mission_slug() from specify_cli.core.mission_detection instead
 #
 # Migration:
-#   from specify_cli.core.feature_detection import detect_feature_slug
-#   slug = detect_feature_slug(repo_root)
+#   from specify_cli.core.mission_detection import detect_mission_slug
+#   slug = detect_mission_slug(repo_root)
 #
 # The new centralized implementation provides:
 # - Deterministic behavior (no "highest numbered" guessing)
-# - Explicit error messages guiding users to --feature flag
+# - Explicit error messages guiding users to --mission flag
 # - Consistent behavior across all commands
 
 
@@ -258,5 +258,5 @@ __all__ = [
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
-    # find_feature_slug has been removed - use detect_feature_slug from core.feature_detection
+    # find_mission_slug has been removed - use detect_mission_slug from core.mission_detection
 ]
