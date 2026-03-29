@@ -313,7 +313,7 @@
 - [x] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
 - [x] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
 - [x] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
-- [ ] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
+- [x] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
 - [ ] T055 [P] Rename "feature" to "mission" in detection error messages (`feature_detection.py`), status hints, and `SPECIFY_FEATURE` env var references. Add `SPECIFY_MISSION` as primary env var with `SPECIFY_FEATURE` as deprecated fallback.
 
 ### Implementation Notes
