@@ -514,7 +514,7 @@ def create_feature(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
-    """Create new feature directory structure in planning repository.
+    """Create new feature directory structure in the project root checkout.
 
     This command is designed for AI agents to call programmatically.
     Creates feature directory in kitty-specs/ and commits to the current branch.
@@ -547,7 +547,7 @@ def create_feature(
         # GUARD: Refuse to run from inside a worktree (must be in planning repo)
         cwd = Path.cwd().resolve()
         if is_worktree_context(cwd):
-            error_msg = "Cannot create features from inside a worktree. Run from the planning repository."
+            error_msg = "Cannot create features from inside a worktree. Run from the project root checkout."
             if json_output:
                 _emit_json({"error": error_msg})
             else:
@@ -978,7 +978,7 @@ def setup_plan(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Scaffold implementation plan template in planning repository.
+    """Scaffold implementation plan template in the project root checkout.
 
     This command is designed for AI agents to call programmatically.
     Creates plan.md and commits to target branch.
