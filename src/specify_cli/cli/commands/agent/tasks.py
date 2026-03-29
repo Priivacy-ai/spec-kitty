@@ -2415,9 +2415,10 @@ def status(
             console.print()
 
         if by_lane["approved"]:
-            console.print("[bold magenta]👍 Approved Awaiting Merge:[/bold magenta]")
+            console.print("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
             for wp in by_lane["approved"]:
                 console.print(f"  • {wp['id']} - {wp['title']}")
+            console.print("[dim]   Approved WPs stay here until feature merge. Dependents can start immediately.[/dim]")
             console.print()
 
         if by_lane["in_progress"]:
@@ -2463,6 +2464,11 @@ def status(
         summary.add_row("Auto-commit:", auto_commit_label)
 
         console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
+
+        # Next action hint — always show so agents know what to do
+        console.print("[bold]▶ Next action:[/bold]")
+        console.print(f"  [cyan]spec-kitty next --agent <your-name> --feature {feature_slug}[/cyan]")
+        console.print("[dim]  This command tells you exactly what to do next based on the dependency graph.[/dim]")
         console.print()
 
     except Exception as e:
