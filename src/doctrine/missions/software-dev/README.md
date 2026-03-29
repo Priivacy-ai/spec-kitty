@@ -1,6 +1,6 @@
 # Software Development Mission
 
-The primary mission type for structured feature development. Defines a 6-state
+The primary mission type for structured mission development. Defines a 6-state
 workflow from discovery through review to completion.
 
 ## State Machine

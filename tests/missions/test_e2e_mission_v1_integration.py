@@ -19,7 +19,7 @@ def _write_yaml(path: Path, data: dict) -> None:
 
 def test_v1_mission_e2e(tmp_path: Path):
     """Full v1 mission flow with guard blocking until artifact exists."""
-    mission_dir = tmp_path / "test-mission"
+    mission_dir = tmp_path / "mission"
     _write_yaml(
         mission_dir / "mission.yaml",
         {
@@ -47,10 +47,7 @@ def test_v1_mission_e2e(tmp_path: Path):
         },
     )
 
-    feature_dir = tmp_path / "feature"
-    feature_dir.mkdir()
-
-    mission = load_mission(mission_dir, feature_dir=feature_dir)
+    mission = load_mission(mission_dir, mission_dir=mission_dir)
     assert isinstance(mission, StateMachineMission)
     assert mission.state == "alpha"
 
@@ -59,7 +56,7 @@ def test_v1_mission_e2e(tmp_path: Path):
     assert mission.state == "alpha"
 
     # Satisfy guard
-    (feature_dir / "required.txt").write_text("exists", encoding="utf-8")
+    (mission_dir / "required.txt").write_text("exists", encoding="utf-8")
 
     mission.trigger("advance")
     assert mission.state == "beta"
@@ -104,9 +101,9 @@ def test_v0_mission_e2e(tmp_path: Path):
 
 def test_all_missions_coexist(tmp_path: Path):
     """Ensure bundled missions (3 v1 + 1 v0) load together."""
-    from doctrine.missions.repository import MissionRepository
+    from doctrine.missions import MissionTemplateRepository
 
-    missions_src = MissionRepository.default_missions_root()
+    missions_src = MissionTemplateRepository.default_missions_root()
     mission_names = ["software-dev", "research", "plan", "documentation"]
 
     loaded = []

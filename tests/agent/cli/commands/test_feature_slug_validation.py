@@ -1,23 +1,23 @@
-"""Scope: CLI integration tests for feature slug kebab-case validation — real git subprocess."""
+"""Scope: CLI integration tests for mission slug kebab-case validation — real git subprocess."""
 
 import subprocess
 import pytest
 from typer.testing import CliRunner
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
 
 
-def test_feature_slug_with_spaces_rejected():
-    """Feature slugs with spaces should be rejected."""
+def test_mission_slug_with_spaces_rejected():
+    """Mission slugs with spaces should be rejected."""
     # Arrange
     slug = "Invalid Feature Name"
     # Assumption check
     assert " " in slug
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create-mission", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with spaces"
     output = result.stdout
@@ -25,40 +25,40 @@ def test_feature_slug_with_spaces_rejected():
     assert "examples:" in output.lower() or "example" in output.lower(), "Should show examples"
 
 
-def test_feature_slug_with_underscores_rejected():
-    """Feature slugs with underscores should be rejected."""
+def test_mission_slug_with_underscores_rejected():
+    """Mission slugs with underscores should be rejected."""
     # Arrange
     slug = "user_authentication"
     # Assumption check
     assert "_" in slug
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create-mission", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with underscores"
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_feature_slug_starting_with_number_rejected():
-    """Feature slugs must start with a letter."""
+def test_mission_slug_starting_with_number_rejected():
+    """Mission slugs must start with a letter."""
     # Arrange
-    slug = "123-test-feature"
+    slug = "123-test-mission"
     # Assumption check
     assert slug[0].isdigit()
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create-mission", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug starting with number"
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_feature_slug_with_uppercase_rejected():
-    """Feature slugs must be lowercase only."""
+def test_mission_slug_with_uppercase_rejected():
+    """Mission slugs must be lowercase only."""
     # Arrange
     slug = "UserAuth"
     # Assumption check
     assert any(c.isupper() for c in slug)
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create-mission", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with uppercase"
     assert "lowercase" in result.stdout.lower()
@@ -79,12 +79,12 @@ def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
     (tmp_path / "kitty-specs").mkdir()
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=tmp_path, check=True, capture_output=True)
-    valid_slugs = ["user-auth", "fix-bug-123", "new-dashboard", "a", "test-feature-2"]
+    valid_slugs = ["user-auth", "fix-bug-123", "new-dashboard", "a", "test-mission-2"]
     # Assumption check
     assert all("-" not in s or s.replace("-", "").replace("0123456789", "").isalpha() or True for s in valid_slugs)
     # Act / Assert
     for slug in valid_slugs:
-        result = runner.invoke(app, ["create-feature", slug, "--json"])
+        result = runner.invoke(app, ["create-mission", slug, "--json"])
         assert result.exit_code == 0, f"Valid slug '{slug}' should be accepted. Output: {result.stdout}"
 
 

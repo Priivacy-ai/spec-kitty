@@ -14,6 +14,6 @@
 
 ## Typical 1.x Paths
 
-1. Feature artifacts: `kitty-specs/<feature>/...`
+1. Feature artifacts: `kitty-specs/<mission>/...`
 2. Runtime/project state: `.kittify/...`
 3. Command templates and mission defaults from packaged mission/template roots (`src/specify_cli/missions/**`, `src/specify_cli/templates/**`) and project overrides.

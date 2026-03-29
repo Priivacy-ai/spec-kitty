@@ -26,9 +26,9 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture
-def feature_dir(tmp_path: Path) -> Path:
-    """Create a minimal feature directory."""
-    fd = tmp_path / "kitty-specs" / "042-test-feature"
+def mission_dir(tmp_path: Path) -> Path:
+    """Create a minimal mission directory."""
+    fd = tmp_path / "kitty-specs" / "042-test-mission"
     fd.mkdir(parents=True)
     # Create meta.json
     meta = fd / "meta.json"
@@ -37,9 +37,9 @@ def feature_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def feature_with_tasks(feature_dir: Path) -> Path:
+def mission_with_tasks(mission_dir: Path) -> Path:
     """Feature dir with WP task files."""
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
     # WP01 - planned
     (tasks_dir / "WP01.md").write_text(
@@ -61,7 +61,7 @@ def feature_with_tasks(feature_dir: Path) -> Path:
         "---\nwork_package_id: WP04\nlane: for_review\n---\nContent WP04\n",
         encoding="utf-8",
     )
-    return feature_dir
+    return mission_dir
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ def feature_with_tasks(feature_dir: Path) -> Path:
 
 def _advance_runtime_to_step(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     target_step_id: str,
     agent: str = "test-agent",
 ) -> None:
@@ -82,11 +82,11 @@ def _advance_runtime_to_step(
     """
     from specify_cli.next.runtime_bridge import get_or_start_run
 
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_key
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_key = get_mission_key(mission_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
 
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
     from spec_kitty_runtime.engine import _read_snapshot
@@ -119,17 +119,17 @@ def _advance_runtime_to_step(
 
 def _complete_all_steps(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
     from specify_cli.next.runtime_bridge import get_or_start_run
 
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_key
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_key = get_mission_key(mission_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
 
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
 
@@ -151,14 +151,14 @@ def _complete_all_steps(
 
 
 class TestDeriveMissionState:
-    def test_empty_log_returns_initial(self, feature_dir: Path) -> None:
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
+    def test_empty_log_returns_initial(self, mission_dir: Path) -> None:
+        assert derive_mission_state(mission_dir, "discovery") == "discovery"
 
     def test_no_events_file_returns_initial(self, tmp_path: Path) -> None:
         assert derive_mission_state(tmp_path, "specify") == "specify"
 
-    def test_with_phase_entered_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
+    def test_with_phase_entered_events(self, mission_dir: Path) -> None:
+        events_file = mission_dir / "mission-events.jsonl"
         events = [
             {"type": "phase_entered", "payload": {"state": "specify"}},
             {"type": "phase_exited", "payload": {"state": "specify"}},
@@ -168,15 +168,15 @@ class TestDeriveMissionState:
             "\n".join(json.dumps(e) for e in events) + "\n",
             encoding="utf-8",
         )
-        assert derive_mission_state(feature_dir, "discovery") == "plan"
+        assert derive_mission_state(mission_dir, "discovery") == "plan"
 
-    def test_only_non_phase_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
+    def test_only_non_phase_events(self, mission_dir: Path) -> None:
+        events_file = mission_dir / "mission-events.jsonl"
         events = [
             {"type": "guard_failed", "payload": {"guard": "spec.md"}},
         ]
         events_file.write_text(json.dumps(events[0]) + "\n", encoding="utf-8")
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
+        assert derive_mission_state(mission_dir, "discovery") == "discovery"
 
 
 # ---------------------------------------------------------------------------
@@ -195,9 +195,9 @@ class TestEvaluateGuards:
         assert passed is True
         assert failures == []
 
-    def test_all_guards_pass(self, feature_dir: Path) -> None:
+    def test_all_guards_pass(self, mission_dir: Path) -> None:
         # Create the artifact the guard expects
-        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
+        (mission_dir / "spec.md").write_text("# Spec", encoding="utf-8")
 
         def guard_pass(event_data):
             return True
@@ -212,11 +212,11 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is True
         assert failures == []
 
-    def test_some_guards_fail(self, feature_dir: Path) -> None:
+    def test_some_guards_fail(self, mission_dir: Path) -> None:
         def guard_fail(event_data):
             return False
 
@@ -233,11 +233,11 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is False
         assert len(failures) == 1
 
-    def test_uncompiled_string_guard(self, feature_dir: Path) -> None:
+    def test_uncompiled_string_guard(self, mission_dir: Path) -> None:
         config = {
             "transitions": [
                 {
@@ -248,7 +248,7 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is False
         assert "Uncompiled guard" in failures[0]
 
@@ -262,7 +262,7 @@ class TestEvaluateGuards:
         assert passed is True
         assert failures == []
 
-    def test_unless_guard_blocks_when_true(self, feature_dir: Path) -> None:
+    def test_unless_guard_blocks_when_true(self, mission_dir: Path) -> None:
         """Unless guards block advancement when they return True."""
 
         def unless_active(event_data):
@@ -278,12 +278,12 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is False
         assert len(failures) == 1
         assert "Unless-guard" in failures[0]
 
-    def test_unless_guard_passes_when_false(self, feature_dir: Path) -> None:
+    def test_unless_guard_passes_when_false(self, mission_dir: Path) -> None:
         """Unless guards pass when they return False."""
 
         def unless_inactive(event_data):
@@ -299,11 +299,11 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is True
         assert failures == []
 
-    def test_conditions_and_unless_combined(self, feature_dir: Path) -> None:
+    def test_conditions_and_unless_combined(self, mission_dir: Path) -> None:
         """Both conditions and unless must pass for guard to pass."""
 
         def cond_pass(event_data):
@@ -323,11 +323,11 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is True
         assert failures == []
 
-    def test_conditions_pass_but_unless_blocks(self, feature_dir: Path) -> None:
+    def test_conditions_pass_but_unless_blocks(self, mission_dir: Path) -> None:
         """If conditions pass but unless is active, overall guard fails."""
 
         def cond_pass(event_data):
@@ -347,11 +347,11 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is False
         assert len(failures) == 1
 
-    def test_uncompiled_unless_string(self, feature_dir: Path) -> None:
+    def test_uncompiled_unless_string(self, mission_dir: Path) -> None:
         """Uncompiled string unless-guards report as failures."""
         config = {
             "transitions": [
@@ -363,7 +363,7 @@ class TestEvaluateGuards:
                 },
             ],
         }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
+        passed, failures = evaluate_guards(config, mission_dir, "specify")
         assert passed is False
         assert "Uncompiled unless-guard" in failures[0]
 
@@ -374,11 +374,11 @@ class TestEvaluateGuards:
 
 
 class TestWPHelpers:
-    def test_compute_wp_progress_no_tasks_dir(self, feature_dir: Path) -> None:
-        assert _compute_wp_progress(feature_dir) is None
+    def test_compute_wp_progress_no_tasks_dir(self, mission_dir: Path) -> None:
+        assert _compute_wp_progress(mission_dir) is None
 
-    def test_compute_wp_progress(self, feature_with_tasks: Path) -> None:
-        progress = _compute_wp_progress(feature_with_tasks)
+    def test_compute_wp_progress(self, mission_with_tasks: Path) -> None:
+        progress = _compute_wp_progress(mission_with_tasks)
         assert progress is not None
         assert progress["total_wps"] == 4
         assert progress["planned_wps"] == 1
@@ -386,17 +386,17 @@ class TestWPHelpers:
         assert progress["done_wps"] == 1
         assert progress["for_review_wps"] == 1
 
-    def test_find_first_wp_by_lane_planned(self, feature_with_tasks: Path) -> None:
-        assert _find_first_wp_by_lane(feature_with_tasks, "planned") == "WP01"
+    def test_find_first_wp_by_lane_planned(self, mission_with_tasks: Path) -> None:
+        assert _find_first_wp_by_lane(mission_with_tasks, "planned") == "WP01"
 
-    def test_find_first_wp_by_lane_for_review(self, feature_with_tasks: Path) -> None:
-        assert _find_first_wp_by_lane(feature_with_tasks, "for_review") == "WP04"
+    def test_find_first_wp_by_lane_for_review(self, mission_with_tasks: Path) -> None:
+        assert _find_first_wp_by_lane(mission_with_tasks, "for_review") == "WP04"
 
-    def test_find_first_wp_by_lane_not_found(self, feature_with_tasks: Path) -> None:
-        assert _find_first_wp_by_lane(feature_with_tasks, "canceled") is None
+    def test_find_first_wp_by_lane_not_found(self, mission_with_tasks: Path) -> None:
+        assert _find_first_wp_by_lane(mission_with_tasks, "canceled") is None
 
-    def test_find_first_wp_no_tasks_dir(self, feature_dir: Path) -> None:
-        assert _find_first_wp_by_lane(feature_dir, "planned") is None
+    def test_find_first_wp_no_tasks_dir(self, mission_dir: Path) -> None:
+        assert _find_first_wp_by_lane(mission_dir, "planned") is None
 
 
 # ---------------------------------------------------------------------------
@@ -405,81 +405,81 @@ class TestWPHelpers:
 
 
 class TestDecideNext:
-    def test_missing_feature_dir(self, tmp_path: Path) -> None:
+    def test_missing_mission_dir(self, tmp_path: Path) -> None:
         decision = decide_next("claude", "999-nonexistent", "success", tmp_path)
         assert decision.kind == DecisionKind.blocked
         assert "not found" in decision.reason
 
-    def test_result_failed(self, feature_dir: Path) -> None:
+    def test_result_failed(self, mission_dir: Path) -> None:
         """Failed result must flow through runtime and return deterministic blocked state."""
-        repo_root = feature_dir.parent.parent
+        repo_root = mission_dir.parent.parent
         # Issue a first runtime step so failure has a concrete step to complete.
-        first = decide_next("claude", "042-test-feature", "success", repo_root)
+        first = decide_next("claude", "042-test-mission", "success", repo_root)
         assert first.step_id is not None
 
-        decision = decide_next("claude", "042-test-feature", "failed", repo_root)
+        decision = decide_next("claude", "042-test-mission", "failed", repo_root)
         assert decision.kind == DecisionKind.blocked
         assert "failed" in (decision.reason or "").lower()
         assert decision.run_id is not None, "failed decision must include run_id"
 
-    def test_result_failed_after_advance_carries_step_id(self, feature_dir: Path) -> None:
+    def test_result_failed_after_advance_carries_step_id(self, mission_dir: Path) -> None:
         """After advancing, failed result still carries canonical run metadata."""
-        repo_root = feature_dir.parent.parent
+        repo_root = mission_dir.parent.parent
         # First call advances to get a step issued
-        d1 = decide_next("claude", "042-test-feature", "success", repo_root)
+        d1 = decide_next("claude", "042-test-mission", "success", repo_root)
         assert d1.step_id is not None
         # Now fail — runtime should return blocked and keep run correlation
-        d2 = decide_next("claude", "042-test-feature", "failed", repo_root)
+        d2 = decide_next("claude", "042-test-mission", "failed", repo_root)
         assert d2.kind == DecisionKind.blocked
         assert d2.run_id is not None
         assert d2.step_id is None or isinstance(d2.step_id, str)
 
-    def test_result_blocked(self, feature_dir: Path) -> None:
-        repo_root = feature_dir.parent.parent
+    def test_result_blocked(self, mission_dir: Path) -> None:
+        repo_root = mission_dir.parent.parent
         # Issue a first runtime step so blocked result completes prior step through runtime.
-        first = decide_next("claude", "042-test-feature", "success", repo_root)
+        first = decide_next("claude", "042-test-mission", "success", repo_root)
         assert first.step_id is not None
 
-        decision = decide_next("claude", "042-test-feature", "blocked", repo_root)
+        decision = decide_next("claude", "042-test-mission", "blocked", repo_root)
         assert decision.kind == DecisionKind.blocked
         assert "blocked" in (decision.reason or "").lower()
         assert decision.run_id is not None, "blocked decision must include run_id"
 
-    def test_terminal_state(self, feature_dir: Path) -> None:
+    def test_terminal_state(self, mission_dir: Path) -> None:
         """Completing all runtime steps produces a terminal decision."""
-        repo_root = feature_dir.parent.parent
-        _complete_all_steps(repo_root, "042-test-feature")
-        decision = decide_next("claude", "042-test-feature", "success", repo_root)
+        repo_root = mission_dir.parent.parent
+        _complete_all_steps(repo_root, "042-test-mission")
+        decision = decide_next("claude", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.terminal
 
-    def test_decision_has_required_fields(self, feature_dir: Path) -> None:
-        repo_root = feature_dir.parent.parent
-        decision = decide_next("claude", "042-test-feature", "success", repo_root)
+    def test_decision_has_required_fields(self, mission_dir: Path) -> None:
+        repo_root = mission_dir.parent.parent
+        decision = decide_next("claude", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert "kind" in d
         assert "agent" in d
-        assert "feature_slug" in d
+        assert "mission_slug" in d
         assert "mission" in d
         assert "mission_state" in d
         assert "timestamp" in d
         assert "guard_failures" in d
 
-    def test_decision_has_runtime_fields(self, feature_dir: Path) -> None:
+    def test_decision_has_runtime_fields(self, mission_dir: Path) -> None:
         """Runtime fields (run_id, step_id) are present in decisions."""
-        repo_root = feature_dir.parent.parent
-        decision = decide_next("claude", "042-test-feature", "success", repo_root)
+        repo_root = mission_dir.parent.parent
+        decision = decide_next("claude", "042-test-mission", "success", repo_root)
         d = decision.to_dict()
         assert "run_id" in d
         assert "step_id" in d
         assert "decision_id" in d
         assert "input_key" in d
 
-    def test_implement_state_with_planned_wp(self, feature_with_tasks: Path) -> None:
+    def test_implement_state_with_planned_wp(self, mission_with_tasks: Path) -> None:
         """When in implement state with planned WPs, returns implement action."""
-        repo_root = feature_with_tasks.parent.parent
+        repo_root = mission_with_tasks.parent.parent
         # Advance runtime to implement step
-        _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
-        decision = decide_next("claude", "042-test-feature", "success", repo_root)
+        _advance_runtime_to_step(repo_root, "042-test-mission", "implement")
+        decision = decide_next("claude", "042-test-mission", "success", repo_root)
         # Should stay in implement state and map to implement action with the planned WP
         if decision.kind == DecisionKind.step and decision.action == "implement":
             assert decision.wp_id == "WP01"
@@ -489,7 +489,7 @@ class TestDecideNext:
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="specify",
             timestamp="2026-02-17T00:00:00+00:00",
@@ -505,10 +505,10 @@ class TestDecideNext:
         assert d["run_id"] == "abc123"
         assert d["step_id"] == "specify"
 
-    def test_first_call_returns_step(self, feature_dir: Path) -> None:
-        """First call on a fresh feature returns a step decision."""
-        repo_root = feature_dir.parent.parent
-        decision = decide_next("claude", "042-test-feature", "success", repo_root)
+    def test_first_call_returns_step(self, mission_dir: Path) -> None:
+        """First call on a fresh mission returns a step decision."""
+        repo_root = mission_dir.parent.parent
+        decision = decide_next("claude", "042-test-mission", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.run_id is not None
         assert decision.step_id is not None
@@ -520,15 +520,15 @@ class TestDecideNext:
 
 
 class TestTaskStepAliases:
-    def test_tasks_outline_maps_to_tasks_outline_action(self, feature_dir: Path) -> None:
+    def test_tasks_outline_maps_to_tasks_outline_action(self, mission_dir: Path) -> None:
         """Verify _state_to_action maps tasks_outline → tasks-outline via alias."""
         from specify_cli.next.decision import _state_to_action
 
-        repo_root = feature_dir.parent.parent
+        repo_root = mission_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
             "tasks_outline",
-            "042-test-feature",
-            feature_dir,
+            "042-test-mission",
+            mission_dir,
             repo_root,
             "software-dev",
         )
@@ -536,15 +536,15 @@ class TestTaskStepAliases:
         assert wp_id is None
         assert workspace_path is None
 
-    def test_tasks_packages_maps_to_tasks_packages_action(self, feature_dir: Path) -> None:
+    def test_tasks_packages_maps_to_tasks_packages_action(self, mission_dir: Path) -> None:
         """Verify _state_to_action maps tasks_packages → tasks-packages via alias."""
         from specify_cli.next.decision import _state_to_action
 
-        repo_root = feature_dir.parent.parent
+        repo_root = mission_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
             "tasks_packages",
-            "042-test-feature",
-            feature_dir,
+            "042-test-mission",
+            mission_dir,
             repo_root,
             "software-dev",
         )
@@ -552,16 +552,16 @@ class TestTaskStepAliases:
         assert wp_id is None
         assert workspace_path is None
 
-    def test_tasks_finalize_maps_to_tasks_finalize_action(self, feature_dir: Path) -> None:
+    def test_tasks_finalize_maps_to_tasks_finalize_action(self, mission_dir: Path) -> None:
         """Verify _state_to_action maps tasks_finalize → tasks-finalize via alias."""
         from specify_cli.next.decision import _state_to_action
 
 
-        repo_root = feature_dir.parent.parent
+        repo_root = mission_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
             "tasks_finalize",
-            "042-test-feature",
-            feature_dir,
+            "042-test-mission",
+            mission_dir,
             repo_root,
             "software-dev",
         )
@@ -576,7 +576,7 @@ class TestDecisionQuestionOptions:
         decision = Decision(
             kind=DecisionKind.decision_required,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="unknown",
             timestamp="2026-02-18T00:00:00+00:00",
@@ -595,7 +595,7 @@ class TestDecisionQuestionOptions:
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="specify",
             timestamp="2026-02-18T00:00:00+00:00",

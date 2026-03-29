@@ -54,8 +54,8 @@ def create_wp_file(
 
 def test_warning_when_dependents_in_progress(tmp_path: Path) -> None:
     """Test warning displays when WP has dependents in doing lane."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create WP01 (no deps)
@@ -65,7 +65,7 @@ def test_warning_when_dependents_in_progress(tmp_path: Path) -> None:
     create_wp_file(tasks_dir / "WP02-test.md", "WP02", ["WP01"], lane="doing")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Get dependents of WP01
     dependents = get_dependents("WP01", graph)
@@ -75,8 +75,8 @@ def test_warning_when_dependents_in_progress(tmp_path: Path) -> None:
 
 def test_no_warning_when_dependents_done(tmp_path: Path) -> None:
     """Test no warning when dependents are in done lane."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create WP01 (no deps)
@@ -86,7 +86,7 @@ def test_no_warning_when_dependents_done(tmp_path: Path) -> None:
     create_wp_file(tasks_dir / "WP02-test.md", "WP02", ["WP01"], lane="done")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Get dependents of WP01
     dependents = get_dependents("WP01", graph)
@@ -97,15 +97,15 @@ def test_no_warning_when_dependents_done(tmp_path: Path) -> None:
 
 def test_no_warning_when_no_dependents(tmp_path: Path) -> None:
     """Test no warning when WP has no dependents."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create WP01 (no deps)
     create_wp_file(tasks_dir / "WP01-test.md", "WP01", [], lane="for_review")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Get dependents of WP01
     dependents = get_dependents("WP01", graph)
@@ -115,8 +115,8 @@ def test_no_warning_when_no_dependents(tmp_path: Path) -> None:
 
 def test_dependency_graph_multiple_dependents(tmp_path: Path) -> None:
     """Test dependency graph with multiple dependents."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create WP01 (base)
@@ -127,7 +127,7 @@ def test_dependency_graph_multiple_dependents(tmp_path: Path) -> None:
     create_wp_file(tasks_dir / "WP03-dep2.md", "WP03", ["WP01"], lane="planned")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Get dependents of WP01
     dependents = get_dependents("WP01", graph)
@@ -137,8 +137,8 @@ def test_dependency_graph_multiple_dependents(tmp_path: Path) -> None:
 
 def test_dependency_graph_chain(tmp_path: Path) -> None:
     """Test dependency graph with chain: WP01 → WP02 → WP03."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create chain: WP01 → WP02 → WP03
@@ -147,7 +147,7 @@ def test_dependency_graph_chain(tmp_path: Path) -> None:
     create_wp_file(tasks_dir / "WP03-end.md", "WP03", ["WP02"], lane="planned")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # WP01 has one direct dependent: WP02
     wp01_deps = get_dependents("WP01", graph)
@@ -164,8 +164,8 @@ def test_dependency_graph_chain(tmp_path: Path) -> None:
 
 def test_in_progress_filter(tmp_path: Path) -> None:
     """Test filtering dependents by lane status."""
-    feature_dir = tmp_path / "kitty-specs" / "011-test"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = tmp_path / "kitty-specs" / "011-test"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # Create WP01 with various dependents in different lanes
@@ -176,7 +176,7 @@ def test_in_progress_filter(tmp_path: Path) -> None:
     create_wp_file(tasks_dir / "WP05-done.md", "WP05", ["WP01"], lane="done")
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
     dependents = get_dependents("WP01", graph)
 
     # All dependents should be in the graph

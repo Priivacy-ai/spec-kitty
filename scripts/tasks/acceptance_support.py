@@ -35,9 +35,9 @@ _EXPORT_NAMES = (
     "ArtifactEncodingError",
     "WorkPackageState",
     "choose_mode",
-    "collect_feature_summary",
-    "detect_feature_slug",
-    "normalize_feature_encoding",
+    "collect_mission_summary",
+    "detect_mission_slug",
+    "normalize_mission_encoding",
     "perform_acceptance",
 )
 
@@ -65,8 +65,8 @@ __all__ = [
     "ArtifactEncodingError",
     "WorkPackageState",
     "choose_mode",
-    "collect_feature_summary",
-    "detect_feature_slug",
-    "normalize_feature_encoding",
+    "collect_mission_summary",
+    "detect_mission_slug",
+    "normalize_mission_encoding",
     "perform_acceptance",
 ]

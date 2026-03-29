@@ -3,7 +3,7 @@
 The original skill documented the basic workflow but not the internals. This adds
 the decision algorithm, WP iteration logic (CLI bridge vs runtime), mission
 runtime YAML schema, 6 guard primitives, prompt file generation, run persistence,
-feature detection, decision output fields, and the complete agent loop pattern.
+mission detection, decision output fields, and the complete agent loop pattern.
 
 Uses the reusable skill_update utility to find and replace skill files across
 all agent skill roots.

@@ -12,15 +12,15 @@ from .base import BaseMigration, MigrationResult
 class RemoveActiveMissionMigration(BaseMigration):
     """Remove deprecated .kittify/active-mission file or symlink.
 
-    As of v0.8.0, missions are selected per-feature during /spec-kitty.specify.
+    As of v0.8.0, missions are selected per-mission during /spec-kitty.specify.
     The project-level .kittify/active-mission symlink/file is no longer used.
 
     This migration removes the obsolete active-mission file and informs the
-    user about the new per-feature mission workflow.
+    user about the new per-mission mission workflow.
     """
 
     migration_id = "0.8.0_remove_active_mission"
-    description = "Remove deprecated .kittify/active-mission (missions are now per-feature)"
+    description = "Remove deprecated .kittify/active-mission (missions are now per-mission)"
     target_version = "0.8.0"
 
     def detect(self, project_path: Path) -> bool:
@@ -47,13 +47,13 @@ class RemoveActiveMissionMigration(BaseMigration):
         if active_mission.exists() or active_mission.is_symlink():
             if dry_run:
                 changes.append("Would remove .kittify/active-mission")
-                changes.append("  -> Missions are now selected per-feature during /spec-kitty.specify")
+                changes.append("  -> Missions are now selected per-mission during /spec-kitty.specify")
             else:
                 try:
                     active_mission.unlink()
                     changes.append("Removed deprecated .kittify/active-mission")
-                    changes.append("  -> Missions are now selected per-feature during /spec-kitty.specify")
-                    changes.append("  -> Existing features will use 'software-dev' mission by default")
+                    changes.append("  -> Missions are now selected per-mission during /spec-kitty.specify")
+                    changes.append("  -> Existing missions will use 'software-dev' mission by default")
                 except OSError as e:
                     errors.append(f"Failed to remove .kittify/active-mission: {e}")
         else:

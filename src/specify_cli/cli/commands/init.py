@@ -1025,10 +1025,10 @@ def init(  # noqa: C901
         selected_script = "ps" if os.name == "nt" else "sh"
         _console.print(f"[dim]Auto-detected script type:[/dim] [cyan]{SCRIPT_TYPE_CHOICES[selected_script]}[/cyan]")
 
-    # Mission selection deprecated - missions are now per-feature
+    # Mission selection deprecated - missions are now per-mission
     if mission_key:
         _console.print(
-            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"  # noqa: E501
+            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-mission during /spec-kitty.specify"  # noqa: E501
         )
         _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
         _console.print()
@@ -1274,7 +1274,7 @@ def init(  # noqa: C901
                 if _has_global_runtime():
                     # In global runtime mode, missions resolve from ~/.kittify/
                     # so we don't need to check the project's local missions dir.
-                    mission_status = f"{mission_display} (per-feature selection, global runtime)"
+                    mission_status = f"{mission_display} (per-mission selection, global runtime)"
                 else:
                     mission_status = _activate_mission(project_path, selected_mission, mission_display, _console)
             except Exception as exc:
@@ -1382,7 +1382,7 @@ def init(  # noqa: C901
     step_num += 1
 
     steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
+        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-mission during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
     )
     step_num += 1
 
@@ -1397,8 +1397,8 @@ def init(  # noqa: C901
     steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
     steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
     steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify feature complete")
-    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge feature into target branch and cleanup worktree")
+    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify mission complete")
+    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge mission into target branch and cleanup worktree")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
     _console.print()

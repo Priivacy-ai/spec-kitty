@@ -1,4 +1,4 @@
-"""Feature scanning helpers for the Spec Kitty dashboard."""
+"""Mission scanning helpers for the Spec Kitty dashboard."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
-from specify_cli.core.feature_detection import detect_feature
+from specify_cli.core.mission_detection import detect_mission
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "format_path_for_display",
-    "gather_feature_paths",
-    "get_feature_artifacts",
+    "gather_mission_paths",
+    "get_mission_artifacts",
     "get_workflow_status",
     "read_file_resilient",
-    "resolve_feature_dir",
-    "resolve_active_feature",
-    "scan_all_features",
-    "scan_feature_kanban",
+    "resolve_mission_dir",
+    "resolve_active_mission",
+    "scan_all_missions",
+    "scan_mission_kanban",
 ]
 
 
@@ -132,18 +132,18 @@ def format_path_for_display(path_str: str | None) -> str | None:
     return f"~{os.sep}{relative_str}"
 
 
-def format_feature_display_name(feature_id: str, friendly_name: str) -> str:
-    """Return a dashboard label that preserves the numeric feature prefix."""
-    label = friendly_name.strip() or feature_id
-    number_match = re.match(r"^(\d+)", feature_id)
+def format_mission_display_name(mission_id: str, friendly_name: str) -> str:
+    """Return a dashboard label that preserves the numeric mission prefix."""
+    label = friendly_name.strip() or mission_id
+    number_match = re.match(r"^(\d+)", mission_id)
     if not number_match:
         return label
 
-    feature_number = number_match.group(1)
-    if re.match(rf"^{re.escape(feature_number)}(?:\b|[-:_\s])", label):
+    mission_number = number_match.group(1)
+    if re.match(rf"^{re.escape(mission_number)}(?:\b|[-:_\s])", label):
         return label
 
-    return f"{feature_number} - {label}"
+    return f"{mission_number} - {label}"
 
 
 def work_package_sort_key(task: dict[str, Any]) -> tuple:
@@ -169,16 +169,16 @@ def _get_artifact_info(path: Path) -> dict[str, any]:
     }
 
 
-def get_feature_artifacts(
-    feature_dir: Path,
+def get_mission_artifacts(
+    mission_dir: Path,
     project_dir: Path | None = None,
 ) -> dict[str, dict[str, any]]:
-    """Return which artifacts exist for a feature with modification info.
+    """Return which artifacts exist for a mission with modification info.
 
     Constitution status is project-level. If project_dir is omitted, we fall back
-    to feature_dir.parent.parent for compatibility with older call sites.
+    to mission_dir.parent.parent for compatibility with older call sites.
     """
-    project_root = project_dir if project_dir is not None else feature_dir.parent.parent
+    project_root = project_dir if project_dir is not None else mission_dir.parent.parent
     constitution_path = resolve_project_constitution_path(project_root)
 
     constitution_info = (
@@ -189,15 +189,15 @@ def get_feature_artifacts(
 
     return {
         "constitution": constitution_info,
-        "spec": _get_artifact_info(feature_dir / "spec.md"),
-        "plan": _get_artifact_info(feature_dir / "plan.md"),
-        "tasks": _get_artifact_info(feature_dir / "tasks.md"),
-        "research": _get_artifact_info(feature_dir / "research.md"),
-        "quickstart": _get_artifact_info(feature_dir / "quickstart.md"),
-        "data_model": _get_artifact_info(feature_dir / "data-model.md"),
-        "contracts": _get_artifact_info(feature_dir / "contracts"),
-        "checklists": _get_artifact_info(feature_dir / "checklists"),
-        "kanban": _get_artifact_info(feature_dir / "tasks"),
+        "spec": _get_artifact_info(mission_dir / "spec.md"),
+        "plan": _get_artifact_info(mission_dir / "plan.md"),
+        "tasks": _get_artifact_info(mission_dir / "tasks.md"),
+        "research": _get_artifact_info(mission_dir / "research.md"),
+        "quickstart": _get_artifact_info(mission_dir / "quickstart.md"),
+        "data_model": _get_artifact_info(mission_dir / "data-model.md"),
+        "contracts": _get_artifact_info(mission_dir / "contracts"),
+        "checklists": _get_artifact_info(mission_dir / "checklists"),
+        "kanban": _get_artifact_info(mission_dir / "tasks"),
     }
 
 
@@ -229,14 +229,14 @@ def get_workflow_status(artifacts: dict[str, dict[str, any]]) -> dict[str, str]:
     return workflow
 
 
-def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
-    """Collect candidate feature directories from root and worktrees.
+def gather_mission_paths(project_dir: Path) -> dict[str, Path]:
+    """Collect candidate mission directories from root and worktrees.
 
     Main repo (kitty-specs/) paths take priority over worktree copies.
     Worktrees may have stale data from when they were created, so the
-    main repo should be the source of truth for feature status.
+    main repo should be the source of truth for mission status.
     """
-    feature_paths: dict[str, Path] = {}
+    mission_paths: dict[str, Path] = {}
 
     # First scan worktrees (lower priority - may have stale data)
     worktrees_root = project_dir / ".worktrees"
@@ -247,47 +247,47 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
             wt_specs = worktree_dir / "kitty-specs"
             if not wt_specs.exists():
                 continue
-            for feature_dir in wt_specs.iterdir():
-                if feature_dir.is_dir():
-                    feature_paths[feature_dir.name] = feature_dir
+            for mission_dir in wt_specs.iterdir():
+                if mission_dir.is_dir():
+                    mission_paths[mission_dir.name] = mission_dir
 
     # Then scan main repo (higher priority - source of truth)
-    # This will overwrite any worktree paths with the same feature name
+    # This will overwrite any worktree paths with the same mission name
     root_specs = project_dir / "kitty-specs"
     if root_specs.exists():
-        for feature_dir in root_specs.iterdir():
-            if feature_dir.is_dir():
-                feature_paths[feature_dir.name] = feature_dir
+        for mission_dir in root_specs.iterdir():
+            if mission_dir.is_dir():
+                mission_paths[mission_dir.name] = mission_dir
 
-    return feature_paths
-
-
-def resolve_feature_dir(project_dir: Path, feature_id: str) -> Path | None:
-    """Resolve the on-disk directory for the requested feature."""
-    feature_paths = gather_feature_paths(project_dir)
-    return feature_paths.get(feature_id)
+    return mission_paths
 
 
-def resolve_active_feature(
+def resolve_mission_dir(project_dir: Path, mission_id: str) -> Path | None:
+    """Resolve the on-disk directory for the requested mission."""
+    mission_paths = gather_mission_paths(project_dir)
+    return mission_paths.get(mission_id)
+
+
+def resolve_active_mission(
     project_dir: Path,
-    features: list[dict[str, Any]],
+    missions: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    """Resolve active feature using the same detector as CLI status commands."""
-    if not features:
+    """Resolve active mission using the same detector as CLI status commands."""
+    if not missions:
         return None
 
-    context = detect_feature(
+    context = detect_mission(
         project_dir,
         cwd=project_dir,
         mode="lenient",
     )
     if context:
-        for feature in features:
-            if feature.get("id") == context.slug:
-                return feature
+        for mission in missions:
+            if mission.get("id") == context.slug:
+                return mission
 
     # Keep previous deterministic fallback for edge cases.
-    return features[0]
+    return missions[0]
 
 
 def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> dict[str, int]:
@@ -314,18 +314,18 @@ def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> dict[str, int]:
     return counts
 
 
-def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
-    """Scan all features and return metadata."""
-    features: list[dict[str, Any]] = []
-    feature_paths = gather_feature_paths(project_dir)
+def scan_all_missions(project_dir: Path) -> list[dict[str, Any]]:
+    """Scan all missions and return metadata."""
+    missions: list[dict[str, Any]] = []
+    mission_paths = gather_mission_paths(project_dir)
 
-    for feature_id, feature_dir in feature_paths.items():
-        if not (re.match(r"^\d+", feature_dir.name) or (feature_dir / "tasks").exists()):
+    for mission_id, mission_dir in mission_paths.items():
+        if not (re.match(r"^\d+", mission_dir.name) or (mission_dir / "tasks").exists()):
             continue
 
-        friendly_name = feature_dir.name
+        friendly_name = mission_dir.name
         meta_data: dict[str, Any] | None = None
-        meta_path = feature_dir / "meta.json"
+        meta_path = mission_dir / "meta.json"
         if meta_path.exists():
             try:
                 meta_data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
@@ -335,13 +335,13 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 meta_data = None
 
-        artifacts = get_feature_artifacts(feature_dir, project_dir)
+        artifacts = get_mission_artifacts(mission_dir, project_dir)
         workflow = get_workflow_status(artifacts)
 
         kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "in_review": 0, "approved": 0, "done": 0}
         if artifacts["kanban"]:
-            tasks_dir = feature_dir / "tasks"
-            use_legacy = is_legacy_format(feature_dir)
+            tasks_dir = mission_dir / "tasks"
+            use_legacy = is_legacy_format(mission_dir)
 
             if use_legacy:
                 # Legacy format: count WPs in lane subdirectories
@@ -359,16 +359,16 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                     kanban_stats["total"] += count
 
         worktree_root = project_dir / ".worktrees"
-        worktree_path = worktree_root / feature_dir.name
+        worktree_path = worktree_root / mission_dir.name
         worktree_exists = worktree_path.exists()
-        display_name = format_feature_display_name(feature_id, friendly_name)
+        display_name = format_mission_display_name(mission_id, friendly_name)
 
-        features.append(
+        missions.append(
             {
-                "id": feature_id,
+                "id": mission_id,
                 "name": friendly_name,
                 "display_name": display_name,
-                "path": str(feature_dir.relative_to(project_dir)),
+                "path": str(mission_dir.relative_to(project_dir)),
                 "artifacts": artifacts,
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
@@ -380,8 +380,8 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
             }
         )
 
-    features.sort(key=lambda f: f["id"], reverse=True)
-    return features
+    missions.sort(key=lambda f: f["id"], reverse=True)
+    return missions
 
 
 def _process_wp_file(
@@ -444,12 +444,12 @@ def _process_wp_file(
     }
 
 
-def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[dict[str, Any]]]:  # noqa: C901
-    """Scan kanban board for a specific feature.
+def scan_mission_kanban(project_dir: Path, mission_id: str) -> dict[str, list[dict[str, Any]]]:  # noqa: C901
+    """Scan kanban board for a specific mission.
 
     Supports both legacy (directory-based) and new (frontmatter-based) lane formats.
     """
-    feature_dir = resolve_feature_dir(project_dir, feature_id)
+    mission_dir = resolve_mission_dir(project_dir, mission_id)
     lanes: dict[str, list[dict[str, Any]]] = {
         "planned": [],
         "doing": [],
@@ -459,14 +459,14 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
         "done": [],
     }
 
-    if feature_dir is None or not feature_dir.exists():
+    if mission_dir is None or not mission_dir.exists():
         return lanes
 
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return lanes
 
-    use_legacy = is_legacy_format(feature_dir)
+    use_legacy = is_legacy_format(mission_dir)
 
     if use_legacy:
         # Legacy format: scan lane subdirectories

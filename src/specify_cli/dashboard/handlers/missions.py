@@ -1,4 +1,4 @@
-"""Feature-centric dashboard handlers."""
+"""Mission-centric dashboard handlers."""
 
 from __future__ import annotations
 
@@ -8,39 +8,39 @@ from pathlib import Path
 
 from ..scanner import (
     format_path_for_display,
-    resolve_active_feature,
-    resolve_feature_dir,
-    scan_all_features,
-    scan_feature_kanban,
+    resolve_active_mission,
+    resolve_mission_dir,
+    scan_all_missions,
+    scan_mission_kanban,
 )
 from .base import DashboardHandler
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_mission_by_name
 
-__all__ = ["FeatureHandler"]
+__all__ = ["MissionHandler"]
 
 
-class FeatureHandler(DashboardHandler):
-    """Serve feature lists, kanban lanes, and artifact viewers."""
+class MissionHandler(DashboardHandler):
+    """Serve mission lists, kanban lanes, and artifact viewers."""
 
-    def handle_features_list(self) -> None:
-        """Return summary data for all features."""
+    def handle_missions_list(self) -> None:
+        """Return summary data for all missions."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Cache-Control', 'no-cache')
         self.end_headers()
 
         project_path = Path(self.project_dir).resolve()
-        features = scan_all_features(project_path)
+        missions = scan_all_missions(project_path)
 
-        # Add legacy format indicator to each feature
-        for feature in features:
-            feature_dir = project_path / feature['path']
-            feature['is_legacy'] = is_legacy_format(feature_dir)
+        # Add legacy format indicator to each mission
+        for mission_entry in missions:
+            mission_dir = project_path / mission_entry['path']
+            mission_entry['is_legacy'] = is_legacy_format(mission_dir)
 
-        # Derive active mission from the same active-feature resolver used by CLI status.
+        # Derive active mission from the same active-mission resolver used by CLI status.
         mission_context = {
-            'name': 'No active feature',
+            'name': 'No active mission',
             'domain': 'unknown',
             'version': '',
             'slug': '',
@@ -48,13 +48,13 @@ class FeatureHandler(DashboardHandler):
             'path': '',
         }
 
-        active_feature = resolve_active_feature(project_path, features)
+        active_mission_entry = resolve_active_mission(project_path, missions)
 
-        if active_feature:
-            feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+        if active_mission_entry:
+            mission_type_key = active_mission_entry.get('meta', {}).get('mission', 'software-dev')
             try:
                 kittify_dir = project_path / ".kittify"
-                mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                mission = get_mission_by_name(mission_type_key, kittify_dir)
                 mission_context = {
                     'name': mission.name,
                     'domain': mission.config.domain,
@@ -62,18 +62,18 @@ class FeatureHandler(DashboardHandler):
                     'slug': mission.path.name,
                     'description': mission.config.description or '',
                     'path': format_path_for_display(str(mission.path)),
-                    'feature': active_feature.get('name', ''),
+                    'mission_name': active_mission_entry.get('name', ''),
                 }
             except MissionError:
-                # Fallback: show feature name with unknown mission
+                # Fallback: show mission name with unknown mission type
                 mission_context = {
-                    'name': f"Unknown ({feature_mission_key})",
+                    'name': f"Unknown ({mission_type_key})",
                     'domain': 'unknown',
                     'version': '',
-                    'slug': feature_mission_key,
+                    'slug': mission_type_key,
                     'description': '',
                     'path': '',
-                    'feature': active_feature.get('name', ''),
+                    'mission_name': active_mission_entry.get('name', ''),
                 }
 
         worktrees_root_path = project_path / '.worktrees'
@@ -106,8 +106,8 @@ class FeatureHandler(DashboardHandler):
             active_worktree_display = format_path_for_display(str(current_path))
 
         response = {
-            'features': features,
-            'active_feature_id': active_feature.get('id') if active_feature else None,
+            'missions': missions,
+            'active_mission_id': active_mission_entry.get('id') if active_mission_entry else None,
             'project_path': format_path_for_display(str(project_path)),
             'worktrees_root': worktrees_root_display,
             'active_worktree': active_worktree_display,
@@ -116,16 +116,16 @@ class FeatureHandler(DashboardHandler):
         self.wfile.write(json.dumps(response).encode())
 
     def handle_kanban(self, path: str) -> None:
-        """Return kanban data for a specific feature slug."""
+        """Return kanban data for a specific mission slug."""
         parts = path.split('/')
         if len(parts) >= 4:
-            feature_id = parts[3]
+            mission_id = parts[3]
             project_path = Path(self.project_dir).resolve()
-            kanban_data = scan_feature_kanban(project_path, feature_id)
+            kanban_data = scan_mission_kanban(project_path, mission_id)
 
-            # Check if feature uses legacy format
-            feature_dir = resolve_feature_dir(project_path, feature_id)
-            is_legacy = is_legacy_format(feature_dir) if feature_dir else False
+            # Check if mission uses legacy format
+            mission_dir = resolve_mission_dir(project_path, mission_id)
+            is_legacy = is_legacy_format(mission_dir) if mission_dir else False
 
             response = {
                 'lanes': kanban_data,
@@ -151,15 +151,15 @@ class FeatureHandler(DashboardHandler):
             self.end_headers()
             return
 
-        feature_id = parts[3]
+        mission_id = parts[3]
         project_path = Path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        mission_dir = resolve_mission_dir(project_path, mission_id)
 
         if len(parts) == 4:
             response = {'main_file': None, 'artifacts': []}
 
-            if feature_dir:
-                research_md = feature_dir / 'research.md'
+            if mission_dir:
+                research_md = mission_dir / 'research.md'
                 if research_md.exists():
                     try:
                         response['main_file'] = research_md.read_text(encoding='utf-8')
@@ -174,11 +174,11 @@ class FeatureHandler(DashboardHandler):
                             encoding='utf-8', errors='replace'
                         )
 
-                research_dir = feature_dir / 'research'
+                research_dir = mission_dir / 'research'
                 if research_dir.exists() and research_dir.is_dir():
                     for file_path in sorted(research_dir.rglob('*')):
                         if file_path.is_file():
-                            relative_path = str(file_path.relative_to(feature_dir))
+                            relative_path = str(file_path.relative_to(mission_dir))
                             icon = '📄'
                             if file_path.suffix == '.csv':
                                 icon = '📊'
@@ -201,13 +201,13 @@ class FeatureHandler(DashboardHandler):
             self.wfile.write(json.dumps(response).encode())
             return
 
-        if len(parts) >= 5 and feature_dir:
+        if len(parts) >= 5 and mission_dir:
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
-            artifact_file = (feature_dir / file_path_str).resolve()
+            artifact_file = (mission_dir / file_path_str).resolve()
 
             try:
-                artifact_file.relative_to(feature_dir.resolve())
+                artifact_file.relative_to(mission_dir.resolve())
             except ValueError:
                 self.send_response(404)
                 self.end_headers()
@@ -251,20 +251,20 @@ class FeatureHandler(DashboardHandler):
             self.end_headers()
             return
 
-        feature_id = parts[3]
+        mission_id = parts[3]
         project_path = Path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        mission_dir = resolve_mission_dir(project_path, mission_id)
 
         if len(parts) == 4:
             # Return directory listing
             response = {'files': []}
 
-            if feature_dir:
-                artifact_dir = feature_dir / directory_name
+            if mission_dir:
+                artifact_dir = mission_dir / directory_name
                 if artifact_dir.exists() and artifact_dir.is_dir():
                     for file_path in sorted(artifact_dir.rglob('*')):
                         if file_path.is_file():
-                            relative_path = str(file_path.relative_to(feature_dir))
+                            relative_path = str(file_path.relative_to(mission_dir))
                             icon = '📄'
                             if file_path.suffix == '.md':
                                 icon = md_icon
@@ -283,14 +283,14 @@ class FeatureHandler(DashboardHandler):
             self.wfile.write(json.dumps(response).encode())
             return
 
-        if len(parts) >= 5 and feature_dir:
+        if len(parts) >= 5 and mission_dir:
             # Serve specific file
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
-            artifact_file = (feature_dir / file_path_str).resolve()
+            artifact_file = (mission_dir / file_path_str).resolve()
 
             try:
-                artifact_file.relative_to(feature_dir.resolve())
+                artifact_file.relative_to(mission_dir.resolve())
             except ValueError:
                 self.send_response(404)
                 self.end_headers()
@@ -336,11 +336,11 @@ class FeatureHandler(DashboardHandler):
             self.end_headers()
             return
 
-        feature_id = parts[3]
+        mission_id = parts[3]
         artifact_name = parts[4] if len(parts) > 4 else ''
 
         project_path = Path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        mission_dir = resolve_mission_dir(project_path, mission_id)
 
         artifact_map = {
             'spec': 'spec.md',
@@ -352,8 +352,8 @@ class FeatureHandler(DashboardHandler):
         }
 
         filename = artifact_map.get(artifact_name)
-        if feature_dir and filename:
-            artifact_file = feature_dir / filename
+        if mission_dir and filename:
+            artifact_file = mission_dir / filename
             if artifact_file.exists():
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')

@@ -8,24 +8,21 @@ from pathlib import Path
 import typer
 from rich.panel import Panel
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
-from specify_cli.acceptance import AcceptanceError, detect_feature_slug
+from specify_cli.acceptance import AcceptanceError, detect_mission_slug
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
-from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_mission_dir
+from specify_cli.mission import get_mission_key
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to target (auto-detected when omitted)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
-    feature = resolve_mission_or_feature(mission, feature)
 
     show_banner()
 
@@ -40,7 +37,7 @@ def research(
 
     tracker = StepTracker("Research Phase Setup")
     tracker.add("project", "Locate project root")
-    tracker.add("feature", "Resolve mission directory")
+    tracker.add("mission", "Resolve mission directory")
     tracker.add("research-md", "Ensure research.md")
     tracker.add("data-model", "Ensure data-model.md")
     tracker.add("research-csv", "Ensure research CSV stubs")
@@ -50,27 +47,27 @@ def research(
     tracker.start("project")
     tracker.complete("project", str(project_root))
 
-    tracker.start("feature")
+    tracker.start("mission")
     try:
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
+        mission_slug = (mission or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
-        tracker.error("feature", str(exc))
+        tracker.error("mission", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    mission_dir = resolve_worktree_aware_mission_dir(repo_root, mission_slug, Path.cwd(), console)
+    mission_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get mission from feature's meta.json (not project-level default)
-    mission_key = get_feature_mission_key(feature_dir)
+    # Get mission type from mission's meta.json (not project-level default)
+    mission_key = get_mission_key(mission_dir)
     mission_display = MISSION_CHOICES.get(mission_key, mission_key)
-    tracker.complete("feature", f"{feature_dir} ({mission_display})")
+    tracker.complete("mission", f"{mission_dir} ({mission_display})")
 
     # Validate that plan.md has been filled out before proceeding
-    plan_path = feature_dir / "plan.md"
+    plan_path = mission_dir / "plan.md"
     try:
-        validate_plan_filled(plan_path, feature_slug=feature_slug, strict=True)
+        validate_plan_filled(plan_path, mission_slug=mission_slug, strict=True)
     except PlanValidationError as exc:
         console.print(tracker.render())
         console.print()
@@ -78,7 +75,7 @@ def research(
         console.print()
         console.print("[yellow]Next steps:[/yellow]")
         console.print("  1. Run [cyan]/spec-kitty.plan[/cyan] to fill in the technical architecture")
-        console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
+        console.print("  2. Complete all [MISSION], [DATE], and technical context placeholders")
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
         console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
         raise typer.Exit(1)
@@ -87,7 +84,7 @@ def research(
 
     def _copy_asset(step_key: str, label: str, relative_path: Path, template_name: Path) -> None:
         tracker.start(step_key)
-        dest_path = feature_dir / relative_path
+        dest_path = mission_dir / relative_path
         template_path = resolve_template_path(project_root, mission_key, template_name)
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,7 +115,7 @@ def research(
     ]
     csv_errors: list[str] = []
     for dest_rel, template_rel in csv_targets:
-        dest_path = feature_dir / dest_rel
+        dest_path = mission_dir / dest_rel
         template_path = resolve_template_path(project_root, mission_key, template_rel)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -150,18 +147,18 @@ def research(
     # Dossier sync (fire-and-forget)
     try:
         from specify_cli.sync.dossier_pipeline import (
-            trigger_feature_dossier_sync_if_enabled,
+            trigger_mission_dossier_sync_if_enabled,
         )
 
-        trigger_feature_dossier_sync_if_enabled(
-            feature_dir,
-            feature_slug,
+        trigger_mission_dossier_sync_if_enabled(
+            mission_dir,
+            mission_slug,
             repo_root,
         )
     except Exception:
         pass
 
-    relative_paths = [str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path) for path in created_paths]
+    relative_paths = [str(path.relative_to(mission_dir)) if path.is_relative_to(mission_dir) else str(path) for path in created_paths]
     summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
     console.print()
     console.print(

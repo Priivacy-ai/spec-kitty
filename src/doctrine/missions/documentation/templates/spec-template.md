@@ -1,7 +1,7 @@
-# Feature Specification: Documentation Project - [PROJECT NAME]
+# Mission Specification: Documentation Project - [PROJECT NAME]
 <!-- Replace [PROJECT NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
 
-**Feature Branch**: `[###-feature-name]`
+**Mission Branch**: `[###-mission-name]`
 **Created**: [DATE]
 **Status**: Draft
 **Mission**: documentation
@@ -9,7 +9,7 @@
 
 ## Documentation Scope
 
-**Iteration Mode**: [NEEDS CLARIFICATION: initial | gap-filling | feature-specific]
+**Iteration Mode**: [NEEDS CLARIFICATION: initial | gap-filling | mission-specific]
 **Target Audience**: [NEEDS CLARIFICATION: developers integrating library | end users | contributors | operators]
 **Selected Divio Types**: [NEEDS CLARIFICATION: Which of tutorial, how-to, reference, explanation?]
 **Languages Detected**: [Auto-detected during planning - JavaScript, Python, Rust, etc.]

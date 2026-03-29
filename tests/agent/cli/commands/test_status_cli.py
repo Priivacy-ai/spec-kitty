@@ -47,9 +47,9 @@ def _extract_json(output: str) -> dict:
 
 
 @pytest.fixture
-def feature_dir(tmp_path: Path) -> Path:
-    """Create a minimal feature directory with kitty-specs structure."""
-    fd = tmp_path / "kitty-specs" / "034-test-feature"
+def mission_dir(tmp_path: Path) -> Path:
+    """Create a minimal mission directory with kitty-specs structure."""
+    fd = tmp_path / "kitty-specs" / "034-test-mission"
     fd.mkdir(parents=True)
     # Create a tasks directory with at least one WP file (for realism)
     tasks_dir = fd / "tasks"
@@ -63,11 +63,11 @@ def feature_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def feature_dir_with_events(feature_dir: Path) -> Path:
-    """Feature directory pre-populated with a valid events file."""
+def mission_dir_with_events(mission_dir: Path) -> Path:
+    """Mission directory pre-populated with a valid events file."""
     event = {
         "event_id": "01HXYZ0000000000000000TEST",
-        "feature_slug": "034-test-feature",
+        "mission_slug": "034-test-mission",
         "wp_id": "WP01",
         "from_lane": "planned",
         "to_lane": "claimed",
@@ -79,16 +79,16 @@ def feature_dir_with_events(feature_dir: Path) -> Path:
         "review_ref": None,
         "evidence": None,
     }
-    events_path = feature_dir / "status.events.jsonl"
+    events_path = mission_dir / "status.events.jsonl"
     events_path.write_text(
         json.dumps(event, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    return feature_dir
+    return mission_dir
 
 
-def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
-    """Return a dictionary of patches for feature detection and repo root."""
+def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-mission"):
+    """Return a dictionary of patches for mission detection and repo root."""
     return {
         "locate_project_root": patch(
             "specify_cli.cli.commands.agent.status.locate_project_root",
@@ -98,9 +98,9 @@ def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
             "specify_cli.cli.commands.agent.status.get_main_repo_root",
             return_value=tmp_path,
         ),
-        "detect_feature_slug": patch(
-            "specify_cli.cli.commands.agent.status.detect_feature_slug",
-            return_value=feature_slug,
+        "detect_mission_slug": patch(
+            "specify_cli.cli.commands.agent.status.detect_mission_slug",
+            return_value=mission_slug,
         ),
         "saas_fan_out": patch(
             "specify_cli.status.emit._saas_fan_out",
@@ -116,13 +116,13 @@ def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
 class TestEmitCommand:
     """Tests for ``spec-kitty agent status emit``."""
 
-    def test_emit_valid_transition(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_valid_transition(self, tmp_path: Path, mission_dir: Path):
         """A valid planned -> claimed transition should succeed."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -134,8 +134,8 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                 ],
             )
 
@@ -144,16 +144,16 @@ class TestEmitCommand:
         assert "claimed" in result.output
 
         # Verify events file was created
-        events_path = feature_dir / "status.events.jsonl"
+        events_path = mission_dir / "status.events.jsonl"
         assert events_path.exists()
 
-    def test_emit_invalid_transition_exits_1(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_invalid_transition_exits_1(self, tmp_path: Path, mission_dir: Path):
         """An illegal transition (planned -> done without evidence) should fail."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -165,8 +165,8 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                 ],
             )
 
@@ -174,13 +174,13 @@ class TestEmitCommand:
         # Should have some error output about invalid transition
         assert "Error" in result.output or "error" in result.output
 
-    def test_emit_json_output(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_json_output(self, tmp_path: Path, mission_dir: Path):
         """--json flag should produce valid parseable JSON."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -192,8 +192,8 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )
@@ -205,7 +205,7 @@ class TestEmitCommand:
         assert data["to_lane"] == "claimed"
         assert data["actor"]["tool"] == "test-agent"
 
-    def test_emit_evidence_json_parsing(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_evidence_json_parsing(self, tmp_path: Path, mission_dir: Path):
         """Valid --evidence-json should be parsed and passed through."""
         patches = _patch_detection(tmp_path)
 
@@ -219,7 +219,7 @@ class TestEmitCommand:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
-                patches["detect_feature_slug"],
+                patches["detect_mission_slug"],
                 patches["saas_fan_out"],
             ):
                 r = runner.invoke(
@@ -231,8 +231,8 @@ class TestEmitCommand:
                         to_lane,
                         "--actor",
                         "test-agent",
-                        "--feature",
-                        "034-test-feature",
+                        "--mission",
+                        "034-test-mission",
                     ],
                 )
                 assert r.exit_code == 0, f"Failed at {to_lane}: {r.output}"
@@ -248,7 +248,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -260,8 +260,8 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--evidence-json",
                     json.dumps(evidence),
                     "--json",
@@ -272,13 +272,13 @@ class TestEmitCommand:
         data = _extract_json(result.output)
         assert data["to_lane"] == "done"
 
-    def test_emit_invalid_evidence_json(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_invalid_evidence_json(self, tmp_path: Path, mission_dir: Path):
         """Invalid --evidence-json should produce a clear error and exit 1."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -290,8 +290,8 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--evidence-json",
                     "not valid json",
                 ],
@@ -300,13 +300,13 @@ class TestEmitCommand:
         assert result.exit_code == 1, f"stdout: {result.output}"
         assert "Invalid JSON" in result.output or "error" in result.output.lower()
 
-    def test_emit_invalid_evidence_json_output_json(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_invalid_evidence_json_output_json(self, tmp_path: Path, mission_dir: Path):
         """Invalid --evidence-json with --json flag should produce JSON error."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -318,8 +318,8 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--evidence-json",
                     "{bad",
                     "--json",
@@ -330,13 +330,13 @@ class TestEmitCommand:
         data = _extract_json(result.output)
         assert "error" in data
 
-    def test_emit_force_transition(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_force_transition(self, tmp_path: Path, mission_dir: Path):
         """--force flag should allow bypassing guard conditions."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -348,8 +348,8 @@ class TestEmitCommand:
                     "in_progress",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--force",
                     "--reason",
                     "resuming after crash",
@@ -367,59 +367,59 @@ class TestEmitCommand:
 class TestMaterializeCommand:
     """Tests for ``spec-kitty agent status materialize``."""
 
-    def test_materialize_command(self, tmp_path: Path, feature_dir_with_events: Path):
+    def test_materialize_command(self, tmp_path: Path, mission_dir_with_events: Path):
         """Materialize should rebuild status.json from events."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                 ],
             )
 
         assert result.exit_code == 0, f"stdout: {result.output}"
         assert "Materialized" in result.output
-        assert "034-test-feature" in result.output
+        assert "034-test-mission" in result.output
 
         # Verify status.json was created
-        status_json = feature_dir_with_events / "status.json"
+        status_json = mission_dir_with_events / "status.json"
         assert status_json.exists()
 
-    def test_materialize_json_output(self, tmp_path: Path, feature_dir_with_events: Path):
+    def test_materialize_json_output(self, tmp_path: Path, mission_dir_with_events: Path):
         """--json flag should produce the full snapshot as JSON."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )
 
         assert result.exit_code == 0, f"stdout: {result.output}"
         data = _extract_json(result.output)
-        assert "feature_slug" in data
+        assert "mission_slug" in data
         assert "event_count" in data
         assert "work_packages" in data
         assert "summary" in data
         assert data["event_count"] == 1
         assert "WP01" in data["work_packages"]
 
-    def test_materialize_ignores_legacy_bridge_import_error(self, tmp_path: Path, feature_dir_with_events: Path):
+    def test_materialize_ignores_legacy_bridge_import_error(self, tmp_path: Path, mission_dir_with_events: Path):
         """Missing legacy bridge should not block materialize."""
         patches = _patch_detection(tmp_path)
         real_import = builtins.__import__
@@ -432,25 +432,25 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patch("builtins.__import__", side_effect=raising_import),
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--mission", "034-test-mission",
                 ],
             )
 
         assert result.exit_code == 0, f"stdout: {result.output}"
         assert "Materialized" in result.output
 
-    def test_materialize_warns_when_legacy_bridge_update_fails(self, tmp_path: Path, feature_dir_with_events: Path):
+    def test_materialize_warns_when_legacy_bridge_update_fails(self, tmp_path: Path, mission_dir_with_events: Path):
         """Legacy bridge exceptions should warn without failing materialize."""
         patches = _patch_detection(tmp_path)
         mock_bridge = types.ModuleType("specify_cli.status.legacy_bridge")
-        mock_bridge.update_all_views = lambda feature_dir, snapshot: (_ for _ in ()).throw(RuntimeError("bridge broken"))  # type: ignore[attr-defined]
+        mock_bridge.update_all_views = lambda mission_dir, snapshot: (_ for _ in ()).throw(RuntimeError("bridge broken"))  # type: ignore[attr-defined]
 
         saved = sys.modules.get("specify_cli.status.legacy_bridge")
         sys.modules["specify_cli.status.legacy_bridge"] = mock_bridge
@@ -458,13 +458,13 @@ class TestMaterializeCommand:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
-                patches["detect_feature_slug"],
+                patches["detect_mission_slug"],
             ):
                 result = runner.invoke(
                     app,
                     [
                         "materialize",
-                        "--feature", "034-test-feature",
+                        "--mission", "034-test-mission",
                     ],
                 )
         finally:
@@ -476,54 +476,54 @@ class TestMaterializeCommand:
         assert result.exit_code == 0, f"stdout: {result.output}"
         assert "Legacy bridge update failed: bridge broken" in result.output
 
-    def test_materialize_no_events(self, tmp_path: Path, feature_dir: Path):
-        """Missing event log should produce an error message."""
+    def test_materialize_no_events(self, tmp_path: Path, mission_dir: Path):
+        """No event log should succeed with empty snapshot."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                 ],
             )
 
-        assert result.exit_code == 1, f"stdout: {result.output}"
-        assert "No event log" in result.output or "error" in result.output.lower()
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        assert "0 events" in result.output
 
-    def test_materialize_no_events_json(self, tmp_path: Path, feature_dir: Path):
-        """Missing event log with --json should produce JSON error."""
+    def test_materialize_no_events_json(self, tmp_path: Path, mission_dir: Path):
+        """No event log with --json should produce empty snapshot JSON."""
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         data = _extract_json(result.output)
-        assert "error" in data
+        assert data.get("event_count", 0) == 0
 
-    def test_materialize_multiple_events(self, tmp_path: Path, feature_dir: Path):
+    def test_materialize_multiple_events(self, tmp_path: Path, mission_dir: Path):
         """Materialize should handle multiple events correctly."""
         events = [
             {
                 "event_id": "01HXYZ0000000000000000AAA1",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-mission",
                 "wp_id": "WP01",
                 "from_lane": "planned",
                 "to_lane": "claimed",
@@ -537,7 +537,7 @@ class TestMaterializeCommand:
             },
             {
                 "event_id": "01HXYZ0000000000000000AAA2",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-mission",
                 "wp_id": "WP01",
                 "from_lane": "claimed",
                 "to_lane": "in_progress",
@@ -551,7 +551,7 @@ class TestMaterializeCommand:
             },
             {
                 "event_id": "01HXYZ0000000000000000AAA3",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-mission",
                 "wp_id": "WP02",
                 "from_lane": "planned",
                 "to_lane": "claimed",
@@ -564,7 +564,7 @@ class TestMaterializeCommand:
                 "evidence": None,
             },
         ]
-        events_path = feature_dir / "status.events.jsonl"
+        events_path = mission_dir / "status.events.jsonl"
         lines = [json.dumps(e, sort_keys=True) for e in events]
         events_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -572,14 +572,14 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )
@@ -600,7 +600,7 @@ class TestMaterializeCommand:
 class TestEmitThenMaterialize:
     """End-to-end tests: emit events, then materialize."""
 
-    def test_emit_then_materialize(self, tmp_path: Path, feature_dir: Path):
+    def test_emit_then_materialize(self, tmp_path: Path, mission_dir: Path):
         """Emit a transition, then materialize and verify the snapshot."""
         patches = _patch_detection(tmp_path)
 
@@ -608,7 +608,7 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
             patches["saas_fan_out"],
         ):
             emit_result = runner.invoke(
@@ -620,8 +620,8 @@ class TestEmitThenMaterialize:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )
@@ -631,14 +631,14 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
-            patches["detect_feature_slug"],
+            patches["detect_mission_slug"],
         ):
             mat_result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--feature",
-                    "034-test-feature",
+                    "--mission",
+                    "034-test-mission",
                     "--json",
                 ],
             )

@@ -41,7 +41,7 @@ Mission (reusable workflow blueprint, e.g. software-dev)
 ```
 
 - **Mission** -- selected per feature at creation time; determines phases, artifacts, and guards.
-- **Feature** -- stored in `kitty-specs/###-feature-name/`; linked to its mission via `meta.json`.
+- **Feature** -- stored in `kitty-specs/###-mission-name/`; linked to its mission via `meta.json`.
 - **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
 - **Workspace** -- one git worktree per work package; agents work in isolation without merge conflicts.
 

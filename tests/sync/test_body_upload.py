@@ -22,7 +22,7 @@ pytestmark = pytest.mark.fast
 def _ns() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="uuid-1",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
         mission_key="software-dev",
         manifest_version="1",
@@ -241,7 +241,7 @@ class TestPrepareBodyUploads:
             artifacts=[artifact],
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == 1
@@ -258,7 +258,7 @@ class TestPrepareBodyUploads:
             artifacts=[artifact],
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == 1
@@ -275,7 +275,7 @@ class TestPrepareBodyUploads:
             artifacts=[artifact],
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == 1
@@ -292,7 +292,7 @@ class TestPrepareBodyUploads:
             artifacts=[artifact],
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == 1
@@ -312,7 +312,7 @@ class TestPrepareBodyUploads:
             artifacts=[artifact],
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == 1
@@ -342,7 +342,7 @@ class TestPrepareBodyUploads:
             artifacts=artifacts,
             namespace_ref=_ns(),
             body_queue=queue,
-            feature_dir=tmp_path,
+            mission_dir=tmp_path,
         )
 
         assert len(outcomes) == len(artifacts)

@@ -32,7 +32,7 @@ Parallel development lets you move independent work packages (WPs) at the same t
 
 ```bash
 spec-kitty agent workflow implement WP01
-cd .worktrees/###-feature-WP01
+cd .worktrees/###-mission-WP01
 # Agent A implements WP01
 ```
 
@@ -40,7 +40,7 @@ cd .worktrees/###-feature-WP01
 
 ```bash
 spec-kitty agent workflow implement WP02
-cd .worktrees/###-feature-WP02
+cd .worktrees/###-mission-WP02
 # Agent B implements WP02
 ```
 
@@ -63,7 +63,7 @@ spec-kitty agent workflow implement WP01
 
 # Agent B starts WP02 after WP01 exists
 spec-kitty implement WP02 --base WP01
-cd .worktrees/###-feature-WP02
+cd .worktrees/###-mission-WP02
 ```
 
 ## Best Practices

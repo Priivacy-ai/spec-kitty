@@ -10,7 +10,7 @@ estimated_duration: "25-40 minutes"
 
 ## Context
 
-You are creating the technical design artifacts that will guide the implementation phase. Building on the feature specification and research findings, you now design the solution architecture, data models, APIs, and implementation approach.
+You are creating the technical design artifacts that will guide the implementation phase. Building on the mission specification and research findings, you now design the solution architecture, data models, APIs, and implementation approach.
 
 **Input**: Feature specification and research findings from previous steps
 
@@ -39,14 +39,14 @@ The design planning should produce:
 ## Instructions
 
 1. **Design system architecture**
-   - How should this feature be architected?
+   - How should this mission be architected?
    - What components are needed?
    - How do components interact?
    - What is the deployment model?
    - What are the boundaries of responsibility?
 
 2. **Create data model**
-   - What entities does this feature require?
+   - What entities does this mission require?
    - What are the key properties of each entity?
    - What are the relationships between entities?
    - What validation rules apply?
@@ -69,7 +69,7 @@ The design planning should produce:
 
 5. **Document design patterns**
    - Which design patterns are used and why?
-   - How do they apply to this feature?
+   - How do they apply to this mission?
    - What benefits do they provide?
    - Any anti-patterns to avoid?
 

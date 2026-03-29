@@ -76,5 +76,5 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - See dashboard in action
+- [Your First Mission](../tutorials/your-first-mission.md) - See dashboard in action
 - [Claude Code Integration](../tutorials/claude-code-integration.md) - Dashboard with Claude

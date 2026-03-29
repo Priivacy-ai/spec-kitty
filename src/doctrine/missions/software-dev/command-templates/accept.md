@@ -1,11 +1,11 @@
 ---
-description: Validate feature readiness and guide final acceptance steps.
+description: Validate mission readiness and guide final acceptance steps.
 ---
 
-# /spec-kitty.accept - Validate Feature Readiness
+# /spec-kitty.accept - Validate Mission Readiness
 
 **Version**: 0.11.0+
-**Purpose**: Validate all work packages are complete and feature is ready to merge.
+**Purpose**: Validate all work packages are complete and mission is ready to merge.
 
 ## 📍 WORKING DIRECTORY: Run from MAIN repository
 
@@ -31,10 +31,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before running the acceptance workflow, gather the following:
 
-1. **Feature slug** (e.g., `005-awesome-thing`). If omitted, detect automatically.
+1. **Mission slug** (e.g., `005-awesome-thing`). If omitted, detect automatically.
 2. **Acceptance mode**:
-   - `pr` when the feature will merge via hosted pull request.
-   - `local` when the feature will merge locally without a PR.
+   - `pr` when the mission will merge via hosted pull request.
+   - `local` when the mission will merge locally without a PR.
    - `checklist` to run the readiness checklist without committing or producing merge instructions.
 3. **Validation commands executed** (tests/builds). Collect each command verbatim; omit if none.
 4. **Acceptance actor** (optional, defaults to the current agent name).
@@ -45,7 +45,7 @@ Ask one focused question per item and confirm the summary before continuing. End
 
 1. Compile the acceptance options into an argument list:
    - Always include `--actor "__AGENT__"`.
-   - Append `--feature "<slug>"` when the user supplied a slug.
+   - Append `--mission "<slug>"` when the user supplied a slug.
    - Append `--mode <mode>` (`pr`, `local`, or `checklist`).
    - Append `--test "<command>"` for each validation command provided.
 2. Run `{SCRIPT}` (the CLI wrapper) with the assembled arguments **and** `--json`.

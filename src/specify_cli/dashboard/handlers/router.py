@@ -5,14 +5,14 @@ from __future__ import annotations
 import urllib.parse
 
 from .api import APIHandler
-from .features import FeatureHandler
+from .missions import MissionHandler
 from .static import STATIC_URL_PREFIX, StaticHandler
 
 __all__ = ["DashboardRouter"]
 
 
-class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
-    """Dispatch GET/POST requests to API, feature, or static handlers."""
+class DashboardRouter(APIHandler, MissionHandler, StaticHandler):
+    """Dispatch GET/POST requests to API, mission, or static handlers."""
 
     def do_POST(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler signature)
         parsed_path = urllib.parse.urlparse(self.path)
@@ -41,8 +41,8 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_shutdown()
             return
 
-        if path == '/api/features':
-            self.handle_features_list()
+        if path == '/api/missions':
+            self.handle_missions_list()
             return
 
         if path.startswith('/api/kanban/'):

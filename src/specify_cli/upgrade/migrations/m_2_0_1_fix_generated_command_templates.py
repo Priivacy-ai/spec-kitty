@@ -29,13 +29,13 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
     REPLACEMENTS: list[tuple[str, str]] = [
         (
             "spec-kitty agent check-prerequisites",
-            "spec-kitty agent feature check-prerequisites",
+            "spec-kitty agent mission check-prerequisites",
         ),
         ("--require-tasks --include-tasks", "--include-tasks"),
         ("--require-tasks", "--include-tasks"),
         (
             "(Missing script command for sh)",
-            "spec-kitty agent feature check-prerequisites --json --paths-only",
+            "spec-kitty agent mission check-prerequisites --json --paths-only",
         ),
         (
             "merges each WP branch into main in sequence",

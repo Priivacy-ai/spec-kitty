@@ -11,8 +11,8 @@ def test_dashboard_public_api_imports():
         "stop_dashboard",
         "start_dashboard",
         "find_free_port",
-        "scan_all_features",
-        "scan_feature_kanban",
+        "scan_all_missions",
+        "scan_mission_kanban",
         "run_diagnostics",
     ):
         assert hasattr(module, attr), f"dashboard module should expose {attr}"

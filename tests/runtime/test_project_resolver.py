@@ -4,7 +4,7 @@ import pytest
 from specify_cli.core.project_resolver import (
     locate_project_root,
     resolve_template_path,
-    resolve_worktree_aware_feature_dir,
+    resolve_worktree_aware_mission_dir,
 )
 
 pytestmark = pytest.mark.fast
@@ -38,11 +38,11 @@ def test_locate_project_root_and_template_resolution(tmp_path):
 
 
 def test_resolve_worktree_awareness(tmp_path):
-    """resolve_worktree_aware_feature_dir uses worktree path when CWD is inside a worktree."""
+    """resolve_worktree_aware_mission_dir uses worktree path when CWD is inside a worktree."""
     # Arrange
     repo_root = tmp_path / "spec-kitty"
-    feature_slug = "004-modular-code-refactoring"
-    worktree = repo_root / ".worktrees" / feature_slug / "kitty-specs" / feature_slug / "tasks"
+    mission_slug = "004-modular-code-refactoring"
+    worktree = repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug / "tasks"
     worktree.mkdir(parents=True)
 
     cwd_inside = worktree / "doing"
@@ -52,11 +52,11 @@ def test_resolve_worktree_awareness(tmp_path):
     assert cwd_inside.exists(), "CWD inside worktree must exist"
 
     # Act
-    resolved = resolve_worktree_aware_feature_dir(repo_root, feature_slug, cwd=cwd_inside)
+    resolved = resolve_worktree_aware_mission_dir(repo_root, mission_slug, cwd=cwd_inside)
 
     # Assert
-    assert resolved == repo_root / ".worktrees" / feature_slug / "kitty-specs" / feature_slug
+    assert resolved == repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug
 
     repo_root.mkdir(exist_ok=True)
-    fallback = resolve_worktree_aware_feature_dir(repo_root, "999-new-feature")
-    assert fallback == repo_root / "kitty-specs" / "999-new-feature"
+    fallback = resolve_worktree_aware_mission_dir(repo_root, "999-new-mission")
+    assert fallback == repo_root / "kitty-specs" / "999-new-mission"

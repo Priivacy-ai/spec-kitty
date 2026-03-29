@@ -62,7 +62,7 @@ def test_locate_project_root_with_env_var(mock_main_repo: Path, monkeypatch: pyt
 def test_locate_project_root_from_nested_dir(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test path resolution from deeply nested directory."""
     # Create nested directory structure
-    nested = mock_main_repo / "kitty-specs" / "001-feature" / "deep" / "nested"
+    nested = mock_main_repo / "kitty-specs" / "001-mission" / "deep" / "nested"
     nested.mkdir(parents=True)
     monkeypatch.chdir(nested)
 
@@ -81,8 +81,8 @@ def test_is_worktree_context(mock_worktree: dict[str, Path]) -> None:
     # Test repo root (not in worktree)
     assert is_worktree_context(mock_worktree["repo_root"]) is False
 
-    # Test feature dir (within worktree)
-    assert is_worktree_context(mock_worktree["feature_dir"]) is True
+    # Test mission dir (within worktree)
+    assert is_worktree_context(mock_worktree["mission_dir"]) is True
 
 
 def test_is_worktree_context_external_worktree(tmp_path: Path) -> None:

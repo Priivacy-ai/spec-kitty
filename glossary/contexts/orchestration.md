@@ -17,10 +17,28 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Workflow definition that configures phases, templates, and guardrails. |
+| **Definition** | A single unit of work tracked by Spec Kitty. Every mission has its own specification, plan, tasks, and implementation worktree under `kitty-specs/<mission-slug>/`. Missions are the canonical planning and delivery unit, replacing the former "Feature" term. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+| **Structure** | `kitty-specs/<mission-slug>/spec.md`, `plan.md`, `tasks.md`, `tasks/WPxx-*.md` |
+| **Lifecycle** | specify → plan → tasks → implement → review → accept → merge |
+| **Related terms** | [Mission Type](#mission-type), [Mission Run](#mission-run), [Work Package](#work-package) |
+
+---
+
+### Mission Type
+
+| | |
+|---|---|
+| **Definition** | A workflow adapter that configures Spec Kitty's phases, templates, and validation rules for a specific kind of work. Mission types are project-wide; all missions in a project share the same active mission type. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Examples** | `software-dev` (ship software with TDD), `research` (systematic investigations), `documentation` (Divio-based docs), `plan` (planning-only) |
+| **Scope** | Entire project. Selected at `spec-kitty init` and fixed for the project lifecycle. |
+| **Location** | `src/doctrine/missions/` (software-dev, documentation, research, plan) |
+| **Related terms** | [Mission](#mission), [Mission Template](./doctrine.md#mission-template), [Mission-Runtime YAML](#mission-runtime-yaml) |
 
 ---
 
@@ -40,12 +58,23 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Planning and delivery unit in current 2.x artifact/worktree model (`kitty-specs/<feature-slug>/`). |
+| **Definition** | *Deprecated*. Former planning and delivery unit in the 1.x/2.x artifact/worktree model (`kitty-specs/<slug>/`). Replaced by **Mission** as the canonical domain term. |
 | **Context** | Orchestration |
-| **Status** | canonical (compatibility) |
+| **Status** | deprecated |
+| **Applicable to** | `1.x`, `2.x` (historical) |
+| **Note** | All user-facing surfaces (CLI flags, env vars, error messages, docs) now use "Mission." The `--feature` flag and `SPECIFY_FEATURE` env var have been removed. "Feature Specification" is now **Mission Specification** (`kitty-specs/<slug>/spec.md`). See `glossary/historical-terms.md` for the migration record. |
+
+---
+
+### Feature Branch
+
+| | |
+|---|---|
+| **Definition** | A short-lived VCS branch created from the active target branch, intended to be merged back once work is complete and validated. This is a standard VCS concept (not a Spec Kitty domain term) and is unaffected by the Feature → Mission terminology rename. |
+| **Context** | Orchestration |
+| **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Note** | Feature remains a practical artifact key in 2.x while mission-centric runtime identity is strengthened |
-| **CLI Flag (deprecated)** | The `--feature` flag is deprecated as of version 2.2.0. The canonical flag is now `--mission`. `--feature` remains a backward-compatible alias for one deprecation cycle and emits a deprecation warning when used. See `glossary/historical-terms.md` for the deprecated alias entry. |
+| **Related terms** | [Mission](#mission), [Work Package](#work-package) |
 
 ---
 

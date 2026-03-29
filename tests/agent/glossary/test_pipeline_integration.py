@@ -642,7 +642,7 @@ class TestEndToEndSpecifyWithConflict:
             mission_id="software-dev",
             run_id="run-abc-123",
             inputs={
-                "description": ("Create a new feature that manages workspace configuration for parallel development"),
+                "description": ("Create a new mission that manages workspace configuration for parallel development"),
             },
             metadata={
                 "glossary_check": "enabled",

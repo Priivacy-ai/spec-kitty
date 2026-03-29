@@ -32,9 +32,9 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture
-def feature_dir(tmp_path: Path) -> Path:
-    """Create a minimal feature directory for tests."""
-    fd = tmp_path / "kitty-specs" / "034-test-feature"
+def mission_dir(tmp_path: Path) -> Path:
+    """Create a minimal mission directory for tests."""
+    fd = tmp_path / "kitty-specs" / "034-test-mission"
     fd.mkdir(parents=True)
     return fd
 
@@ -71,16 +71,16 @@ def valid_evidence_dict() -> dict:
 class TestDeriveFromLane:
     """Tests for _derive_from_lane helper."""
 
-    def test_no_events_returns_planned(self, feature_dir: Path):
+    def test_no_events_returns_planned(self, mission_dir: Path):
         """First WP with no events defaults to 'planned'."""
-        result = _derive_from_lane(feature_dir, "WP01")
+        result = _derive_from_lane(mission_dir, "WP01")
         assert result == "planned"
 
-    def test_returns_last_to_lane_for_wp(self, feature_dir: Path):
+    def test_returns_last_to_lane_for_wp(self, mission_dir: Path):
         """Derives from_lane from the last event's to_lane for the WP."""
         event = StatusEvent(
             event_id="01HXYZ0000000000000000TEST",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -91,18 +91,18 @@ class TestDeriveFromLane:
         )
         from specify_cli.status.store import append_event
 
-        append_event(feature_dir, event)
+        append_event(mission_dir, event)
 
-        result = _derive_from_lane(feature_dir, "WP01")
+        result = _derive_from_lane(mission_dir, "WP01")
         assert result == "claimed"
 
-    def test_filters_by_wp_id(self, feature_dir: Path):
+    def test_filters_by_wp_id(self, mission_dir: Path):
         """Only considers events for the specified WP."""
         from specify_cli.status.store import append_event
 
         event_wp01 = StatusEvent(
             event_id="01HXYZ0000000000000000TST1",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -113,7 +113,7 @@ class TestDeriveFromLane:
         )
         event_wp02 = StatusEvent(
             event_id="01HXYZ0000000000000000TST2",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP02",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -122,19 +122,19 @@ class TestDeriveFromLane:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event_wp01)
-        append_event(feature_dir, event_wp02)
+        append_event(mission_dir, event_wp01)
+        append_event(mission_dir, event_wp02)
 
-        result = _derive_from_lane(feature_dir, "WP01")
+        result = _derive_from_lane(mission_dir, "WP01")
         assert result == "claimed"
 
-    def test_unknown_wp_returns_planned(self, feature_dir: Path):
+    def test_unknown_wp_returns_planned(self, mission_dir: Path):
         """WP with no events in existing log returns 'planned'."""
         from specify_cli.status.store import append_event
 
         event = StatusEvent(
             event_id="01HXYZ0000000000000000TST3",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -143,21 +143,21 @@ class TestDeriveFromLane:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        append_event(mission_dir, event)
 
-        result = _derive_from_lane(feature_dir, "WP99")
+        result = _derive_from_lane(mission_dir, "WP99")
         assert result == "planned"
 
-    def test_uses_reduced_state_not_append_order(self, feature_dir: Path):
+    def test_uses_reduced_state_not_append_order(self, mission_dir: Path):
         """Derivation uses canonical reducer order when log lines are out of order."""
         from specify_cli.status.store import append_event
 
         # Write a later transition first, then an earlier one.
         append_event(
-            feature_dir,
+            mission_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO02",
-                feature_slug="034-test-feature",
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 from_lane=Lane.CLAIMED,
                 to_lane=Lane.IN_PROGRESS,
@@ -168,10 +168,10 @@ class TestDeriveFromLane:
             ),
         )
         append_event(
-            feature_dir,
+            mission_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO01",
-                feature_slug="034-test-feature",
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 from_lane=Lane.PLANNED,
                 to_lane=Lane.CLAIMED,
@@ -182,7 +182,7 @@ class TestDeriveFromLane:
             ),
         )
 
-        result = _derive_from_lane(feature_dir, "WP01")
+        result = _derive_from_lane(mission_dir, "WP01")
         assert result == "in_progress"
 
 
@@ -273,11 +273,11 @@ class TestBuildDoneEvidence:
 class TestEmitStatusTransition:
     """Tests for the main emit orchestration function."""
 
-    def test_happy_path_planned_to_claimed(self, feature_dir: Path):
+    def test_happy_path_planned_to_claimed(self, mission_dir: Path):
         """Basic transition from planned to claimed persists and returns event."""
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="claude-opus",
@@ -287,37 +287,37 @@ class TestEmitStatusTransition:
         assert event.from_lane == Lane.PLANNED
         assert event.to_lane == Lane.CLAIMED
         assert event.wp_id == "WP01"
-        assert event.feature_slug == "034-test-feature"
+        assert event.mission_slug == "034-test-mission"
         assert event.actor.tool == "claude-opus"
         assert event.force is False
         assert event.execution_mode == "worktree"
         assert len(event.event_id) == 26  # ULID length
 
         # Verify event is persisted
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 1
         assert events[0].event_id == event.event_id
 
-    def test_snapshot_materialized(self, feature_dir: Path):
+    def test_snapshot_materialized(self, mission_dir: Path):
         """Snapshot file is written after successful emit."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="claude-opus",
         )
 
-        snapshot_path = feature_dir / "status.json"
+        snapshot_path = mission_dir / "status.json"
         assert snapshot_path.exists()
         data = json.loads(snapshot_path.read_text(encoding="utf-8"))
         assert data["work_packages"]["WP01"]["lane"] == "claimed"
 
-    def test_chained_transitions(self, feature_dir: Path):
+    def test_chained_transitions(self, mission_dir: Path):
         """Multiple transitions chain correctly, deriving from_lane."""
         e1 = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -326,8 +326,8 @@ class TestEmitStatusTransition:
         assert e1.to_lane == Lane.CLAIMED
 
         e2 = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="in_progress",
             actor="agent-1",
@@ -336,8 +336,8 @@ class TestEmitStatusTransition:
         assert e2.to_lane == Lane.IN_PROGRESS
 
         e3 = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="for_review",
             actor="agent-1",
@@ -346,23 +346,23 @@ class TestEmitStatusTransition:
         assert e3.to_lane == Lane.FOR_REVIEW
 
         # Verify 3 events in JSONL
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 3
 
-    def test_alias_resolution_doing(self, feature_dir: Path):
+    def test_alias_resolution_doing(self, mission_dir: Path):
         """'doing' alias resolves to 'in_progress'."""
         # First move to claimed
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         )
         # Now use 'doing' alias
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="doing",
             actor="agent-1",
@@ -370,38 +370,38 @@ class TestEmitStatusTransition:
         assert event.to_lane == Lane.IN_PROGRESS
 
     def test_invalid_transition_rejected_no_persistence(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ):
         """Invalid transition raises TransitionError and persists nothing."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="done",
                 actor="agent-1",
             )
 
         # Verify nothing was persisted
-        events_path = feature_dir / EVENTS_FILENAME
+        events_path = mission_dir / EVENTS_FILENAME
         assert not events_path.exists()
 
-    def test_invalid_lane_rejected(self, feature_dir: Path):
+    def test_invalid_lane_rejected(self, mission_dir: Path):
         """Unknown lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="invalid_lane",
                 actor="agent-1",
             )
 
-    def test_execution_mode_direct_repo(self, feature_dir: Path):
+    def test_execution_mode_direct_repo(self, mission_dir: Path):
         """Non-default execution_mode is recorded in event."""
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -409,18 +409,18 @@ class TestEmitStatusTransition:
         )
         assert event.execution_mode == "direct_repo"
 
-    def test_multiple_wps_independent(self, feature_dir: Path):
+    def test_multiple_wps_independent(self, mission_dir: Path):
         """Events for different WPs are independent."""
         e1 = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         )
         e2 = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-2",
@@ -432,7 +432,7 @@ class TestEmitStatusTransition:
         assert e2.from_lane == Lane.PLANNED
 
         # Both should show in snapshot
-        snapshot_path = feature_dir / "status.json"
+        snapshot_path = mission_dir / "status.json"
         data = json.loads(snapshot_path.read_text(encoding="utf-8"))
         assert "WP01" in data["work_packages"]
         assert "WP02" in data["work_packages"]
@@ -444,11 +444,11 @@ class TestEmitStatusTransition:
 class TestForceTransitions:
     """Tests for force transition handling."""
 
-    def test_force_illegal_transition_succeeds(self, feature_dir: Path):
+    def test_force_illegal_transition_succeeds(self, mission_dir: Path):
         """Force allows normally-illegal transitions (e.g. planned -> done)."""
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -459,12 +459,12 @@ class TestForceTransitions:
         assert event.force is True
         assert event.reason == "Emergency fix deployed directly"
 
-    def test_force_without_actor_rejected(self, feature_dir: Path):
+    def test_force_without_actor_rejected(self, mission_dir: Path):
         """Force transition without actor raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="done",
                 actor="",
@@ -472,12 +472,12 @@ class TestForceTransitions:
                 reason="Some reason",
             )
 
-    def test_force_without_reason_rejected(self, feature_dir: Path):
+    def test_force_without_reason_rejected(self, mission_dir: Path):
         """Force transition without reason raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="done",
                 actor="admin",
@@ -485,12 +485,12 @@ class TestForceTransitions:
                 reason=None,
             )
 
-    def test_force_with_invalid_lane_rejected(self, feature_dir: Path):
+    def test_force_with_invalid_lane_rejected(self, mission_dir: Path):
         """Force does not bypass invalid lane names."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="imaginary",
                 actor="admin",
@@ -498,27 +498,27 @@ class TestForceTransitions:
                 reason="testing",
             )
 
-    def test_force_no_persistence_on_failure(self, feature_dir: Path):
+    def test_force_no_persistence_on_failure(self, mission_dir: Path):
         """Force transition that fails validation persists nothing."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="done",
                 actor="",
                 force=True,
                 reason="some reason",
             )
-        events_path = feature_dir / EVENTS_FILENAME
+        events_path = mission_dir / EVENTS_FILENAME
         assert not events_path.exists()
 
-    def test_force_from_done_state(self, feature_dir: Path):
+    def test_force_from_done_state(self, mission_dir: Path):
         """Force can exit the terminal done state."""
         # First force to done
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -527,8 +527,8 @@ class TestForceTransitions:
         )
         # Force back to in_progress
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="in_progress",
             actor="admin",
@@ -538,11 +538,11 @@ class TestForceTransitions:
         assert event.from_lane == Lane.DONE
         assert event.to_lane == Lane.IN_PROGRESS
 
-    def test_force_to_done_without_evidence(self, feature_dir: Path):
+    def test_force_to_done_without_evidence(self, mission_dir: Path):
         """Force to done bypasses evidence requirement."""
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_dir=mission_dir,
+            mission_slug="034-test-mission",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -559,40 +559,40 @@ class TestForceTransitions:
 class TestDoneEvidence:
     """Tests for the done-evidence contract in emit."""
 
-    def test_done_without_evidence_rejected(self, feature_dir: Path):
+    def test_done_without_evidence_rejected(self, mission_dir: Path):
         """Transition to done without evidence is rejected."""
         # Move through the pipeline to get to approved
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="approved",
             actor="reviewer",
@@ -607,48 +607,48 @@ class TestDoneEvidence:
 
         with pytest.raises(TransitionError, match="evidence"):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_dir=mission_dir,
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
             )
 
     def test_done_with_valid_evidence(
-        self, feature_dir: Path, valid_evidence_dict: dict
+        self, mission_dir: Path, valid_evidence_dict: dict
     ):
         """Transition to done with valid evidence succeeds."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="approved",
             actor="reviewer",
@@ -656,8 +656,8 @@ class TestDoneEvidence:
         )
 
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="done",
             actor="reviewer",
@@ -668,39 +668,39 @@ class TestDoneEvidence:
         assert event.evidence.review.reviewer == "reviewer-1"
         assert event.evidence.review.verdict == "approved"
 
-    def test_done_with_bad_evidence_rejected(self, feature_dir: Path):
+    def test_done_with_bad_evidence_rejected(self, mission_dir: Path):
         """Transition to done with malformed evidence is rejected."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="approved",
             actor="reviewer",
@@ -715,8 +715,8 @@ class TestDoneEvidence:
 
         with pytest.raises(TransitionError, match="review.reviewer"):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_dir=mission_dir,
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
@@ -724,7 +724,7 @@ class TestDoneEvidence:
             )
 
         # Verify no done event was persisted (only 5 prior events)
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 5
 
 
@@ -742,7 +742,7 @@ class TestSaasFanOut:
     ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000SAAS",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=from_lane,
             to_lane=to_lane,
@@ -762,7 +762,7 @@ class TestSaasFanOut:
         sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
         try:
             # Should not raise
-            _saas_fan_out(event, "034-test-feature", None)
+            _saas_fan_out(event, "034-test-mission", None)
         finally:
             if saved is not None:
                 sys.modules["specify_cli.sync.events"] = saved
@@ -779,14 +779,14 @@ class TestSaasFanOut:
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
         ):
-            _saas_fan_out(event, "034-test-feature", None)
+            _saas_fan_out(event, "034-test-mission", None)
 
         mock_emit.assert_called_once_with(
             wp_id="WP01",
             from_lane="claimed",
             to_lane="in_progress",
             actor="test-actor:unknown:unknown:unknown",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             policy_metadata=None,
         )
 
@@ -800,7 +800,7 @@ class TestSaasFanOut:
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
         ):
-            _saas_fan_out(event, "034-test-feature", None)
+            _saas_fan_out(event, "034-test-mission", None)
         mock_emit.assert_called_once()
 
     def test_saas_exception_does_not_propagate(self):
@@ -814,25 +814,25 @@ class TestSaasFanOut:
             side_effect=RuntimeError("network error"),
         ), patch("specify_cli.status.emit.logger") as mock_logger:
             # Should not raise
-            _saas_fan_out(event, "034-test-feature", None)
+            _saas_fan_out(event, "034-test-mission", None)
             mock_logger.warning.assert_called_once()
 
-    def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
+    def test_saas_failure_does_not_block_emit(self, mission_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed",
             side_effect=RuntimeError("network down"),
         ):
             event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
             )
             assert event.to_lane == Lane.CLAIMED
             # Event was still persisted
-            events = read_events(feature_dir)
+            events = read_events(mission_dir)
             assert len(events) == 1
 
 
@@ -842,24 +842,24 @@ class TestSaasFanOut:
 class TestPipelineOrder:
     """Tests verifying the critical pipeline ordering."""
 
-    def test_validation_before_persistence(self, feature_dir: Path):
+    def test_validation_before_persistence(self, mission_dir: Path):
         """Validation failure means nothing is written to disk."""
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="done",  # illegal from planned
                 actor="agent-1",
             )
 
-        events_path = feature_dir / EVENTS_FILENAME
+        events_path = mission_dir / EVENTS_FILENAME
         assert not events_path.exists()
-        snapshot_path = feature_dir / "status.json"
+        snapshot_path = mission_dir / "status.json"
         assert not snapshot_path.exists()
 
     def test_event_persisted_even_if_materialize_fails(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ):
         """If materialize fails, the event is still in the JSONL log."""
         with patch(
@@ -867,15 +867,15 @@ class TestPipelineOrder:
             side_effect=OSError("disk error during materialize"),
         ):
             event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
             )
 
         # Event was persisted even though materialize failed
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         assert len(events) == 1
         assert events[0].event_id == event.event_id
 
@@ -922,7 +922,7 @@ class TestPipelineOrder:
                             "block — must be at module top level"
                         )
 
-    def test_legacy_bridge_exception_handled(self, feature_dir: Path):
+    def test_legacy_bridge_exception_handled(self, mission_dir: Path):
         """Exception from legacy_bridge update does not block emit.
 
         Bridge UPDATE failures are non-critical because canonical state
@@ -933,15 +933,15 @@ class TestPipelineOrder:
             side_effect=RuntimeError("bridge broken"),
         ):
             event = emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_dir=mission_dir,
+                mission_slug="034-test-mission",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
             )
             assert event.to_lane == Lane.CLAIMED
             # Event was still persisted despite bridge failure
-            events = read_events(feature_dir)
+            events = read_events(mission_dir)
             assert len(events) == 1
             assert events[0].event_id == event.event_id
 
@@ -953,26 +953,26 @@ class TestReviewRefGuard:
     """Tests for review_ref requirement on for_review -> in_progress."""
 
     def test_for_review_to_in_progress_requires_review_ref(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ):
         """for_review -> in_progress without review_ref is rejected."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -980,42 +980,42 @@ class TestReviewRefGuard:
 
         with pytest.raises(TransitionError, match="review_ref"):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_dir=mission_dir,
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="in_progress",
                 actor="reviewer",
             )
 
     def test_for_review_to_in_progress_with_review_ref(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ):
         """for_review -> in_progress with review_ref succeeds."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
         )
 
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="reviewer",
@@ -1033,19 +1033,19 @@ class TestReasonGuard:
     """Tests for reason requirement on in_progress -> planned."""
 
     def test_in_progress_to_planned_requires_reason(
-        self, feature_dir: Path
+        self, mission_dir: Path
     ):
         """in_progress -> planned without reason is rejected."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -1053,33 +1053,33 @@ class TestReasonGuard:
 
         with pytest.raises(TransitionError, match="reason"):
             emit_status_transition(
-                feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_dir=mission_dir,
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="planned",
                 actor="a",
             )
 
-    def test_in_progress_to_planned_with_reason(self, feature_dir: Path):
+    def test_in_progress_to_planned_with_reason(self, mission_dir: Path):
         """in_progress -> planned with reason succeeds."""
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
 
         event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_dir=mission_dir,
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="planned",
             actor="a",

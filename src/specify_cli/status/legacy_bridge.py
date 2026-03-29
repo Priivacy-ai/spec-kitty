@@ -27,7 +27,7 @@ STATUS_BLOCK_END = "<!-- status-model:end -->"
 
 
 def update_frontmatter_views(
-    feature_dir: Path,
+    mission_dir: Path,
     snapshot: StatusSnapshot,
 ) -> None:
     """Update WP frontmatter lane fields from StatusSnapshot.
@@ -39,7 +39,7 @@ def update_frontmatter_views(
     Logs warnings for missing WP files but does not error.
     Propagates write errors without catching them.
     """
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         logger.warning("Tasks directory not found: %s", tasks_dir)
         return
@@ -83,7 +83,7 @@ def update_frontmatter_views(
 
 
 def update_tasks_md_views(
-    feature_dir: Path,
+    mission_dir: Path,
     snapshot: StatusSnapshot,
 ) -> None:
     """Update tasks.md status sections from StatusSnapshot.
@@ -98,7 +98,7 @@ def update_tasks_md_views(
     text, not frontmatter-style lane fields. The authoritative lane
     display is in the individual WP files' frontmatter.
     """
-    tasks_md = feature_dir / "tasks.md"
+    tasks_md = mission_dir / "tasks.md"
     if not tasks_md.exists():
         logger.debug("tasks.md not found: %s", tasks_md)
         return
@@ -167,7 +167,7 @@ def _render_tasks_status_block(snapshot: StatusSnapshot) -> str:
 
 
 def update_all_views(
-    feature_dir: Path,
+    mission_dir: Path,
     snapshot: StatusSnapshot,
     *,
     repo_root: Path | None = None,
@@ -180,28 +180,28 @@ def update_all_views(
     - Phase 2: Update views (views are generated-only)
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+        mission_dir: Path to the mission directory (kitty-specs/<mission>/)
         snapshot: The StatusSnapshot to generate views from
         repo_root: Repository root for phase resolution. If None, derived
-                   from feature_dir (assumes kitty-specs/<slug>/ structure).
+                   from mission_dir (assumes kitty-specs/<slug>/ structure).
     """
     if repo_root is None:
-        # Derive repo_root: feature_dir is typically kitty-specs/<slug>/
-        repo_root = feature_dir.parent.parent
+        # Derive repo_root: mission_dir is typically kitty-specs/<slug>/
+        repo_root = mission_dir.parent.parent
 
-    phase, source = resolve_phase(repo_root, snapshot.feature_slug)
+    phase, source = resolve_phase(repo_root, snapshot.mission_slug)
 
     if phase == 0:
         logger.debug("Phase 0 (%s): legacy bridge is no-op", source)
         return
 
     # Phase 1 and Phase 2: update views
-    update_frontmatter_views(feature_dir, snapshot)
-    update_tasks_md_views(feature_dir, snapshot)
+    update_frontmatter_views(mission_dir, snapshot)
+    update_tasks_md_views(mission_dir, snapshot)
 
     logger.debug(
         "Legacy views updated for %s (phase %d: %s)",
-        snapshot.feature_slug,
+        snapshot.mission_slug,
         phase,
         source,
     )

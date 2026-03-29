@@ -7,7 +7,7 @@ JSON for prompt injection.
 
 Key concepts:
 - A WP is "stacked" if its base_branch (from workspace context) points to
-  another WP's branch rather than the feature's target branch.
+  another WP's branch rather than the mission's target branch.
 - Topology is only injected into prompts when has_stacking is True.
 - JSON output is wrapped in HTML comment markers for reliable agent parsing.
 """
@@ -19,7 +19,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.core.feature_detection import get_feature_target_branch
+from specify_cli.core.mission_detection import get_mission_target_branch
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.workspace_context import list_contexts
@@ -41,10 +41,10 @@ class WPTopologyEntry:
 
 
 @dataclass
-class FeatureTopology:
-    """Full feature worktree topology."""
+class MissionTopology:
+    """Full mission worktree topology."""
 
-    feature_slug: str
+    mission_slug: str
     target_branch: str
     entries: list[WPTopologyEntry] = field(default_factory=list)
 
@@ -70,14 +70,14 @@ class FeatureTopology:
 
 def _resolve_base_wp(
     base_branch: str,
-    feature_slug: str,
+    mission_slug: str,
     wp_branches: dict[str, str],
 ) -> str | None:
     """Determine if base_branch is another WP's branch.
 
     Args:
         base_branch: The base branch name from workspace context
-        feature_slug: Feature slug for pattern matching
+        mission_slug: Mission slug for pattern matching
         wp_branches: Map of WP ID -> branch name
 
     Returns:
@@ -116,25 +116,25 @@ def _count_commits_ahead(
 
 def materialize_worktree_topology(
     repo_root: Path,
-    feature_slug: str,
-) -> FeatureTopology:
-    """Gather the full worktree topology for a feature.
+    mission_slug: str,
+) -> MissionTopology:
+    """Gather the full worktree topology for a mission.
 
     Combines workspace contexts, WP frontmatter, dependency graph,
     and git rev-list counts into a complete topology view.
 
     Args:
         repo_root: Main repository root path
-        feature_slug: Feature slug (e.g., "002-event-driven")
+        mission_slug: Mission slug (e.g., "002-event-driven")
 
     Returns:
-        FeatureTopology with all WP entries in topological order
+        MissionTopology with all WP entries in topological order
     """
     main_repo_root = get_main_repo_root(repo_root)
-    target_branch = get_feature_target_branch(main_repo_root, feature_slug)
+    target_branch = get_mission_target_branch(main_repo_root, mission_slug)
 
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
-    graph = build_dependency_graph(feature_dir)
+    mission_dir = main_repo_root / "kitty-specs" / mission_slug
+    graph = build_dependency_graph(mission_dir)
 
     # Get topological order (dependencies before dependents)
     try:
@@ -145,19 +145,19 @@ def materialize_worktree_topology(
 
     # Build WP branch map from workspace contexts
     contexts = list_contexts(main_repo_root)
-    feature_contexts = {
+    mission_contexts = {
         ctx.wp_id: ctx
         for ctx in contexts
-        if ctx.feature_slug == feature_slug
+        if ctx.mission_slug == mission_slug
     }
 
     # Map WP ID -> branch name for base resolution
     wp_branches: dict[str, str] = {}
-    for wp_id, ctx in feature_contexts.items():
+    for wp_id, ctx in mission_contexts.items():
         wp_branches[wp_id] = ctx.branch_name
 
     # Read lane status from WP frontmatter
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     wp_lanes: dict[str, str] = {}
     if tasks_dir.exists():
         for wp_file in tasks_dir.glob("WP*.md"):
@@ -171,7 +171,7 @@ def materialize_worktree_topology(
     # Build topology entries
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        ctx = feature_contexts.get(wp_id)
+        ctx = mission_contexts.get(wp_id)
         branch_name = ctx.branch_name if ctx else None
         base_branch = ctx.base_branch if ctx else None
         dependencies = graph.get(wp_id, [])
@@ -180,11 +180,11 @@ def materialize_worktree_topology(
         # Determine if base is another WP
         base_wp = None
         if base_branch:
-            base_wp = _resolve_base_wp(base_branch, feature_slug, wp_branches)
+            base_wp = _resolve_base_wp(base_branch, mission_slug, wp_branches)
 
         # Count commits ahead of base
         commits_ahead = 0
-        worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+        worktree_path = main_repo_root / ".worktrees" / f"{mission_slug}-{wp_id}"
         worktree_exists = worktree_path.exists()
         if worktree_exists and base_branch:
             commits_ahead = _count_commits_ahead(worktree_path, base_branch)
@@ -200,15 +200,15 @@ def materialize_worktree_topology(
             commits_ahead_of_base=commits_ahead,
         ))
 
-    return FeatureTopology(
-        feature_slug=feature_slug,
+    return MissionTopology(
+        mission_slug=mission_slug,
         target_branch=target_branch,
         entries=entries,
     )
 
 
 def render_topology_json(
-    topology: FeatureTopology,
+    topology: MissionTopology,
     current_wp_id: str,
 ) -> list[str]:
     """Render topology as structured JSON for prompt injection.
@@ -217,7 +217,7 @@ def render_topology_json(
     Output is wrapped in HTML comment markers for reliable agent parsing.
 
     Args:
-        topology: Feature topology data
+        topology: Mission topology data
         current_wp_id: The WP being implemented/reviewed
 
     Returns:
@@ -253,7 +253,7 @@ def render_topology_json(
         entries_json.append(entry_data)
 
     payload = {
-        "feature": topology.feature_slug,
+        "mission": topology.mission_slug,
         "target_branch": topology.target_branch,
         "current_wp": current_wp_id,
         "your_base": your_base,
@@ -261,7 +261,7 @@ def render_topology_json(
         "stacked": True,
         "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."
             if current_entry and current_entry.base_wp
-            else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
+            else f"Your branch is based on {topology.target_branch}. Other WPs in this mission use stacking.",
         "entries": entries_json,
     }
 
@@ -274,7 +274,7 @@ def render_topology_json(
 
 
 def render_topology_text(
-    topology: FeatureTopology,
+    topology: MissionTopology,
     current_wp_id: str,
 ) -> list[str]:
     """Render topology as human-readable text for CLI output.
@@ -282,7 +282,7 @@ def render_topology_text(
     Utility function for human-facing displays (not used in prompts).
 
     Args:
-        topology: Feature topology data
+        topology: Mission topology data
         current_wp_id: The WP to highlight
 
     Returns:
@@ -292,7 +292,7 @@ def render_topology_text(
     lines.append("╔" + "═" * 78 + "╗")
     lines.append("║  WORKTREE TOPOLOGY" + " " * 59 + "║")
     lines.append("╠" + "═" * 78 + "╣")
-    lines.append(f"║  Feature: {topology.feature_slug:<66} ║")
+    lines.append(f"║  Mission: {topology.mission_slug:<66} ║")
     lines.append(f"║  Target:  {topology.target_branch:<66} ║")
     lines.append("║" + " " * 78 + "║")
 
@@ -316,7 +316,7 @@ def render_topology_text(
 
 __all__ = [
     "WPTopologyEntry",
-    "FeatureTopology",
+    "MissionTopology",
     "materialize_worktree_topology",
     "render_topology_json",
     "render_topology_text",

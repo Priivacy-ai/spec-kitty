@@ -44,55 +44,55 @@ from specify_cli.dossier.hasher import hash_file
 
 
 @pytest.fixture
-def minimal_feature_dir(tmp_path):
-    """Create minimal feature with spec.md, plan.md, tasks.md."""
-    feature_dir = tmp_path / "feature"
-    feature_dir.mkdir()
-    (feature_dir / "spec.md").write_text("# Specification\n\nCore specification details.\n", encoding='utf-8')
-    (feature_dir / "plan.md").write_text("# Plan\n\nImplementation steps.\n", encoding='utf-8')
-    (feature_dir / "tasks.md").write_text("# Tasks\n\nWP01: Model layer\nWP02: API\n", encoding='utf-8')
-    return feature_dir
+def minimal_mission_dir(tmp_path):
+    """Create minimal mission with spec.md, plan.md, tasks.md."""
+    mission_dir = tmp_path / "mission"
+    mission_dir.mkdir()
+    (mission_dir / "spec.md").write_text("# Specification\n\nCore specification details.\n", encoding='utf-8')
+    (mission_dir / "plan.md").write_text("# Plan\n\nImplementation steps.\n", encoding='utf-8')
+    (mission_dir / "tasks.md").write_text("# Tasks\n\nWP01: Model layer\nWP02: API\n", encoding='utf-8')
+    return mission_dir
 
 
 @pytest.fixture
-def realistic_feature_dir(tmp_path):
-    """Create realistic feature with 50+ artifacts and nested structure."""
-    feature_dir = tmp_path / "feature"
-    feature_dir.mkdir()
+def realistic_mission_dir(tmp_path):
+    """Create realistic mission with 50+ artifacts and nested structure."""
+    mission_dir = tmp_path / "mission"
+    mission_dir.mkdir()
 
     # Required artifacts
-    (feature_dir / "spec.md").write_text("# Specification\n\n" + "Detail paragraph.\n" * 20, encoding='utf-8')
-    (feature_dir / "plan.md").write_text("# Plan\n\n" + "Step description.\n" * 15, encoding='utf-8')
-    (feature_dir / "tasks.md").write_text("# Tasks\n\n" + "WP item.\n" * 30, encoding='utf-8')
+    (mission_dir / "spec.md").write_text("# Specification\n\n" + "Detail paragraph.\n" * 20, encoding='utf-8')
+    (mission_dir / "plan.md").write_text("# Plan\n\n" + "Step description.\n" * 15, encoding='utf-8')
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n" + "WP item.\n" * 30, encoding='utf-8')
 
     # Optional artifacts
-    (feature_dir / "research.md").write_text("# Research\n\n" + "Finding.\n" * 25, encoding='utf-8')
-    (feature_dir / "gap-analysis.md").write_text("# Gap Analysis\n\n" + "Gap.\n" * 20, encoding='utf-8')
+    (mission_dir / "research.md").write_text("# Research\n\n" + "Finding.\n" * 25, encoding='utf-8')
+    (mission_dir / "gap-analysis.md").write_text("# Gap Analysis\n\n" + "Gap.\n" * 20, encoding='utf-8')
 
     # Evidence artifacts
-    (feature_dir / "test_main.py").write_text("# Test\ndef test_x(): pass\n" * 10, encoding='utf-8')
-    (feature_dir / "test_api.py").write_text("# API Test\ndef test_api(): pass\n" * 10, encoding='utf-8')
+    (mission_dir / "test_main.py").write_text("# Test\ndef test_x(): pass\n" * 10, encoding='utf-8')
+    (mission_dir / "test_api.py").write_text("# API Test\ndef test_api(): pass\n" * 10, encoding='utf-8')
 
     # Nested work package structure
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
     for i in range(1, 11):
         wp_file = tasks_dir / f"WP{i:02d}.md"
         wp_file.write_text(f"# WP{i:02d}\n\n" + f"Task {i} details.\n" * 10, encoding='utf-8')
 
     # Additional nested directories
-    docs_dir = feature_dir / "docs"
+    docs_dir = mission_dir / "docs"
     docs_dir.mkdir()
     for i in range(1, 6):
         (docs_dir / f"doc{i}.md").write_text(f"# Doc {i}\n\n" + f"Documentation {i}.\n" * 8, encoding='utf-8')
 
     # Design artifacts
-    design_dir = feature_dir / "design"
+    design_dir = mission_dir / "design"
     design_dir.mkdir()
     for i in range(1, 4):
         (design_dir / f"diagram{i}.txt").write_text(f"Diagram {i} content\n" * 5, encoding='utf-8')
 
-    return feature_dir
+    return mission_dir
 
 
 # ============================================================================
@@ -105,15 +105,15 @@ class TestMissingRequiredArtifactDetection:
 
     def test_missing_required_artifacts_detected(self, tmp_path):
         """Missing required artifacts flagged with error_reason."""
-        # Create feature at "specify" step (requires spec.md)
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        # Create mission at "specify" step (requires spec.md)
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # No artifacts created - spec.md will be missing at 'specify' step
 
         # Index
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev', step_id='specify')
+        dossier = indexer.index_mission(mission_dir, 'software-dev', step_id='specify')
 
         # Verify manifest was loaded
         assert dossier.manifest is not None
@@ -136,14 +136,14 @@ class TestMissingRequiredArtifactDetection:
 
     def test_multiple_missing_artifacts_all_detected(self, tmp_path):
         """Multiple missing artifacts all detected (not just first one)."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create only spec.md (missing plan.md and tasks.md at 'plan' step)
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        dossier = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
 
         # Verify manifest was loaded
         assert dossier.manifest is not None
@@ -164,14 +164,14 @@ class TestMissingRequiredArtifactDetection:
 
     def test_completeness_status_incomplete_with_missing(self, tmp_path):
         """Completeness status is 'incomplete' when required artifacts missing."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create only spec.md (missing plan.md, tasks.md)
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        dossier = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
 
         # Verify manifest was loaded
         assert dossier.manifest is not None
@@ -188,13 +188,13 @@ class TestMissingRequiredArtifactDetection:
 class TestOptionalArtifactHandling:
     """T052: Optional artifacts don't block completeness."""
 
-    def test_optional_artifacts_not_required(self, minimal_feature_dir):
+    def test_optional_artifacts_not_required(self, minimal_mission_dir):
         """Optional artifacts (e.g., research.md) don't block completeness."""
         # Create dossier with required artifacts only
         # research.md (optional) NOT created
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(minimal_feature_dir, 'software-dev', step_id='planning')
+        dossier = indexer.index_mission(minimal_mission_dir, 'software-dev', step_id='planning')
 
         # Verify completeness (should be complete despite missing optional)
         assert dossier.completeness_status == 'complete', \
@@ -204,10 +204,10 @@ class TestOptionalArtifactHandling:
         missing_required = dossier.get_missing_required_artifacts(step_id='planning')
         assert len(missing_required) == 0, f"Should have no missing required, got {len(missing_required)}"
 
-    def test_optional_artifacts_not_trigger_events(self, minimal_feature_dir):
+    def test_optional_artifacts_not_trigger_events(self, minimal_mission_dir):
         """Missing optional artifacts don't trigger MissionDossierArtifactMissing events."""
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(minimal_feature_dir, 'software-dev')
+        dossier = indexer.index_mission(minimal_mission_dir, 'software-dev')
 
         # Get missing required only
         missing_required = dossier.get_missing_required_artifacts()
@@ -222,17 +222,17 @@ class TestOptionalArtifactHandling:
 
     def test_gap_analysis_optional_not_blocking(self, tmp_path):
         """gap-analysis.md is optional and doesn't block completeness."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create required artifacts
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
         # gap-analysis.md NOT created (optional)
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev', step_id='planning')
+        dossier = indexer.index_mission(mission_dir, 'software-dev', step_id='planning')
 
         assert dossier.completeness_status == 'complete'
 
@@ -247,20 +247,20 @@ class TestUnreadableArtifactHandling:
 
     def test_permission_denied_artifact_recorded(self, tmp_path):
         """Artifact with no read permission is recorded with error_reason='unreadable'."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create readable artifact
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Create unreadable artifact
-        unreadable = feature_dir / "secret.md"
+        unreadable = mission_dir / "secret.md"
         unreadable.write_text("Secret\n", encoding='utf-8')
         os.chmod(unreadable, 0o000)  # Remove all permissions
 
         try:
             indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+            dossier = indexer.index_mission(mission_dir, 'software-dev')
 
             # Verify unreadable artifact recorded (not skipped)
             secret_artifact = next((a for a in dossier.artifacts if 'secret' in a.relative_path), None)
@@ -273,18 +273,18 @@ class TestUnreadableArtifactHandling:
 
     def test_invalid_utf8_artifact_recorded(self, tmp_path):
         """Invalid UTF-8 artifact recorded with error_reason='invalid_utf8'."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create spec.md (readable)
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Create invalid UTF-8 file
-        invalid = feature_dir / "corrupted.md"
+        invalid = mission_dir / "corrupted.md"
         invalid.write_bytes(b"Hello\xff\xfeWorld")
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # Verify corrupted artifact recorded
         corrupted = next((a for a in dossier.artifacts if 'corrupted' in a.relative_path), None)
@@ -294,25 +294,25 @@ class TestUnreadableArtifactHandling:
 
     def test_no_silent_failures_all_artifacts_recorded(self, tmp_path):
         """All artifacts recorded in dossier (no silent skips per FR-009)."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create mix of readable, unreadable, and invalid UTF-8
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
 
         # Unreadable
-        unreadable = feature_dir / "secret.txt"
+        unreadable = mission_dir / "secret.txt"
         unreadable.write_text("secret")
         os.chmod(unreadable, 0o000)
 
         # Invalid UTF-8
-        invalid = feature_dir / "bad.bin"
+        invalid = mission_dir / "bad.bin"
         invalid.write_bytes(b"\xff\xfe")
 
         try:
             indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+            dossier = indexer.index_mission(mission_dir, 'software-dev')
 
             # Count all files created
             expected_count = 4  # spec.md, plan.md, secret.txt, bad.bin
@@ -331,18 +331,18 @@ class TestUnreadableArtifactHandling:
 
     def test_unreadable_artifacts_no_crash(self, tmp_path):
         """Scan completes gracefully with unreadable artifacts (no crash)."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create unreadable artifact
-        unreadable = feature_dir / "protected.md"
+        unreadable = mission_dir / "protected.md"
         unreadable.write_text("protected")
         os.chmod(unreadable, 0o000)
 
         try:
             indexer = Indexer(ManifestRegistry())
             # Should not raise exception
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+            dossier = indexer.index_mission(mission_dir, 'software-dev')
             assert dossier is not None
         finally:
             os.chmod(unreadable, 0o644)
@@ -359,14 +359,14 @@ class TestLargeArtifactHandling:
     @pytest.mark.slow
     def test_large_artifact_indexing_no_memory_leak(self, tmp_path):
         """Large artifact (100MB) indexed without memory crash or full load."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create spec.md for minimal completeness
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Create 10MB artifact (smaller than requested to avoid CI timeout)
-        huge_file = feature_dir / "huge.bin"
+        huge_file = mission_dir / "huge.bin"
         with open(huge_file, 'wb') as f:
             # Write in 1MB chunks (10 chunks = 10MB)
             for _ in range(10):
@@ -374,7 +374,7 @@ class TestLargeArtifactHandling:
 
         # Index (should not crash, should compute hash efficiently)
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # Verify artifact indexed and hashed
         huge = next((a for a in dossier.artifacts if 'huge' in a.relative_path), None)
@@ -384,16 +384,16 @@ class TestLargeArtifactHandling:
 
     def test_large_artifact_detection(self, tmp_path):
         """Large artifacts (>5MB) properly detected and flagged."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create 6MB artifact
-        large_file = feature_dir / "large.txt"
+        large_file = mission_dir / "large.txt"
         with open(large_file, 'wb') as f:
             f.write(b'x' * (6 * 1024 * 1024))
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # Find large artifact
         large = next((a for a in dossier.artifacts if 'large' in a.relative_path), None)
@@ -409,11 +409,11 @@ class TestLargeArtifactHandling:
 class TestFullScanWorkflowIntegration:
     """T055: End-to-end workflow from creation to snapshot and events."""
 
-    def test_full_workflow_integration(self, realistic_feature_dir):
+    def test_full_workflow_integration(self, realistic_mission_dir):
         """Complete workflow: create → index → snapshot → completeness check."""
-        # 1. Index feature
+        # 1. Index mission
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(realistic_feature_dir, 'software-dev', step_id='planning')
+        dossier = indexer.index_mission(realistic_mission_dir, 'software-dev', step_id='planning')
 
         assert dossier is not None
         assert len(dossier.artifacts) > 0
@@ -429,14 +429,14 @@ class TestFullScanWorkflowIntegration:
 
     def test_workflow_with_missing_artifacts_incomplete(self, tmp_path):
         """Workflow with missing required artifacts results in 'incomplete' status."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Only create spec.md (missing plan.md, tasks.md)
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        dossier = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
 
         # Verify manifest was loaded
         assert dossier.manifest is not None
@@ -448,10 +448,10 @@ class TestFullScanWorkflowIntegration:
         snapshot = compute_snapshot(dossier)
         assert snapshot.completeness_status == 'incomplete'
 
-    def test_workflow_artifact_count_consistency(self, realistic_feature_dir):
+    def test_workflow_artifact_count_consistency(self, realistic_mission_dir):
         """Artifact count is consistent throughout workflow."""
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(realistic_feature_dir, 'software-dev')
+        dossier = indexer.index_mission(realistic_mission_dir, 'software-dev')
 
         # Count artifacts
         initial_count = len(dossier.artifacts)
@@ -472,14 +472,14 @@ class TestDeepNestingAndSpecialCharacters:
 
     def test_deeply_nested_directories(self, tmp_path):
         """Deeply nested directories (30+ levels) scanned correctly."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create minimal required artifacts
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Create deeply nested structure
-        current = feature_dir / "level1"
+        current = mission_dir / "level1"
         for i in range(2, 32):  # Create 31 levels
             current.mkdir()
             (current / f"file{i}.txt").write_text(f"Content level {i}\n", encoding='utf-8')
@@ -489,26 +489,26 @@ class TestDeepNestingAndSpecialCharacters:
         (current / "deep_file.txt").write_text("Deep content\n", encoding='utf-8')
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # Verify all nested files indexed
         assert len(dossier.artifacts) >= 32, f"Expected >=32 artifacts, got {len(dossier.artifacts)}"
 
     def test_special_characters_in_filenames(self, tmp_path):
         """Filenames with special characters handled correctly."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Create spec.md for minimal completeness
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Create files with special characters
-        (feature_dir / "file-with-dashes.md").write_text("# Dashes\n", encoding='utf-8')
-        (feature_dir / "file_with_underscores.md").write_text("# Underscores\n", encoding='utf-8')
-        (feature_dir / "file.with.dots.md").write_text("# Dots\n", encoding='utf-8')
+        (mission_dir / "file-with-dashes.md").write_text("# Dashes\n", encoding='utf-8')
+        (mission_dir / "file_with_underscores.md").write_text("# Underscores\n", encoding='utf-8')
+        (mission_dir / "file.with.dots.md").write_text("# Dots\n", encoding='utf-8')
 
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # All files should be indexed
         assert len(dossier.artifacts) == 4
@@ -524,10 +524,10 @@ class TestConcurrentFileModification:
 
     def test_concurrent_file_modification_detected(self, tmp_path):
         """File modified during scan—hash captures pre-modification state."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
-        test_file = feature_dir / "changing.md"
+        test_file = mission_dir / "changing.md"
         original_content = "# Original\n"
         test_file.write_text(original_content, encoding='utf-8')
 
@@ -546,15 +546,15 @@ class TestConcurrentFileModification:
 
     def test_snapshot_point_in_time_capture(self, tmp_path):
         """Snapshot captures point-in-time state of files."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
-        test_file = feature_dir / "spec.md"
+        test_file = mission_dir / "spec.md"
         test_file.write_text("# Specification\n", encoding='utf-8')
 
         # Index (point-in-time capture)
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         # Capture hash from snapshot
         spec_artifact = next((a for a in dossier.artifacts if 'spec' in a.artifact_key), None)
@@ -581,15 +581,15 @@ class TestManifestVersionMismatch:
 
     def test_manifest_version_change_detected(self, tmp_path):
         """Manifest version change is detectable."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
 
         # Index with version 1
         indexer1 = Indexer(ManifestRegistry())
-        dossier1 = indexer1.index_feature(feature_dir, 'software-dev')
+        dossier1 = indexer1.index_mission(mission_dir, 'software-dev')
         snapshot1 = compute_snapshot(dossier1)
 
         # Simulate version change (would happen if manifest schema updated)
@@ -598,17 +598,17 @@ class TestManifestVersionMismatch:
 
     def test_same_content_same_hash_with_same_manifest(self, tmp_path):
         """Same content and manifest → same hash (reproducibility)."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
 
         # Index twice with same manifest
         indexer = Indexer(ManifestRegistry())
-        dossier1 = indexer.index_feature(feature_dir, 'software-dev')
+        dossier1 = indexer.index_mission(mission_dir, 'software-dev')
         snapshot1 = compute_snapshot(dossier1)
 
-        dossier2 = indexer.index_feature(feature_dir, 'software-dev')
+        dossier2 = indexer.index_mission(mission_dir, 'software-dev')
         snapshot2 = compute_snapshot(dossier2)
 
         # Hashes should be identical (reproducible)
@@ -625,12 +625,12 @@ class TestEdgeCasesCombined:
 
     def test_empty_directory_scan(self, tmp_path):
         """Scanning empty directory completes gracefully."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         indexer = Indexer(ManifestRegistry())
         # When no step_id is specified, completeness checking without step-specific requirements
-        dossier = indexer.index_feature(feature_dir, 'software-dev')
+        dossier = indexer.index_mission(mission_dir, 'software-dev')
 
         assert dossier is not None
         # Empty directory with manifest loaded - completeness based on required_always (which is empty)
@@ -639,21 +639,21 @@ class TestEdgeCasesCombined:
 
     def test_mixed_readable_unreadable_artifacts(self, tmp_path):
         """Mix of readable and unreadable artifacts all indexed."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Readable
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
 
         # Unreadable
-        unreadable = feature_dir / "secret.txt"
+        unreadable = mission_dir / "secret.txt"
         unreadable.write_text("secret")
         os.chmod(unreadable, 0o000)
 
         try:
             indexer = Indexer(ManifestRegistry())
-            dossier = indexer.index_feature(feature_dir, 'software-dev')
+            dossier = indexer.index_mission(mission_dir, 'software-dev')
 
             # All files should be indexed
             assert len(dossier.artifacts) == 3
@@ -669,10 +669,10 @@ class TestEdgeCasesCombined:
         finally:
             os.chmod(unreadable, 0o644)
 
-    def test_snapshot_hash_includes_all_artifacts(self, realistic_feature_dir):
+    def test_snapshot_hash_includes_all_artifacts(self, realistic_mission_dir):
         """Snapshot hash includes all indexed artifacts."""
         indexer = Indexer(ManifestRegistry())
-        dossier = indexer.index_feature(realistic_feature_dir, 'software-dev')
+        dossier = indexer.index_mission(realistic_mission_dir, 'software-dev')
 
         snapshot = compute_snapshot(dossier)
 
@@ -682,25 +682,25 @@ class TestEdgeCasesCombined:
 
     def test_completeness_transitions(self, tmp_path):
         """Completeness can transition from incomplete to complete."""
-        feature_dir = tmp_path / "feature"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "mission"
+        mission_dir.mkdir()
 
         # Start incomplete (only spec.md, at 'plan' step which requires spec + plan + tasks)
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
         indexer = Indexer(ManifestRegistry())
-        dossier1 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        dossier1 = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
         assert dossier1.manifest is not None
         assert dossier1.completeness_status == 'incomplete'
 
         # Add plan.md (still missing tasks)
-        (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
-        dossier2 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
+        dossier2 = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
         assert dossier2.manifest is not None
         assert dossier2.completeness_status == 'incomplete'
 
         # Add tasks.md (now complete for 'plan' step)
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
-        dossier3 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
+        dossier3 = indexer.index_mission(mission_dir, 'software-dev', step_id='plan')
         assert dossier3.manifest is not None
         assert dossier3.completeness_status == 'complete'
 
@@ -760,7 +760,7 @@ class TestDossierHTTPAPI:
         """Verify load_snapshot() has correct argument order.
 
         P0 bug fix: Arguments were reversed, causing 500 errors.
-        Correct signature: load_snapshot(feature_dir, feature_slug)
+        Correct signature: load_snapshot(mission_dir, mission_slug)
         """
         from inspect import signature
         from specify_cli.dossier.snapshot import load_snapshot
@@ -769,8 +769,7 @@ class TestDossierHTTPAPI:
         sig = signature(load_snapshot)
         params = list(sig.parameters.keys())
 
-        # First param should be feature_dir, second should be feature_slug
+        # First param should be mission_dir, second should be mission_slug
         assert len(params) >= 2
-        assert params[0] == "feature_dir"
-        assert params[1] == "feature_slug"
-
+        assert params[0] == "mission_dir"
+        assert params[1] == "mission_slug"

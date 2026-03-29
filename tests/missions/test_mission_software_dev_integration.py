@@ -10,7 +10,7 @@ Verifies:
 - v0 legacy keys coexist alongside v1 keys
 - Typed inputs and outputs present and correctly structured
 
-Uses MissionRepository to locate the canonical mission YAML in doctrine.
+Uses MissionTemplateRepository to locate the canonical mission YAML in doctrine.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import yaml
 
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.mission_v1.schema import (
 
     is_v1_mission,
@@ -33,7 +33,7 @@ pytestmark = pytest.mark.git_repo
 # Helpers
 # ---------------------------------------------------------------------------
 
-MISSION_YAML_PATH = MissionRepository.default_missions_root() / "software-dev" / "mission.yaml"
+MISSION_YAML_PATH = MissionTemplateRepository.default_missions_root() / "software-dev" / "mission.yaml"
 
 @pytest.fixture()
 def software_dev_config() -> dict:

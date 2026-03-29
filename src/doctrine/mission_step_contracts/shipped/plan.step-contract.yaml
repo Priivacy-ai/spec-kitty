@@ -15,7 +15,7 @@ steps:
         optional: true
 
   - id: read_spec
-    description: Read and understand the feature specification
+    description: Read and understand the mission specification
     delegates_to:
       kind: directive
       candidates:
@@ -38,7 +38,7 @@ steps:
 
   - id: write_plan
     description: Write plan.md to kitty-specs/{feature}/
-    command: "Write plan.md in kitty-specs/{feature_slug}/"
+    command: "Write plan.md in kitty-specs/{mission_slug}/"
 
   - id: commit_plan
     description: Commit the plan to main branch

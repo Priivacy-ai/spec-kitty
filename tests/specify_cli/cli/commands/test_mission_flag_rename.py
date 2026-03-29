@@ -37,48 +37,42 @@ def _help(*subcommand: str) -> subprocess.CompletedProcess[str]:
 
 
 # ---------------------------------------------------------------------------
-# Unit-level tests for resolve_mission_or_feature (T001 utility)
+# Unit-level tests for resolve_mission_type (post-cord-cut utility)
 # ---------------------------------------------------------------------------
 
 
 def test_resolve_utility_mission_only() -> None:
-    """resolve_mission_or_feature returns mission when only --mission given."""
-    from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+    """resolve_mission_type returns mission_type when only --mission-type given."""
+    from specify_cli.cli.commands._flag_utils import resolve_mission_type
 
-    result = resolve_mission_or_feature("056-my-feature", None)
-    assert result == "056-my-feature"
+    result = resolve_mission_type("software-dev", None)
+    assert result == "software-dev"
 
 
 def test_resolve_utility_feature_only() -> None:
-    """resolve_mission_or_feature returns feature value and emits DeprecationWarning."""
-    import warnings
-    from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+    """resolve_mission_type raises typer.Exit when removed --mission alias is used."""
+    import typer
+    from specify_cli.cli.commands._flag_utils import resolve_mission_type
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        result = resolve_mission_or_feature(None, "056-my-feature")
-
-    assert result == "056-my-feature"
-    assert any(issubclass(w.category, DeprecationWarning) for w in caught), (
-        f"Expected DeprecationWarning but got: {[w.category for w in caught]}"
-    )
+    with pytest.raises((SystemExit, typer.Exit)):
+        resolve_mission_type(None, "056-my-feature")
 
 
 def test_resolve_utility_conflicting_raises() -> None:
-    """resolve_mission_or_feature raises BadParameter on conflicting values."""
-    import typer
-    from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+    """resolve_mission_type returns mission_type even when mission alias is also given."""
+    from specify_cli.cli.commands._flag_utils import resolve_mission_type
 
-    with pytest.raises(typer.BadParameter):
-        resolve_mission_or_feature("056-a", "056-b")
+    # mission_type takes precedence; --mission is never reached
+    result = resolve_mission_type("software-dev", "056-b")
+    assert result == "software-dev"
 
 
 def test_resolve_utility_same_value_silent() -> None:
-    """resolve_mission_or_feature returns the value when both flags have the same value."""
-    from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
+    """resolve_mission_type returns None when neither flag is set."""
+    from specify_cli.cli.commands._flag_utils import resolve_mission_type
 
-    result = resolve_mission_or_feature("056-x", "056-x")
-    assert result == "056-x"
+    result = resolve_mission_type(None, None)
+    assert result is None
 
 
 # ---------------------------------------------------------------------------

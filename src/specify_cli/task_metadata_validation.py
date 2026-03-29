@@ -231,24 +231,24 @@ def validate_task_metadata(task_file: Path) -> list[str]:
 
 
 def scan_all_tasks_for_mismatches(
-    feature_dir: Path,
+    mission_dir: Path,
 ) -> dict[str, tuple[bool, str | None, str | None]]:
-    """Scan all task files in a feature for lane mismatches.
+    """Scan all task files in a mission for lane mismatches.
 
     Args:
-        feature_dir: Path to feature directory (e.g., kitty-specs/001-feature)
+        mission_dir: Path to mission directory (e.g., kitty-specs/001-mission)
 
     Returns:
         Dictionary mapping file paths to (has_mismatch, expected_lane, actual_lane)
         Only includes files with mismatches.
 
     Examples:
-        >>> feature_dir = Path("kitty-specs/001-my-feature")
-        >>> mismatches = scan_all_tasks_for_mismatches(feature_dir)
+        >>> mission_dir = Path("kitty-specs/001-my-mission")
+        >>> mismatches = scan_all_tasks_for_mismatches(mission_dir)
         >>> for file_path, (_, expected, actual) in mismatches.items():
         ...     print(f"{file_path}: {actual} → {expected}")
     """
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return {}
 
@@ -265,7 +265,7 @@ def scan_all_tasks_for_mismatches(
             if has_mismatch:
                 # Store relative path for readability
                 try:
-                    rel_path = task_file.relative_to(feature_dir)
+                    rel_path = task_file.relative_to(mission_dir)
                 except ValueError:
                     rel_path = task_file
                 mismatches[str(rel_path)] = (has_mismatch, expected, actual)

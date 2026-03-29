@@ -109,10 +109,10 @@ def test_exclude_from_git_index_non_git_repo(tmp_path: Path) -> None:
 _PATCH_PRIMARY = "specify_cli.core.git_ops.resolve_primary_branch"
 
 
-def _write_meta(repo: Path, feature_slug: str, data: dict[str, str]) -> None:
-    feature_dir = repo / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(json.dumps(data), encoding="utf-8")
+def _write_meta(repo: Path, mission_slug: str, data: dict[str, str]) -> None:
+    mission_dir = repo / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps(data), encoding="utf-8")
 
 
 def test_resolve_target_branch_matches_returns_proceed(tmp_path: Path) -> None:
@@ -154,7 +154,7 @@ def test_resolve_target_branch_no_respect_current_allows_checkout(tmp_path: Path
 
 def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path: Path) -> None:
     """When meta.json is absent, target falls back to resolve_primary_branch result."""
-    # Create feature dir WITHOUT meta.json
+    # Create mission dir WITHOUT meta.json
     (tmp_path / "kitty-specs" / "004-test").mkdir(parents=True)
 
     with patch(_PATCH_PRIMARY, return_value="master"):
@@ -167,9 +167,9 @@ def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path: Path) -> 
 
 def test_resolve_target_branch_invalid_meta_falls_back(tmp_path: Path) -> None:
     """When meta.json is malformed JSON, target falls back to primary branch."""
-    feature_dir = tmp_path / "kitty-specs" / "005-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
+    mission_dir = tmp_path / "kitty-specs" / "005-test"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
 
     with patch(_PATCH_PRIMARY, return_value="main"):
         resolution = resolve_target_branch("005-test", tmp_path, "main", respect_current=True)
@@ -180,7 +180,7 @@ def test_resolve_target_branch_invalid_meta_falls_back(tmp_path: Path) -> None:
 
 def test_resolve_target_branch_meta_missing_field_falls_back(tmp_path: Path) -> None:
     """When meta.json exists but lacks target_branch, fallback to primary."""
-    _write_meta(tmp_path, "006-test", {"feature_id": "006-test"})
+    _write_meta(tmp_path, "006-test", {"mission_id": "006-test"})
 
     with patch(_PATCH_PRIMARY, return_value="2.x"):
         resolution = resolve_target_branch("006-test", tmp_path, "2.x", respect_current=True)

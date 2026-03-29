@@ -34,14 +34,14 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 
 2. **Refresh Claude’s long-term context after planning**
    ```bash
-   cd <feature worktree>
+   cd <mission worktree>
    spec-kitty agent context update-context --agent-type claude
    ```
    This injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
 
 ## Running Claude Against Prompts
 
-Prompt files live under `kitty-specs/<feature>/tasks/WPxx-slug.md` (flat directory, no lane subdirectories). Lane state is tracked via the `lane:` field in each file's YAML frontmatter. Each file contains:
+Prompt files live under `kitty-specs/<mission>/tasks/WPxx-slug.md` (flat directory, no lane subdirectories). Lane state is tracked via the `lane:` field in each file's YAML frontmatter. Each file contains:
 
 - Mission-aligned context.
 - Checklist of subtasks.
@@ -70,7 +70,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 1. **Claude session bootstrapper:** Script that reads `meta.json` for the friendly feature name and injects it into Claude’s context.
 2. **Claude completion validator:** Automatically checks that Claude’s output modifies only the allowed files referenced in the prompt.
 3. **Claude dashboard notifier:** Sends Claude’s status updates to a team Slack channel whenever a work package changes lanes.
-4. **Checklist watcher:** Parse `kitty-specs/<feature>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
+4. **Checklist watcher:** Parse `kitty-specs/<mission>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
 
 ## Troubleshooting Claude Sessions
 
@@ -90,8 +90,8 @@ Once Claude (and any partner agents) finish the feature:
  ```bash
   spec-kitty merge --remove-worktree
   ```
-   Run it from the feature worktree; the CLI automatically performs the Git steps from the main checkout so worktrees stay in sync.
-   The command documents merge steps, updates activity logs, and optionally removes the feature worktree to keep the repository tidy.
+   Run it from the mission worktree; the CLI automatically performs the Git steps from the main checkout so worktrees stay in sync.
+   The command documents merge steps, updates activity logs, and optionally removes the mission worktree to keep the repository tidy.
 
 ## Beyond Claude
 

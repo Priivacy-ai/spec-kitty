@@ -53,12 +53,12 @@
 
 ### 1.2 Mission Lifecycle (software-dev)
 
-Create a fresh test feature and run through the full lifecycle:
+Create a fresh test mission and run through the full lifecycle:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 1.2.1 | Run `spec-kitty specify` with a short feature description | Creates `kitty-specs/<NNN>-<slug>/spec.md` with user stories and acceptance criteria | | |
-| 1.2.2 | Verify `meta.json` created | Contains `mission: "software-dev"`, feature slug, creation date | | |
+| 1.2.1 | Run `spec-kitty specify` with a short mission description | Creates `kitty-specs/<NNN>-<slug>/spec.md` with user stories and acceptance criteria | | |
+| 1.2.2 | Verify `meta.json` created | Contains `mission: "software-dev"`, mission slug, creation date | | |
 | 1.2.3 | Run `spec-kitty plan` | Creates `plan.md` with architecture decisions, tech stack, data model | | |
 | 1.2.4 | Run `spec-kitty tasks` (outline + packages + finalize) | Creates `tasks.md` and `tasks/WP*.md` files with frontmatter | | |
 | 1.2.5 | Verify dependency frontmatter | Each WP has `dependencies: []` field, no cycles detected | | |
@@ -84,18 +84,18 @@ Create a fresh test feature and run through the full lifecycle:
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
 | 1.4.1 | Run `spec-kitty dashboard` | Browser opens, dashboard loads on localhost | | |
-| 1.4.2 | Verify feature list | All kitty-specs features visible with correct status counts | | |
-| 1.4.3 | Click into a feature | Kanban board displays with WPs in correct lanes | | |
+| 1.4.2 | Verify mission list | All kitty-specs missions visible with correct status counts | | |
+| 1.4.3 | Click into a mission | Kanban board displays with WPs in correct lanes | | |
 | 1.4.4 | Verify artifact browser | Can view spec.md, plan.md, tasks.md content | | |
 | 1.4.5 | Check health diagnostics | Dashboard health endpoint returns OK | | |
 | 1.4.6 | Screenshot the dashboard | Save for parity comparison with SaaS (Section 8) | | |
 
-### 1.5 Merge System (Feature 017)
+### 1.5 Merge System (Mission 017)
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 1.5.1 | Run `spec-kitty merge --dry-run` on a multi-WP feature | Conflict forecast shows predicted conflicts, auto-resolvable flags | | |
-| 1.5.2 | Run `spec-kitty merge --feature <slug>` | Preflight validates all WP worktrees clean, target branch not diverged | | |
+| 1.5.1 | Run `spec-kitty merge --dry-run` on a multi-WP mission | Conflict forecast shows predicted conflicts, auto-resolvable flags | | |
+| 1.5.2 | Run `spec-kitty merge --mission <slug>` | Preflight validates all WP worktrees clean, target branch not diverged | | |
 | 1.5.3 | Interrupt merge mid-way (Ctrl+C) | `.kittify/merge-state.json` persisted with progress | | |
 | 1.5.4 | Run `spec-kitty merge --resume` | Resumes from last completed WP, doesn't redo finished ones | | |
 | 1.5.5 | Run `spec-kitty merge --abort` | Cleans up merge state, returns to pre-merge state | | |
@@ -121,7 +121,7 @@ Create a fresh test feature and run through the full lifecycle:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 2.2.1 | Create a feature while authenticated | `FeatureCreated` event emitted, visible in SaaS within 5 seconds | | |
+| 2.2.1 | Create a mission while authenticated | `MissionCreated` event emitted, visible in SaaS within 5 seconds | | |
 | 2.2.2 | Move a WP to `in_progress` | `WPStatusChanged` event synced, SaaS dashboard updates | | |
 | 2.2.3 | Move a WP to `for_review` | Event synced, SaaS shows WP in review lane | | |
 | 2.2.4 | Move a WP to `done` | Event synced with evidence, SaaS shows WP complete | | |
@@ -154,16 +154,16 @@ Create a fresh test feature and run through the full lifecycle:
 | 3.1.5 | Create a team | Team created with slug, user is admin | | |
 | 3.1.6 | Invite a team member | Invitation email sent with accept link | | |
 | 3.1.7 | Accept invitation (as invitee) | Invitee joins team with member role | | |
-| 3.1.8 | Verify team isolation | Members only see their team's projects/features | | |
+| 3.1.8 | Verify team isolation | Members only see their team's projects/missions | | |
 | 3.1.9 | Toggle team feature flag (via Waffle) | Feature appears/disappears for team members | | |
 
-### 3.2 Project and Feature Views
+### 3.2 Project and Mission Views
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
 | 3.2.1 | View project list | All synced projects visible with slug and UUID | | |
-| 3.2.2 | Click into a project | Features listed with status summary counts | | |
-| 3.2.3 | Click into a feature | Kanban board with WPs in correct lanes | | |
+| 3.2.2 | Click into a project | Missions listed with status summary counts | | |
+| 3.2.3 | Click into a mission | Kanban board with WPs in correct lanes | | |
 | 3.2.4 | Click into a WP | WP detail page with status history, artifact links | | |
 | 3.2.5 | Verify real-time updates | When CLI changes WP status, SaaS board updates without page refresh | | |
 
@@ -171,7 +171,7 @@ Create a fresh test feature and run through the full lifecycle:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 3.3.1 | Open collaboration panel for a feature | Panel renders with session info, participant list | | |
+| 3.3.1 | Open collaboration panel for a mission | Panel renders with session info, participant list | | |
 | 3.3.2 | Verify participant presence | Active users shown with heartbeat indicator | | |
 | 3.3.3 | View collaboration timeline | Events listed chronologically with actor attribution | | |
 | 3.3.4 | Post a comment | Comment appears in timeline, visible to other participants | | |
@@ -192,7 +192,7 @@ Create a fresh test feature and run through the full lifecycle:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 3.5.1 | View dossier for a feature | Artifact index with file names, types, content hashes | | |
+| 3.5.1 | View dossier for a mission | Artifact index with file names, types, content hashes | | |
 | 3.5.2 | Click into an artifact | Content rendered (markdown → HTML) | | |
 | 3.5.3 | Verify artifact status tracking | Active, superseded, missing states shown correctly | | |
 | 3.5.4 | Verify dossier snapshot | Parity summary matches local artifacts | | |
@@ -401,7 +401,7 @@ Create a fresh test feature and run through the full lifecycle:
 
 ### 8.1 Visual Comparison
 
-Perform these with the local dashboard and SaaS dashboard open side-by-side on the same feature:
+Perform these with the local dashboard and SaaS dashboard open side-by-side on the same mission:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
@@ -409,10 +409,10 @@ Perform these with the local dashboard and SaaS dashboard open side-by-side on t
 | 8.1.2 | Compare WP card content | Same information: WP ID, title, status, assignee | | |
 | 8.1.3 | Compare lane vocabulary | Identical: planned, claimed, in_progress, for_review, done, blocked, canceled | | |
 | 8.1.4 | Compare status badge styling | Consistent color semantics per lane | | |
-| 8.1.5 | Compare feature list/overview | Same features visible with same status counts | | |
+| 8.1.5 | Compare mission list/overview | Same missions visible with same status counts | | |
 | 8.1.6 | Compare artifact viewer | Same artifacts accessible, similar content rendering | | |
-| 8.1.7 | Compare navigation flow | Project → Feature → Board → WP detail feels familiar | | |
-| 8.1.8 | Compare empty states | Empty lanes/features have helpful messaging in both | | |
+| 8.1.7 | Compare navigation flow | Project → Mission → Board → WP detail feels familiar | | |
+| 8.1.8 | Compare empty states | Empty lanes/missions have helpful messaging in both | | |
 | 8.1.9 | Take screenshots of both | Archive for brand review sign-off | | |
 
 ### 8.2 Brand Token Verification
@@ -438,7 +438,7 @@ Perform these with the local dashboard and SaaS dashboard open side-by-side on t
 | 9.1.2 | Open Swagger UI: `/api/schema/swagger-ui/` | Interactive API documentation loads | | |
 | 9.1.3 | Open ReDoc: `/api/schema/redoc/` | Reference documentation loads | | |
 | 9.1.4 | `GET /api/v1/sync/projects/` with JWT | Returns team-scoped project list | | |
-| 9.1.5 | `GET /api/v1/sync/features/` with JWT | Returns features for project | | |
+| 9.1.5 | `GET /api/v1/sync/missions/` with JWT | Returns missions for project | | |
 | 9.1.6 | `GET /api/v1/sync/work-packages/` with JWT | Returns WPs with status | | |
 | 9.1.7 | `POST /api/v1/events/batch/` with event array | Events ingested, 2xx response | | |
 | 9.1.8 | Verify team isolation on API | Cannot access other team's resources with valid JWT | | |

@@ -10,8 +10,8 @@ Example:
 
     Before (ambiguous):
         spec-kitty implement WP04 --base WP03  # Why WP03? Why not WP02?
-        cd .worktrees/010-feature-WP04/
-        git merge 010-feature-WP02  # Manual merge required
+        cd .worktrees/010-mission-WP04/
+        git merge 010-mission-WP02  # Manual merge required
 
     After (deterministic):
         spec-kitty implement WP04  # Auto-detects multi-parent, creates merge
@@ -35,14 +35,14 @@ class MergeResult:
     """Result of creating a multi-parent merge base."""
 
     success: bool
-    branch_name: str | None  # Temporary branch name (e.g., "010-feature-WP04-merge-base")
+    branch_name: str | None  # Temporary branch name (e.g., "010-mission-WP04-merge-base")
     commit_sha: str | None  # SHA of merge commit
     error: str | None  # Error message if failed
     conflicts: list[str]  # List of files with conflicts (if any)
 
 
 def create_multi_parent_base(  # noqa: C901
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     dependencies: list[str],
     repo_root: Path,
@@ -56,7 +56,7 @@ def create_multi_parent_base(  # noqa: C901
     3. Returns the merge commit SHA for use as base branch
 
     Args:
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        mission_slug: Mission slug (e.g., "010-workspace-per-wp")
         wp_id: Work package ID (e.g., "WP04")
         dependencies: List of dependency WP IDs (e.g., ["WP02", "WP03"])
         repo_root: Repository root path
@@ -66,7 +66,7 @@ def create_multi_parent_base(  # noqa: C901
 
     Example:
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             dependencies=["WP02", "WP03"],
             repo_root=Path("."),
@@ -94,10 +94,10 @@ def create_multi_parent_base(  # noqa: C901
     sorted_deps = sorted(dependencies)
 
     # Temporary branch name
-    temp_branch = f"{feature_slug}-{wp_id}-merge-base"
+    temp_branch = f"{mission_slug}-{wp_id}-merge-base"
 
     # Dependency branch names
-    dep_branches = [f"{feature_slug}-{dep}" for dep in sorted_deps]
+    dep_branches = [f"{mission_slug}-{dep}" for dep in sorted_deps]
 
     try:
         # Step 1: Validate all dependency branches exist
@@ -360,21 +360,21 @@ def create_multi_parent_base(  # noqa: C901
 
 
 def cleanup_merge_base_branch(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     repo_root: Path,
 ) -> bool:
     """Delete temporary merge base branch after workspace creation.
 
     Args:
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        mission_slug: Mission slug (e.g., "010-workspace-per-wp")
         wp_id: Work package ID (e.g., "WP04")
         repo_root: Repository root path
 
     Returns:
         True if deleted, False if branch didn't exist
     """
-    temp_branch = f"{feature_slug}-{wp_id}-merge-base"
+    temp_branch = f"{mission_slug}-{wp_id}-merge-base"
 
     # Check if branch exists
     result = subprocess.run(

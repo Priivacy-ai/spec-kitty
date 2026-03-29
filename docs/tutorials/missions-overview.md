@@ -20,7 +20,7 @@ Best for building software features and products.
 Example use cases:
 
 - New API endpoint
-- UI feature development
+- UI mission development
 - Performance improvements
 
 ### Deep Research Kitty
@@ -78,7 +78,7 @@ Expected results (abridged):
 
 ## What's Next?
 
-Explore the full workflow in [Your First Feature](your-first-feature.md) or dive deeper into specific missions.
+Explore the full workflow in [Your First Mission](your-first-mission.md) or dive deeper into specific missions.
 
 ### Related How-To Guides
 

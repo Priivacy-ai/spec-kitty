@@ -29,9 +29,9 @@ def _clean_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
         (["init"], True),
         (["--version"], True),
         (["-v"], True),
-        (["merge", "--feature", "001-test"], False),
+        (["merge", "--mission", "001-test"], False),
         (["research"], False),
-        (["agent", "feature", "check-prerequisites", "--json"], False),
+        (["agent", "mission", "check-prerequisites", "--json"], False),
     ],
 )
 @pytest.mark.usefixtures("_clean_agent_env")

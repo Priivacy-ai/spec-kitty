@@ -4,17 +4,17 @@ This document lists all environment variables used by Spec Kitty.
 
 ---
 
-## Feature Detection
+## Mission Detection
 
-### SPECIFY_FEATURE
+### SPECIFY_MISSION
 
-Override automatic feature detection.
+Override automatic mission detection.
 
 **Purpose**: Force Spec Kitty to use a specific feature when automatic detection fails (e.g., in non-Git repositories or CI environments).
 
 **Example**:
 ```bash
-export SPECIFY_FEATURE=014-comprehensive-docs
+export SPECIFY_MISSION=014-comprehensive-docs
 spec-kitty agent tasks status
 ```
 
@@ -165,7 +165,7 @@ spec-kitty init my-project --ai codex --non-interactive
 
 | Variable | Purpose | Example Value |
 |----------|---------|---------------|
-| `SPECIFY_FEATURE` | Override feature detection | `014-my-feature` |
+| `SPECIFY_MISSION` | Override mission detection | `014-my-feature` |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Local template path | `/path/to/templates` |
 | `SPECIFY_TEMPLATE_REPO` | Custom template repo | `org/templates` |
 | `CODEX_HOME` | Codex CLI prompt path | `$(pwd)/.codex` |

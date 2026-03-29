@@ -25,9 +25,9 @@ __all__ = [
 
 # Patterns for status files that can be auto-resolved
 STATUS_FILE_PATTERNS = [
-    "kitty-specs/*/tasks/*.md",  # WP files: kitty-specs/017-feature/tasks/WP01.md
-    "kitty-specs/*/tasks.md",  # Main tasks: kitty-specs/017-feature/tasks.md
-    "kitty-specs/*/*/tasks/*.md",  # Nested: kitty-specs/features/017/tasks/WP01.md
+    "kitty-specs/*/tasks/*.md",  # WP files: kitty-specs/017-mission/tasks/WP01.md
+    "kitty-specs/*/tasks.md",  # Main tasks: kitty-specs/017-mission/tasks.md
+    "kitty-specs/*/*/tasks/*.md",  # Nested: kitty-specs/missions/017/tasks/WP01.md
     "kitty-specs/*/*/tasks.md",  # Nested main
 ]
 

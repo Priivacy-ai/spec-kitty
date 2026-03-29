@@ -32,7 +32,7 @@ from specify_cli.status.reconcile import (
 
 
 def _make_snapshot(
-    feature_slug: str = "034-test-feature",
+    mission_slug: str = "034-test-mission",
     wp_lanes: dict[str, str] | None = None,
 ) -> StatusSnapshot:
     """Factory for StatusSnapshot."""
@@ -51,7 +51,7 @@ def _make_snapshot(
             summary[lane_str] = summary.get(lane_str, 0) + 1
 
     return StatusSnapshot(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         materialized_at="2026-01-01T00:00:00+00:00",
         event_count=0,
         last_event_id=None,
@@ -62,7 +62,7 @@ def _make_snapshot(
 
 def _make_commit_info(
     sha: str = "abc1234",
-    branch: str = "034-test-feature-WP01",
+    branch: str = "034-test-mission-WP01",
     message: str = "feat(WP01): implement thing",
     author: str = "test-agent",
     date: str = "2026-01-01T12:00:00+00:00",
@@ -84,13 +84,13 @@ class TestCommitInfo:
     def test_creation_and_field_access(self):
         ci = CommitInfo(
             sha="abc1234def5678",
-            branch="034-feature-WP01",
+            branch="034-mission-WP01",
             message="feat(WP01): add models",
             author="alice",
             date="2026-02-08T12:00:00Z",
         )
         assert ci.sha == "abc1234def5678"
-        assert ci.branch == "034-feature-WP01"
+        assert ci.branch == "034-mission-WP01"
         assert ci.message == "feat(WP01): add models"
         assert ci.author == "alice"
         assert ci.date == "2026-02-08T12:00:00Z"
@@ -110,9 +110,9 @@ class TestScanForWpCommits:
         """Branch listing returns WP references, parsed correctly."""
         # Branch listing response
         branch_output = (
-            "  034-test-feature-WP01\n"
-            "  034-test-feature-WP02\n"
-            "  remotes/origin/034-test-feature-WP03\n"
+            "  034-test-mission-WP01\n"
+            "  034-test-mission-WP02\n"
+            "  remotes/origin/034-test-mission-WP03\n"
         )
         # Log response for each branch
         log_output = "abc1234deadbeef\nfeat(WP01): add models\nalice\n2026-01-01T00:00:00Z\n"
@@ -135,7 +135,7 @@ class TestScanForWpCommits:
 
         mock_run.side_effect = side_effect
 
-        commits = scan_for_wp_commits(tmp_path, "034-test-feature")
+        commits = scan_for_wp_commits(tmp_path, "034-test-mission")
 
         assert "WP01" in commits
         assert "WP02" in commits
@@ -147,11 +147,11 @@ class TestScanForWpCommits:
     def test_finds_commit_messages(self, mock_run, tmp_path):
         """Commit message grep finds WP IDs in messages."""
         branch_output = ""
-        # The grep command uses --grep={feature_slug} and --format=%H %s
-        # Messages must contain the feature slug AND have WP IDs
+        # The grep command uses --grep={mission_slug} and --format=%H %s
+        # Messages must contain the mission slug AND have WP IDs
         grep_output = (
-            "abc1234 034-test-feature WP03: implement status models\n"
-            "def5678 034-test-feature WP03: handle edge case\n"
+            "abc1234 034-test-mission WP03: implement status models\n"
+            "def5678 034-test-mission WP03: handle edge case\n"
         )
         detail_output = "alice\n2026-01-01T00:00:00Z\n"
 
@@ -171,7 +171,7 @@ class TestScanForWpCommits:
 
         mock_run.side_effect = side_effect
 
-        commits = scan_for_wp_commits(tmp_path, "034-test-feature")
+        commits = scan_for_wp_commits(tmp_path, "034-test-mission")
 
         assert "WP03" in commits
         assert len(commits["WP03"]) == 2
@@ -187,7 +187,7 @@ class TestScanForWpCommits:
 
         mock_run.side_effect = side_effect
 
-        commits = scan_for_wp_commits(tmp_path, "034-test-feature")
+        commits = scan_for_wp_commits(tmp_path, "034-test-mission")
         assert commits == {}
 
     @patch("specify_cli.status.reconcile.subprocess.run")
@@ -199,13 +199,13 @@ class TestScanForWpCommits:
         mock_run.side_effect = side_effect
 
         # Should not raise -- timeout is caught and logged
-        commits = scan_for_wp_commits(tmp_path, "034-test-feature")
+        commits = scan_for_wp_commits(tmp_path, "034-test-mission")
         assert commits == {}
 
     def test_nonexistent_repo(self, tmp_path):
         """Non-existent repo path raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            scan_for_wp_commits(tmp_path / "does-not-exist", "034-test-feature")
+            scan_for_wp_commits(tmp_path / "does-not-exist", "034-test-mission")
 
 
 # ── _generate_reconciliation_events tests ─────────────────────────
@@ -219,7 +219,7 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         assert len(events) >= 1
@@ -236,7 +236,7 @@ class TestGenerateReconciliationEvents:
         merged_wps = {"WP02"}
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         assert len(events) >= 1
@@ -253,7 +253,7 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         # WP01 is in_progress with commits but not merged -- no advancement needed
@@ -266,7 +266,7 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         assert len(events) == 0
@@ -279,7 +279,7 @@ class TestGenerateReconciliationEvents:
         merged_wps: set[str] = set()
 
         events, details = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         assert len(events) == 0
@@ -292,7 +292,7 @@ class TestGenerateReconciliationEvents:
         merged_wps = {"WP01"}
 
         events, _ = _generate_reconciliation_events(
-            "034-test-feature", snapshot, commit_map, merged_wps,
+            "034-test-mission", snapshot, commit_map, merged_wps,
         )
 
         for event in events:
@@ -334,8 +334,8 @@ class TestReconcile:
     @patch("specify_cli.status.reconcile.read_events")
     def test_detects_drift(self, mock_events, mock_merged, mock_scan, tmp_path):
         """Reconcile detects drift when WP is planned but has commits."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         mock_events.return_value = []
         mock_scan.return_value = {
@@ -344,7 +344,7 @@ class TestReconcile:
         mock_merged.return_value = set()
 
         result = reconcile(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],
             dry_run=True,
@@ -359,15 +359,15 @@ class TestReconcile:
     @patch("specify_cli.status.reconcile.read_events")
     def test_no_drift(self, mock_events, mock_merged, mock_scan, tmp_path):
         """Reconcile returns no drift when no WP commits found."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         mock_events.return_value = []
         mock_scan.return_value = {}
         mock_merged.return_value = set()
 
         result = reconcile(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],
             dry_run=True,
@@ -381,8 +381,8 @@ class TestReconcile:
     @patch("specify_cli.status.reconcile.read_events")
     def test_dry_run_no_persistence(self, mock_events, mock_merged, mock_scan, tmp_path):
         """Dry-run does not write any files."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         mock_events.return_value = []
         mock_scan.return_value = {
@@ -391,17 +391,17 @@ class TestReconcile:
         mock_merged.return_value = set()
 
         # Record files before
-        files_before = set(feature_dir.rglob("*"))
+        files_before = set(mission_dir.rglob("*"))
 
         reconcile(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],
             dry_run=True,
         )
 
         # No new files should be created
-        files_after = set(feature_dir.rglob("*"))
+        files_after = set(mission_dir.rglob("*"))
         assert files_before == files_after
 
     @patch("specify_cli.status.reconcile.emit_status_transition")
@@ -414,8 +414,8 @@ class TestReconcile:
         mock_phase, mock_emit, tmp_path,
     ):
         """Apply mode emits events through the canonical emit pipeline."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         mock_events.return_value = []
         mock_scan.return_value = {
@@ -425,7 +425,7 @@ class TestReconcile:
         mock_phase.return_value = (1, "test")
 
         reconcile(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path],
             dry_run=False,
@@ -441,8 +441,8 @@ class TestReconcile:
         self, mock_events, mock_merged, mock_scan, mock_phase, tmp_path,
     ):
         """Apply mode raises ValueError when phase is 0."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         mock_events.return_value = []
         mock_scan.return_value = {
@@ -453,7 +453,7 @@ class TestReconcile:
 
         with pytest.raises(ValueError, match="Phase 0"):
             reconcile(
-                feature_dir=feature_dir,
+                mission_dir=mission_dir,
                 repo_root=tmp_path,
                 target_repos=[tmp_path],
                 dry_run=False,
@@ -461,11 +461,11 @@ class TestReconcile:
 
     def test_invalid_target_repo(self, tmp_path):
         """Non-existent target repo path populates errors."""
-        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
-        feature_dir.mkdir(parents=True)
+        mission_dir = tmp_path / "kitty-specs" / "034-test-mission"
+        mission_dir.mkdir(parents=True)
 
         result = reconcile(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             repo_root=tmp_path,
             target_repos=[tmp_path / "does-not-exist"],
             dry_run=True,
@@ -495,7 +495,7 @@ class TestReconcileResultJson:
 
         event = StatusEvent(
             event_id=str(ulid.ULID()),
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -548,7 +548,7 @@ class TestFormatReconcileReport:
 
         event = StatusEvent(
             event_id=str(ulid.ULID()),
-            feature_slug="034-test-feature",
+            mission_slug="034-test-mission",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,

@@ -20,7 +20,7 @@ from .git_ops import run_command, is_git_repo, init_git_repo, get_current_branch
 from .project_resolver import (
     locate_project_root,
     resolve_template_path,
-    resolve_worktree_aware_feature_dir,
+    resolve_worktree_aware_mission_dir,
 )
 from .tool_checker import (
     check_tool,
@@ -54,7 +54,7 @@ __all__ = [
     "resolve_primary_branch",
     "locate_project_root",
     "resolve_template_path",
-    "resolve_worktree_aware_feature_dir",
+    "resolve_worktree_aware_mission_dir",
     "check_tool",
     "check_tool_for_tracker",
     "check_all_tools",

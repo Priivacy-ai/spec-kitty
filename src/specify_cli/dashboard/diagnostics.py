@@ -17,11 +17,11 @@ def _ensure_specify_cli_on_path() -> None:
         sys.path.insert(0, str(candidate))
 
 
-def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
-    """Resolve mission key from a feature's meta.json."""
+def _resolve_mission_from_mission_dir(mission_dir: Path) -> str | None:
+    """Resolve mission key from a mission's meta.json."""
     try:
-        from specify_cli.feature_metadata import load_meta
-        meta = load_meta(feature_dir)
+        from specify_cli.mission_metadata import load_meta
+        meta = load_meta(mission_dir)
         if meta:
             return meta.get("mission")
     except Exception:
@@ -29,19 +29,19 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     return None
 
 
-def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> dict[str, Any]:
+def run_diagnostics(project_dir: Path, *, mission_dir: Path | None = None) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
-        from ..acceptance import detect_feature_slug, AcceptanceError
+        from ..acceptance import detect_mission_slug, AcceptanceError
     except (ImportError, ValueError):
         try:
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.acceptance import detect_mission_slug, AcceptanceError
         except ImportError:
             _ensure_specify_cli_on_path()
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.acceptance import detect_mission_slug, AcceptanceError
 
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
@@ -55,17 +55,17 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
         'active_mission': None,
         'file_integrity': {},
         'worktree_overview': {},
-        'current_feature': {},
-        'all_features': [],
+        'current_mission': {},
+        'all_missions': [],
         'dashboard_health': {},
         'observations': [],
         'issues': [],
     }
 
-    # Resolve mission from feature-level meta.json when available
+    # Resolve mission from mission-level meta.json when available
     mission_key: str | None = None
-    if feature_dir is not None:
-        mission_key = _resolve_mission_from_feature(feature_dir)
+    if mission_dir is not None:
+        mission_key = _resolve_mission_from_mission_dir(mission_dir)
 
     manifest = FileManifest(kittify_dir, mission_key=mission_key)
     worktree_status = WorktreeStatus(repo_root)
@@ -87,7 +87,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
     diagnostics['in_worktree'] = '.worktrees' in str(Path.cwd())
     worktrees_dir = project_dir / '.worktrees'
     diagnostics['worktrees_exist'] = worktrees_dir.exists()
-    diagnostics['active_mission'] = mission_key or "no feature context"
+    diagnostics['active_mission'] = mission_key or "no mission context"
 
     file_check = manifest.check_files()
     expected_files = manifest.get_expected_files()
@@ -106,39 +106,39 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
     worktree_summary = worktree_status.get_worktree_summary()
     diagnostics['worktree_overview'] = worktree_summary
 
-    diagnostics['all_features'] = []
-    for feature_slug in worktree_status.get_all_features():
-        feature_status = worktree_status.get_feature_status(feature_slug)
-        diagnostics['all_features'].append({
-            'name': feature_slug,
-            'state': feature_status['state'],
-            'branch_exists': feature_status['branch_exists'],
-            'branch_merged': feature_status['branch_merged'],
-            'worktree_exists': feature_status['worktree_exists'],
-            'worktree_path': feature_status['worktree_path'],
-            'artifacts_in_main': feature_status['artifacts_in_main'],
-            'artifacts_in_worktree': feature_status['artifacts_in_worktree'],
+    diagnostics['all_missions'] = []
+    for mission_slug in worktree_status.get_all_missions():
+        mission_status = worktree_status.get_mission_status(mission_slug)
+        diagnostics['all_missions'].append({
+            'name': mission_slug,
+            'state': mission_status['state'],
+            'branch_exists': mission_status['branch_exists'],
+            'branch_merged': mission_status['branch_merged'],
+            'worktree_exists': mission_status['worktree_exists'],
+            'worktree_path': mission_status['worktree_path'],
+            'artifacts_in_main': mission_status['artifacts_in_main'],
+            'artifacts_in_worktree': mission_status['artifacts_in_worktree'],
         })
 
     try:
-        # When feature_dir is provided by the caller, derive the slug from it
+        # When mission_dir is provided by the caller, derive the slug from it
         # to stay consistent with the mission resolution above.
-        feature_slug = feature_dir.name if feature_dir is not None else detect_feature_slug(repo_root, cwd=Path.cwd())
-        if feature_slug:
-            feature_status = worktree_status.get_feature_status(feature_slug.strip())
-            diagnostics['current_feature'] = {
+        mission_slug = mission_dir.name if mission_dir is not None else detect_mission_slug(repo_root, cwd=Path.cwd())
+        if mission_slug:
+            mission_status = worktree_status.get_mission_status(mission_slug.strip())
+            diagnostics['current_mission'] = {
                 'detected': True,
-                'name': feature_slug.strip(),
-                'state': feature_status['state'],
-                'branch_exists': feature_status['branch_exists'],
-                'branch_merged': feature_status['branch_merged'],
-                'worktree_exists': feature_status['worktree_exists'],
-                'worktree_path': feature_status['worktree_path'],
-                'artifacts_in_main': feature_status['artifacts_in_main'],
-                'artifacts_in_worktree': feature_status['artifacts_in_worktree'],
+                'name': mission_slug.strip(),
+                'state': mission_status['state'],
+                'branch_exists': mission_status['branch_exists'],
+                'branch_merged': mission_status['branch_merged'],
+                'worktree_exists': mission_status['worktree_exists'],
+                'worktree_path': mission_status['worktree_path'],
+                'artifacts_in_main': mission_status['artifacts_in_main'],
+                'artifacts_in_worktree': mission_status['artifacts_in_worktree'],
             }
     except (AcceptanceError, Exception) as exc:  # type: ignore[misc]
-        diagnostics['current_feature'] = {
+        diagnostics['current_mission'] = {
             'detected': False,
             'error': str(exc),
         }
@@ -150,10 +150,10 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
     if diagnostics['git_branch'] == primary and diagnostics['in_worktree']:
         observations.append("Unusual: In worktree but on main branch")
 
-    current_feature = diagnostics.get('current_feature') or {}
-    if current_feature.get('detected') and current_feature.get('state') == 'in_development' and not current_feature.get('worktree_exists'):
+    current_mission = diagnostics.get('current_mission') or {}
+    if current_mission.get('detected') and current_mission.get('state') == 'in_development' and not current_mission.get('worktree_exists'):
         observations.append(
-            f"Feature {current_feature.get('name')} has no worktree but has development artifacts"
+            f"Mission {current_mission.get('name')} has no worktree but has development artifacts"
         )
 
     if total_missing > 0:

@@ -133,11 +133,11 @@ body {
     line-height: 1.4;
 }
 
-.feature-selector {
+.mission-selector {
     min-width: 300px;
 }
 
-.feature-selector label {
+.mission-selector label {
     display: block;
     font-size: 0.85em;
     color: #6b7280;
@@ -145,7 +145,7 @@ body {
     font-weight: 500;
 }
 
-.feature-selector select {
+.mission-selector select {
     width: 100%;
     padding: 10px 15px;
     border: 2px solid var(--lavender);
@@ -157,12 +157,12 @@ body {
     transition: all 0.2s;
 }
 
-.feature-selector select:hover {
+.mission-selector select:hover {
     border-color: var(--grassy-green);
     background: white;
 }
 
-.feature-selector select:focus {
+.mission-selector select:focus {
     outline: none;
     border-color: var(--grassy-green);
     box-shadow: 0 0 0 3px rgba(123, 182, 97, 0.2);
@@ -668,17 +668,17 @@ body.modal-open {
     color: #111827;
 }
 
-.no-features {
+.no-missions {
     text-align: center;
     padding: 60px 40px;
 }
 
-.no-features h2 {
+.no-missions h2 {
     color: white;
     margin-bottom: 15px;
 }
 
-.no-features p {
+.no-missions p {
     color: rgba(255, 255, 255, 0.8);
     line-height: 1.6;
 }

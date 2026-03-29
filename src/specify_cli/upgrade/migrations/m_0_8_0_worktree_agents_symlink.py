@@ -93,7 +93,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
                         continue
 
                     # Calculate relative path: ../../../.kittify/AGENTS.md
-                    # From: .worktrees/001-feature/.kittify/AGENTS.md
+                    # From: .worktrees/001-mission/.kittify/AGENTS.md
                     # To:   .kittify/AGENTS.md
                     relative_path = "../../../.kittify/AGENTS.md"
 

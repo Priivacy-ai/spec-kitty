@@ -185,7 +185,7 @@ agent_context: |
   Key practices:
   - Tests before code (non-negotiable)
   - Library-first architecture
-  - CLI interfaces for all features
+  - CLI interfaces for all missions
   - Integration tests over mocks
   - Real dependencies over mocks in testing
 
@@ -214,7 +214,7 @@ commands:
   review:
     prompt: "Perform code review and validate against specification"
   accept:
-    prompt: "Validate feature completeness and quality gates"
+    prompt: "Validate mission completeness and quality gates"
 
 # Task type definitions for agent profile suggestion
 task_types:

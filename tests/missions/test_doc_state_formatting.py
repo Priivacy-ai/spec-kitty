@@ -1,4 +1,4 @@
-"""Tests for doc_state formatting consistency after migration to feature_metadata I/O.
+"""Tests for doc_state formatting consistency after migration to mission_metadata I/O.
 
 Verifies that all doc_state write functions produce the standard meta.json format:
 - Sorted keys
@@ -34,9 +34,9 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 _VALID_META_BASE: dict = {
-    "feature_number": "001",
+    "mission_number": "001",
     "slug": "001-test",
-    "feature_slug": "001-test",
+    "mission_slug": "001-test",
     "friendly_name": "Test",
     "mission": "documentation",
     "target_branch": "main",
@@ -304,7 +304,7 @@ class TestTolerantWriteWithMinimalMeta:
     """doc_state writes must tolerate meta.json missing required top-level fields.
 
     During documentation mission setup, meta.json may only contain
-    ``{"mission": "documentation"}`` without feature_number, slug, etc.
+    ``{"mission": "documentation"}`` without mission_number, slug, etc.
     The old code was tolerant of this; the new code must remain so.
     """
 
@@ -365,7 +365,7 @@ class TestNoDirectJsonDumpRemains:
         assert "json.dump(" not in source, "Found json.dump() call in doc_state.py"
 
     def test_no_private_atomic_write_import(self) -> None:
-        """doc_state.py must not import private _atomic_write from feature_metadata."""
+        """doc_state.py must not import private _atomic_write from mission_metadata."""
         import inspect
         import specify_cli.doc_state as mod
 

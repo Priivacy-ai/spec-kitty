@@ -75,7 +75,7 @@ class TestInvalidSchemaDiscardsEvent:
 
     def test_missing_required_field_discards(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Missing required payload field results in None."""
-        # WPCreated requires wp_id, title, feature_slug - we pass empty title
+        # WPCreated requires wp_id, title, mission_slug - we pass empty title
         event = emitter.emit_wp_created("WP01", "", "028-sync")
         assert event is None
         assert temp_queue.size() == 0

@@ -239,7 +239,7 @@ def classify_divio_type(content: str) -> tuple[DivioType, float]:
 class CoverageMatrix:
     """Documentation coverage matrix showing Divio type coverage by project area.
 
-    The matrix shows which project areas (features, modules, components) have
+    The matrix shows which project areas (missions, modules, components) have
     documentation for each Divio type (tutorial, how-to, reference, explanation).
     """
 
@@ -847,27 +847,27 @@ def generate_gap_analysis_report(docs_dir: Path, output_file: Path, project_root
     return analysis
 
 
-def run_gap_analysis_for_feature(feature_dir: Path) -> GapAnalysis:
-    """Run gap analysis for a documentation mission feature.
+def run_gap_analysis_for_mission(mission_dir: Path) -> GapAnalysis:
+    """Run gap analysis for a documentation mission.
 
     Assumes standard paths:
     - Documentation: {project_root}/docs/
-    - Output: {feature_dir}/gap-analysis.md
+    - Output: {mission_dir}/gap-analysis.md
 
     Args:
-        feature_dir: Feature directory (kitty-specs/###-doc-feature/)
+        mission_dir: Mission directory (kitty-specs/###-doc-mission/)
 
     Returns:
         GapAnalysis results
     """
-    # Find project root (walk up from feature_dir to find docs/)
-    project_root = feature_dir
+    # Find project root (walk up from mission_dir to find docs/)
+    project_root = mission_dir
     while project_root != project_root.parent:
         if (project_root / "docs").exists():
             break
         project_root = project_root.parent
 
     docs_dir = project_root / "docs"
-    output_file = feature_dir / "gap-analysis.md"
+    output_file = mission_dir / "gap-analysis.md"
 
     return generate_gap_analysis_report(docs_dir, output_file, project_root)

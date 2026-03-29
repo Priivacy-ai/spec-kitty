@@ -19,8 +19,8 @@ def test_detect_unfilled_plan_with_template():
     with TemporaryDirectory() as tmpdir:
         plan_path = Path(tmpdir) / "plan.md"
         plan_path.write_text(
-            """# Implementation Plan: [FEATURE]
-**Branch**: `[###-feature-name]` | **Date**: [DATE]
+            """# Implementation Plan: [MISSION]
+**Branch**: `[###-mission-name]` | **Date**: [DATE]
 
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
@@ -40,7 +40,7 @@ src/
         is_unfilled, markers = detect_unfilled_plan(plan_path)
         assert is_unfilled is True
         assert len(markers) >= 5
-        assert "[FEATURE]" in markers
+        assert "[MISSION]" in markers
         assert "[DATE]" in markers
         assert "or NEEDS CLARIFICATION" in markers
 
@@ -94,7 +94,7 @@ def test_validate_plan_filled_strict_mode():
     with TemporaryDirectory() as tmpdir:
         plan_path = Path(tmpdir) / "plan.md"
         plan_path.write_text(
-            """# Implementation Plan: [FEATURE]
+            """# Implementation Plan: [MISSION]
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest or NEEDS CLARIFICATION]
@@ -108,11 +108,11 @@ ACTION REQUIRED: Replace the content
         )
 
         with pytest.raises(PlanValidationError) as exc_info:
-            validate_plan_filled(plan_path, feature_slug="001-test-feature", strict=True)
+            validate_plan_filled(plan_path, mission_slug="001-test-mission", strict=True)
 
         assert "appears to be unfilled" in str(exc_info.value)
         assert "template markers" in str(exc_info.value)
-        assert "001-test-feature" in str(exc_info.value)
+        assert "001-test-mission" in str(exc_info.value)
 
 
 def test_validate_plan_filled_lenient_mode(capsys):
@@ -120,7 +120,7 @@ def test_validate_plan_filled_lenient_mode(capsys):
     with TemporaryDirectory() as tmpdir:
         plan_path = Path(tmpdir) / "plan.md"
         plan_path.write_text(
-            """# Implementation Plan: [FEATURE]
+            """# Implementation Plan: [MISSION]
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest or NEEDS CLARIFICATION]
@@ -184,7 +184,7 @@ backend/
         )
 
         # Should not raise any errors
-        validate_plan_filled(plan_path, feature_slug="002-realtime-chat", strict=True)
+        validate_plan_filled(plan_path, mission_slug="002-realtime-chat", strict=True)
 
 
 def test_validate_plan_with_partial_markers():

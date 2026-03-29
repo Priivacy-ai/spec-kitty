@@ -27,7 +27,7 @@ class TestValidateReadyForReview:
         assert guidance == []
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_key")
     @patch("subprocess.run")
     def test_research_uncommitted_artifacts_blocks_review(
         self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
@@ -39,9 +39,9 @@ class TestValidateReadyForReview:
         mock_main_root.return_value = tmp_path
         mock_mission_key.return_value = "research"
 
-        # Create feature directory
-        feature_dir = tmp_path / "kitty-specs" / "008-research"
-        feature_dir.mkdir(parents=True)
+        # Create mission directory
+        mission_dir = tmp_path / "kitty-specs" / "008-research"
+        mission_dir.mkdir(parents=True)
 
         # Simulate uncommitted research artifacts
         mock_run.return_value = Mock(
@@ -61,7 +61,7 @@ class TestValidateReadyForReview:
         assert "research(WP01)" in guidance_text  # Research-specific commit format
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_key")
     @patch("subprocess.run")
     def test_research_committed_artifacts_allows_review(
         self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
@@ -73,9 +73,9 @@ class TestValidateReadyForReview:
         mock_main_root.return_value = tmp_path
         mock_mission_key.return_value = "research"
 
-        # Create feature directory
-        feature_dir = tmp_path / "kitty-specs" / "008-research"
-        feature_dir.mkdir(parents=True)
+        # Create mission directory
+        mission_dir = tmp_path / "kitty-specs" / "008-research"
+        mission_dir.mkdir(parents=True)
 
         # Simulate no uncommitted changes
         mock_run.return_value = Mock(returncode=0, stdout="")
@@ -86,11 +86,11 @@ class TestValidateReadyForReview:
         assert guidance == []
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_key")
     @patch("subprocess.run")
-    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
+    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-mission-WP01")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.core.mission_detection.get_mission_target_branch", return_value="main")
     def test_softwaredev_uncommitted_worktree_blocks_review(
         self,
         mock_target: Mock,
@@ -108,10 +108,10 @@ class TestValidateReadyForReview:
         mock_main_root.return_value = tmp_path
         mock_mission_key.return_value = "software-dev"
 
-        # Create feature and worktree directories
-        feature_dir = tmp_path / "kitty-specs" / "008-feature"
-        feature_dir.mkdir(parents=True)
-        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        # Create mission and worktree directories
+        mission_dir = tmp_path / "kitty-specs" / "008-mission"
+        mission_dir.mkdir(parents=True)
+        worktree_path = tmp_path / ".worktrees" / "008-mission-WP01"
         worktree_path.mkdir(parents=True)
 
         # Simulate: main clean, worktree has uncommitted changes
@@ -126,7 +126,7 @@ class TestValidateReadyForReview:
                     return Mock(returncode=0, stdout="")  # Main repo clean
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
                 # Return a branch name so we don't trigger detached HEAD
-                return Mock(returncode=0, stdout="008-feature-WP01\n")
+                return Mock(returncode=0, stdout="008-mission-WP01\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
                 return Mock(returncode=1, stdout="")
@@ -142,7 +142,7 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-mission", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
@@ -151,11 +151,11 @@ class TestValidateReadyForReview:
         assert "git add" in guidance_text
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_key")
     @patch("subprocess.run")
-    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
+    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-mission-WP01")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.core.mission_detection.get_mission_target_branch", return_value="main")
     def test_softwaredev_no_commits_blocks_review(
         self,
         mock_target: Mock,
@@ -173,10 +173,10 @@ class TestValidateReadyForReview:
         mock_main_root.return_value = tmp_path
         mock_mission_key.return_value = "software-dev"
 
-        # Create feature and worktree directories
-        feature_dir = tmp_path / "kitty-specs" / "008-feature"
-        feature_dir.mkdir(parents=True)
-        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        # Create mission and worktree directories
+        mission_dir = tmp_path / "kitty-specs" / "008-mission"
+        mission_dir.mkdir(parents=True)
+        worktree_path = tmp_path / ".worktrees" / "008-mission-WP01"
         worktree_path.mkdir(parents=True)
 
         # Simulate: main clean, worktree clean, but no commits beyond main
@@ -187,7 +187,7 @@ class TestValidateReadyForReview:
             if "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
-                return Mock(returncode=0, stdout="008-feature-WP01\n")
+                return Mock(returncode=0, stdout="008-mission-WP01\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations
                 return Mock(returncode=1, stdout="")
@@ -197,14 +197,14 @@ class TestValidateReadyForReview:
 
         mock_run.side_effect = subprocess_side_effect
 
-        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
+        is_valid, guidance = _validate_ready_for_review(tmp_path, "008-mission", "WP01", force=False)
 
         assert is_valid is False
         guidance_text = "\n".join(guidance)
         assert "no implementation commits" in guidance_text.lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_key")
     @patch("subprocess.run")
     def test_filters_out_wp_status_files(
         self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
@@ -216,9 +216,9 @@ class TestValidateReadyForReview:
         mock_main_root.return_value = tmp_path
         mock_mission_key.return_value = "research"
 
-        # Create feature directory
-        feature_dir = tmp_path / "kitty-specs" / "008-research"
-        feature_dir.mkdir(parents=True)
+        # Create mission directory
+        mission_dir = tmp_path / "kitty-specs" / "008-research"
+        mission_dir.mkdir(parents=True)
 
         # Simulate only WP status files modified (should be filtered out)
         mock_run.return_value = Mock(returncode=0, stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n")
@@ -240,24 +240,24 @@ class TestMoveTaskPreflightCheck:
         """Verify validation blocks when worktree has uncommitted changes."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
-        feature_slug = "001-test-feature"
-        feature_dir = tmp_path / "kitty-specs" / feature_slug
-        feature_dir.mkdir(parents=True)
+        mission_slug = "001-test-mission"
+        mission_dir = tmp_path / "kitty-specs" / mission_slug
+        mission_dir.mkdir(parents=True)
 
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
+        (mission_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
-        worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_path = tmp_path / ".worktrees" / f"{mission_slug}-WP01"
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
 
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"feature/{mission_slug}-WP01\n", stderr="")
                 elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"feature/{mission_slug}-WP01\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:
@@ -271,7 +271,7 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
+            is_valid, guidance = _validate_ready_for_review(tmp_path, mission_slug, "WP01", False)
 
             assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
@@ -287,24 +287,24 @@ class TestMoveTaskPreflightCheck:
         """Verify validation passes when worktree is clean."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
-        feature_slug = "001-test-feature"
-        feature_dir = tmp_path / "kitty-specs" / feature_slug
-        feature_dir.mkdir(parents=True)
+        mission_slug = "001-test-mission"
+        mission_dir = tmp_path / "kitty-specs" / mission_slug
+        mission_dir.mkdir(parents=True)
 
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
+        (mission_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
-        worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_path = tmp_path / ".worktrees" / f"{mission_slug}-WP01"
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
 
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"feature/{mission_slug}-WP01\n", stderr="")
                 elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"feature/{mission_slug}-WP01\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:
@@ -318,7 +318,7 @@ class TestMoveTaskPreflightCheck:
 
             mock_run.side_effect = git_command_side_effect
 
-            is_valid, guidance = _validate_ready_for_review(tmp_path, feature_slug, "WP01", False)
+            is_valid, guidance = _validate_ready_for_review(tmp_path, mission_slug, "WP01", False)
 
             assert is_valid is True
             assert len(guidance) == 0

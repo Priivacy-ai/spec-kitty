@@ -147,14 +147,14 @@ Project version: {project_version}  ← OLDER (pre-0.9.0 format)
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 📂 OLD STRUCTURE (pre-0.9.0):
-   kitty-specs/<feature>/tasks/
+   kitty-specs/<mission>/tasks/
    ├── planned/WP01.md
    ├── doing/WP02.md
    ├── for_review/WP03.md
    └── done/WP04.md
 
 📂 NEW STRUCTURE (v0.9.0+):
-   kitty-specs/<feature>/tasks/
+   kitty-specs/<mission>/tasks/
    ├── WP01.md  (with "lane: planned" in frontmatter)
    ├── WP02.md  (with "lane: doing" in frontmatter)
    ├── WP03.md  (with "lane: for_review" in frontmatter)
@@ -167,7 +167,7 @@ Project version: {project_version}  ← OLDER (pre-0.9.0 format)
   spec-kitty upgrade
 
 This will:
-  ✅ Migrate ALL features from directory-based to frontmatter-only lanes
+  ✅ Migrate ALL missions from directory-based to frontmatter-only lanes
   ✅ Move all WP files from subdirectories to flat tasks/ directory
   ✅ Add "lane:" field to frontmatter in all WP files
   ✅ Update .kittify/metadata.yaml to v{cli_version}

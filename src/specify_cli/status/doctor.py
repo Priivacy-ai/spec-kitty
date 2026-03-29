@@ -48,7 +48,7 @@ class Finding:
 class DoctorResult:
     """Aggregate result of all health checks."""
 
-    feature_slug: str
+    mission_slug: str
     findings: list[Finding] = field(default_factory=list)
 
     @property
@@ -68,8 +68,8 @@ class DoctorResult:
 
 
 def _load_or_reduce_snapshot(
-    feature_dir: Path,
-    _feature_slug: str,
+    mission_dir: Path,
+    _mission_slug: str,
 ) -> dict[str, Any] | None:
     """Load snapshot from status.json or reduce from events.
 
@@ -77,7 +77,7 @@ def _load_or_reduce_snapshot(
     or None if neither source is available.
     """
     # Try status.json first
-    status_path = feature_dir / SNAPSHOT_FILENAME
+    status_path = mission_dir / SNAPSHOT_FILENAME
     if status_path.exists():
         try:
             data: dict[str, Any] = json.loads(status_path.read_text(encoding="utf-8"))
@@ -87,7 +87,7 @@ def _load_or_reduce_snapshot(
 
     # Try reducing from event log
     try:
-        events = read_events(feature_dir)
+        events = read_events(mission_dir)
         if events:
             snapshot = reduce(events)
             return snapshot.to_dict()
@@ -98,7 +98,7 @@ def _load_or_reduce_snapshot(
 
 
 def check_stale_claims(
-    _feature_dir: Path,
+    _mission_dir: Path,
     snapshot: dict[str, Any],
     *,
     claimed_threshold_days: int = 7,
@@ -164,10 +164,10 @@ def check_stale_claims(
 
 def check_orphan_workspaces(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     snapshot: dict[str, Any],
 ) -> list[Finding]:
-    """Detect orphan worktrees for completed/canceled features."""
+    """Detect orphan worktrees for completed/canceled missions."""
     findings: list[Finding] = []
 
     # Check if all WPs are in terminal states
@@ -179,15 +179,15 @@ def check_orphan_workspaces(
     all_terminal = all(wp.get("lane") in terminal_lanes for wp in work_packages.values())
 
     if not all_terminal:
-        return findings  # Feature still has active WPs, worktrees are legitimate
+        return findings  # Mission still has active WPs, worktrees are legitimate
 
-    # Scan for worktrees matching this feature
+    # Scan for worktrees matching this mission
     worktrees_dir = repo_root / ".worktrees"
     if not worktrees_dir.exists():
         return findings
 
-    feature_pattern = f"{feature_slug}-WP*"
-    orphan_dirs = list(worktrees_dir.glob(feature_pattern))
+    mission_pattern = f"{mission_slug}-WP*"
+    orphan_dirs = list(worktrees_dir.glob(mission_pattern))
 
     for orphan_dir in orphan_dirs:
         if orphan_dir.is_dir():
@@ -198,7 +198,7 @@ def check_orphan_workspaces(
                     wp_id=None,
                     message=(
                         f"Worktree '{orphan_dir.name}' exists but all WPs in "
-                        f"'{feature_slug}' are terminal "
+                        f"'{mission_slug}' are terminal "
                         f"({', '.join(sorted(terminal_lanes))}). "
                         f"Path: {orphan_dir}"
                     ),
@@ -209,7 +209,7 @@ def check_orphan_workspaces(
     return findings
 
 
-def check_drift(feature_dir: Path) -> list[Finding]:
+def check_drift(mission_dir: Path) -> list[Finding]:
     """Delegate to validation engine for drift detection.
 
     Uses try/except import to handle the case where WP11
@@ -226,7 +226,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
         return findings
 
     # Materialization drift
-    drift_findings = validate_materialization_drift(feature_dir)
+    drift_findings = validate_materialization_drift(mission_dir)
     for msg in drift_findings:
         findings.append(
             Finding(
@@ -242,14 +242,14 @@ def check_drift(feature_dir: Path) -> list[Finding]:
 
     # Derived-view drift
     try:
-        status_path = feature_dir / SNAPSHOT_FILENAME
+        status_path = mission_dir / SNAPSHOT_FILENAME
         if status_path.exists():
             snapshot = json.loads(status_path.read_text(encoding="utf-8"))
             from specify_cli.status.phase import resolve_phase
 
-            phase, _ = resolve_phase(feature_dir.parent.parent, feature_dir.name)
+            phase, _ = resolve_phase(mission_dir.parent.parent, mission_dir.name)
             view_findings = validate_derived_views(
-                feature_dir,
+                mission_dir,
                 snapshot.get("work_packages", {}),
                 phase,
             )
@@ -272,21 +272,21 @@ def check_drift(feature_dir: Path) -> list[Finding]:
 
 
 def run_doctor(
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     repo_root: Path,
     *,
     stale_claimed_days: int = 7,
     stale_in_progress_days: int = 14,
 ) -> DoctorResult:
-    """Run all health checks for a feature.
+    """Run all health checks for a mission.
 
     This is the main entry point. It loads the snapshot (from status.json
     or by reducing the event log), then runs all checks.
 
     Args:
-        feature_dir: Path to the feature's kitty-specs directory.
-        feature_slug: Feature identifier (e.g., "034-feature-name").
+        mission_dir: Path to the mission's kitty-specs directory.
+        mission_slug: Mission identifier (e.g., "034-mission-name").
         repo_root: Path to the repository root.
         stale_claimed_days: Days before a claimed WP is flagged as stale.
         stale_in_progress_days: Days before an in_progress WP is flagged.
@@ -295,26 +295,26 @@ def run_doctor(
         DoctorResult with all findings.
 
     Raises:
-        FileNotFoundError: If feature_dir does not exist.
+        FileNotFoundError: If mission_dir does not exist.
     """
-    if not feature_dir.exists():
-        raise FileNotFoundError(f"Feature directory does not exist: {feature_dir}")
+    if not mission_dir.exists():
+        raise FileNotFoundError(f"Mission directory does not exist: {mission_dir}")
 
-    result = DoctorResult(feature_slug=feature_slug)
+    result = DoctorResult(mission_slug=mission_slug)
 
     # Load snapshot (from status.json or reduce from events)
-    snapshot = _load_or_reduce_snapshot(feature_dir, feature_slug)
+    snapshot = _load_or_reduce_snapshot(mission_dir, mission_slug)
 
     if snapshot:
         result.findings.extend(
             check_stale_claims(
-                feature_dir,
+                mission_dir,
                 snapshot,
                 claimed_threshold_days=stale_claimed_days,
                 in_progress_threshold_days=stale_in_progress_days,
             )
         )
-        result.findings.extend(check_orphan_workspaces(repo_root, feature_slug, snapshot))
-        result.findings.extend(check_drift(feature_dir))
+        result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
+        result.findings.extend(check_drift(mission_dir))
 
     return result

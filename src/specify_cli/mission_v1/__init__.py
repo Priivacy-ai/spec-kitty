@@ -60,7 +60,7 @@ class MissionProtocol(Protocol):
 
 def load_mission(
     mission_path: Path,
-    feature_dir: Path | None = None,
+    mission_dir: Path | None = None,
 ) -> StateMachineMission | PhaseMission:
     """Load a mission from a directory, auto-detecting v0 vs v1 format.
 
@@ -77,7 +77,7 @@ def load_mission(
 
     Args:
         mission_path: Path to the mission directory (must contain ``mission.yaml``).
-        feature_dir: Optional feature directory for guard context.
+        mission_dir: Optional mission directory for guard context.
 
     Returns:
         ``StateMachineMission`` for v1 configs, ``PhaseMission`` for v0.
@@ -101,10 +101,10 @@ def load_mission(
     if is_v1_mission(raw_config):
         # v1 path: validate with JSON Schema, compile guards, build machine
         validate_mission_v1(raw_config)
-        compiled_config = compile_guards(raw_config, feature_dir=feature_dir)
+        compiled_config = compile_guards(raw_config, mission_dir=mission_dir)
         return StateMachineMission(
             compiled_config,
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             validate_schema=False,
         )
     else:
@@ -118,7 +118,7 @@ def load_mission(
 def load_mission_by_name(
     mission_name: str,
     kittify_dir: Path | None = None,
-    feature_dir: Path | None = None,
+    mission_dir: Path | None = None,
 ) -> StateMachineMission | PhaseMission:
     """Load a mission by name with v0/v1 auto-detection.
 
@@ -129,7 +129,7 @@ def load_mission_by_name(
         mission_name: Mission directory name (e.g. ``"software-dev"``).
         kittify_dir: Path to the ``.kittify`` directory. Defaults to
             ``Path.cwd() / ".kittify"``.
-        feature_dir: Optional feature directory for guard context.
+        mission_dir: Optional mission directory for guard context.
 
     Returns:
         ``StateMachineMission`` for v1 configs, ``PhaseMission`` for v0.
@@ -138,7 +138,7 @@ def load_mission_by_name(
         kittify_dir = Path.cwd() / ".kittify"
 
     mission_path = kittify_dir / "missions" / mission_name
-    return load_mission(mission_path, feature_dir=feature_dir)
+    return load_mission(mission_path, mission_dir=mission_dir)
 
 
 __all__ = [

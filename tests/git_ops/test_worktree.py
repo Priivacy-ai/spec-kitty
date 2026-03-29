@@ -11,60 +11,60 @@ import pytest
 
 from specify_cli.core.worktree import (
     _exclude_from_git,
-    create_feature_worktree,
-    get_next_feature_number,
-    setup_feature_directory,
-    validate_feature_structure,
+    create_mission_worktree,
+    get_next_mission_number,
+    setup_mission_directory,
+    validate_mission_structure,
 )
 
 pytestmark = pytest.mark.git_repo
 
-class TestGetNextFeatureNumber:
-    """Tests for get_next_feature_number function."""
+class TestGetNextMissionNumber:
+    """Tests for get_next_mission_number function."""
 
-    def test_returns_1_when_no_features_exist(self, tmp_path: Path):
-        """Should return 1 when no features exist."""
+    def test_returns_1_when_no_missions_exist(self, tmp_path: Path):
+        """Should return 1 when no missions exist."""
         # Setup: Empty repo
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 1
 
     def test_scans_kitty_specs_directory(self, tmp_path: Path):
-        """Should scan kitty-specs/ for feature numbers."""
-        # Setup: Create features in kitty-specs/
+        """Should scan kitty-specs/ for mission numbers."""
+        # Setup: Create missions in kitty-specs/
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
-        (specs_dir / "001-feature-one").mkdir()
-        (specs_dir / "002-feature-two").mkdir()
-        (specs_dir / "005-feature-five").mkdir()
+        (specs_dir / "001-mission-one").mkdir()
+        (specs_dir / "002-mission-two").mkdir()
+        (specs_dir / "005-mission-five").mkdir()
 
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 6
 
     def test_scans_worktrees_directory(self, tmp_path: Path):
-        """Should scan .worktrees/ for feature numbers."""
-        # Setup: Create features in .worktrees/
+        """Should scan .worktrees/ for mission numbers."""
+        # Setup: Create missions in .worktrees/
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "003-worktree-feature").mkdir()
-        (worktrees_dir / "007-another-feature").mkdir()
+        (worktrees_dir / "003-worktree-mission").mkdir()
+        (worktrees_dir / "007-another-mission").mkdir()
 
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 8
 
     def test_scans_both_directories(self, tmp_path: Path):
         """Should scan both kitty-specs/ and .worktrees/ and use highest number."""
-        # Setup: Features in both directories
+        # Setup: Missions in both directories
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
-        (specs_dir / "001-feature").mkdir()
-        (specs_dir / "003-feature").mkdir()
+        (specs_dir / "001-mission").mkdir()
+        (specs_dir / "003-mission").mkdir()
 
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "002-feature").mkdir()
-        (worktrees_dir / "010-feature").mkdir()
+        (worktrees_dir / "002-mission").mkdir()
+        (worktrees_dir / "010-mission").mkdir()
 
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 11
 
     def test_ignores_non_numeric_directories(self, tmp_path: Path):
@@ -77,18 +77,18 @@ class TestGetNextFeatureNumber:
         (specs_dir / "README.md").touch()
         (specs_dir / "abc-not-number").mkdir()
 
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 2
 
     def test_handles_missing_directories(self, tmp_path: Path):
         """Should handle missing kitty-specs/ and .worktrees/ gracefully."""
         # No directories created
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         assert result == 1
 
-    def test_handles_malformed_feature_numbers_gracefully(self, tmp_path: Path):
+    def test_handles_malformed_mission_numbers_gracefully(self, tmp_path: Path):
         """Should skip directories with invalid numbers gracefully."""
-        # Setup: Mix valid and invalid feature directories
+        # Setup: Mix valid and invalid mission directories
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
         (specs_dir / "001-valid").mkdir()
@@ -100,13 +100,13 @@ class TestGetNextFeatureNumber:
         (worktrees_dir / "002-valid").mkdir()
         (worktrees_dir / "xyz-invalid").mkdir()
 
-        result = get_next_feature_number(tmp_path)
+        result = get_next_mission_number(tmp_path)
         # Should only count 001 and 002, so next is 3
         assert result == 3
 
 
-class TestCreateFeatureWorktree:
-    """Tests for create_feature_worktree function."""
+class TestCreateMissionWorktree:
+    """Tests for create_mission_worktree function."""
 
     def test_creates_worktree_with_branch(self, tmp_path: Path, monkeypatch):
         """Should create git worktree with proper branch name."""
@@ -135,18 +135,18 @@ class TestCreateFeatureWorktree:
         )
 
         # Execute
-        worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path, mission_dir = create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
         # Verify
-        assert worktree_path == tmp_path / ".worktrees" / "001-test-feature"
+        assert worktree_path == tmp_path / ".worktrees" / "001-test-mission"
         assert worktree_path.exists()
         assert worktree_path.is_dir()
-        assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
-        assert feature_dir.exists()
+        assert mission_dir == worktree_path / "kitty-specs" / "001-test-mission"
+        assert mission_dir.exists()
 
-    def test_auto_detects_feature_number(self, tmp_path: Path):
-        """Should auto-detect next feature number when not provided."""
-        # Setup: Existing features
+    def test_auto_detects_mission_number(self, tmp_path: Path):
+        """Should auto-detect next mission number when not provided."""
+        # Setup: Existing missions
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
         (specs_dir / "001-existing").mkdir()
@@ -176,21 +176,21 @@ class TestCreateFeatureWorktree:
         )
 
         # Execute
-        worktree_path, feature_dir = create_feature_worktree(tmp_path, "new-feature")
+        worktree_path, mission_dir = create_mission_worktree(tmp_path, "new-mission")
 
         # Verify
-        assert worktree_path == tmp_path / ".worktrees" / "003-new-feature"
-        assert feature_dir == worktree_path / "kitty-specs" / "003-new-feature"
+        assert worktree_path == tmp_path / ".worktrees" / "003-new-mission"
+        assert mission_dir == worktree_path / "kitty-specs" / "003-new-mission"
 
     def test_raises_error_when_worktree_exists(self, tmp_path: Path):
         """Should raise FileExistsError when worktree path already exists."""
         # Setup: Pre-existing directory (not a valid worktree)
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
+        worktree_path = tmp_path / ".worktrees" / "001-test-mission"
         worktree_path.mkdir(parents=True)
 
         # Execute & Verify
         with pytest.raises(FileExistsError, match="Worktree path already exists"):
-            create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
     def test_reuses_existing_valid_worktree(self, tmp_path: Path):
         """Should reuse existing valid git worktree instead of raising error."""
@@ -218,70 +218,70 @@ class TestCreateFeatureWorktree:
         )
 
         # Create first worktree
-        worktree_path1, feature_dir1 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path1, mission_dir1 = create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
         # Execute: Try to create same worktree again
-        worktree_path2, feature_dir2 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path2, mission_dir2 = create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
         # Verify: Should return same paths
         assert worktree_path1 == worktree_path2
-        assert feature_dir1 == feature_dir2
+        assert mission_dir1 == mission_dir2
 
     def test_raises_error_on_git_failure(self, tmp_path: Path):
         """Should raise RuntimeError when workspace creation fails."""
         # Setup: Not a git repo - workspace creation will fail
         # Note: RuntimeError wraps the underlying subprocess or VCS error
         with pytest.raises(RuntimeError, match="Failed to create workspace"):
-            create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
 
-class TestSetupFeatureDirectory:
-    """Tests for setup_feature_directory function."""
+class TestSetupMissionDirectory:
+    """Tests for setup_mission_directory function."""
 
     def test_creates_standard_subdirectories(self, tmp_path: Path):
         """Should create checklists/, research/, and tasks/ subdirectories."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
         repo_root = tmp_path
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        assert (feature_dir / "checklists").exists()
-        assert (feature_dir / "checklists").is_dir()
-        assert (feature_dir / "research").exists()
-        assert (feature_dir / "research").is_dir()
-        assert (feature_dir / "tasks").exists()
-        assert (feature_dir / "tasks").is_dir()
+        assert (mission_dir / "checklists").exists()
+        assert (mission_dir / "checklists").is_dir()
+        assert (mission_dir / "research").exists()
+        assert (mission_dir / "research").is_dir()
+        assert (mission_dir / "tasks").exists()
+        assert (mission_dir / "tasks").is_dir()
 
     def test_creates_tasks_gitkeep(self, tmp_path: Path):
         """Should create tasks/.gitkeep file."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
         repo_root = tmp_path
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        assert (feature_dir / "tasks" / ".gitkeep").exists()
-        assert (feature_dir / "tasks" / ".gitkeep").is_file()
+        assert (mission_dir / "tasks" / ".gitkeep").exists()
+        assert (mission_dir / "tasks" / ".gitkeep").is_file()
 
     def test_creates_tasks_readme(self, tmp_path: Path):
         """Should create tasks/README.md with frontmatter format documentation."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
         repo_root = tmp_path
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        readme = feature_dir / "tasks" / "README.md"
+        readme = mission_dir / "tasks" / "README.md"
         assert readme.exists()
         content = readme.read_text()
         assert "# Tasks Directory" in content
@@ -291,7 +291,7 @@ class TestSetupFeatureDirectory:
     def test_copies_spec_template_when_exists(self, tmp_path: Path):
         """Should copy spec template to spec.md when template exists."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
         repo_root = tmp_path
 
@@ -299,35 +299,35 @@ class TestSetupFeatureDirectory:
         template_dir = repo_root / ".kittify" / "templates"
         template_dir.mkdir(parents=True)
         template_file = template_dir / "spec-template.md"
-        template_file.write_text("# Feature Specification Template")
+        template_file.write_text("# Mission Specification Template")
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        spec_file = feature_dir / "spec.md"
+        spec_file = mission_dir / "spec.md"
         assert spec_file.exists()
-        assert spec_file.read_text() == "# Feature Specification Template"
+        assert spec_file.read_text() == "# Mission Specification Template"
 
     def test_creates_empty_spec_when_no_template(self, tmp_path: Path):
         """Should create empty spec.md when no template exists."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
         repo_root = tmp_path
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
-        spec_file = feature_dir / "spec.md"
+        spec_file = mission_dir / "spec.md"
         assert spec_file.exists()
         assert spec_file.read_text() == ""
 
     def test_copies_memory_directory_when_symlinks_disabled(self, tmp_path: Path):
         """Should copy memory/ directory when create_symlinks=False."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path / ".worktrees" / "001-test"
         worktree_path.mkdir(parents=True)  # Create worktree directory
         repo_root = tmp_path
@@ -338,7 +338,7 @@ class TestSetupFeatureDirectory:
         (memory_dir / "constitution.md").write_text("Constitution content")
 
         # Execute
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify
         worktree_memory = worktree_path / ".kittify" / "memory"
@@ -352,7 +352,7 @@ class TestSetupFeatureDirectory:
         """Should use file copy instead of symlinks on Windows."""
         # Setup
         mock_system.return_value = "Windows"
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path / ".worktrees" / "001-test"
         worktree_path.mkdir(parents=True)  # Create worktree directory
         repo_root = tmp_path
@@ -363,7 +363,7 @@ class TestSetupFeatureDirectory:
         (memory_dir / "test.md").write_text("test")
 
         # Execute (with create_symlinks=True, but Windows should override)
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=True)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=True)
 
         # Verify
         worktree_memory = worktree_path / ".kittify" / "memory"
@@ -373,7 +373,7 @@ class TestSetupFeatureDirectory:
     def test_handles_existing_kittify_directory(self, tmp_path: Path):
         """Should handle existing .kittify directory and replace symlink."""
         # Setup
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mission_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path / ".worktrees" / "001-test"
         worktree_path.mkdir(parents=True)
         repo_root = tmp_path
@@ -394,7 +394,7 @@ class TestSetupFeatureDirectory:
         (worktree_memory / "old.md").write_text("old")
 
         # Execute - should replace the directory with symlink/copy
-        setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
+        setup_mission_directory(mission_dir, worktree_path, repo_root, create_symlinks=False)
 
         # Verify memory was replaced
         assert worktree_memory.exists()
@@ -402,30 +402,30 @@ class TestSetupFeatureDirectory:
         assert not (worktree_memory / "old.md").exists()
 
 
-class TestValidateFeatureStructure:
-    """Tests for validate_feature_structure function."""
+class TestValidateMissionStructure:
+    """Tests for validate_mission_structure function."""
 
-    def test_validates_missing_feature_directory(self, tmp_path: Path):
-        """Should return error when feature directory doesn't exist."""
+    def test_validates_missing_mission_directory(self, tmp_path: Path):
+        """Should return error when mission directory doesn't exist."""
         # Setup
-        feature_dir = tmp_path / "nonexistent"
+        mission_dir = tmp_path / "nonexistent"
 
         # Execute
-        result = validate_feature_structure(feature_dir)
+        result = validate_mission_structure(mission_dir)
 
         # Verify
         assert result["valid"] is False
-        assert "Feature directory not found" in result["errors"][0]
+        assert "Mission directory not found" in result["errors"][0]
         assert result["warnings"] == []
 
     def test_validates_missing_spec_file(self, tmp_path: Path):
         """Should return error when spec.md is missing."""
         # Setup
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
 
         # Execute
-        result = validate_feature_structure(feature_dir)
+        result = validate_mission_structure(mission_dir)
 
         # Verify
         assert result["valid"] is False
@@ -434,12 +434,12 @@ class TestValidateFeatureStructure:
     def test_warns_about_missing_directories(self, tmp_path: Path):
         """Should return warnings when recommended directories are missing."""
         # Setup
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
 
         # Execute
-        result = validate_feature_structure(feature_dir)
+        result = validate_mission_structure(mission_dir)
 
         # Verify
         assert result["valid"] is True  # Not an error, just warnings
@@ -450,15 +450,15 @@ class TestValidateFeatureStructure:
     def test_validates_complete_structure(self, tmp_path: Path):
         """Should pass validation when all required files and directories exist."""
         # Setup
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
-        (feature_dir / "checklists").mkdir()
-        (feature_dir / "research").mkdir()
-        (feature_dir / "tasks").mkdir()
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
+        (mission_dir / "checklists").mkdir()
+        (mission_dir / "research").mkdir()
+        (mission_dir / "tasks").mkdir()
 
         # Execute
-        result = validate_feature_structure(feature_dir)
+        result = validate_mission_structure(mission_dir)
 
         # Verify
         assert result["valid"] is True
@@ -468,12 +468,12 @@ class TestValidateFeatureStructure:
     def test_validates_tasks_md_when_requested(self, tmp_path: Path):
         """Should validate tasks.md exists when check_tasks=True."""
         # Setup
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
 
         # Execute
-        result = validate_feature_structure(feature_dir, check_tasks=True)
+        result = validate_mission_structure(mission_dir, check_tasks=True)
 
         # Verify
         assert result["valid"] is False
@@ -481,59 +481,59 @@ class TestValidateFeatureStructure:
 
     def test_includes_tasks_file_when_present_without_strict_tasks_check(self, tmp_path: Path):
         """Should expose tasks.md path when present even if check_tasks=False."""
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
-        (feature_dir / "tasks.md").write_text("tasks")
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
+        (mission_dir / "tasks.md").write_text("tasks")
 
-        result = validate_feature_structure(feature_dir, check_tasks=False)
+        result = validate_mission_structure(mission_dir, check_tasks=False)
 
         assert result["valid"] is True
-        assert result["paths"]["tasks_file"] == str(feature_dir / "tasks.md")
-        assert result["artifact_files"]["tasks_file"] == str(feature_dir / "tasks.md")
+        assert result["paths"]["tasks_file"] == str(mission_dir / "tasks.md")
+        assert result["artifact_files"]["tasks_file"] == str(mission_dir / "tasks.md")
         assert "tasks.md" in result["available_docs"]
 
     def test_includes_paths_in_result(self, tmp_path: Path):
         """Should include important paths in validation result."""
         # Setup
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
-        (feature_dir / "checklists").mkdir()
-        (feature_dir / "research").mkdir()
-        (feature_dir / "tasks").mkdir()
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
+        (mission_dir / "checklists").mkdir()
+        (mission_dir / "research").mkdir()
+        (mission_dir / "tasks").mkdir()
 
         # Execute
-        result = validate_feature_structure(feature_dir)
+        result = validate_mission_structure(mission_dir)
 
         # Verify
         assert "paths" in result
-        assert result["paths"]["spec_file"] == str(feature_dir / "spec.md")
-        assert result["paths"]["checklists_dir"] == str(feature_dir / "checklists")
-        assert result["paths"]["research_dir"] == str(feature_dir / "research")
-        assert result["paths"]["tasks_dir"] == str(feature_dir / "tasks")
-        assert result["paths"]["feature_dir"] == str(feature_dir)
+        assert result["paths"]["spec_file"] == str(mission_dir / "spec.md")
+        assert result["paths"]["checklists_dir"] == str(mission_dir / "checklists")
+        assert result["paths"]["research_dir"] == str(mission_dir / "research")
+        assert result["paths"]["tasks_dir"] == str(mission_dir / "tasks")
+        assert result["paths"]["mission_dir"] == str(mission_dir)
 
     def test_includes_typed_artifact_maps_and_compat_aliases(self, tmp_path: Path):
         """Should expose deterministic file/dir maps with compatibility aliases."""
-        feature_dir = tmp_path / "001-test"
-        feature_dir.mkdir()
-        (feature_dir / "spec.md").write_text("spec")
-        (feature_dir / "plan.md").write_text("plan")
-        (feature_dir / "tasks.md").write_text("tasks")
-        (feature_dir / "checklists").mkdir()
-        (feature_dir / "research").mkdir()
-        (feature_dir / "tasks").mkdir()
+        mission_dir = tmp_path / "001-test"
+        mission_dir.mkdir()
+        (mission_dir / "spec.md").write_text("spec")
+        (mission_dir / "plan.md").write_text("plan")
+        (mission_dir / "tasks.md").write_text("tasks")
+        (mission_dir / "checklists").mkdir()
+        (mission_dir / "research").mkdir()
+        (mission_dir / "tasks").mkdir()
 
-        result = validate_feature_structure(feature_dir, check_tasks=True)
+        result = validate_mission_structure(mission_dir, check_tasks=True)
 
-        assert result["artifact_files"]["spec_file"] == str(feature_dir / "spec.md")
-        assert result["artifact_files"]["plan_file"] == str(feature_dir / "plan.md")
-        assert result["artifact_files"]["tasks_file"] == str(feature_dir / "tasks.md")
-        assert result["artifact_dirs"]["feature_dir"] == str(feature_dir)
-        assert result["artifact_dirs"]["tasks_dir"] == str(feature_dir / "tasks")
+        assert result["artifact_files"]["spec_file"] == str(mission_dir / "spec.md")
+        assert result["artifact_files"]["plan_file"] == str(mission_dir / "plan.md")
+        assert result["artifact_files"]["tasks_file"] == str(mission_dir / "tasks.md")
+        assert result["artifact_dirs"]["mission_dir"] == str(mission_dir)
+        assert result["artifact_dirs"]["tasks_dir"] == str(mission_dir / "tasks")
         assert sorted(result["available_docs"]) == ["plan.md", "spec.md", "tasks.md"]
-        assert result["FEATURE_DIR"] == str(feature_dir)
+        assert result["MISSION_DIR"] == str(mission_dir)
         assert sorted(result["AVAILABLE_DOCS"]) == ["plan.md", "spec.md", "tasks.md"]
 
 
@@ -573,12 +573,12 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = False
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            worktree_path, mission_dir = create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
             # Verify VCS abstraction was called
             mock_vcs.create_workspace.assert_called_once()
             call_kwargs = mock_vcs.create_workspace.call_args.kwargs
-            assert call_kwargs["workspace_name"] == "001-test-feature"
+            assert call_kwargs["workspace_name"] == "001-test-mission"
             assert call_kwargs["repo_root"] == tmp_path
 
     def test_create_worktree_falls_back_to_git_with_warning(self, tmp_path: Path):
@@ -611,7 +611,7 @@ class TestVCSAbstraction:
             # Capture deprecation warning
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", feature_number=99)
+                worktree_path, mission_dir = create_mission_worktree(tmp_path, "fallback-test", mission_number=99)
 
                 # Verify deprecation warning was raised
                 assert len(w) == 1
@@ -621,7 +621,7 @@ class TestVCSAbstraction:
 
             # Verify worktree was still created via fallback
             assert worktree_path.exists()
-            assert feature_dir.exists()
+            assert mission_dir.exists()
 
     def test_create_worktree_raises_on_vcs_and_fallback_failure(self, tmp_path: Path):
         """Should raise RuntimeError when VCS and git fallback both fail."""
@@ -641,12 +641,12 @@ class TestVCSAbstraction:
             patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs),
             pytest.raises(RuntimeError, match="Failed to create workspace"),
         ):
-            create_feature_worktree(tmp_path, "fail-test", feature_number=88)
+            create_mission_worktree(tmp_path, "fail-test", mission_number=88)
 
     def test_create_worktree_detects_existing_vcs_workspace(self, tmp_path: Path):
         """Should detect and reuse existing VCS workspace."""
         # Setup: Pre-existing workspace directory with .git
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
+        worktree_path = tmp_path / ".worktrees" / "001-test-mission"
         worktree_path.mkdir(parents=True)
         (worktree_path / ".git").touch()  # Minimal marker
 
@@ -655,11 +655,11 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = True
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_result, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            worktree_result, mission_dir = create_mission_worktree(tmp_path, "test-mission", mission_number=1)
 
             # Should return the existing path
             assert worktree_result == worktree_path
-            assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
+            assert mission_dir == worktree_path / "kitty-specs" / "001-test-mission"
 
 
 class TestExcludeFromGit:
@@ -834,8 +834,8 @@ class TestExcludeFromGit:
         marker_count = content.count("# Added by spec-kitty (worktree symlinks)")
         assert marker_count == 1
 
-    def test_integration_with_setup_feature_directory(self, tmp_path: Path):
-        """Should be called by setup_feature_directory to exclude symlinks."""
+    def test_integration_with_setup_mission_directory(self, tmp_path: Path):
+        """Should be called by setup_mission_directory to exclude symlinks."""
         # Setup: Git repo with worktree structure
         subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(
@@ -874,9 +874,9 @@ class TestExcludeFromGit:
         (memory_dir / "constitution.md").write_text("Constitution")
         (tmp_path / ".kittify" / "AGENTS.md").write_text("# Agents")
 
-        # Execute: setup_feature_directory should call _exclude_from_git
-        feature_dir = worktree_path / "kitty-specs" / "001-test"
-        setup_feature_directory(feature_dir, worktree_path, tmp_path, create_symlinks=True)
+        # Execute: setup_mission_directory should call _exclude_from_git
+        mission_dir = worktree_path / "kitty-specs" / "001-test"
+        setup_mission_directory(mission_dir, worktree_path, tmp_path, create_symlinks=True)
 
         # Verify: Symlinks should be excluded
         # Find the git dir from .git file

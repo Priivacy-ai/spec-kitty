@@ -4,8 +4,8 @@ Tests that CLI commands respect user's current branch and don't
 auto-checkout to main/master without explicit permission.
 
 Scenario:
-- User is on feature branch 'feature/new-auth'
-- Feature targets 'main'
+- User is on mission branch 'feature/new-auth'
+- Mission targets 'main'
 - Commands should respect current branch, not auto-switch
 """
 
@@ -44,8 +44,8 @@ def get_current_branch(repo: Path) -> str:
     )
     return result.stdout.strip()
 
-def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
-    """Create minimal feature targeting main branch."""
+def create_mission_on_main(repo: Path, mission_slug: str) -> Path:
+    """Create minimal mission targeting main branch."""
     import yaml
 
     # Create .kittify
@@ -54,19 +54,19 @@ def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
     (kittify / "config.yaml").write_text(yaml.dump({"vcs": {"type": "git"}, "agents": {"available": ["claude"]}}))
     (kittify / "metadata.yaml").write_text(yaml.dump({"spec_kitty": {"version": "0.15.0"}}))
 
-    # Create feature
-    feature_dir = repo / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    # Create mission
+    mission_dir = repo / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     meta = {
-        "feature_number": feature_slug.split("-")[0],
-        "slug": feature_slug,
+        "mission_number": mission_slug.split("-")[0],
+        "slug": mission_slug,
         "target_branch": "main",
         "vcs": "git",
         "created_at": "2026-02-11T00:00:00Z",
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
     # Create WP01
     (tasks_dir / "WP01-test.md").write_text(
@@ -80,16 +80,16 @@ def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
 
     # Commit
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", f"Add {feature_slug}"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", f"Add {mission_slug}"], cwd=repo, check=True, capture_output=True)
 
-    return feature_dir
+    return mission_dir
 
 def test_implement_respects_current_branch(tmp_path):
     """Test that 'implement' command doesn't auto-checkout to main.
 
     Validates:
     - User is on 'feature/new-auth' branch
-    - Feature targets 'main'
+    - Mission targets 'main'
     - implement WP01 creates worktree from current branch (not main)
     - User stays on 'feature/new-auth' after command
     """
@@ -106,13 +106,13 @@ def test_implement_respects_current_branch(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
-    # Create feature targeting main
-    create_feature_on_main(repo, "001-test-feature")
+    # Create mission targeting main
+    create_mission_on_main(repo, "001-test-mission")
 
-    # Create and switch to feature branch
+    # Create and switch to mission branch
     subprocess.run(["git", "checkout", "-b", "feature/new-auth"], cwd=repo, check=True, capture_output=True)
 
-    # Verify we're on feature branch
+    # Verify we're on mission branch
     assert get_current_branch(repo) == "feature/new-auth"
 
     # Run implement command
@@ -121,11 +121,11 @@ def test_implement_respects_current_branch(tmp_path):
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
-    # User should still be on feature branch (no auto-checkout)
+    # User should still be on mission branch (no auto-checkout)
     assert get_current_branch(repo) == "feature/new-auth", "Command auto-switched branch unexpectedly"
 
     # Worktree should exist
-    worktree = repo / ".worktrees" / "001-test-feature-WP01"
+    worktree = repo / ".worktrees" / "001-test-mission-WP01"
     assert worktree.exists(), "Worktree not created"
 
 def test_worktree_base_branch_is_current(tmp_path):
@@ -148,10 +148,10 @@ def test_worktree_base_branch_is_current(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
-    # Create feature targeting main
-    create_feature_on_main(repo, "002-test-feature")
+    # Create mission targeting main
+    create_mission_on_main(repo, "002-test-mission")
 
-    # Create and switch to feature branch
+    # Create and switch to mission branch
     subprocess.run(["git", "checkout", "-b", "develop"], cwd=repo, check=True, capture_output=True)
 
     # Make a commit on develop to differentiate it
@@ -164,7 +164,7 @@ def test_worktree_base_branch_is_current(tmp_path):
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Check workspace context to verify base branch
-    workspace_context_file = repo / ".kittify" / "workspaces" / "002-test-feature-WP01.json"
+    workspace_context_file = repo / ".kittify" / "workspaces" / "002-test-mission-WP01.json"
     if workspace_context_file.exists():
         context_data = json.loads(workspace_context_file.read_text())
         # Base branch should be 'develop' (current), not 'main' (target)
@@ -191,10 +191,10 @@ def test_status_commits_respect_current_branch(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
-    # Create feature targeting main
-    create_feature_on_main(repo, "003-test-feature")
+    # Create mission targeting main
+    create_mission_on_main(repo, "003-test-mission")
 
-    # Create and switch to feature branch
+    # Create and switch to mission branch
     subprocess.run(["git", "checkout", "-b", "staging"], cwd=repo, check=True, capture_output=True)
 
     # Get commit count before status change
@@ -208,7 +208,7 @@ def test_status_commits_respect_current_branch(tmp_path):
     commits_before = int(result.stdout.strip())
 
     # Move task to doing (triggers status commit)
-    result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing", "--feature", "003-test-feature")
+    result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing", "--mission", "003-test-mission")
 
     # Command should succeed
     assert result.returncode == 0, f"move-task failed: {result.stderr}"
@@ -258,10 +258,10 @@ def test_notification_when_current_differs_from_target(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
 
-    # Create feature targeting main
-    create_feature_on_main(repo, "004-test-feature")
+    # Create mission targeting main
+    create_mission_on_main(repo, "004-test-mission")
 
-    # Create and switch to feature branch
+    # Create and switch to mission branch
     subprocess.run(["git", "checkout", "-b", "develop"], cwd=repo, check=True, capture_output=True)
 
     # Run implement command

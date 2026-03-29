@@ -1,13 +1,13 @@
-"""Migration: Update agent plan.md templates with centralized feature detection.
+"""Migration: Update agent plan.md templates with centralized mission detection.
 
 This migration updates all 12 agent template copies of plan.md to include
-the new feature detection logic that prevents the agent from selecting the
-wrong feature when multiple features exist.
+the new mission detection logic that prevents the agent from selecting the
+wrong mission when multiple missions exist.
 
 The updated template instructs agents to:
-1. Detect feature context from git branch or current directory
-2. Pass the feature explicitly using --feature flag to avoid auto-detection
-3. Prioritize features without plan.md if multiple exist
+1. Detect mission context from git branch or current directory
+2. Pass the mission explicitly using --mission flag to avoid auto-detection
+3. Prioritize missions without plan.md if multiple exist
 """
 
 from __future__ import annotations
@@ -62,19 +62,19 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
 
 @MigrationRegistry.register
 class CentralizedFeatureDetectionMigration(BaseMigration):
-    """Update agent plan.md templates with feature detection logic.
+    """Update agent plan.md templates with mission detection logic.
 
     This migration regenerates the plan.md template for all configured agents
-    from the updated source template that includes feature detection instructions.
+    from the updated source template that includes mission detection instructions.
 
     The new template instructs agents to:
-    1. Detect feature context before running commands
-    2. Pass --feature flag explicitly to setup-plan
-    3. Handle multiple features gracefully
+    1. Detect mission context before running commands
+    2. Pass --mission flag explicitly to setup-plan
+    3. Handle multiple missions gracefully
     """
 
     migration_id = "0.14.0_centralized_feature_detection"
-    description = "Update agent plan.md templates with centralized feature detection"
+    description = "Update agent plan.md templates with centralized mission detection"
     target_version = "0.14.0"
 
     # Template file to update
@@ -84,7 +84,7 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
         """Check if any agent templates need updating.
 
         We detect by checking if the plan.md template contains the new
-        feature detection section (step 2 in the outline).
+        mission detection section (step 2 in the outline).
         """
         agent_dirs = get_agent_dirs_for_project(project_path)
 
@@ -100,11 +100,11 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
                 # Template missing, needs update
                 return True
 
-            # Check if template has the new feature detection section
+            # Check if template has the new mission detection section
             try:
                 content = template_file.read_text(encoding="utf-8")
                 if "2. **Detect feature context**" not in content:
-                    # Old template without feature detection
+                    # Old template without mission detection
                     return True
             except OSError:
                 # Can't read, assume needs update
@@ -123,13 +123,13 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
                 "Run 'spec-kitty upgrade' again after installation.",
             )
 
-        # Verify the package template has the new feature detection section
+        # Verify the package template has the new mission detection section
         try:
             content = package_template.read_text(encoding="utf-8")
             if "2. **Detect feature context**" not in content:
                 return (
                     False,
-                    "Package plan.md template is missing feature detection section. "
+                    "Package plan.md template is missing mission detection section. "
                     "Please upgrade spec-kitty-cli to version 0.14.0 or later.",
                 )
         except OSError as e:

@@ -24,11 +24,11 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for feature_dir and available_docs. Derive absolute paths:
+Run `{SCRIPT}` once from repo root and parse JSON for mission_dir and available_docs. Derive absolute paths:
 
-- SPEC = feature_dir/spec.md
-- PLAN = feature_dir/plan.md
-- TASKS = feature_dir/tasks.md
+- SPEC = mission_dir/spec.md
+- PLAN = mission_dir/plan.md
+- TASKS = mission_dir/tasks.md
 
 Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
 

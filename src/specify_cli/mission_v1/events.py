@@ -2,7 +2,7 @@
 
 This is a Phase 1B provisional interface. Phase 2 will replace the JSONL
 backend with a proper event store. Events are written to
-``<feature_dir>/mission-events.jsonl``, one JSON object per line.
+``<mission_dir>/mission-events.jsonl``, one JSON object per line.
 
 Key design constraints:
 - emit_event failures log a warning but NEVER raise or block.
@@ -26,7 +26,7 @@ def emit_event(
     event_type: str,
     payload: dict,
     mission_name: str = "",
-    feature_dir: Path | None = None,
+    mission_dir: Path | None = None,
 ) -> None:
     """Emit a mission event to the local JSONL log.
 
@@ -37,7 +37,7 @@ def emit_event(
         event_type: Event type (e.g., "phase_entered", "guard_failed").
         payload: Event-specific data.
         mission_name: Name of the mission.
-        feature_dir: Feature directory for the JSONL file location.
+        mission_dir: Mission directory for the JSONL file location.
             If ``None``, the event is not persisted (debug-logged only).
     """
     event = {
@@ -47,36 +47,36 @@ def emit_event(
         "payload": payload,
     }
 
-    if feature_dir is None:
-        logger.debug("No feature_dir -- event not persisted: %s", event_type)
+    if mission_dir is None:
+        logger.debug("No mission_dir -- event not persisted: %s", event_type)
         return
 
     try:
-        _write_event(feature_dir, event)
+        _write_event(mission_dir, event)
     except Exception:
         logger.warning("Failed to emit event: %s", event_type, exc_info=True)
 
 
-def _write_event(feature_dir: Path, event: dict) -> None:
+def _write_event(mission_dir: Path, event: dict) -> None:
     """Append event as a JSON line to the mission events log."""
-    events_file = feature_dir / MISSION_EVENTS_FILE
+    events_file = mission_dir / MISSION_EVENTS_FILE
     line = json.dumps(event, sort_keys=True) + "\n"
     with open(events_file, "a", encoding="utf-8") as f:
         f.write(line)
 
 
-def read_events(feature_dir: Path) -> list[dict]:
+def read_events(mission_dir: Path) -> list[dict]:
     """Read all events from the mission events log.
 
     Returns empty list if the log does not exist.
 
     Args:
-        feature_dir: Feature directory containing the JSONL file.
+        mission_dir: Mission directory containing the JSONL file.
 
     Returns:
         List of event dicts parsed from each JSONL line.
     """
-    events_file = feature_dir / MISSION_EVENTS_FILE
+    events_file = mission_dir / MISSION_EVENTS_FILE
     if not events_file.exists():
         return []
 

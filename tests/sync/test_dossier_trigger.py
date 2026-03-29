@@ -1,4 +1,4 @@
-"""Tests for trigger_feature_dossier_sync_if_enabled helper."""
+"""Tests for trigger_mission_dossier_sync_if_enabled helper."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from specify_cli.sync.dossier_pipeline import (
     DossierSyncResult,
-    trigger_feature_dossier_sync_if_enabled,
+    trigger_mission_dossier_sync_if_enabled,
 )
 
 pytestmark = pytest.mark.fast
@@ -18,7 +18,7 @@ class TestTriggerDisabled:
     def test_returns_none_when_sync_disabled(
         self, mock_saas: MagicMock, tmp_path: Path,
     ) -> None:
-        result = trigger_feature_dossier_sync_if_enabled(
+        result = trigger_mission_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
         assert result is None
@@ -32,7 +32,7 @@ class TestTriggerDisabled:
             "specify_cli.sync.project_identity.ensure_identity",
             side_effect=RuntimeError("boom"),
         ):
-            result = trigger_feature_dossier_sync_if_enabled(
+            result = trigger_mission_dossier_sync_if_enabled(
                 tmp_path, "047-feat", tmp_path,
             )
             assert result is None
@@ -41,12 +41,12 @@ class TestTriggerDisabled:
 class TestTriggerEnabled:
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.project_identity.ensure_identity")
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
-    @patch("specify_cli.mission.get_feature_mission_key", return_value="software-dev")
+    @patch("specify_cli.core.mission_detection.get_mission_target_branch", return_value="main")
+    @patch("specify_cli.mission.get_mission_key", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
     @patch("specify_cli.sync.runtime.get_runtime")
-    @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
-    def test_calls_sync_feature_dossier(
+    @patch("specify_cli.sync.dossier_pipeline.sync_mission_dossier")
+    def test_calls_sync_mission_dossier(
         self,
         mock_sync: MagicMock,
         mock_runtime: MagicMock,
@@ -74,7 +74,7 @@ class TestTriggerEnabled:
             dossier=None, events_emitted=0, body_outcomes=[],
         )
 
-        result = trigger_feature_dossier_sync_if_enabled(
+        result = trigger_mission_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
 
@@ -97,15 +97,15 @@ class TestTriggerEnabled:
             node_id="abcdef123456",
         )
 
-        result = trigger_feature_dossier_sync_if_enabled(
+        result = trigger_mission_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
         assert result is None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.project_identity.ensure_identity")
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
-    @patch("specify_cli.mission.get_feature_mission_key", return_value="software-dev")
+    @patch("specify_cli.core.mission_detection.get_mission_target_branch", return_value="main")
+    @patch("specify_cli.mission.get_mission_key", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
     @patch("specify_cli.sync.runtime.get_runtime")
     def test_returns_none_when_body_queue_is_none(
@@ -131,7 +131,7 @@ class TestTriggerEnabled:
 
         mock_runtime.return_value = MagicMock(body_queue=None)
 
-        result = trigger_feature_dossier_sync_if_enabled(
+        result = trigger_mission_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
         assert result is None
@@ -144,7 +144,7 @@ class TestTriggerEnabled:
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        result = trigger_feature_dossier_sync_if_enabled(
+        result = trigger_mission_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
         assert result is None

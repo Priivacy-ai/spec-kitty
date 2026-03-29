@@ -42,7 +42,7 @@ spec-kitty implement WP02 --base WP01
 In your terminal:
 
 ```bash
-cd .worktrees/###-feature-WP01
+cd .worktrees/###-mission-WP01
 ```
 
 Implement the prompt, run required tests, and commit your changes in the WP worktree.
@@ -57,7 +57,7 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## What Happens
 
-- A dedicated workspace is created for the WP (`.worktrees/###-feature-WP01/`)
+- A dedicated workspace is created for the WP (`.worktrees/###-mission-WP01/`)
 - The WP lane is updated to `doing`
 - Dependencies are enforced via `--base`
 
@@ -91,5 +91,5 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough
 - [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) - Parallel development

@@ -11,7 +11,6 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.agent_context import (
     parse_plan_for_tech_stack,
@@ -19,9 +18,9 @@ from specify_cli.core.agent_context import (
     get_supported_agent_types,
     get_agent_file_path,
 )
-from specify_cli.core.feature_detection import (
-    detect_feature_directory,
-    FeatureDetectionError,
+from specify_cli.core.mission_detection import (
+    detect_mission_directory,
+    MissionDetectionError,
 )
 from specify_cli.core.execution_context import (
     ACTION_NAMES,
@@ -35,32 +34,32 @@ app = typer.Typer(name="context", help="Agent context management commands", no_a
 console = Console()
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
-    """Find the current feature directory using centralized detection.
+def _find_mission_directory(repo_root: Path, cwd: Path, explicit_mission: str | None = None) -> Path:
+    """Find the current mission directory using centralized detection.
 
-    This function now uses the centralized feature detection module
+    This function now uses the centralized mission detection module
     to provide deterministic, consistent behavior across all commands.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_mission: Optional explicit mission slug from --mission flag
 
     Returns:
-        Path to feature directory
+        Path to mission directory
 
     Raises:
-        ValueError: If feature directory cannot be determined
-        FeatureDetectionError: If detection fails
+        ValueError: If mission directory cannot be determined
+        MissionDetectionError: If detection fails
     """
     try:
-        return detect_feature_directory(
+        return detect_mission_directory(
             repo_root,
-            explicit_feature=explicit_feature,
+            explicit_mission=explicit_mission,
             cwd=cwd,
             mode="strict",  # Raise error if ambiguous
         )
-    except FeatureDetectionError as e:
+    except MissionDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e
 
@@ -74,15 +73,13 @@ def resolve_context(
             help=(f"Action to resolve context for ({', '.join(ACTION_NAMES)})"),
         ),
     ],
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     wp_id: Annotated[str | None, typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     base: Annotated[str | None, typer.Option("--base", help="Explicit base WP for implement")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
 ) -> None:
-    """Resolve canonical feature/work-package/action context for prompt execution."""
-    feature = resolve_mission_or_feature(mission, feature)
+    """Resolve canonical mission/work-package/action context for prompt execution."""
     try:
         repo_root = locate_project_root()
         if repo_root is None:
@@ -100,7 +97,7 @@ def resolve_context(
         context = resolve_action_context(
             repo_root,
             action=cast(ActionName, action),
-            feature=feature,
+            mission=mission,
             wp_id=wp_id,
             base=base,
             agent=agent,
@@ -111,7 +108,7 @@ def resolve_context(
             print(json.dumps({"success": True, **context.to_dict()}, indent=2))
         else:
             console.print(f"[green]✓[/green] Resolved {action} context")
-            console.print(f"  Feature: {context.feature_slug} ({context.detection_method})")
+            console.print(f"  Mission: {context.mission_slug} ({context.detection_method})")
             console.print(f"  Target branch: {context.target_branch}")
             if context.wp_id:
                 console.print(f"  Work package: {context.wp_id} ({context.lane})")
@@ -129,8 +126,7 @@ def resolve_context(
 
 @app.command(name="update-context")
 def update_context(
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     agent_type: Annotated[
         str | None,
         typer.Option(
@@ -144,7 +140,7 @@ def update_context(
     """Update agent context file with tech stack from plan.md.
 
     This command:
-    1. Detects current feature directory (worktree or main repo)
+    1. Detects current mission directory (worktree or main repo)
     2. Parses plan.md to extract tech stack information
     3. Updates specified agent file (CLAUDE.md, GEMINI.md, etc.)
     4. Preserves manual additions between <!-- MANUAL ADDITIONS --> markers
@@ -158,10 +154,9 @@ def update_context(
         spec-kitty agent update-context --agent-type gemini --json
 
         # Update from within a worktree
-        cd .worktrees/008-feature
+        cd .worktrees/008-mission
         spec-kitty agent update-context
     """
-    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Locate repository root
         repo_root = locate_project_root()
@@ -177,9 +172,9 @@ def update_context(
         # Narrow agent_type: fall back to "claude" if None
         resolved_agent_type: str = agent_type if agent_type is not None else "claude"
 
-        # Find feature directory using centralized detection
+        # Find mission directory using centralized detection
         try:
-            feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
+            mission_dir = _find_mission_directory(repo_root, cwd, explicit_mission=mission)
         except ValueError as e:
             if json_output:
                 print(json.dumps({"error": str(e), "success": False}))
@@ -188,7 +183,7 @@ def update_context(
             sys.exit(1)
 
         # Get plan path
-        plan_path = feature_dir / "plan.md"
+        plan_path = mission_dir / "plan.md"
         if not plan_path.exists():
             error_msg = f"Plan file not found: {plan_path}"
             if json_output:
@@ -212,16 +207,16 @@ def update_context(
         # Parse tech stack from plan.md
         tech_stack = parse_plan_for_tech_stack(plan_path)
 
-        # Extract feature slug from directory name
-        feature_slug = feature_dir.name
+        # Extract mission slug from directory name
+        mission_slug = mission_dir.name
 
         # Update agent context file
         update_context_file(
             agent_type=resolved_agent_type,
             tech_stack=tech_stack,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             repo_root=repo_root,
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
         )
 
         # Output result
@@ -230,13 +225,13 @@ def update_context(
                 "success": True,
                 "agent_type": agent_type,
                 "agent_file": str(agent_file_path),
-                "feature": feature_slug,
+                "mission": mission_slug,
                 "tech_stack": {k: v for k, v in tech_stack.items() if v},
             }
             print(json.dumps(result, indent=2))
         else:
             console.print(f"[green]✓[/green] Updated {agent_file_path.name}")
-            console.print(f"  Feature: {feature_slug}")
+            console.print(f"  Mission: {mission_slug}")
             if tech_stack.get("language"):
                 console.print(f"  Language: {tech_stack['language']}")
             if tech_stack.get("dependencies"):

@@ -49,9 +49,9 @@ from acceptance_support import (  # noqa: E402
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
-    collect_feature_summary,
-    detect_feature_slug,
-    normalize_feature_encoding,
+    collect_mission_summary,
+    detect_mission_slug,
+    normalize_mission_encoding,
     perform_acceptance,
 )
 
@@ -91,21 +91,21 @@ def stage_update(
 
 def _collect_summary_with_encoding(
     repo_root: Path,
-    feature: str,
+    mission_slug: str,
     *,
     strict_metadata: bool,
     normalize_encoding: bool,
 ) -> AcceptanceSummary:
     try:
-        return collect_feature_summary(
+        return collect_mission_summary(
             repo_root,
-            feature,
+            mission_slug,
             strict_metadata=strict_metadata,
         )
     except ArtifactEncodingError:
         if not normalize_encoding:
             raise
-        cleaned = normalize_feature_encoding(repo_root, feature)
+        cleaned = normalize_mission_encoding(repo_root, mission_slug)
         if cleaned:
             print("[spec-kitty] Normalized artifact encoding for:", file=sys.stderr)
             for path in cleaned:
@@ -119,9 +119,9 @@ def _collect_summary_with_encoding(
                 "[spec-kitty] normalize-encoding enabled but no files required updates.",
                 file=sys.stderr,
             )
-        return collect_feature_summary(
+        return collect_mission_summary(
             repo_root,
-            feature,
+            mission_slug,
             strict_metadata=strict_metadata,
         )
 
@@ -144,11 +144,11 @@ def _handle_encoding_failure(exc: ArtifactEncodingError, attempted_fix: bool) ->
 _legacy_warning_shown = False
 
 
-def _check_legacy_format(feature: str, repo_root: Path) -> bool:
+def _check_legacy_format(mission_slug: str, repo_root: Path) -> bool:
     """Check for legacy format and warn once. Returns True if legacy format detected."""
     global _legacy_warning_shown
-    feature_path = repo_root / "kitty-specs" / feature
-    if is_legacy_format(feature_path):
+    mission_path = repo_root / "kitty-specs" / mission_slug
+    if is_legacy_format(mission_path):
         if not _legacy_warning_shown:
             print("\n" + "=" * 60, file=sys.stderr)
             print("Legacy directory-based lanes detected.", file=sys.stderr)
@@ -176,15 +176,15 @@ def update_command(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     repo_root = find_repo_root()
-    feature = args.feature
+    mission_slug = args.mission_slug
 
     # Check for legacy format and error out
-    if _check_legacy_format(feature, repo_root):
+    if _check_legacy_format(mission_slug, repo_root):
         print("Error: Cannot use 'update' command on legacy format.", file=sys.stderr)
         print("Run 'spec-kitty upgrade' first, then retry.", file=sys.stderr)
         sys.exit(1)
 
-    wp = locate_work_package(repo_root, feature, args.work_package)
+    wp = locate_work_package(repo_root, mission_slug, args.work_package)
 
     if wp.current_lane == validated_lane:
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
@@ -218,7 +218,7 @@ def update_command(args: argparse.Namespace) -> None:
 
 def history_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    wp = locate_work_package(repo_root, args.feature, args.work_package)
+    wp = locate_work_package(repo_root, args.mission_slug, args.work_package)
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
     lane = ensure_lane(args.lane or wp.current_lane)
@@ -252,29 +252,29 @@ def history_command(args: argparse.Namespace) -> None:
 
 def list_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature_path = repo_root / "kitty-specs" / args.feature
-    feature_dir = feature_path / "tasks"
-    if not feature_dir.exists():
-        raise TaskCliError(f"Feature '{args.feature}' has no tasks directory at {feature_dir}.")
+    mission_path = repo_root / "kitty-specs" / args.mission_slug
+    tasks_dir = mission_path / "tasks"
+    if not tasks_dir.exists():
+        raise TaskCliError(f"Mission '{args.mission_slug}' has no tasks directory at {tasks_dir}.")
 
     # Check for legacy format and warn
-    use_legacy = is_legacy_format(feature_path)
+    use_legacy = is_legacy_format(mission_path)
     if use_legacy:
-        _check_legacy_format(args.feature, repo_root)
+        _check_legacy_format(args.mission_slug, repo_root)
 
     rows = []
 
     if use_legacy:
         # Legacy format: scan lane subdirectories
         for lane in LANES:
-            lane_dir = feature_dir / lane
+            lane_dir = tasks_dir / lane
             if not lane_dir.exists():
                 continue
             for path in sorted(lane_dir.rglob("*.md")):
                 text = path.read_text(encoding="utf-8-sig")
                 front, body, padding = split_frontmatter(text)
                 wp = WorkPackage(
-                    feature=args.feature,
+                    mission_slug=args.mission_slug,
                     path=path,
                     current_lane=lane,
                     relative_subpath=path.relative_to(lane_dir),
@@ -298,17 +298,17 @@ def list_command(args: argparse.Namespace) -> None:
                 )
     else:
         # New format: scan flat tasks/ directory and group by frontmatter lane
-        for path in sorted(feature_dir.glob("*.md")):
+        for path in sorted(tasks_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
             text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
             lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             wp = WorkPackage(
-                feature=args.feature,
+                mission_slug=args.mission_slug,
                 path=path,
                 current_lane=lane,
-                relative_subpath=path.relative_to(feature_dir),
+                relative_subpath=path.relative_to(tasks_dir),
                 frontmatter=front,
                 body=body,
                 padding=padding,
@@ -329,7 +329,7 @@ def list_command(args: argparse.Namespace) -> None:
             )
 
     if not rows:
-        print(f"No work packages found for feature '{args.feature}'.")
+        print(f"No work packages found for mission '{args.mission_slug}'.")
         return
 
     width_id = max(len(row["id"]) for row in rows)
@@ -352,7 +352,7 @@ def list_command(args: argparse.Namespace) -> None:
 
 def rollback_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    wp = locate_work_package(repo_root, args.feature, args.work_package)
+    wp = locate_work_package(repo_root, args.mission_slug, args.work_package)
     entries = activity_entries(wp.body)
     if len(entries) < 2:
         raise TaskCliError("Not enough activity entries to determine the previous lane.")
@@ -360,7 +360,7 @@ def rollback_command(args: argparse.Namespace) -> None:
     previous_lane = ensure_lane(entries[-2]["lane"])
     note = args.note or f"Rolled back to {previous_lane}"
     args_for_update = argparse.Namespace(
-        feature=args.feature,
+        mission_slug=args.mission_slug,
         work_package=args.work_package,
         lane=previous_lane,
         note=note,
@@ -374,15 +374,15 @@ def rollback_command(args: argparse.Namespace) -> None:
     update_command(args_for_update)
 
 
-def _resolve_feature(repo_root: Path, requested: str | None) -> str:
+def _resolve_mission(repo_root: Path, requested: str | None) -> str:
     if requested:
         return requested
-    return detect_feature_slug(repo_root)
+    return detect_mission_slug(repo_root)
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> list[str]:
     lines: list[str] = []
-    lines.append(f"Feature: {summary.feature}")
+    lines.append(f"Mission: {summary.mission_slug}")
     lines.append(f"Branch: {summary.branch or 'N/A'}")
     lines.append(f"Worktree: {summary.worktree_root}")
     lines.append("")
@@ -408,11 +408,11 @@ def _summary_to_text(summary: AcceptanceSummary) -> list[str]:
 
 def status_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.mission)
+    mission_slug = _resolve_mission(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
-            feature,
+            mission_slug,
             strict_metadata=not args.lenient,
             normalize_encoding=args.normalize_encoding,
         )
@@ -428,11 +428,11 @@ def status_command(args: argparse.Namespace) -> None:
 
 def verify_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.mission)
+    mission_slug = _resolve_mission(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
-            feature,
+            mission_slug,
             strict_metadata=not args.lenient,
             normalize_encoding=args.normalize_encoding,
         )
@@ -450,11 +450,11 @@ def verify_command(args: argparse.Namespace) -> None:
 
 def accept_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature = _resolve_feature(repo_root, args.mission)
+    mission_slug = _resolve_mission(repo_root, args.mission)
     try:
         summary = _collect_summary_with_encoding(
             repo_root,
-            feature,
+            mission_slug,
             strict_metadata=not args.lenient,
             normalize_encoding=args.normalize_encoding,
         )
@@ -495,7 +495,7 @@ def accept_command(args: argparse.Namespace) -> None:
         print(json.dumps(result.to_dict(), indent=2))
         return
 
-    print(f"✅ Feature '{feature}' accepted at {result.accepted_at} by {result.accepted_by}")
+    print(f"✅ Mission '{mission_slug}' accepted at {result.accepted_at} by {result.accepted_by}")
     if result.accept_commit:
         print(f"   Acceptance commit: {result.accept_commit}")
     if result.parent_commit:
@@ -524,16 +524,16 @@ def _merge_actor(repo_root: Path) -> str:
 
 def _prepare_merge_metadata(
     repo_root: Path,
-    feature: str,
+    mission_slug: str,
     target: str,
     strategy: str,
     pushed: bool,
 ) -> Path | None:
-    from specify_cli.feature_metadata import record_merge
+    from specify_cli.mission_metadata import record_merge
 
-    feature_dir = repo_root / "kitty-specs" / feature
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    meta_path = feature_dir / "meta.json"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = mission_dir / "meta.json"
 
     if not meta_path.exists():
         return None
@@ -542,7 +542,7 @@ def _prepare_merge_metadata(
 
     try:
         record_merge(
-            feature_dir,
+            mission_dir,
             merged_by=merged_by,
             merged_into=target,
             strategy=strategy,
@@ -558,11 +558,11 @@ def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
     if not meta_path or not meta_path.exists():
         return
 
-    from specify_cli.feature_metadata import finalize_merge
+    from specify_cli.mission_metadata import finalize_merge
 
-    feature_dir = meta_path.parent
+    mission_dir = meta_path.parent
     try:
-        finalize_merge(feature_dir, merged_commit=merge_commit)
+        finalize_merge(mission_dir, merged_commit=merge_commit)
     except (ValueError, FileNotFoundError) as exc:
         logger.warning("Could not finalize merge metadata: %s", exc)
 
@@ -580,11 +580,11 @@ def merge_command(args: argparse.Namespace) -> None:
     ).stdout.strip()
 
     if args.mission:
-        feature = args.mission
+        mission_slug = args.mission
     elif current_branch and current_branch != "HEAD":
-        feature = current_branch
+        mission_slug = current_branch
     else:
-        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
+        mission_slug = detect_mission_slug(find_repo_root(), cwd=repo_root)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
@@ -593,12 +593,12 @@ def merge_command(args: argparse.Namespace) -> None:
         args.target = resolve_primary_branch(repo_root)
 
     if current_branch == args.target:
-        raise TaskCliError(f"Already on target branch '{args.target}'. Switch to the feature branch before merging.")
+        raise TaskCliError(f"Already on target branch '{args.target}'. Switch to the mission branch before merging.")
 
-    if current_branch != feature:
+    if current_branch != mission_slug:
         raise TaskCliError(
-            f"Current branch '{current_branch}' does not match detected feature '{feature}'."
-            " Run this command from the feature worktree or specify --feature explicitly."
+            f"Current branch '{current_branch}' does not match detected mission '{mission_slug}'."
+            " Run this command from the mission worktree or specify --mission explicitly."
         )
 
     try:
@@ -625,17 +625,17 @@ def merge_command(args: argparse.Namespace) -> None:
         steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
         steps.append("  - Fetch remote (if configured)")
         if args.strategy == "squash":
-            steps.append(f"  - Merge {feature} with --squash and commit")
+            steps.append(f"  - Merge {mission_slug} with --squash and commit")
         elif args.strategy == "rebase":
-            steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
+            steps.append(f"  - Rebase {mission_slug} onto {args.target} manually (command exits before merge)")
         else:
-            steps.append(f"  - Merge {feature} with --no-ff")
+            steps.append(f"  - Merge {mission_slug} with --no-ff")
         if args.push:
             steps.append(f"  - Push {args.target} to origin (if upstream configured)")
         if in_worktree and args.remove_worktree:
             steps.append(f"  - Remove worktree at {repo_root}")
         if args.delete_branch:
-            steps.append(f"  - Delete branch {feature}")
+            steps.append(f"  - Delete branch {mission_slug}")
         print("\n".join(steps))
         return
 
@@ -653,29 +653,29 @@ def merge_command(args: argparse.Namespace) -> None:
             raise TaskCliError("Failed to fast-forward target branch. Resolve upstream changes and retry.")
 
     if args.strategy == "rebase":
-        raise TaskCliError("Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`.")
+        raise TaskCliError("Rebase strategy requires manual steps. Run `git checkout {mission_slug}` followed by `git rebase {args.target}`.")
 
     meta_path: Path | None = None
     meta_rel: str | None = None
 
     if args.strategy == "squash":
-        merge_proc = git(["merge", "--squash", feature], check=False)
+        merge_proc = git(["merge", "--squash", mission_slug], check=False)
         if merge_proc.returncode != 0:
             raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
+        meta_path = _prepare_merge_metadata(primary_repo_root, mission_slug, args.target, args.strategy, args.push)
         if meta_path:
             meta_rel = str(meta_path.relative_to(primary_repo_root))
             git(["add", meta_rel])
-        git(["commit", "-m", f"Merge feature {feature}"])
+        git(["commit", "-m", f"Merge mission {mission_slug}"])
     else:
-        merge_proc = git(["merge", "--no-ff", "--no-commit", feature], check=False)
+        merge_proc = git(["merge", "--no-ff", "--no-commit", mission_slug], check=False)
         if merge_proc.returncode != 0:
             raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
+        meta_path = _prepare_merge_metadata(primary_repo_root, mission_slug, args.target, args.strategy, args.push)
         if meta_path:
             meta_rel = str(meta_path.relative_to(primary_repo_root))
             git(["add", meta_rel])
-        git(["commit", "-m", f"Merge feature {feature}"])
+        git(["commit", "-m", f"Merge mission {mission_slug}"])
 
     if meta_path:
         merge_commit = git(["rev-parse", "HEAD"]).stdout.strip()
@@ -695,11 +695,11 @@ def merge_command(args: argparse.Namespace) -> None:
         git(["worktree", "remove", str(repo_root), "--force"])
 
     if args.delete_branch:
-        delete = git(["branch", "-d", feature], check=False)
+        delete = git(["branch", "-d", mission_slug], check=False)
         if delete.returncode != 0:
-            git(["branch", "-D", feature])
+            git(["branch", "-D", mission_slug])
 
-    print(f"Merge complete: {feature} -> {args.target}")
+    print(f"Merge complete: {mission_slug} -> {args.target}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -707,7 +707,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     update = subparsers.add_parser("update", help="Update a work package's lane in frontmatter")
-    update.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
+    update.add_argument("mission_slug", help="Mission directory slug (e.g., 008-awesome-mission)")
     update.add_argument("work_package", help="Work package identifier (e.g., WP03)")
     update.add_argument("lane", help=f"Target lane ({', '.join(LANES)})")
     update.add_argument("--note", help="Activity note to record with the update")
@@ -719,7 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
     history = subparsers.add_parser("history", help="Append a history entry without changing lanes")
-    history.add_argument("feature", help="Feature directory slug")
+    history.add_argument("mission_slug", help="Mission directory slug")
     history.add_argument("work_package", help="Work package identifier (e.g., WP03)")
     history.add_argument("--note", required=True, help="History note to append")
     history.add_argument("--lane", help="Lane to record (defaults to current lane)")
@@ -731,10 +731,10 @@ def build_parser() -> argparse.ArgumentParser:
     history.add_argument("--dry-run", action="store_true", help="Show the log entry without updating files")
 
     list_parser = subparsers.add_parser("list", help="List work packages by lane")
-    list_parser.add_argument("feature", help="Feature directory slug")
+    list_parser.add_argument("mission_slug", help="Mission directory slug")
 
     rollback = subparsers.add_parser("rollback", help="Return a work package to its prior lane")
-    rollback.add_argument("feature", help="Feature directory slug")
+    rollback.add_argument("mission_slug", help="Mission directory slug")
     rollback.add_argument("work_package", help="Work package identifier (e.g., WP03)")
     rollback.add_argument("--note", help="History note to record (default: Rolled back to <lane>)")
     rollback.add_argument("--agent", help="Agent identifier to record for the rollback entry")
@@ -744,8 +744,8 @@ def build_parser() -> argparse.ArgumentParser:
     rollback.add_argument("--dry-run", action="store_true", help="Report planned rollback without modifying files")
     rollback.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
-    status = subparsers.add_parser("status", help="Summarize work packages for a feature")
-    status.add_argument("--mission", "--feature", dest="mission", help="Mission directory slug (auto-detect by default)")
+    status = subparsers.add_parser("status", help="Summarize work packages for a mission")
+    status.add_argument("--mission", dest="mission", help="Mission directory slug (auto-detect by default)")
     status.add_argument("--json", action="store_true", help="Emit JSON summary")
     status.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     status.add_argument(
@@ -755,7 +755,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     verify = subparsers.add_parser("verify", help="Run acceptance checks without committing")
-    verify.add_argument("--mission", "--feature", dest="mission", help="Mission directory slug (auto-detect by default)")
+    verify.add_argument("--mission", dest="mission", help="Mission directory slug (auto-detect by default)")
     verify.add_argument("--json", action="store_true", help="Emit JSON summary")
     verify.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     verify.add_argument(
@@ -764,8 +764,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Automatically repair non-UTF-8 artifact files",
     )
 
-    accept = subparsers.add_parser("accept", help="Perform feature acceptance workflow")
-    accept.add_argument("--mission", "--feature", dest="mission", help="Mission directory slug (auto-detect by default)")
+    accept = subparsers.add_parser("accept", help="Perform mission acceptance workflow")
+    accept.add_argument("--mission", dest="mission", help="Mission directory slug (auto-detect by default)")
     accept.add_argument("--mode", choices=["auto", "pr", "local", "checklist"], default="auto")
     accept.add_argument("--actor", help="Override acceptance author (defaults to system/user)")
     accept.add_argument("--test", action="append", help="Record validation command executed (repeatable)")
@@ -779,8 +779,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Automatically repair non-UTF-8 artifact files before acceptance",
     )
 
-    merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
-    merge.add_argument("--mission", "--feature", dest="mission", help="Mission directory slug (auto-detect by default)")
+    merge = subparsers.add_parser("merge", help="Merge a mission branch into the target branch")
+    merge.add_argument("--mission", dest="mission", help="Mission directory slug (auto-detect by default)")
     merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
     merge.add_argument("--target", default=None, help="Target branch to merge into (auto-detected)")
     merge.add_argument("--push", action="store_true", help="Push to origin after merging")

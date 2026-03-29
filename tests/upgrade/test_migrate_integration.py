@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.runtime.migrate import (
 
     AssetDisposition,

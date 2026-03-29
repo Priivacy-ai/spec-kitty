@@ -80,7 +80,7 @@ def test_central_plan_template_workspace_per_wp() -> None:
         "plan.md should reference the target branch"
     )
     # NOTE: plan.md legitimately uses `git rev-parse --abbrev-ref HEAD` as a
-    # feature-detection heuristic when setup-plan JSON isn't available yet.
+    # mission-detection heuristic when setup-plan JSON isn't available yet.
     # The earlier assertion banning this was from a prior design iteration.
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from doctrine.templates.repository import CentralTemplateRepository
-from doctrine.missions.repository import MissionRepository
+from doctrine.missions import MissionTemplateRepository
 
 pytestmark = pytest.mark.fast
 
@@ -33,7 +33,7 @@ def test_base_review_template_dependency_warnings() -> None:
 
 def test_mission_review_template_dependency_warnings() -> None:
     """Software-dev review template must include dependency warnings too."""
-    repo = MissionRepository(MissionRepository.default_missions_root())
+    repo = MissionTemplateRepository(MissionTemplateRepository.default_missions_root())
     result = repo.get_command_template("software-dev", "review")
-    assert result is not None, "mission review.md not found via MissionRepository"
+    assert result is not None, "mission review.md not found via MissionTemplateRepository"
     _assert_required_keys_in_content(result.content, result.origin)

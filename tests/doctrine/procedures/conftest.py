@@ -40,11 +40,11 @@ def enriched_procedure_data() -> dict:
     """Procedure with tactic_refs and branching."""
     return {
         "schema_version": "1.0",
-        "id": "feature-merge-ceremony",
+        "id": "mission-merge-ceremony",
         "name": "Feature Merge Ceremony",
         "purpose": "Merge completed work packages into the target branch.",
         "entry_condition": "All work packages in done lane with passing tests.",
-        "exit_condition": "Feature branch merged and worktrees cleaned up.",
+        "exit_condition": "Mission branch merged and worktrees cleaned up.",
         "steps": [
             {
                 "title": "Run preflight checks",

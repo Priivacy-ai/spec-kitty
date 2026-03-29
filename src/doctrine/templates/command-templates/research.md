@@ -4,7 +4,7 @@ scripts:
   sh: spec-kitty research
   ps: spec-kitty research
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 *Path: [templates/commands/research.md](templates/commands/research.md)*
 
@@ -20,25 +20,25 @@ git branch --show-current
 **Expected output:**
 
 - `pwd`: Should end with `primary repository checkout` (or similar primary repository checkout)
-- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+- Branch: Should show your mission branch name like `001-mission-name` (NOT `main`)
 
 **If you see the main branch or main repository path:**
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command creates research artifacts in your feature directory. You must be in the primary repository checkout.
+This command creates research artifacts in your mission directory. You must be in the primary repository checkout.
 
 **Correct the issue:**
 
 1. Navigate to your primary repository checkout: `cd primary repository checkout`
-2. Verify you're on the correct feature branch: `git branch --show-current`
+2. Verify you're on the correct mission branch: `git branch --show-current`
 3. Then run this research command again
 
 ---
 
 ## What This Command Creates
 
-When you run `{SCRIPT}`, the following files are generated in your feature directory:
+When you run `{SCRIPT}`, the following files are generated in your mission directory:
 
 **Generated files**:
 
@@ -47,7 +47,7 @@ When you run `{SCRIPT}`, the following files are generated in your feature direc
 - **research/evidence-log.csv** – Sources and findings audit trail
 - **research/source-register.csv** – Reference tracking for all sources
 
-**Location**: All files go in `kitty-specs/001-feature-name/`
+**Location**: All files go in `kitty-specs/001-mission-name/`
 
 ---
 
@@ -85,7 +85,7 @@ Create `research.md`, `data-model.md`, and supporting CSV stubs based on the act
 
 ## Success Criteria
 
-- `kitty-specs/<feature>/research.md` explains every major decision with references to evidence.
-- `kitty-specs/<feature>/data-model.md` lists the entities and relationships needed for implementation.
+- `kitty-specs/<mission>/research.md` explains every major decision with references to evidence.
+- `kitty-specs/<mission>/data-model.md` lists the entities and relationships needed for implementation.
 - CSV logs exist (even if partially filled) so evidence gathering is traceable.
 - Outstanding questions from the research phase are tracked and ready for follow-up during planning or execution.

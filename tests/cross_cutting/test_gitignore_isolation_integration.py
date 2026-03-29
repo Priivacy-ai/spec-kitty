@@ -18,14 +18,14 @@ from tests.utils import REPO_ROOT
 pytestmark = pytest.mark.git_repo
 
 
-def _write_valid_meta(feature_dir: Path, slug: str) -> None:
-    feature_dir.joinpath("meta.json").write_text(
+def _write_valid_meta(mission_dir: Path, slug: str) -> None:
+    mission_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
-                "feature_number": slug.split("-", 1)[0],
+                "mission_number": slug.split("-", 1)[0],
                 "slug": slug,
-                "feature_slug": slug,
-                "friendly_name": "Test Feature",
+                "mission_slug": slug,
+                "friendly_name": "Test Mission",
                 "mission": "software-dev",
                 "target_branch": "main",
                 "created_at": "2026-03-20T00:00:00+00:00",
@@ -74,14 +74,14 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
     (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
 
-    # Create feature structure
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission structure
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(mission_dir, "001-test-mission")
 
     # Create WP task file
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
     wp_path = tasks_dir / "WP01-test-task.md"
     wp_path.write_text("""---
@@ -136,7 +136,7 @@ dependencies: []
     )
 
     # CRITICAL TEST: Verify .gitignore in WORKTREE was not created/modified either
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = tmp_path / ".worktrees" / "001-test-mission-WP01"
     worktree_gitignore = worktree_path / ".gitignore"
 
     # The worktree should have the same .gitignore as main (or none if not in main)
@@ -183,14 +183,14 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
     (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
 
-    # Create feature structure
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission structure
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(mission_dir, "001-test-mission")
 
     # Create WP task file
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
     wp_path = tasks_dir / "WP01-test-task.md"
     wp_path.write_text("""---
@@ -229,7 +229,7 @@ dependencies: []
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # In worktree, create a test file and commit
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = tmp_path / ".worktrees" / "001-test-mission-WP01"
     test_file = worktree_path / "test.txt"
     test_file.write_text("test content")
 
@@ -254,7 +254,7 @@ dependencies: []
         capture_output=True,
     )
     subprocess.run(
-        ["git", "merge", "001-test-feature-WP01", "--no-edit"],
+        ["git", "merge", "001-test-mission-WP01", "--no-edit"],
         cwd=tmp_path,
         check=True,
         capture_output=True,
@@ -306,14 +306,14 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
     (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
 
-    # Create feature structure
-    feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
-    feature_dir.mkdir(parents=True)
+    # Create mission structure
+    mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+    mission_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(mission_dir, "001-test-mission")
 
     # Create WP task file
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
     wp_path = tasks_dir / "WP01-test-task.md"
     wp_path.write_text("""---
@@ -341,7 +341,7 @@ dependencies: []
 
     # Check that .git/info/exclude exists (in git directory, not worktree)
     # For worktrees, .git is a file pointing to the actual git directory
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = tmp_path / ".worktrees" / "001-test-mission-WP01"
     git_file = worktree_path / ".git"
 
     # Read .git file to get actual git directory path

@@ -53,7 +53,7 @@ cd .worktrees/010-my-feature/
 /spec-kitty.tasks
 → LLM creates tasks.md + tasks/WP01.md, tasks/WP02.md, ... in main
 
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 → Parses dependencies from tasks.md
 → Generates dependency graph in WP frontmatter
 → Validates dependencies (cycle detection)
@@ -114,7 +114,7 @@ LLM creates tasks.md and WP files:
 
 **4. Finalize and commit tasks**
 ```bash
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 ```
 - Parses dependencies from tasks.md
 - Updates WP frontmatter with `dependencies: []` field
@@ -233,7 +233,7 @@ dependencies: []  # Independent WP, branches from main
 
 ### Validation Rules
 
-Dependencies are validated during `spec-kitty agent feature finalize-tasks`:
+Dependencies are validated during `spec-kitty agent mission finalize-tasks`:
 
 - ✅ Dependencies must reference valid WP IDs (WP01, WP02, etc.)
 - ✅ Cannot depend on self (WP01 depending on WP01 is invalid)
@@ -329,8 +329,8 @@ spec-kitty implement WP03 --base WP01
 
 # After both WP02 and WP03 complete:
 spec-kitty implement WP04 --base WP03
-cd .worktrees/###-feature-WP04/
-git merge ###-feature-WP02  # Manually merge second dependency
+cd .worktrees/###-mission-WP04/
+git merge ###-mission-WP02  # Manually merge second dependency
 ```
 
 **Frontmatter**:
@@ -459,7 +459,7 @@ Legacy worktrees detected:
 2. Verify clean state:
    ```bash
    ls .worktrees/
-   # Should be empty or only show ###-feature-WP## patterns
+   # Should be empty or only show ###-mission-WP## patterns
    ```
 
 3. Retry upgrade:
@@ -530,12 +530,12 @@ If review feedback requires changes, they'll need rebase
 2. If WP01 has changes after review:
    ```bash
    # Update WP02 to include WP01 changes
-   cd .worktrees/###-feature-WP02/
-   git rebase ###-feature-WP01
+   cd .worktrees/###-mission-WP02/
+   git rebase ###-mission-WP01
 
    # Update WP03 to include WP01 changes
-   cd .worktrees/###-feature-WP03/
-   git rebase ###-feature-WP01
+   cd .worktrees/###-mission-WP03/
+   git rebase ###-mission-WP01
    ```
 
 ### Issue: Multiple dependencies, git limitation
@@ -550,8 +550,8 @@ If review feedback requires changes, they'll need rebase
 spec-kitty implement WP04 --base WP03
 
 # Manually merge secondary dependency
-cd .worktrees/###-feature-WP04/
-git merge ###-feature-WP02
+cd .worktrees/###-mission-WP04/
+git merge ###-mission-WP02
 ```
 
 ### Problem: Empty Branches (Missing Implementation Work)
@@ -610,7 +610,7 @@ See [Upgrading to 0.11.0](../how-to/install-and-upgrade.md) for detailed migrati
 
 **Quick checklist**:
 - [ ] Complete or delete all in-progress features (legacy worktrees)
-- [ ] Verify `.worktrees/` is empty or only contains `###-feature-WP##` patterns
+- [ ] Verify `.worktrees/` is empty or only contains `###-mission-WP##` patterns
 - [ ] Upgrade to 0.11.0: `pip install --upgrade spec-kitty-cli`
 - [ ] Test with dummy feature to verify new workflow
 
@@ -627,7 +627,7 @@ See [Upgrading to 0.11.0](../how-to/install-and-upgrade.md) for detailed migrati
 - [Upgrading to 0.11.0](../how-to/install-and-upgrade.md) - Migration guide
 
 ## Try It
-- [Your First Feature](../tutorials/your-first-feature.md)
+- [Your First Mission](../tutorials/your-first-mission.md)
 - [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md)
 
 ## How-To Guides

@@ -16,7 +16,7 @@ Use JSON `text` as governance context. On first load (`mode=bootstrap`), follow 
 
 **After running `spec-kitty implement WP##`, you MUST:**
 
-1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-feature-WP##/`
+1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-mission-WP##/`
 2. **ALL file operations happen in this directory** - Read, Write, Edit tools must target files in the workspace
 3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
 
@@ -33,7 +33,7 @@ Before any `Read`/`Edit`/`Write` action, run these checks from your shell:
 ```bash
 pwd
 ls -la
-test -f kitty-specs/<feature>/tasks/<wp-file>.md && echo "wp prompt exists"
+test -f kitty-specs/<mission>/tasks/<wp-file>.md && echo "wp prompt exists"
 ```
 
 If a file/path is uncertain, verify first with `ls` or `test -f` before reading it.
@@ -69,7 +69,7 @@ If no WP ID is provided, it will automatically find the first work package with 
 **BEFORE moving to for_review**, you MUST commit your implementation:
 
 ```bash
-cd .worktrees/###-feature-WP##/
+cd .worktrees/###-mission-WP##/
 git add -A
 git commit -m "feat(WP##): <describe your implementation>"
 ```
@@ -77,7 +77,7 @@ git commit -m "feat(WP##): <describe your implementation>"
 <details><summary>PowerShell equivalent</summary>
 
 ```powershell
-Set-Location .worktrees\###-feature-WP##\
+Set-Location .worktrees\###-mission-WP##\
 git add -A
 git commit -m "feat(WP##): <describe your implementation>"
 ```

@@ -1,4 +1,4 @@
-# Your First Feature: Complete Workflow
+# Your First Mission: Complete Workflow
 
 **Divio type**: Tutorial
 
@@ -131,7 +131,7 @@ Or via CLI:
 spec-kitty accept
 ```
 
-Then merge the feature branches.
+Then merge the mission branches.
 
 In your agent:
 
@@ -149,7 +149,7 @@ You should see the feature merged into `main` and the worktrees cleaned up.
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see a feature worktree, upgrade with `spec-kitty upgrade`.
+- **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see a mission worktree, upgrade with `spec-kitty upgrade`.
 - **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02 --base WP01` as suggested.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 

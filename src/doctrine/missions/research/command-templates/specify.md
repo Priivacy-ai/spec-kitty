@@ -127,15 +127,15 @@ During discovery, you MUST ask:
 - Determine deliverables_path (ask user or use default)
 - Confirm Intent Summary with user
 
-### 2. Create Feature
+### 2. Create Mission
 
 When discovery is complete, run:
 
 ```bash
-spec-kitty agent mission create-feature "<slug>" --json
+spec-kitty agent mission create-mission "<slug>" --json
 ```
 
-Parse the JSON output for `feature` and `feature_dir`.
+Parse the JSON output for `feature` and `mission_dir`.
 
 ### 3. Create meta.json with deliverables_path
 
@@ -182,7 +182,7 @@ Fill in:
 
 ### 6. Write Specification
 
-Write to `<feature_dir>/spec.md`
+Write to `<mission_dir>/spec.md`
 
 ### 7. Validation
 

@@ -40,7 +40,7 @@ def has_dependency_info(graph: dict[str, list[str]]) -> bool:
 
 def get_merge_order(
     wp_workspaces: list[tuple[Path, str, str]],
-    feature_dir: Path,
+    mission_dir: Path,
 ) -> list[tuple[Path, str, str]]:
     """Return WPs in dependency order (topological sort).
 
@@ -50,7 +50,7 @@ def get_merge_order(
 
     Args:
         wp_workspaces: List of (worktree_path, wp_id, branch_name) tuples
-        feature_dir: Path to feature directory containing tasks/
+        mission_dir: Path to mission directory containing tasks/
 
     Returns:
         Same tuples reordered by dependency (dependencies first)
@@ -65,7 +65,7 @@ def get_merge_order(
     wp_map = {wp_id: (path, wp_id, branch) for path, wp_id, branch in wp_workspaces}
 
     # Build dependency graph from task frontmatter
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Check for missing WPs in graph (may have no frontmatter)
     for wp_id in wp_map:

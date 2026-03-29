@@ -80,12 +80,12 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         return [item for item in directory.iterdir() if not cls._should_ignore_file(item.name)]
 
     def detect(self, project_path: Path) -> bool:
-        """Check if any feature uses legacy directory-based lanes."""
+        """Check if any mission uses legacy directory-based lanes."""
         # Check main kitty-specs/
         main_specs = project_path / "kitty-specs"
         if main_specs.exists():
-            for feature_dir in main_specs.iterdir():
-                if feature_dir.is_dir() and self._is_legacy_format(feature_dir):
+            for mission_dir in main_specs.iterdir():
+                if mission_dir.is_dir() and self._is_legacy_format(mission_dir):
                     return True
 
         # Check .worktrees/
@@ -95,19 +95,19 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                 if worktree.is_dir():
                     wt_specs = worktree / "kitty-specs"
                     if wt_specs.exists():
-                        for feature_dir in wt_specs.iterdir():
-                            if feature_dir.is_dir() and self._is_legacy_format(feature_dir):
+                        for mission_dir in wt_specs.iterdir():
+                            if mission_dir.is_dir() and self._is_legacy_format(mission_dir):
                                 return True
 
         return False
 
-    def _is_legacy_format(self, feature_path: Path) -> bool:
-        """Check if a feature uses legacy directory-based lanes."""
-        tasks_dir = feature_path / "tasks"
+    def _is_legacy_format(self, mission_path: Path) -> bool:
+        """Check if a mission uses legacy directory-based lanes."""
+        tasks_dir = mission_path / "tasks"
         if not tasks_dir.exists():
             return False
 
-        # A feature is legacy if it has ANY lane subdirectories
+        # A mission is legacy if it has ANY lane subdirectories
         # (even if empty - they shouldn't exist in new format)
         for lane in self.LANE_DIRS:
             lane_path = tasks_dir / lane
@@ -125,15 +125,15 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Migrate all features from directory-based to frontmatter-only lanes."""
+        """Migrate all missions from directory-based to frontmatter-only lanes."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
 
-        features_found = self._find_features_to_migrate(project_path)
+        missions_found = self._find_missions_to_migrate(project_path)
 
-        if not features_found:
-            warnings.append("No features need migration - all already use flat structure")
+        if not missions_found:
+            warnings.append("No missions need migration - all already use flat structure")
             return MigrationResult(
                 success=True,
                 changes_made=changes,
@@ -144,20 +144,20 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         total_migrated = 0
         total_skipped = 0
 
-        for feature_dir, location_label in features_found:
-            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(
-                feature_dir, location_label, dry_run
+        for mission_dir, location_label in missions_found:
+            mission_changes, mission_warnings, mission_errors, migrated, skipped = self._migrate_mission(
+                mission_dir, location_label, dry_run
             )
-            changes.extend(feature_changes)
-            warnings.extend(feature_warnings)
-            errors.extend(feature_errors)
+            changes.extend(mission_changes)
+            warnings.extend(mission_warnings)
+            errors.extend(mission_errors)
             total_migrated += migrated
             total_skipped += skipped
 
         if dry_run:
-            changes.append(f"Would migrate {total_migrated} WP files across {len(features_found)} features")
+            changes.append(f"Would migrate {total_migrated} WP files across {len(missions_found)} missions")
         else:
-            changes.append(f"Migrated {total_migrated} WP files across {len(features_found)} features")
+            changes.append(f"Migrated {total_migrated} WP files across {len(missions_found)} missions")
 
         if total_skipped > 0:
             warnings.append(f"Skipped {total_skipped} files (already exist or conflicts)")
@@ -170,16 +170,16 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _find_features_to_migrate(self, project_path: Path) -> list[tuple[Path, str]]:
-        """Find all features with legacy format in main repo and worktrees."""
-        features: list[tuple[Path, str]] = []
+    def _find_missions_to_migrate(self, project_path: Path) -> list[tuple[Path, str]]:
+        """Find all missions with legacy format in main repo and worktrees."""
+        missions: list[tuple[Path, str]] = []
 
         # Scan main kitty-specs/
         main_specs = project_path / "kitty-specs"
         if main_specs.exists():
-            for feature_dir in sorted(main_specs.iterdir()):
-                if feature_dir.is_dir() and self._is_legacy_format(feature_dir):
-                    features.append((feature_dir, "main"))
+            for mission_dir in sorted(main_specs.iterdir()):
+                if mission_dir.is_dir() and self._is_legacy_format(mission_dir):
+                    missions.append((mission_dir, "main"))
 
         # Scan .worktrees/
         worktrees_dir = project_path / ".worktrees"
@@ -188,31 +188,31 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                 if worktree.is_dir():
                     wt_specs = worktree / "kitty-specs"
                     if wt_specs.exists():
-                        for feature_dir in sorted(wt_specs.iterdir()):
-                            if feature_dir.is_dir() and self._is_legacy_format(feature_dir):
-                                features.append((feature_dir, f"worktree:{worktree.name}"))
+                        for mission_dir in sorted(wt_specs.iterdir()):
+                            if mission_dir.is_dir() and self._is_legacy_format(mission_dir):
+                                missions.append((mission_dir, f"worktree:{worktree.name}"))
 
-        return features
+        return missions
 
-    def _migrate_feature(  # noqa: C901
+    def _migrate_mission(  # noqa: C901
         self,
-        feature_dir: Path,
+        mission_dir: Path,
         location_label: str,
         dry_run: bool,
     ) -> tuple[list[str], list[str], list[str], int, int]:
-        """Migrate a single feature from directory-based to flat structure."""
+        """Migrate a single mission from directory-based to flat structure."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
         migrated = 0
         skipped = 0
 
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         if not tasks_dir.exists():
             return changes, warnings, errors, migrated, skipped
 
-        feature_name = feature_dir.name
-        changes.append(f"[{location_label}] {feature_name}:")
+        mission_name = mission_dir.name
+        changes.append(f"[{location_label}] {mission_name}:")
 
         for lane in self.LANE_DIRS:
             lane_dir = tasks_dir / lane

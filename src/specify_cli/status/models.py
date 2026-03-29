@@ -142,7 +142,7 @@ class StatusEvent:
     """
 
     event_id: str  # ULID
-    feature_slug: str  # e.g. "034-feature-name"
+    mission_slug: str  # e.g. "034-mission-name"
     wp_id: str  # e.g. "WP01"
     from_lane: Lane
     to_lane: Lane
@@ -163,7 +163,7 @@ class StatusEvent:
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             "event_id": self.event_id,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "wp_id": self.wp_id,
             "from_lane": str(self.from_lane),
             "to_lane": str(self.to_lane),
@@ -185,7 +185,7 @@ class StatusEvent:
         actor = ActorIdentity.from_dict(raw_actor) if isinstance(raw_actor, dict) else ActorIdentity.from_legacy(str(raw_actor))
         return cls(
             event_id=data["event_id"],
-            feature_slug=data["feature_slug"],
+            mission_slug=data["mission_slug"],
             wp_id=data["wp_id"],
             from_lane=Lane(data["from_lane"]),
             to_lane=Lane(data["to_lane"]),
@@ -202,12 +202,12 @@ class StatusEvent:
 
 @dataclass
 class StatusSnapshot:
-    """Materialized current state of all WPs in a feature (status.json).
+    """Materialized current state of all WPs in a mission (status.json).
 
     Produced by the deterministic reducer from the canonical event log.
     """
 
-    feature_slug: str
+    mission_slug: str
     materialized_at: str  # ISO 8601 UTC
     event_count: int
     last_event_id: str | None
@@ -216,7 +216,7 @@ class StatusSnapshot:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "materialized_at": self.materialized_at,
             "event_count": self.event_count,
             "last_event_id": self.last_event_id,
@@ -227,7 +227,7 @@ class StatusSnapshot:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
         return cls(
-            feature_slug=data["feature_slug"],
+            mission_slug=data["mission_slug"],
             materialized_at=data["materialized_at"],
             event_count=data["event_count"],
             last_event_id=data.get("last_event_id"),

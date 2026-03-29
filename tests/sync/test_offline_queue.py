@@ -462,7 +462,7 @@ class TestFormatQueueHealth:
             total_retried=7,
             oldest_event_age=timedelta(hours=2, minutes=30),
             retry_distribution={"0 retries": 35, "1-3 retries": 5, "4+ retries": 2},
-            top_event_types=[("WPStatusChanged", 20), ("FeatureCreated", 12)],
+            top_event_types=[("WPStatusChanged", 20), ("MissionCreated", 12)],
         )
 
         buf = StringIO()
@@ -510,7 +510,7 @@ class TestFormatQueueHealth:
             total_retried=0,
             oldest_event_age=timedelta(seconds=30),
             retry_distribution={"0 retries": 15},
-            top_event_types=[("WPStatusChanged", 8), ("FeatureCreated", 5), ("SyncPing", 2)],
+            top_event_types=[("WPStatusChanged", 8), ("MissionCreated", 5), ("SyncPing", 2)],
         )
 
         buf = StringIO()
@@ -520,5 +520,5 @@ class TestFormatQueueHealth:
 
         assert "Top Event Types" in output
         assert "WPStatusChanged" in output
-        assert "FeatureCreated" in output
+        assert "MissionCreated" in output
         assert "SyncPing" in output

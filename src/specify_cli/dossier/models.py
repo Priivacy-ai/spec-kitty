@@ -22,7 +22,7 @@ class ArtifactRef(BaseModel):
     Attributes:
         artifact_key: Stable, unique key for this artifact (e.g., 'input.spec.main')
         artifact_class: Classification (input|workflow|output|evidence|policy|runtime|other)
-        relative_path: Relative path from feature directory (e.g., 'spec.md', 'tasks/WP01.md')
+        relative_path: Relative path from mission directory (e.g., 'spec.md', 'tasks/WP01.md')
         content_hash_sha256: SHA256 hash of artifact bytes (deterministic)
         size_bytes: File size in bytes
         wp_id: Work package ID if linked (e.g., 'WP01', None if not WP-specific)
@@ -34,7 +34,7 @@ class ArtifactRef(BaseModel):
         indexed_at: When this artifact was indexed (UTC)
 
     Uniqueness Constraint:
-        (feature_slug, artifact_key) is unique per dossier
+        (mission_slug, artifact_key) is unique per dossier
     """
 
     # Identity
@@ -52,7 +52,7 @@ class ArtifactRef(BaseModel):
     relative_path: str = Field(
         ...,
         min_length=1,
-        description="Relative path from feature directory (e.g., 'spec.md', 'tasks/WP01.md')",
+        description="Relative path from mission directory (e.g., 'spec.md', 'tasks/WP01.md')",
     )
     content_hash_sha256: str = Field(
         ...,
@@ -157,16 +157,16 @@ class ArtifactRef(BaseModel):
 
 
 class MissionDossier(BaseModel):
-    """Complete artifact inventory for a mission/feature.
+    """Complete artifact inventory for a mission.
 
     Collection of indexed artifacts with metadata, manifest information,
     and completeness tracking.
 
     Attributes:
-        mission_slug: Mission type (e.g., 'software-dev')
-        mission_run_id: UUID or feature run identifier
-        feature_slug: Feature identifier (e.g., '042-local-mission-dossier')
-        feature_dir: Absolute path to feature directory
+        mission_type: Mission type (e.g., 'software-dev')
+        mission_run_id: UUID or mission run identifier
+        mission_slug: Mission identifier (e.g., '042-local-mission-dossier')
+        mission_dir: Absolute path to mission directory
         artifacts: All indexed artifacts
         manifest: Loaded manifest for this mission type (None if not found)
         latest_snapshot: Most recent snapshot (after all artifacts indexed)
@@ -175,21 +175,21 @@ class MissionDossier(BaseModel):
     """
 
     # Identity
-    mission_slug: str = Field(
+    mission_type: str = Field(
         ...,
         description="e.g., 'software-dev'",
     )
     mission_run_id: str = Field(
         ...,
-        description="UUID or feature run identifier",
+        description="UUID or mission run identifier",
     )
-    feature_slug: str = Field(
+    mission_slug: str = Field(
         ...,
         description="e.g., '042-local-mission-dossier'",
     )
-    feature_dir: str = Field(
+    mission_dir: str = Field(
         ...,
-        description="Absolute path to feature directory",
+        description="Absolute path to mission directory",
     )
 
     # Artifacts
@@ -271,7 +271,7 @@ class MissionDossierSnapshot(BaseModel):
     detecting changes and validating consistency across systems.
 
     Attributes:
-        feature_slug: Feature identifier
+        mission_slug: Mission identifier
         snapshot_id: Unique snapshot ID (UUID)
         total_artifacts: Total number of indexed artifacts
         required_artifacts: Count of required artifacts
@@ -287,9 +287,9 @@ class MissionDossierSnapshot(BaseModel):
     """
 
     # Identity
-    feature_slug: str = Field(
+    mission_slug: str = Field(
         ...,
-        description="Feature identifier (e.g., '042-local-mission-dossier')",
+        description="Mission identifier (e.g., '042-local-mission-dossier')",
     )
     snapshot_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
