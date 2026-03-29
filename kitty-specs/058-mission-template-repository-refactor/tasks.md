@@ -307,7 +307,7 @@
 - [x] T031 Rename `create-feature` subcommand to `create-mission` (add hidden `create-feature` alias for backward compat)
 - [x] T032 Update module docstring in `feature.py` (line 1: `"""Feature lifecycle commands…"""` → `"""Mission lifecycle commands…"""`) and all user-facing help strings / `rich.print` output that say "feature" when they mean "mission"
 - [x] T033 Mark the `agent feature` registration in `__init__.py` as `hidden=True` so it still works but doesn't appear in `--help`
-- [ ] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
+- [x] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
 - [ ] T035 [P] Update `docs/reference/slash-commands.md` — replace `spec-kitty agent feature` invocations with `spec-kitty agent mission`
 - [ ] T036 [P] Update `README.md` CLI examples (lines ~866–902) — replace `agent feature` with `agent mission`
 - [ ] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
