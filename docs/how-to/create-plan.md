@@ -4,7 +4,7 @@ Use this guide to turn a finished spec into a technical plan with `/spec-kitty.p
 
 ## Prerequisites
 
-- `kitty-specs/<feature>/spec.md` exists
+- `kitty-specs/<mission>/spec.md` exists
 - You are in the main repository root (v0.11.0+ keeps planning artifacts in `main`)
 
 ## The Command
@@ -23,10 +23,10 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 
 ## What Gets Created
 
-- `kitty-specs/<feature>/plan.md`
-- `kitty-specs/<feature>/research.md` (if research is required)
-- `kitty-specs/<feature>/data-model.md` (when data is involved)
-- `kitty-specs/<feature>/contracts/` (API contracts when applicable)
+- `kitty-specs/<mission>/plan.md`
+- `kitty-specs/<mission>/research.md` (if research is required)
+- `kitty-specs/<mission>/data-model.md` (when data is involved)
+- `kitty-specs/<mission>/contracts/` (API contracts when applicable)
 - Updated agent context files (based on the plan)
 
 ## Example
@@ -61,4 +61,4 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough

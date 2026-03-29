@@ -57,7 +57,7 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 | `WP_ID` (argument) | Yes | Work package ID (e.g., `WP01`) |
 | `--to` | Yes | Target lane (canonical or alias) |
 | `--actor` | Yes | Who is making this transition |
-| `--feature` | No | Feature slug (auto-detected from worktree if omitted) |
+| `--mission` | No | Feature slug (auto-detected from worktree if omitted) |
 | `--force` | No | Bypass guard conditions |
 | `--reason` | When `--force` | Reason for forced transition |
 | `--evidence-json` | When `--to done` | JSON string with DoneEvidence |
@@ -74,10 +74,10 @@ Rebuild `status.json` from the canonical event log.
 spec-kitty agent status materialize
 
 # Specify feature explicitly
-spec-kitty agent status materialize --feature 034-feature-name
+spec-kitty agent status materialize --mission 034-feature-name
 
 # JSON output (full snapshot)
-spec-kitty agent status materialize --feature 034-feature-name --json
+spec-kitty agent status materialize --mission 034-feature-name --json
 ```
 
 **When to use**: After manual edits to `status.events.jsonl`, after resolving merge conflicts in the event log, or after running `status validate` reports materialization drift.
@@ -88,10 +88,10 @@ Check event log integrity, transition legality, done-evidence completeness, and 
 
 ```bash
 # Validate event log for a feature
-spec-kitty agent status validate --feature 034-feature-name
+spec-kitty agent status validate --mission 034-feature-name
 
 # JSON output for CI integration
-spec-kitty agent status validate --feature 034-feature-name --json
+spec-kitty agent status validate --mission 034-feature-name --json
 ```
 
 **Checks performed**:
@@ -107,14 +107,14 @@ Scan target repositories for WP-linked branches and commits, detect planning-vs-
 
 ```bash
 # Preview reconciliation suggestions (dry-run is the default)
-spec-kitty agent status reconcile --feature 034-feature-name --dry-run
+spec-kitty agent status reconcile --mission 034-feature-name --dry-run
 
 # Scan a specific target repository
-spec-kitty agent status reconcile --feature 034-feature-name \
+spec-kitty agent status reconcile --mission 034-feature-name \
   --target-repo /path/to/implementation-repo --dry-run
 
 # Apply reconciliation events (2.x only; disabled on 0.1x)
-spec-kitty agent status reconcile --feature 034-feature-name --apply
+spec-kitty agent status reconcile --mission 034-feature-name --apply
 ```
 
 **How it works**:
@@ -132,7 +132,7 @@ Run health checks detecting stale claims, orphan workspaces, and unresolved drif
 
 ```bash
 # Run all health checks for a feature
-spec-kitty agent status doctor --feature 034-feature-name
+spec-kitty agent status doctor --mission 034-feature-name
 ```
 
 **Health checks**:
@@ -150,12 +150,12 @@ Bootstrap canonical event logs from existing frontmatter lane state.
 
 ```bash
 # Preview migration for a single feature
-spec-kitty agent status migrate --feature 034-feature-name --dry-run
+spec-kitty agent status migrate --mission 034-feature-name --dry-run
 
 # Execute migration for a single feature
-spec-kitty agent status migrate --feature 034-feature-name
+spec-kitty agent status migrate --mission 034-feature-name
 
-# Migrate all features
+# Migrate all missions
 spec-kitty agent status migrate --all
 
 # Preview all migrations
@@ -270,7 +270,7 @@ status:
   phase: 1  # 0=hardening, 1=dual-write, 2=read-cutover
 ```
 
-**Per-feature override** (`kitty-specs/<feature>/meta.json`):
+**Per-feature override** (`kitty-specs/<mission>/meta.json`):
 
 ```json
 {
@@ -288,15 +288,15 @@ To migrate existing features to the canonical event log:
 
 1. **Preview**: Run `spec-kitty agent status migrate --all --dry-run` to see what would happen
 2. **Execute**: Run `spec-kitty agent status migrate --all` to bootstrap event logs from frontmatter
-3. **Verify**: Run `spec-kitty agent status validate --feature <slug>` for each feature to confirm integrity
+3. **Verify**: Run `spec-kitty agent status validate --mission <slug>` for each feature to confirm integrity
 4. **Optionally advance to Phase 2**: Set `status.phase: 2` in config.yaml or per-feature in meta.json
 
 ## Canonical Event Log Format
 
-Events are stored in `kitty-specs/<feature>/status.events.jsonl` as one JSON object per line:
+Events are stored in `kitty-specs/<mission>/status.events.jsonl` as one JSON object per line:
 
 ```json
-{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
 ```
 
 Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly output.
@@ -304,7 +304,7 @@ Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly outp
 ## File Layout (per feature)
 
 ```
-kitty-specs/<feature>/
+kitty-specs/<mission>/
   status.events.jsonl    # CANONICAL: append-only event log
   status.json            # DERIVED: materialized snapshot (regenerable)
   meta.json              # Feature metadata (includes optional status_phase)
@@ -328,6 +328,6 @@ kitty-specs/<feature>/
 
 **Frontmatter lane drift**: In Phase 1 this is a warning (frontmatter is still authoritative for reads). In Phase 2 this is an error. Run `status materialize` to resync the compatibility views.
 
-**"No event log found"**: Run `spec-kitty agent status migrate --feature <slug>` to bootstrap from existing frontmatter state.
+**"No event log found"**: Run `spec-kitty agent status migrate --mission <slug>` to bootstrap from existing frontmatter state.
 
 **Stale claims reported by doctor**: Either continue work on the WP or release the claim by moving it back to `planned` (requires reason).

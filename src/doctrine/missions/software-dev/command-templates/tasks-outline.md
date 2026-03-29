@@ -55,13 +55,13 @@ git branch --show-current
 
 ### 1. Setup
 
-Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `mission_dir` plus `available_docs`. All paths must be absolute.
 
-**CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
+**CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 
 ### 2. Load Design Documents
 
-Read from `feature_dir` (only those present):
+Read from `mission_dir` (only those present):
 
 - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
 - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
@@ -96,7 +96,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 
 ### 5. Write `tasks.md`
 
-Write to `feature_dir/tasks.md` using the bundled tasks template (`.kittify/missions/software-dev/templates/tasks-template.md`):
+Write to `mission_dir/tasks.md` using the bundled tasks template (`.kittify/missions/software-dev/templates/tasks-template.md`):
 
 - Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
 - Under each work package include:
@@ -115,7 +115,7 @@ Write to `feature_dir/tasks.md` using the bundled tasks template (`.kittify/miss
 
 After completing this step:
 
-- `feature_dir/tasks.md` exists with full work package definitions
+- `mission_dir/tasks.md` exists with full work package definitions
 - Each WP has clear subtask lists, dependencies, and sizing estimates
 - No WP prompt files have been created yet
 

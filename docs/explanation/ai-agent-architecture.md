@@ -102,7 +102,7 @@ During `spec-kitty init`, these templates are adapted for each agent:
 Each command template contains:
 
 ```markdown
-# /spec-kitty.specify - Create Feature Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Purpose**: [What this command does]
 
@@ -203,7 +203,7 @@ By supporting multiple agents, Spec Kitty isn't locked to any single vendor.
 ### Team Flexibility
 
 A team might use different agents for different tasks:
-- Claude Code for complex feature implementation
+- Claude Code for complex mission implementation
 - Copilot for quick edits and reviews
 - Gemini for research tasks
 

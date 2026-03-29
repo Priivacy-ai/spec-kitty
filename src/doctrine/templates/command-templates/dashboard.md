@@ -10,7 +10,7 @@ description: Open the Spec Kitty dashboard in your browser.
 ## Context: Dashboard Overview
 
 **What is the dashboard?**
-A real-time, read-only web interface showing the health and status of all features in your project.
+A real-time, read-only web interface showing the health and status of all missions in your project.
 
 **Key characteristics**:
 
@@ -25,10 +25,10 @@ A real-time, read-only web interface showing the health and status of all featur
 
 ## When to Use Dashboard
 
-- **Project overview**: See all features, their statuses, and progress
+- **Project overview**: See all missions, their statuses, and progress
 - **Debugging workflow**: Check if features are properly detected
 - **Monitoring**: Track which features are in progress, review, or complete
-- **Status reports**: Show stakeholders real-time feature status
+- **Status reports**: Show stakeholders real-time mission status
 
 ---
 
@@ -40,7 +40,7 @@ A real-time, read-only web interface showing the health and status of all featur
 
 - From primary repository checkout root
 - From inside a primary repository checkout (dashboard still shows all projects)
-- At any point during feature development
+- At any point during mission development
 - Multiple times (each run can start/reuse the dashboard)
 
 **What it shows**:
@@ -61,7 +61,7 @@ The dashboard shows ALL features across the project. This command launches the S
 
 **If you're in a primary repository checkout**, the dashboard automatically detects the main repository location.
 
-The dashboard is project-wide (shows all features) and the CLI handles worktree detection automatically.
+The dashboard is project-wide (shows all missions) and the CLI handles worktree detection automatically.
 
 ## Implementation
 

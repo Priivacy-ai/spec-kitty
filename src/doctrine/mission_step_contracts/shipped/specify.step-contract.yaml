@@ -37,7 +37,7 @@ steps:
 
   - id: write_spec
     description: Write spec.md to kitty-specs/{feature}/
-    command: "Write spec.md in kitty-specs/{feature_slug}/"
+    command: "Write spec.md in kitty-specs/{mission_slug}/"
 
   - id: commit_spec
     description: Commit the specification to main branch

@@ -1,11 +1,11 @@
-# How to Accept and Merge a Feature
+# How to Accept and Merge a Mission
 
 Use this guide to validate feature readiness and merge to `main`.
 
 ## Prerequisites
 
 - All WPs are in `lane: "done"`
-- You are in the feature worktree
+- You are in the mission worktree
 
 ## Accept the Feature
 
@@ -47,7 +47,7 @@ Or in your terminal:
 spec-kitty merge --push
 ```
 
-For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Feature](merge-feature.md).
+For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Mission](merge-mission.md).
 
 ## Merge Strategies
 
@@ -58,7 +58,7 @@ Note: Rebase is not supported for workspace-per-WP features. Use `merge` or `squ
 
 ## Cleanup
 
-By default, merge removes the feature worktree and deletes the feature branch. Use these flags to keep them (in your terminal):
+By default, merge removes the mission worktree and deletes the mission branch. Use these flags to keep them (in your terminal):
 
 ```bash
 spec-kitty merge --keep-worktree --keep-branch
@@ -74,34 +74,34 @@ These steps are safe and reversible until you delete the branch and commit the c
 git worktree list
 ```
 
-2. Remove each feature worktree:
+2. Remove each mission worktree:
 ```bash
-git worktree remove .worktrees/<feature>-WP01
-git worktree remove .worktrees/<feature>-WP02
+git worktree remove .worktrees/<mission>-WP01
+git worktree remove .worktrees/<mission>-WP02
 ```
 
 If a worktree has uncommitted changes you want to discard, use `--force`:
 ```bash
-git worktree remove --force .worktrees/<feature>-WP01
+git worktree remove --force .worktrees/<mission>-WP01
 ```
 
-3. Delete the feature branches:
+3. Delete the mission branches:
 ```bash
-git branch -D <feature>-WP01
-git branch -D <feature>-WP02
+git branch -D <mission>-WP01
+git branch -D <mission>-WP02
 ```
 
 4. Remove the planning artifacts from main (spec/plan/tasks), then commit:
 ```bash
-rm -rf kitty-specs/<feature>
+rm -rf kitty-specs/<mission>
 git add kitty-specs/
-git commit -m "Remove abandoned feature <feature>"
+git commit -m "Remove abandoned feature <mission>"
 ```
 
 ## Troubleshooting
 
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
-- **Merge fails**: Ensure your worktree is clean and you are on the feature branch.
+- **Merge fails**: Ensure your worktree is clean and you are on the mission branch.
 
 For detailed troubleshooting including pre-flight failures, conflict resolution, and merge recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
 
@@ -114,7 +114,7 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## See Also
 
-- [Merge a Feature](merge-feature.md) - Detailed merge workflow
+- [Merge a Mission](merge-mission.md) - Detailed merge workflow
 - [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
 - [Review a Work Package](review-work-package.md) - Required before accept
 - [Upgrade to 0.11.0](install-and-upgrade.md) - Breaking changes in v0.11.0
@@ -126,4 +126,4 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough

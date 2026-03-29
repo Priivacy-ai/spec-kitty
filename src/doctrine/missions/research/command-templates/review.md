@@ -11,7 +11,7 @@ Research WPs produce deliverables in a **worktree**, which merge to main like co
 | Type | Location | Review Focus |
 |------|----------|--------------|
 | **Research Deliverables** | `{{deliverables_path}}` (in worktree) | PRIMARY - Your main review target |
-| **Planning Artifacts** | `kitty-specs/{{feature_slug}}/research/` (in main) | SECONDARY - Citation validation only |
+| **Planning Artifacts** | `kitty-specs/{{mission_slug}}/research/` (in main) | SECONDARY - Citation validation only |
 
 ### Review Checklist
 
@@ -69,11 +69,11 @@ Before proceeding with review, verify you are in the correct working directory b
 
 **What this validates**:
 
-- Current branch follows the feature pattern like `001-feature-name`
+- Current branch follows the mission pattern like `001-mission-name`
 - You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- The validator prints clear navigation instructions if you're outside the mission worktree
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Citation Validation (Research Mission Specific)
 

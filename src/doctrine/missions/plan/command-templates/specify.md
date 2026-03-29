@@ -2,7 +2,7 @@
 step_id: "specify"
 mission: "plan"
 title: "Specify"
-description: "Create and document the feature specification"
+description: "Create and document the mission specification"
 estimated_duration: "15-20 minutes"
 ---
 
@@ -38,7 +38,7 @@ Use the returned `planning_base_branch` and `merge_target_branch` values when po
 
 The planning specification should include:
 - **Executive Summary** (1-2 paragraphs describing the feature at high level)
-- **Problem Statement** (what problem does this feature solve?)
+- **Problem Statement** (what problem does this mission solve?)
 - **Functional Requirements** (list of what the feature must do)
 - **Non-Functional Requirements** (performance, security, scalability expectations)
 - **User Scenarios** (3-5 key user flows and interactions)
@@ -55,7 +55,7 @@ The planning specification should include:
    - What value does it deliver?
 
 2. **Define feature goals**
-   - List 3-5 primary goals for this feature
+   - List 3-5 primary goals for this mission
    - Ensure each goal is specific and measurable
    - Prioritize goals by importance
 
@@ -72,7 +72,7 @@ The planning specification should include:
    - Cross-reference each requirement to a user scenario
 
 5. **Define success criteria**
-   - What does it mean for this feature to be "done"?
+   - What does it mean for this mission to be "done"?
    - How will you validate the feature works as intended?
    - Include both user-facing criteria and technical criteria
    - Make criteria objective and testable
@@ -80,7 +80,7 @@ The planning specification should include:
 6. **Identify constraints and assumptions**
    - What technical limitations or dependencies exist?
    - What are we assuming about the environment, users, or systems?
-   - What constraints (budget, timeline, resources) affect this feature?
+   - What constraints (budget, timeline, resources) affect this mission?
    - What is explicitly out of scope?
 
 7. **Validate for clarity**

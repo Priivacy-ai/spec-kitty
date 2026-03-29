@@ -11,7 +11,7 @@ description: Create an isolated workspace (worktree) for implementing a specific
 
 **After running `spec-kitty implement WP##`, you MUST:**
 
-1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-feature-WP##/`
+1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-mission-WP##/`
 2. **ALL file operations happen in this directory** - Read, Write, Edit tools must target files in the workspace
 3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
 
@@ -25,13 +25,13 @@ description: Create an isolated workspace (worktree) for implementing a specific
 
 ```bash
 pwd
-# Should show: /path/to/repo/.worktrees/###-feature-WP##/
+# Should show: /path/to/repo/.worktrees/###-mission-WP##/
 ```
 
 **Deterministic pre-read checks (required before Read/Edit/Write tools):**
 ```bash
 ls -la
-test -f kitty-specs/<feature>/tasks/<wp-file>.md && echo "wp prompt exists"
+test -f kitty-specs/<mission>/tasks/<wp-file>.md && echo "wp prompt exists"
 ```
 If a path is uncertain, verify with `ls` or `test -f` first.
 
@@ -83,7 +83,7 @@ After `/spec-kitty.tasks` generates work packages in the main repository:
 - Run `spec-kitty agent workflow implement WP01 --agent __AGENT__` to get the full prompt
 - Run `spec-kitty implement WP01` to create a workspace for the first WP
 - Run `spec-kitty implement WP02 --base WP01` if WP02 depends on WP01
-- Each WP gets its own isolated worktree in `.worktrees/###-feature-WP##/`
+- Each WP gets its own isolated worktree in `.worktrees/###-mission-WP##/`
 
 ## Workflow
 
@@ -98,8 +98,8 @@ After `/spec-kitty.tasks` generates work packages in the main repository:
 **Implementation Phase** (creates worktrees on-demand):
 
 ```
-spec-kitty implement WP01 → Creates .worktrees/###-feature-WP01/
-spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-feature-WP02/
+spec-kitty implement WP01 → Creates .worktrees/###-mission-WP01/
+spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-mission-WP02/
 ```
 
 ## Examples
@@ -170,7 +170,7 @@ spec-kitty agent workflow implement WP## --agent __AGENT__
 spec-kitty implement WP##              # Or with --base if dependencies
 
 # 4. Navigate to workspace
-cd .worktrees/###-feature-WP##/
+cd .worktrees/###-mission-WP##/
 
 # 5. Implement according to WP prompt
 # ... write code, run tests, commit changes ...

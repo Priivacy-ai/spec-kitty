@@ -114,37 +114,37 @@ Accepted without error on all tested commands.
 
 ---
 
-## Section 3 — Flag rename: `--mission` / `--feature` deprecation (issue #241, group B)
+## Section 3 — Flag rename: `--mission` / `--mission` deprecation (issue #241, group B)
 
-### 3.1 `--help` does not show `--feature`
+### 3.1 `--help` does not show `--mission`
 
-All 10 Typer commands and 4 argparse subcommands confirmed: `--feature` absent from visible
+All 10 Typer commands and 4 argparse subcommands confirmed: `--mission` absent from visible
 help, `--mission` present.
 
 **Commands verified:**
-`validate-tasks`, `mission current`, `orchestrator-api feature-state`, `orchestrator-api
+`validate-tasks`, `mission current`, `orchestrator-api mission-state`, `orchestrator-api
 list-ready`, `orchestrator-api start-implementation`, `orchestrator-api start-review`,
 `orchestrator-api transition`, `orchestrator-api append-history`, `orchestrator-api
-accept-feature`, `orchestrator-api merge-feature`, plus argparse: `status`, `verify`,
+accept-mission`, `orchestrator-api merge-mission`, plus argparse: `status`, `verify`,
 `accept`, `merge`.
 
 **Status: PASS**
 
-### 3.2 `--feature` backward compat
+### 3.2 `--mission` backward compat
 
 ```bash
-spec-kitty validate-tasks --feature 999-nonexistent
+spec-kitty validate-tasks --mission 999-nonexistent
 # Error about feature not found, not "unknown option"
 ```
 
-`--feature` accepted on all tested commands. Reaches business logic correctly.
+`--mission` accepted on all tested commands. Reaches business logic correctly.
 
 **Status: PASS**
 
 ### 3.3 `validate_tasks.py` body fix
 
 ```bash
-# From within a kitty-specs feature directory:
+# From within a kitty-specs mission directory:
 spec-kitty validate-tasks
 # Auto-detects feature slug from cwd, exits 0
 ```
@@ -157,9 +157,9 @@ Fix confirmed: auto-detection works, no crash, does not silently pass `None` as 
 
 ```bash
 spec-kitty mission current --help
-# --mission (-m) present; --feature absent from visible output ✅
+# --mission (-m) present; --mission absent from visible output ✅
 
-spec-kitty mission current --feature <slug>
+spec-kitty mission current --mission <slug>
 # Accepted — same result as --mission ✅
 ```
 
@@ -167,7 +167,7 @@ spec-kitty mission current --feature <slug>
 
 ### 3.5 `tasks_cli` argparse surface
 
-`--mission` is canonical flag on all 4 subcommands. `--feature` accepted as alias.
+`--mission` is canonical flag on all 4 subcommands. `--mission` accepted as alias.
 
 **Status: PASS**
 
@@ -178,7 +178,7 @@ spec-kitty mission current --feature <slug>
 ### 4.1 Missing `--mission` returns USAGE_ERROR
 
 ```bash
-spec-kitty orchestrator-api feature-state
+spec-kitty orchestrator-api mission-state
 ```
 
 Returned envelope:
@@ -186,13 +186,13 @@ Returned envelope:
 {
   "success": false,
   "error_code": "USAGE_ERROR",
-  "command": "orchestrator-api.feature-state",
+  "command": "orchestrator-api.mission-state",
   "data": { "message": "... --mission is required ..." }
 }
 ```
 
 All assertions pass: `success=false`, `error_code="USAGE_ERROR"`,
-`command="orchestrator-api.feature-state"` (not `"unknown"`).
+`command="orchestrator-api.mission-state"` (not `"unknown"`).
 
 **Status: PASS**
 
@@ -205,10 +205,10 @@ spec-kitty orchestrator-api list-ready
 
 **Status: PASS**
 
-### 4.3 `--feature` alias on orchestrator API
+### 4.3 `--mission` alias on orchestrator API
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature nonexistent
+spec-kitty orchestrator-api mission-state --mission nonexistent
 # Returns FEATURE_NOT_FOUND — correct ✅
 ```
 

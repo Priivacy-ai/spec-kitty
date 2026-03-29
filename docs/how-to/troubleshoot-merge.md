@@ -37,7 +37,7 @@ Merge progress is saved in `.kittify/merge-state.json`:
 
 ```json
 {
-  "feature_slug": "017-my-feature",
+  "mission_slug": "017-my-feature",
   "target_branch": "main",
   "wp_order": ["WP01", "WP02", "WP03", "WP04", "WP05"],
   "completed_wps": ["WP01", "WP02"],
@@ -51,7 +51,7 @@ Merge progress is saved in `.kittify/merge-state.json`:
 
 | Field | Description |
 |-------|-------------|
-| `feature_slug` | The feature being merged |
+| `mission_slug` | The feature being merged |
 | `target_branch` | Branch being merged into |
 | `wp_order` | Ordered list of WPs to merge |
 | `completed_wps` | WPs that have been successfully merged |
@@ -92,7 +92,7 @@ Example output:
 After aborting, you can start a new merge:
 
 ```bash
-spec-kitty merge --feature 017-my-feature
+spec-kitty merge --mission 017-my-feature
 ```
 
 ### What --abort Clears
@@ -267,7 +267,7 @@ spec-kitty implement WP02
 
 | Error Message | Cause | Solution |
 |--------------|-------|----------|
-| `Error: Already on <branch> branch.` | Running merge from target branch without --feature | Use `spec-kitty merge --feature <slug>` |
+| `Error: Already on <branch> branch.` | Running merge from target branch without --mission | Use `spec-kitty merge --mission <slug>` |
 | `Error: No WP worktrees found for feature '<slug>'.` | Feature has no worktrees or wrong slug | Check slug, run `spec-kitty agent workflow implement WP01` |
 | `Cannot merge: WP workspaces not ready` | One or more WP worktrees are not merge-ready | Fix the listed WP errors, then retry merge |
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
@@ -280,7 +280,7 @@ spec-kitty implement WP02
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
 | `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred (workspace-per-WP) | Resolve conflicts, then `spec-kitty merge --resume` |
 | `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |
-| `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --feature <slug>` to start a new merge |
+| `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --mission <slug>` to start a new merge |
 | `⚠ Invalid merge state file cleared` | State file was corrupted | Start fresh with `spec-kitty merge` |
 | `⚠ Git merge in progress - resolve conflicts first` | Unresolved conflict from previous attempt | Resolve conflicts, then `spec-kitty merge --resume` |
 | `No merge state to abort` | No active merge to abort | Nothing to do, merge was already complete or never started |
@@ -292,12 +292,12 @@ spec-kitty implement WP02
 
 ## Command Reference
 
-- [Merge Feature Guide](merge-feature.md) - Complete merge workflow
+- [Merge Feature Guide](merge-mission.md) - Complete merge workflow
 - [CLI Commands](../reference/cli-commands.md) - Full CLI reference
 
 ## See Also
 
-- [Merge a Feature](merge-feature.md) - Standard merge workflow
+- [Merge a Mission](merge-mission.md) - Standard merge workflow
 - [Accept and Merge](accept-and-merge.md) - Pre-merge validation
 - [Handle Dependencies](handle-dependencies.md) - WP dependency management
 
@@ -308,4 +308,4 @@ spec-kitty implement WP02
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough

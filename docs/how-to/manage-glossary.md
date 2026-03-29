@@ -48,7 +48,7 @@ Terms are organized into four scopes. When the same surface exists in multiple s
 
 | Precedence | Scope | Use For |
 |:---:|---|---|
-| 0 (highest) | `mission_local` | Feature-specific jargon (e.g., "widget" meaning a specific UI component in this feature) |
+| 0 (highest) | `mission_local` | Feature-specific jargon (e.g., "widget" meaning a specific UI component in this mission) |
 | 1 | `team_domain` | Team or organization conventions (e.g., "sprint" meaning a 2-week iteration) |
 | 2 | `audience_domain` | Industry or domain standards (e.g., "deployment" in DevOps) |
 | 3 (lowest) | `spec_kitty_core` | Framework terms like "lane", "work package", "mission" |

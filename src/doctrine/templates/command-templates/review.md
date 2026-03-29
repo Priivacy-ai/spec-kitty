@@ -23,17 +23,17 @@ Before proceeding with review, verify you are in the correct working directory b
 
 **What this validates**:
 
-- Current branch follows the feature pattern like `001-feature-name`
+- Current branch follows the mission pattern like `001-mission-name`
 - You're not attempting to run from `main` or any release branch
 - The validator prints clear navigation instructions if you're outside the primary repository checkout
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
-This is intentional - worktrees provide isolation for parallel feature development.
+This is intentional - worktrees provide isolation for parallel mission development.
 
 ## Outline
 
-1. Run `{SCRIPT}` from repo root; capture `feature_dir`, `available_docs`, and `tasks.md` path.
+1. Run `{SCRIPT}` from repo root; capture `mission_dir`, `available_docs`, and `tasks.md` path.
 
 2. Determine the review target:
    - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).
@@ -413,7 +413,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    # Each exception handler should be specific, not generic
 
    # 7. Verify documentation updated
-   # If README/docs mention this feature, verify they're current
+   # If README/docs mention this mission, verify they're current
    ```
 
    ### 4.11 Adversarial Test Cases
@@ -510,6 +510,6 @@ This is intentional - worktrees provide isolation for parallel feature developme
 - Follow-up actions (if any) for other team members.
 - Reminder to push changes or notify teammates as per project conventions.
 
-Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<feature>/tasks/WPXX.md`)
+Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<mission>/tasks/WPXX.md`)
 
 All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.

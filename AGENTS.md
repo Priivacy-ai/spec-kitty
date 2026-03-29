@@ -19,7 +19,7 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 ### Current System (v0.9.0+)
 
 ```
-kitty-specs/001-my-feature/tasks/
+kitty-specs/001-my-mission/tasks/
   ├── WP01-setup.md        (lane: "planned")
   ├── WP02-core.md         (lane: "doing")
   ├── WP03-tests.md        (lane: "for_review")
@@ -66,7 +66,7 @@ spec-kitty agent workflow review [WP01]
 ### Other Task Commands
 
 ```bash
-# List all work packages for current feature
+# List all work packages for current mission
 spec-kitty agent tasks list-tasks
 
 # List tasks in specific lane
@@ -212,7 +212,7 @@ Agent context is now managed via the Python CLI:
 # Update agent context programmatically
 spec-kitty agent context update
 
-# Or handle during feature workflow via slash commands
+# Or handle during mission workflow via slash commands
 # which automatically manage agent context
 ```
 

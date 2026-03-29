@@ -12,9 +12,9 @@ No new `1.x` PyPI releases are planned.
 
 ## Core File Layout (1.x)
 
-1. `kitty-specs/<feature>/spec.md`
-2. `kitty-specs/<feature>/plan.md`
-3. `kitty-specs/<feature>/tasks.md`
+1. `kitty-specs/<mission>/spec.md`
+2. `kitty-specs/<mission>/plan.md`
+3. `kitty-specs/<mission>/tasks.md`
 4. `.kittify/memory/constitution.md` (legacy location in 1.x)
 
 ## Start Here

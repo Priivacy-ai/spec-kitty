@@ -31,7 +31,7 @@
 
 ```python
 # Current — WRONG
-agent_feature.create_feature(feature_slug=slug, mission=mission, json_output=json_output)
+agent_feature.create_feature(mission_slug=slug, mission=mission, json_output=json_output)
 ```
 
 `create_feature` (defined at `cli/commands/agent/feature.py:501`) has no `mission` kwarg.
@@ -285,5 +285,5 @@ recent features (e.g., `mission_v1`, `dossier`, `orchestrator_api`) rather than 
 1 FAILED: test_health_timeout_with_dead_process_still_fails (C3 above)
 ```
 
-90 warnings include 18 `DeprecationWarning: --feature is deprecated; use --mission instead`
-triggered by tests that still use the deprecated `--feature` flag.
+90 warnings include 18 `DeprecationWarning: --mission is deprecated; use --mission instead`
+triggered by tests that still use the deprecated `--mission` flag.

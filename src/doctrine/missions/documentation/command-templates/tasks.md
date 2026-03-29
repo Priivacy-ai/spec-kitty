@@ -107,10 +107,10 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
    - WP03: Generator Updates (regenerate outdated API docs)
    - WP04: Quality Validation (validate all docs, old and new)
 
-   **For Feature-Specific Mode**:
-   - WP01: Feature Documentation (tasks for documenting the feature across selected Divio types)
+   **For Mission-Specific Mode**:
+   - WP01: Mission Documentation (tasks for documenting the feature across selected Divio types)
    - WP02: Integration (tasks for integrating feature docs with existing docs)
-   - WP03: Quality Validation (validate feature-specific docs)
+   - WP03: Quality Validation (validate mission-specific docs)
 
    ### Prioritization
 

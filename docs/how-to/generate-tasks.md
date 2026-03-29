@@ -4,7 +4,7 @@ Use this guide to turn a plan into work packages with `/spec-kitty.tasks`.
 
 ## Prerequisites
 
-- `kitty-specs/<feature>/plan.md` exists
+- `kitty-specs/<mission>/plan.md` exists
 - All `[NEEDS CLARIFICATION]` items are resolved
 
 ## The Command
@@ -17,8 +17,8 @@ In your agent:
 
 ## What Gets Created
 
-- `kitty-specs/<feature>/tasks.md` (overview checklist)
-- `kitty-specs/<feature>/tasks/WP01-*.md`, `WP02-*.md`, ... (prompt files)
+- `kitty-specs/<mission>/tasks.md` (overview checklist)
+- `kitty-specs/<mission>/tasks/WP01-*.md`, `WP02-*.md`, ... (prompt files)
 
 Work packages live in a **flat** `tasks/` directory. Lane status is stored in each prompt file frontmatter via `lane: "planned"`.
 
@@ -36,7 +36,7 @@ After reviewing the generated WPs, finalize the task set.
 In your terminal:
 
 ```bash
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 ```
 
 ## Example Output
@@ -75,4 +75,4 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](../tutorials/your-first-mission.md) - Complete workflow walkthrough

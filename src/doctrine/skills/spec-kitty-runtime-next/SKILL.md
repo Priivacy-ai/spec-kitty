@@ -188,7 +188,7 @@ Runtime state is persisted between calls:
 
 ```
 .kittify/runtime/
-├── feature-runs.json       # Index: {"mission-slug": {"run_id": "...", "run_dir": "..."}}
+├── mission-runs.json       # Index: {"mission-slug": {"run_id": "...", "run_dir": "..."}}
 └── runs/
     └── <run_id>/
         └── state.json      # Runtime snapshot (current step, inputs, etc.)
@@ -197,7 +197,7 @@ Runtime state is persisted between calls:
 ### Mission Detection
 
 When `--mission` is omitted, the runtime detects the mission via (in order):
-1. `SPECIFY_FEATURE` environment variable
+1. `SPECIFY_MISSION` environment variable
 2. Git branch name (strips `-WP##` suffix for worktree branches)
 3. Current directory path (walks up looking for `###-mission-name`)
 4. Single mission auto-detect (only if exactly one mission exists)

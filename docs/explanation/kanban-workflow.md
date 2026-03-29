@@ -225,10 +225,10 @@ When review finds issues:
 2. Reviewer finds problems
    /spec-kitty.review WP01
    Writes feedback file and runs move-task with --review-feedback-file
-   Feedback persisted to git common-dir as feedback://<feature>/<wp>/<artifact>.md
+   Feedback persisted to git common-dir as feedback://<mission>/<wp>/<artifact>.md
    lane: planned (reset)
    review_status: has_feedback
-   review_feedback: feedback://<feature>/<wp>/<artifact>.md
+   review_feedback: feedback://<mission>/<wp>/<artifact>.md
 
 3. Agent re-claims WP
    Reads review_feedback pointer from frontmatter
@@ -254,10 +254,10 @@ When review finds issues:
 
 ## Event Log (Canonical Status Tracking)
 
-Lane transitions are tracked in an append-only event log stored at `kitty-specs/<feature>/status.events.jsonl`. Each line is a JSON object representing one `StatusEvent`:
+Lane transitions are tracked in an append-only event log stored at `kitty-specs/<mission>/status.events.jsonl`. Each line is a JSON object representing one `StatusEvent`:
 
 ```json
-{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
 ```
 
 ### StatusEvent fields
@@ -265,7 +265,7 @@ Lane transitions are tracked in an append-only event log stored at `kitty-specs/
 | Field | Type | Description |
 |-------|------|-------------|
 | `event_id` | string | ULID (globally unique, time-sortable) |
-| `feature_slug` | string | Feature identifier (e.g., "034-feature-name") |
+| `mission_slug` | string | Feature identifier (e.g., "034-feature-name") |
 | `wp_id` | string | Work package ID (e.g., "WP01") |
 | `from_lane` | string | Lane before transition (canonical name) |
 | `to_lane` | string | Lane after transition (canonical name) |

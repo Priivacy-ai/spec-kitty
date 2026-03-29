@@ -8,7 +8,7 @@ steps:
     examples:
       - "Document: 'Autonomous for implementation detail; pause for architectural changes or external API contract changes.'"
   - title: Verify reversibility
-    description: Confirm that a rollback path exists (e.g. feature branch, git revert) before beginning autonomous execution. Block on irreversible operations.
+    description: Confirm that a rollback path exists (e.g. mission branch, git revert) before beginning autonomous execution. Block on irreversible operations.
     examples:
       - "Do not proceed with database schema migrations or production deployments without explicit human approval."
   - title: Execute in increments with commit checkpoints

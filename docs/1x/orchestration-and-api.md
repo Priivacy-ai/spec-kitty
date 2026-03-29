@@ -16,18 +16,18 @@
 
 ```bash
 spec-kitty orchestrator-api contract-version
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
 ## Build-your-own provider
 
 Custom providers should:
 
-1. Read ready work through `list-ready` / `feature-state`.
+1. Read ready work through `list-ready` / `mission-state`.
 2. Start work through `start-implementation`.
 3. Drive review loops with `transition` and `start-review`.
-4. Finalize with `accept-feature` and `merge-feature`.
+4. Finalize with `accept-mission` and `merge-mission`.
 
 Do not mutate WP lane frontmatter directly from the provider process.
 

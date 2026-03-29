@@ -4,7 +4,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 ## Overview
 
-Spec-kitty supports 12 AI agents, including Claude Code, GitHub Codex, Google Gemini, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilocode, Augment Code, Roo Cline, and Amazon Q. Each agent provides slash commands for feature specification, planning, task generation, implementation, and review workflows.
+Spec-kitty supports 12 AI agents, including Claude Code, GitHub Codex, Google Gemini, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilocode, Augment Code, Roo Cline, and Amazon Q. Each agent provides slash commands for mission specification, planning, task generation, implementation, and review workflows.
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../tutorials/getting-started.md) guide.
 

@@ -75,28 +75,28 @@ spec-kitty specify --mission-type software-dev --help
 
 ---
 
-## 3. Flag rename — `--mission` / `--feature` deprecation (issue #241, group B)
+## 3. Flag rename — `--mission` / `--mission` deprecation (issue #241, group B)
 
-All remaining CLI commands that previously used bare `--feature` (no
-`hidden=True`) now expose `--mission` as primary and `--feature` as a hidden
+All remaining CLI commands that previously used bare `--mission` (no
+`hidden=True`) now expose `--mission` as primary and `--mission` as a hidden
 deprecated alias.
 
-### 3.1 `--help` does NOT show `--feature`
+### 3.1 `--help` does NOT show `--mission`
 
-For each of the following commands, run `<cmd> --help` and confirm `--feature`
+For each of the following commands, run `<cmd> --help` and confirm `--mission`
 does **not** appear in the visible option list:
 
 ```bash
 spec-kitty validate-tasks --help
 spec-kitty mission current --help
-spec-kitty orchestrator-api feature-state --help
+spec-kitty orchestrator-api mission-state --help
 spec-kitty orchestrator-api list-ready --help
 spec-kitty orchestrator-api start-implementation --help
 spec-kitty orchestrator-api start-review --help
 spec-kitty orchestrator-api transition --help
 spec-kitty orchestrator-api append-history --help
-spec-kitty orchestrator-api accept-feature --help
-spec-kitty orchestrator-api merge-feature --help
+spec-kitty orchestrator-api accept-mission --help
+spec-kitty orchestrator-api merge-mission --help
 ```
 
 Also for the argparse surface (tasks_cli):
@@ -107,27 +107,27 @@ python -m specify_cli.scripts.tasks.tasks_cli accept --help
 python -m specify_cli.scripts.tasks.tasks_cli merge --help
 ```
 
-**Expected for all:** `--feature` absent; `--mission` present.
+**Expected for all:** `--mission` absent; `--mission` present.
 
-### 3.2 `--feature` still accepted (backward compat)
+### 3.2 `--mission` still accepted (backward compat)
 
-For any of the Typer commands above, pass `--feature <slug>` — it should be
+For any of the Typer commands above, pass `--mission <slug>` — it should be
 silently accepted and work identically to `--mission <slug>`. A
 `DeprecationWarning` may be emitted but the command must not fail.
 
 ```bash
-spec-kitty validate-tasks --feature 999-nonexistent 2>&1
+spec-kitty validate-tasks --mission 999-nonexistent 2>&1
 # Expected: error about feature not found, NOT a "unknown option" error
 ```
 
 ### 3.3 `validate_tasks.py` body fix
 
-This was a bug where `feature_slug_arg` (the resolved value from
+This was a bug where `mission_slug_arg` (the resolved value from
 `resolve_mission_or_feature`) was computed but the body used the raw `feature`
 param. To verify the fix worked:
 
 ```bash
-# From within a kitty-specs feature directory:
+# From within a kitty-specs mission directory:
 spec-kitty validate-tasks
 # Expected: auto-detects the feature slug from cwd — does NOT crash or
 # silently use None as the slug.
@@ -137,12 +137,12 @@ spec-kitty validate-tasks
 
 ```bash
 spec-kitty mission current --help
-# Expected: --mission (-m) present; --feature absent from visible output
+# Expected: --mission (-m) present; --mission absent from visible output
 
 spec-kitty mission current --mission <existing-slug>
 # Expected: shows current mission for that feature slug
 
-spec-kitty mission current --feature <existing-slug>
+spec-kitty mission current --mission <existing-slug>
 # Expected: same result as --mission (deprecated alias accepted)
 ```
 
@@ -153,8 +153,8 @@ spec-kitty mission current --feature <existing-slug>
 python -m specify_cli.scripts.tasks.tasks_cli status --mission <slug>
 python -m specify_cli.scripts.tasks.tasks_cli verify --mission <slug>
 
-# Verify --feature still works as alias:
-python -m specify_cli.scripts.tasks.tasks_cli status --feature <slug>
+# Verify --mission still works as alias:
+python -m specify_cli.scripts.tasks.tasks_cli status --mission <slug>
 # Expected: identical behaviour to --mission
 ```
 
@@ -165,7 +165,7 @@ python -m specify_cli.scripts.tasks.tasks_cli status --feature <slug>
 ### 4.1 Missing `--mission` returns structured USAGE_ERROR
 
 ```bash
-spec-kitty orchestrator-api feature-state
+spec-kitty orchestrator-api mission-state
 ```
 
 **Expected JSON envelope:**
@@ -173,7 +173,7 @@ spec-kitty orchestrator-api feature-state
 {
   "success": false,
   "error_code": "USAGE_ERROR",
-  "command": "orchestrator-api.feature-state",
+  "command": "orchestrator-api.mission-state",
   "data": { "message": "... --mission is required ..." }
 }
 ```
@@ -181,7 +181,7 @@ spec-kitty orchestrator-api feature-state
 Key assertions:
 - `success` is `false`
 - `error_code` is `"USAGE_ERROR"`
-- `command` is `"orchestrator-api.feature-state"` (not `"unknown"` — command is now
+- `command` is `"orchestrator-api.mission-state"` (not `"unknown"` — command is now
   identified even when `--mission` is omitted, because the param is Optional)
 - `data.message` contains `"--mission"`
 
@@ -193,10 +193,10 @@ spec-kitty orchestrator-api list-ready
 
 **Expected:** same envelope shape, `command` = `"orchestrator-api.list-ready"`.
 
-### 4.3 `--feature` alias works on orchestrator API
+### 4.3 `--mission` alias works on orchestrator API
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug>
+spec-kitty orchestrator-api mission-state --mission <slug>
 # Expected: same result as --mission <slug>
 ```
 
@@ -291,7 +291,7 @@ init for any supported agent.
 ### 6.5 Agent profile suggestion in task templates
 
 Check that WP task templates include agent profile role hints. Open any
-generated WP file (e.g. `kitty-specs/<feature>/tasks/WP01-*.md`) after running
+generated WP file (e.g. `kitty-specs/<mission>/tasks/WP01-*.md`) after running
 `spec-kitty tasks` and verify the template contains a profile suggestion line
 (e.g. `Suggested agent profile: implementer`).
 

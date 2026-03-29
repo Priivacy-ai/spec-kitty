@@ -2,7 +2,7 @@
 
 **Divio type**: Tutorial
 
-In this tutorial, you'll install Spec Kitty and create your first feature specification.
+In this tutorial, you'll install Spec Kitty and create your first mission specification.
 
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
@@ -64,12 +64,12 @@ You'll be asked a discovery interview. Answer each question until the command co
 
 Expected results:
 
-- `kitty-specs/###-task-list/spec.md` (feature spec)
+- `kitty-specs/###-task-list/spec.md` (mission spec)
 - A git commit in `main` with the spec changes
 
 ## Step 4: Verify Your Work
 
-Confirm the feature directory exists:
+Confirm the mission directory exists:
 
 ```bash
 ls kitty-specs
@@ -95,7 +95,7 @@ ls .worktrees
 
 ## What's Next?
 
-Continue with [Your First Feature](your-first-feature.md) for the complete workflow from specification to merge.
+Continue with [Your First Mission](your-first-mission.md) for the complete workflow from specification to merge.
 
 ### Related How-To Guides
 

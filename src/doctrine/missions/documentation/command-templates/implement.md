@@ -11,7 +11,7 @@ description: Implement documentation work packages using Divio templates and gen
 
 **After running `spec-kitty implement WP##`, you MUST:**
 
-1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-feature-WP##/`
+1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-mission-WP##/`
 2. **ALL file operations happen in this directory** - Read, Write, Edit tools must target files in the workspace
 3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
 
@@ -25,7 +25,7 @@ description: Implement documentation work packages using Divio templates and gen
 
 ```bash
 pwd
-# Should show: /path/to/repo/.worktrees/###-feature-WP##/
+# Should show: /path/to/repo/.worktrees/###-mission-WP##/
 ```
 
 ## Deterministic Pre-Read Checks (required)
@@ -348,7 +348,7 @@ Documentation implementation follows the standard workspace-per-WP model:
 **BEFORE moving to for_review**, you MUST commit your documentation:
 
 ```bash
-cd .worktrees/###-feature-WP##/
+cd .worktrees/###-mission-WP##/
 git add docs/
 git commit -m "docs(WP##): <describe your documentation>"
 ```
@@ -356,7 +356,7 @@ git commit -m "docs(WP##): <describe your documentation>"
 <details><summary>PowerShell equivalent</summary>
 
 ```powershell
-Set-Location .worktrees\###-feature-WP##\
+Set-Location .worktrees\###-mission-WP##\
 git add docs/
 git commit -m "docs(WP##): <describe your documentation>"
 ```

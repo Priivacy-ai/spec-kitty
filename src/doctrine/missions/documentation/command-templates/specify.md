@@ -1,5 +1,5 @@
 ---
-description: Create a documentation-focused feature specification with discovery and Divio scoping.
+description: Create a documentation-focused mission specification with discovery and Divio scoping.
 ---
 
 # Command Template: /spec-kitty.specify (Documentation Mission)
@@ -75,12 +75,12 @@ Inform user you will audit existing documentation, then ask:
 
 ---
 
-**Question 2C: For Feature-Specific Mode - Feature Details**
+**Question 2C: For Mission-Specific Mode - Feature Details**
 
 Ask user:
 
 - Which feature/module are you documenting?
-- Who will use this feature? (what audience)
+- Who will use this mission? (what audience)
 - What aspects need documentation? (getting started, common tasks, API details, architecture/design)
 
 **Why it matters**: Scopes documentation to just the feature, determines which Divio types apply.
@@ -145,7 +145,7 @@ After discovery questions answered, synthesize into Intent Summary:
 ```markdown
 ## Documentation Mission Intent
 
-**Iteration Mode**: [initial | gap-filling | feature-specific]
+**Iteration Mode**: [initial | gap-filling | mission-specific]
 **Primary Goal**: [Describe what user wants to accomplish]
 **Target Audience**: [Who will read these docs]
 **Selected Divio Types**: [tutorial, how-to, reference, explanation]
@@ -163,8 +163,8 @@ Confirm with user before proceeding.
 
 1. **Check discovery status**: If questions unanswered, ask one at a time (Discovery Gate above)
 
-2. **Generate feature directory**: Run `spec-kitty agent mission create-feature "doc-{project-name}" --json --mission documentation`
-   - Feature naming convention: `doc-{project-name}` or `docs-{feature-name}` for feature-specific
+2. **Generate mission directory**: Run `spec-kitty agent mission create-mission "doc-{project-name}" --json --mission documentation`
+   - Feature naming convention: `doc-{project-name}` or `docs-{feature-name}` for mission-specific
 
 3. **Create meta.json**: Include `mission: "documentation"` and `documentation_state` field:
 
@@ -224,4 +224,4 @@ Confirm with user before proceeding.
 - Discovery helps ensure documentation meets real needs
 - Gap analysis (if iterating) shows what's missing
 - Generator recommendations save manual API documentation work
-- Iteration mode affects workflow (initial vs gap-filling vs feature-specific)
+- Iteration mode affects workflow (initial vs gap-filling vs mission-specific)

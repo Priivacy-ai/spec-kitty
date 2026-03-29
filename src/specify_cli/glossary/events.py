@@ -1,4 +1,4 @@
-"""Event emission adapters for Feature 007 glossary events.
+"""Event emission adapters for Mission 007 glossary events.
 
 This module can persist events through two paths:
 
