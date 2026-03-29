@@ -310,7 +310,7 @@
 - [x] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
 - [x] T035 [P] Update `docs/reference/slash-commands.md` — replace `spec-kitty agent feature` invocations with `spec-kitty agent mission`
 - [x] T036 [P] Update `README.md` CLI examples (lines ~866–902) — replace `agent feature` with `agent mission`
-- [ ] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
+- [x] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
 - [ ] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
 - [ ] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
 - [ ] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
