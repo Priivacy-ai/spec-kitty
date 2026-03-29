@@ -1,0 +1,111 @@
+schema_version: "1.0"
+id: bounded-context-canvas-fill
+name: Bounded Context Canvas Fill
+purpose: >
+  Complete the ten-section Bounded Context Canvas for a specific bounded
+  context, producing a structured, one-page summary that captures its name,
+  purpose, strategic classification, domain roles, communication patterns,
+  ubiquitous language, business decisions, assumptions, verification
+  metrics, and open questions. The canvas is a collaborative tool for
+  aligning domain experts and engineers on what a bounded context is and
+  how it fits into the larger system. Based on the DDD Crew Bounded Context
+  Canvas v5.
+steps:
+  - title: "Section 1 — Name"
+    description: >
+      Give the bounded context a clear, unambiguous name drawn from the
+      ubiquitous language. The name should be meaningful to both domain
+      experts and developers. Avoid technical names (OrderService) in
+      favour of domain names (Order Management, Fulfilment, Pricing).
+  - title: "Section 2 — Purpose"
+    description: >
+      Write a one-to-three sentence description of what this bounded
+      context is responsible for and why it exists. Focus on business
+      capability, not technical implementation. The purpose statement
+      should be understandable by a non-technical stakeholder.
+    examples:
+      - "Pricing: Calculates premiums for insurance policies based on risk factors, actuarial tables, and customer history. Exists to enable competitive, accurate pricing."
+  - title: "Section 3 — Strategic Classification"
+    description: >
+      Classify the context as Core Domain, Supporting Subdomain, or
+      Generic Subdomain. Record the rationale and the implied investment
+      strategy (build in-house with top talent, build pragmatically, or
+      buy/outsource).
+  - title: "Section 4 — Domain Roles"
+    description: >
+      Identify the key domain roles (Aggregates, Entities, Value Objects,
+      Domain Services) that live inside this context. This section
+      connects the canvas to the tactical model.
+    examples:
+      - "Aggregates: Policy, Claim. Entities: PolicyHolder. Value Objects: Premium, CoverageLevel. Domain Service: PremiumCalculator."
+  - title: "Section 5 — Inbound Communication"
+    description: >
+      List the messages (commands, queries) that this context receives
+      from other contexts or external systems. For each message, note the
+      source context, the message name, and the integration pattern
+      (synchronous API call, event subscription, shared database).
+    examples:
+      - "From Sales: RequestQuote (sync API). From Underwriting: PolicyApproved (event)."
+  - title: "Section 6 — Outbound Communication"
+    description: >
+      List the messages (events, responses) that this context publishes
+      to other contexts or external systems. For each message, note the
+      target context(s) and integration pattern.
+    examples:
+      - "To Billing: PremiumCalculated (event). To Sales: QuoteResponse (sync response)."
+  - title: "Section 7 — Ubiquitous Language"
+    description: >
+      List the key terms and their definitions as used within this bounded
+      context. Highlight any terms that have a different meaning in other
+      contexts. This section makes the language boundary explicit.
+    examples:
+      - "Policy: a contract between insurer and policyholder (not a security policy or access policy)."
+  - title: "Section 8 — Business Decisions"
+    description: >
+      List the key business decisions and rules that this context
+      encapsulates. These are the invariants and policies that the context
+      enforces. The business decisions section reveals what makes this
+      context complex.
+    examples:
+      - "Premium must be recalculated when risk factors change. Discount cannot exceed 30% without underwriter approval."
+  - title: "Section 9 — Assumptions and Verification Metrics"
+    description: >
+      Record the assumptions that the context design is based on (e.g.,
+      "pricing calculations complete within 200ms") and the metrics that
+      will verify whether the context is meeting its purpose (e.g.,
+      "quote accuracy rate > 99.5%"). Link each assumption to a
+      verification mechanism.
+  - title: "Section 10 — Open Questions"
+    description: >
+      List unresolved questions that need investigation. Each question
+      should be assigned to a person and given a deadline. Open questions
+      prevent premature commitments and make uncertainty visible.
+    examples:
+      - "Q: Should we support multi-currency pricing in v1? Owner: Product. Due: Sprint 3 planning."
+failure_modes:
+  - "Incomplete canvas: filling only the easy sections (Name, Purpose) and skipping the valuable ones (Business Decisions, Open Questions)."
+  - "Solo exercise: filling the canvas alone instead of collaboratively with domain experts and engineers."
+  - "Copy-paste architecture: treating the canvas as a form to fill rather than a thinking tool to drive discussion."
+  - "Static artifact: completing the canvas once and never revisiting it as the context evolves."
+  - "Technical framing: writing the purpose and business decisions in technical terms that domain experts cannot validate."
+references:
+  - name: Strategic Domain Classification
+    type: tactic
+    id: strategic-domain-classification
+    when: Filling the Strategic Classification section of the canvas.
+  - name: Bounded Context Identification
+    type: tactic
+    id: bounded-context-identification
+    when: Contexts must be identified before their canvases can be filled.
+  - name: Context Mapping Classification
+    type: tactic
+    id: context-mapping-classification
+    when: Inbound and outbound communication sections reference context mapping patterns.
+  - name: Language-Driven Design
+    type: tactic
+    id: language-driven-design
+    when: Filling the Ubiquitous Language section of the canvas.
+  - name: Aggregate Boundary Design
+    type: tactic
+    id: aggregate-boundary-design
+    when: Filling the Domain Roles section with aggregates, entities, and value objects.
