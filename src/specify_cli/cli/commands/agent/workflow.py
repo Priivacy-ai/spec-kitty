@@ -416,19 +416,51 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Emit status event (canonical lane authority)
+            # Emit status events (canonical lane authority)
+            # Must follow allowed transitions: planned→claimed→in_progress
             try:
                 from specify_cli.status.emit import emit_status_transition
                 _impl_feature_dir = main_repo_root / "kitty-specs" / feature_slug
-                emit_status_transition(
-                    feature_dir=_impl_feature_dir,
-                    feature_slug=feature_slug,
-                    wp_id=normalized_wp_id,
-                    to_lane="in_progress",
-                    actor=agent or "unknown",
-                )
+                _actor = agent or "unknown"
+
+                if current_lane == "planned" or current_lane == "canceled":
+                    # Two-step: planned→claimed, claimed→in_progress
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="claimed",
+                        actor=_actor,
+                    )
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                    )
+                elif current_lane == "claimed":
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                    )
+                elif current_lane in ("for_review", "approved"):
+                    # Re-implementing after review — force back to in_progress
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                        force=True,
+                        reason="Re-implementing after review feedback",
+                    )
+                # If already in_progress/doing, no event needed
             except Exception as _evt_err:
-                logger.debug("Could not emit status event: %s", _evt_err)
+                logger.warning("Could not emit status event: %s", _evt_err)
 
             # Update operational metadata in frontmatter (NO lane — event log is sole authority)
             updated_front = wp.frontmatter
