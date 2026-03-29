@@ -86,6 +86,15 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - List known pitfalls, performance considerations, or failure modes.
 - Provide mitigation strategies or monitoring notes.
 
+## Integration Verification (mandatory before moving to for_review)
+
+Before marking this WP complete, verify:
+- [ ] New code is reachable from the live entry points (HTTP routes, CLI commands, etc.)
+- [ ] Old code paths this WP replaces are actually removed or redirected
+- [ ] Cross-reference field names, function signatures, and contracts against the spec/data-model
+- [ ] Tests verify the *contract* (what the spec says), not just the *implementation* (what you built)
+- [ ] Run the system end-to-end if possible, not just unit tests in isolation
+
 ## Review Guidance
 
 - Key acceptance checkpoints for `/spec-kitty.review`.
