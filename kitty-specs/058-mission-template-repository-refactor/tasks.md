@@ -550,7 +550,7 @@
 - WP04: done
 - WP05: done
 - WP06: done
-- WP07: for_review
+- WP07: in_review
 - WP08: in_review
 - WP11: done
 <!-- status-model:end -->
