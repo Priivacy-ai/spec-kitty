@@ -551,6 +551,6 @@
 - WP05: done
 - WP06: done
 - WP07: approved
-- WP08: in_review
+- WP08: approved
 - WP11: done
 <!-- status-model:end -->
